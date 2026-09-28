@@ -109,21 +109,4 @@ defmodule MediaCentaur.Acquisition.ViewModels.UnitBoardTest do
       assert season_two.expanded_default?
     end
   end
-
-  describe "default_expanded/1" do
-    test "collects the keys of groups that default open" do
-      rows =
-        season_rows(1, 2, state: :satisfied) ++
-          season_rows(2, 2) ++
-          [row(label: "S02E03", season_number: 2, state: :exhausted)]
-
-      expanded = rows |> UnitBoard.group_rows() |> UnitBoard.default_expanded()
-
-      assert expanded == MapSet.new(["2"])
-    end
-
-    test "nil groups (flat board) → empty set" do
-      assert UnitBoard.default_expanded(nil) == MapSet.new()
-    end
-  end
 end

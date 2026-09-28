@@ -50,13 +50,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     doc:
       "%UnitBoard{} | nil — per-unit drill-down for composite pursuits (ADR-055). Renders nothing for single-unit pursuits."
 
-  attr :board_expanded_seasons, MapSet,
-    default: nil,
-    doc: "Expanded season-group keys for the unit board. Nil = each group's exception-driven default."
-
-  attr :on_toggle_season, :string,
-    default: "toggle_board_season",
-    doc: "Season-header toggle event for the unit board's roll-up."
+  attr :disclosures, MapSet,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — the unit board's season groups."
 
   attr :client_url, :string,
     default: nil,
@@ -109,8 +105,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
           <UnitBoard.unit_board
             vm={@unit_board}
-            expanded_seasons={@board_expanded_seasons}
-            on_toggle_season={@on_toggle_season}
+            disclosures={@disclosures}
             on_change_target={@on_change_target}
           />
 

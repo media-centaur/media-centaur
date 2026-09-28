@@ -172,6 +172,35 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "a multi-file group's file list" do
+    # The list is a disclosure in the page's DisclosureState: it opens on
+    # its head and stays open while the page re-renders.
+    test "opens on its head to list the group's files", %{conn: conn} do
+      files =
+        for episode <- [1, 2] do
+          create_pending_file(%{
+            file_path: "/media/test/Sample Show/Season 1/Sample.Show.S01E0#{episode}.mkv",
+            parsed_title: "Sample Show",
+            parsed_type: "tv",
+            season_number: 1,
+            episode_number: episode
+          })
+        end
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      head = "[data-nav-group] > .disclosure-head[aria-controls^='review-files-']"
+      assert has_element?(view, head <> "[aria-expanded='false']")
+      refute has_element?(view, "#review-file-#{hd(files).id}")
+
+      view |> element(head) |> render_click()
+
+      assert has_element?(view, head <> "[aria-expanded='true']")
+      for file <- files, do: assert(has_element?(view, "#review-file-#{file.id}"))
+    end
+  end
+
   describe "search task failure" do
     test "a crashed TMDB search clears searching and tells the user", %{conn: conn} do
       create_pending_file(%{

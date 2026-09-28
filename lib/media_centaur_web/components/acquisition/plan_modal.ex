@@ -103,11 +103,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "MapSet of {season, episode} — the picker's chosen units (targeting stage)."
 
-  attr :expanded_seasons, :any,
-    default: nil,
-    doc:
-      "MapSet of season numbers the picker shows expanded (targeting stage) — nil/empty means every season collapsed."
-
   attr :movie, :any,
     default: nil,
     doc:
@@ -243,7 +238,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :if={@stage == :targeting && @selection}
           selection={@selection}
           chosen={@chosen || MapSet.new()}
-          expanded_seasons={@expanded_seasons || MapSet.new()}
+          disclosures={@disclosures}
           mode={@mode}
           menu_open={@menu_open}
           on_close={@on_close}
@@ -299,7 +294,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :selection, Targeting.Selection, required: true
   attr :chosen, :any, required: true, doc: "MapSet — typed at the public attr."
-  attr :expanded_seasons, :any, required: true, doc: "MapSet — typed at the public attr."
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
   attr :mode, :atom, required: true
   attr :menu_open, :boolean, required: true
   attr :on_close, :string, required: true
@@ -372,7 +367,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             season={season}
             selection={@selection}
             chosen={@chosen}
-            expanded={MapSet.member?(@expanded_seasons, season.season_number)}
+            disclosures={@disclosures}
           />
         </div>
       </div>
@@ -432,39 +427,42 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :season, Targeting.Season, required: true
   attr :selection, Targeting.Selection, required: true
   attr :chosen, :any, required: true, doc: "MapSet — typed at the public attr."
-  attr :expanded, :boolean, required: true
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
 
   defp season_row(assigns) do
+    id = "plan-season-#{assigns.selection.tmdb_id}-#{assigns.season.season_number}"
+    state = PlanLogic.season_state(assigns.chosen, assigns.selection, assigns.season)
+
     assigns =
-      assign(assigns, :state, PlanLogic.season_state(assigns.chosen, assigns.selection, assigns.season))
+      assigns
+      |> assign(:state, state)
+      |> assign(:id, id)
+      |> assign(:open, state != :disabled and DisclosureState.open?(assigns.disclosures, id))
 
     ~H"""
-    <div class={["glass-inset rounded-lg", @state == :disabled && "opacity-50"]}>
-      <div class="flex items-center gap-3 px-4 py-2.5">
+    <.disclosure
+      id={@id}
+      open={@open}
+      variant={:bare}
+      class={["glass-inset rounded-lg", @state == :disabled && "opacity-50"]}
+      row_class="flex items-center gap-3 px-4 py-2.5"
+      head_class="flex flex-1 min-w-0 items-center gap-3 text-left"
+      body_class="border-t border-base-content/5"
+      nav={if @state == :disabled, do: :none, else: :item}
+      disabled={@state == :disabled}
+    >
+      <:leading>
         <.tri_checkbox
           state={@state}
           phx-click="plan_toggle_season"
           phx-value-season={@season.season_number}
         />
-        <button
-          type="button"
-          class="flex flex-1 min-w-0 items-center gap-3 text-left"
-          phx-click="plan_toggle_season_expand"
-          phx-value-season={@season.season_number}
-          disabled={@state == :disabled}
-          data-nav-item={@state != :disabled}
-          tabindex={if @state == :disabled, do: "-1", else: "0"}
-        >
-          <span class="text-sm font-medium">Season {@season.season_number}</span>
-          <span class="text-sm text-base-content/55">{season_meta(@season)}</span>
-          <.icon
-            :if={@state != :disabled}
-            name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-            class="size-4 ml-auto text-base-content/40"
-          />
-        </button>
-      </div>
-      <ul :if={@state != :disabled && @expanded} class="border-t border-base-content/5">
+      </:leading>
+      <:head>
+        <span class="text-sm font-medium">Season {@season.season_number}</span>
+        <span class="text-sm text-base-content/55">{season_meta(@season)}</span>
+      </:head>
+      <ul>
         <li
           :for={episode <- @season.episodes}
           id={"plan-episode-#{episode.season_number}-#{episode.episode_number}"}
@@ -510,7 +508,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </span>
         </li>
       </ul>
-    </div>
+    </.disclosure>
     """
   end
 

@@ -103,8 +103,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
               }
             ]
           },
-          expanded_seasons: nil,
-          on_toggle_season: "toggle_board_season",
           on_change_target: "request_decision"
         }
       },

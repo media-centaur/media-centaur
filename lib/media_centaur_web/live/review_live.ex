@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Review.Events.GroupError
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.LiveHelpers
 
   @impl true
@@ -252,18 +253,14 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  def handle_event("toggle_files", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-    current = socket.assigns[:expanded_group]
-    expanded = if current != group_key, do: group_key
-    {:noreply, assign(socket, expanded_group: expanded)}
-  end
-
   # Resolves fresh (never cached — see `MediaCentaur.DeleteTargets`) whether
   # this group's files sit in a folder safe to delete wholesale. When they
   # do, the whole folder goes (nfo/txt/samples included) and Review only
   # has to clean up its own `PendingFile` rows afterward; otherwise each
   # file is deleted individually.
+  # One disclosure per group; the key is a term, so the id hashes it.
+  defp files_disclosure_id(group), do: "review-files-#{:erlang.phash2(group.key)}"
+
   defp report_errors(socket, 0, _verb), do: socket
 
   defp report_errors(socket, errors, verb),
@@ -489,7 +486,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               search_results={@search_results}
               searching={@searching}
               searched={@searched}
-              expanded={assigns[:expanded_group] == @selected_key}
+              disclosures={@disclosures}
               tmdb_ready={@tmdb_ready}
             />
             <div
@@ -712,7 +709,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           :if={@file_count > 1}
           group={@group}
           file_count={@file_count}
-          expanded={@expanded}
+          disclosures={@disclosures}
           encoded_key={@encoded_key}
         />
 
@@ -871,42 +868,40 @@ defmodule MediaCentaurWeb.ReviewLive do
   # Collapsible episode list for multi-file groups.
   defp episode_list(assigns) do
     ~H"""
-    <div class="space-y-2">
-      <.button
-        variant="dismiss"
-        size="sm"
-        class="gap-1"
-        phx-click="toggle_files"
-        phx-value-key={@encoded_key}
-      >
+    <.disclosure
+      id={files_disclosure_id(@group)}
+      open={DisclosureState.open?(@disclosures, files_disclosure_id(@group))}
+      variant={:bare}
+      class="space-y-2"
+      head_class="inline-flex items-center gap-1"
+      body_class="glass-inset rounded-lg p-3"
+    >
+      <:head>
         <.badge>{@file_count} episodes</.badge>
-        <.icon name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"} class="size-4" />
-      </.button>
-      <div :if={@expanded} class="glass-inset rounded-lg p-3">
-        <ul class="space-y-1">
-          <li
-            :for={file <- @group.files}
-            id={"review-file-#{file.id}"}
-            class="flex items-center gap-2"
+      </:head>
+      <ul class="space-y-1">
+        <li
+          :for={file <- @group.files}
+          id={"review-file-#{file.id}"}
+          class="flex items-center gap-2"
+        >
+          <.badge
+            :if={file.season_number && file.episode_number}
+            variant="ghost"
+            size="xs"
+            class="font-mono"
           >
-            <.badge
-              :if={file.season_number && file.episode_number}
-              variant="ghost"
-              size="xs"
-              class="font-mono"
-            >
-              S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
-            </.badge>
-            <span
-              class="font-mono text-xs text-base-content/70 truncate-left"
-              title={relative_file_path(file)}
-            >
-              <bdo dir="ltr">{relative_file_path(file)}</bdo>
-            </span>
-          </li>
-        </ul>
-      </div>
-    </div>
+            S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
+          </.badge>
+          <span
+            class="font-mono text-xs text-base-content/70 truncate-left"
+            title={relative_file_path(file)}
+          >
+            <bdo dir="ltr">{relative_file_path(file)}</bdo>
+          </span>
+        </li>
+      </ul>
+    </.disclosure>
     """
   end
 

@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   Per ADR-030 (LiveView logic extraction).
   """
 
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaur.Format
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Downloads.{Health, QueueItem}
@@ -581,6 +582,14 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   end
 
   @doc """
+  The disclosure id of the pursuit group bucketed under `key`
+  (`{title, state, awaiting?}`). Stable for as long as the bucket is, so a
+  group stays open while members come and go.
+  """
+  @spec pursuit_group_id({String.t(), atom(), boolean()}) :: String.t()
+  def pursuit_group_id(key), do: "pursuit-group-#{:erlang.phash2(key)}"
+
+  @doc """
   Groups `PursuitRow` view-models by `{title, state}`. Buckets of size
   1 become `{:single, vm}`; buckets of size ≥2 become `{:group, data}`
   where `data` carries the count, the severity-colored verb, and the
@@ -601,18 +610,19 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
           verb: String.t(),
           severity: atom(),
           count: pos_integer(),
+          id: String.t(),
           expanded?: boolean(),
           vms: [MediaCentaur.Acquisition.ViewModels.PursuitRow.t()]
         }
 
   @spec group_pursuit_rows(
           [MediaCentaur.Acquisition.ViewModels.PursuitRow.t()],
-          MapSet.t({String.t(), atom(), boolean()})
+          DisclosureState.t()
         ) :: [
           {:single, MediaCentaur.Acquisition.ViewModels.PursuitRow.t()}
           | {:group, pursuit_group_data()}
         ]
-  def group_pursuit_rows(rows, expanded_groups) when is_list(rows) do
+  def group_pursuit_rows(rows, disclosures) when is_list(rows) do
     # Build buckets by prepending into each bucket's list and prepending
     # the key into a separate order list — both O(1) per row. Reverse
     # once at the end to restore insertion order. The previous shape
@@ -645,16 +655,18 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
         [first | _] = many ->
           {title, state, awaiting?} = key
+          id = pursuit_group_id(key)
 
           {:group,
            %{
+             id: id,
              title: title,
              state: state,
              awaiting?: awaiting?,
              verb: first.status.verb,
              severity: first.status.severity,
              count: length(many),
-             expanded?: MapSet.member?(expanded_groups, key),
+             expanded?: DisclosureState.open?(disclosures, id),
              vms: many
            }}
       end

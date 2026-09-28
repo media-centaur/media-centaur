@@ -118,16 +118,16 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # Both season headers render; the homogeneous season 1 is
       # collapsed (rows out of the DOM), the exceptional season 2 is
       # expanded by default.
-      assert has_element?(view, "#unit-board-season-1")
-      assert has_element?(view, "#unit-board-season-2")
+      assert has_element?(view, "#unit-board-#{pursuit.id}-1-head")
+      assert has_element?(view, "#unit-board-#{pursuit.id}-2-head")
       refute has_element?(view, "#unit-board-row-#{season_one_unit.id}")
       assert has_element?(view, "#unit-board-row-#{season_two_unit.id}")
 
       # Toggling season 1 reveals its rows; toggling again hides them.
-      view |> element("#unit-board-season-1") |> render_click()
+      view |> element("#unit-board-#{pursuit.id}-1-head") |> render_click()
       assert has_element?(view, "#unit-board-row-#{season_one_unit.id}")
 
-      view |> element("#unit-board-season-1") |> render_click()
+      view |> element("#unit-board-#{pursuit.id}-1-head") |> render_click()
       refute has_element?(view, "#unit-board-row-#{season_one_unit.id}")
     end
 
@@ -187,17 +187,17 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # so a whole-page substring probe would false-positive.
       assert html =~ "Sample Show"
       assert html =~ "2 episodes"
-      assert has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-right-mini")
-      refute has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-down-mini")
+      head = "section[data-nav-zone='pursuits'] [data-nav-group] > .disclosure-head"
+      assert has_element?(view, head <> "[aria-expanded='false']")
 
       # Click the actual rendered header — this exercises whatever
       # `phx-value-*` attrs the component emits, not a hand-crafted
       # event payload.
       view
-      |> element("[phx-click='toggle_pursuit_group']")
+      |> element(head)
       |> render_click()
 
-      assert has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-down-mini")
+      assert has_element?(view, head <> "[aria-expanded='true']")
     end
 
     test "awaiting-decision modal opens without blocking on Prowlarr (ADR-044)", %{conn: conn} do

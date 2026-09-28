@@ -30,6 +30,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitGroup do
         id: :collapsed_two_episodes,
         description: "Smallest group — exactly 2 episodes in the same state.",
         attributes: %{
+          id: "story-pursuit-group-1",
           title: "Sample Show",
           state: :active,
           awaiting?: false,
@@ -48,6 +49,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitGroup do
         description:
           "Larger group expanded — the case the user hit. Header shows count and verb; per-episode compact rows render below.",
         attributes: %{
+          id: "story-pursuit-group-2",
           title: "Sample Show",
           state: :active,
           awaiting?: false,
@@ -65,6 +67,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitGroup do
         id: :collapsed_decision_needed,
         description: "Same-show pursuits all awaiting user decision — warning severity.",
         attributes: %{
+          id: "story-pursuit-group-3",
           title: "Sample Show",
           state: :active,
           awaiting?: true,
@@ -83,6 +86,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitGroup do
         id: :expanded_exhausted_history,
         description: "Group of failed pursuits in the History zone, expanded.",
         attributes: %{
+          id: "story-pursuit-group-4",
           title: "Sample Show",
           state: :exhausted,
           awaiting?: false,

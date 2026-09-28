@@ -81,7 +81,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           backdrop_url: @sample_backdrop,
           selection: selection(),
           chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new([1])|},
+          disclosures: {:eval, ~s|MapSet.new(["plan-season-246810-1"])|},
           mode: :manually_select_release
         }
       },
@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           backdrop_url: @sample_backdrop,
           selection: selection(),
           chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new()|},
+          disclosures: {:eval, ~s|MapSet.new()|},
           mode: :auto_select_best_release,
           menu_open: true
         }
@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :targeting,
           selection: selection(),
           chosen: {:eval, ~s|MapSet.new([{1, 2}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new()|},
+          disclosures: {:eval, ~s|MapSet.new()|},
           mode: :manually_select_release
         }
       },

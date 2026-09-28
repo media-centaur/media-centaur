@@ -210,7 +210,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          queue_connectivity: :initializing,
          queue_last_success_at: nil,
          queue_loaded?: false,
-         board_expanded_seasons: nil,
          pending_cancels: %{},
          history_filter: :failed,
          history_search: "",
@@ -219,7 +218,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          history_week_only?: true,
          history_has_older?: false,
          pursuit_rows: [],
-         expanded_pursuit_groups: MapSet.new(),
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
@@ -238,7 +236,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_menu_open?: false,
          plan_selection: nil,
          plan_chosen: MapSet.new(),
-         plan_expanded_seasons: MapSet.new(),
          plan_movie: nil,
          plan_board: nil,
          plan_gap_verdict: nil,
@@ -589,10 +586,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     else
       socket
       |> assign(:selected_pursuit_id, id)
-      # Nil = "use each season group's exception-driven default" until
-      # the user toggles; reset per pursuit so one show's toggles don't
-      # leak into the next.
-      |> assign(:board_expanded_seasons, nil)
       |> load_pursuit_detail()
     end
   end
@@ -601,7 +594,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     if socket.assigns.selected_pursuit_id == nil do
       socket
     else
-      assign(socket, selected_pursuit_id: nil, pursuit_detail: nil, board_expanded_seasons: nil)
+      assign(socket, selected_pursuit_id: nil, pursuit_detail: nil)
     end
   end
 
@@ -706,12 +699,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     active_compact =
       Logic.group_pursuit_rows(
         Enum.map(undownloaded_pwd, & &1.row),
-        assigns.expanded_pursuit_groups
+        assigns.disclosures
       )
 
     history_sections =
       assigns.history_rows
-      |> Logic.group_pursuit_rows(assigns.expanded_pursuit_groups)
+      |> Logic.group_pursuit_rows(assigns.disclosures)
       |> HistoryLogic.section_entries(assigns.today)
 
     assigns =
@@ -782,7 +775,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           identity={@plan_identity}
           selection={@plan_selection}
           chosen={@plan_chosen}
-          expanded_seasons={@plan_expanded_seasons}
           movie={@plan_movie}
           board={@plan_board}
           error={@plan_error}
@@ -805,7 +797,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           status={@pursuit_detail && @pursuit_detail.status}
           timeline={@pursuit_detail && @pursuit_detail.timeline}
           unit_board={@pursuit_detail && @pursuit_detail.unit_board}
-          board_expanded_seasons={@board_expanded_seasons}
+          disclosures={@disclosures}
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
@@ -1208,13 +1200,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       )
 
     {:noreply, assign(socket, plan_chosen: chosen)}
-  end
-
-  def handle_event("plan_toggle_season_expand", %{"season" => season}, socket) do
-    expanded =
-      PlanLogic.toggle_expanded(socket.assigns.plan_expanded_seasons, String.to_integer(season))
-
-    {:noreply, assign(socket, plan_expanded_seasons: expanded)}
   end
 
   def handle_event("plan_toggle_unit", %{"season" => season, "episode" => episode}, socket) do
@@ -1663,38 +1648,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Group expand/collapse. Toggles membership of
-  # `{title, state, awaiting?}` in the socket-local
-  # `expanded_pursuit_groups` MapSet. The 3-tuple matches the bucket key
-  # `Logic.group_pursuit_rows/2` uses to separate awaiting-decision
-  # pursuits from regular active ones — same `{title, state}` pair can
-  # appear in two distinct buckets, so the expanded set must
-  # discriminate.
-  #
-  # `String.to_existing_atom/1` is safe here because the only emitter is
-  # the `PursuitGroup` component, which renders `Atom.to_string(state)`
-  # from a closed enum (`Pursuits.State`). An adversarial value just
-  # falls through to ArgumentError, which we let crash the event —
-  # there's no graceful render for "user fabricated a state we don't
-  # know about".
-  def handle_event(
-        "toggle_pursuit_group",
-        %{"title" => title, "state" => state, "awaiting" => awaiting},
-        socket
-      ) do
-    key = {title, String.to_existing_atom(state), awaiting == "true"}
-    expanded = socket.assigns.expanded_pursuit_groups
-
-    next =
-      if MapSet.member?(expanded, key) do
-        MapSet.delete(expanded, key)
-      else
-        MapSet.put(expanded, key)
-      end
-
-    {:noreply, assign(socket, expanded_pursuit_groups: next)}
-  end
-
   # Pursuit detail modal — open / close via URL.
 
   def handle_event("select_pursuit", %{"id" => id}, socket) do
@@ -1715,27 +1668,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:fire, socket} when socket.assigns.selected_pursuit_id != nil -> cancel_pursuit(socket)
       {_outcome, socket} -> {:noreply, socket}
     end
-  end
-
-  def handle_event("toggle_board_season", %{"season" => season_key}, socket) do
-    # First toggle materializes the nil "use defaults" sentinel into the
-    # default set, then flips — so the user's click composes with the
-    # exception-driven defaults instead of discarding them.
-    groups =
-      case socket.assigns.pursuit_detail do
-        %{unit_board: %ViewModels.UnitBoard{groups: groups}} -> groups
-        _detail -> nil
-      end
-
-    expanded =
-      socket.assigns.board_expanded_seasons || ViewModels.UnitBoard.default_expanded(groups)
-
-    expanded =
-      if MapSet.member?(expanded, season_key),
-        do: MapSet.delete(expanded, season_key),
-        else: MapSet.put(expanded, season_key)
-
-    {:noreply, assign(socket, :board_expanded_seasons, expanded)}
   end
 
   def handle_event("request_decision", params, socket) do
@@ -2646,7 +2578,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         plan_gap_verdict: nil,
         plan_rejected: nil,
         plan_chosen: MapSet.new(),
-        plan_expanded_seasons: MapSet.new(),
         plan_error: nil,
         plan_identity: matching_plan_identity(socket, tmdb_id, tmdb_type),
         plan_artwork: nil
@@ -2964,6 +2895,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             verb={data.verb}
             severity={data.severity}
             vms={data.vms}
+            id={data.id}
             expanded?={data.expanded?}
           />
       <% end %>

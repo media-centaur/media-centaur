@@ -414,8 +414,8 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, push_patch(socket, to: status_path(subsystem, nil))}
   end
 
-  # Expanding is what subscribes — an assign rather than a `<details>`,
-  # because opening the tile must not spawn `journalctl` for a passer-by.
+  # Expanding is what subscribes — a host-owned disclosure, because
+  # opening the tile must not spawn `journalctl` for a passer-by.
   def handle_event("toggle_journal", _params, socket) do
     was = socket.assigns.journal_open
     {:noreply, apply_journal(socket, was, not was)}

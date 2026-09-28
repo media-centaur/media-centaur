@@ -11,8 +11,8 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   Rows arrive pre-bucketed into date sections (`HistoryLogic.
   section_entries/2` — Today / Yesterday / This week / month names) so
   a long archive scans by time landmark. Rows speak outcome-first:
-  severity dot, title (episode clusters as a `toggle_pursuit_group`
-  disclosure, members within), the composite "N of M" chip where it
+  severity dot, title (episode clusters as a `disclosure/1`, members
+  within), the composite "N of M" chip where it
   exists, one colored outcome word, relative time. The status
   *sentence* renders only where it informs — failures and partials
   carry their diagnostics; "Landed"/"Cancelled" need no elaboration.
@@ -30,6 +30,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
+  import MediaCentaurWeb.Components.Disclosure
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.Format
@@ -200,34 +201,27 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
     assigns = assign(assigns, :latest, HistoryLogic.latest_time(assigns.data.vms))
 
     ~H"""
-    <div
-      class="grid cursor-pointer grid-cols-[10px_minmax(0,1fr)_auto_auto_auto] items-baseline gap-3 rounded px-1 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.04]"
-      role="button"
-      phx-click="toggle_pursuit_group"
-      phx-value-title={@data.title}
-      phx-value-state={Atom.to_string(@data.state)}
-      phx-value-awaiting={to_string(@data.awaiting?)}
-      data-nav-item
-      tabindex="0"
+    <.disclosure
+      id={@data.id}
+      open={@data.expanded?}
+      variant={:bare}
+      head_class="grid w-full grid-cols-[10px_minmax(0,1fr)_auto_auto_auto] items-baseline gap-3 rounded px-1 py-1.5 text-left text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.04]"
+      caret_class="size-3.5 self-center text-base-content/40"
     >
-      <.icon
-        name={if @data.expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-        class="size-3.5 self-center text-base-content/40"
-      />
-      <span class="min-w-0 truncate">{@data.title}</span>
-      <span class="whitespace-nowrap text-xs tabular-nums text-base-content/55">
-        {@data.count} {episode_word(@data.count)}
-      </span>
-      <span class={["whitespace-nowrap text-xs", outcome_class(@data.state)]}>
-        {outcome_label(@data.state)}
-      </span>
-      <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/55">
-        {if @latest, do: Format.relative_ago(@latest)}
-      </span>
-    </div>
-    <div :if={@data.expanded?}>
+      <:head>
+        <span class="min-w-0 truncate">{@data.title}</span>
+        <span class="whitespace-nowrap text-xs tabular-nums text-base-content/55">
+          {@data.count} {episode_word(@data.count)}
+        </span>
+        <span class={["whitespace-nowrap text-xs", outcome_class(@data.state)]}>
+          {outcome_label(@data.state)}
+        </span>
+        <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/55">
+          {if @latest, do: Format.relative_ago(@latest)}
+        </span>
+      </:head>
       <.history_row :for={vm <- @data.vms} vm={vm} indent />
-    </div>
+    </.disclosure>
     """
   end
 
