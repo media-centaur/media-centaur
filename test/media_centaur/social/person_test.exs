@@ -49,7 +49,11 @@ defmodule MediaCentaur.Social.PersonTest do
       {:ok, _profile} =
         Social.ingest_profile(
           Event.sign(
-            Translation.to_event("One", %{type: "image/webp", bytes: @webp}, @signer, 1_700_000_000),
+            Translation.to_event(
+              %{name: "One", avatar: %{type: "image/webp", bytes: @webp}},
+              @signer,
+              1_700_000_000
+            ),
             @signer_secret
           )
         )

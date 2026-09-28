@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Social.Profile do
   @moduledoc """
-  What a public key published about itself (ADR-073): its name and
-  its avatar's type, or nothing yet. The decoded avatar bytes live in
+  What a public key published about itself (ADR-073): its name, its
+  avatar's type and its hue, or nothing yet. The decoded avatar bytes live in
   `AvatarStore`'s file, never in a column. One row per known key,
   replaced whole by a newer event; `raw_event` is the signed wire form
   the own-events diff republishes, avatar included, `created_at` the
@@ -22,6 +22,7 @@ defmodule MediaCentaur.Social.Profile do
     field :pubkey, :string
     field :name, :string
     field :avatar_type, :string
+    field :hue, :integer
     field :raw_event, :map
     field :created_at, :integer
 
@@ -34,8 +35,9 @@ defmodule MediaCentaur.Social.Profile do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(profile \\ %__MODULE__{}, attrs) do
     profile
-    |> cast(attrs, [:pubkey, :name, :avatar_type, :raw_event, :created_at])
+    |> cast(attrs, [:pubkey, :name, :avatar_type, :hue, :raw_event, :created_at])
     |> validate_required([:pubkey, :raw_event, :created_at])
+    |> validate_number(:hue, greater_than_or_equal_to: 0, less_than_or_equal_to: 359)
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)
     |> unique_constraint(:pubkey)
   end

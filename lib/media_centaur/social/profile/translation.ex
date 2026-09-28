@@ -21,9 +21,14 @@ defmodule MediaCentaur.Social.Profile.Translation do
   `avatar_bytes`, and they go to a file, never to a column; the row's
   `raw_event` still carries the wire form, avatar included, for
   republish.
+
+  The hue is the optional integer field `"hue"`, 0–359 (`Social.Hue`),
+  absent or null when the key gives none; a float, a string or an
+  integer out of range drops the whole profile.
   """
 
   alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Social.Hue
 
   @kind 12_160
   @content_version 1
@@ -38,11 +43,18 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @max_avatar_bytes 64 * 1024
 
   @type avatar :: %{type: String.t(), bytes: binary()}
+  @typedoc "The content a sender gives, one map: a nil or absent field is left off the wire."
+  @type fields :: %{
+          optional(:name) => String.t() | nil,
+          optional(:avatar) => avatar() | nil,
+          optional(:hue) => Hue.t() | nil
+        }
   @type attrs :: %{
           pubkey: String.t(),
           name: String.t() | nil,
           avatar_type: String.t() | nil,
           avatar_bytes: binary() | nil,
+          hue: Hue.t() | nil,
           raw_event: map(),
           created_at: non_neg_integer()
         }
@@ -67,13 +79,14 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @spec master_type() :: String.t()
   def master_type, do: "image/webp"
 
-  @doc "An unsigned profile event for `pubkey` at `created_at`; a nil name or avatar is left off the wire."
-  @spec to_event(String.t() | nil, avatar() | nil, String.t(), non_neg_integer()) :: Event.t()
-  def to_event(name, avatar, pubkey, created_at) do
+  @doc "An unsigned profile event for `pubkey` at `created_at` carrying `fields`; a nil or absent field is left off the wire."
+  @spec to_event(fields(), String.t(), non_neg_integer()) :: Event.t()
+  def to_event(fields, pubkey, created_at) when is_map(fields) do
     content =
       %{"v" => @content_version}
-      |> put_present("name", name)
-      |> put_present("avatar", avatar && %{"type" => avatar.type, "data" => Base.encode64(avatar.bytes)})
+      |> put_present("name", fields[:name])
+      |> put_present("avatar", encode_avatar(fields[:avatar]))
+      |> put_present("hue", fields[:hue])
 
     Event.new(%{
       pubkey: pubkey,
@@ -91,13 +104,15 @@ defmodule MediaCentaur.Social.Profile.Translation do
     with {:ok, content} <- decode(event.content),
          :ok <- check_version(content),
          {:ok, name} <- read_name(content),
-         {:ok, avatar} <- read_avatar(content) do
+         {:ok, avatar} <- read_avatar(content),
+         {:ok, hue} <- read_hue(content) do
       {:ok,
        %{
          pubkey: event.pubkey,
          name: name,
          avatar_type: avatar && avatar.type,
          avatar_bytes: avatar && avatar.bytes,
+         hue: hue,
          raw_event: Event.to_map(event),
          created_at: event.created_at
        }}
@@ -108,6 +123,9 @@ defmodule MediaCentaur.Social.Profile.Translation do
 
   defp put_present(map, _key, nil), do: map
   defp put_present(map, key, value), do: Map.put(map, key, value)
+
+  defp encode_avatar(nil), do: nil
+  defp encode_avatar(avatar), do: %{"type" => avatar.type, "data" => Base.encode64(avatar.bytes)}
 
   defp decode(content) do
     case Jason.decode(content) do
@@ -153,6 +171,15 @@ defmodule MediaCentaur.Social.Profile.Translation do
   defp read_avatar(%{"avatar" => nil}), do: {:ok, nil}
   defp read_avatar(%{"avatar" => _wrong_shape}), do: {:error, :bad_content}
   defp read_avatar(_absent), do: {:ok, nil}
+
+  # An integer angle on the ring, or none. Jason gives `195.0` as a float,
+  # which is not an integer and drops the profile like a string would.
+  defp read_hue(%{"hue" => hue}) when is_integer(hue),
+    do: if(Hue.valid?(hue), do: {:ok, hue}, else: {:error, :bad_content})
+
+  defp read_hue(%{"hue" => nil}), do: {:ok, nil}
+  defp read_hue(%{"hue" => _not_an_angle}), do: {:error, :bad_content}
+  defp read_hue(_absent), do: {:ok, nil}
 
   # Every mark of the type sits at its offset.
   defp signature?(bytes, marks) do

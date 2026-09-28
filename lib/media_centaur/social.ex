@@ -12,6 +12,7 @@ defmodule MediaCentaur.Social do
       Events.RelayAdded,
       Events.RelayRemoved,
       Friend,
+      Hue,
       Identity,
       Person,
       Profile,
@@ -255,7 +256,10 @@ defmodule MediaCentaur.Social do
       stored = Repo.get_by(Profile, pubkey: me)
       avatar = resolve_avatar(avatar_change, stored)
       created_at = Event.stamp_after(stored && stored.created_at, System.os_time(:second))
-      event = name |> ProfileTranslation.to_event(avatar, me, created_at) |> Event.sign(secret)
+
+      event =
+        Event.sign(ProfileTranslation.to_event(%{name: name, avatar: avatar}, me, created_at), secret)
+
       {:ok, attrs} = ProfileTranslation.from_event(event)
       profile = store_profile(stored, attrs)
       Connections.publish(event)
