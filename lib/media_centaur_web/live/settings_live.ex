@@ -381,14 +381,15 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # What the save does with the avatar (`Social.avatar_change/0`): the
-  # chosen file becomes the 256×256 master under the wire cap, Remove
-  # means none, neither means keep. A chosen file wins over a pending
-  # Remove. The entry is consumed either way, so a file libvips cannot
-  # open leaves nothing pending.
-  defp avatar_change(socket) do
+  # chosen file becomes the 256×256 master under the wire cap, cut at
+  # the person's square, else the centre; Remove means none, neither
+  # means keep. A chosen file wins over a pending Remove. The entry is
+  # consumed either way, so a file libvips cannot open leaves nothing
+  # pending.
+  defp avatar_change(socket, crop) do
     masters =
       consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry ->
-        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes(), crop: nil) do
+        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes(), crop: crop) do
           {:ok, bytes} -> {:ok, {:new, bytes}}
           {:error, :too_large} -> {:ok, :too_large}
           {:error, _reason} -> {:ok, :bad_image}
@@ -401,6 +402,18 @@ defmodule MediaCentaurWeb.SettingsLive do
       {[{:new, bytes}], _removed?} -> {:ok, {:new, bytes}}
       {[], true} -> {:ok, :none}
       {[], false} -> {:ok, :keep}
+    end
+  end
+
+  # The square the person dragged over the picture, as the form's three
+  # fields; empty, missing or malformed is nil, the centre square.
+  defp crop_from_params(params) do
+    with {x, ""} <- Integer.parse(Map.get(params, "crop_x", "")),
+         {y, ""} <- Integer.parse(Map.get(params, "crop_y", "")),
+         {side, ""} <- Integer.parse(Map.get(params, "crop_side", "")) do
+      {x, y, side}
+    else
+      _empty_or_bad -> nil
     end
   end
 
@@ -976,9 +989,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   # cards appear with it. The name is checked before the chosen picture
   # is consumed, so a name error leaves the picture pending for the
   # next save instead of dropping it.
-  def handle_event("save_profile", %{"name" => name}, socket) do
+  def handle_event("save_profile", %{"name" => name} = params, socket) do
     with {:ok, _name} <- Social.check_name(name),
-         {:ok, avatar} <- avatar_change(socket),
+         {:ok, avatar} <- avatar_change(socket, crop_from_params(params)),
          {:ok, profile} <- Social.save_profile(name, avatar, socket.assigns.profile_hue) do
       {:noreply,
        socket

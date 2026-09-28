@@ -222,6 +222,80 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, "#profile-form input[name='name'].max-w-64")
       refute has_element?(view, "#profile-form input[name='name'].flex-1")
     end
+
+    test "a chosen picture gets a crop stage with the box's fields and two previews; Cancel removes it",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+      {:ok, img} = Image.new(400, 300, color: :blue)
+      {:ok, png} = Image.write(img, :memory, suffix: ".png")
+
+      refute has_element?(view, "#profile-form [phx-hook='AvatarCrop']")
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [%{name: "me.png", content: png, type: "image/png"}])
+
+      render_upload(upload, "me.png")
+
+      stage = "#profile-form [phx-hook='AvatarCrop'][phx-update='ignore']"
+      assert has_element?(view, stage <> " img[data-role='source']")
+      assert has_element?(view, stage <> " input[type='hidden'][name='crop_x']")
+      assert has_element?(view, stage <> " input[type='hidden'][name='crop_y']")
+      assert has_element?(view, stage <> " input[type='hidden'][name='crop_side']")
+      assert has_element?(view, stage <> " canvas[data-role='preview'][width='48']")
+      assert has_element?(view, stage <> " canvas[data-role='preview'][width='40']")
+      assert has_element?(view, stage <> " .identity-tile.identity-tile-own.identity-tile-avatar")
+      assert render(view) =~ "How it will look"
+
+      view |> element("#profile-form button", "Cancel") |> render_click()
+      refute has_element?(view, "#profile-form [phx-hook='AvatarCrop']")
+    end
+
+    test "Save cuts the square the fields name; without them, the centre", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+      {:ok, red} = Image.new(200, 200, color: :red)
+      {:ok, blue} = Image.new(200, 200, color: :blue)
+      {:ok, halves} = Vix.Vips.Operation.join(red, blue, :VIPS_DIRECTION_HORIZONTAL)
+      {:ok, png} = Image.write(halves, :memory, suffix: ".png")
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "halves.png", content: png, type: "image/png"}
+        ])
+
+      render_upload(upload, "halves.png")
+
+      # The hook writes the box into the hidden fields; `form/3` refuses a
+      # hidden value, so the box goes in as `render_submit/2`'s value,
+      # which is the documented route for hidden inputs.
+      view
+      |> form("#profile-form", %{"name" => "Sample Name"})
+      |> render_submit(%{"crop_x" => "200", "crop_y" => "0", "crop_side" => "200"})
+
+      me = Identity.pubkey()
+      {:ok, bytes} = AvatarStore.read(me, "image/webp")
+      {:ok, master} = Image.from_binary(bytes)
+      {:ok, [r, _g, b | _]} = Image.get_pixel(master, 128, 128)
+      assert round(b) == 255 and round(r) == 0
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "halves.png", content: png, type: "image/png"}
+        ])
+
+      render_upload(upload, "halves.png")
+
+      view
+      |> form("#profile-form", %{"name" => "Sample Name"})
+      |> render_submit(%{"crop_x" => "", "crop_y" => "", "crop_side" => ""})
+
+      {:ok, bytes} = AvatarStore.read(me, "image/webp")
+      {:ok, master} = Image.from_binary(bytes)
+      {:ok, [r, _g, _b | _]} = Image.get_pixel(master, 64, 128)
+      {:ok, [_r, _g, b | _]} = Image.get_pixel(master, 192, 128)
+      assert round(r) == 255 and round(b) == 255
+    end
   end
 
   defp png_to_webp(png) do

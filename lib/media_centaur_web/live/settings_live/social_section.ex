@@ -10,7 +10,16 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   letter while a Remove is pending), the file input takes one JPEG, PNG
   or WebP, and the save turns it into the 256×256 WebP master or, after
   Remove, clears it; Remove steps aside while a file is chosen, since
-  the chosen file is what the save publishes. Your identity — the npub with a
+  the chosen file is what the save publishes. While a file is chosen the
+  Picture field carries the crop stage: the entry's `live_img_preview`
+  under the `AvatarCrop` hook (croppr, vendored), which draws a square
+  box over it and writes the box into three hidden fields — `crop_x`,
+  `crop_y`, `crop_side`, in the picture's oriented pixels — that ride
+  the form's submit; below it, two canvases wearing the own tile's
+  avatar recipe in the pending hue show how the tile will look. Cancel
+  removes the stage. The box is set by pointer until the input system
+  learns one (arrows on a focused element are navigation today), as the
+  hue slider's is. Your identity — the npub with a
   copy control, and behind a disclosure the secret key with reveal and
   copy plus the two-click import that replaces the identity. Relays —
   one connection row per relay (its live state from
@@ -81,7 +90,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           <div class="flex flex-wrap gap-x-8">
             <.settings_field
               label="Picture"
-              description="Shown in your circle. One JPEG, PNG or WebP."
+              description="Shown in your circle. One JPEG, PNG or WebP; drag the square to choose what shows."
               layout={:stacked}
               class="w-72 shrink-0"
             >
@@ -118,26 +127,59 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               <p :for={err <- upload_errors(@uploads.avatar)} class="mt-2 text-xs text-error">
                 {upload_error_words(err, @uploads.avatar)}
               </p>
-              <p
+              <div
                 :for={entry <- @uploads.avatar.entries}
-                class="mt-2 flex items-center gap-2 text-xs text-base-content/60"
+                class="mt-3 space-y-3"
+                data-role="pending-picture"
               >
-                <span class="truncate">{entry.client_name}</span>
-                <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
-                  {upload_error_words(err, @uploads.avatar)}
-                </span>
-                <.button
-                  type="button"
-                  variant="dismiss"
-                  size="xs"
-                  phx-click="cancel_avatar"
-                  phx-value-ref={entry.ref}
-                  data-nav-item
-                  tabindex="0"
+                <div
+                  id={"avatar-crop-#{entry.ref}"}
+                  phx-hook="AvatarCrop"
+                  phx-update="ignore"
+                  class="avatar-crop"
                 >
-                  Cancel
-                </.button>
-              </p>
+                  <div class="avatar-crop-stage">
+                    <.live_img_preview entry={entry} data-role="source" alt="" />
+                  </div>
+                  <input type="hidden" name="crop_x" value="" />
+                  <input type="hidden" name="crop_y" value="" />
+                  <input type="hidden" name="crop_side" value="" />
+                  <div class="mt-3 flex items-center gap-3">
+                    <span
+                      class="identity-tile identity-tile-own identity-tile-avatar relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full"
+                      {IdentityTile.hue_style(@profile_hue)}
+                      aria-hidden="true"
+                    >
+                      <canvas data-role="preview" width="48" height="48" class="size-full"></canvas>
+                    </span>
+                    <span
+                      class="identity-tile identity-tile-own identity-tile-avatar relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full"
+                      {IdentityTile.hue_style(@profile_hue)}
+                      aria-hidden="true"
+                    >
+                      <canvas data-role="preview" width="40" height="40" class="size-full"></canvas>
+                    </span>
+                    <span class="text-xs text-base-content/60">How it will look</span>
+                  </div>
+                </div>
+                <p class="flex items-center gap-2 text-xs text-base-content/60">
+                  <span class="truncate">{entry.client_name}</span>
+                  <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
+                    {upload_error_words(err, @uploads.avatar)}
+                  </span>
+                  <.button
+                    type="button"
+                    variant="dismiss"
+                    size="xs"
+                    phx-click="cancel_avatar"
+                    phx-value-ref={entry.ref}
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    Cancel
+                  </.button>
+                </p>
+              </div>
             </.settings_field>
             <div class="min-w-0 grow basis-64">
               <.settings_field label="Name" layout={:stacked}>
