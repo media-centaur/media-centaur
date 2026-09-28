@@ -123,6 +123,7 @@ What a person says about themselves: the name their friends see them under and t
 | `v` | integer | | Content schema version. Absent means 1. |
 | `name` | string | 50 characters | The name the person gives. Optional: absent or blank means the person gives none. |
 | `avatar` | object | 64 KB decoded | The person's picture. Optional: absent or `null` means the person gives none. Below. |
+| `hue` | integer | 0–359 | The colour of the person's circle, as an angle on the oklch colour wheel; the reader supplies the lightness and chroma its theme draws people at (Media Centaur: 70 %, 0.15). Optional: absent or `null` means the person gives none. |
 
 `avatar` is `{"type": <type>, "data": <base64>}`:
 
@@ -138,6 +139,7 @@ The decoded bytes must open with the type's signature: for `image/webp`, `RIFF` 
 - Readers ignore fields they do not know. A message whose `v` is not 1 (an explicit `null` included), whose content is not a JSON object, or whose `name` is not a string or exceeds the cap is dropped as malformed. Nothing is repaired or truncated.
 - An `avatar` that is not an object of the shape above, whose `type` is not one of the three, whose `data` is not valid base64, whose decoded bytes exceed the cap, or whose first bytes do not carry the type's signature drops the whole profile.
 - A reader never decodes an avatar: it stores the bytes and serves them with the declared type.
+- A `hue` that is not an integer (a JSON number with a fraction, a string, a boolean) or is out of 0–359 drops the whole profile.
 - Between two profiles from the same signer, the newer `created_at` wins. On a tie, what is already stored is kept.
 - A profile is never withdrawn. A person changes it by publishing a newer one, and removes the picture or the name by publishing one without the field; a deletion may not name it, and a relay refuses one that does with `blocked: only the author may delete an event`.
 - A profile without a name has no stand-in on the wire. The reader decides what to show; Media Centaur shows **Unnamed**.
@@ -223,3 +225,4 @@ For a relay to carry Media Centaur traffic:
 | 2026-09-12 | Review (32164, with `sentiment` of `dislike` / `like` / `love` or absent for none, `text`, `reviewed_at`) replaces Recommendation: an opinion of any valence, neither field required. 32160 retired — never reused, refused by relays, dropped by readers. Relays store 32164 and refuse 32160 (social-relay v0.6.0). |
 | 2026-09-28 | Profile (12160, with `name`, optional, capped at 50 characters): the first replaceable kind, one per signer, never withdrawn. Both subscriptions and the own-events diff carry it. Relays store 12160 as one record per signer and refuse a deletion naming it (social-relay v0.7.0). |
 | 2026-09-28 | Profile `avatar` (`type` of `image/webp`, `image/png` or `image/jpeg`, base64 `data`, at most 64 KB decoded, opening with the type's signature), optional; a reader stores the bytes and never decodes them. Relays accept a client message of at least 128 KB; social-relay's Nostr layer (khatru) accepts 512 KB, so no relay release was needed. |
+| 2026-09-28 | Profile `hue`, an integer 0–359, optional: the person's colour as an angle on the oklch wheel, drawn at the reader's lightness and chroma (UIDR-048). A non-integer or an angle out of range drops the profile. No relay change. |

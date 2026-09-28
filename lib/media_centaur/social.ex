@@ -188,8 +188,8 @@ defmodule MediaCentaur.Social do
   @doc """
   Every person this reader knows, by public key (ADR-074): the identity's
   own when one exists, and every roster member, each as a `Person` with
-  the name their `Profile` published, when one is stored, and its avatar
-  when the reader shows it. The one place a roster row and a profile
+  the name and the hue their `Profile` published, when one is stored, and
+  its avatar when the reader shows it. The one place a roster row and a profile
   become what the reader sees.
   """
   @spec people() :: %{optional(String.t()) => Person.t()}

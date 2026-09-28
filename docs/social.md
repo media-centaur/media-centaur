@@ -59,7 +59,7 @@ layer's job — see [Web layer](#web-layer).
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. Two callers: `Social.save_profile/2`,
+- `ensure/0` generates on first use. Two callers: `Social.save_profile/3`,
   when the reader saves their profile under Settings → Social (opening the
   section mints nothing, UIDR-047), and `Activities` publishing an own
   activity — a user can review a title before ever saving a profile, which
@@ -233,11 +233,12 @@ name that is not a string or is over the cap, or an avatar whose type is not
 decoded bytes are over the cap or do not open with the type's signature drops
 the event whole. The reader never decodes an avatar: `from_event/1` hands the
 bytes on as `avatar_bytes` for the file store. `Social.Profile` is the row,
-one per key (`pubkey` unique, `name`, `avatar_type`, `raw_event`,
+one per key (`pubkey` unique, `name`, `avatar_type`, `hue`, `raw_event`,
 `created_at`), for the identity and the roster only.
 
-- `Social.save_profile/2` is the Settings form's save. It takes the name and
-  an avatar change: `:keep` the stored avatar, `:none` to remove it, or
+- `Social.save_profile/3` is the Settings form's save. It takes the name, an
+  avatar change and the hue (`Social.Hue`, an integer 0–359 or nil; out of
+  range is refused, `:invalid_hue`). The avatar change: `:keep` the stored avatar, `:none` to remove it, or
   `{:new, bytes}`, the WebP master `ImageFiles.square_webp/3` made; bytes over the cap are refused (`:avatar_too_large`). It refuses
   a blank name (`:name_required`) or one over the cap (`:name_too_long`) before
   minting anything (`Social.check_name/1` is the same rule, for the form),
@@ -350,8 +351,11 @@ A person is drawn from one read model everywhere, `Social.Person`
 (ADR-074): the reader's name for a friend (`name_override`, optional),
 the name the key published (`published_name`, from its `Social.Profile`),
 the avatar URL (`avatar_url`), the reader's per-friend switch
-(`show_avatar`), and whether it is the reader's own. `Person.name/1` resolves the override, else the
-published name, else nil. `Social.people/0` builds `%{pubkey => Person}`
+(`show_avatar`), the hue the key published and the reader's own for the
+friend (`published_hue`, `hue_override`; UIDR-048), and whether it is the
+reader's own. `Person.name/1` resolves the override, else the
+published name, else nil; `Person.hue/1` the same for the hue, nil when
+neither, and the tile's CSS draws the default Blue (`var(--hue, 250)`). `Social.people/0` builds `%{pubkey => Person}`
 for the identity and the roster, joining their profiles;
 `Social.own_person/0` is the reader alone. `avatar_url` is nil when the key
 published no avatar, the file is missing, or the reader switched the friend's
@@ -408,7 +412,11 @@ project one enriched list — every live activity with its actor
   field's placeholder (`Format.person_name/1` of the person without the
   override: the published name, else Unnamed), the **Show their picture**
   switch (`Social.set_show_avatar/2`, the `set_show_avatar` event;
-  `Friend.show_avatar`, on by default), the key, the added date and Remove
+  `Friend.show_avatar`, on by default), the **Colour** row
+  (`Components.Discovery.HueSwatches`: Theirs, the friend's published hue,
+  then the palette and the ring slider; `Social.set_hue_override/2`, the
+  `set_hue_override` event with the key and the hue, empty for Theirs;
+  `Friend.hue_override`), the key, the added date and Remove
   friend. `DiscoveryLive.AddFriendBlock`, the add-friend form
   (still an iteration-phase component under `live/discovery_live/`),
   takes an npub and an optional name (`Social.add_friend/2`; placeholder
@@ -440,9 +448,15 @@ The joins the contexts may not make happen here:
   removed friend.
 
 Settings → Social (`SettingsLive.SocialSection`) is four cards. **Your
-profile** comes first: the picture and the name, one form saved by
-`Social.save_profile/2`; before an identity exists its button is **Create
-profile**, and saving mints the identity. The picture is the app's one
+profile** comes first: two columns of the kit's stacked fields (UIDR-041) —
+Picture on the left, Name and Colour on the right, Save in the form's
+footer — one form saved by `Social.save_profile/3`; before an identity
+exists its button is **Create profile**, and saving mints the identity.
+The Colour field is `Components.Discovery.HueSwatches` over the form's
+pending hue (`profile_hue`): a swatch pushes `set_profile_hue`, the ring
+slider is a field of the form and reaches `validate_profile`; a form with
+no saved hue starts on `Social.Hue.random/0`, a palette member, and the
+card's tile previews the pending hue until Save publishes it. The picture is the app's one
 LiveView upload (`allow_upload(:avatar)`): one JPEG, PNG or WebP up to 10 MB.
 On save the form checks the name with `Social.check_name/1` before it
 consumes the upload, so a name error leaves the chosen file pending; the
