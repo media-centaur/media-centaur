@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`profiles.md`](profiles.md) —
-  **shipped v1.42.0 2026-09-28 with social-relay v0.7.0; phase 5a (the hue, the name field) built on main 2026-09-28, unreleased; 5b (the crop) to plan.** A person
+  **shipped v1.42.0 2026-09-28 with social-relay v0.7.0; phases 5a (the hue, the name field, the two-column card) and 5b (the crop) built on main 2026-09-28, unreleased; the release retires the file.** A person
   publishes how they appear: a name, required in the form, and an optional
   picture, as one replaceable event (kind 12160) per identity, the picture
   inline as a 256×256 WebP under a 64 KB cap. Friends see it in the identity

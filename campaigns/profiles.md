@@ -17,14 +17,13 @@ reader's alone.
 ## Status
 
 Phases 1 to 4 shipped in v1.42.0 on 2026-09-28 with social-relay v0.7.0
-(deployed; the owner's install is synced to it). **Phase 5a built on
-`main` 2026-09-28, unreleased**: the hue (UIDR-048) end to end, the name
-field at 16 rem, the profile card as two columns of the kit's stacked
-fields (the owner's request on first sight), `friends.nickname` dropped,
-`:start_relay_sync`. Nine plan tasks by the subagent task/review cadence,
-each reviewed on spec and quality; the review fixes are in the commits
-after each task. Next: phase 5b, the crop (croppr, the plan to write),
-then the release, the wiki push and this file's retirement.
+(deployed; the owner's install is synced to it). **Phases 5a and 5b built
+on `main` 2026-09-28, unreleased**: the hue (UIDR-048), the name field,
+the profile card as two columns of the kit's stacked fields, the crop
+with its preview, `friends.nickname` dropped, `:start_relay_sync`. Both
+by the subagent task/review cadence; every review fix is committed. Next:
+the release with the ship notes below, the wiki push, this file's
+retirement.
 
 ## Decisions made
 
@@ -56,10 +55,17 @@ then the release, the wiki push and this file's retirement.
 * `2026-09-28` — The slider's angle is set by pointer only: `keyboard.js` treats every input as text, so arrows on a focused range are navigation and Enter submits. Re-homed to the input-system rollout (memory `project-input-system-rollout`); the `HueSwatches` moduledoc says so.
 * `2026-09-28` — CLAUDE.md gains "Compose from the kit; never re-draw what a component draws" after the plan prescribed hand-rolled labels for the profile card and the owner asked for the section on the kit's idioms.
 
+* `2026-09-28` — Phase 5b as built: croppr 2.3.1 vendored (`assets/vendor/croppr.js`; its module body polyfills `window` globals, which bun's one-process test run cannot host, so the hook's pure helper `cropFields/1` lives in `avatar_crop_fields.js`, the only module its test imports); the hook mounts on the entry's `live_img_preview` under `phx-update="ignore"`, writes `crop_x`/`crop_y`/`crop_side` in the picture's oriented pixels and paints two canvases in the own tile's recipe; `ImageFiles.square_webp/4` turns the picture upright (`Image.autorotate/1`) and cuts the given square, else the largest centred one; `crop_from_params/1` in `SettingsLive`. Found in the build: croppr mixes layout and visual pixels under the root `zoom` (the uPlot defect), fixed with `zoom: calc(1 / var(--ui-scale))` on the stage as the strip chart does. The master turning upright is a behaviour change for un-cropped uploads too. (commits `d492f2f7`, `66314bb1` and the review fixes after)
+
 ## Next steps
 
-1. Phase 5b, the crop: the plan (`docs/superpowers/plans/`) from spec § The crop — croppr vendored, the `AvatarCrop` hook, the hidden crop fields, the previews under the Picture field, `square_webp/4` with `crop:` — then execution by the same cadence.
-2. The release (the first after v1.42.0) with the CHANGELOG entry drawn from the ship notes below; push the wiki (Social, Settings-Reference, committed locally with 5a) with it; then retire this file and move the entry under Complete in `campaigns/README.md`.
+1. The release (the first after v1.42.0) with the CHANGELOG entry drawn from the 5a and 5b ship notes; push the wiki (Social, Settings-Reference, committed locally) with it; then retire this file and move the entry under Complete in `campaigns/README.md`, naming the leftovers: the slider's and the crop box's keyboard paths → the input-system rollout; the `HueSwatches` moduledoc and `AvatarCrop` header say so.
+
+## Ship notes for phase 5b (the CHANGELOG draws on these)
+
+* Choosing a picture now shows it with a square you drag to pick what shows, and **How it will look** beside it; Save cuts that square. Leave the square alone and you get the middle of the picture, as before.
+* A phone photo is turned the way up you took it before it is cut; before this release a portrait photo could publish sideways.
+* No migration, no relay change.
 
 ## Ship notes for phase 5a (the CHANGELOG draws on these)
 

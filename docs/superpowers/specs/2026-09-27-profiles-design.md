@@ -103,7 +103,8 @@ A new kind in the replaceable block, the first one used there.
 - A reader never decodes a received avatar. It checks the signature
   bytes, stores the bytes and serves them with the declared type.
 - The sender writes the master as a 256×256 WebP, centre-cropped from
-  the chosen file. Readers accept the three types so a future sender
+  the chosen file (or, from phase 5b, the square the person chose, the
+  picture turned upright first). Readers accept the three types so a future sender
   may differ.
 - A missing name is rendered by the reader in the reader's language.
   No literal for it exists on the wire.
@@ -492,6 +493,18 @@ sends the box, the server cuts it.
   malformed fields, or a box outside the image, fall back to the centre
   crop, the master today; the form never refuses a crop.
 - Cancel discards the entry and the box with it. Remove stays as it is.
+
+2026-09-28, as built: croppr's module body polyfills `window` globals,
+which bun's one-process test run cannot host, so the hook's pure helper
+`cropFields/1` is its own module (`avatar_crop_fields.js`) and the only
+one its test imports; the previews' canvases are backed at
+`devicePixelRatio × --ui-scale` as the strip chart's plots are; the stage sits under `zoom: calc(1 / var(--ui-scale))`
+because croppr mixes layout and visual pixels under the root zoom (the
+uPlot defect the strip chart documents); LiveViewTest cannot set a hidden
+field through `form/3`, so the tests pass the box as `render_submit/2`'s
+value. The master now turns every picture upright before the cut, a
+behaviour change for un-cropped uploads too: a phone photo publishes the
+way up it was taken.
 
 ### The name field, and the card's two columns
 

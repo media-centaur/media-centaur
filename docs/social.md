@@ -239,7 +239,7 @@ one per key (`pubkey` unique, `name`, `avatar_type`, `hue`, `raw_event`,
 - `Social.save_profile/3` is the Settings form's save. It takes the name, an
   avatar change and the hue (`Social.Hue`, an integer 0–359 or nil; out of
   range is refused, `:invalid_hue`). The avatar change: `:keep` the stored avatar, `:none` to remove it, or
-  `{:new, bytes}`, the WebP master `ImageFiles.square_webp/3` made; bytes over the cap are refused (`:avatar_too_large`). It refuses
+  `{:new, bytes}`, the WebP master `ImageFiles.square_webp/4` made; bytes over the cap are refused (`:avatar_too_large`). It refuses
   a blank name (`:name_required`) or one over the cap (`:name_too_long`) before
   minting anything (`Social.check_name/1` is the same rule, for the form),
   then mints the identity if none exists, stamps strictly after the stored
@@ -456,7 +456,21 @@ The Colour field is `Components.Discovery.HueSwatches` over the form's
 pending hue (`profile_hue`): a swatch pushes `set_profile_hue`, the ring
 slider is a field of the form and reaches `validate_profile`; a form with
 no saved hue starts on `Social.Hue.random/0`, a palette member, and the
-card's tile previews the pending hue until Save publishes it. The picture is the app's one
+card's tile previews the pending hue until Save publishes it.
+While a picture is chosen, the Picture field carries the crop stage: the
+`AvatarCrop` hook (`assets/js/hooks/avatar_crop.js`) mounts croppr on the
+entry's `live_img_preview`, writes the square the person drags as three
+hidden fields (`crop_x`, `crop_y`, `crop_side`, in the picture's own
+pixels as the browser shows it, orientation applied) and paints two
+canvases in the own tile's recipe (*How it will look*); the fields ride
+the submit, `crop_from_params/1` reads them, and `ImageFiles.square_webp/4`
+turns the picture upright and cuts that square, else the largest centred
+one. The stage sits under `zoom: calc(1 / var(--ui-scale))` because
+croppr mixes layout and visual pixels under the root zoom, as uPlot does.
+
+| Vendored | File | Notes |
+|---|---|---|
+| Crop box | `assets/vendor/croppr.js` | croppr 2.3.1, MIT, UMD, unmodified; its module body polyfills `window` globals, so the hook's pure helper (`avatar_crop_fields.js`) is its own module and the only one bun imports | The picture is the app's one
 LiveView upload (`allow_upload(:avatar)`): one JPEG, PNG or WebP up to 10 MB.
 On save the form checks the name with `Social.check_name/1` before it
 consumes the upload, so a name error leaves the chosen file pending; the
