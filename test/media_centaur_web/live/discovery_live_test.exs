@@ -189,10 +189,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Event.sign(Translation.to_event(kind, title, opts, @friend_pubkey), @friend_secret)
     end
 
-    defp friend_profile(name, created_at, avatar \\ nil),
+    defp friend_profile(name, created_at, avatar \\ nil, hue \\ nil),
       do:
         Event.sign(
-          ProfileTranslation.to_event(%{name: name, avatar: avatar}, @friend_pubkey, created_at),
+          ProfileTranslation.to_event(
+            %{name: name, avatar: avatar, hue: hue},
+            @friend_pubkey,
+            created_at
+          ),
           @friend_secret
         )
 
@@ -312,6 +316,32 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, tile <> "[data-mark='avatar']")
       assert has_element?(view, switch <> "[aria-checked='true']")
       assert %{show_avatar: true} = Social.friend_by_pubkey(@friend_pubkey)
+    end
+
+    test "the foot's Colour row saves on the act: a swatch overrides the published hue, Theirs clears it, the slider sets any angle",
+         %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Ada")
+      {:ok, _profile} = Social.ingest_profile(friend_profile("Ada", 1_700_000_000, nil, 12))
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      tile = friend_card() <> " [data-component='identity-tile']"
+      form = friend_card() <> " footer form[data-role='hue-form']"
+      assert has_element?(view, tile <> "[data-hue='12']")
+
+      view |> element(friend_card()) |> render_click()
+      assert has_element?(view, form <> " button[data-role='theirs'][aria-pressed='true']")
+
+      view |> element(form <> " button[data-hue='195']") |> render_click()
+      assert has_element?(view, tile <> "[data-hue='195']")
+      assert %{hue_override: 195} = Social.friend_by_pubkey(@friend_pubkey)
+
+      view |> form(form, %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
+      assert has_element?(view, tile <> "[data-hue='100']")
+      assert %{hue_override: 100} = Social.friend_by_pubkey(@friend_pubkey)
+
+      view |> element(form <> " button[data-role='theirs']") |> render_click()
+      assert has_element?(view, tile <> "[data-hue='12']")
+      assert %{hue_override: nil} = Social.friend_by_pubkey(@friend_pubkey)
     end
 
     test "refuses a bad key and your own key with flashes", %{conn: conn} do
