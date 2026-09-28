@@ -376,7 +376,7 @@ ADR-073 and UIDR-047 amended.
 |---|---|
 | **Hue** | The colour a person's circle takes, as an angle 0–359 on one ring in oklch: the theme fixes lightness and chroma (`--person-l`, `--person-c` in `app.css`), the person picks the angle. The word in code and on the wire; user copy says **colour**. `Social.Hue`. |
 | **Palette** | The eight named hues offered as swatches: Rose 12, Orange 45, Amber 80, Green 150, Teal 195, Blue 250, Violet 290, Magenta 335. `Social.Hue.palette/0`. |
-| **Custom** | Any hue not in the palette, chosen on a slider whose track is the ring. The ninth swatch. |
+| **Custom** | Any hue not in the palette, chosen on the slider under the swatches, whose track is the ring. The slider is always shown; a swatch moves its thumb, dragging it deselects the swatches. |
 | **Published hue** | The hue a key gives in its profile. `Person.published_hue`. |
 | **Hue override** | The reader's hue for a friend, on the roster row beside the name override; wins over the published hue. `Friend.hue_override`. |
 | **Theirs** | The first swatch on a friend's card foot: the friend's published hue (Blue when none), selected while there is no override. |
@@ -402,7 +402,10 @@ reader draws a hue at its own theme's lightness and chroma, which is
 why the wire carries the angle and not a colour.
 
 **On the wire**: `"hue"`, an integer 0–359, optional; absent or `null`
-means the key gives none. A non-integer, a float, or an integer out of
+means the key gives none. The sender's `Translation.to_event/3` takes
+the content as one map of fields (`name`, `avatar`, `hue`), the same
+shape `from_event/1` returns (2026-09-28 unify pass: a fourth
+positional argument was the bolt-on). A non-integer, a float, or an integer out of
 range drops the whole profile, the one rule for malformed. `v` stays 1:
 a reader ignores unknown fields.
 
@@ -428,25 +431,34 @@ N"` when `Person.hue/1` is non-nil and nothing otherwise. Own-ness
 stays a matter of weight, as UIDR-046 drew it.
 
 **Choosing**: one function component, `Discovery.HueSwatches`
-(`hue_swatches/1`): the palette as round swatches, Custom as the ninth
-with the ring as its face, the selected one outlined; Custom selected
-reveals a range input 0–359 with the ring as its track. It takes
-`selected` (a hue or nil), an optional `theirs` (a hue or nil, rendered
-as the first swatch, selected when `selected` is nil), `event` and
-`values` as `Switch` does; each swatch pushes the event with `hue` (an
-integer, or empty for Theirs), the slider pushes it on change,
-debounced. Every swatch is a nav item.
+(`hue_swatches/1`): the palette as round swatches, the selected one
+outlined, and under them a range input 0–359 named `hue` with the ring
+as its track, its thumb at the chosen hue (2026-09-28 unify pass: a
+ninth Custom swatch that reveals the slider would need state a function
+component has not; the slider is always there and is the custom
+choice). It takes `selected` (a hue or nil), `theirs?` with
+`theirs_hue` (the first swatch, the friend's published hue, selected
+when `selected` is nil), `event` and `values` as `Switch` does; each
+swatch is a button pushing the event with `hue` (an integer, or empty
+for Theirs). The slider carries no event of its own: it is a form field
+named `hue`, and the host's enclosing form's `phx-change` receives it —
+the profile form's `validate_profile` on Settings, a small
+`phx-change="set_hue_override"` form with the key as a hidden field on
+the card foot — so a click and a drag reach one handler with one
+payload shape (`pubkey`, `hue`). Every swatch and the slider are nav
+items.
 
 - **Settings → Your profile**: a Colour row between the picture row
-  and the name row. The swatches push `set_profile_hue`, which sets the
-  form's pending hue and re-renders the card's tile with it; Save
-  publishes it with the name and the avatar. When the form loads with
+  and the name row. A swatch pushes `set_profile_hue` and the slider
+  reaches `validate_profile`; either sets the form's pending hue, the
+  one source the card's tile previews and Save publishes with the name
+  and the avatar. When the form loads with
   no profile row, or a row without a hue, the pending hue is
   `Social.Hue.random/0`; the tile shows it at once, the rest of the app
   keeps the default until Save. A saved profile with a hue loads with
   that hue.
 - **A friend's opened card**: a Colour row after *Show their picture*:
-  Theirs, the palette, Custom. A swatch saves on the act
+  Theirs, the palette, the slider. A swatch or a drag saves on the act
   (`set_hue_override`), like the switch.
 
 **Not chosen**: a hue derived from the key for a person who published
