@@ -60,10 +60,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs the library has a presentable container for."
 
-  attr :friend_activity_by_ref, :map,
+  attr :social_activity_by_ref, :map,
     default: %{},
     doc:
-      "`%{ref => rows}` from `Activities.friend_activity_for/1` for the landed results — the pennants on the mast."
+      "`%{ref => rows}` from `Activities.activity_for/1` for the landed results — each row's social glyphs."
 
   def media_results(assigns) do
     today = assigns.today || Date.utc_today()
@@ -159,7 +159,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           title={result}
           poster_url={title_poster_url(result)}
           markers={markers(result, assigns)}
-          friend_activity={Map.get(@friend_activity_by_ref, Title.ref(result), [])}
+          social_activity={Map.get(@social_activity_by_ref, Title.ref(result), [])}
         />
       </div>
     </section>

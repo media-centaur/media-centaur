@@ -88,13 +88,13 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         id: :reviewed_by_one,
         description:
           "A title one friend reviewed: On watchlist is a marker, the note " <>
-            "displaces the overview unattributed, and the named pennant carries the sentiment.",
+            "displaces the overview unattributed, and the social glyph carries the sentiment.",
         attributes: %{
           id: "row-reviewed-by-one",
           title: title(),
           markers: ["On watchlist"],
           notes: [%{name: nil, text: "Watch it before anyone spoils the ending."}],
-          friend_activity: [review("Sample Friend", :love)]
+          social_activity: [review("Sample Friend", :love)]
         }
       },
       %Variation{
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
             %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
             %{name: "Other Friend", text: "Fine."}
           ],
-          friend_activity: [
+          social_activity: [
             review("Other Friend", :like),
             review("Sample Friend", :love)
           ]
@@ -117,13 +117,14 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       },
       %Variation{
         id: :watchlist_with_note,
-        description: "A watchlist row: the item's own note, and the pennants name who reviewed it.",
+        description:
+          "A watchlist row: the item's own note, and the social glyphs show what friends did.",
         attributes: %{
           id: "row-watchlist-with-note",
           title: title(),
           markers: ["In library"],
           notes: [%{name: nil, text: "For the weekend."}],
-          friend_activity: [review("Sample Friend", :love)]
+          social_activity: [review("Sample Friend", :love)]
         }
       },
       %Variation{

@@ -67,7 +67,7 @@ defmodule MediaCentaur.Activities do
 
   # The author is nil from `get_row/1` alone: a watchlist row may still
   # point at the activity of a friend who left the roster. The lists
-  # (`list_activities/0`, `friend_activity_for/1`) never yield one.
+  # (`list_activities/0`, `activity_for/1`) never yield one.
   @type activity_row :: %{activity: Activity.t(), author: Person.t() | nil}
 
   @doc "Subscribe the caller to activity events."
@@ -238,20 +238,20 @@ defmodule MediaCentaur.Activities do
   end
 
   @doc """
-  The live friend activity on the titles in `refs`, as `%{ref =>
-  [activity_row]}` — every kind a current friend has broadcast for the
-  title (review, watched, listing) plus this identity's own reviews,
-  each row with its author, in `list_activities/0`'s row shape, newest first, in
-  one query plus one roster read. Refs with no activity are absent, and
-  a former friend's is left out: a pennant names a friend. Own watched
-  and listing acts are left out too — a pennant tells you what friends
-  did, not what you did. What every pennant mast is fed from.
+  The live activity on the titles in `refs`, as `%{ref => [activity_row]}`
+  — every kind every known person has broadcast for the title (review,
+  watched, listing), the reader's own included, each row with its
+  author, in `list_activities/0`'s row shape, newest first, in one query
+  plus one roster read. The same people `list_activities/0` holds, so a
+  title's grade matches the person cards' (`Title.Grade`). Refs with no
+  activity are absent, and a former friend's is left out. What every
+  title surface's social glyphs are fed from.
   """
-  @spec friend_activity_for([{integer(), Title.media_type()}]) ::
+  @spec activity_for([{integer(), Title.media_type()}]) ::
           %{optional({integer(), Title.media_type()}) => [activity_row()]}
-  def friend_activity_for([]), do: %{}
+  def activity_for([]), do: %{}
 
-  def friend_activity_for(refs) when is_list(refs) do
+  def activity_for(refs) when is_list(refs) do
     people = Social.people()
     tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
     wanted = MapSet.new(refs)
@@ -263,7 +263,7 @@ defmodule MediaCentaur.Activities do
     |> Repo.all()
     |> Enum.filter(fn activity ->
       MapSet.member?(wanted, {activity.tmdb_id, activity.media_type}) and
-        pennant_author?(Map.get(people, activity.author_pubkey), activity.kind)
+        is_map_key(people, activity.author_pubkey)
     end)
     |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, people))
   end
@@ -417,11 +417,6 @@ defmodule MediaCentaur.Activities do
 
   defp activity_row(%Activity{} = activity, people),
     do: %{activity: activity, author: Map.get(people, activity.author_pubkey)}
-
-  # A pennant names a friend for any act, and the reader for a review alone.
-  defp pennant_author?(nil, _kind), do: false
-  defp pennant_author?(%Person{own?: true}, kind), do: kind == :review
-  defp pennant_author?(%Person{}, _kind), do: true
 
   # One grouped count query buckets every row as "sent" or "received" by
   # comparing author_pubkey to `me`; a second query finds the newest

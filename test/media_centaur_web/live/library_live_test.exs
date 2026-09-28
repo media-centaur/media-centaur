@@ -445,15 +445,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> form("#review-form", %{"text" => ""}) |> render_submit()
       assert [%{tmdb_id: 777, text: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
 
-      # The sender's own pennant now flies from the detail hero.
-      render_until(view, fn _html ->
-        has_element?(view, "#detail-modal .pennant[data-flag='love']", "You")
-      end)
-
+      # Your own review alone draws no social capsule: nothing a friend did.
       await_supervised_tasks()
+      refute has_element?(view, "#detail-social")
     end
 
-    test "a friend's review flies its pennant from the detail hero, live", %{conn: conn} do
+    test "a friend's review joins the detail hero's social capsule, live", %{conn: conn} do
       friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
       {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
@@ -475,12 +472,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
-      refute has_element?(view, "#detail-modal .pennant")
+      refute has_element?(view, "#detail-social")
 
       {:ok, _rec} = MediaCentaur.Activities.ingest(review.(:love))
 
       render_until(view, fn _html ->
-        has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
+        has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
       end)
 
       await_supervised_tasks()
@@ -508,7 +505,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#review-modal img[src^='/media-images/#{movie.id}/poster.jpg']")
     end
 
-    test "the Review modal previews each choice as the reader's own pennant", %{conn: conn} do
+    test "the Review modal's choices press before an identity exists", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
         key: DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}

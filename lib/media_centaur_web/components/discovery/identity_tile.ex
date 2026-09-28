@@ -11,8 +11,9 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   friend's mark in the hue on its tint, the reader's own filled in it
   with a near-white mark, a picture ringed in it, 1 px for a friend and
   2 px for the reader's own. The recipe is `.identity-tile*` in
-  `app.css`. Two sizes: 40 on a Feed row and the rail's person card, 48
-  on the Friends page's and the Settings profile card.
+  `app.css`. Three sizes: 32 in the title detail's social panel and
+  lead review, 40 on a Feed row and the rail's person card, 48 on the
+  Friends page's and the Settings profile card.
   `aria-hidden`: the name is read from the surface's text, the tile is
   its redundant channel.
 
@@ -28,7 +29,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   alias MediaCentaur.Social.Person
 
   attr :person, Person, required: true, doc: "as the reader sees them"
-  attr :size, :integer, required: true, values: [40, 48]
+  attr :size, :integer, required: true, values: [32, 40, 48]
 
   def identity_tile(assigns) do
     assigns =
@@ -87,12 +88,14 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   # The size is checked here as well as by `values:` because a template's
   # check is compile-time only — a dynamic `size={@n}` would otherwise
   # render an unsized circle.
+  defp size_classes(32), do: "size-8 text-sm"
   defp size_classes(40), do: "size-10 text-base"
   defp size_classes(48), do: "size-12 text-[19px]"
 
   defp size_classes(size),
-    do: raise(ArgumentError, "identity_tile size must be 40 or 48, got: #{inspect(size)}")
+    do: raise(ArgumentError, "identity_tile size must be 32, 40 or 48, got: #{inspect(size)}")
 
+  defp glyph_classes(32), do: "size-4"
   defp glyph_classes(40), do: "size-5"
   defp glyph_classes(48), do: "size-6"
 end

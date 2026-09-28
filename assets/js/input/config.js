@@ -18,6 +18,7 @@ export const inputConfig = {
     // The detail modal's two regions. A closed modal is `visibility: hidden`
     // and its items fail `checkVisibility()`, so these count zero until it
     // opens — no modal scoping needed on the selectors.
+    detail_social: "[data-nav-zone='detail_social'] [data-nav-item]",
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
     detail_menu: "[data-nav-zone='detail_menu'] [data-nav-item]",
     detail_rail: "[data-nav-zone='detail_rail'] [data-nav-item]",
@@ -110,6 +111,9 @@ export const inputConfig = {
     // walks the two grid sections and the Show more button without an
     // adjacency table.
     detail_actions: Context.TOOLBAR,
+    // The social capsule in the hero's upper right (`Title.Social`): one
+    // button above the action row; its panel holds no controls.
+    detail_social: Context.TOOLBAR,
     // Whichever Download menu is open — the other planning mode, or the
     // scope — a short vertical list nested inside the action row.
     detail_menu: Context.TREE,
@@ -172,7 +176,12 @@ export const inputConfig = {
         // (UIDR-023) — a TOOLBAR strip between the action row and the
         // body. Present only for collections; everywhere else the
         // candidate lists fall through past it.
+        // detail_social is the social capsule in the hero's upper right,
+        // above the row; its zone carries the panel's dismiss event while
+        // the panel is open, so BACK closes the panel on the way down.
+        detail_social: { down: ["detail_actions"], back: ["detail_actions"] },
         detail_actions: {
+          up: ["detail_social"],
           down: ["detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
         },
         detail_menu: {

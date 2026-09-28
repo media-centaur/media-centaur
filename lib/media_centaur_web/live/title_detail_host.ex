@@ -57,8 +57,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   the modal was opened from; the page's in-memory copy; and TMDB itself,
   fetched asynchronously, for a deep link to a title nothing here holds.
   The facts — the library half (`LibraryHalf`), rung, acquisition state,
-  artwork, the tracked-title half (`TrackingDetail`), friend activity for
-  the pennants, the activity the modal speaks for (`Activities.get_row/1`,
+  artwork, the tracked-title half (`TrackingDetail`), the title's social
+  activity for the social capsule, the activity the modal speaks for (`Activities.get_row/1`,
   from the `activity` param), the intent's note — are read from their
   owning contexts by the same identity: local reads, milliseconds
   (ADR-051). An open detail is never closed by the lists changing
@@ -492,7 +492,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
       release_window: nil,
       planning_mode: planning_mode,
-      friend_activity: Map.get(Activities.friend_activity_for([ref]), ref, []),
+      social_activity: Map.get(Activities.activity_for([ref]), ref, []),
       intent_note: intent_note(ref),
       preview: preview
     }
@@ -848,6 +848,21 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def handle_title_event(
         "download_menu_close",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ), do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: nil})}
+
+  # The social capsule shares the one open-menu slot: opening it closes
+  # a Download menu, and the reverse.
+  def handle_title_event(
+        "social_panel_toggle",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ),
+      do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: toggle_menu(&1.open_menu, :social)})}
+
+  def handle_title_event(
+        "social_panel_close",
         _params,
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
       ), do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: nil})}

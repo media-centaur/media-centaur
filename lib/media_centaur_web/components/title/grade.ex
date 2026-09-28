@@ -44,4 +44,8 @@ defmodule MediaCentaurWeb.Components.Title.Grade do
     |> Enum.frequencies_by(fn {ref, flag, _author} -> {ref, flag} end)
     |> Map.new(fn {pair, people} -> {pair, grade(people)} end)
   end
+
+  @doc "One title's rows graded by flag — `grades/1` without the title in the key."
+  @spec for_title([%{activity: Activity.t()}]) :: %{Flag.flag() => t()}
+  def for_title(rows), do: Map.new(grades(rows), fn {{_ref, flag}, grade} -> {flag, grade} end)
 end

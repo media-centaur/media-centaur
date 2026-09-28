@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert posters |> LazyHTML.query("[data-flag='love']") |> Enum.count() == 1
   end
 
-  test "the glyphs sit centred above the poster in mast order, each at its grade" do
+  test "the glyphs sit centred above the poster in order, each at its grade" do
     html = render(person: friend(), acts: acts_of(), width: :rail)
     glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .social-glyph")
 

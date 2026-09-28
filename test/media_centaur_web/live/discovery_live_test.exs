@@ -414,8 +414,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element(show_act) |> render_click()
       assert_patch(view, "/discovery/friends?title=tv_series-1399&activity=#{watched.id}")
-      # Who did what is the pennant's to say, not a line under the hero.
-      assert has_element?(view, "#detail-modal .pennant[data-flag='watched']", "Sample Friend")
+      # Who did what is the social capsule's to say, not a line under the hero.
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='watched'][title*='Sample Friend']"
+             )
+
       refute has_element?(view, "#detail-activity-delete")
       render_hook(view, "close_title", %{})
 
@@ -440,7 +444,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element(friend_card() <> "-#{reviewed.id}") |> render_click()
       assert has_element?(view, "#detail-note", "Sample Friend")
       assert has_element?(view, "#detail-note", "Watch it.")
-      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
 
       await_supervised_tasks()
     end
@@ -481,7 +485,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element("#person-you-#{rec.id}") |> render_click()
       assert has_element?(view, "#detail-activity-delete", "Delete review")
-      assert has_element?(view, "#detail-modal .pennant[data-flag='like']", "You")
+      # Your own review alone draws no social capsule.
+      refute has_element?(view, "#detail-social")
       view |> element("#detail-watchlist-toggle") |> render_click()
       assert Discovery.listed?(99, :movie)
       render_hook(view, "close_title", %{})
@@ -752,7 +757,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#feed-empty a[href='/settings?section=social']")
     end
 
-    test "a review entry: name, verb, time, title, year, note; no pennant; opens the modal",
+    test "a review entry: name, verb, time, title, year, note; no title glyphs; opens the modal",
          %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
@@ -779,7 +784,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, entry(rec) <> " [data-role='title']", "Sample Movie 777")
       assert has_element?(view, entry(rec) <> " [data-role='title']", "2024")
       assert has_element?(view, entry(rec) <> " [data-role='text']", "Watch it.")
-      refute has_element?(view, entry(rec) <> " .pennant")
+      refute has_element?(view, entry(rec) <> " [data-role='social-glyphs']")
       # The toolbar's seat is always in the DOM — hover only reveals it.
       assert has_element?(view, entry(rec) <> " [data-role='toolbar'] " <> entry(rec) <> "-list", "List")
 
@@ -795,10 +800,10 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
                "Ignore"
              )
 
-      # The card opens the modal, which still flies the pennant and shows the note.
+      # The card opens the modal, whose social capsule says who, and the note.
       view |> element(entry(rec)) |> render_click()
       assert_patch(view, "/discovery?title=movie-777&activity=#{rec.id}")
-      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
       assert has_element?(view, "#detail-note", "Watch it.")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
@@ -829,7 +834,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, entry(listing) <> " [data-role='title']", "Sample Movie 777")
       refute has_element?(view, entry(listing) <> " [data-role='text']")
       refute has_element?(view, entry(listing) <> " .social-glyph")
-      refute has_element?(view, entry(listing) <> " .pennant")
+      refute has_element?(view, entry(listing) <> " .social-glyph")
       await_supervised_tasks()
     end
 
@@ -881,14 +886,18 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "4")
       assert has_element?(view, entry(theirs) <> " [data-role='text']", "Agreed.")
       assert has_element?(view, entry(mine) <> " [data-role='text']", "Watch it.")
-      refute has_element?(view, "[data-component='feed-row'] .pennant")
+      refute has_element?(view, "[data-component='feed-row'] [data-role='social-glyphs']")
 
       # The modal speaks for the newest review — its note, attributed —
-      # and flies both pennants.
+      # and its social capsule shows both friends' acts.
       view |> element(entry(listed)) |> render_click()
-      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Other Friend")
-      assert has_element?(view, "#detail-modal .pennant[data-flag='like']", "Sample Friend")
-      assert has_element?(view, "#detail-modal .pennant[data-flag='listing']", "Sample Friend")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Other Friend']")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='like'][title*='Sample Friend']")
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='listing'][title*='Sample Friend']"
+             )
 
       await_supervised_tasks()
     end
@@ -2117,15 +2126,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant[data-flag='like']",
-               "Sample Friend"
+               "#watchlist-item-movie-777 .social-glyph[data-flag='like'][title='Sample Friend likes this']"
              )
 
       assert has_element?(view, "#watchlist-item-movie-777", "Watch it.")
       await_supervised_tasks()
     end
 
-    test "a love arriving later stacks a second pennant above the like without a reload", %{conn: conn} do
+    test "a love arriving later joins the like on the row, first in order, without a reload", %{
+      conn: conn
+    } do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
@@ -2133,29 +2143,28 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
-      assert has_element?(
-               view,
-               "#watchlist-item-movie-777 .pennant[data-flag='like']",
-               "Sample Friend"
-             )
+      assert has_element?(view, "#watchlist-item-movie-777 .social-glyph[data-flag='like']")
 
       {:ok, _love} = Activities.ingest(other_event(777, :love))
 
       render_until(view, fn _html ->
-        has_element?(view, "#watchlist-item-movie-777 .pennant[data-flag='love']", "Other Friend")
+        has_element?(
+          view,
+          "#watchlist-item-movie-777 .social-glyph[data-flag='love'][title='Other Friend loves this']"
+        )
       end)
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant-mast .pennant:first-child[data-flag='love']"
+               "#watchlist-item-movie-777 [data-role='social-glyphs'] .social-glyph:first-child[data-flag='love']"
              )
 
       view |> element("#watchlist-item-movie-777") |> render_click()
-      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Other Friend")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Other Friend']")
       await_supervised_tasks()
     end
 
-    test "a friend who watched a listed title flies a watched pennant on the row and the modal", %{
+    test "a friend who watched a listed title shows the watched glyph on the row and the modal", %{
       conn: conn
     } do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
@@ -2176,13 +2185,36 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant[data-flag='watched']",
-               "Sample Friend"
+               "#watchlist-item-movie-777 .social-glyph[data-flag='watched'][title='Sample Friend watched this']"
              )
 
       view |> element("#watchlist-item-movie-777") |> render_click()
-      assert has_element?(view, "#detail-modal .pennant[data-flag='watched']", "Sample Friend")
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='watched'][title*='Sample Friend']"
+             )
+
       refute has_element?(view, "#detail-activity-delete")
+
+      # The capsule opens the social panel, which names who; pressing it
+      # again closes it, and so does a click outside or BACK.
+      refute has_element?(view, "#detail-social-panel")
+      view |> element("#detail-social") |> render_click()
+      assert has_element?(view, "#detail-social[aria-expanded='true']")
+
+      assert has_element?(
+               view,
+               "#detail-social-panel [data-flag='watched']",
+               "Sample Friend watched this"
+             )
+
+      view |> element("#detail-social") |> render_click()
+      refute has_element?(view, "#detail-social-panel")
+      view |> element("#detail-social") |> render_click()
+      render_hook(view, "social_panel_close", %{})
+      refute has_element?(view, "#detail-social-panel")
+      assert has_element?(view, "#detail-social[aria-expanded='false']")
       await_supervised_tasks()
     end
 
@@ -2192,8 +2224,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} = Activities.listing(title)
 
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
-      refute has_element?(view, "#watchlist-item-movie-777 .pennant")
-      refute has_element?(view, "#detail-modal .pennant")
+      refute has_element?(view, "#watchlist-item-movie-777 .social-glyph")
+      refute has_element?(view, "#detail-social")
       refute has_element?(view, "#detail-activity-delete")
       refute html =~ "wants to watch"
       await_supervised_tasks()
@@ -2214,7 +2246,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "#watchlist-item-movie-777")
-      refute has_element?(view, "#watchlist-item-movie-777 .pennant")
+      refute has_element?(view, "#watchlist-item-movie-777 .social-glyph")
       await_supervised_tasks()
     end
   end

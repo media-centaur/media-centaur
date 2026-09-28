@@ -7,8 +7,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   The frame (modal shell, panel-fixed backdrop, scrollport, sticky
   orientation wrapper + backing replica, body sheet) belongs to
-  `CinematicShell`; this module fills its slots: the pennants on the
-  hero's mast (UIDR-037); the pinned block — the identity lockup, the
+  `CinematicShell`; this module fills its slots: the social capsule in
+  the hero's corner (`Title.Social`); the pinned block — the identity lockup, the
   progress hairline for an owned title (UIDR-024), the metadata row, the
   action row and the prose; the collection rail (UIDR-023); and the
   scrolling body — the content list, Cast or Manage for an owned title,
@@ -93,15 +93,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.ViewControls
+  alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.Flag
+  alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.Components.Title.RefreshFromTmdb
-  alias MediaCentaurWeb.Components.Title.Pennant
+  alias MediaCentaurWeb.Components.Title.Social
+  alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
@@ -199,9 +203,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-detail-nested={to_string(@nested?)}
       data-nav-overlay="detail"
     >
-      <:hero_mast :if={@detail.friend_activity != []}>
-        <Pennant.pennants activity={@detail.friend_activity} on_image />
-      </:hero_mast>
+      <:hero_corner :if={Social.capsule?(@detail.social_activity)}>
+        <Social.social_capsule
+          id="detail-social"
+          rows={@detail.social_activity}
+          open={@state.open_menu == :social}
+          zone="detail_social"
+          on_toggle="social_panel_toggle"
+          on_close="social_panel_close"
+        />
+      </:hero_corner>
       <%!-- The pinned block's content: identity lockup + hairline +
             metadata + action row + prose. The sticky wrapper and its
             backdrop backing belong to the frame (CinematicShell). Same
@@ -584,18 +595,36 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp own_activity(_detail), do: nil
 
-  attr :note, :any, required: true, doc: "`%{sender, text}` or nil"
+  attr :note, :any,
+    required: true,
+    doc:
+      "the lead review `%{author, flag, grade, text}`, the watchlist note `%{author: nil, text}`, or nil"
 
-  # The one thing a pennant cannot hold: a friend's words, in the list
-  # row's note idiom — name, then text.
+  # The words above the synopsis. The lead review — the one the modal was
+  # opened from — is its author's tile, name and glyph, then the words;
+  # the watchlist note is the reader's own, a plain line.
   defp note_line(%{note: nil} = assigns), do: ~H""
+
+  defp note_line(%{note: %{author: nil}} = assigns) do
+    ~H"""
+    <p id="detail-note" class="mb-3 text-sm text-base-content/80">{@note.text}</p>
+    """
+  end
 
   defp note_line(assigns) do
     ~H"""
-    <p id="detail-note" class="mb-3 text-sm text-base-content/80">
-      <span :if={@note.sender} class="font-medium text-base-content/70">{@note.sender}</span>
-      {@note.text}
-    </p>
+    <div id="detail-note" class="mb-3 flex max-w-[760px] items-start gap-2.5" data-role="lead-review">
+      <IdentityTile.identity_tile person={@note.author} size={32} />
+      <p class="text-[15px] leading-relaxed text-base-content/85">
+        <span class="font-semibold text-base-content/95">{Format.person_name(@note.author)}</span>
+        <SocialGlyph.social_glyph
+          flag={@note.flag}
+          grade={@note.grade}
+          class="mx-0.5 size-4 align-[-2px]"
+        />
+        {@note.text}
+      </p>
+    </div>
     """
   end
 
@@ -851,19 +880,28 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp blank_to_nil(value) when is_binary(value) and value != "", do: value
   defp blank_to_nil(_value), do: nil
 
-  # The words under the hero: the activity's text attributed to its
-  # author when a friend wrote it (the reader's own words stand
-  # unattributed), else the person's own watchlist note.
-  defp note_words(%TitleDetail{activity: %{activity: %{text: text}, author: author}})
-       when is_binary(text) and text != "", do: %{sender: sender(author), text: text}
+  # The words under the hero: the lead review — the activity the modal
+  # was opened from, when it carries words — drawn with its author and
+  # its glyph at the title's grade; else the reader's own watchlist note.
+  defp note_words(
+         %TitleDetail{activity: %{activity: %{text: text} = activity, author: %Person{} = author}} =
+           detail
+       )
+       when is_binary(text) and text != "" do
+    flag = Flag.flag(activity)
+
+    %{
+      author: author,
+      flag: flag,
+      grade: Map.get(Grade.for_title(detail.social_activity), flag, :plain),
+      text: text
+    }
+  end
 
   defp note_words(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",
-    do: %{sender: nil, text: note}
+    do: %{author: nil, text: note}
 
   defp note_words(_detail), do: nil
-
-  defp sender(%Person{own?: false} = person), do: Format.person_name(person)
-  defp sender(_own_or_unknown), do: nil
 
   # The artwork ladder (UIDR-021). Owned: subject art first, entity art
   # as the ladder's next rungs — a member movie rarely carries its own

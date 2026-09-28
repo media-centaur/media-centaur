@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           today: ~D[2026-08-02],
           title_rungs: %{{777, :movie} => :list, {779, :tv_series} => :follow},
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
-          friend_activity_by_ref: %{
+          social_activity_by_ref: %{
             {777, :movie} => [review(777, "Sample Friend", :love)],
             {778, :movie} => [
               review(778, "Other Friend", :like),
