@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.43.0 — 2026-09-28
+
+### New
+
+- **Your colour.** Settings › Social › **Your profile** has a **Colour** row: eight colours to pick from, or drag the slider under them to any other. It is the colour of the circle beside your name, on Feed rows, on the Friends tab and beside your reviews, for every friend who sees you. A new profile starts on one of the eight at random; **Save** publishes it. Until you save, friends see you in the same blue as before.
+- **Your colour for a friend.** The foot of a friend's opened card on the Friends tab has the same row, leading with **Theirs**, the colour they chose. Pick another and it is yours for them, for you only; press **Theirs** to go back.
+- **Choose what shows of your picture.** Press **Choose picture** and the picture appears with a square over it; drag or resize the square to pick what shows, and **How it will look** beside it is your circle with that square. **Save** cuts it. Leave the square alone and you get the middle of the picture, as before.
+
+### Improved
+
+- **Your profile in two columns.** The card puts the picture on the left and your name and colour on the right, with **Save** below, instead of running down the card in one narrow column. Choosing a picture is a button, not a file box.
+- **A phone photo is turned the way up you took it** before it is cut and published. Before this release a portrait photo could publish sideways. A picture already published is left as it is; choose it again to fix it.
+
+### Migration safety
+
+- This release runs three migrations on first start: two added columns (your colour on a profile, your colour for a friend) and the removal of a column the friends list has not used since v1.42.0. Nothing touches your files, your library, your watch history or your list; the update runs it automatically, nothing to do by hand.
+
+### Relay note
+
+- No relay upgrade is needed: a colour travels inside the profile that [social-relay](https://github.com/media-centaur/social-relay) v0.7.0 already carries, and an older Media Centaur simply ignores it.
+
 ## v1.42.0 — 2026-09-28
 
 ### New
