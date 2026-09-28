@@ -231,6 +231,18 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         template: @page
       },
       %Variation{
+        id: :page_opened_hue,
+        description:
+          "The opened card of a friend who published Rose, which the reader overrode with Teal: the tile in Teal, Theirs in Rose, Teal pressed",
+        attributes: %{
+          person: %{friend() | published_hue: 12, hue_override: 195},
+          acts: seven_acts(),
+          width: :page,
+          opened?: true
+        },
+        template: @page
+      },
+      %Variation{
         id: :page_you,
         description: "The reader's page card: own acts",
         attributes: %{person: you(), acts: three_acts(), width: :page},

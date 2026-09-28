@@ -97,6 +97,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social
+  alias MediaCentaur.Social.Hue
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
@@ -264,6 +265,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     case Social.set_show_avatar(pubkey, show == "true") do
       {:ok, _friend} -> {:noreply, socket}
       {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
+    end
+  end
+
+  # The opened card's foot: the reader's hue for the friend; empty is
+  # Theirs, clearing it. A swatch's click and the slider's change carry
+  # the same two keys.
+  def handle_event("set_hue_override", %{"pubkey" => pubkey, "hue" => hue}, socket) do
+    with {:ok, hue} <- Hue.parse(hue),
+         {:ok, _friend} <- Social.set_hue_override(pubkey, hue) do
+      {:noreply, socket}
+    else
+      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
+      _bad_hue -> {:noreply, socket}
     end
   end
 

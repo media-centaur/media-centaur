@@ -25,9 +25,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   UIDR-047); the **avatar switch**, *Show their picture*
   (`Components.Switch`), on while the reader shows the friend's
   published picture in every identity tile (`Person.show_avatar`) and
-  off when the letter stands in for it; the key, the added date and
-  Remove friend. A poster's press opens the title modal speaking for the
-  newest act on it.
+  off when the letter stands in for it; the **Colour** row
+  (`HueSwatches`, UIDR-048): Theirs, the friend's published hue, then
+  the palette and the ring, saving on the act (`set_hue_override` with
+  the key and the hue, empty for Theirs; the slider through the row's
+  own form); the key, the added date and Remove friend. A poster's press
+  opens the title modal speaking for the newest act on it.
 
   Pure rendering of a `Social.Person` and their `Act`s. Every poster, row
   and Remove friend is a nav item that bubbles `open_title` with the
@@ -49,6 +52,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Discovery.Act
+  alias MediaCentaurWeb.Components.Discovery.HueSwatches
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.Switch
   alias MediaCentaurWeb.Components.Title.Flag
@@ -184,7 +188,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             name="name"
             value={@person.name_override}
             placeholder={masked_name(@person)}
-            class="library-filter basis-48 grow-0 shrink-0"
+            class="library-filter basis-64 grow-0 shrink-0"
             autocomplete="off"
             aria-label="Your name for this friend"
           />
@@ -199,6 +203,24 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           class="-mx-2 px-2 py-1.5"
           data-role="avatar-switch"
         />
+        <form
+          id={"#{@id}-hue-form"}
+          phx-change="set_hue_override"
+          phx-click={%JS{}}
+          class="space-y-1"
+          data-role="hue-form"
+        >
+          <input type="hidden" name="pubkey" value={@person.pubkey} />
+          <span class="block text-sm">Colour</span>
+          <HueSwatches.hue_swatches
+            id={"#{@id}-hues"}
+            selected={@person.hue_override}
+            theirs?
+            theirs_hue={@person.published_hue}
+            event="set_hue_override"
+            values={%{"pubkey" => @person.pubkey}}
+          />
+        </form>
         <div class="flex items-center justify-between">
           <span class="text-sm text-base-content/65">
             <code>{@person.short_npub}</code> · added {Calendar.strftime(@person.added_on, "%b %-d")}

@@ -140,9 +140,9 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert html |> LazyHTML.query("footer [data-role='name-form']") |> LazyHTML.attribute("phx-click") ==
              ["[]"]
 
-    assert html |> LazyHTML.query("footer input[name='pubkey']") |> LazyHTML.attribute("value") == [
-             person("Nick").pubkey
-           ]
+    assert html
+           |> LazyHTML.query("footer [data-role='name-form'] input[name='pubkey']")
+           |> LazyHTML.attribute("value") == [person("Nick").pubkey]
   end
 
   test "the opened foot carries the avatar switch, checked when the reader shows it" do
@@ -167,6 +167,42 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert LazyHTML.attribute(switch, "aria-checked") == ["false"]
     assert LazyHTML.attribute(switch, "phx-value-show") == ["true"]
     assert switch |> LazyHTML.query("input[type='checkbox']") |> LazyHTML.attribute("checked") == []
+  end
+
+  test "the foot's Colour row: Theirs in the published hue, the palette, the slider in a form saving on the act; the rename field is 16rem" do
+    html =
+      render(
+        person: person("Nick", published_hue: 12, hue_override: 195),
+        acts: [],
+        width: :page,
+        opened?: true
+      )
+
+    form = LazyHTML.query(html, "footer form[data-role='hue-form']")
+
+    assert LazyHTML.attribute(form, "phx-change") == ["set_hue_override"]
+    # The form swallows its clicks so the slider does not press the card.
+    assert LazyHTML.attribute(form, "phx-click") == ["[]"]
+
+    assert form |> LazyHTML.query("input[type='hidden'][name='pubkey']") |> LazyHTML.attribute("value") ==
+             [person("Nick").pubkey]
+
+    theirs = LazyHTML.query(form, "button[data-role='theirs']")
+    assert LazyHTML.attribute(theirs, "style") == ["--hue: 12"]
+    assert LazyHTML.attribute(theirs, "aria-pressed") == ["false"]
+    assert LazyHTML.attribute(theirs, "phx-click") == ["set_hue_override"]
+    assert LazyHTML.attribute(theirs, "phx-value-pubkey") == [person("Nick").pubkey]
+
+    assert form |> LazyHTML.query("button[data-hue='195']") |> LazyHTML.attribute("aria-pressed") ==
+             ["true"]
+
+    assert form |> LazyHTML.query("input[type='range'][name='hue']") |> LazyHTML.attribute("value") ==
+             ["195"]
+
+    assert html
+           |> LazyHTML.query("footer [data-role='name-form'] input[name='name']")
+           |> LazyHTML.attribute("class")
+           |> hd() =~ "basis-64"
   end
 
   test "the foot's placeholder is the published name the override masks, else Unnamed; never a letter of it" do

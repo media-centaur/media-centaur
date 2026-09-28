@@ -20,7 +20,8 @@ defmodule MediaCentaur.DiscoveryRows do
   A friend as the reader sees them, under the reader's name for them;
   nil is a friend without an override. `published_name:` is what the
   friend's key published; `avatar_url:` its avatar; `show_avatar:` the
-  reader's switch (default true).
+  reader's switch (default true); `published_hue:` the hue the key
+  published; `hue_override:` the reader's hue for them.
   """
   @spec person(String.t() | nil, keyword()) :: Person.t()
   def person(name, opts \\ []) when is_binary(name) or is_nil(name) do
@@ -33,6 +34,8 @@ defmodule MediaCentaur.DiscoveryRows do
       # As `Social.person_for/2` builds it: a hidden avatar has no URL.
       avatar_url: if(show_avatar, do: Keyword.get(opts, :avatar_url)),
       show_avatar: show_avatar,
+      published_hue: Keyword.get(opts, :published_hue),
+      hue_override: Keyword.get(opts, :hue_override),
       own?: false,
       short_npub: "npub1lyy9…8z4h",
       added_on: ~D[2026-08-30]
