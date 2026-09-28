@@ -106,7 +106,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       id: "library",
       label: "Library",
       group: :media,
-      description: "Where your media lives and how long absent files are kept."
+      description:
+        "Where your media lives, how long absent files are kept, and what an arriving movie does to your watchlist."
     },
     %{
       id: "tmdb",
