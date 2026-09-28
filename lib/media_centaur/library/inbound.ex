@@ -7,7 +7,8 @@ defmodule MediaCentaur.Library.Inbound do
 
   - `{:entity_published, event}` — creates a type-specific record (TVSeries,
     MovieSeries, Movie, VideoObject), children, ExternalId, WatchedFile, queues
-    images for download, and broadcasts `:entities_changed`
+    images for download, and broadcasts `:entities_changed` — plus
+    `Library.Events.MoviesAdded` when the file is a movie's first
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
   - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
     then sends the file list to `"review:intake"` for re-review
@@ -82,11 +83,14 @@ defmodule MediaCentaur.Library.Inbound do
   @spec ingest(map()) ::
           {:ok, map(), :new | :new_child | :existing, list()} | {:error, term()}
   def ingest(event) do
+    arriving = arriving_movie(event)
+
     case create_or_link(event) do
       {:ok, entity, status, pending_images} ->
         link_file(entity, event)
         queue_images(entity, pending_images, event)
         Helpers.broadcast_entities_changed([entity.id])
+        announce_arrival(arriving)
 
         Log.info(
           :library,
@@ -269,6 +273,44 @@ defmodule MediaCentaur.Library.Inbound do
     kind, reason ->
       Log.error(:library, "inbound #{label} crashed: #{inspect({kind, reason})}")
   end
+
+  # ---------------------------------------------------------------------------
+  # Movie arrival
+  # ---------------------------------------------------------------------------
+
+  # A movie arrives when the library gains its first file of the movie
+  # itself: the event carries a movie's own file (not a bonus feature),
+  # and the library holds no file for that movie yet. Read before the
+  # ingest writes, announced after it succeeds. A second copy, or a file
+  # coming back from a remounted drive, is not an arrival: the library
+  # already had a file for it.
+  defp arriving_movie(%{extra: extra}) when not is_nil(extra), do: nil
+
+  defp arriving_movie(event) do
+    with tmdb_id when is_binary(tmdb_id) <- movie_tmdb_id(event),
+         {id, ""} <- Integer.parse(tmdb_id),
+         true <- movie_without_files?(tmdb_id) do
+      id
+    else
+      _not_an_arrival -> nil
+    end
+  end
+
+  defp movie_tmdb_id(%{entity_type: :movie, identifier: %{source: "tmdb", external_id: id}}), do: id
+  defp movie_tmdb_id(%{entity_type: :movie_series, child_movie: %{attrs: %{tmdb_id: id}}}), do: id
+  defp movie_tmdb_id(_event), do: nil
+
+  defp movie_without_files?(tmdb_id) do
+    case ExternalIds.find_by_external_id(:movie, tmdb_id) do
+      nil -> true
+      movie -> Library.Files.list_by_entity_id(movie.id) == []
+    end
+  end
+
+  defp announce_arrival(nil), do: :ok
+
+  defp announce_arrival(tmdb_id),
+    do: Library.Events.broadcast(%Library.Events.MoviesAdded{tmdb_ids: [tmdb_id]})
 
   # ---------------------------------------------------------------------------
   # Entity creation / linking

@@ -49,14 +49,34 @@ defmodule MediaCentaur.Library.Events do
     @type t :: %__MODULE__{container_ids: [String.t()]}
   end
 
-  @doc """
-  Broadcast a typed event on the `library:updates` topic. Each clause
-  pairs a struct with the tagged-tuple shape subscribers pattern-match
-  against — this is the *only* place the topic is published to.
+  defmodule MoviesAdded do
+    @moduledoc """
+    Movies arrived: the library gained a row for each, standalone or as a
+    collection's child, carrying the movie's own TMDB id. A second file for
+    a movie the library already holds is not an arrival.
 
-  An empty `entity_ids` list is a no-op (nothing to reconcile).
+    Broadcast on the dedicated `library:additions` topic, for the same
+    reason as `ContainersDeleted`: `library:updates` subscribers match a
+    closed message set. Release tracking hears it and, when the person
+    asked for it, takes the movie off the watchlist
+    (`Settings.Preferences.WatchlistAutoRemove`).
+    """
+    @enforce_keys [:tmdb_ids]
+    defstruct [:tmdb_ids]
+
+    @type t :: %__MODULE__{tmdb_ids: [pos_integer()]}
+  end
+
+  @doc """
+  Broadcast a typed library event on its topic — `library:updates`,
+  `library:deletions` or `library:additions`. Each clause pairs a struct
+  with the tagged-tuple shape subscribers pattern-match against — this is
+  the *only* place those topics are published to.
+
+  An empty id list is a no-op (nothing to reconcile).
   """
-  @spec broadcast(EntitiesChanged.t() | ContainersDeleted.t()) :: :ok | {:error, term()}
+  @spec broadcast(EntitiesChanged.t() | ContainersDeleted.t() | MoviesAdded.t()) ::
+          :ok | {:error, term()}
   def broadcast(%EntitiesChanged{entity_ids: []}), do: :ok
 
   def broadcast(%EntitiesChanged{} = event), do: do_broadcast({:entities_changed, event})
@@ -69,6 +89,11 @@ defmodule MediaCentaur.Library.Events do
       {:containers_deleted, event}
     )
   end
+
+  def broadcast(%MoviesAdded{tmdb_ids: []}), do: :ok
+
+  def broadcast(%MoviesAdded{} = event),
+    do: Topics.publish(Topics.library_additions(), {:movies_added, event})
 
   defp do_broadcast(message) do
     Topics.publish(Topics.library_updates(), message)

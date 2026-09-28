@@ -17,6 +17,7 @@ defmodule MediaCentaur.Settings.Preferences do
       ShareWatched,
       ShareWatchlist,
       SpoilerFree,
+      WatchlistAutoRemove,
       UIScale
     ]
 

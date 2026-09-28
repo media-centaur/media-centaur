@@ -4,6 +4,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryListener do
 
   - `{:entities_changed, %{entity_ids: ids}}` → `ReleaseTracking.library_entities_changed/1`
   - `{:containers_deleted, %{container_ids: ids}}` → `ReleaseTracking.detach_library_containers/1`
+  - `{:movies_added, %{tmdb_ids: ids}}` → `ReleaseTracking.movies_added/1`
 
   Skipped in `:test`; tests call those functions directly.
   """
@@ -20,6 +21,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryListener do
   def init(_opts) do
     Topics.subscribe(Topics.library_updates())
     Topics.subscribe(Topics.library_deletions())
+    Topics.subscribe(Topics.library_additions())
     {:ok, %{}}
   end
 
@@ -31,6 +33,11 @@ defmodule MediaCentaur.ReleaseTracking.LibraryListener do
 
   def handle_info({:containers_deleted, %{container_ids: container_ids}}, state) do
     ReleaseTracking.detach_library_containers(container_ids)
+    {:noreply, state}
+  end
+
+  def handle_info({:movies_added, %{tmdb_ids: tmdb_ids}}, state) do
+    ReleaseTracking.movies_added(tmdb_ids)
     {:noreply, state}
   end
 

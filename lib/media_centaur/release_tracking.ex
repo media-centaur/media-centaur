@@ -8,6 +8,7 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.Retention,
       MediaCentaur.Search,
       MediaCentaur.Settings,
+      MediaCentaur.Settings.Preferences,
       MediaCentaur.TitleArtwork,
       MediaCentaur.TmdbArtwork
     ],
@@ -40,6 +41,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   import Ecto.Query
 
+  alias MediaCentaur.Settings.Preferences.WatchlistAutoRemove
   alias MediaCentaur.Repo
 
   alias MediaCentaur.Discovery
@@ -298,6 +300,40 @@ defmodule MediaCentaur.ReleaseTracking do
   def library_entities_changed(entity_ids) when is_list(entity_ids) do
     LibraryLinks.refresh_for(entity_ids)
     complete_movie_tracking_for(entity_ids)
+    :ok
+  end
+
+  @doc """
+  Movies arrived in the library (`Library.Events.MoviesAdded`): each one on
+  the watchlist leaves it, when the person asked for that
+  (`Settings.Preferences.WatchlistAutoRemove`, on by default).
+
+  The one place the library writes a title intent (ADR-066's 2026-09-28
+  amendment), and only on the person's standing instruction. It reacts to
+  the arrival, never to the state: a movie already in the library that a
+  person lists afterwards stays listed. Removal is `set_rung(title, :off)`,
+  the bookmark's own act, so a shared listing is withdrawn with it. An
+  ignored movie is not on the watchlist and keeps its record.
+  """
+  @spec movies_added([pos_integer()]) :: :ok
+  def movies_added(tmdb_ids) when is_list(tmdb_ids) do
+    if WatchlistAutoRemove.enabled?() do
+      Enum.each(tmdb_ids, &remove_arrived_from_watchlist/1)
+    end
+
+    :ok
+  end
+
+  defp remove_arrived_from_watchlist(tmdb_id) do
+    with true <- Discovery.listed?(tmdb_id, :movie),
+         %{title: title} <- Discovery.get_intent(tmdb_id, :movie),
+         {:ok, nil} <- set_rung(title, :off) do
+      Log.info(
+        :acquisition,
+        "removed #{title.name || tmdb_id} from the watchlist — it arrived in the library"
+      )
+    end
+
     :ok
   end
 

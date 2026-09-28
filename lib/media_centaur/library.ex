@@ -18,6 +18,7 @@ defmodule MediaCentaur.Library do
       Episodes,
       Events,
       Events.EntitiesChanged,
+      Events.MoviesAdded,
       ExternalId,
       ExternalIds,
       Extra,
