@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-28
 last_updated: 2026-09-28
 ---
@@ -39,11 +39,12 @@ idiom one mechanism, and fixes the bugs the review found.
 
 ## Status
 
-Planning. Review and design pass complete; no code changed. The design below
-awaits the owner's approval of four open decisions (Next steps, step 0).
-Line numbers are from commit `d7ecc8b5` and will drift.
+In progress on branch `ui-state-ownership` (worktree
+`../media-centaur-app-ui-state`, isolated from other agents working in the
+main checkout). Design approved 2026-09-28. Phase 1 next. Line numbers are
+from commit `d7ecc8b5` and will drift.
 
-## Design (proposed 2026-09-28)
+## Design (approved 2026-09-28)
 
 ### Core idea
 
@@ -185,19 +186,14 @@ with a stream reset per debounced change.
   unverified bugs, three dead handlers, and several avoidable round trips.
 * `2026-09-28` — The first plan moved four toggles to JS commands. The
   design pass replaced it: those moves would have added a fourth disclosure
-  mechanism and a second owner for disclosure state. Pending owner approval
-  of the design above.
+  mechanism and a second owner for disclosure state.
+* `2026-09-28` — **Owner approved the design and all four recommendations:**
+  the ownership rule (nothing moves to JS commands); disclosures owned by the
+  LiveView through one component; console search owned by the browser, with
+  the query passed to copy and download; a Credo check enforces
+  `phx-debounce`.
 
 ## Next steps
-
-0. **Owner decisions.**
-   1. Approve the ownership rule in the core idea. Its consequence is that
-      nothing moves to JS commands.
-   2. Disclosures owned by the LiveView through one component (recommended),
-      or browser-owned `<details>`.
-   3. Console search owned by the browser (recommended), or by the server.
-   4. Build the debounce Credo check (recommended), or fix the four sites
-      only.
 
 ### Phase 1 — Bugs and dead code
 
