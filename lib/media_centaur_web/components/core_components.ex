@@ -197,6 +197,10 @@ defmodule MediaCentaurWeb.CoreComponents do
   other interaction disarms); the handler asks `ArmGesture.press/3` which
   this click was, and the host passes `armed` from `ArmGesture.armed?/3`.
 
+  `busy` is the state after firing while the work runs (an async delete):
+  `busy_label`, disabled, still error-toned. `nav: :sub_item` makes it one
+  of a row's own controls.
+
   The armed state is house-owned: it relabels the button, leads the label
   with a warning glyph, turns it error-toned (`.btn[data-armed]` in
   `app.css` — text, tint, border, single-line label, and a one-shot ring
@@ -223,30 +227,53 @@ defmodule MediaCentaurWeb.CoreComponents do
     doc: "the gesture's one event: arms, then fires. Unset for a form's submit button."
 
   attr :armed_label, :string, required: true, doc: "label shown while armed — say what fires."
+
+  attr :busy, :boolean,
+    default: false,
+    doc: "fired, and the work it started is still running: `busy_label`, disabled."
+
+  attr :busy_label, :string, default: nil, doc: "label while `busy` — say what is running."
   attr :variant, :string, default: "danger", values: ~w(danger risky dismiss destructive_inline)
   attr :size, :string, default: "sm", values: ~w(xs sm md lg)
+
+  attr :nav, :atom,
+    default: :item,
+    values: [:item, :sub_item],
+    doc: "a `data-nav-item`, or a `data-nav-sub-item` among a row's own controls."
+
   attr :class, :any, default: nil, doc: "utilities for the idle control only."
   attr :rest, :global, include: ~w(disabled type form)
   slot :inner_block, required: true, doc: "the idle label."
 
   def armed_button(assigns) do
+    assigns =
+      assigns
+      |> assign(:disabled, assigns.busy or assigns.rest[:disabled] == true)
+      |> assign(:hot, assigns.armed or assigns.busy)
+      |> update(:rest, &Map.delete(&1, :disabled))
+
     ~H"""
     <.button
-      variant={if @armed, do: "danger", else: @variant}
+      variant={if @hot, do: "danger", else: @variant}
       size={@size}
-      class={if @armed, do: nil, else: @class}
+      class={if @hot, do: nil, else: @class}
       phx-click={@event}
-      data-armed={@armed && "true"}
+      disabled={@disabled}
+      data-armed={@hot && "true"}
       aria-pressed={to_string(@armed)}
-      data-nav-item
-      tabindex="0"
+      data-nav-item={@nav == :item}
+      data-nav-sub-item={@nav == :sub_item}
+      tabindex={@nav == :item && "0"}
       {@rest}
     >
-      <%= if @armed do %>
-        <.icon name="hero-exclamation-triangle-mini" class={armed_icon_size(@size)} />
-        {@armed_label}
-      <% else %>
-        {render_slot(@inner_block)}
+      <%= cond do %>
+        <% @busy -> %>
+          {@busy_label}
+        <% @armed -> %>
+          <.icon name="hero-exclamation-triangle-mini" class={armed_icon_size(@size)} />
+          {@armed_label}
+        <% true -> %>
+          {render_slot(@inner_block)}
       <% end %>
     </.button>
     """

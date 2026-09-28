@@ -86,6 +86,44 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
               slots: ["Delete"]
             }
           end
+      },
+      %Variation{
+        id: :busy,
+        description:
+          "Fired, and the work it started is still running (an async delete): the " <>
+            "`busy_label`, disabled, still error-toned. The host clears it when the result lands.",
+        attributes: %{
+          armed: false,
+          busy: true,
+          busy_label: "Deleting…",
+          event: "noop",
+          armed_label: "Click again to delete",
+          variant: "destructive_inline",
+          size: "xs"
+        },
+        slots: ["Delete"]
+      },
+      %VariationGroup{
+        id: :nav,
+        description:
+          "How the input system reaches it: a `data-nav-item` (default), or a " <>
+            "`data-nav-sub-item` among a row's own controls (a folder's Delete in the " <>
+            "Manage ledger, reached with RIGHT from the folder's head).",
+        variations:
+          for nav <- [:item, :sub_item] do
+            %Variation{
+              id: nav,
+              attributes: %{
+                armed: false,
+                nav: nav,
+                event: "noop",
+                armed_label: "Click again to delete",
+                variant: "destructive_inline",
+                size: "xs"
+              },
+              slots: ["Delete"]
+            }
+          end
       }
     ]
   end

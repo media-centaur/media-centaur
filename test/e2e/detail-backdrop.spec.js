@@ -207,9 +207,9 @@ test.describe("detail pinned-backdrop geometry", () => {
     const before = await measureBoxes(page)
     expectBoxEquality(before)
 
-    // Collapse the expanded season (chevron-down marks it), then re-expand.
+    // Collapse the expanded season (aria-expanded marks it), then re-expand.
     const expandedHeader = page
-      .locator('[phx-click="toggle_season"]:has([class*="chevron-down"])')
+      .locator('[phx-click="toggle_season"][aria-expanded="true"]')
       .first()
     if ((await expandedHeader.count()) === 0) { test.skip(); return }
     const seasonValue = await expandedHeader.getAttribute("phx-value-season")
@@ -217,7 +217,7 @@ test.describe("detail pinned-backdrop geometry", () => {
     await expandedHeader.click()
     await expect(
       page.locator(
-        `[phx-click="toggle_season"][phx-value-season="${seasonValue}"] [class*="chevron-right"]`
+        `[phx-click="toggle_season"][phx-value-season="${seasonValue}"][aria-expanded="false"]`
       )
     ).toBeVisible()
 
@@ -226,7 +226,7 @@ test.describe("detail pinned-backdrop geometry", () => {
       .click()
     await expect(
       page.locator(
-        `[phx-click="toggle_season"][phx-value-season="${seasonValue}"] [class*="chevron-down"]`
+        `[phx-click="toggle_season"][phx-value-season="${seasonValue}"][aria-expanded="true"]`
       )
     ).toBeVisible()
 
