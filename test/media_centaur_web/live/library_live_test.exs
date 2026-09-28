@@ -427,20 +427,20 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
-      # Nothing is chosen at open; the three choices preview their pennants.
+      # Nothing is chosen at open; the three choices are the words.
       refute has_element?(view, "#review-form [aria-pressed='true']")
-      assert has_element?(view, "#review-sentiment-dislike .pennant[data-flag='dislike']", "Dislike")
-      assert has_element?(view, "#review-sentiment-like .pennant[data-flag='like']", "Like")
-      assert has_element?(view, "#review-sentiment-love .pennant[data-flag='love']", "Love")
+      assert has_element?(view, choice(:dislike), "Dislike")
+      assert has_element?(view, choice(:like), "Like")
+      assert has_element?(view, choice(:love), "Love")
 
       # A choice presses; pressing it again clears it; another choice replaces it.
-      view |> element("#review-sentiment-like") |> render_click()
-      assert has_element?(view, "#review-sentiment-like[aria-pressed='true']")
-      view |> element("#review-sentiment-like") |> render_click()
+      view |> element(choice(:like)) |> render_click()
+      assert has_element?(view, choice(:like) <> "[aria-pressed='true']")
+      view |> element(choice(:like)) |> render_click()
       refute has_element?(view, "#review-form [aria-pressed='true']")
-      view |> element("#review-sentiment-love") |> render_click()
-      assert has_element?(view, "#review-sentiment-love[aria-pressed='true']")
-      refute has_element?(view, "#review-sentiment-like[aria-pressed='true']")
+      view |> element(choice(:love)) |> render_click()
+      assert has_element?(view, choice(:love) <> "[aria-pressed='true']")
+      refute has_element?(view, choice(:like) <> "[aria-pressed='true']")
 
       view |> form("#review-form", %{"text" => ""}) |> render_submit()
       assert [%{tmdb_id: 777, text: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
@@ -522,22 +522,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
 
-      # No identity exists yet and the preview flies as the reader all the
-      # same: each choice's pennant reads the choice's word and carries the
-      # reader's own sentence as its tooltip.
-      for {sentiment, word, sentence} <- [
-            {:dislike, "Dislike", "You dislike this"},
-            {:like, "Like", "You like this"},
-            {:love, "Love", "You love this"}
-          ] do
-        view |> element("#review-sentiment-#{sentiment}") |> render_click()
-        assert has_element?(view, "#review-sentiment-#{sentiment}[aria-pressed='true']")
-
-        assert has_element?(
-                 view,
-                 "#review-sentiment-#{sentiment} .pennant[data-flag='#{sentiment}'][title='#{sentence}']",
-                 word
-               )
+      # No identity exists yet and every choice presses all the same.
+      for sentiment <- [:dislike, :like, :love] do
+        view |> element(choice(sentiment)) |> render_click()
+        assert has_element?(view, choice(sentiment) <> "[aria-pressed='true']")
       end
     end
 
@@ -2403,4 +2391,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute render(view) =~ "Download more of this show"
     end
   end
+
+  # One of the Review modal's sentiment choices, by its value.
+  defp choice(sentiment), do: "#review-sentiment [phx-value-choice='#{sentiment}']"
 end

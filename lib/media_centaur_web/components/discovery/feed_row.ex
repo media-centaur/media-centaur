@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
-  alias MediaCentaurWeb.Components.Title.Sentiment
+  alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
 
@@ -90,10 +90,10 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
         <p class="truncate text-base leading-6 text-base-content/80" data-role="who">
           <span class="font-medium text-base-content/95">{Format.person_name(@entry.author)}</span>
           {ActivityWords.verb(@entry.kind, nil, ActivityWords.subject(@entry.author))}
-          <Sentiment.sentiment_glyph
+          <SocialGlyph.social_glyph
             :if={@entry.sentiment}
-            sentiment={@entry.sentiment}
-            class="size-4"
+            flag={@entry.sentiment}
+            class="size-4 align-middle"
           />
         </p>
         <p class="flex items-baseline gap-2 text-lg font-semibold leading-7" data-role="title">

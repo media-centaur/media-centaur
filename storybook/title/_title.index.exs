@@ -10,8 +10,6 @@ defmodule MediaCentaurWeb.Storybook.Title do
   # breaks storybook coverage.
   def entry("pennants"), do: [icon: {:fa, "flag-pennant", :thin}, name: "Pennant"]
 
-  def entry("sentiment_glyph"), do: [icon: {:fa, "thumbs-up", :thin}, name: "Sentiment glyph"]
-
   def entry("social_glyph"), do: [icon: {:fa, "heart", :thin}, name: "Social glyph"]
 
   def entry("social_glyphs"), do: [icon: {:fa, "icons", :thin}, name: "Social glyphs"]

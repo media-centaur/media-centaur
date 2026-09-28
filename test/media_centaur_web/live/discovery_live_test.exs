@@ -770,7 +770,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, entry(rec) <> " [data-role='who']", "reviewed")
       assert has_element?(view, entry(rec) <> " [data-role='time']", "2h ago")
       refute has_element?(view, entry(rec) <> " [data-role='who']", "ago")
-      assert has_element?(view, entry(rec) <> " [data-role='who'] [data-sentiment='love']")
+
+      assert has_element?(
+               view,
+               entry(rec) <> " [data-role='who'] .social-glyph[data-flag='love'][data-grade='plain']"
+             )
+
       assert has_element?(view, entry(rec) <> " [data-role='title']", "Sample Movie 777")
       assert has_element?(view, entry(rec) <> " [data-role='title']", "2024")
       assert has_element?(view, entry(rec) <> " [data-role='text']", "Watch it.")
@@ -823,7 +828,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, entry(listing) <> " [data-role='who']", "wants to watch")
       assert has_element?(view, entry(listing) <> " [data-role='title']", "Sample Movie 777")
       refute has_element?(view, entry(listing) <> " [data-role='text']")
-      refute has_element?(view, entry(listing) <> " [data-sentiment]")
+      refute has_element?(view, entry(listing) <> " .social-glyph")
       refute has_element?(view, entry(listing) <> " .pennant")
       await_supervised_tasks()
     end
@@ -837,10 +842,20 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, bare} = Activities.ingest(friend_event(779, nil, nil))
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, entry(liked) <> " [data-role='who'] [data-sentiment='like']")
-      assert has_element?(view, entry(disliked) <> " [data-role='who'] [data-sentiment='dislike']")
+
+      assert has_element?(
+               view,
+               entry(liked) <> " [data-role='who'] .social-glyph[data-flag='like'][data-grade='plain']"
+             )
+
+      assert has_element?(
+               view,
+               entry(disliked) <>
+                 " [data-role='who'] .social-glyph[data-flag='dislike'][data-grade='plain']"
+             )
+
       assert has_element?(view, entry(bare) <> " [data-role='who']", "reviewed")
-      refute has_element?(view, entry(bare) <> " [data-sentiment]")
+      refute has_element?(view, entry(bare) <> " .social-glyph")
       refute has_element?(view, entry(bare) <> " [data-role='text']")
       await_supervised_tasks()
     end
@@ -1426,7 +1441,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(view, entry(mine) <> "[data-own] [data-role='who']", "You want to watch")
       assert has_element?(view, entry(review) <> "[data-own] [data-role='who']", "You reviewed")
-      assert has_element?(view, entry(review) <> " [data-role='who'] [data-sentiment='dislike']")
+
+      assert has_element?(
+               view,
+               entry(review) <>
+                 " [data-role='who'] .social-glyph[data-flag='dislike'][data-grade='plain']"
+             )
 
       assert has_element?(
                view,
