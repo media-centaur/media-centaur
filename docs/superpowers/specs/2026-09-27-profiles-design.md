@@ -357,3 +357,175 @@ Each phase ships on its own.
    Troubleshooting), `docs/social.md`, `docs/GLOSSARY.md`, the records
    marked accepted, the campaign closed by destination. The following
    release drops `nickname`.
+
+## Phase 5: the hue, the crop, the name field (designed 2026-09-28)
+
+Three items the owner asked for after v1.42.0: a colour for a person's
+circle, chosen by the person and overridable by the reader; a cropper
+with a preview when a picture is chosen; the Settings name field's
+width. Decided with the owner on 2026-09-28 over two mockups
+(`mockups/profiles-phase-5/`, git-ignored): the tinted circle over the
+filled one; `hue` as an integer on the wire over a hex colour; croppr
+over Cropper.js and a hand-rolled hook. Records:
+[UIDR-048](../../../decisions/user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md);
+ADR-073 and UIDR-047 amended.
+
+### Glossary, continued
+
+| Term | Meaning |
+|---|---|
+| **Hue** | The colour a person's circle takes, as an angle 0–359 on one ring in oklch: the theme fixes lightness and chroma (`--person-l`, `--person-c` in `app.css`), the person picks the angle. The word in code and on the wire; user copy says **colour**. `Social.Hue`. |
+| **Palette** | The eight named hues offered as swatches: Rose 12, Orange 45, Amber 80, Green 150, Teal 195, Blue 250, Violet 290, Magenta 335. `Social.Hue.palette/0`. |
+| **Custom** | Any hue not in the palette, chosen on a slider whose track is the ring. The ninth swatch. |
+| **Published hue** | The hue a key gives in its profile. `Person.published_hue`. |
+| **Hue override** | The reader's hue for a friend, on the roster row beside the name override; wins over the published hue. `Friend.hue_override`. |
+| **Theirs** | The first swatch on a friend's card foot: the friend's published hue (Blue when none), selected while there is no override. |
+| **Default hue** | Blue 250, the primary's hue, for a person with neither an override nor a published hue. Lives in CSS as the `--hue` fallback; `Person.hue/1` returns nil, never a made-up value. |
+| **Crop** | The square of the chosen picture the sender picks by dragging a box over the whole picture; the server cuts that square and makes the master from it. |
+| **Preview** | The tile as it will look after Save: the crop inside the own tile's ring at 48 and 40, beside the cropper, drawn client-side. |
+
+### Core idea
+
+A person's appearance is one published record — name, avatar, hue —
+overlaid by the reader's choices for a friend — name override, show
+avatar, hue override. The hue is the third field of the same structure
+on both sides, resolved at the one seam that resolves the other two.
+
+### The hue
+
+**A colour is a hue.** The ring is oklch lightness 70 %, chroma 0.15,
+the slate theme at hue 264 behind it; a hue is the angle. Nothing a
+person publishes can be dark, pastel or grey, so the letter's contrast
+is constant by construction and nothing is computed from luminance.
+The palette is eight angles on the ring; Custom is any other angle. A
+reader draws a hue at its own theme's lightness and chroma, which is
+why the wire carries the angle and not a colour.
+
+**On the wire**: `"hue"`, an integer 0–359, optional; absent or `null`
+means the key gives none. A non-integer, a float, or an integer out of
+range drops the whole profile, the one rule for malformed. `v` stays 1:
+a reader ignores unknown fields.
+
+**Storage**: `profiles.hue` integer nullable; `friends.hue_override`
+integer nullable. Both plain adds, safe for the outgoing release, which
+never reads them. `Social.set_hue_override/2` (nil clears) through
+`apply_change/2`, broadcasting `FriendChanged`. `Social.people/0`
+selects `hue` with the other profile fields.
+
+**The read model**: `Person` gains `published_hue` and `hue_override`;
+`Person.hue/1` is the override, else the published hue, else nil. The
+own Person's `hue_override` is nil. `Social.Hue` owns what a hue is:
+the type `0..359`, `valid?/1`, `palette/0` (`[{name, hue}]`),
+`random/0` (a palette member).
+
+**The tile**: one recipe, in `app.css` as `.identity-tile` variants
+over `--hue`, with `var(--hue, 250)` as the fallback. A friend's letter
+or glyph in the hue on the hue at 20 % with a hairline ring at 25 %;
+the reader's own filled in the hue with a near-white mark
+(`oklch(97% 0.01 hue)`); a friend's picture inside a 1 px ring in the
+hue, the reader's own inside a 2 px one. The tile sets `style="--hue:
+N"` when `Person.hue/1` is non-nil and nothing otherwise. Own-ness
+stays a matter of weight, as UIDR-046 drew it.
+
+**Choosing**: one function component, `Discovery.HueSwatches`
+(`hue_swatches/1`): the palette as round swatches, Custom as the ninth
+with the ring as its face, the selected one outlined; Custom selected
+reveals a range input 0–359 with the ring as its track. It takes
+`selected` (a hue or nil), an optional `theirs` (a hue or nil, rendered
+as the first swatch, selected when `selected` is nil), `event` and
+`values` as `Switch` does; each swatch pushes the event with `hue` (an
+integer, or empty for Theirs), the slider pushes it on change,
+debounced. Every swatch is a nav item.
+
+- **Settings → Your profile**: a Colour row between the picture row
+  and the name row. The swatches push `set_profile_hue`, which sets the
+  form's pending hue and re-renders the card's tile with it; Save
+  publishes it with the name and the avatar. When the form loads with
+  no profile row, or a row without a hue, the pending hue is
+  `Social.Hue.random/0`; the tile shows it at once, the rest of the app
+  keeps the default until Save. A saved profile with a hue loads with
+  that hue.
+- **A friend's opened card**: a Colour row after *Show their picture*:
+  Theirs, the palette, Custom. A swatch saves on the act
+  (`set_hue_override`), like the switch.
+
+**Not chosen**: a hue derived from the key for a person who published
+none (it invents a choice and changes the day they publish; a card says
+what was published); a free colour picker (a dark or pastel pick
+fights the theme and needs contrast math); a hex colour on the wire
+(the app would convert to and from oklch and clamp to the ring on both
+sides); the filled circle (louder beside the poster on a page of many
+people; own-ness would need a new mark).
+
+### The crop
+
+**croppr** (MIT, 5 KB gzipped, no dependencies, vendored under
+`assets/vendor/croppr.js` with its stylesheet folded into `app.css`
+under one comment) draws a square box the person drags and resizes
+over the whole picture; no zoom. The server keeps the crop: the client
+sends the box, the server cuts it.
+
+- The `AvatarCrop` hook mounts on the pending entry's `live_img_preview`
+  once the image has loaded, with `aspectRatio: 1`, the box starting as
+  the largest centred square, `returnMode: "real"`. On every crop end
+  it writes `crop_x`, `crop_y` and `crop_side`, in the picture's own
+  pixels with orientation applied (the browser draws EXIF orientation
+  into the preview and reports the oriented size), into hidden inputs
+  in the profile form, and draws the crop onto two canvases at 48 and
+  40 inside preview elements wearing the own tile's avatar recipe:
+  *How it will look*.
+- On Save, `avatar_change/1` reads the three fields and
+  `ImageFiles.square_webp/4` takes `crop: {x, y, side}`: autorotate,
+  crop, thumbnail to 256, flatten, strip, fit the cap. Missing or
+  malformed fields, or a box outside the image, fall back to the centre
+  crop, the master today; the form never refuses a crop.
+- Cancel discards the entry and the box with it. Remove stays as it is.
+
+### The name field
+
+The Settings name field is 16 rem with Save beside it, the row no
+longer stretched to the card; the card foot's rename input takes the
+same width. One width for a person's name field.
+
+### Errors
+
+| Situation | Behaviour |
+|---|---|
+| Hue out of range on the API (`save_profile/3`, `set_hue_override/2`) | `{:error, :invalid_hue}`; the form cannot produce one |
+| Malformed inbound hue | Dropped whole, debug log under `:social` |
+| Crop fields missing or off the image | Centre crop |
+
+### Migration
+
+Release N (the one carrying phase 5, the first after v1.42.0): add
+`profiles.hue` and `friends.hue_override`, both nullable; drop
+`friends.nickname` as owed, since v1.42.0 was the release that stopped
+writing it. The `:start_activities_sync` key goes with it.
+
+### Testing
+
+- Translation: the hue round trip; the malformed matrix (string, float,
+  −1, 360, null, absent).
+- `Social.people/0`: override over published over nil; the own Person.
+- `set_hue_override/2`: set, clear, not a friend, out of range.
+- Stories: the tile's marks at every palette hue and with no hue; the
+  swatches with and without Theirs, Custom selected; the person card's
+  foot; the Settings section with the Colour row.
+- Settings: a fresh form seeds a palette hue; Save publishes it; a
+  saved hue loads; the slider's value publishes.
+- Friends: Theirs clears; a swatch saves.
+- The hook (bun): the box writes the fields; the canvases draw.
+- `square_webp/4` with a crop and with none; the fallback on a bad box.
+- Migration on a friend row with a nickname (dropped) and none.
+
+### Build order
+
+Each phase ships whole.
+
+5a. **The hue and the name field.** `Social.Hue`, the columns, the
+    wire field, `Person`, the tile's CSS recipe, `HueSwatches`, the
+    Settings Colour row and the random seed, the card foot's row, the
+    name width, stories, the protocol page's field and Changes row, the
+    `nickname` drop.
+5b. **The crop.** croppr vendored, the hook, the hidden fields, the
+    previews, `square_webp/4`, the wiki's Social and Settings pages.

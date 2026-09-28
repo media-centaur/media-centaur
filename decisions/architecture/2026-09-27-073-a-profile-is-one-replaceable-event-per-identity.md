@@ -30,3 +30,5 @@ Chosen option: one profile per identity, as a replaceable event carrying the ava
 * Bad, because per-group names are not served; they wait on multi-identity.
 
 **Amendment 2026-09-28.** The size bound above said "under 30 KB on the wire", the estimate made before the avatar was built. The bound is the avatar cap: 64 KB decoded, about 87 KB base64-encoded, so a profile is about 90 KB on the wire, one per member. `docs/social-protocol.md` states the cap and a relay's 128 KB message floor; `Social.Profile.Translation.max_avatar_bytes/0` enforces the cap.
+
+**Amendment 2026-09-28 (phase 5).** The content gains a third optional field, `hue`, an integer 0–359: the angle on one oklch ring at which the person's circle is drawn, a reader supplying its own lightness and chroma (UIDR-048). Absent or `null` means the key gives none; a non-integer or an integer out of range drops the whole profile, as every malformed field does. `v` stays 1 since a reader ignores unknown fields. `docs/social-protocol.md` § Profile carries the field and its Changes row.

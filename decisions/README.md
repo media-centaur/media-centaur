@@ -106,3 +106,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-09-27 |
 | 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted |
 | 047 | 2026-09-27 | [What a reader sees of a person: their published name under your override, or Unnamed](user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md) | accepted |
+| 048 | 2026-09-28 | [A person's colour is a hue on the app's ring](user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md) | accepted |

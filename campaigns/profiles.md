@@ -17,13 +17,13 @@ reader's alone.
 ## Status
 
 Phases 1 to 4 shipped in v1.42.0 on 2026-09-28 with social-relay v0.7.0
-(deployed; the owner's install is synced to it). **Phase 5 opened
-2026-09-28 by the owner, not yet designed**: a profile colour for the
-circle, an image cropper with a preview, and the Settings name field's
-width (see § Phase 5 brief). On resume: reconcile this file against
-`git log`, then run the design conversation for phase 5 before any code
-(glossary first, then the spec amendment, then the plan). The release
-that carries phase 5 also drops `friends.nickname` (below).
+(deployed; the owner's install is synced to it). **Phase 5 designed
+2026-09-28** with the owner over two mockups: a hue for the circle, a
+cropper with a preview, and the name field's width — spec § Phase 5,
+UIDR-048, ADR-073 and UIDR-047 amended. Next: the plan for 5a (the hue
+and the name field) with its unify pass, then execution; then 5b (the
+crop). The release that carries phase 5 also drops `friends.nickname`
+(below).
 
 ## Decisions made
 
@@ -53,47 +53,33 @@ that carries phase 5 also drops `friends.nickname` (below).
 
 ## Next steps
 
-1. Phase 5, design first (§ Phase 5 brief): the glossary, the open questions decided with the owner, the spec amended, ADR-073 and UIDR-047 amended or a new UIDR, then the plan and its unify pass, then execution by the same task/review cadence as phases 1 to 3.
-2. The release carrying phase 5 (the first after v1.42.0) drops `friends.nickname` (a paired migration; v1.42.0 still reads it) and the `:start_activities_sync` key with it (`config/test.exs`, `RelaySync`). Then retire this file and move the entry under Complete in `campaigns/README.md`.
+1. Phase 5a, the hue and the name field: the plan (`docs/superpowers/plans/`) with its unify pass, then execution by the same task/review cadence as phases 1 to 3. The spec's § Phase 5 is the design; its Build order names what 5a carries.
+2. Phase 5b, the crop: plan, then execution.
+3. The release carrying phase 5 (the first after v1.42.0) drops `friends.nickname` (a paired migration; v1.42.0 still reads it) and the `:start_activities_sync` key with it (`config/test.exs`, `RelaySync`) — in 5a's migration. Then the protocol page, the wiki (Social, Settings-Reference), `docs/GLOSSARY.md` (Hue, Palette, Hue override, Crop), the CHANGELOG; retire this file and move the entry under Complete in `campaigns/README.md`.
 
-## Phase 5 brief (2026-09-28, owner's request; not yet designed)
+## Phase 5 as designed (2026-09-28)
 
-Three items, in the owner's words: a friend chooses a colour for their
-circle, which the reader may override; the profile name field in
-Settings is far too wide; adding a picture gets a cropper with a
-preview.
+The brief and its six open questions are in this file's history
+(`da7fcc2e`). Settled with the owner, over the mockups in
+`mockups/profiles-phase-5/` (git-ignored; `1-tinted-circle`,
+`2-filled-circle`, each with a REASONING.md):
 
-**Glossary seeds** (to be settled in the design conversation, before
-first use in the spec):
-
-| Term | Meaning |
-|---|---|
-| **Profile colour** | A colour a key publishes with its profile, for its circle. On the wire beside the name and avatar. |
-| **Colour override** | The reader's colour for a friend, kept locally like the name override; wins over the published colour. |
-| **Crop** | The square of the chosen picture the sender picks before the app makes the master. |
-| **Preview** | The tile as it will look after Save, shown before Save. |
-
-**What exists that this touches** (so the next session reads, not
-rediscovers):
-
-* The wire: `Social.Profile.Translation` (`to_event/4`, `from_event/1`, `read_avatar/1`); `v` stays 1, since a reader ignores unknown fields, so a `colour` field is additive; the protocol page § Profile and its Changes table; no relay change (content field).
-* The row and the read model: `Social.Profile` (`avatar_type`), `Social.Friend` (`name_override`, `show_avatar`; the pattern for a `colour_override` column and `Social.set_colour_override/2` via `apply_change/2`), `Social.Person` (`avatar_url`, `show_avatar`; a resolved colour goes here, override → published → default, one seam in `person_for/2`), `Social.people/0` (selects four profile fields; add the colour), the eight story fixtures and `test/support/discovery_rows.ex` (every Person field).
-* The circle: `Components.Discovery.IdentityTile` draws the letter on `bg-primary/20` with a `ring-primary/25` ring for a friend and `bg-primary` filled for the reader's own (UIDR-046, UIDR-047 rule 2); the own tile stays as it is unless the design says otherwise; the letter's contrast against a chosen colour is a design question.
-* The Settings card: `SettingsLive.SocialSection` (the `#profile-form`: tile, `live_file_input`, Remove, entry line with Cancel, then `settings_input name="name" class="min-w-0 flex-1"` beside Save, which is the width defect: the field takes the whole card); `SettingsLive` (`allow_upload :avatar`, `avatar_change/1`, `consume_uploaded_entries`); `ImageFiles.square_webp/3` (centre crop today: `Image.thumbnail(image, side, crop: :center)`; a crop rectangle from the client would replace `:center`).
-* The card foot: `Components.Discovery.PersonCard` (rename form, the `Components.Switch` for Show their picture; a colour override control sits beside them); `DiscoveryLive`'s friend handlers (no explicit reload; the broadcast reloads).
-
-**Open questions for the design conversation** (decide with the owner;
-the answers become the spec amendment):
-
-1. Where the colour shows: the letter tile's fill, the ring around an avatar, or both; and whether the own tile takes the owner's chosen colour or keeps primary.
-2. How a colour is chosen: a fixed palette (a handful of hues the tiles are designed against, legible letters guaranteed) or a free picker (`<input type="color">`, the letter's colour computed from luminance). The memory rule "colour only for health or severity" is the owner's own rule and this request is a deliberate exception; the palette route keeps it bounded.
-3. On the wire: the field's shape (`"color": "#rrggbb"` or a palette name), what a reader refuses, and whether a bad colour drops the whole profile (the avatar rule) or only the colour.
-4. The override: per friend, with a Reset to their colour; whether hiding the avatar and overriding the colour are one control group in the card's foot.
-5. The cropper: which library (an established one, MIT, vendored under `assets/vendor/` like daisyUI, over a hand-rolled canvas), whether the client sends the crop rectangle and the server crops the original (keeps the master, the metadata strip and the cap on the server) or the client uploads the cropped blob; the preview as the tile at 48 and 40 beside the cropper, from `live_img_preview` or the cropper's own canvas.
-6. The name field: a width in characters (the cap is 50) and where Save sits once the field no longer fills the row.
-
-**Not in scope unless the owner says so**: a hide-all switch, an avatar
-by URL, per-relay profiles (multi-identity), animated avatars.
+* A colour is a **hue**: an angle 0–359 on one oklch ring (lightness
+  70 %, chroma 0.15, `--person-l`/`--person-c` in `app.css`); the
+  palette is eight named angles, Custom any other from a slider; the
+  wire field is `hue`, an integer; a reader draws it at its theme's
+  lightness and chroma. Owner: a palette from the scheme, a custom pick
+  beside it, a new profile seeded with a random palette hue.
+* The **tinted circle**: today's recipe with the hue where primary was;
+  own-ness stays weight. The filled circle was mocked and declined.
+* The override → published → Blue order; **Theirs** leads the card
+  foot's row; `Person.hue/1` is nil for none and CSS falls back to 250.
+* **croppr** (5 KB gzipped, MIT) over Cropper.js (12 KB) and a
+  hand-rolled hook — the owner's rule: an exceedingly minimal package
+  for anything required. The client sends the box; the server cuts it
+  (`square_webp/4` with `crop:`), autorotating first. No Elixir package.
+* The name field at 16 rem with Save beside it; the card's rename field
+  the same width.
 
 ## Ship notes for phase 2 (the CHANGELOG draws on these)
 
