@@ -171,26 +171,23 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   defp season_section(assigns) do
     ~H"""
-    <%!-- `data-nav-group` marks the disclosure: LEFT anywhere inside collapses
-          the season by finding this group's expanded head, which is also where
-          the cursor lands (the rows it was standing on are about to go away).
-          `aria-expanded` is the state — correct markup for a disclosure and the
-          only signal the input system reads, so there is no parallel attribute
-          saying the same thing. The id keeps morphdom from rebuilding the
-          header across that patch, which would drop focus. --%>
-    <div data-nav-group id={"season-#{@entity_id}-#{@season.season_number}"}>
-      <button
-        phx-click="toggle_season"
-        phx-value-season={@season.season_number}
-        aria-expanded={to_string(@expanded)}
-        class="flex items-baseline gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content cursor-pointer"
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon
-          name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-          class="size-4 self-center"
-        />
+    <%!-- A disclosure (`Components.Disclosure`): LEFT anywhere inside
+          collapses the season by finding this group's expanded head, which is
+          also where the cursor lands (the rows it was standing on are about to
+          go away). The id keeps morphdom from rebuilding the header across that
+          patch, which would drop focus. Host-owned: `ModalState` resets the
+          open seasons with each opening. --%>
+    <.disclosure
+      id={"season-#{@entity_id}-#{@season.season_number}"}
+      open={@expanded}
+      event="toggle_season"
+      phx-value-season={@season.season_number}
+      variant={:bare}
+      head_class="flex items-baseline gap-2 w-full text-left text-sm font-medium text-base-content/70 hover:text-base-content"
+      caret_class="size-4 self-center"
+      body_class="mt-1"
+    >
+      <:head>
         <span>{@season.name || "Season #{@season.season_number}"}</span>
         <span class="flex-1" />
         <span
@@ -207,33 +204,30 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <span :if={@season.kind == :future} class="text-xs text-base-content/55">
           upcoming
         </span>
-      </button>
-
-      <div :if={@expanded} class="mt-1">
-        <.season_item
-          :for={item <- @season.items}
-          id={"episode-#{@entity_id}-#{@season.season_number}-#{item_episode_number(item)}"}
-          item={item}
-          details_open={
-            @all_episode_details_open ||
-              (match?(%EpisodeRow.Library{}, item) &&
-                 MapSet.member?(@expanded_item_details || MapSet.new(), item.episode.id))
-          }
-          entity_id={@entity_id}
-          on_play={@on_play}
-          spoiler_free={@spoiler_free}
-          available={@available}
-          actionable_gaps={@actionable_gaps}
-        />
-        <ExtrasSection.extras_section
-          extras={@season.extras}
-          extra_progress_by_id={@extra_progress_by_id}
-          entity_id={@entity_id}
-          on_play={@on_play}
-          class="pt-2"
-        />
-      </div>
-    </div>
+      </:head>
+      <.season_item
+        :for={item <- @season.items}
+        id={"episode-#{@entity_id}-#{@season.season_number}-#{item_episode_number(item)}"}
+        item={item}
+        details_open={
+          @all_episode_details_open ||
+            (match?(%EpisodeRow.Library{}, item) &&
+               MapSet.member?(@expanded_item_details || MapSet.new(), item.episode.id))
+        }
+        entity_id={@entity_id}
+        on_play={@on_play}
+        spoiler_free={@spoiler_free}
+        available={@available}
+        actionable_gaps={@actionable_gaps}
+      />
+      <ExtrasSection.extras_section
+        extras={@season.extras}
+        extra_progress_by_id={@extra_progress_by_id}
+        entity_id={@entity_id}
+        on_play={@on_play}
+        class="pt-2"
+      />
+    </.disclosure>
     """
   end
 

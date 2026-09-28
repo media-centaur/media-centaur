@@ -167,28 +167,21 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         data-nav-zone="manage_tools"
       >
         <div class="flex flex-wrap items-center gap-2">
-          <.button
+          <.armed_button
             :if={@files != [] and @files_status == :loaded}
+            armed={delete_gesture_state(:all, @deleting, @delete_confirm) == :confirm}
+            busy={delete_gesture_state(:all, @deleting, @delete_confirm) == :deleting}
+            busy_label={"Deleting… #{delete_all_label(@file_count)} (#{format_file_size(@total_size)})"}
+            event="delete_all_prompt"
+            armed_label={"Click again to confirm — #{delete_all_label(@file_count)} (#{format_file_size(@total_size)})"}
             variant="danger"
             size="sm"
-            phx-click="delete_all_prompt"
             disabled={delete_in_flight?(@deleting)}
-            data-nav-item
-            tabindex="0"
             aria-label={delete_all_aria_label(@file_count)}
           >
             <.icon name="hero-trash-mini" class="size-4" />
-            <%= case delete_gesture_state(:all, @deleting, @delete_confirm) do %>
-              <% :deleting -> %>
-                Deleting… {delete_all_label(@file_count)} ({format_file_size(@total_size)})
-              <% :confirm -> %>
-                Click again to confirm — {delete_all_label(@file_count)} ({format_file_size(
-                  @total_size
-                )})
-              <% :idle -> %>
-                {delete_all_label(@file_count)} ({format_file_size(@total_size)})
-            <% end %>
-          </.button>
+            {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+          </.armed_button>
           <span class="flex-1" />
           <.armed_button
             :if={@tmdb_ready}
@@ -315,7 +308,13 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   defp file_group(assigns) do
     group_size = Enum.reduce(assigns.group.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
 
-    assigns = assign(assigns, :group_size, group_size)
+    assigns =
+      assigns
+      |> assign(:group_size, group_size)
+      |> assign(
+        :folder_gesture,
+        delete_gesture_state({:folder, assigns.group.dir}, assigns.deleting, assigns.delete_confirm)
+      )
 
     ~H"""
     <div data-nav-group id={"file-group-#{:erlang.phash2(@group.dir)}"}>
@@ -340,33 +339,23 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         <span class="text-xs text-base-content/55 tabular-nums flex-shrink-0">
           {file_summary(length(@group.files), @group_size)}
         </span>
-        <.button
+        <.armed_button
           :if={!@group.is_media_dir}
+          armed={@folder_gesture == :confirm}
+          busy={@folder_gesture == :deleting}
+          busy_label="Deleting…"
+          event="delete_folder_prompt"
+          armed_label="Click again to confirm"
           variant="destructive_inline"
           size="xs"
+          nav={:sub_item}
+          class="flex-shrink-0 text-error/60 hover:text-error"
           disabled={delete_in_flight?(@deleting)}
-          class={[
-            "flex-shrink-0",
-            if(@delete_confirm == {:folder, @group.dir},
-              do: "text-error font-medium",
-              else: "text-error/60 hover:text-error"
-            )
-          ]}
-          phx-click="delete_folder_prompt"
           phx-value-path={@group.dir}
           phx-value-count={length(@group.files)}
-          data-nav-sub-item
         >
-          <.icon name="hero-trash-mini" class="size-3.5" />
-          <%= case delete_gesture_state({:folder, @group.dir}, @deleting, @delete_confirm) do %>
-            <% :deleting -> %>
-              Deleting…
-            <% :confirm -> %>
-              Click again to confirm
-            <% :idle -> %>
-              Delete
-          <% end %>
-        </.button>
+          <.icon name="hero-trash-mini" class="size-3.5" /> Delete
+        </.armed_button>
       </div>
       <div :if={@expanded} class="mt-1 ml-6 space-y-1.5">
         <.file_row
@@ -445,27 +434,21 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           {format_file_size(@size)}
         </span>
         <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
-        <.button
+        <.armed_button
+          armed={@is_pending}
+          busy={@is_deleting}
+          busy_label="Deleting…"
+          event="delete_file_prompt"
+          armed_label="Click to confirm"
           variant="destructive_inline"
           size="xs"
+          class="min-h-0 flex-shrink-0 size-6 p-0 text-error/60 hover:text-error"
           disabled={@delete_in_flight}
-          class={[
-            "min-h-0 flex-shrink-0",
-            if(@is_pending or @is_deleting,
-              do: "px-2 text-error font-medium",
-              else: "size-6 p-0 text-error/60 hover:text-error"
-            )
-          ]}
-          phx-click="delete_file_prompt"
           phx-value-path={@file_path}
           aria-label={if @is_pending, do: "Click again to confirm delete", else: "Delete file"}
-          data-nav-item
-          tabindex="0"
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
-          <span :if={@is_deleting}>Deleting…</span>
-          <span :if={@is_pending}>Click to confirm</span>
-        </.button>
+        </.armed_button>
       </div>
       <div
         :if={@badges != [] || @added_at}

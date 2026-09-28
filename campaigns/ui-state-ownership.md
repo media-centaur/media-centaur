@@ -41,8 +41,8 @@ idiom one mechanism, and fixes the bugs the review found.
 
 In progress on branch `ui-state-ownership` (worktree
 `../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phases 1, 2 and 3a done; Phase
-3b next. Line numbers are
+main checkout). Design approved 2026-09-28. Phases 1 to 3 done; Phase 4
+next. Line numbers are
 from commit `d7ecc8b5` and will drift.
 
 ## Design (approved 2026-09-28)
@@ -222,6 +222,27 @@ with a stream reset per debounced change.
   `Nostr.ConnectionTest` "the first failed attempt logs once" failed once
   under full-suite load (the line never reached `capture_log`) and passed
   six times alone. A log-capture race; left to its owner.
+* `2026-09-28` — Phase 3b as built. **Where no other handler read a
+  disclosure's state, the page's `DisclosureState` took it over** and the
+  host's assign and handler went (unit board, plan seasons, pursuit groups,
+  Review files). Ids carry the owning record (pursuit, title) because a
+  page-level id outlives the record it was opened on. Pursuit groups also
+  lose a `String.to_existing_atom/1` on a client value.
+* `2026-09-28` — **Two title-detail disclosures keep their own markup.**
+  The Manage ledger's folder head is a nav item that owns a sub-item
+  (Delete), and the input system finds sub-items inside the focused item,
+  so the head cannot be a `<button>`. The episode details toggle is a
+  sub-item inside an episode row whose body sits below the row. Both
+  already follow the contract (`aria-expanded`, `data-nav-group`).
+* `2026-09-28` — **`ModalState` keeps its per-kind sets.** Folding seasons,
+  details and file groups into one toggled-over-default set was considered
+  and declined: a season's default is the oriented season, which can move
+  during an opening (playback advances it), and a toggle recorded against
+  the old default would then invert. The per-opening sets do not have that
+  failure.
+* `2026-09-28` — The Playwright spec `detail-backdrop.spec.js` selected the
+  season header by its chevron icon and would have skipped silently; it
+  reads `aria-expanded` now.
 
 ## Next steps
 
@@ -263,20 +284,17 @@ in a browser on a worktree server (showcase data, port 4003): the recent
 requests list stayed open through 174 DOM mutations from strip-chart ticks,
 the logs panel through a patch, and Enter on a focused head toggles it.
 
-### Phase 3b — Host-owned disclosures onto the component
+### Phase 3b — Host-owned disclosures onto the component (done 2026-09-28)
 
-Move the hand-rolled heads onto `disclosure/1`, keeping each host's own
-state and event: the season list and episode details, the Manage ledger's
-file groups (title detail), the unit board seasons, the plan picker's
-season expand, pursuit groups (Incoming activity and history), Incoming
-search result groups (`SearchSession`), the Review file list, and the
-Status journal (its comments still describe `<details>`). Each head gains
-`aria-expanded` and `data-nav-group` where it lacks them, so TREE
-LEFT/RIGHT works on every one. Consider whether `ModalState`'s
-`expanded_file_groups` (nil = automatic default, materialised on first
-toggle) should become the same default-flipped-by-toggles set as
-`DisclosureState`. Then the busy state on `armed_button` and the Manage
-sheet's three delete buttons (Phase 2 leftover).
+Page-owned now (the host's assign and handler removed): the unit board's
+season groups (id per pursuit and season, `expanded_default?` as the
+default), the plan picker's seasons (id per title), pursuit groups on
+Activity and History (`Logic.pursuit_group_id/1`), the Review file list.
+Host-owned on the component: the Status journal, Incoming search groups
+(`SearchSession`), the title detail's seasons (`ModalState`). The
+component gained `:leading` / `:trailing` slots, `row_class` and
+`caret_class`. `armed_button` gained `busy` / `busy_label` and `nav`, and
+the Manage sheet's three delete buttons moved onto it.
 
 ### Phase 4 — Input events and round trips
 
