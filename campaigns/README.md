@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`liveview-round-trips.md`](liveview-round-trips.md) —
+  **planning 2026-09-28.** Follow-up to a review of every `handle_event`
+  asking what should move to front-end JavaScript. Little should: the app is
+  single-user on localhost, and the input system resyncs only on server
+  patches, so menus, modals, armed buttons and URL state stay on the server.
+  Phase 1 fixes two confirmed bugs (Controls remap crash, stale console
+  search), verifies three more, and deletes three dead handlers. Phase 2
+  trims round trips on the server (missing debounces, a double round trip on
+  the Feed, needless DB reads and timers). Phase 3 moves three disclosures and
+  one filter to JS commands, and fixes focus on the subtitle fold.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
