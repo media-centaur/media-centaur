@@ -268,6 +268,25 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
+  The id of the row awaiting review for `file_path`, or `nil` when the
+  file has no open review.
+
+  `Pipeline.Discovery` reads this when a re-run of a queued file matches
+  with confidence: the match answers the open review, so the import
+  carries the row's id and completes it through `complete_review/1`.
+  """
+  @spec pending_file_id(String.t()) :: Ecto.UUID.t() | nil
+  def pending_file_id(file_path) when is_binary(file_path) do
+    Repo.one(
+      from(p in PendingFile,
+        where: p.file_path == ^file_path and p.status == :pending,
+        select: p.id,
+        limit: 1
+      )
+    )
+  end
+
+  @doc """
   Drops the queue rows for `file_paths` — the files are no longer
   library content, so there is no decision left to make about them.
 

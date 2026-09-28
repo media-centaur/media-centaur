@@ -453,6 +453,40 @@ defmodule MediaCentaur.PipelineTest do
       assert matched.tmdb_id == 550
       assert matched.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
     end
+
+    # A file awaiting review is re-run by `rescan_unlinked/0`. When the new
+    # run matches with confidence, the match answers the open review, so the
+    # broadcast carries the row's id and Import completes it. Regression:
+    # the broadcast carried `pending_file_id: nil`, the file imported, and
+    # its row stayed in the review queue forever.
+    test "a matched file still awaiting review carries its review row to import" do
+      path = "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
+      pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
+
+      stub_routes([
+        {"/search/movie",
+         %{
+           "results" => [
+             movie_search_result(%{
+               "id" => 550,
+               "title" => "Sample Movie",
+               "release_date" => "1999-10-15"
+             })
+           ]
+         }}
+      ])
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
+
+      assert {:matched, result} = Discovery.process(payload)
+
+      Discovery.handle_batch(:default, [batch_message(result)], batch_info(), nil)
+
+      assert_receive {:file_matched, matched}
+      assert matched.pending_file_id == pending.id
+    end
   end
 
   defp batch_message(payload) do
