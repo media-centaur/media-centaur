@@ -134,7 +134,7 @@ defmodule MediaCentaur.ImageFiles do
   A square WebP master of `side` pixels from the image file at `path`,
   centre-cropped, flattened onto black and stripped of the source's
   metadata (a photo's EXIF carries its GPS position, device and time,
-  and the master is published), returned in memory at most `max_bytes`
+  and the master is published), returned in memory at most `cap`
   long: the avatar a sender publishes. Quality starts at 82 and steps
   down until the bytes fit; `{:error, :too_large}` when the lowest step
   does not. `{:error, reason}` when the file is not an image libvips can
@@ -146,21 +146,21 @@ defmodule MediaCentaur.ImageFiles do
   """
   @spec square_webp(String.t(), pos_integer(), pos_integer()) ::
           {:ok, binary()} | {:error, :too_large | term()}
-  def square_webp(path, side, max_bytes)
-      when is_binary(path) and is_integer(side) and side > 0 and is_integer(max_bytes) and max_bytes > 0 do
+  def square_webp(path, side, cap)
+      when is_binary(path) and is_integer(side) and side > 0 and is_integer(cap) and cap > 0 do
     with {:ok, image} <- Image.open(path),
          {:ok, square} <- Image.thumbnail(image, side, crop: :center),
          {:ok, flat} <- Image.flatten(square) do
-      webp_under(flat, max_bytes, @webp_qualities)
+      webp_under(flat, cap, @webp_qualities)
     end
   end
 
-  defp webp_under(_image, _max_bytes, []), do: {:error, :too_large}
+  defp webp_under(_image, _cap, []), do: {:error, :too_large}
 
-  defp webp_under(image, max_bytes, [quality | lower]) do
+  defp webp_under(image, cap, [quality | lower]) do
     case Image.write(image, :memory, suffix: ".webp", quality: quality, strip_metadata: true) do
-      {:ok, bytes} when byte_size(bytes) <= max_bytes -> {:ok, bytes}
-      {:ok, _too_big} -> webp_under(image, max_bytes, lower)
+      {:ok, bytes} when byte_size(bytes) <= cap -> {:ok, bytes}
+      {:ok, _too_big} -> webp_under(image, cap, lower)
       {:error, _reason} = error -> error
     end
   end

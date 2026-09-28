@@ -25,9 +25,7 @@ defmodule MediaCentaurWeb.Components.Switch do
 
   attr :id, :string, default: nil
 
-  attr :label, :any,
-    required: true,
-    doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
+  attr :label, :string, required: true
 
   attr :description, :string, default: nil
   attr :checked, :boolean, required: true

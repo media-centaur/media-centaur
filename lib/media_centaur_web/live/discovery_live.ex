@@ -238,7 +238,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # before the handler returns, and the `@people_tags` `handle_info` does
   # the one reload — the same path a change from another tab takes. A
   # no-op (a key already on the roster, the same name again) broadcasts
-  # nothing, and there is nothing to reload.
+  # nothing, and there is nothing to reload. In a test the click's reply
+  # carries no diff; read the result with `has_element?`/`render`, not
+  # `render_click`'s return.
 
   def handle_event("add_friend", %{"key" => key, "name" => name}, socket) do
     case Social.add_friend(key, name) do
