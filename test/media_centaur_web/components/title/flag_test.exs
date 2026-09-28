@@ -14,30 +14,31 @@ defmodule MediaCentaurWeb.Components.Title.FlagTest do
     assert Flag.flag(build_activity(%{kind: :listing, sentiment: nil})) == :listing
   end
 
-  test "mast order is love, like, dislike, reviewed, watched, listing, and every flag has a glyph" do
-    assert Flag.mast_order() == [:love, :like, :dislike, :review, :watched, :listing]
-    assert Enum.all?(Flag.mast_order(), &String.starts_with?(Flag.glyph(&1), "hero-"))
-    assert Flag.glyph(:love) == "hero-heart-solid"
+  test "the order is love, like, dislike, reviewed, watched, listing, and every flag has a glyph" do
+    assert Flag.order() == [:love, :like, :dislike, :review, :watched, :listing]
+    assert Enum.all?(Flag.order(), &String.starts_with?(Flag.glyph(&1), "hero-"))
     assert Flag.glyph(:watched) == "hero-eye"
   end
 
-  test "the solid weight is the same glyph from the solid set; love is solid at every weight" do
-    assert Flag.glyph(:watched, :solid) == "hero-eye-solid"
-    assert Flag.glyph(:like, :solid) == "hero-hand-thumb-up-solid"
-    assert Flag.glyph(:listing, :solid) == "hero-bookmark-solid"
+  test "the outline weight is the outline set with no exception: love is a hollow heart" do
+    assert Flag.glyph(:love) == "hero-heart"
+    assert Flag.glyph(:like) == "hero-hand-thumb-up"
+    assert Flag.glyph(:dislike) == "hero-hand-thumb-down"
+    assert Flag.glyph(:review) == "hero-chat-bubble-bottom-center-text"
+    assert Flag.glyph(:watched) == "hero-eye"
+    assert Flag.glyph(:listing) == "hero-bookmark"
+  end
+
+  test "the solid weight is the same glyph from the solid set" do
     assert Flag.glyph(:love, :solid) == "hero-heart-solid"
+    assert Flag.glyph(:like, :solid) == "hero-hand-thumb-up-solid"
+    assert Flag.glyph(:dislike, :solid) == "hero-hand-thumb-down-solid"
+    assert Flag.glyph(:review, :solid) == "hero-chat-bubble-bottom-center-text-solid"
+    assert Flag.glyph(:watched, :solid) == "hero-eye-solid"
+    assert Flag.glyph(:listing, :solid) == "hero-bookmark-solid"
   end
 
-  test "sort_by_mast/1 orders flags and drops repeats" do
-    assert Flag.sort_by_mast([:watched, :love, :watched, :review]) == [:love, :review, :watched]
-  end
-
-  test "the line weight is the outline set with no exception: love is a hollow heart there" do
-    assert Flag.glyph(:love, :line) == "hero-heart"
-    assert Flag.glyph(:like, :line) == "hero-hand-thumb-up"
-    assert Flag.glyph(:dislike, :line) == "hero-hand-thumb-down"
-    assert Flag.glyph(:review, :line) == "hero-chat-bubble-bottom-center-text"
-    assert Flag.glyph(:watched, :line) == "hero-eye"
-    assert Flag.glyph(:listing, :line) == "hero-bookmark"
+  test "sort/1 puts flags in order and drops repeats" do
+    assert Flag.sort([:watched, :love, :watched, :review]) == [:love, :review, :watched]
   end
 end

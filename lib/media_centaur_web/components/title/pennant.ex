@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   def mast(rows) do
     by_flag = Enum.group_by(rows, &Flag.flag(&1.activity))
 
-    for flag <- Flag.mast_order(), group = Map.get(by_flag, flag, []), group != [] do
+    for flag <- Flag.order(), group = Map.get(by_flag, flag, []), group != [] do
       {own, friends} = Enum.split_with(group, & &1.author.own?)
       %{flag: flag, people: Enum.map(friends ++ own, & &1.author)}
     end

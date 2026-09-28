@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   alias MediaCentaurWeb.Components.Discovery.Act
   alias MediaCentaurWeb.Components.Discovery.Act.Entry
   alias MediaCentaurWeb.Components.Title.Flag
-  alias MediaCentaurWeb.DiscoveryLive.Grade
+  alias MediaCentaurWeb.Components.Title.Grade
 
   defmodule Card do
     @moduledoc """
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   def build(rows, people, opts) do
     now = Keyword.fetch!(opts, :now)
     by_author = Enum.group_by(rows, & &1.activity.author_pubkey)
-    grades = grades(rows)
+    grades = Grade.grades(rows)
     {me, friends} = people |> Map.values() |> Enum.split_with(& &1.own?)
 
     you = Enum.map(me, &card(&1, Map.get(by_author, &1.pubkey, []), now, grades))
@@ -62,16 +62,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   def rail(cards) do
     {shown, hidden} = Enum.split(cards, @rail_cap)
     %{cards: shown, hidden: length(hidden)}
-  end
-
-  # Every (title, flag) pair's grade, from the distinct people who flew
-  # that flag on that title.
-  defp grades(rows) do
-    rows
-    |> Enum.map(&{ref(&1), Flag.flag(&1.activity), &1.activity.author_pubkey})
-    |> Enum.uniq()
-    |> Enum.frequencies_by(fn {ref, flag, _author} -> {ref, flag} end)
-    |> Map.new(fn {pair, people} -> {pair, Grade.grade(people)} end)
   end
 
   # Latest act first; the quiet ones after, by name.
@@ -97,7 +87,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   end
 
   defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, grades, now) do
-    flags = rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort_by_mast()
+    flags = rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort()
 
     %Act{
       ref: ref,

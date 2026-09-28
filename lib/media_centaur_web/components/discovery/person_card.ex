@@ -5,10 +5,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   is the identity tile and the name the reader sees (`Format.person_name/1`)
   — no clock: the card says what a person did, the Feed says when; under
   it the **acts strip**: one poster per title acted on, newest first,
-  each under its **act glyphs** — a 36px strip on the card's ground with
-  the glyphs for what the person did centred as a group in mast order
+  each under its **social glyphs** — a 36px strip on the card's ground with
+  the glyphs for what the person did centred as a group in order
   (the opinion, the eye, the bookmark), one act in the middle, two as a
-  pair, each drawn at its grade (`DiscoveryLive.Grade`): plain is a
+  pair, each drawn at its grade (`Title.Grade`): plain is a
   white line drawing, silver and gold the solid glyph in metal. A person with
   no acts is a tile and a name; the card says nothing about what a
   person withholds, and the You card is the reader's acts like anyone's,
@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Format
@@ -58,7 +58,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   alias MediaCentaurWeb.Components.Discovery.HueSwatches
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.Switch
-  alias MediaCentaurWeb.Components.Title.Flag
+  alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
   alias Phoenix.LiveView.JS
@@ -127,16 +127,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           data-nav-item
           tabindex="0"
         >
-          <span class="act-slots" aria-hidden="true">
-            <span
-              :for={flag <- act.flags}
-              class="act-glyph"
-              data-flag={flag}
-              data-grade={act.grades[flag]}
-            >
-              <.icon name={glyph(flag, act.grades[flag])} class="act-icon" />
-            </span>
-          </span>
+          <SocialGlyph.social_glyphs
+            flags={act.flags}
+            grades={act.grades}
+            class="act-slots"
+            aria-hidden="true"
+          />
           <img
             :if={act.poster_url}
             src={act_poster_src(act.poster_url, @width)}
@@ -167,9 +163,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           <span class="min-w-0 flex-1 truncate text-base-content/80">
             {ActivityWords.verb_phrase(newest(act).kind, act.episode, @subject)}
             <span class="font-medium text-base-content/95">{act.title.name}</span>
-            <span :for={flag <- act.flags} class="ml-1 inline-block align-middle" data-flag={flag}>
-              <.icon name={Flag.glyph(flag, :solid)} class="size-4 text-base-content/80" />
-            </span>
+            <SocialGlyph.social_glyph
+              :for={flag <- act.flags}
+              flag={flag}
+              grade={act.grades[flag]}
+              class="ml-1 size-4 align-middle"
+            />
           </span>
           <span class="shrink-0 text-sm text-base-content/65">{act.ago}</span>
         </button>
@@ -262,10 +261,6 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp shown(acts, _width, true), do: acts
   defp shown(acts, width, false), do: Enum.take(acts, @cap[width])
-
-  # Plain is the line drawing; a metal fills the solid glyph.
-  defp glyph(flag, :plain), do: Flag.glyph(flag, :line)
-  defp glyph(flag, _metal), do: Flag.glyph(flag, :solid)
 
   defp tile_size(:rail), do: 40
   defp tile_size(:page), do: 48
