@@ -41,7 +41,7 @@ idiom one mechanism, and fixes the bugs the review found.
 
 In progress on branch `ui-state-ownership` (worktree
 `../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phase 1 next. Line numbers are
+main checkout). Design approved 2026-09-28. Phase 1 done; Phase 2 next. Line numbers are
 from commit `d7ecc8b5` and will drift.
 
 ## Design (approved 2026-09-28)
@@ -187,6 +187,10 @@ with a stream reset per debounced change.
 * `2026-09-28` — The first plan moved four toggles to JS commands. The
   design pass replaced it: those moves would have added a fourth disclosure
   mechanism and a second owner for disclosure state.
+* `2026-09-28` — Phase 1: dead `change_target` handler removed, but the
+  `ChangeTarget` command it called is left in place. The owner kept it on
+  purpose in `8ab1ec7f`, so its retirement is the owner's call (Phase 1
+  leftover).
 * `2026-09-28` — **Owner approved the design and all four recommendations:**
   the ownership rule (nothing moves to JS commands); disclosures owned by the
   LiveView through one component; console search owned by the browser, with
@@ -195,22 +199,20 @@ with a stream reset per debounced change.
 
 ## Next steps
 
-### Phase 1 — Bugs and dead code
+### Phase 1 — Bugs and dead code (done 2026-09-28)
 
-1. **Controls remap crash (confirmed by reading).** `controls:listen`
-   replies with `push_event("controls:listen", %{kind: kind})` and omits
-   `id` (`settings_live.ex:1309`). The client destructures `{kind, id}`
-   (`assets/js/input/index.js:137`) and pushes `controls:bind` with no id.
-   The only `controls:bind` clause requires `"id"`. The tests call
-   `render_hook` with an id and miss it. Reproduce in the browser, then test
-   through the listen path.
-2. **Review type mismatch (unverified).** Changing the type select after a
-   search sets `search_type` while the results are of the old type;
-   `select_match` then saves the new `tmdb_type` against a TMDB id of the
-   old type. Verify, then fix.
-3. **Delete dead handlers.** `change_target` in `IncomingLive`,
-   `setup:test_connection` in `SetupLive`, and `delete_cancel` in
-   `ReviewLive`. Confirm no emitter before each removal.
+Done: the Controls remap crash, the Review type mismatch (it had a second
+path: a tied candidate for a TV file was saved as a movie, and the chooser's
+cards shared one DOM id), and the three dead handlers. Left for the owner:
+
+1. **`Pursuits.Commands.ChangeTarget` has no caller.** Commit `8ab1ec7f`
+   removed the UI verb and kept the command "for programmatic pivots (worker
+   fallback)". No worker calls it now; its only caller was the dead
+   `change_target` handler, removed here. `PursuitStatus` still offers
+   `:change_target` in `available_actions`, and no component renders it.
+   Retire the command, the action and their tests (keeping the rendering of
+   historical `target_changed` events and the `replaced_by_user_pivot` cancel
+   reason), or name the caller it is waiting for.
 
 ### Phase 2 — Arm gestures
 

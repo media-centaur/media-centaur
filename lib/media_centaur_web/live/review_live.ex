@@ -195,10 +195,6 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  def handle_event("delete_cancel", _params, socket) do
-    {:noreply, assign(socket, delete_confirm: nil)}
-  end
-
   def handle_event("open_search", %{"key" => key}, socket) do
     group_key = decode_key(key)
     group = socket.assigns.groups_by_key[group_key]

@@ -217,21 +217,6 @@ defmodule MediaCentaurWeb.SetupLive do
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Test connection
-  # ---------------------------------------------------------------------------
-
-  def handle_event("setup:test_connection", %{"id" => id}, socket) do
-    case integration_atom(id) do
-      nil ->
-        {:noreply, socket}
-
-      atom ->
-        IntegrationHealth.verify(atom)
-        {:noreply, put_flash(socket, :info, "Verifying #{id}…")}
-    end
-  end
-
   @impl true
   def handle_info({:integration_health_changed, %IntegrationHealth.Status{} = status}, socket) do
     socket =

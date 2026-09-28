@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   import Phoenix.LiveViewTest
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.Event
   alias MediaCentaur.Acquisition.Pursuits.Events.SearchStarted
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Repo
@@ -344,20 +343,6 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
 
       reloaded = Repo.reload(pursuit)
       assert reloaded.state == "cancelled"
-    end
-
-    test "Change target records the target_changed event", %{conn: conn} do
-      # `failed` exposes :change_target on the activity card.
-      {pursuit, _target} =
-        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "failed"})
-
-      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
-      render_click(view, "change_target", %{})
-
-      # Settle the broadcast-triggered handle_info work (see above).
-      _ = render(view)
-
-      assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
     end
 
     test "Request decision sets awaiting_decision_at on the pursuit's unit", %{conn: conn} do
