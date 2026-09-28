@@ -359,21 +359,23 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # What the save does with the avatar (`Social.avatar_change/0`): the
-  # chosen file becomes the 256×256 master, Remove means none, neither
-  # means keep. A chosen file wins over a pending Remove. The entry is
-  # consumed either way, so a file libvips cannot open leaves nothing
-  # pending.
+  # chosen file becomes the 256×256 master under the wire cap, Remove
+  # means none, neither means keep. A chosen file wins over a pending
+  # Remove. The entry is consumed either way, so a file libvips cannot
+  # open leaves nothing pending.
   defp avatar_change(socket) do
     masters =
       consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry ->
-        case ImageFiles.square_webp(path, 256) do
+        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes()) do
           {:ok, bytes} -> {:ok, {:new, bytes}}
+          {:error, :too_large} -> {:ok, :too_large}
           {:error, _reason} -> {:ok, :bad_image}
         end
       end)
 
     case {masters, socket.assigns.avatar_removed?} do
       {[:bad_image], _removed?} -> {:error, :bad_image}
+      {[:too_large], _removed?} -> {:error, :avatar_too_large}
       {[{:new, bytes}], _removed?} -> {:ok, {:new, bytes}}
       {[], true} -> {:ok, :none}
       {[], false} -> {:ok, :keep}
@@ -963,6 +965,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       {:error, :bad_image} ->
         {:noreply, put_flash(socket, :error, "That file is not a picture we can read")}
+
+      {:error, :avatar_too_large} ->
+        {:noreply, put_flash(socket, :error, "That picture cannot be made small enough")}
     end
   end
 

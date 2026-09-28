@@ -159,6 +159,13 @@ defmodule MediaCentaur.Social.ProfileTest do
       assert Social.people()[@friend_pubkey].avatar_url == nil
     end
 
+    test "save_profile/2 refuses new bytes over the cap before minting anything" do
+      over = :binary.copy(<<0>>, Translation.max_avatar_bytes() + 1)
+      assert {:error, :avatar_too_large} = Social.save_profile("Me", {:new, over})
+      refute Identity.present?()
+      assert Social.own_events() == []
+    end
+
     test "save_profile/2 with :keep and a missing file publishes no avatar, and the row follows" do
       {:ok, %Profile{avatar_type: "image/webp"}} = Social.save_profile("Me", {:new, @webp})
       :ok = AvatarStore.delete(Identity.pubkey())

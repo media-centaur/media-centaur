@@ -366,20 +366,65 @@ defmodule MediaCentaur.ImageFilesTest do
     end
   end
 
-  describe "square_webp/2" do
+  describe "square_webp/3" do
+    @cap 64 * 1024
+
     test "centre-crops any image to a square WebP of the given side, in memory", %{tmp_dir: dir} do
       source = Path.join(dir, "wide.png")
       {:ok, img} = Image.new(400, 300, color: :red)
       {:ok, _} = Image.write(img, source)
 
-      assert {:ok, bytes} = ImageFiles.square_webp(source, 256)
+      assert {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap)
       assert <<"RIFF", _size::32-little, "WEBP", _rest::binary>> = bytes
       {:ok, back} = Image.from_binary(bytes)
       assert {256, 256, _bands} = Image.shape(back)
     end
 
+    test "the source's metadata is not in the master", %{tmp_dir: dir} do
+      source = Path.join(dir, "tagged.jpg")
+      {:ok, img} = Image.new(300, 300, color: :blue)
+
+      {:ok, tagged} =
+        Image.mutate(img, fn mut ->
+          :ok = Vix.Vips.MutableImage.set(mut, "exif-ifd0-Make", :gchararray, "Sample Camera")
+          :ok = Vix.Vips.MutableImage.set(mut, "xmp-data", :VipsBlob, "<x:xmpmeta>sample</x:xmpmeta>")
+        end)
+
+      {:ok, _} = Image.write(tagged, source)
+      {:ok, reopened} = Image.open(source)
+      {:ok, fields} = Vix.Vips.Image.header_field_names(reopened)
+      assert "exif-data" in fields and "xmp-data" in fields
+
+      {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap)
+      {:ok, master} = Image.from_binary(bytes)
+      {:ok, master_fields} = Vix.Vips.Image.header_field_names(master)
+      refute Enum.any?(master_fields, &(&1 in ["exif-data", "xmp-data", "icc-profile-data"]))
+      refute Enum.any?(master_fields, &String.starts_with?(&1, "exif-ifd"))
+    end
+
+    test "a detailed picture with transparency is flattened and fits the cap", %{tmp_dir: dir} do
+      source = Path.join(dir, "noisy.png")
+      noise = fn -> Vix.Vips.Operation.gaussnoise!(256, 256, mean: 128.0, sigma: 60.0) end
+      {:ok, rgba} = Vix.Vips.Operation.bandjoin([noise.(), noise.(), noise.(), noise.()])
+      {:ok, rgba} = Vix.Vips.Operation.cast(rgba, :VIPS_FORMAT_UCHAR)
+      {:ok, _} = Image.write(rgba, source)
+
+      assert {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap)
+      assert byte_size(bytes) <= @cap
+      {:ok, master} = Image.from_binary(bytes)
+      refute Image.has_alpha?(master)
+    end
+
+    test "a cap no quality step reaches is refused", %{tmp_dir: dir} do
+      source = Path.join(dir, "plain.png")
+      {:ok, img} = Image.new(256, 256, color: :red)
+      {:ok, _} = Image.write(img, source)
+
+      assert {:error, :too_large} = ImageFiles.square_webp(source, 256, 16)
+    end
+
     test "a file that is not an image is refused" do
-      assert {:error, _reason} = ImageFiles.square_webp(__ENV__.file, 256)
+      assert {:error, _reason} = ImageFiles.square_webp(__ENV__.file, 256, @cap)
     end
   end
 end

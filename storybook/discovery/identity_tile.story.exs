@@ -4,9 +4,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   marks — the avatar, the letter, the person glyph for a friend with no
   name at all — for a friend and for the reader's own filled tile, at
   the two sizes the surfaces render: 40 on a Feed row and the rail's
-  person card, 48 on the Friends page's. No profile event carries an
-  avatar yet (phase 3); the avatar variations pin the space the design
-  leaves for one.
+  person card, 48 on the Friends page's card and the Settings profile
+  card. The avatar is the picture a key published with its profile.
   """
 
   use PhoenixStorybook.Story, :component
