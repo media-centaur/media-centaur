@@ -52,6 +52,18 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
     refute html =~ "second"
   end
 
+  # The labels tick only while System is open; arriving there recomputes
+  # them, so time spent on another section never shows a stale schedule.
+  test "arriving at System shows the schedule as it is now", %{conn: conn} do
+    Config.update(:update_check_enabled, true)
+    {:ok, view, _html} = live(conn, ~p"/settings?section=library")
+
+    Config.update(:update_check_enabled, false)
+    html = render_patch(view, ~p"/settings?section=system")
+
+    assert html =~ "Automatic checks are off"
+  end
+
   test "toggling auto-install persists to Config", %{conn: conn} do
     refute Config.get(:auto_update_enabled)
 

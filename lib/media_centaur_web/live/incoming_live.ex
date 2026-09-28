@@ -1628,7 +1628,11 @@ defmodule MediaCentaurWeb.IncomingLive do
   # --- Shelf disclosure ---
 
   def handle_event("expand_shelf", _params, socket) do
-    {:noreply, socket |> assign(shelf_expanded?: true) |> build_view()}
+    # Re-cut from the held feed: lifting a display cap reads nothing.
+    {:noreply,
+     socket
+     |> assign(shelf_expanded?: true)
+     |> update(:view, &View.expand_shelf(&1, socket.assigns.today))}
   end
 
   # --- Forecast detail / tracking events ---
