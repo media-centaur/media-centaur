@@ -127,10 +127,15 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               <p :for={err <- upload_errors(@uploads.avatar)} class="mt-2 text-xs text-error">
                 {upload_error_words(err, @uploads.avatar)}
               </p>
+              <%!-- The pending hue rides here, outside the hook's ignored
+                    subtree, and reaches the previews' rings by inheritance
+                    (`--hue` is a custom property), so a swatch pressed while
+                    a picture is chosen recolours How it will look. --%>
               <div
                 :for={entry <- @uploads.avatar.entries}
                 class="mt-3 space-y-3"
                 data-role="pending-picture"
+                {IdentityTile.hue_style(@profile_hue)}
               >
                 <div
                   id={"avatar-crop-#{entry.ref}"}
@@ -147,14 +152,12 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
                   <div class="mt-3 flex items-center gap-3">
                     <span
                       class="identity-tile identity-tile-own identity-tile-avatar relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full"
-                      {IdentityTile.hue_style(@profile_hue)}
                       aria-hidden="true"
                     >
                       <canvas data-role="preview" width="48" height="48" class="size-full"></canvas>
                     </span>
                     <span
                       class="identity-tile identity-tile-own identity-tile-avatar relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full"
-                      {IdentityTile.hue_style(@profile_hue)}
                       aria-hidden="true"
                     >
                       <canvas data-role="preview" width="40" height="40" class="size-full"></canvas>
