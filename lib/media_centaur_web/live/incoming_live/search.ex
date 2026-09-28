@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.Components.Disclosure
 
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaurWeb.IncomingLive.SearchSession
@@ -54,13 +55,27 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
         id={"search-group-#{:erlang.phash2(group.term)}"}
         class="space-y-1"
       >
-        <.group_header group={group} />
+        <%!-- Host-owned: SearchSession keeps a group's expansion across
+              navigation, refresh and reconnect. --%>
+        <.disclosure
+          id={"search-results-#{:erlang.phash2(group.term)}"}
+          open={group.expanded?}
+          event="toggle_group"
+          phx-value-term={group.term}
+          variant={:bare}
+          head_class="scrim-surface rounded-lg w-full px-4 py-3 flex items-center gap-3 text-left hover:brightness-110 transition-[filter]"
+          caret_class="size-4 text-base-content/40"
+          body_class="mt-1"
+        >
+          <:head>
+            <span class="text-xs font-medium text-base-content/55 w-32 shrink-0 truncate">
+              {group.term}
+            </span>
+            <.group_status_summary group={group} />
+          </:head>
+          <.group_alternatives :if={group.results != []} group={group} session={@session} />
+        </.disclosure>
         <.group_actions :if={action_visible?(group)} group={group} />
-        <.group_alternatives
-          :if={group.expanded? && group.results != []}
-          group={group}
-          session={@session}
-        />
       </div>
       <.results_footer
         any_loading?={@any_loading?}
@@ -68,32 +83,6 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
         session={@session}
       />
     </section>
-    """
-  end
-
-  attr :group, :map,
-    required: true,
-    doc: "One `SearchSession.group()` map — `term/status/results/expanded?/featured` shape; no struct."
-
-  defp group_header(assigns) do
-    ~H"""
-    <button
-      type="button"
-      class="scrim-surface rounded-lg w-full px-4 py-3 flex items-center gap-3 text-left hover:brightness-110 transition-[filter]"
-      phx-click="toggle_group"
-      phx-value-term={@group.term}
-      data-nav-item
-      tabindex="0"
-    >
-      <.icon
-        name={if @group.expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-        class="size-4 shrink-0 text-base-content/40"
-      />
-      <span class="text-xs font-medium text-base-content/55 w-32 shrink-0 truncate">
-        {@group.term}
-      </span>
-      <.group_status_summary group={@group} />
-    </button>
     """
   end
 

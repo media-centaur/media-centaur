@@ -53,40 +53,34 @@ defmodule MediaCentaurWeb.Components.Disclosure do
     doc: "how the input system reaches the head."
 
   attr :keep_body, :boolean, default: false, doc: "render a closed body `hidden` (form fields)."
-  attr :class, :any, default: nil, doc: "the group's layout utilities (margins)."
+  attr :class, :any, default: nil, doc: "the group's own styling (margins; a `:bare` group's box)."
   attr :head_class, :any, default: nil, doc: "`:bare` only: the head's own styling."
+  attr :caret_class, :string, default: "size-4", doc: "`:bare` only: the caret's size and tone."
+
+  attr :row_class, :any,
+    default: nil,
+    doc: "`:bare` only: the row the head shares with `:leading`/`:trailing`."
+
   attr :body_class, :any, default: nil, doc: "`:bare` only: the body's own styling."
-  attr :rest, :global, doc: "on the head: the host's `phx-value-*`."
+  attr :rest, :global, include: ~w(disabled), doc: "on the head: the host's `phx-value-*`, `disabled`."
 
   slot :head, doc: "the head's content, in place of `label`."
+  slot :leading, doc: "controls before the head, in its row (a season's checkbox)."
+  slot :trailing, doc: "controls after the head, in its row (a folder's Delete)."
   slot :inner_block, required: true, doc: "the body."
 
   def disclosure(assigns) do
-    assigns = assign(assigns, :hook_owned?, assigns.event == DisclosureState.event())
-
     ~H"""
     <div id={@id} data-nav-group class={[group_class(@variant), @class]}>
-      <button
-        type="button"
-        id={"#{@id}-head"}
-        class={["disclosure-head", head_class(@variant), @variant == :bare && @head_class]}
-        aria-expanded={to_string(@open)}
-        aria-controls={"#{@id}-body"}
-        phx-click={@event}
-        phx-value-id={@hook_owned? && @id}
-        phx-target={@target}
-        data-nav-item={@nav == :item}
-        data-nav-sub-item={@nav == :sub_item}
-        tabindex={@nav == :item && "0"}
-        {@rest}
-      >
-        <.icon name="hero-chevron-right-mini" class="size-4 shrink-0 disclosure-caret" />
-        <%= if @head != [] do %>
-          {render_slot(@head)}
-        <% else %>
-          <span>{@label}</span>
-        <% end %>
-      </button>
+      <%= if @leading != [] or @trailing != [] do %>
+        <div class={@variant == :bare && @row_class}>
+          {render_slot(@leading)}
+          <.head {assigns} />
+          {render_slot(@trailing)}
+        </div>
+      <% else %>
+        <.head {assigns} />
+      <% end %>
       <div
         :if={@open or @keep_body}
         id={"#{@id}-body"}
@@ -96,6 +90,37 @@ defmodule MediaCentaurWeb.Components.Disclosure do
         {render_slot(@inner_block)}
       </div>
     </div>
+    """
+  end
+
+  defp head(assigns) do
+    assigns =
+      assigns
+      |> assign(:hook_owned?, assigns.event == DisclosureState.event())
+      |> assign(:caret, if(assigns.variant == :bare, do: assigns.caret_class, else: "size-4"))
+
+    ~H"""
+    <button
+      type="button"
+      id={"#{@id}-head"}
+      class={["disclosure-head", head_class(@variant), @variant == :bare && @head_class]}
+      aria-expanded={to_string(@open)}
+      aria-controls={"#{@id}-body"}
+      phx-click={@event}
+      phx-value-id={@hook_owned? && @id}
+      phx-target={@target}
+      data-nav-item={@nav == :item}
+      data-nav-sub-item={@nav == :sub_item}
+      tabindex={@nav == :item && "0"}
+      {@rest}
+    >
+      <.icon name="hero-chevron-right-mini" class={"shrink-0 disclosure-caret " <> @caret} />
+      <%= if @head != [] do %>
+        {render_slot(@head)}
+      <% else %>
+        <span>{@label}</span>
+      <% end %>
+    </button>
     """
   end
 

@@ -9,24 +9,22 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
 
       [chevron] <Title> · <N> episodes · <severity-colored verb>
 
-  Clicking the header fires `toggle_pursuit_group` with
-  `phx-value-title` and `phx-value-state`. The parent `IncomingLive`
-  toggles membership of `{title, state}` in its `expanded_pursuit_groups`
-  `MapSet` and re-renders.
-
-  When `@expanded?` is true, the per-episode compact `PursuitRow` list
-  renders below the header in a slightly inset container.
+  The header is a `disclosure/1` head whose state is the page's
+  `DisclosureState` under `id` (`IncomingLive.Logic.pursuit_group_id/1`,
+  stable per bucket). When open, the per-episode compact `PursuitRow`
+  list renders below it.
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.Components.Disclosure
   import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow, as: PursuitRowVM
   alias MediaCentaurWeb.Components.Acquisition.PursuitRow
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
+  attr :id, :string, required: true, doc: "the group's disclosure id."
   attr :title, :string, required: true
   attr :state, :atom, required: true
   attr :awaiting?, :boolean, required: true
@@ -43,42 +41,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
   def pursuit_group(assigns) do
     ~H"""
     <div class="identity-row rounded-lg overflow-hidden" style={"--banner-hue: #{banner_hue(@title)}"}>
-      <div
-        class="px-3 py-2 flex items-baseline gap-3 hover:bg-base-content/[0.03] transition-colors cursor-pointer"
-        data-nav-item
-        tabindex="0"
-        role="button"
-        phx-click="toggle_pursuit_group"
-        phx-value-title={@title}
-        phx-value-state={Atom.to_string(@state)}
-        phx-value-awaiting={to_string(@awaiting?)}
+      <.disclosure
+        id={@id}
+        open={@expanded?}
+        variant={:bare}
+        head_class="w-full px-3 py-2 flex items-baseline gap-3 text-left hover:bg-base-content/[0.03] transition-colors"
+        caret_class="size-4 text-base-content/40"
+        body_class="divide-y divide-base-content/5 border-t border-base-content/5"
       >
-        <.icon
-          name={if @expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-          class="size-4 text-base-content/40 flex-shrink-0"
-        />
-        <div class="min-w-0 flex-1 truncate text-sm font-medium">
-          {@title}
-        </div>
-        <div class="flex-shrink-0 text-xs text-base-content/55 tabular-nums">
-          {@count} {episode_word(@count)}
-        </div>
-        <div class={"flex-shrink-0 text-xs truncate max-w-[35%] #{PursuitStyle.severity_text_class(@severity)}"}>
-          {@verb}
-        </div>
-      </div>
-
-      <div
-        :if={@expanded?}
-        class="divide-y divide-base-content/5 border-t border-base-content/5"
-      >
+        <:head>
+          <span class="min-w-0 flex-1 truncate text-sm font-medium">{@title}</span>
+          <span class="flex-shrink-0 text-xs text-base-content/55 tabular-nums">
+            {@count} {episode_word(@count)}
+          </span>
+          <span class={"flex-shrink-0 text-xs truncate max-w-[35%] #{PursuitStyle.severity_text_class(@severity)}"}>
+            {@verb}
+          </span>
+        </:head>
         <PursuitRow.pursuit_row
           :for={%PursuitRowVM{} = vm <- @vms}
           vm={vm}
           density={:compact}
           framed={false}
         />
-      </div>
+      </.disclosure>
     </div>
     """
   end

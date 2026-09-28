@@ -811,6 +811,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
       assert data.state == :active
       assert data.count == 2
       assert data.expanded? == false
+      assert data.id == Logic.pursuit_group_id({"Sample Game May Weep", :active, false})
       assert data.verb == "Searching"
       assert data.severity == :info
       assert data.vms == [a, b]
@@ -819,7 +820,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     test "expanded set membership flips expanded? to true" do
       a = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 2)
       b = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 3)
-      expanded = MapSet.new([{"Sample Game May Weep", :active, false}])
+      expanded = MapSet.new([Logic.pursuit_group_id({"Sample Game May Weep", :active, false})])
 
       assert [{:group, %{expanded?: true}}] = Logic.group_pursuit_rows([a, b], expanded)
     end

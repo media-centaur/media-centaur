@@ -124,14 +124,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert PlanLogic.chosen_in_order(chosen, selection()) == [{1, 2}, {2, 1}]
   end
 
-  test "toggle_expanded adds a collapsed season and removes an expanded one" do
-    expanded = PlanLogic.toggle_expanded(MapSet.new(), 2)
-    assert expanded == MapSet.new([2])
-
-    assert PlanLogic.toggle_expanded(expanded, 2) == MapSet.new()
-    assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
-  end
-
   describe "picker_mode/1 — the mode the picker's Download performs" do
     test "is the mode in the picker's param identity, nil off the picker" do
       assert PlanLogic.picker_mode({246_810, "tv", :auto_select_best_release}) ==

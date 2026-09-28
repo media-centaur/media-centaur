@@ -276,8 +276,8 @@ defmodule MediaCentaurWeb.HealthComponents do
   started — a crash included.
 
   Expanding is what subscribes. The tail is refcounted and `journalctl -f`
-  runs only while someone is reading, so the control is a button the server
-  answers rather than a `<details>` the browser opens on its own.
+  runs only while someone is reading, so the disclosure is host-owned: its
+  `on_toggle` event reaches `StatusLive`, which starts and stops the tail.
   """
   attr :lines, :list,
     default: [],
@@ -289,65 +289,51 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   def journal_panel(assigns) do
     ~H"""
-    <div id="subsystem-journal" class="glass-inset rounded-xl">
-      <button
-        type="button"
-        phx-click={@on_toggle}
-        aria-expanded={to_string(@open)}
-        aria-controls="subsystem-journal-lines"
-        data-nav-item
-        tabindex="0"
-        class="flex w-full cursor-pointer select-none items-center justify-between gap-3 px-4 py-3 text-left text-sm text-base-content/60"
-      >
-        Systemd journal
-        <.icon
-          name={if @open, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
-          class="size-4 shrink-0 text-base-content/40"
-        />
-      </button>
-      <div
-        :if={@open}
-        id="subsystem-journal-lines"
-        class="border-t border-base-content/10 px-4 py-3"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <p class="text-xs text-base-content/55">
-            The service unit's own log, kept across restarts.
-          </p>
-          <%!-- The tail can die while the panel stays open — the unit
-                restarts, the pipe breaks — and nothing else respawns it
-                under a reader who is watching for the next line. --%>
-          <.button
-            variant="neutral"
-            size="xs"
-            phx-click={@on_reconnect}
-            class="shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Reconnect
-          </.button>
-        </div>
-        <%!-- The tail spawns on expand, so the first frame is routinely
-              empty — it says what fills the space rather than reporting the
-              emptiness the reader can already see. --%>
-        <p :if={@lines == []} class="mt-3 text-xs text-base-content/55">
-          Lines appear as the service writes them.
+    <%!-- Host-owned: opening it is what starts the tail. --%>
+    <.disclosure
+      id="subsystem-journal"
+      variant={:panel}
+      open={@open}
+      event={@on_toggle}
+      label="Systemd journal"
+    >
+      <div class="flex items-start justify-between gap-3">
+        <p class="text-xs text-base-content/55">
+          The service unit's own log, kept across restarts.
         </p>
-        <div :if={@lines != []} class="mt-3 max-h-96 overflow-y-auto">
-          <%!-- Every entry is `component: :systemd` — the badge would say the
-                same word on every row — and journalctl writes its own
-                timestamp into the message, so the row's arrival stamp would
-                print a second one beside it. --%>
-          <.log_line
-            :for={entry <- @lines}
-            entry={entry}
-            show_component={false}
-            show_timestamp={false}
-          />
-        </div>
+        <%!-- The tail can die while the panel stays open — the unit
+              restarts, the pipe breaks — and nothing else respawns it
+              under a reader who is watching for the next line. --%>
+        <.button
+          variant="neutral"
+          size="xs"
+          phx-click={@on_reconnect}
+          class="shrink-0"
+          data-nav-item
+          tabindex="0"
+        >
+          Reconnect
+        </.button>
       </div>
-    </div>
+      <%!-- The tail spawns on expand, so the first frame is routinely
+            empty — it says what fills the space rather than reporting the
+            emptiness the reader can already see. --%>
+      <p :if={@lines == []} class="mt-3 text-xs text-base-content/55">
+        Lines appear as the service writes them.
+      </p>
+      <div :if={@lines != []} class="mt-3 max-h-96 overflow-y-auto">
+        <%!-- Every entry is `component: :systemd` — the badge would say the
+              same word on every row — and journalctl writes its own
+              timestamp into the message, so the row's arrival stamp would
+              print a second one beside it. --%>
+        <.log_line
+          :for={entry <- @lines}
+          entry={entry}
+          show_component={false}
+          show_timestamp={false}
+        />
+      </div>
+    </.disclosure>
     """
   end
 

@@ -789,17 +789,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
 
       # Collapsed by default — the season header renders, the episode rows don't.
-      assert has_element?(view, "[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      assert has_element?(view, "#plan-season-246810-1-head")
       refute has_element?(view, "#plan-episode-1-1")
 
       view
-      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> element("#plan-season-246810-1-head")
       |> render_click()
 
       assert has_element?(view, "#plan-episode-1-1")
 
       view
-      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> element("#plan-season-246810-1-head")
       |> render_click()
 
       refute has_element?(view, "#plan-episode-1-1")
@@ -869,7 +869,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Seasons start collapsed — episode rows appear only after expanding.
       view
-      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> element("#plan-season-246810-1-head")
       |> render_click()
 
       # Unchecking one unit updates the live count.

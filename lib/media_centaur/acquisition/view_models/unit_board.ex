@@ -129,20 +129,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.UnitBoard do
     end
   end
 
-  @doc """
-  The set of group keys that default open — seed value for the
-  LiveView's expanded-seasons assign before the user has toggled
-  anything. `nil` groups (a flat board) yield the empty set.
-  """
-  @spec default_expanded([Group.t()] | nil) :: MapSet.t(String.t())
-  def default_expanded(nil), do: MapSet.new()
-
-  def default_expanded(groups) when is_list(groups) do
-    groups
-    |> Enum.filter(& &1.expanded_default?)
-    |> MapSet.new(& &1.key)
-  end
-
   defp build_groups(rows) do
     rows
     |> Enum.group_by(& &1.season_number)

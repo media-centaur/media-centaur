@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
        )},
       {:group,
        %{
+         id: "story-ledger-group",
          title: "Sample Show",
          state: :cancelled,
          awaiting?: false,

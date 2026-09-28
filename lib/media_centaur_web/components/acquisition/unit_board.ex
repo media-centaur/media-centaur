@@ -14,9 +14,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
   big single season), rows roll up into collapsible season headers. The
   header carries the aggregate (counts, the shared covering release),
   so collapsed is the informative state; rows hoist nothing the header
-  already says. Expansion state lives in the LiveView
-  (`expanded_seasons`); `nil` means "use each group's exception-driven
-  default".
+  already says. Each header is a `disclosure/1` whose state is the page's
+  `DisclosureState`, keyed by pursuit and season; untouched, a group
+  opens by its exception-driven `expanded_default?`.
 
   Renders nothing for single-unit pursuits — their one thread is
   already the whole modal (Activity card, decision card, timeline).
@@ -25,22 +25,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.Components.Disclosure
 
   alias MediaCentaur.Acquisition.ViewModels.UnitBoard
+  alias MediaCentaurWeb.Live.DisclosureState
 
   attr :vm, UnitBoard,
     default: nil,
     doc: "%UnitBoard{} | nil — nil and single-unit boards render nothing."
 
-  attr :expanded_seasons, MapSet,
-    default: nil,
-    doc:
-      "Group keys currently expanded. Nil (no toggles yet) falls back to each group's `expanded_default?`. Ignored for flat boards."
-
-  attr :on_toggle_season, :string,
-    default: nil,
-    doc:
-      "Event fired with `phx-value-season` when a season header is clicked. Nil renders headers without the toggle affordance."
+  attr :disclosures, MapSet,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — which season groups the user toggled."
 
   attr :on_change_target, :string,
     default: nil,
@@ -71,24 +67,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
       </div>
 
       <div :if={@vm.groups} class="space-y-1">
-        <div :for={group <- @vm.groups} id={"unit-board-group-#{group.key}"}>
-          <button
-            type="button"
-            id={"unit-board-season-#{group.key}"}
-            class="w-full py-1.5 flex items-baseline gap-2 text-left hover:bg-base-content/5 rounded-md px-1 -mx-1"
-            phx-click={@on_toggle_season}
-            phx-value-season={group.key}
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon
-              name={
-                if expanded?(group, @expanded_seasons),
-                  do: "hero-chevron-down-mini",
-                  else: "hero-chevron-right-mini"
-              }
-              class="size-3 flex-shrink-0 self-center text-base-content/40"
-            />
+        <.disclosure
+          :for={group <- @vm.groups}
+          id={group_id(@vm, group)}
+          open={DisclosureState.open?(@disclosures, group_id(@vm, group), group.expanded_default?)}
+          variant={:bare}
+          head_class="w-full py-1.5 flex items-baseline gap-2 text-left hover:bg-base-content/5 rounded-md px-1 -mx-1"
+        >
+          <:head>
             <span class="text-sm font-medium">{group.label}</span>
             <span class="text-xs text-base-content/60 tabular-nums">
               {group.satisfied}/{group.wanted}
@@ -106,12 +92,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
             >
               {group.shared_release_title}
             </span>
-          </button>
-
-          <ul
-            :if={expanded?(group, @expanded_seasons)}
-            class="divide-y divide-base-content/5 pl-5"
-          >
+          </:head>
+          <ul class="divide-y divide-base-content/5 pl-5">
             <.unit_row
               :for={unit <- group.rows}
               unit={unit}
@@ -119,7 +101,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
               on_change_target={@on_change_target}
             />
           </ul>
-        </div>
+        </.disclosure>
       </div>
 
       <ul :if={is_nil(@vm.groups)} class="divide-y divide-base-content/5">
@@ -169,8 +151,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
     """
   end
 
-  defp expanded?(group, nil), do: group.expanded_default?
-  defp expanded?(group, %MapSet{} = expanded_seasons), do: MapSet.member?(expanded_seasons, group.key)
+  # Keyed by pursuit too: season keys repeat across pursuits, and one
+  # pursuit's toggles must not open another's groups.
+  defp group_id(%UnitBoard{pursuit_id: pursuit_id}, group), do: "unit-board-#{pursuit_id}-#{group.key}"
 
   defp progress_width(%UnitBoard{wanted: wanted, satisfied: satisfied}) when wanted > 0 do
     max(0, min(100, round(satisfied / wanted * 100)))
