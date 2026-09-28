@@ -3196,6 +3196,28 @@ body:has(.modal-backdrop[data-state="open"]) {
   cursor: pointer;
 }
 
+/* The crop box over a chosen picture (croppr 2.3.1, vendored; profiles
+   phase 5b). Its stylesheet, recoloured: the dim over the picture, the
+   square, the four handles. The stage is the Picture field's width.
+
+   The stage cancels the root zoom, as .strip-chart-plot does for uPlot:
+   croppr maps the pointer with getBoundingClientRect (visual px) against
+   offsetWidth (layout px) and converts the box to the picture's pixels by
+   the same mix, so under --ui-scale the box drifts off the pointer and
+   the reported square is off by the scale. At effective zoom 1 the two
+   agree. The stage's width comes from its zoomed parent, and every pixel
+   length inside is multiplied by --ui-scale to keep its design size. */
+.avatar-crop { max-width: 18rem; }
+.avatar-crop-stage { zoom: calc(1 / var(--ui-scale, 1)); }
+.avatar-crop-stage img[data-role="source"] { display: block; max-width: 100%; height: auto; border-radius: calc(8px * var(--ui-scale, 1)); }
+.croppr-container * { user-select: none; box-sizing: border-box; }
+.croppr-container img { vertical-align: middle; max-width: 100%; }
+.croppr { position: relative; display: inline-block; border-radius: calc(8px * var(--ui-scale, 1)); overflow: hidden; }
+.croppr-overlay { background: oklch(0% 0 0 / 0.55); position: absolute; inset: 0; z-index: 1; cursor: crosshair; }
+.croppr-region { border: 1px solid oklch(from var(--color-base-content) l c h / 0.9); position: absolute; z-index: 3; cursor: move; top: 0; }
+.croppr-imageClipped { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.croppr-handle { border: 1px solid oklch(0% 0 0 / 0.6); background: var(--color-base-content); width: calc(10px * var(--ui-scale, 1)); height: calc(10px * var(--ui-scale, 1)); border-radius: calc(2px * var(--ui-scale, 1)); position: absolute; z-index: 4; top: 0; }
+
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's
    row and the Friends page's card. Every size is a custom property of the
    width class; the text is Tailwind on top. The rail's card has no ground
