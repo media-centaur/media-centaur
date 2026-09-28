@@ -289,10 +289,9 @@ defmodule MediaCentaur.Application do
   # is the sole instance, so it owns the marker.
   # Gated like the relay-connection owner it rides on: under :test the
   # sync would subscribe every FakeRelay a test stands up, so
-  # relay_sync_test starts its own by hand. The key predates the loop's
-  # move out of Activities and keeps its name.
+  # relay_sync_test starts its own by hand.
   defp relay_sync_children do
-    if Application.get_env(:media_centaur, :start_activities_sync, true),
+    if Application.get_env(:media_centaur, :start_relay_sync, true),
       do: [MediaCentaur.RelaySync],
       else: []
   end

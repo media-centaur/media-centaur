@@ -37,7 +37,6 @@ defmodule MediaCentaur.Social.Profile do
     profile
     |> cast(attrs, [:pubkey, :name, :avatar_type, :hue, :raw_event, :created_at])
     |> validate_required([:pubkey, :raw_event, :created_at])
-    |> validate_number(:hue, greater_than_or_equal_to: 0, less_than_or_equal_to: 359)
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)
     |> unique_constraint(:pubkey)
   end

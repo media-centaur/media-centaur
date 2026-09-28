@@ -501,7 +501,7 @@ Two application gates keep the real thing out of the suite, both `false` in
 | Key | Gates |
 |---|---|
 | `:start_relay_connections` | `Social.Connections.Owner` — without it, no connection is opened for a configured relay |
-| `:start_activities_sync` | `MediaCentaur.RelaySync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
+| `:start_relay_sync` | `MediaCentaur.RelaySync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
 
 `Activities.Publisher` is a pubsub listener, so it is not started under
 `:test` either; `publisher_test` starts it by hand.

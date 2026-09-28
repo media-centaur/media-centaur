@@ -7,8 +7,8 @@ defmodule MediaCentaur.Social.Friend do
   switch for the friend's avatar, on by default. Nothing here comes from
   the network.
 
-  The table still carries a nullable `nickname` column the outgoing
-  release reads; the release after this one drops it.
+  `hue_override` is the reader's hue for the friend (UIDR-048), masking
+  the published one; nil is none.
   """
 
   use Ecto.Schema
@@ -22,6 +22,7 @@ defmodule MediaCentaur.Social.Friend do
     field :pubkey, :string
     field :name_override, :string
     field :show_avatar, :boolean, default: true
+    field :hue_override, :integer
 
     timestamps()
   end
@@ -32,7 +33,7 @@ defmodule MediaCentaur.Social.Friend do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(friend \\ %__MODULE__{}, attrs) do
     friend
-    |> cast(attrs, [:pubkey, :name_override, :show_avatar])
+    |> cast(attrs, [:pubkey, :name_override, :show_avatar, :hue_override])
     |> update_change(:name_override, &blank_to_nil/1)
     |> validate_required([:pubkey, :show_avatar])
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)

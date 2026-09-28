@@ -77,9 +77,6 @@ config :media_centaur, :req_test_stubs, %{
 }
 
 config :media_centaur, :skip_user_config, true
-# RelaySync would subscribe every FakeRelay a test stands up;
-# relay_sync_test starts its own by hand, as connections_test does.
-config :media_centaur, :start_activities_sync, false
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans
 # `mpv_socket_dir` (a real /tmp path on dev machines) and attaches to live
@@ -87,6 +84,9 @@ config :media_centaur, :start_pipeline, false
 # test that subscribes to playback events.
 config :media_centaur, :start_playback_recovery, false
 config :media_centaur, :start_relay_connections, false
+# RelaySync would subscribe every FakeRelay a test stands up;
+# relay_sync_test starts its own by hand, as connections_test does.
+config :media_centaur, :start_relay_sync, false
 config :media_centaur, :start_watchers, false
 
 # Strip chart frames every 50 ms so LiveView tests can watch the tick.

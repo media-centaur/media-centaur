@@ -41,6 +41,7 @@ defmodule MediaCentaur.Social do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
+  alias MediaCentaur.Social.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
   alias MediaCentaur.Social.Profile
@@ -125,6 +126,20 @@ defmodule MediaCentaur.Social do
   @spec set_show_avatar(String.t(), boolean()) :: {:ok, Friend.t()} | {:error, :not_a_friend}
   def set_show_avatar(pubkey, show?) when is_binary(pubkey) and is_boolean(show?) do
     with {:ok, friend} <- known_friend(pubkey), do: apply_change(friend, %{show_avatar: show?})
+  end
+
+  @doc """
+  Sets the reader's hue for a friend (UIDR-048), masking the one the
+  friend published; nil clears it and the published hue, else the
+  default, stands in. Broadcasts `FriendChanged` when it changed.
+  """
+  @spec set_hue_override(String.t(), Hue.t() | nil) ::
+          {:ok, Friend.t()} | {:error, :not_a_friend | :invalid_hue}
+  def set_hue_override(pubkey, hue) when is_binary(pubkey) do
+    with :ok <- valid_hue(hue),
+         {:ok, friend} <- known_friend(pubkey) do
+      apply_change(friend, %{hue_override: hue})
+    end
   end
 
   @doc "Removes a friend by public key. Absent is a no-op, and broadcasts nothing."
@@ -442,6 +457,9 @@ defmodule MediaCentaur.Social do
       else: {:error, :name_too_long}
   end
 
+  defp valid_hue(nil), do: :ok
+  defp valid_hue(hue), do: if(Hue.valid?(hue), do: :ok, else: {:error, :invalid_hue})
+
   defp known_friend(pubkey) do
     case friend_by_pubkey(pubkey) do
       nil -> {:error, :not_a_friend}
@@ -464,8 +482,8 @@ defmodule MediaCentaur.Social do
   end
 
   # No change is no broadcast. The changeset cannot fail here: the name
-  # is optional, the switch is a boolean by guard and the key is
-  # unchanged, so a failure is a bug.
+  # is optional, the switch is a boolean by guard, the hue is checked by
+  # `valid_hue/1` and the key is unchanged, so a failure is a bug.
   defp apply_change(%Friend{} = existing, attrs) do
     changeset = Friend.changeset(existing, attrs)
 

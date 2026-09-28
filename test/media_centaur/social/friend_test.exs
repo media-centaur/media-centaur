@@ -100,6 +100,24 @@ defmodule MediaCentaur.Social.FriendTest do
     end
   end
 
+  describe "set_hue_override/2" do
+    test "sets the reader's hue, clears it with nil, broadcasts once per change; a bad hue or key is refused" do
+      {:ok, %Friend{hue_override: nil}} = Social.add_friend(@pubkey, "One")
+      Social.subscribe()
+
+      assert {:ok, %Friend{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
+      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Friend{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
+      refute_receive {:friend_changed, _event}, 100
+
+      assert {:ok, %Friend{hue_override: nil}} = Social.set_hue_override(@pubkey, nil)
+      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+
+      assert {:error, :invalid_hue} = Social.set_hue_override(@pubkey, 360)
+      assert {:error, :not_a_friend} = Social.set_hue_override(String.duplicate("a", 64), 12)
+    end
+  end
+
   describe "remove_friend/1" do
     test "removes by pubkey and broadcasts; absent is a no-op" do
       {:ok, _friend} = Social.add_friend(@pubkey, "Sample Friend")
