@@ -80,9 +80,9 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   defp mark(%Person{own?: false} = person), do: if(Person.name(person), do: :letter, else: :glyph)
   defp mark(%Person{own?: true}), do: :letter
 
-  # The size is checked here as well as by `values:` because a template's check is
-  # compile-time only — a dynamic `size={@n}` would otherwise render an
-  # unsized circle.
+  # The size is checked here as well as by `values:` because a template's
+  # check is compile-time only — a dynamic `size={@n}` would otherwise
+  # render an unsized circle.
   defp size_classes(40), do: "size-10 text-base"
   defp size_classes(48), do: "size-12 text-[19px]"
 

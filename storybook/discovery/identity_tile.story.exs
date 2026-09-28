@@ -6,6 +6,9 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   the two sizes the surfaces render: 40 on a Feed row and the rail's
   person card, 48 on the Friends page's card and the Settings profile
   card. The avatar is the picture a key published with its profile.
+  The third group is the palette (UIDR-048): every hue on a friend's
+  tile, on the reader's own, and as the ring around a picture; the
+  first tile has no hue and is drawn in the default Blue.
   """
 
   use PhoenixStorybook.Story, :component
@@ -79,28 +82,27 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
     [
       %Variation{
         id: :letter,
-        description: "A friend: the first letter of your name for them on a primary tint",
+        description: "A friend: the first letter of your name for them, in the default Blue on its tint",
         attributes: %{person: friend("Cleo"), size: size}
       },
       %Variation{
         id: :glyph,
-        description:
-          "A friend with no name at all: the person glyph on the primary tint, never a letter",
+        description: "A friend with no name at all: the person glyph on the tint, never a letter",
         attributes: %{person: friend(nil), size: size}
       },
       %Variation{
         id: :avatar,
-        description: "A friend with an avatar: the picture inside a neutral ring",
+        description: "A friend with an avatar: the picture inside a 1px ring in the hue",
         attributes: %{person: %{friend("Ada") | avatar_url: @photo}, size: size}
       },
       %Variation{
         id: :own,
-        description: "The reader: filled with the button primary, the Y of You in white",
+        description: "The reader: filled in the default Blue, the Y of You near-white",
         attributes: %{person: %Person{pubkey: @me, own?: true}, size: size}
       },
       %Variation{
         id: :own_avatar,
-        description: "The reader with an avatar: the picture inside a 2px primary ring",
+        description: "The reader with an avatar: the picture inside a 2px ring in the hue",
         attributes: %{person: %Person{pubkey: @me, own?: true, avatar_url: @photo}, size: size}
       }
     ]
