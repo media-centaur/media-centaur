@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.44.0 — 2026-09-28
+
+### New
+
+- **See who did what, from the title's view.** A title your friends have reviewed, watched or want to watch shows a small dark capsule at the top right of its picture, holding a glyph for each: a heart, thumbs up or thumbs down for a verdict, a speech bubble for a review without one, an eye for watched, a bookmark for wants to watch. Press it to see who: every review — the person, their verdict, how long ago and their words — then a line such as *Nick, Sam and you watched this*. Press it again, click elsewhere or press Back to close it.
+- **How many, at a glance.** Every glyph is drawn by how many of the people you know did that thing with the title: in outline for one, in silver for two, in gold for three or more. You count too. The same grading shows on the Friends tab, on watchlist rows and on search results on the Incoming page, so a title reads the same everywhere.
+
+### Improved
+
+- **Watchlist rows and search results** show those glyphs at the right of the row instead of named flags; hover one for the sentence (*Nick and Sam watched this*). A glyph appears when a friend did it — what you did alone is already shown by the title's own controls.
+- **A title opened from a review** shows that review above the synopsis with the reviewer's picture and verdict.
+- **The Review dialog** picks your verdict with a plain Dislike / Like / Love switch; press the chosen one again to clear it.
+- **The heart is no longer pink.** Love is drawn like the other verdicts, so colour is left to the silver and gold grading.
+
+### Migration safety
+
+- This release runs no migrations.
+
 ## v1.43.0 — 2026-09-28
 
 ### New
