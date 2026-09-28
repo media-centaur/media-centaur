@@ -91,6 +91,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
           <input
             type="search"
             name="search"
+            phx-debounce="300"
             value={@search}
             placeholder="Filter by title or release…"
             class="input input-sm w-64"

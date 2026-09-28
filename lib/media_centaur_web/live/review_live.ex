@@ -1016,6 +1016,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           <input
             type="text"
             name="query"
+            phx-debounce="300"
             value={@query}
             class="input input-sm w-full"
             placeholder={if @type == :tv, do: "Show name", else: "Movie title"}

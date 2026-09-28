@@ -35,10 +35,10 @@ defmodule MediaCentaurWeb.ConsentComponents do
           id="consent-narrative-form"
           phx-change="set_narrative"
           phx-target={@target}
-          phx-debounce="300"
         >
           <textarea
             name="value"
+            phx-debounce="300"
             rows="4"
             class="textarea textarea-bordered w-full"
             placeholder="e.g. I added a new movie and its poster never showed up…"
@@ -67,10 +67,11 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </div>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Title</span>
-        <form id="consent-title-form" phx-change="set_title" phx-target={@target} phx-debounce="300">
+        <form id="consent-title-form" phx-change="set_title" phx-target={@target}>
           <input
             type="text"
             name="value"
+            phx-debounce="300"
             class="input w-full font-mono text-xs"
             value={@title}
           />
@@ -78,9 +79,10 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Report</span>
-        <form id="consent-body-form" phx-change="set_body" phx-target={@target} phx-debounce="300">
+        <form id="consent-body-form" phx-change="set_body" phx-target={@target}>
           <textarea
             name="value"
+            phx-debounce="300"
             rows="14"
             class="textarea textarea-bordered w-full font-mono text-xs"
           >{@body}</textarea>

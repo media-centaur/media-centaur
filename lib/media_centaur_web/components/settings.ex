@@ -480,6 +480,7 @@ defmodule MediaCentaurWeb.Components.Settings do
         <.settings_input
           name="item"
           value={@value}
+          phx-debounce={@change_event && "300"}
           placeholder={@placeholder}
           mono={@mono}
           autocomplete="off"
