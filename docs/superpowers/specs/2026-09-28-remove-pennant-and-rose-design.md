@@ -3,7 +3,7 @@
 Date: 2026-09-28. Status: decided 2026-09-28 (§ 5).
 
 Follows UIDR-046's 2026-09-28 amendment. The social surfaces (the person
-card's act glyphs and the grade) lead; the title surfaces are brought in
+card's social glyphs and the grade) lead; the title surfaces are brought in
 line with them.
 
 ## 1. Glossary
@@ -15,9 +15,9 @@ Terms already in use, restated so this document is self-contained:
 | **Act** | One person's live activity of one kind on one title: a review, a watch, a listing. |
 | **Flag** | Which of six an act shows as: love, like, dislike (a review by its sentiment), reviewed (a review with no sentiment), watched, listing. `Title.Flag`. |
 | **Mast order** | The fixed order of the six flags: love, like, dislike, reviewed, watched, listing. The name comes from the pennant; see § 4 for its rename. |
-| **Act glyph** | The heroicon drawing of one flag: heart, thumbs up, thumbs down, speech bubble, eye, bookmark. |
+| **Social glyph** | The heroicon drawing of one flag: heart, thumbs up, thumbs down, speech bubble, eye, bookmark. Formerly *social glyph* (UIDR-046); renamed 2026-09-28. |
 | **Grade** | How many people the reader knows did one flag on one title: **plain** (one — a white line drawing), **silver** (two), **gold** (three or more) — silver and gold the solid glyph in brushed metal. The reader counts. `DiscoveryLive.Grade`. |
-| **Acts strip** | The person card's row of posters, each under its act glyphs. |
+| **Acts strip** | The person card's row of posters, each under its social glyphs. |
 
 Terms this change retires:
 
@@ -64,15 +64,15 @@ it" is silver on both. `grades/1` moves from `DiscoveryLive.People` into
 `friend_activity_for/1` becomes `activity_for/1` (it is no longer
 friends only); its row shape is unchanged.
 
-### 3.2 The act glyph as one component
+### 3.2 The social glyph as one component
 
-The act glyph markup lives inline in `PersonCard` today. Three more
+The social glyph markup lives inline in `PersonCard` today. Three more
 surfaces need it, so it becomes a component with a story:
-`Title.ActGlyph.act_glyph/1` (`flag`, `grade`, `class`) and
+`Title.SocialGlyph.social_glyph/1` (`flag`, `grade`, `class`) and
 `glyphs/1` (a title's flags with their grades). The brushed-metal
-CSS moves from `.act-slots` to the glyph, so it works outside a person
+CSS moves from `.act-slots` to the glyph (`.act-glyph`/`.act-icon` become `.social-glyph`/`.social-icon`), so it works outside a person
 card. `Title.Sentiment` and its story are removed; the feed row renders
-its sentiment through `act_glyph` at plain.
+its sentiment through `social_glyph` at plain.
 
 ### 3.3 Title detail hero — the social capsule and the social panel
 
@@ -127,13 +127,13 @@ now (the handler's rule, not the control's).
 
 ### 3.6 Feed row
 
-The sentiment glyph after the verb is `act_glyph` at plain: a hollow
+The sentiment glyph after the verb is `social_glyph` at plain: a hollow
 heart like the hollow thumbs. No rose.
 
 ### 3.7 Person card
 
 Unchanged in look. The strip renders through `act_group`; the opened
-card's rows render their flags through `act_glyph` at the act's grade
+card's rows render their flags through `social_glyph` at the act's grade
 (today: solid at 80%, ungraded).
 
 ## 4. What is removed
@@ -155,7 +155,7 @@ the user-interface skill's Pennant recipe; the wiki's `Social.md`
 
 ## 5. Decisions (2026-09-28)
 
-1. **Names**: *social capsule* and *social panel* (the owner's; "act" terms were rejected).
+1. **Names**: *social glyph*, *social capsule* and *social panel* (the owner's; "act" terms were rejected, and *act glyph* is renamed in code and current docs).
 2. **Who, on the hero**: no names in the capsule; the capsule opens
    the social panel (reviews, then one sentence per text-less flag), over
    the backdrop. Glyphs at 24px. Tiles inside the capsule, a Reviews
@@ -169,7 +169,7 @@ the user-interface skill's Pennant recipe; the wiki's `Social.md`
 
 - `Grade.grades/1`: pure unit tests (moved from `People`), including the
   reader's watch counting on a title surface.
-- `ActGlyph`, `SocialCapsule`, `SocialPanel`: stories for the flag × grade
+- `SocialGlyph`, `SocialCapsule`, `SocialPanel`: stories for the flag × grade
   matrix, the capsule on imagery, the panel with reviews only, with acts
   only and with both (no markup assertions, per the testing policy).
 - The social panel's content (reviews newest first, the text-less flags'
