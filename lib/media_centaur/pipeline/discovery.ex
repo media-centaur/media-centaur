@@ -107,7 +107,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
            media_dir: payload.media_directory,
            tmdb_id: payload.tmdb_id,
            tmdb_type: payload.tmdb_type,
-           pending_file_id: nil
+           pending_file_id: payload.pending_file_id
          }}
       )
     end)
@@ -139,7 +139,14 @@ defmodule MediaCentaur.Pipeline.Discovery do
     else
       case run_discovery(payload) do
         {:ok, payload} ->
-          {:matched, %{payload | discovery_status: :matched}}
+          # A re-run of a file still awaiting review — `rescan_unlinked/0`
+          # re-emits those — answers that review, so the import completes it.
+          {:matched,
+           %{
+             payload
+             | discovery_status: :matched,
+               pending_file_id: Review.pending_file_id(payload.file_path)
+           }}
 
         {:needs_review, payload} ->
           handle_needs_review(%{payload | discovery_status: :needs_review})

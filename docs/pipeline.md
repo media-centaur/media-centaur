@@ -59,7 +59,7 @@ inotify + scan               high confidence → matched       → publish entit
 | `entity_id` | Ingest stage (via `Library.Inbound.ingest/1`) | UUID of the created/found library entity |
 | `ingest_status` | Ingest stage | `:new`, `:new_child`, or `:existing` |
 | `pending_images` | Ingest stage | List of images to download |
-| `pending_file_id` | Import Producer (review-resolved files only) | PendingFile ID to clean up after Import finishes |
+| `pending_file_id` | Discovery (a confident re-run of a queued file) or Import Producer (review-resolved files) | PendingFile ID to clean up after Import finishes |
 
 ---
 
@@ -102,7 +102,7 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 
 After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
 
-If the file came from review approval, Import also broadcasts `{:review_completed, pending_file_id}` to `"review:intake"`.
+If the file resolves an open review (approved in the UI, or a queued file that a re-run matched with confidence), Import also broadcasts `{:review_completed, pending_file_id}` to `"review:intake"`.
 
 ---
 
