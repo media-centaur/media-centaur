@@ -365,7 +365,7 @@ defmodule MediaCentaur.Parser do
       parent && season_directory?(parent) ->
         cond do
           base_has_own_tv_title?(base) -> base
-          grandparent -> grandparent <> " " <> base
+          grandparent -> release_name_without_group(grandparent) <> " " <> base
           true -> base
         end
 
@@ -376,12 +376,12 @@ defmodule MediaCentaur.Parser do
       parent && release_group_prefixed?(base, parent) ->
         case episode_marker(base) do
           nil -> parent
-          marker -> parent <> " " <> marker
+          marker -> release_name_without_group(parent) <> " " <> marker
         end
 
       # Bare episode filename (e.g. "S01E03") → prepend parent directory name
       bare_episode?(base) && parent ->
-        parent <> " " <> base
+        release_name_without_group(parent) <> " " <> base
 
       # Generic or very short lowercase base → use parent directory
       generic_base?(base) && parent ->
@@ -390,6 +390,18 @@ defmodule MediaCentaur.Parser do
       true ->
         base
     end
+  end
+
+  # A directory name prepended to a filename is a whole release name, so its
+  # trailing release group goes here. The title segment later cut from the
+  # joined candidate is not group-stripped — a hyphen before the episode
+  # marker belongs to the title ("Sample-Show.S01E02"). Separators become
+  # spaces first so a hyphenated title inside the name ("Sample-Show.Two")
+  # cannot read as a group.
+  defp release_name_without_group(dir) do
+    dir
+    |> String.replace(~r/[._]/, " ")
+    |> then(&Regex.replace(@release_group_pattern, &1, ""))
   end
 
   defp season_directory?(dir) do
@@ -541,7 +553,7 @@ defmodule MediaCentaur.Parser do
     cleaned =
       raw_title
       |> strip_year_tokens()
-      |> clean_title()
+      |> clean_title(strip_release_group: false)
       |> strip_trailing_season_marker()
 
     if cleaned == "" do
@@ -657,7 +669,7 @@ defmodule MediaCentaur.Parser do
 
   defp parse_season_pack(file_path, [raw_title, raw_season | _]) do
     season = String.to_integer(raw_season)
-    title = clean_title(raw_title)
+    title = clean_title(raw_title, strip_release_group: false)
 
     %Result{
       file_path: file_path,
@@ -679,7 +691,7 @@ defmodule MediaCentaur.Parser do
 
     title =
       case Regex.run(~r/^(.+?)[\s.\[(]#{year_str}/, candidate, capture: :all_but_first) do
-        [raw_title] -> clean_title(raw_title)
+        [raw_title] -> clean_title(raw_title, strip_release_group: false)
         nil -> clean_title(candidate)
       end
 

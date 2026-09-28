@@ -562,6 +562,54 @@ defmodule MediaCentaur.ParserTest do
     end
   end
 
+  # ─── Hyphenated titles: a hyphen inside the title is not a release group ──
+
+  describe "hyphenated title — the hyphen belongs to the title, not a release group" do
+    test "hyphenated TV title directly before the episode marker" do
+      result = Parser.parse("/mnt/videos/Videos/Sample-Show.S01E02.1080p.WEB-DL-GRP.mkv")
+
+      assert result.title == "Sample-Show"
+      assert result.season == 1
+      assert result.episode == 2
+      assert result.type == :tv
+    end
+
+    test "hyphenated TV title, space-separated with an episode title" do
+      result = Parser.parse("/mnt/videos/Videos/Sample-Show - S01E02 - Episode Title.mkv")
+
+      assert result.title == "Sample-Show"
+      assert result.season == 1
+      assert result.episode == 2
+      assert result.episode_title == "Episode Title"
+      assert result.type == :tv
+    end
+
+    test "hyphenated season pack title" do
+      result = Parser.parse("/mnt/videos/Videos/Sample-Show.S01.1080p.WEB-DL-GRP.mkv")
+
+      assert result.title == "Sample-Show"
+      assert result.season == 1
+      assert result.type == :tv
+    end
+
+    test "hyphenated movie title directly before the year" do
+      result = Parser.parse("/mnt/videos/Videos/Sample-Movie.2002.1080p.BluRay.x264-GRP.mkv")
+
+      assert result.title == "Sample-Movie"
+      assert result.year == 2002
+      assert result.type == :movie
+    end
+
+    test "a release directory's group is still dropped when its name is prepended to a bare episode" do
+      result = Parser.parse("/mnt/videos/Videos/Sample.Show.S01-GRP/S01E03.mkv")
+
+      assert result.title == "Sample Show"
+      assert result.season == 1
+      assert result.episode == 3
+      assert result.type == :tv
+    end
+  end
+
   # ─── TV: "Episode NN" word marker with season only in pack directory ──────
 
   describe "tv — Episode NN filename with season in parent pack directory" do
