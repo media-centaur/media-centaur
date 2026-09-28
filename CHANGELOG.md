@@ -8,7 +8,7 @@ see the git history for the full engineering trail.
 
 ### Improved
 
-- **Every expandable section works the same way.** Seasons, folder lists, technical logs, a plan's seasons, grouped downloads, search results and Review's episode lists all open and close with one kind of control, and on each of them Right opens it and Left closes it with the keyboard or a gamepad.
+- **Every expandable section works the same way.** Seasons, folder lists, technical logs, recent requests, a plan's seasons, grouped downloads, search results and Review's episode lists all open and close with one kind of control, and you can reach each one with the keyboard or a gamepad and open it with Enter or A.
 - **One way to confirm.** Removing a media directory and refreshing the image cache now ask you to press the same button again (*Click again to remove*, *Click again to refresh all artwork*) instead of showing Confirm and Cancel, like every other two-press button. Anything else you do in between cancels it.
 - **The console remembers your search.** The text you type in `/console`'s search box is still there after a reload, and Copy and Download hand over exactly the lines it shows.
 - **Lighter typing.** The History search on the Incoming page, Review's title search, the ignore-rule field, the problem report's fields and the console's buffer slider now wait for a pause in your typing before they act, instead of working on every keystroke.
