@@ -3328,25 +3328,42 @@ body:has(.modal-backdrop[data-state="open"]) {
   height: var(--glyph);
 }
 
-/* The grade's metals, three stops on one 135° sweep. The heroicon is a
-   CSS mask over `background-color: currentColor`, so the gradient is a
-   background image under the mask, not an SVG fill. */
-.act-glyph[data-grade="silver"] > .act-icon {
-  background-image: linear-gradient(
+/* The grade's metals, three stops on one 135° sweep, brushed: a grain
+   of stretched noise running bottom-left to top-right, blended over the
+   metal (overlay; the noise sits on mid-grey in sRGB, so it scratches
+   lighter and darker without shifting the colour). The heroicon is a
+   CSS mask over `background-color: currentColor`, so the layers are
+   background images under the mask, not an SVG fill. One 128px tile
+   covers any glyph size, so it never repeats. */
+.act-glyph[data-grade="silver"] > .act-icon,
+.act-glyph[data-grade="gold"] > .act-icon {
+  background-image: var(--act-brush), var(--act-metal);
+  background-size: 128px 128px, 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-blend-mode: overlay, normal;
+}
+
+.act-glyph[data-grade="silver"] {
+  --act-metal: linear-gradient(
     135deg,
-    oklch(97% 0.006 250),
+    oklch(91% 0.007 250),
     oklch(56% 0.018 250) 55%,
-    oklch(86% 0.01 250)
+    oklch(80% 0.012 250)
   );
 }
 
-.act-glyph[data-grade="gold"] > .act-icon {
-  background-image: linear-gradient(
+.act-glyph[data-grade="gold"] {
+  --act-metal: linear-gradient(
     135deg,
-    oklch(90% 0.13 88),
-    oklch(62% 0.13 78) 55%,
-    oklch(84% 0.14 85)
+    oklch(84% 0.15 86),
+    oklch(62% 0.13 86) 55%,
+    oklch(78% 0.161 86)
   );
+}
+
+.act-slots {
+  --act-brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='matrix' values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncG type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncB type='linear' slope='0.8' intercept='0.100'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cg transform='rotate(-45 64 64)'%3E%3Crect x='-64' y='-64' width='256' height='256' filter='url(%23n)'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* ── Feed rows (UIDR-046) ── the rows sit in a column with a hairline
