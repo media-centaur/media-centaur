@@ -56,18 +56,11 @@ its releases are one decision at different strengths.
    listed (its id is a TMDB collection id, a different namespace); its only
    writer was a scanner with no caller, deleted with the carve-out.
 
-**Amendment 2026-09-28.** One exception to rules 1 and 5, at the owner's
-request: when a movie arrives in the library, its watchlist entry is
-removed if the person keeps the *Take arrived movies off your watchlist*
-preference on (`Settings.Preferences.WatchlistAutoRemove`, default on,
-Settings → Library). The preference is the person's standing instruction,
-so a person still authors the removal; the library supplies only the
-moment. It is edge-triggered on the arrival (`Library.Events.MoviesAdded`
-on `library:additions`, handled by `ReleaseTracking.movies_added/1`), never
-a state rule: a movie already owned that a person lists afterwards stays
-listed. It removes through `set_rung(title, :off)`, so a shared listing is
-withdrawn as it would be by hand. Series and ignored titles are untouched.
-The system still never creates a title intent or raises a rung.
+**Amendment 2026-09-28.** Rules 1 and 5 no longer describe movies. When
+*Take arrived movies off your watchlist* is on (Settings → Library, default
+on), a movie's arrival in the library turns its record Off. The current
+behaviour is documented in `Settings.Preferences.WatchlistAutoRemove` and
+`ReleaseTracking.movies_added/1`.
 
 The invariant ADR-065 had to prove by migration — every active tracked title
 is owned or listed — is unrepresentable here: nothing creates a tracked
