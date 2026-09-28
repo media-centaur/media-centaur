@@ -69,16 +69,29 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   def build(inputs) do
     feed = UpcomingFeed.build(inputs.releases, feed_context(inputs))
     shelf_cap = if Map.get(inputs, :shelf_expanded?, false), do: :all, else: @shelf_cap
-    {events, overflow_count} = UpcomingFeed.shelf_items(feed, shelf_cap)
 
     %View{
-      shelf: %ShelfSection{
-        cards: Enum.map(events, &card_from_event(&1, inputs.today)),
-        overflow_count: overflow_count
-      },
+      shelf: shelf_section(feed, shelf_cap, inputs.today),
       in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
       drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
       feed: feed
+    }
+  end
+
+  @doc """
+  The same view with the shelf's cap lifted ("Show all"): the shelf is
+  re-cut from the feed the view already holds, with no new read.
+  """
+  @spec expand_shelf(t(), Date.t()) :: t()
+  def expand_shelf(%View{feed: feed} = view, today),
+    do: %{view | shelf: shelf_section(feed, :all, today)}
+
+  defp shelf_section(feed, cap, today) do
+    {events, overflow_count} = UpcomingFeed.shelf_items(feed, cap)
+
+    %ShelfSection{
+      cards: Enum.map(events, &card_from_event(&1, today)),
+      overflow_count: overflow_count
     }
   end
 

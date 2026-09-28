@@ -262,6 +262,11 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Seeds (and re-syncs) the update-automation controls: whether background
   # checking is on, the configured poll interval (clamped to the rate-limit
   # floor), whether auto-install is on, and the relative "last checked" label.
+  # The "last checked" and schedule labels are relative to now, so they are
+  # recomputed on arriving at System and on its tick, and nowhere else.
+  defp refresh_update_labels(socket, "system"), do: put_update_automation_assigns(socket)
+  defp refresh_update_labels(socket, _section), do: socket
+
   defp put_update_automation_assigns(socket) do
     enabled = Config.get(:update_check_enabled)
     interval = Config.update_check_interval_minutes()
@@ -310,6 +315,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       socket
       |> ensure_loaded()
       |> assign(active_section: section)
+      |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
       |> load_social(section)
       |> open_media_dir_dialog(MediaDirsLogic.new_entry())
@@ -325,6 +331,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       socket
       |> ensure_loaded()
       |> assign(active_section: section)
+      |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
       |> load_social(section)
 
@@ -657,11 +664,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, service_status_visible: visible, service_status_output: output)}
   end
 
+  # A dismissed banner is hidden whatever the probes say
+  # (`Overview.show_setup_banner?/3`), so dismissing re-runs none of them.
   def handle_event("setup:dismiss_banner", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(setup_banner_dismissed?: true)
-     |> assign_setup_banner_state()}
+    {:noreply, assign(socket, setup_banner_dismissed?: true, show_setup_banner?: false)}
   end
 
   def handle_event("dismiss_apply_modal", _params, socket) do
@@ -1563,9 +1569,11 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_info({:check_started}, socket), do: {:noreply, socket}
 
+  # The labels live on the System section only; elsewhere the tick is a
+  # re-arm and nothing else.
   def handle_info(:refresh_update_schedule, socket) do
     Process.send_after(self(), :refresh_update_schedule, 60_000)
-    {:noreply, put_update_automation_assigns(socket)}
+    {:noreply, refresh_update_labels(socket, socket.assigns[:active_section])}
   end
 
   def handle_info({:config_updated, :media_dirs, entries}, socket) do
@@ -2761,22 +2769,10 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Private helpers ---
 
-  # Computes the probe-driven setup banner state and assigns
-  # `critical_failures` + `show_setup_banner?`. Called after any config
-  # save — probes are pure (config + filesystem) so cost is negligible.
-  defp assign_setup_banner_state(socket) do
-    {critical_failures, show_banner?} =
-      compute_setup_banner_state(socket.assigns.config, socket.assigns.setup_banner_dismissed?)
-
-    socket
-    |> assign(critical_failures: critical_failures)
-    |> assign(show_setup_banner?: show_banner?)
-  end
-
-  # Pure helper — shared by the post-save banner assigner and the
-  # async first-load task spawned from `start_async_settings_load/1`.
-  # Returns the `{critical_failures, show_banner?}` pair without
-  # touching the socket so the task can compute it off the LV process.
+  # Pure helper for the async first-load task spawned from
+  # `start_async_settings_load/1`. Returns the `{critical_failures,
+  # show_banner?}` pair without touching the socket so the task can compute
+  # it off the LV process.
   defp compute_setup_banner_state(loaded_config, setup_banner_dismissed?) do
     probes = MediaCentaurWeb.Live.SetupLive.Probes.all(probe_input(loaded_config))
     critical_failures = Overview.critical_failures(probes)

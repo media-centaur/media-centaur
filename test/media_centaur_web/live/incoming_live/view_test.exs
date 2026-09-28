@@ -224,6 +224,25 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert length(expanded.shelf.cards) == 9
       assert expanded.shelf.overflow_count == 0
     end
+
+    # "Show all" lifts the cap on the feed the view already holds; it used
+    # to rebuild the view, re-reading every release from the database.
+    test "expand_shelf/2 lifts the cap on the held feed without a rebuild" do
+      releases =
+        for n <- 1..9 do
+          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
+            title: "ep-#{n}",
+            air_date: Date.add(@today, n),
+            season_number: 1,
+            episode_number: 1
+          })
+        end
+
+      capped = View.build(inputs(%{releases: releases}))
+      expanded = View.expand_shelf(capped, @today)
+
+      assert expanded == View.build(inputs(%{releases: releases, shelf_expanded?: true}))
+    end
   end
 
   describe "build/1 — operational sections" do
