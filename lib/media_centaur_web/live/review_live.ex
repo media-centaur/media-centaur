@@ -1060,7 +1060,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             type="text"
             name="query"
             value={@query}
-            class="input input-bordered input-sm w-full"
+            class="input input-sm w-full"
             placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
           />
         </div>

@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
           <input
             type="text"
             name="value"
-            class="input input-bordered w-full font-mono text-xs"
+            class="input w-full font-mono text-xs"
             value={@title}
           />
         </form>

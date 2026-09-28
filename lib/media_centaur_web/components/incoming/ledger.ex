@@ -92,7 +92,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
             name="search"
             value={@search}
             placeholder="Filter by title or release…"
-            class="input input-bordered input-sm w-64"
+            class="input input-sm w-64"
             data-nav-item
             tabindex="0"
           />

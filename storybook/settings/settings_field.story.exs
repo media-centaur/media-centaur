@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsField do
           description: "Must be reachable from this machine."
         },
         slots: [
-          ~s|<input class="input input-bordered font-mono text-sm" value="http://localhost:9696" />|
+          ~s|<input class="input font-mono text-sm" value="http://localhost:9696" />|
         ]
       },
       %Variation{
@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsField do
           layout: :stacked
         },
         slots: [
-          ~s|<input class="input input-bordered w-full font-mono text-sm" value="http://localhost:9696" />|
+          ~s|<input class="input w-full font-mono text-sm" value="http://localhost:9696" />|
         ]
       },
       %Variation{
@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsField do
           description: "Must be reachable from this machine."
         },
         slots: [
-          ~s|<input class="input input-bordered font-mono text-sm" value="http://localhost:9696" />|
+          ~s|<input class="input font-mono text-sm" value="http://localhost:9696" />|
         ]
       }
     ]

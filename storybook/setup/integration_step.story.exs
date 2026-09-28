@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.IntegrationStep do
             <input
               type="password"
               placeholder="paste your TMDB v4 read-access token"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input w-full font-mono text-sm"
             />
           </:form>
           """
@@ -81,7 +81,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.IntegrationStep do
             <input
               type="password"
               value="••••••••••••••••"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input w-full font-mono text-sm"
             />
           </:form>
           """
@@ -111,13 +111,13 @@ defmodule MediaCentaurWeb.Storybook.Setup.IntegrationStep do
             <input
               type="text"
               value="http://localhost:9696"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input w-full font-mono text-sm"
             />
             <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">API key</label>
             <input
               type="password"
               value="••••••••••••"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input w-full font-mono text-sm"
             />
           </:form>
           """

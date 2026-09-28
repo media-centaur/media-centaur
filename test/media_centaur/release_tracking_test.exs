@@ -639,9 +639,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   end
 
   describe "Onboarding.onboard/2" do
-    setup do
+    # Onboarding warms the poster; the image CDN is stubbed so the
+    # download lands under a per-test data dir instead of logging a
+    # failure the test never asserts.
+    setup context do
       MediaCentaur.TmdbStubs.setup_tmdb_client()
-      :ok
+      MediaCentaur.TmdbStubs.setup_artwork_cache(context)
     end
 
     test "tracks a TV series with custom scope" do
@@ -676,6 +679,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert item.tmdb_id == 5555
       assert item.last_library_season == 2
       assert item.last_library_episode == 5
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
     end
 
     test "all upcoming excludes already-released episodes" do

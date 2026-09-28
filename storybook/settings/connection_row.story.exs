@@ -135,8 +135,8 @@ defmodule MediaCentaurWeb.Storybook.Settings.ConnectionRow do
           """
           <:edit>
             <form class="space-y-4">
-              <div class="py-3.5"><div class="text-sm font-medium">Address</div><input class="input input-bordered w-full font-mono text-sm mt-2" value="http://localhost:9696" /></div>
-              <div class="py-3.5"><div class="text-sm font-medium">API key</div><input type="password" class="input input-bordered w-full font-mono text-sm mt-2" placeholder="Leave blank to keep the current key" /></div>
+              <div class="py-3.5"><div class="text-sm font-medium">Address</div><input class="input w-full font-mono text-sm mt-2" value="http://localhost:9696" /></div>
+              <div class="py-3.5"><div class="text-sm font-medium">API key</div><input type="password" class="input w-full font-mono text-sm mt-2" placeholder="Leave blank to keep the current key" /></div>
               <div class="flex items-center justify-end gap-2 pt-1">
                 <button type="button" class="btn btn-ghost btn-sm">Cancel</button>
                 <button type="button" class="btn btn-soft btn-sm">Save and test</button>

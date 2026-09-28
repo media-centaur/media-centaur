@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           name="query"
           value={@query}
           class={[
-            "input input-bordered w-full pl-12 pr-12 text-base",
+            "input w-full pl-12 pr-12 text-base",
             (@hero && "h-[52px] rounded-xl") || "h-12"
           ]}
           placeholder="What do you want to watch?"
@@ -193,7 +193,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           name="query"
           value={@session.query}
           class={[
-            "input input-bordered w-full pl-12 pr-12 font-mono text-sm",
+            "input w-full pl-12 pr-12 font-mono text-sm",
             (@hero && "h-[52px] rounded-xl") || "h-12"
           ]}
           placeholder="Title S01E{01-10}"

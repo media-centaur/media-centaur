@@ -606,7 +606,7 @@ defmodule MediaCentaurWeb.SetupLive do
             type="password"
             name="tmdb_api_key"
             placeholder="paste your TMDB v4 token or v3 key"
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />
@@ -642,7 +642,7 @@ defmodule MediaCentaurWeb.SetupLive do
             name="prowlarr_url"
             value={@prowlarr_url_value}
             placeholder="http://localhost:9696"
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />
@@ -650,7 +650,7 @@ defmodule MediaCentaurWeb.SetupLive do
           <input
             type="password"
             name="prowlarr_api_key"
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />
@@ -701,7 +701,7 @@ defmodule MediaCentaurWeb.SetupLive do
             name="download_client_url"
             value={@dc_url}
             placeholder="http://localhost:8080"
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />
@@ -710,7 +710,7 @@ defmodule MediaCentaurWeb.SetupLive do
             type="text"
             name="download_client_username"
             value={@dc_username}
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />
@@ -718,7 +718,7 @@ defmodule MediaCentaurWeb.SetupLive do
           <input
             type="password"
             name="download_client_password"
-            class="input input-bordered input-sm w-full font-mono text-sm"
+            class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"
           />

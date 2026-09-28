@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-27
 ---
 # What a reader sees of a person: their published name under your override, or Unnamed
@@ -32,3 +32,5 @@ Until now a friend had only the name the reader typed, and the reader had none. 
 * **A sharing note**: "hasn't set a name", "avatar hidden".
 * **A global avatar switch**: the choice is per friend.
 * **The identity before the profile**: an npub shown with no name behind it on the Settings path.
+
+**Amendment 2026-09-28.** As built, the switch in rule 4 reads **Show their picture**, not "Show avatar": user copy says *picture*; *avatar* is the word in code and on the wire (`docs/GLOSSARY.md`). Rule 3's Choose is a file input taking one JPEG, PNG or WebP up to 10 MB; the save makes a 256×256 WebP master with the photo's metadata stripped, and Remove steps aside while a file is chosen. The switch is `Components.Switch`, shared with the Settings row and the title tracking block.

@@ -3,6 +3,10 @@ defmodule MediaCentaur.Social.Identity do
   This install's Nostr identity: one secp256k1 keypair. The secret lives
   in the sensitive `nostr_secret_key` config key (hex, `MediaCentaur.Secret`
   wrapped at rest and in memory); the public key is derived on read.
+  `pubkey/0` derives the point from the secret on every call, which
+  `Social.people/0` and `own_person/0` pay once per Discovery load and
+  per review-modal render; deriving it once beside the secret is the
+  change to make if that ever shows in a profile.
 
   Generated on first use (`ensure/0`) — called by `Social.save_profile/2`
   when the reader saves their profile (the Settings path; opening the
