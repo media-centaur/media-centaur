@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.ImageFiles
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
@@ -218,7 +219,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(bindings: %{})
      |> assign(glyph_style: nil)
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
-     |> assign(profile_name: nil, name_cap: ProfileTranslation.max_name_length())
+     |> assign(profile_name: nil, profile_hue: nil, name_cap: ProfileTranslation.max_name_length())
      |> assign(own_person: nil, avatar_removed?: false)
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
@@ -339,7 +340,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp load_social(socket, "social") do
     socket
     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
-    |> assign(profile_name: profile_name(), own_person: Social.own_person())
+    |> assign(profile_name: profile_name(), profile_hue: profile_hue(), own_person: Social.own_person())
     |> assign(relay_status: Connections.status())
     |> assign(share_watched?: ShareWatched.enabled?(), share_watchlist?: ShareWatchlist.enabled?())
     |> load_relays()
@@ -355,6 +356,32 @@ defmodule MediaCentaurWeb.SettingsLive do
     case Social.own_profile() do
       nil -> nil
       %{name: name} -> name
+    end
+  end
+
+  # The form's hue (UIDR-048): the saved one, else a palette hue at random
+  # so a new profile starts with a colour; the random one is the form's
+  # alone until Save publishes it.
+  defp profile_hue do
+    case Social.own_profile() do
+      %{hue: hue} when is_integer(hue) -> hue
+      _none -> Hue.random()
+    end
+  end
+
+  defp assign_hue(socket, value) do
+    case Hue.parse(value) do
+      {:ok, hue} when is_integer(hue) -> assign(socket, profile_hue: hue)
+      _none_or_error -> socket
+    end
+  end
+
+  # A friend's profile fires the same event; a pending hue is kept unless
+  # the own row now carries one.
+  defp saved_hue_or(pending) do
+    case Social.own_profile() do
+      %{hue: hue} when is_integer(hue) -> hue
+      _none -> pending
     end
   end
 
@@ -933,7 +960,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   # --- Social: profile, identity + relays ------------------------------------
 
   # The upload's change event: LiveView needs it bound to track the entry.
+  # The slider is a field of the same form; a drag lands here as `hue`.
+  def handle_event("validate_profile", %{"_target" => ["hue"], "hue" => hue}, socket),
+    do: {:noreply, assign_hue(socket, hue)}
+
   def handle_event("validate_profile", _params, socket), do: {:noreply, socket}
+
+  # A swatch: the form's pending hue, previewed in the card's tile.
+  def handle_event("set_profile_hue", %{"hue" => hue}, socket), do: {:noreply, assign_hue(socket, hue)}
 
   # Remove is pending until the save: the tile shows the letter, the
   # stored avatar stays until `:none` is saved.
@@ -950,11 +984,11 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("save_profile", %{"name" => name}, socket) do
     with {:ok, _name} <- Social.check_name(name),
          {:ok, avatar} <- avatar_change(socket),
-         {:ok, profile} <- Social.save_profile(name, avatar, nil) do
+         {:ok, profile} <- Social.save_profile(name, avatar, socket.assigns.profile_hue) do
       {:noreply,
        socket
-       |> assign(identity_npub: Identity.npub(), profile_name: profile.name, avatar_removed?: false)
-       |> assign(own_person: Social.own_person())
+       |> assign(identity_npub: Identity.npub(), profile_name: profile.name, profile_hue: profile.hue)
+       |> assign(own_person: Social.own_person(), avatar_removed?: false)
        |> put_flash(:info, "Profile saved")}
     else
       {:error, :name_required} ->
@@ -968,6 +1002,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       {:error, :avatar_too_large} ->
         {:noreply, put_flash(socket, :error, "That picture cannot be made small enough")}
+
+      {:error, :invalid_hue} ->
+        {:noreply, put_flash(socket, :error, "That colour is not on the ring")}
     end
   end
 
@@ -1607,6 +1644,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      assign(socket,
        identity_npub: Identity.npub(),
        profile_name: profile_name(),
+       profile_hue: profile_hue(),
        own_person: Social.own_person(),
        avatar_removed?: false,
        nsec_revealed: nil,
@@ -1618,8 +1656,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   # The own profile was saved in another tab or arrived from a relay; the
   # name and the picture follow. A friend's profile fires this too and
   # re-reads the same one row.
-  def handle_info({:profile_updated, _event}, socket),
-    do: {:noreply, assign(socket, profile_name: profile_name(), own_person: Social.own_person())}
+  def handle_info({:profile_updated, _event}, socket) do
+    {:noreply,
+     assign(socket,
+       profile_name: profile_name(),
+       profile_hue: saved_hue_or(socket.assigns.profile_hue),
+       own_person: Social.own_person()
+     )}
+  end
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
     {:noreply, load_relays(socket)}
@@ -1856,6 +1900,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 active_section={@active_section}
                 identity_npub={@identity_npub}
                 profile_name={@profile_name}
+                profile_hue={@profile_hue}
                 name_cap={@name_cap}
                 uploads={@uploads}
                 own_person={@own_person}
@@ -2058,6 +2103,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <SocialSection.render
       npub={@identity_npub}
       profile_name={@profile_name}
+      profile_hue={@profile_hue}
       name_cap={@name_cap}
       uploads={@uploads}
       own_person={@own_person}

@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
   The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
-  four cards. Your profile — the name friends see and the picture beside
-  it, one form whose save mints the identity when none exists
+  four cards. Your profile — the name friends see, the picture beside it,
+  the colour the circle takes (`HueSwatches`, starting on a palette hue
+  at random), one form whose save mints the identity when none exists
   (`Social.save_profile/3`); it is the only card before an identity
   exists, so opening the section mints nothing. The picture is a
   LiveView upload: the identity tile shows the stored avatar (or the
@@ -17,7 +18,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   the inline add-by-URL. Sharing — the toggles that decide which of the
   user's acts become activities for friends (watched, listed; reviewing
   always is). `SettingsLive` delegates to `render/1` and hosts the
-  handlers: `validate_profile`, `remove_avatar`,
+  handlers: `validate_profile`, `set_profile_hue`, `remove_avatar`,
   `cancel_avatar`, `save_profile`, `reveal_nsec`, `hide_nsec`,
   `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
   `toggle_share_watchlist`. The friend roster stays on the Discovery
@@ -33,6 +34,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   import MediaCentaurWeb.Components.Settings.ConnectionRow
 
   alias MediaCentaur.Social.Person
+  alias MediaCentaurWeb.Components.Discovery.HueSwatches
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.RelayStatusRow
 
@@ -41,6 +43,11 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     doc: "nil before an identity exists; gates every card but the profile"
 
   attr :profile_name, :string, default: nil, doc: "the saved name; nil before a profile exists"
+
+  attr :profile_hue, :integer,
+    required: true,
+    doc: "the form's pending hue (UIDR-048), previewed in the tile and published on Save"
+
   attr :name_cap, :integer, required: true, doc: "`Social.Profile.Translation.max_name_length/0`"
   attr :uploads, :map, required: true, doc: "the LiveView's `@uploads`; `.avatar` is the one upload"
   attr :own_person, Person, required: true, doc: "`Social.own_person/0`; the tile previews its avatar"
@@ -73,7 +80,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
         >
           <div class="flex items-center gap-3">
             <IdentityTile.identity_tile
-              person={shown_person(@own_person, @avatar_removed?)}
+              person={shown_person(@own_person, @avatar_removed?, @profile_hue)}
               size={48}
             />
             <.live_file_input upload={@uploads.avatar} class="file-input file-input-sm min-w-0" />
@@ -113,7 +120,17 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               Cancel
             </.button>
           </p>
-          <div class="flex items-center gap-2">
+          <div class="flex items-start gap-3">
+            <span class="w-14 shrink-0 pt-1 text-sm text-base-content/70">Colour</span>
+            <HueSwatches.hue_swatches
+              id="profile-hues"
+              selected={@profile_hue}
+              event="set_profile_hue"
+              class="min-w-0 flex-1"
+            />
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-14 shrink-0 pt-2 text-sm text-base-content/70">Name</span>
             <.settings_input
               name="name"
               value={@profile_name}
@@ -121,7 +138,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               maxlength={@name_cap}
               autocomplete="off"
               phx-debounce="blur"
-              class="min-w-0 flex-1"
+              class="max-w-64"
             />
             <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
               {if @npub, do: "Save", else: "Create profile"}
@@ -318,9 +335,12 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     do: "The name your friends see you under, and the picture beside it, if you like."
 
   # The tile shows the stored avatar, or the letter once Remove is
-  # pending; a chosen file shows by name until the save.
-  defp shown_person(%Person{} = person, true = _removed?), do: %{person | avatar_url: nil}
-  defp shown_person(%Person{} = person, false = _removed?), do: person
+  # pending; a chosen file shows by name until the save. It draws in the
+  # form's pending hue, so a swatch previews before Save.
+  defp shown_person(%Person{} = person, removed?, hue) do
+    person = %{person | published_hue: hue}
+    if removed?, do: %{person | avatar_url: nil}, else: person
+  end
 
   # `Phoenix.Component.upload_errors/1,2`: the whole-upload error and the
   # two an entry can carry under `allow_upload`'s accept and size caps.
