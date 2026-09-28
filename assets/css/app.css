@@ -119,6 +119,10 @@ html { scrollbar-gutter: stable; }
      love pennant. Rose, between error and secondary, so it never reads
      as a fault. */
   --color-love: oklch(66% 0.17 12);
+  /* A person's colour is a hue on one ring (UIDR-048): the theme fixes the
+     lightness and chroma, the person picks the angle in `--hue`. */
+  --person-l: 70%;
+  --person-c: 0.15;
 }
 
 /* Gradient backdrop — gives the glass something to show through.
@@ -3109,6 +3113,42 @@ body:has(.modal-backdrop[data-state="open"]) {
    would wash the words. */
 :root {
   --ink: oklch(13% 0.02 264);
+}
+
+/* The identity tile (UIDR-046, UIDR-047, UIDR-048): one recipe over
+   `--hue`, 250 (the primary's angle) when a person has none. A friend's
+   mark in the hue on the hue at 20 % with a hairline; the reader's own
+   filled in the hue with a near-white mark; a picture ringed outside
+   its edge, 1 px for a friend and 2 px for the reader's own — outset,
+   because an inset ring paints under the image. */
+.identity-tile {
+  --person: oklch(var(--person-l) var(--person-c) var(--hue, 250));
+  --person-tint: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.2);
+  --person-hairline: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.25);
+}
+
+.identity-tile-friend {
+  background: var(--person-tint);
+  color: var(--person);
+  box-shadow:
+    inset 0 0 0 1px var(--person-hairline),
+    0 2px 8px oklch(0% 0 0 / 0.35);
+}
+
+.identity-tile-own {
+  background: var(--person);
+  color: oklch(97% 0.01 var(--hue, 250));
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.4);
+}
+
+.identity-tile-avatar.identity-tile-friend {
+  background: none;
+  box-shadow: 0 0 0 1px var(--person);
+}
+
+.identity-tile-avatar.identity-tile-own {
+  background: none;
+  box-shadow: 0 0 0 2px var(--person);
 }
 
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's

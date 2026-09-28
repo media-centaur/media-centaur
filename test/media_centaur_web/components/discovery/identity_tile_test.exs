@@ -54,6 +54,27 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
     assert letter(render(person: person(nil, published_name: "ada"), size: 40)) == "A"
   end
 
+  test "the tile carries the person's hue as --hue, the override first; none sets no style" do
+    none = render(person: person("cleo"), size: 40)
+    assert none |> tile() |> LazyHTML.attribute("style") == []
+    assert none |> tile() |> LazyHTML.attribute("data-hue") == []
+    assert none |> tile() |> LazyHTML.attribute("class") |> hd() =~ "identity-tile-friend"
+
+    published = render(person: %{person("cleo") | published_hue: 195}, size: 40)
+    assert published |> tile() |> LazyHTML.attribute("style") == ["--hue: 195"]
+    assert published |> tile() |> LazyHTML.attribute("data-hue") == ["195"]
+
+    overridden = render(person: %{person("cleo") | published_hue: 195, hue_override: 12}, size: 40)
+    assert overridden |> tile() |> LazyHTML.attribute("style") == ["--hue: 12"]
+
+    own = render(person: %{own_person() | published_hue: 290}, size: 48)
+    assert own |> tile() |> LazyHTML.attribute("style") == ["--hue: 290"]
+    assert own |> tile() |> LazyHTML.attribute("class") |> hd() =~ "identity-tile-own"
+
+    avatar = render(person: person("Ada", avatar_url: "/x.webp"), size: 48)
+    assert avatar |> tile() |> LazyHTML.attribute("class") |> hd() =~ "identity-tile-avatar"
+  end
+
   test "the size is one of the two the surfaces render" do
     assert_raise ArgumentError, ~r/40 or 48/, fn -> render(person: person("Cleo"), size: 56) end
   end
