@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`profiles.md`](profiles.md) —
-  **shipped v1.42.0 2026-09-28 with social-relay v0.7.0.** A person
+  **shipped v1.42.0 2026-09-28 with social-relay v0.7.0; phase 5 opened, not yet designed.** A person
   publishes how they appear: a name, required in the form, and an optional
   picture, as one replaceable event (kind 12160) per identity, the picture
   inline as a 256×256 WebP under a 64 KB cap. Friends see it in the identity
@@ -30,8 +30,10 @@ Use [`template.md`](template.md) as a starter.
   switch. One `Social.Person` read model replaces the five copies of a
   person's name; the sync loop moves to `RelaySync`; one `Components.Switch`
   serves the card, the Settings row and the tracking block. ADR-073, ADR-074,
-  UIDR-047 accepted. Open: the `nickname` drop in the release after
-  v1.42.0, then the file is retired.
+  UIDR-047 accepted. Open: phase 5 (a published profile colour with a
+  reader override, an image cropper with a preview, the name field's
+  width), designed first; the `nickname` drop rides in the release that
+  carries it; then the file is retired.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
