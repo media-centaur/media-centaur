@@ -408,12 +408,19 @@ defmodule MediaCentaurWeb.SettingsLive do
   # The square the person dragged over the picture, as the form's three
   # fields; empty, missing or malformed is nil, the centre square.
   defp crop_from_params(params) do
-    with {x, ""} <- Integer.parse(Map.get(params, "crop_x", "")),
-         {y, ""} <- Integer.parse(Map.get(params, "crop_y", "")),
-         {side, ""} <- Integer.parse(Map.get(params, "crop_side", "")) do
+    with {x, ""} <- parse_crop_field(params, "crop_x"),
+         {y, ""} <- parse_crop_field(params, "crop_y"),
+         {side, ""} <- parse_crop_field(params, "crop_side") do
       {x, y, side}
     else
       _empty_or_bad -> nil
+    end
+  end
+
+  defp parse_crop_field(params, key) do
+    case Map.get(params, key) do
+      value when is_binary(value) -> Integer.parse(value)
+      _absent_or_not_a_string -> :error
     end
   end
 

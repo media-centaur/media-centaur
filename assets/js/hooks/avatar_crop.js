@@ -4,7 +4,9 @@
 // Expected shape (the Picture field of the profile form, one per pending
 // upload entry, `phx-update="ignore"` so croppr's DOM survives patches):
 //   <div phx-hook="AvatarCrop" id="avatar-crop-<ref>" phx-update="ignore">
-//     <img data-role="source" …>            the entry's live_img_preview
+//     <div class="avatar-crop-stage">       cancels the root zoom (app.css)
+//       <img data-role="source" …>          the entry's live_img_preview
+//     </div>
 //     <input type="hidden" name="crop_x">   the box, written on every crop end
 //     <input type="hidden" name="crop_y">
 //     <input type="hidden" name="crop_side">
@@ -25,31 +27,9 @@
 // the form's submit, and Cancel removes this element, which destroys
 // croppr. The box has no keyboard path until the input system learns one.
 
-// croppr polyfills requestAnimationFrame, CustomEvent and MouseEvent on
-// `window` the moment its module body runs, unguarded. It is therefore
-// required on first use, in the browser, not imported at the top: bun runs
-// every hook test in one process with no `window`, and a top-level import
-// would throw before `cropFields` could be tested. esbuild bundles the
-// CommonJS file behind a lazy initialiser, so nothing runs until `_start`.
-function loadCroppr() {
-  return require("../../vendor/croppr")
-}
-
-// The three form fields for a croppr box: integers, and one side — the
-// smaller, so rounding never pushes the box past the picture's edge.
-// Anything without a positive size is empty, which the server reads as
-// the centre square.
-export function cropFields(box) {
-  if (!box || !(box.width > 0) || !(box.height > 0)) {
-    return { crop_x: "", crop_y: "", crop_side: "" }
-  }
-  const side = Math.round(Math.min(box.width, box.height))
-  return {
-    crop_x: String(Math.round(box.x)),
-    crop_y: String(Math.round(box.y)),
-    crop_side: String(side),
-  }
-}
+import Croppr from "../../vendor/croppr"
+import { cropFields } from "./avatar_crop_fields"
+import { parseUiScale } from "../ui_scale"
 
 export const AvatarCrop = {
   mounted() {
@@ -75,7 +55,7 @@ export const AvatarCrop = {
     // keeps its natural pixels, oriented as the browser shows them.
     const source = this.img
     const write = (box) => this._write(source, box)
-    const Croppr = loadCroppr()
+    this._sizePreviews()
     this.cropper = new Croppr(this.img, {
       aspectRatio: 1,
       startSize: [100, 100, "%"],
@@ -83,6 +63,21 @@ export const AvatarCrop = {
       onInitialize: (instance) => write(instance.getValue()),
       onCropEnd: write,
     })
+  },
+
+  // The previews' backing store: devicePixelRatio × --ui-scale pixels per
+  // CSS px, as the strip chart sizes its plots, so a tile at 2× scale on a
+  // HiDPI panel is drawn from as many pixels as it shows. The CSS size is
+  // the span's (`size-full`); the design size is the canvas attribute.
+  _sizePreviews() {
+    const scale = parseUiScale(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale"))
+    const density = (window.devicePixelRatio || 1) * scale
+    for (const canvas of this.previews) {
+      const design = Number(canvas.dataset.design || canvas.getAttribute("width"))
+      canvas.dataset.design = String(design)
+      canvas.width = Math.round(design * density)
+      canvas.height = Math.round(design * density)
+    }
   },
 
   _write(source, box) {

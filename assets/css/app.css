@@ -3214,9 +3214,9 @@ body:has(.modal-backdrop[data-state="open"]) {
 .croppr-container img { vertical-align: middle; max-width: 100%; }
 .croppr { position: relative; display: inline-block; border-radius: calc(8px * var(--ui-scale, 1)); overflow: hidden; }
 .croppr-overlay { background: oklch(0% 0 0 / 0.55); position: absolute; inset: 0; z-index: 1; cursor: crosshair; }
-.croppr-region { border: 1px solid oklch(from var(--color-base-content) l c h / 0.9); position: absolute; z-index: 3; cursor: move; top: 0; }
+.croppr-region { border: calc(1px * var(--ui-scale, 1)) solid oklch(from var(--color-base-content) l c h / 0.9); position: absolute; z-index: 3; cursor: move; top: 0; }
 .croppr-imageClipped { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.croppr-handle { border: 1px solid oklch(0% 0 0 / 0.6); background: var(--color-base-content); width: calc(10px * var(--ui-scale, 1)); height: calc(10px * var(--ui-scale, 1)); border-radius: calc(2px * var(--ui-scale, 1)); position: absolute; z-index: 4; top: 0; }
+.croppr-handle { border: calc(1px * var(--ui-scale, 1)) solid oklch(0% 0 0 / 0.6); background: var(--color-base-content); width: calc(10px * var(--ui-scale, 1)); height: calc(10px * var(--ui-scale, 1)); border-radius: calc(2px * var(--ui-scale, 1)); position: absolute; z-index: 4; top: 0; }
 
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's
    row and the Friends page's card. Every size is a custom property of the
