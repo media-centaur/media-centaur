@@ -124,7 +124,7 @@ defmodule MediaCentaurWeb.Components.Title.Social do
         data-nav-item
         tabindex="0"
       >
-        <SocialGlyph.social_glyphs flags={@flags} grades={@grades} titles={@sentences} class="gap-3" />
+        <SocialGlyph.social_glyphs flags={@flags} grades={@grades} tips={@sentences} class="gap-3" />
         <span class={["social-capsule-chevron", @open && "rotate-180"]}>
           <.icon name="hero-chevron-down-mini" class="size-4" />
         </span>

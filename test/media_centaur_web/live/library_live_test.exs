@@ -477,7 +477,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, _rec} = MediaCentaur.Activities.ingest(review.(:love))
 
       render_until(view, fn _html ->
-        has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
+        has_element?(view, "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']")
       end)
 
       await_supervised_tasks()

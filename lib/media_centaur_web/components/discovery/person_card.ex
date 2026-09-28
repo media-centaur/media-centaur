@@ -118,7 +118,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           id={"#{@id}-act-#{TitleRef.param(act.ref)}"}
           type="button"
           class="act"
-          title={@name <> " " <> sentence(act, @subject)}
+          data-tip={tip(@name, act, @subject)}
+          aria-label={tip(@name, act, @subject)}
           phx-click="open_title"
           phx-value-ref={TitleRef.param(act.ref)}
           phx-value-activity={act.activity_id}
@@ -270,6 +271,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   defp masked_name(%Person{} = person), do: Format.person_name(%{person | name_override: nil})
 
   defp newest(%Act{entries: [entry | _rest]}), do: entry
+
+  defp tip(name, act, subject), do: name <> " " <> sentence(act, subject)
 
   defp sentence(%Act{} = act, subject),
     do: ActivityWords.sentence(newest(act).kind, act.episode, act.title.name, subject)

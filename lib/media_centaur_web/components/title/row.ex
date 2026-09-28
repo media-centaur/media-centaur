@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
         :if={@flags != []}
         flags={@flags}
         grades={@grades}
-        titles={@sentences}
+        tips={@sentences}
         class="ml-auto gap-3 self-center [--glyph:1.25rem]"
       />
     </div>

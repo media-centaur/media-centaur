@@ -417,7 +417,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # Who did what is the social capsule's to say, not a line under the hero.
       assert has_element?(
                view,
-               "#detail-social .social-glyph[data-flag='watched'][title*='Sample Friend']"
+               "#detail-social .social-glyph[data-flag='watched'][data-tip*='Sample Friend']"
              )
 
       refute has_element?(view, "#detail-activity-delete")
@@ -444,7 +444,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element(friend_card() <> "-#{reviewed.id}") |> render_click()
       assert has_element?(view, "#detail-note", "Sample Friend")
       assert has_element?(view, "#detail-note", "Watch it.")
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']"
+             )
 
       await_supervised_tasks()
     end
@@ -803,7 +807,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # The card opens the modal, whose social capsule says who, and the note.
       view |> element(entry(rec)) |> render_click()
       assert_patch(view, "/discovery?title=movie-777&activity=#{rec.id}")
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']"
+             )
+
       assert has_element?(view, "#detail-note", "Watch it.")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
@@ -891,12 +900,20 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # The modal speaks for the newest review — its note, attributed —
       # and its social capsule shows both friends' acts.
       view |> element(entry(listed)) |> render_click()
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Other Friend']")
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='like'][title*='Sample Friend']")
 
       assert has_element?(
                view,
-               "#detail-social .social-glyph[data-flag='listing'][title*='Sample Friend']"
+               "#detail-social .social-glyph[data-flag='love'][data-tip*='Other Friend']"
+             )
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='like'][data-tip*='Sample Friend']"
+             )
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='listing'][data-tip*='Sample Friend']"
              )
 
       await_supervised_tasks()
@@ -2129,7 +2146,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .social-glyph[data-flag='like'][title='Sample Friend likes this']"
+               "#watchlist-item-movie-777 .social-glyph[data-flag='like'][data-tip='Sample Friend likes this']"
              )
 
       assert has_element?(view, "#watchlist-item-movie-777", "Watch it.")
@@ -2153,7 +2170,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_until(view, fn _html ->
         has_element?(
           view,
-          "#watchlist-item-movie-777 .social-glyph[data-flag='love'][title='Other Friend loves this']"
+          "#watchlist-item-movie-777 .social-glyph[data-flag='love'][data-tip='Other Friend loves this']"
         )
       end)
 
@@ -2163,7 +2180,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
              )
 
       view |> element("#watchlist-item-movie-777") |> render_click()
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Other Friend']")
+
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='love'][data-tip*='Other Friend']"
+             )
+
       await_supervised_tasks()
     end
 
@@ -2188,14 +2210,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .social-glyph[data-flag='watched'][title='Sample Friend watched this']"
+               "#watchlist-item-movie-777 .social-glyph[data-flag='watched'][data-tip='Sample Friend watched this']"
              )
 
       view |> element("#watchlist-item-movie-777") |> render_click()
 
       assert has_element?(
                view,
-               "#detail-social .social-glyph[data-flag='watched'][title*='Sample Friend']"
+               "#detail-social .social-glyph[data-flag='watched'][data-tip*='Sample Friend']"
              )
 
       refute has_element?(view, "#detail-activity-delete")

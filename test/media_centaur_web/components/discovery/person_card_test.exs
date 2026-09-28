@@ -59,6 +59,15 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert posters |> LazyHTML.query("[data-flag='love']") |> Enum.count() == 1
   end
 
+  test "an act's sentence is the house tooltip and its accessible name, never a native title" do
+    posters = acts(render(person: friend(), acts: acts_of(), width: :rail))
+    [tip | _] = LazyHTML.attribute(posters, "data-tip")
+
+    assert tip =~ ~r/^Sample Friend .*Sample Movie 7$/
+    assert LazyHTML.attribute(posters, "aria-label") == LazyHTML.attribute(posters, "data-tip")
+    assert LazyHTML.attribute(posters, "title") == []
+  end
+
   test "the glyphs sit centred above the poster in order, each at its grade" do
     html = render(person: friend(), acts: acts_of(), width: :rail)
     glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .social-glyph")

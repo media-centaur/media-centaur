@@ -2024,7 +2024,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(
                view,
-               "[data-nav-zone='grid'] .social-glyph[data-flag='love'][title='Sample Friend loves this']"
+               "[data-nav-zone='grid'] .social-glyph[data-flag='love'][data-tip='Sample Friend loves this']"
              )
 
       await_supervised_tasks()
@@ -3851,7 +3851,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#detail-modal[data-state=open]")
       # What friends did is the social capsule, on every title surface —
       # this one included, now that the host reads it by identity.
-      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
+      assert has_element?(
+               view,
+               "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']"
+             )
     end
 
     test "a deep link to a series the library owns renders its seasons and offers Play", %{conn: conn} do

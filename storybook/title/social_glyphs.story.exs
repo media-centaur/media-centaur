@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Storybook.Title.SocialGlyphs do
         attributes: %{
           flags: [:love, :like, :watched, :listing],
           grades: %{love: :silver, like: :plain, watched: :gold, listing: :plain},
-          titles: %{love: "Nick and you love this", watched: "Nick, Sam and you watched this"},
+          tips: %{love: "Nick and you love this", watched: "Nick, Sam and you watched this"},
           class: "gap-3"
         }
       },
