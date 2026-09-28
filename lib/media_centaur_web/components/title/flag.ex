@@ -11,7 +11,9 @@ defmodule MediaCentaurWeb.Components.Title.Flag do
   sentiment glyphs are `Title.Sentiment`'s, the one map every surface
   shares; the bubble, the eye and the bookmark are the pennant's three.
   `:solid` names the same glyph from the heroicons solid set, which the
-  act slots use; love is solid at every weight.
+  act slots' silver and gold use; love is solid at `:outline` and
+  `:solid`. `:line` is the outline set with no exception — love a hollow
+  heart — the act slots' plain tier.
 
   Pure vocabulary, not a function component — no story.
   """
@@ -25,7 +27,7 @@ defmodule MediaCentaurWeb.Components.Title.Flag do
   alias MediaCentaurWeb.Components.Title.Sentiment
 
   @type flag :: :love | :like | :dislike | :review | :watched | :listing
-  @type weight :: :outline | :solid
+  @type weight :: :outline | :solid | :line
 
   @mast_order [:love, :like, :dislike, :review, :watched, :listing]
 
@@ -36,13 +38,17 @@ defmodule MediaCentaurWeb.Components.Title.Flag do
   def flag(%Activity{kind: kind}), do: kind
 
   @doc """
-  The heroicon for a flag, at the outline weight or from the solid set.
+  The heroicon for a flag, at the outline weight, from the solid set, or
+  as a line drawing.
   Literal names, one per clause: Tailwind's icon scanner emits CSS only
   for the names it reads in source, so a name built at runtime would
   draw nothing.
   """
   @spec glyph(flag(), weight()) :: String.t()
   def glyph(flag, weight \\ :outline)
+
+  def glyph(:love, :line), do: "hero-heart"
+  def glyph(flag, :line), do: glyph(flag, :outline)
 
   def glyph(sentiment, weight) when sentiment in [:love, :like, :dislike],
     do: Sentiment.glyph(sentiment, weight)

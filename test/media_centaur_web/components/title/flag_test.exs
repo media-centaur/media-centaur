@@ -31,4 +31,13 @@ defmodule MediaCentaurWeb.Components.Title.FlagTest do
   test "sort_by_mast/1 orders flags and drops repeats" do
     assert Flag.sort_by_mast([:watched, :love, :watched, :review]) == [:love, :review, :watched]
   end
+
+  test "the line weight is the outline set with no exception: love is a hollow heart there" do
+    assert Flag.glyph(:love, :line) == "hero-heart"
+    assert Flag.glyph(:like, :line) == "hero-hand-thumb-up"
+    assert Flag.glyph(:dislike, :line) == "hero-hand-thumb-down"
+    assert Flag.glyph(:review, :line) == "hero-chat-bubble-bottom-center-text"
+    assert Flag.glyph(:watched, :line) == "hero-eye"
+    assert Flag.glyph(:listing, :line) == "hero-bookmark"
+  end
 end

@@ -3,7 +3,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   One person as their latest acts (UIDR-046): the identity tile, the
   name — no clock — and a strip of posters, one per title acted on,
   each under its act glyphs centred as a group in mast order (the
-  opinion, the eye, the bookmark), a flag at the grade in gold. One
+  opinion, the eye, the bookmark), each at its grade — a white line
+  drawing, silver, or gold. One
   component at two widths: the Feed's rail (480, a row in the rail's
   list, three acts, a press navigates to the person) and the Friends
   page (900, a card on the inset tone, five acts, a press opens the card
@@ -42,7 +43,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       ago: Keyword.get(opts, :ago, "2h ago"),
       episode: episode,
       flags: flags,
-      gold: Keyword.get(opts, :gold, []),
+      grades: Map.merge(Map.new(flags, &{&1, :plain}), Keyword.get(opts, :grades, %{})),
       entries:
         for flag <- flags do
           %Entry{
@@ -100,11 +101,16 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       ]
   end
 
-  defp gold_acts do
+  defp graded_acts do
     [
-      act(21, "Movie G", [:love], gold: [:love]),
-      act(22, "Movie H", [:watched, :listing], gold: [:watched], ago: "1d ago"),
-      act(23, "Movie I", [:like], ago: "2d ago")
+      act(21, "Movie G", [:love], grades: %{love: :gold}),
+      act(22, "Movie H", [:watched, :listing], grades: %{watched: :silver}, ago: "1d ago"),
+      act(23, "Movie I", [:like], ago: "2d ago"),
+      act(24, "Movie J", [:dislike, :watched],
+        grades: %{dislike: :silver, watched: :gold},
+        ago: "3d ago"
+      ),
+      act(25, "Movie K", [:review], ago: "4d ago")
     ]
   end
 
@@ -182,10 +188,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         template: @rail
       },
       %Variation{
-        id: :rail_gold,
+        id: :rail_graded,
         description:
-          "The grade: a gold heart alone; a gold eye beside a matte bookmark; a matte thumb up",
-        attributes: %{person: friend(), acts: gold_acts(), width: :rail},
+          "The grade's three tiers: a gold heart alone; a silver eye beside a plain bookmark; a plain thumb up",
+        attributes: %{person: friend(), acts: graded_acts(), width: :rail},
         template: @rail
       },
       %Variation{
@@ -277,9 +283,9 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         template: @page
       },
       %Variation{
-        id: :page_gold,
-        description: "The grade at the page width",
-        attributes: %{person: friend(), acts: gold_acts(), width: :page},
+        id: :page_graded,
+        description: "The grade at the page width: every tier on every glyph kind in the five acts",
+        attributes: %{person: friend(), acts: graded_acts(), width: :page},
         template: @page
       }
     ]

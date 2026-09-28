@@ -3319,7 +3319,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 .act-glyph {
   width: var(--glyph);
   height: var(--glyph);
-  color: oklch(100% 0 0 / 0.78); /* matte: flat white at 78% */
+  color: oklch(100% 0 0 / 0.72); /* plain: a white line drawing */
 }
 
 .act-icon {
@@ -3328,10 +3328,19 @@ body:has(.modal-backdrop[data-state="open"]) {
   height: var(--glyph);
 }
 
-/* The grade: gold metal, three stops on one 135° sweep. The heroicon is
-   a CSS mask over `background-color: currentColor`, so the gradient is a
+/* The grade's metals, three stops on one 135° sweep. The heroicon is a
+   CSS mask over `background-color: currentColor`, so the gradient is a
    background image under the mask, not an SVG fill. */
-.act-glyph-gold > .act-icon {
+.act-glyph[data-grade="silver"] > .act-icon {
+  background-image: linear-gradient(
+    135deg,
+    oklch(97% 0.006 250),
+    oklch(56% 0.018 250) 55%,
+    oklch(86% 0.01 250)
+  );
+}
+
+.act-glyph[data-grade="gold"] > .act-icon {
   background-image: linear-gradient(
     135deg,
     oklch(90% 0.13 88),

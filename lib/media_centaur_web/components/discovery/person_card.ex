@@ -8,7 +8,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   each under its **act glyphs** — a 36px strip on the card's ground with
   the glyphs for what the person did centred as a group in mast order
   (the opinion, the eye, the bookmark), one act in the middle, two as a
-  pair. A flag at the grade is gold; the rest are matte. A person with
+  pair, each drawn at its grade (`DiscoveryLive.Grade`): plain is a
+  white line drawing, silver and gold the solid glyph in metal. A person with
   no acts is a tile and a name; the card says nothing about what a
   person withholds, and the You card is the reader's acts like anyone's,
   the filled own tile its only mark.
@@ -129,10 +130,11 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           <span class="act-slots" aria-hidden="true">
             <span
               :for={flag <- act.flags}
-              class={["act-glyph", flag in act.gold && "act-glyph-gold"]}
+              class="act-glyph"
               data-flag={flag}
+              data-grade={act.grades[flag]}
             >
-              <.icon name={Flag.glyph(flag, :solid)} class="act-icon" />
+              <.icon name={glyph(flag, act.grades[flag])} class="act-icon" />
             </span>
           </span>
           <img
@@ -260,6 +262,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp shown(acts, _width, true), do: acts
   defp shown(acts, width, false), do: Enum.take(acts, @cap[width])
+
+  # Plain is the line drawing; a metal fills the solid glyph.
+  defp glyph(flag, :plain), do: Flag.glyph(flag, :line)
+  defp glyph(flag, _metal), do: Flag.glyph(flag, :solid)
 
   defp tile_size(:rail), do: 40
   defp tile_size(:page), do: 48
