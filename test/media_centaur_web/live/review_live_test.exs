@@ -16,6 +16,13 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     render_async(view)
   end
 
+  defp select_first_group(view) do
+    view
+    |> element("[phx-click='select_item']")
+    |> render()
+    |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+  end
+
   describe "GET /review" do
     test "renders without crashing", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/review")
@@ -90,6 +97,78 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
       assert has_element?(view, "form[phx-submit='search']"),
              "re-selecting the current row must not close the open search panel"
+    end
+  end
+
+  describe "choosing a match keeps the type it was found under" do
+    # Regression: `select_match` stamped every match with the search form's
+    # Type select, whatever produced the match. A scored candidate for a TV
+    # file was saved as a movie (the select defaults to Movie), and changing
+    # the select after a search relabelled results already on screen.
+
+    test "a scored candidate is saved under the file's type", %{conn: conn} do
+      file =
+        create_pending_file(%{
+          parsed_title: "Sample Show",
+          parsed_type: "tv",
+          season_number: 1,
+          episode_number: 1,
+          tmdb_type: "tv",
+          # Two candidates on one score: the chooser only shows for a tie.
+          candidates: [
+            %{"tmdb_id" => "555", "title" => "Sample Show", "year" => "2010", "score" => 0.7},
+            %{"tmdb_id" => "556", "title" => "Sample Show", "year" => "2014", "score" => 0.7}
+          ]
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      view
+      |> element("[phx-click='select_match'][phx-value-tmdb-id='555']")
+      |> render_click()
+
+      saved = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, file.id)
+      assert saved.tmdb_id == 555
+      assert saved.tmdb_type == "tv"
+    end
+
+    test "a search result is saved under the type it was searched as", %{conn: conn} do
+      file =
+        create_pending_file(%{
+          parsed_title: "Movie A",
+          parsed_type: "movie",
+          tmdb_type: "movie"
+        })
+
+      MediaCentaur.TmdbStubs.stub_search_movie([
+        %{"id" => 777, "title" => "Movie A", "release_date" => "2001-01-01"}
+      ])
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+      key = select_first_group(view)
+
+      render_click(view, "open_search", %{"key" => key})
+
+      view
+      |> form("form[phx-submit='search']", %{"query" => "Movie A", "type" => "movie"})
+      |> render_submit()
+
+      render_until(view, &String.contains?(&1, "review-result-777"))
+
+      # The user flips the Type select after the results arrived.
+      view
+      |> form("form[phx-submit='search']", %{"query" => "Movie A", "type" => "tv"})
+      |> render_change()
+
+      view
+      |> element("[phx-click='select_match'][phx-value-tmdb-id='777']")
+      |> render_click()
+
+      saved = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, file.id)
+      assert saved.tmdb_id == 777
+      assert saved.tmdb_type == "movie"
     end
   end
 

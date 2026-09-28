@@ -30,6 +30,7 @@ defmodule MediaCentaur.Review.Search do
           |> Enum.map(fn result ->
             %{
               tmdb_id: to_string(result["id"]),
+              tmdb_type: to_string(type),
               title: result[title_key],
               year: DateUtil.extract_year(result[year_key]),
               overview: result["overview"],
