@@ -362,12 +362,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   # The form's hue (UIDR-048): the saved one, else a palette hue at random
   # so a new profile starts with a colour; the random one is the form's
   # alone until Save publishes it.
-  defp profile_hue do
-    case Social.own_profile() do
-      %{hue: hue} when is_integer(hue) -> hue
-      _none -> Hue.random()
-    end
-  end
+  defp profile_hue, do: saved_hue_or(Hue.random())
 
   defp assign_hue(socket, value) do
     case Hue.parse(value) do
@@ -376,8 +371,8 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  # A friend's profile fires the same event; a pending hue is kept unless
-  # the own row now carries one.
+  # The saved hue, else `pending`: the form's seed on load, and the
+  # pending hue when a profile arrives (a friend's fires the same event).
   defp saved_hue_or(pending) do
     case Social.own_profile() do
       %{hue: hue} when is_integer(hue) -> hue
@@ -1004,7 +999,7 @@ defmodule MediaCentaurWeb.SettingsLive do
         {:noreply, put_flash(socket, :error, "That picture cannot be made small enough")}
 
       {:error, :invalid_hue} ->
-        {:noreply, put_flash(socket, :error, "That colour is not on the ring")}
+        {:noreply, put_flash(socket, :error, "That colour cannot be used")}
     end
   end
 

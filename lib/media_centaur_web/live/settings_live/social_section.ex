@@ -121,20 +121,21 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             </.button>
           </p>
           <div class="flex items-start gap-3">
-            <span class="w-14 shrink-0 pt-1 text-sm text-base-content/70">Colour</span>
+            <span id="profile-hues-label" class="w-14 shrink-0 pt-1 text-sm font-medium">Colour</span>
             <HueSwatches.hue_swatches
               id="profile-hues"
               selected={@profile_hue}
               event="set_profile_hue"
               class="min-w-0 flex-1"
+              aria-labelledby="profile-hues-label"
             />
           </div>
-          <div class="flex items-start gap-3">
-            <span class="w-14 shrink-0 pt-2 text-sm text-base-content/70">Name</span>
+          <div class="flex items-center gap-3">
+            <label for="profile-name" class="w-14 shrink-0 text-sm font-medium">Name</label>
             <.settings_input
+              id="profile-name"
               name="name"
               value={@profile_name}
-              placeholder="Name"
               maxlength={@name_cap}
               autocomplete="off"
               phx-debounce="blur"
