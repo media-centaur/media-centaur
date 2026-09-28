@@ -25,6 +25,9 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatchesTest do
     assert hd(LazyHTML.attribute(swatches, "aria-label")) == "Rose"
     assert length(LazyHTML.attribute(swatches, "data-nav-item")) == 8
 
+    assert html |> LazyHTML.query("[data-component='hue-swatches']") |> LazyHTML.attribute("role") ==
+             ["group"]
+
     pressed = LazyHTML.query(html, "button[data-hue][aria-pressed='true']")
     assert LazyHTML.attribute(pressed, "data-hue") == ["195"]
   end

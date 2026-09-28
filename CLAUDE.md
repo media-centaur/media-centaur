@@ -8,6 +8,10 @@ Stories are a **typed coupling check** and a **state-matrix forcing function**, 
 
 You are free to design new visual surfaces directly in storybook (the isolated render is genuinely useful for iterating on a card or panel without booting the whole page), but you are not required to. Designing against the running app is fine as long as the story lands in the same commit and the variations cover the states the app exercises.
 
+## Compose from the kit; never re-draw what a component draws
+
+Before writing markup for anything the app already draws — a button, a badge, a label over a control, a settings row or field, a form footer, a switch, a menu, a modal, a tile — find the component that draws it and compose from it. The catalog is the `user-interface` skill's Component Inventory and the storybook at `/storybook`; a Settings section composes from `Components.Settings` (UIDR-041), a content surface from the family under `lib/media_centaur_web/components/`. An idiom that exists nowhere yet becomes a component with a story, not inline classes on one surface — the second surface would otherwise copy them, and the two drift. Credo enforces the button and badge cases (MC RawButtonClass, RawBadgeClass); everything else is this rule. A plan that prescribes hand-rolled markup is wrong at the plan, not at the keyboard: fix the plan.
+
 ## Skills-First Development
 
 **Always invoke the appropriate thinking skill BEFORE exploring code or writing implementation.** Skills contain paradigm-shifting insights that guide what patterns to look for and what anti-patterns to avoid.
