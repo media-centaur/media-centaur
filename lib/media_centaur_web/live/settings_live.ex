@@ -1306,7 +1306,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       {:noreply,
        socket
        |> assign(listening: {kind_atom, id_atom})
-       |> push_event("controls:listen", %{kind: kind})}
+       |> push_event("controls:listen", %{kind: kind, id: id})}
     else
       _ -> {:noreply, socket}
     end

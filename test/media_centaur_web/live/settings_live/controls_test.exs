@@ -41,6 +41,32 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       assert map[:play].key == "k"
     end
 
+    # Regression: the listen reply carried only `kind`, so the browser's bridge
+    # (assets/js/input/index.js) bound with `id: undefined`, JSON dropped it,
+    # and `controls:bind` had no clause for a payload without "id". The client
+    # passes the pushed payload's id straight through, so this test does too.
+    test "the listen reply names the binding the browser must send back", %{conn: conn} do
+      :ok = Controls.subscribe()
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      view
+      |> element(
+        ~s|button[phx-click="controls:listen"][phx-value-id="navigate_up"][phx-value-kind="keyboard"]|
+      )
+      |> render_click()
+
+      assert_push_event(view, "controls:listen", %{kind: "keyboard", id: "navigate_up"} = pushed)
+
+      render_hook(view, "controls:bind", %{
+        "id" => pushed.id,
+        "kind" => pushed.kind,
+        "value" => "w"
+      })
+
+      assert_receive {:controls_changed, map}
+      assert map[:navigate_up].key == "w"
+    end
+
     test "controls:cancel leaves state unchanged", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
