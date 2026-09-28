@@ -16,14 +16,11 @@ reader's alone.
 
 ## Status
 
-Phases 1 to 3 shipped on main 2026-09-28, precommit clean (7887 tests);
-phase 4 closed the records the same day: ADR-073, ADR-074 and UIDR-047
-are accepted, every leftover has a destination (below). Two dated steps
-remain, both outside this checkout's hands: the owner's ship of the
-release carrying phases 2 and 3 (with social-relay v0.7.0, committed in
-`../social-relay` at `567d3d8`, tagged and pushed with it; the wiki's
-three commits pushed with it), and the `nickname` drop in the release
-after. The file is retired when that migration ships.
+Shipped in v1.42.0 on 2026-09-28 with social-relay v0.7.0 (tagged, the
+release run green, the image on GHCR) and the wiki pushed; the release
+verified on GitHub. One dated step remains: the release after v1.42.0
+drops `friends.nickname` and the `:start_activities_sync` key; the file
+is retired when that migration ships.
 
 ## Decisions made
 
@@ -53,8 +50,8 @@ after. The file is retired when that migration ships.
 
 ## Next steps
 
-1. Ship (owner): tag and push social-relay v0.7.0 with the app release that carries phases 2 and 3; push the wiki. The CHANGELOG draws on the two ship-notes sections below.
-2. The release after that one drops `friends.nickname` (a paired migration; the outgoing release still reads it) and the `:start_activities_sync` key with it (`config/test.exs`, `RelaySync`). Then retire this file and move the entry under Complete in `campaigns/README.md`.
+1. The release after v1.42.0 drops `friends.nickname` (a paired migration; v1.42.0 still reads it) and the `:start_activities_sync` key with it (`config/test.exs`, `RelaySync`). Then retire this file and move the entry under Complete in `campaigns/README.md`.
+2. Owner: upgrade the friend group's relay instance to v0.7.0 (`docker compose pull && docker compose up -d` where it runs); until then the relay row shows *rejected a profile* and profiles are re-sent on each connect.
 
 ## Ship notes for phase 2 (the CHANGELOG draws on these)
 
