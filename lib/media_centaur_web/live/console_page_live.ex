@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.ConsolePageLive do
   @moduledoc """
   Full-page `/console` route — the diagnostic firehose: every component's
-  log ring, filtered by component chips, a level floor, and a text search,
-  with pause, clear, resize, copy and download.
+  log ring, filtered by component chips and a level floor, with pause,
+  clear, resize, copy and download. The text search is the browser's: the
+  `ConsolePage` hook hides non-matching rows, keeps the query across
+  reloads, and sends it with copy and download.
 
   Reachable by URL only. It is deliberately unlinked from the shell: the
   everyday path to a subsystem's logs is the Status board's drill-in panel,
@@ -60,16 +62,12 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     # like every other entry-producing path (`should_insert_entry?` on new
     # entries, `:filter_changed`, `:buffer_resized`). Streaming an
     # unfiltered window here was the one path that bypassed the filter, so
-    # excluded entries (hidden components, below-floor levels, non-matching
-    # search) painted on first load and were only scrolled away by later
-    # live entries — the "flash of unfiltered text". Component and level
-    # are now applied *in the store* by `Console.read/2`, which is strictly
-    # stronger than filtering before streaming: excluded entries never
-    # leave the buffer. Search is still applied here.
-    visible_entries =
-      config.filter
-      |> Console.read(Buffer.default_cap())
-      |> Logic.visible_entries(config.filter)
+    # excluded entries (hidden components, below-floor levels) painted on
+    # first load and were only scrolled away by later live entries — the
+    # "flash of unfiltered text". Component and level are applied *in the
+    # store* by `Console.read/2`, which is strictly stronger than filtering
+    # before streaming: excluded entries never leave the buffer.
+    visible_entries = Console.read(config.filter, Buffer.default_cap())
 
     socket
     |> assign(:filter, config.filter)
@@ -88,14 +86,12 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   end
 
   # Download and copy both hand over everything the store holds under the
-  # current filter — a person saving the log wants the whole thing, not the
-  # first-paint window.
-  defp visible_payload(socket) do
-    filter = socket.assigns.filter
-
-    filter
+  # current filter and the browser's text search — a person saving the log
+  # wants the whole thing, not the first-paint window.
+  defp visible_payload(socket, query) do
+    socket.assigns.filter
     |> Console.read(Buffer.whole_store_limit())
-    |> Logic.format_visible_payload(filter)
+    |> Logic.format_visible_payload(query)
   end
 
   # --- PubSub handlers ---
@@ -124,8 +120,7 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     # user's chosen cap. On resize we just reset the stream contents to
     # match the newly-truncated buffer — so read the whole store and let
     # the new cap do the truncating.
-    filter = socket.assigns.filter
-    visible = Logic.visible_entries(Console.read(filter, Buffer.whole_store_limit()), filter)
+    visible = Console.read(socket.assigns.filter, Buffer.whole_store_limit())
 
     socket =
       socket
@@ -135,25 +130,17 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     {:noreply, socket}
   end
 
+  # Same redraw as a resize: the stream is reset to everything the store
+  # holds under the new filter.
   def handle_info({:filter_changed, filter}, socket) do
-    if View.only_search_query_differs?(socket.assigns.filter, filter) do
-      # Text search is handled by the client-side hook via data-message
-      # attributes — no server-side re-stream needed. Just update the
-      # assign so cross-tab sync works without the cursor jump that a
-      # re-stream would cause.
-      {:noreply, assign(socket, :filter, filter)}
-    else
-      # Same redraw as a resize: the stream is reset to everything the
-      # store holds under the new filter.
-      visible = Logic.visible_entries(Console.read(filter, Buffer.whole_store_limit()), filter)
+    visible = Console.read(filter, Buffer.whole_store_limit())
 
-      socket =
-        socket
-        |> assign(:filter, filter)
-        |> stream(:entries, Enum.reverse(visible), reset: true)
+    socket =
+      socket
+      |> assign(:filter, filter)
+      |> stream(:entries, Enum.reverse(visible), reset: true)
 
-      {:noreply, socket}
-    end
+    {:noreply, socket}
   end
 
   # Session-wide on_mount hooks (ShellBadges) subscribe this view to their
@@ -173,12 +160,6 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   def handle_event("set_level", %{"level" => level_string}, socket) do
     :ok = Console.update_filter(Logic.set_level(socket.assigns.filter, level_string))
     {:noreply, socket}
-  end
-
-  def handle_event("search", %{"value" => query}, socket) do
-    new_filter = Logic.set_search(socket.assigns.filter, query)
-    :ok = Console.update_filter(new_filter)
-    {:noreply, assign(socket, :filter, new_filter)}
   end
 
   def handle_event("toggle_pause", _params, socket) do
@@ -204,14 +185,16 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     {:noreply, socket}
   end
 
-  def handle_event("download_buffer", _params, socket) do
-    payload = visible_payload(socket)
+  # Copy and download carry the browser's text search (`search`).
+  def handle_event("download_buffer", params, socket) do
+    payload = visible_payload(socket, Map.get(params, "search", ""))
     filename = Logic.download_filename()
 
     {:noreply, push_event(socket, "console:download", %{filename: filename, content: payload})}
   end
 
-  def handle_event("copy_visible", _params, socket) do
-    {:noreply, push_event(socket, "console:copy", %{content: visible_payload(socket)})}
+  def handle_event("copy_visible", params, socket) do
+    payload = visible_payload(socket, Map.get(params, "search", ""))
+    {:noreply, push_event(socket, "console:copy", %{content: payload})}
   end
 end

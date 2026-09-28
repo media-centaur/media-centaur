@@ -263,42 +263,6 @@ defmodule MediaCentaur.Console.ViewTest do
     end
   end
 
-  describe "only_search_query_differs?/2" do
-    test "returns true when filters differ only in search text" do
-      base = Filter.new_with_defaults()
-      with_search = %{base | search: "error"}
-
-      assert View.only_search_query_differs?(base, with_search)
-      assert View.only_search_query_differs?(with_search, base)
-    end
-
-    test "returns false when search is identical" do
-      filter = %{Filter.new_with_defaults() | search: "same"}
-      refute View.only_search_query_differs?(filter, filter)
-    end
-
-    test "returns false when level differs" do
-      base = Filter.new_with_defaults()
-      changed = %{base | level: :warning, search: "x"}
-      refute View.only_search_query_differs?(base, changed)
-    end
-
-    test "returns false when a component visibility differs" do
-      base = Filter.new_with_defaults()
-      toggled = Filter.toggle_component(base, :pipeline)
-      # Even with the same search, component difference should win.
-      refute View.only_search_query_differs?(base, toggled)
-      # Adding a search diff on top still returns false.
-      refute View.only_search_query_differs?(base, %{toggled | search: "x"})
-    end
-
-    test "returns false when default_component differs" do
-      base = Filter.new_with_defaults()
-      changed = %{base | default_component: :hide, search: "x"}
-      refute View.only_search_query_differs?(base, changed)
-    end
-  end
-
   describe "entry_search_text/1" do
     test "returns lowercased message for search data attribute" do
       entry = build_entry(message: "Pipeline STARTED successfully")

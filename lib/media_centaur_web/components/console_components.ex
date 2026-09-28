@@ -96,9 +96,6 @@ defmodule MediaCentaurWeb.ConsoleComponents do
         type="text"
         class="input input-sm console-search"
         placeholder="search..."
-        value={@filter.search}
-        phx-keyup="search"
-        phx-debounce="200"
         name="search-query"
         data-console-search
       />
@@ -204,8 +201,22 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       >
         clear
       </.button>
-      <.button variant="neutral" size="xs" phx-click="copy_visible">copy</.button>
-      <.button variant="neutral" size="xs" phx-click="download_buffer">download</.button>
+      <%!-- The ConsolePage hook answers these: it pushes the event with the
+            browser's text search, which the server does not hold. --%>
+      <.button
+        variant="neutral"
+        size="xs"
+        phx-click={JS.dispatch("console:request", detail: %{event: "copy_visible"})}
+      >
+        copy
+      </.button>
+      <.button
+        variant="neutral"
+        size="xs"
+        phx-click={JS.dispatch("console:request", detail: %{event: "download_buffer"})}
+      >
+        download
+      </.button>
       <.button
         variant="primary"
         size="xs"

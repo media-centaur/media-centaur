@@ -2,23 +2,54 @@
 //
 // Client half of the /console page.
 //
-// - Client-side text search: the server persists the query (so copy and
-//   download honour it, and so it survives a reload) but deliberately does
-//   NOT re-stream on a search-only filter change — resetting a stream of
-//   thousands of rows on every debounced keystroke is a large diff over the
-//   wire for a decision the browser can make from `data-message`.
-// - Copy to clipboard (`console:copy` push_event).
-// - Download as a .log file (`console:download` push_event).
+// - The text search is the browser's, and only the browser's: the rows are
+//   already on the page, so hiding them by `data-message` needs no server,
+//   and re-streaming thousands of rows per keystroke would be a large diff
+//   for nothing. The query survives a reload in localStorage (a per-viewer
+//   convenience; the page works without it).
+// - Copy and download: the buttons dispatch `console:request`, and this hook
+//   pushes the event with the query, because the server holds none. The
+//   server answers with `console:copy` / `console:download`.
 //
 // Scroll pinning is not this hook's business: the log container carries
 // `phx-hook="LogTail"`.
+
+const STORAGE_KEY = "console:search"
+
+function readStoredQuery() {
+  try {
+    return globalThis.localStorage?.getItem(STORAGE_KEY) || ""
+  } catch (_error) {
+    return ""
+  }
+}
+
+function storeQuery(query) {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, query)
+  } catch (_error) {
+    // Blocked storage costs only the reload persistence.
+  }
+}
 
 export const ConsolePage = {
   mounted() {
     this._searchInput = this.el.querySelector("[data-console-search]")
     this._entriesContainer = this.el.querySelector("#console-entries")
 
-    this._onSearchInput = () => this._applyClientSearch()
+    this._onSearchInput = () => {
+      storeQuery(this._searchInput?.value || "")
+      this._applyClientSearch()
+    }
+    this._onRequest = (event) => {
+      const name = event.detail?.event
+      if (name) this.pushEvent(name, { search: this._searchInput?.value || "" })
+    }
+    this.el.addEventListener?.("console:request", this._onRequest)
+
+    if (this._searchInput && !this._searchInput.value) {
+      this._searchInput.value = readStoredQuery()
+    }
     this._onCopy = ({ content }) => this._copy(content)
     this._onDownload = ({ filename, content }) => this._download(filename, content)
 
@@ -41,13 +72,14 @@ export const ConsolePage = {
       })
     }
 
-    // A reload restores the persisted query into the input; apply it to the
-    // rows the first paint brought with it.
+    // A reload restored the stored query into the input above; apply it to
+    // the rows the first paint brought with it.
     this._applyClientSearch()
   },
 
   destroyed() {
     this._searchInput?.removeEventListener("input", this._onSearchInput)
+    this.el.removeEventListener?.("console:request", this._onRequest)
     this._observer?.disconnect()
   },
 

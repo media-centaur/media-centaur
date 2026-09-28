@@ -98,60 +98,22 @@ defmodule MediaCentaur.Console.FilterTest do
     end
   end
 
-  describe "matches?/2 — search" do
-    test "empty search string always matches" do
-      entry = build_entry(message: "pipeline claimed 3 files")
-      filter = Filter.new(search: "")
-      assert Filter.matches?(entry, filter)
-    end
-
-    test "matching substring returns true" do
-      entry = build_entry(message: "pipeline claimed 3 files")
-      filter = Filter.new(search: "claimed")
-      assert Filter.matches?(entry, filter)
-    end
-
-    test "search is case-insensitive" do
-      entry = build_entry(message: "Pipeline Claimed 3 files")
-      filter = Filter.new(search: "claimed")
-      assert Filter.matches?(entry, filter)
-    end
-
-    test "search is case-insensitive for uppercase search" do
-      entry = build_entry(message: "pipeline claimed 3 files")
-      filter = Filter.new(search: "CLAIMED")
-      assert Filter.matches?(entry, filter)
-    end
-
-    test "non-matching search returns false" do
-      entry = build_entry(message: "pipeline claimed 3 files")
-      filter = Filter.new(search: "tmdb")
-      refute Filter.matches?(entry, filter)
-    end
-  end
-
   describe "matches?/2 — combined AND semantics" do
-    test "entry passes when all three conditions are satisfied" do
+    test "entry passes when both conditions are satisfied" do
       entry = build_entry(level: :warning, component: :pipeline, message: "something broke")
-      filter = Filter.new(level: :info, components: %{pipeline: :show}, search: "broke")
+      filter = Filter.new(level: :info, components: %{pipeline: :show})
       assert Filter.matches?(entry, filter)
     end
 
-    test "entry fails when level fails even if component and search pass" do
+    test "entry fails when level fails even if component passes" do
       entry = build_entry(level: :debug, component: :pipeline, message: "something broke")
-      filter = Filter.new(level: :info, components: %{pipeline: :show}, search: "broke")
+      filter = Filter.new(level: :info, components: %{pipeline: :show})
       refute Filter.matches?(entry, filter)
     end
 
-    test "entry fails when component is hidden even if level and search pass" do
+    test "entry fails when component is hidden even if level passes" do
       entry = build_entry(level: :info, component: :ecto, message: "query executed")
-      filter = Filter.new(level: :info, components: %{ecto: :hide}, search: "query")
-      refute Filter.matches?(entry, filter)
-    end
-
-    test "entry fails when search doesn't match even if level and component pass" do
-      entry = build_entry(level: :info, component: :pipeline, message: "pipeline started")
-      filter = Filter.new(level: :info, components: %{pipeline: :show}, search: "tmdb")
+      filter = Filter.new(level: :info, components: %{ecto: :hide})
       refute Filter.matches?(entry, filter)
     end
   end
@@ -191,8 +153,7 @@ defmodule MediaCentaur.Console.FilterTest do
       filter = %Filter{
         level: :warning,
         components: %{pipeline: :show, ecto: :hide},
-        default_component: :hide,
-        search: "error"
+        default_component: :hide
       }
 
       persistable = Filter.to_persistable(filter)
@@ -202,7 +163,6 @@ defmodule MediaCentaur.Console.FilterTest do
       assert restored.components[:pipeline] == :show
       assert restored.components[:ecto] == :hide
       assert restored.default_component == :hide
-      assert restored.search == "error"
     end
 
     test "to_persistable converts atoms to strings" do
@@ -225,7 +185,6 @@ defmodule MediaCentaur.Console.FilterTest do
       restored = Filter.from_persistable(%{})
       assert restored.level == :info
       assert restored.default_component == :show
-      assert restored.search == ""
     end
 
     test "tolerates invalid level atom by returning default :info" do
@@ -256,16 +215,6 @@ defmodule MediaCentaur.Console.FilterTest do
 
       assert restored.components[:pipeline] == :show
       refute Map.has_key?(restored.components, nil)
-    end
-  end
-
-  describe "search_lower cache" do
-    test "Filter.new/1 populates search_lower from the search option" do
-      assert Filter.new(search: "FOO").search_lower == "foo"
-    end
-
-    test "Filter.from_persistable/1 populates search_lower from the persisted search" do
-      assert Filter.from_persistable(%{"search" => "BAR"}).search_lower == "bar"
     end
   end
 

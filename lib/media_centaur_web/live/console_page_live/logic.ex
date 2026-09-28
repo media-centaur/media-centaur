@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   @moduledoc """
   Pure helper functions for `MediaCentaurWeb.ConsolePageLive` — filter
-  mutations, entry visibility, payload formatting, and DOM id generation.
+  mutations, the text search over copy/download, payload formatting, and
+  DOM id generation.
 
   No `Phoenix.LiveView`, no `Phoenix.Component`, no database access — follows
   the LiveView logic extraction rule in ADR-030 and enables `async: true`
@@ -23,25 +24,31 @@ defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   end
 
   @doc """
-  Returns the subset of `entries` matching the filter's search term, preserving
-  order. Component and level are applied by `Console.read/2` as a read selector,
-  so search is the one dimension left at the call site.
+  The entries whose message contains `query`, case-insensitively, in order.
+  An empty query matches everything. The query is the browser's: the
+  ConsolePage hook hides non-matching rows and sends the same query with
+  copy and download, trimmed and lowercased the same way here.
   """
-  @spec visible_entries([Entry.t()], Filter.t()) :: [Entry.t()]
-  def visible_entries(entries, %Filter{} = filter) when is_list(entries) do
-    Enum.filter(entries, &Filter.search_passes?(&1, filter))
+  @spec matching([Entry.t()], String.t()) :: [Entry.t()]
+  def matching(entries, query) when is_list(entries) and is_binary(query) do
+    query
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      "" -> entries
+      needle -> Enum.filter(entries, &String.contains?(String.downcase(&1.message), needle))
+    end
   end
 
   @doc """
-  Formats the visible entries as a multi-line plain-text payload suitable for
-  download or clipboard copy. Shares one notion of "visible" with
-  `visible_entries/2` — the caller reads through `Console.read/2`, which has
-  already applied component and level — then delegates to `View.format_lines/1`.
+  Formats the entries matching `query` as a multi-line plain-text payload
+  for download or clipboard copy. The caller reads through `Console.read/2`,
+  which has already applied component and level.
   """
-  @spec format_visible_payload([Entry.t()], Filter.t()) :: String.t()
-  def format_visible_payload(entries, %Filter{} = filter) do
+  @spec format_visible_payload([Entry.t()], String.t()) :: String.t()
+  def format_visible_payload(entries, query) do
     entries
-    |> visible_entries(filter)
+    |> matching(query)
     |> View.format_lines()
   end
 
@@ -74,15 +81,6 @@ defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   @spec set_level(Filter.t(), String.t()) :: Filter.t()
   def set_level(%Filter{} = filter, level_string) when is_binary(level_string) do
     %{filter | level: safe_to_existing_atom(level_string)}
-  end
-
-  @doc """
-  Sets the filter's search string verbatim. The filter applies case-insensitive
-  substring matching on read, so the caller need not normalize here.
-  """
-  @spec set_search(Filter.t(), String.t()) :: Filter.t()
-  def set_search(%Filter{} = filter, query) when is_binary(query) do
-    %{filter | search: query}
   end
 
   @doc """
