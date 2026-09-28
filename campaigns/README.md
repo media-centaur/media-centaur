@@ -22,12 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`profiles.md`](profiles.md) —
-  **phase 1 shipped on main 2026-09-27.** A person publishes how they appear: a name,
-  required in the form, and an optional avatar, as one replaceable
-  event (kind 12160) per identity. Friends see it in the identity tile
-  under the reader's override and a per-friend switch. One `Social.Person`
-  read model replaces the five copies of a person's name; the sync loop
-  moves to `RelaySync`. ADR-073, ADR-074, UIDR-047.
+  **phases 1–3 shipped on main 2026-09-28; awaiting the owner's ship.** A person
+  publishes how they appear: a name, required in the form, and an optional
+  picture, as one replaceable event (kind 12160) per identity, the picture
+  inline as a 256×256 WebP under a 64 KB cap. Friends see it in the identity
+  tile under the reader's override and a per-friend **Show their picture**
+  switch. One `Social.Person` read model replaces the five copies of a
+  person's name; the sync loop moves to `RelaySync`; one `Components.Switch`
+  serves the card, the Settings row and the tracking block. ADR-073, ADR-074,
+  UIDR-047 accepted. Open: the ship with social-relay v0.7.0, then the
+  `nickname` drop in the release after.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-27
 ---
 # A person is read through `Social.Person`; RelaySync owns the reconciliation loop

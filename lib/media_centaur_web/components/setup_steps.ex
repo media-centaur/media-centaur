@@ -209,7 +209,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           name="path"
           value={@result.current_value || ""}
           placeholder={"/usr/bin/" <> @binary_name}
-          class="input input-bordered input-sm flex-1 font-mono text-sm"
+          class="input input-sm flex-1 font-mono text-sm"
           data-nav-item
           tabindex="0"
         />
@@ -357,7 +357,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           type="text"
           name="dir"
           placeholder="/absolute/path/to/your/media"
-          class="input input-bordered input-sm flex-1 font-mono text-sm"
+          class="input input-sm flex-1 font-mono text-sm"
           required
           data-nav-item
           tabindex="0"

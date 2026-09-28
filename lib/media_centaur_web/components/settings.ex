@@ -312,7 +312,7 @@ defmodule MediaCentaurWeb.Components.Settings do
       value={@value}
       placeholder={@placeholder}
       phx-mounted={@autofocus && JS.focus()}
-      class={["input input-bordered w-full text-sm", @mono && "font-mono", @class]}
+      class={["input w-full text-sm", @mono && "font-mono", @class]}
       data-nav-item
       tabindex="0"
       {@rest}

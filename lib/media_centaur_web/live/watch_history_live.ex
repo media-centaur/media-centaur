@@ -199,7 +199,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
           <input
             type="search"
-            class="input input-bordered input-sm"
+            class="input input-sm"
             placeholder="Search titles…"
             value={@filter_search}
             phx-change="filter_search"

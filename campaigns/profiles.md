@@ -16,10 +16,14 @@ reader's alone.
 
 ## Status
 
-Phase 3 shipped on main 2026-09-28, precommit clean; phase 4 (records,
-closure, the `nickname` drop) next. Phase 2 shipped on main the same day;
-social-relay v0.7.0 is committed in `../social-relay` (`567d3d8`), its tag
-and push await the owner's ship.
+Phases 1 to 3 shipped on main 2026-09-28, precommit clean (7887 tests);
+phase 4 closed the records the same day: ADR-073, ADR-074 and UIDR-047
+are accepted, every leftover has a destination (below). Two dated steps
+remain, both outside this checkout's hands: the owner's ship of the
+release carrying phases 2 and 3 (with social-relay v0.7.0, committed in
+`../social-relay` at `567d3d8`, tagged and pushed with it; the wiki's
+three commits pushed with it), and the `nickname` drop in the release
+after. The file is retired when that migration ships.
 
 ## Decisions made
 
@@ -49,8 +53,8 @@ and push await the owner's ship.
 
 ## Next steps
 
-1. Ship: tag and push social-relay v0.7.0 with the app release that carries phases 2 and 3 (owner's instruction).
-2. Phase 4: ADR-073, ADR-074 and UIDR-047 to accepted; close the campaign by destination; the release after the one carrying phase 2 drops `friends.nickname` (a paired migration; the outgoing release still reads it) and the `:start_activities_sync` key with it.
+1. Ship (owner): tag and push social-relay v0.7.0 with the app release that carries phases 2 and 3; push the wiki. The CHANGELOG draws on the two ship-notes sections below.
+2. The release after that one drops `friends.nickname` (a paired migration; the outgoing release still reads it) and the `:start_activities_sync` key with it (`config/test.exs`, `RelaySync`). Then retire this file and move the entry under Complete in `campaigns/README.md`.
 
 ## Ship notes for phase 2 (the CHANGELOG draws on these)
 
@@ -71,18 +75,21 @@ and push await the owner's ship.
 * Avatars live under `{data_dir}/images/social/`, one file per key.
 * social-relay v0.7.0 carries avatars unchanged; no relay release.
 
-## Follow-ups from reviews
+## Closure by destination (2026-09-28)
 
-Deferred, any phase:
+Shipped in the closure pass:
 
-* `Identity.pubkey/0` derives the point from the secret on every call, and `people/0` and `own_person/0` pay it once per Discovery load and per review-modal render; candidate: derive once beside the secret.
-* The rename input and button in the card's foot carry no `data-nav-item`; a gamepad user cannot rename until the person card's nav hardening pass, which also owns the input-inside-`role="button"` note below.
-* `mix social.dev` carries a third npub elision (`String.slice(0, 12) <> "…"`); unify on `Social.short_npub/1`.
-* The add-friend inputs and the card's rename input wear `.library-filter`, the library search pill, padded for a glass and a clear they lack; a surface-neutral text-input class is owed.
-* The rename input sits inside `<section role="button">`; belongs to the person card's nav hardening pass.
-* A pre-existing runtime log line in the suite (`tmdb poster download failed for tv_series-5555`, from tests this phase did not touch) is a zero-warnings-policy item outside this campaign.
-* The suite's intermittent `Exqlite.Connection … client exited` error line, seen once in phase 3's precommit run; pre-existing.
-* `settings_input` carries `input-bordered`, a daisyUI v4 leftover.
+* `mix social.dev` shortens an npub through `Social.short_npub/1`, the one elision.
+* `input-bordered`, a daisyUI v4 class the v5 vendor file no longer defines, is gone from every input.
+* The suite's `tmdb poster download failed for tv_series-5555` warning: the release-tracking test that raised it stubs the image CDN.
+
+Re-homed:
+
+* `Identity.pubkey/0` deriving the point per call → the `Identity` moduledoc names the change to make if it ever shows in a profile.
+* The card foot's rename input and button without `data-nav-item`, the input inside `<section role="button">`, and the `.library-filter` class on the add-friend and rename inputs (a search pill's padding for a glass and a clear they lack) → the person card's nav hardening pass in the input-system rollout (memory `project-input-system-rollout`), which touches those inputs anyway.
+* The suite's intermittent `Exqlite.Connection … client exited` error line → the residual-flakes instance log (memory `project-suite-residual-concurrency-flakes`, instance 14).
+* A friend's picture hidden behind a relay that closes the socket at its message cap, worded like a pre-0.7.0 refusal → `Troubleshooting.md` when first seen (the protocol page states the 128 KB floor).
+* The image plug decoding no social bytes is enforced; a boot-time heal for a missing avatar file, an avatar given as a URL, a hide-all switch and a cropping UI stay declined until asked (spec § Not in scope).
 
 ## Completion criteria
 

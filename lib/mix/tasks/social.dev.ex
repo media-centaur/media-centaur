@@ -32,6 +32,7 @@ defmodule Mix.Tasks.Social.Dev do
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Format
+  alias MediaCentaur.Social
 
   @default_relay "ws://127.0.0.1:2173"
   @default_dir "priv/dev-social"
@@ -243,7 +244,7 @@ defmodule Mix.Tasks.Social.Dev do
   end
 
   defp feed_line(%Event{kind: 5} = event, own_pubkey) do
-    author = if event.pubkey == own_pubkey, do: "friend", else: short_npub(event.pubkey)
+    author = if event.pubkey == own_pubkey, do: "friend", else: Social.short_npub(event.pubkey)
     time = event.created_at |> DateTime.from_unix!() |> Format.relative_ago()
 
     case Translation.from_deletion(event) do
@@ -256,7 +257,7 @@ defmodule Mix.Tasks.Social.Dev do
   end
 
   defp feed_line(%Event{} = event, own_pubkey) do
-    author = if event.pubkey == own_pubkey, do: "friend", else: short_npub(event.pubkey)
+    author = if event.pubkey == own_pubkey, do: "friend", else: Social.short_npub(event.pubkey)
     time = event.created_at |> DateTime.from_unix!() |> Format.relative_ago()
 
     case Translation.from_event(event) do
@@ -279,8 +280,6 @@ defmodule Mix.Tasks.Social.Dev do
         "#{author}  #{Event.tag_value(event, "d")}  <unreadable: #{reason}>  (#{time})"
     end
   end
-
-  defp short_npub(pubkey), do: pubkey |> Keys.to_npub() |> String.slice(0, 12) |> Kernel.<>("…")
 
   # --- friend key --------------------------------------------------------
 

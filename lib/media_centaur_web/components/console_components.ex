@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <input
         id="console-search-input"
         type="text"
-        class="input input-sm input-bordered console-search"
+        class="input input-sm console-search"
         placeholder="search..."
         value={@filter.search}
         phx-keyup="search"
