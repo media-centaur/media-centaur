@@ -2477,7 +2477,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # the gate is `MouseAutofocus` rather than an unconditional focus.
       assert has_element?(view, "#review-modal #review-text[phx-hook='MouseAutofocus']")
 
-      view |> element("#review-sentiment-love") |> render_click()
+      view |> element("#review-sentiment [phx-value-choice='love']") |> render_click()
       render_submit(view, "review_send", %{"text" => "Worth it"})
 
       refute has_element?(view, "#review-modal[data-state='open']")

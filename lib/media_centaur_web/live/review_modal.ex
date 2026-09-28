@@ -1,9 +1,8 @@
 defmodule MediaCentaurWeb.Live.ReviewModal do
   @moduledoc """
-  The Review modal: the title being reviewed, the sentiment as three
-  pennant choices — Dislike, Like, Love, none pressed at open, the
-  pressed one pressed again to clear — each a preview of exactly what
-  the friend will see, the optional text, the relay state, Send and
+  The Review modal: the title being reviewed, the sentiment as the
+  house segmented control — Dislike, Like, Love, none pressed at open,
+  the pressed one pressed again to clear — the optional text, the relay state, Send and
   Cancel. Nothing is required: Send with nothing chosen and nothing
   written is a review that says only that you reviewed the title.
   Persistent — a stray backdrop click must not discard half-written
@@ -18,14 +17,10 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   """
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.Components.Title.Pennant,
-    only: [pennants: 1]
-
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Social
   alias MediaCentaur.TMDB.Title
 
   attr :subject, Title, default: nil, doc: "the title being reviewed; nil = closed"
@@ -45,8 +40,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
     doc: "`{connected, total}` from `ReviewFlow.relay_counts/0`, captured when the modal opened"
 
   def review_modal(assigns) do
-    assigns = assign(assigns, :reader, Social.own_person())
-
     ~H"""
     <.modal
       id="review-modal"
@@ -61,26 +54,15 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
         <h2 class="text-sm font-semibold">Share a review</h2>
         <.title_summary title={@subject} poster_url={@poster_url} />
         <form id="review-form" phx-submit="review_send" class="space-y-3">
-          <%!-- Each choice is a button so the pressed one can be pressed
-                again to clear it; the flow holds the choice. --%>
-          <div class="flex items-center gap-3" role="group" aria-label="Sentiment">
-            <button
-              :for={sentiment <- Activity.sentiments()}
-              id={"review-sentiment-#{sentiment}"}
-              type="button"
-              class="pennant-choice"
-              aria-pressed={to_string(@sentiment == sentiment)}
-              phx-click="review_sentiment"
-              phx-value-choice={sentiment}
-              data-nav-item
-              tabindex="0"
-            >
-              <.pennants
-                activity={[preview(sentiment, @reader)]}
-                label={sentiment_word(sentiment)}
-              />
-            </button>
-          </div>
+          <%!-- Pressing the pressed choice again clears it: the flow's
+                rule (`ReviewFlow`), not the control's. --%>
+          <.segmented_control
+            id="review-sentiment"
+            label="Sentiment"
+            options={Enum.map(Activity.sentiments(), &{&1, sentiment_word(&1)})}
+            selected={@sentiment}
+            event="review_sentiment"
+          />
           <%!-- Opening the modal is itself the act of writing, so the
                 cursor starts in the box. Pointer only: for keyboard and
                 gamepad the input system owns focus (ADR-053), which is
@@ -123,13 +105,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
     </.modal>
     """
   end
-
-  # The choice shows the pennant the friend will see, worded as the
-  # choice itself rather than as the sender's name: the reader's own
-  # pennant, with or without an identity yet. The reader is read once
-  # per render, not once per choice.
-  defp preview(sentiment, reader),
-    do: %{activity: %Activity{kind: :review, sentiment: sentiment}, author: reader}
 
   defp sentiment_word(:dislike), do: "Dislike"
   defp sentiment_word(:like), do: "Like"

@@ -2982,33 +2982,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: var(--color-love);
 }
 
-/* The love glyph as text — a person card's Reviewed row. */
-.text-love {
-  color: var(--color-love);
-}
-
 /* Over imagery the neutral tint has nothing to sit on. */
 .pennant-on-image:not(.pennant-love) {
   color: oklch(from var(--color-base-content) l c h / 0.85);
   background: oklch(14% 0.015 264 / 0.72);
-}
-
-/* The sender's choice in the Review modal: three pennants, the pressed
-   one lit. Each choice is a button (pressed again, it clears), so the
-   lit state follows `aria-pressed`. */
-.pennant-choice {
-  display: inline-flex;
-  cursor: pointer;
-}
-
-.pennant-choice .pennant {
-  pointer-events: none;
-  opacity: 0.4;
-  transition: opacity 120ms ease-out;
-}
-
-.pennant-choice[aria-pressed="true"] .pennant {
-  opacity: 1;
 }
 
 /* ── Identity banners (UIDR-014) ─────────────────────────────────────

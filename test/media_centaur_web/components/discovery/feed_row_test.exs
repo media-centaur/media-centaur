@@ -63,7 +63,10 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
 
     who = html |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
     assert who =~ "Sample Friend reviewed"
-    assert html |> LazyHTML.query("[data-role='who'] [data-sentiment='love']") |> Enum.count() == 1
+
+    assert html
+           |> LazyHTML.query("[data-role='who'] .social-glyph[data-flag='love'][data-grade='plain']")
+           |> Enum.count() == 1
 
     title =
       html |> LazyHTML.query("[data-role='title']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
