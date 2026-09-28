@@ -244,7 +244,7 @@ defmodule MediaCentaur.Social do
     end
   end
 
-  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/3` made)."
+  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/4` made)."
   @type avatar_change :: :keep | :none | {:new, binary()}
 
   @doc """
