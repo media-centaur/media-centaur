@@ -48,49 +48,36 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
     end
   end
 
-  # --- visible_entries/2 ---
+  # --- matching/2 ---
 
-  describe "visible_entries/2" do
-    test "returns empty list for no entries" do
-      assert Logic.visible_entries([], Filter.new_with_defaults()) == []
+  # The text search is the browser's (the ConsolePage hook hides rows); the
+  # server applies it only to what copy and download hand over, with the
+  # query the browser sends.
+  describe "matching/2" do
+    test "an empty query matches everything" do
+      entries = [build_entry(%{message: "one"}), build_entry(%{message: "two"})]
+      assert Logic.matching(entries, "") == entries
+      assert Logic.matching(entries, "   ") == entries
     end
 
-    test "filters out entries whose message misses the search term" do
-      filter = Filter.new(search: "keep")
+    test "keeps entries whose message contains the query" do
       keep = build_entry(%{message: "please keep me"})
       drop = build_entry(%{message: "drop me"})
 
-      result = Logic.visible_entries([keep, drop], filter)
-
-      assert length(result) == 1
-      assert hd(result).message == "please keep me"
+      assert Logic.matching([keep, drop], "keep") == [keep]
     end
 
-    test "matches the search term case-insensitively" do
-      filter = Filter.new(search: "KEEP")
+    test "matches case-insensitively, trimming the query as the browser does" do
       entry = build_entry(%{message: "please keep me"})
 
-      assert Logic.visible_entries([entry], filter) == [entry]
-    end
-
-    test "leaves component and level to the store's read selector" do
-      # Console.read/2 already applied them; re-applying here would drop
-      # entries the store deliberately delivered.
-      filter = Filter.new_with_defaults()
-      below_floor = build_entry(%{level: :debug, component: :ecto, message: "from the store"})
-
-      assert Logic.visible_entries([below_floor], filter) == [below_floor]
+      assert Logic.matching([entry], "  KEEP ") == [entry]
     end
 
     test "preserves the order of the input entries" do
-      filter = Filter.new_with_defaults()
       first = build_entry(%{message: "first"})
       second = build_entry(%{message: "second"})
-      third = build_entry(%{message: "third"})
 
-      result = Logic.visible_entries([first, second, third], filter)
-
-      assert Enum.map(result, & &1.message) == ["first", "second", "third"]
+      assert Logic.matching([first, second], "") == [first, second]
     end
   end
 
@@ -98,19 +85,17 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
 
   describe "format_visible_payload/2" do
     test "returns empty string for empty list" do
-      assert Logic.format_visible_payload([], Filter.new_with_defaults()) == ""
+      assert Logic.format_visible_payload([], "") == ""
     end
 
-    test "filters by search then formats the surviving entries as multi-line text" do
-      filter = Filter.new(search: "match")
-
+    test "keeps the entries matching the query, formatted as multi-line text" do
       entries = [
         build_entry(%{message: "first match"}),
         build_entry(%{message: "dropped"}),
         build_entry(%{message: "second match"})
       ]
 
-      payload = Logic.format_visible_payload(entries, filter)
+      payload = Logic.format_visible_payload(entries, "match")
 
       assert payload =~ "first match"
       assert payload =~ "second match"
@@ -177,22 +162,6 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
       filter = Filter.new_with_defaults()
       updated = Logic.set_level(filter, "nope_unknown_level")
       assert updated.level == :system
-    end
-  end
-
-  # --- set_search/2 ---
-
-  describe "set_search/2" do
-    test "sets the search string on the filter" do
-      filter = Filter.new_with_defaults()
-      updated = Logic.set_search(filter, "needle")
-      assert updated.search == "needle"
-    end
-
-    test "sets an empty search string" do
-      filter = %{Filter.new_with_defaults() | search: "old"}
-      updated = Logic.set_search(filter, "")
-      assert updated.search == ""
     end
   end
 

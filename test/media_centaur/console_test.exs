@@ -22,13 +22,12 @@ defmodule MediaCentaur.ConsoleTest do
 
   describe "update_filter/1 + get_filter/0" do
     test "round-trip: update and read back" do
-      new_filter = Filter.new(level: :error, search: "crash")
+      new_filter = Filter.new(level: :error)
       Console.update_filter(new_filter)
 
       returned_filter = Console.get_filter()
 
       assert returned_filter.level == :error
-      assert returned_filter.search == "crash"
     end
   end
 

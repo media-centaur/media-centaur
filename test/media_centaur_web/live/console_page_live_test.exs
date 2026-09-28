@@ -120,6 +120,33 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     assert content =~ "copyable entry"
   end
 
+  # Regression: the search was held twice — the browser hid rows, the
+  # Buffer kept a copy for copy/download — and `Logic.set_search/2` never
+  # refreshed the copy's lowercase cache, so copy and download matched a
+  # stale query. The browser owns the query now and sends it with the act.
+  test "copy and download hand over the lines matching the browser's query", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/console")
+
+    seed([entry(:pipeline, "alpha line"), entry(:pipeline, "beta line")])
+
+    render_click(view, "copy_visible", %{"search" => "ALPHA"})
+    assert_push_event(view, "console:copy", %{content: copied})
+    assert copied =~ "alpha line"
+    refute copied =~ "beta line"
+
+    render_click(view, "download_buffer", %{"search" => "beta"})
+    assert_push_event(view, "console:download", %{content: downloaded})
+    assert downloaded =~ "beta line"
+    refute downloaded =~ "alpha line"
+  end
+
+  test "the server holds no text search: typing sends nothing", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/console")
+
+    refute has_element?(view, "#console-search-input[phx-keyup]")
+    refute has_element?(view, "#console-search-input[phx-change]")
+  end
+
   defp entry(component, message) do
     %Entry{
       id: System.unique_integer([:monotonic, :positive]),

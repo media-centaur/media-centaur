@@ -2,35 +2,34 @@ defmodule MediaCentaur.Console.Filter do
   @moduledoc """
   A pure filter struct with matchers for the console log view.
 
-  Filtering applies AND semantics across three dimensions:
+  Filtering applies AND semantics across two dimensions:
   - Level floor: entry level must be >= filter level
   - Component visibility: entry component must be :show (or default_component)
-  - Search: entry message must contain the search substring (case-insensitive)
+
+  Text search is not a filter dimension: the `/console` page owns it in the
+  browser, over rows already on the page, and sends it with copy and
+  download (`ConsolePageLive.Logic.matching/2`).
   """
 
   alias MediaCentaur.Console.Entry
 
   defstruct level: :info,
             components: %{},
-            default_component: :show,
-            search: "",
-            search_lower: ""
+            default_component: :show
 
   @type visibility :: :show | :hide
 
   @type t :: %__MODULE__{
           level: Entry.level(),
           components: %{atom() => visibility()},
-          default_component: visibility(),
-          search: String.t(),
-          search_lower: String.t()
+          default_component: visibility()
         }
 
   @level_ranks %{debug: 0, info: 1, warning: 2, error: 3}
 
   @doc "Constructs a new filter with the given options merged over defaults."
   @spec new(keyword() | map()) :: t()
-  def new(opts \\ []), do: __MODULE__ |> struct(opts) |> put_search_lower()
+  def new(opts \\ []), do: struct(__MODULE__, opts)
 
   @doc """
   Returns a filter with seeded defaults — app components visible,
@@ -54,13 +53,12 @@ defmodule MediaCentaur.Console.Filter do
         phoenix: :hide,
         ecto: :hide,
         live_view: :hide
-      },
-      search: ""
+      }
     }
   end
 
   @doc """
-  A filter that admits everything — every level, every component, no search.
+  A filter that admits everything — every level, every component.
 
   The "give me the whole store" selection. Named so call sites don't restate
   `level: :debug, default_component: :show` and drift apart.
@@ -69,14 +67,12 @@ defmodule MediaCentaur.Console.Filter do
   def all, do: new(level: :debug, components: %{}, default_component: :show)
 
   @doc """
-  Returns `true` iff the entry passes all three filter dimensions:
-  level floor, component visibility, and search substring.
+  Returns `true` iff the entry passes both filter dimensions: level floor
+  and component visibility.
   """
   @spec matches?(Entry.t(), t()) :: boolean()
   def matches?(%Entry{} = entry, %__MODULE__{} = filter) do
-    level_passes?(entry, filter) and
-      component_passes?(entry, filter) and
-      search_passes?(entry, filter)
+    level_passes?(entry, filter) and component_passes?(entry, filter)
   end
 
   @doc "Whether `entry`'s level clears the filter's level floor."
@@ -94,14 +90,6 @@ defmodule MediaCentaur.Console.Filter do
   @spec component_visible?(t(), atom()) :: boolean()
   def component_visible?(%__MODULE__{} = filter, component) when is_atom(component) do
     Map.get(filter.components, component, filter.default_component) == :show
-  end
-
-  @doc "Whether `entry`'s message contains the filter's search term (case-insensitive)."
-  @spec search_passes?(Entry.t(), t()) :: boolean()
-  def search_passes?(%Entry{}, %__MODULE__{search: ""}), do: true
-
-  def search_passes?(%Entry{message: message}, %__MODULE__{search_lower: search_lower}) do
-    String.contains?(String.downcase(message), search_lower)
   end
 
   @doc "Toggles a component between :show and :hide. Unknown components default to :show before flipping."
@@ -131,8 +119,7 @@ defmodule MediaCentaur.Console.Filter do
     %{
       "level" => Atom.to_string(filter.level),
       "components" => string_components,
-      "default_component" => Atom.to_string(filter.default_component),
-      "search" => filter.search
+      "default_component" => Atom.to_string(filter.default_component)
     }
   end
 
@@ -152,12 +139,6 @@ defmodule MediaCentaur.Console.Filter do
     default_component =
       safe_visibility_atom(Map.get(data, "default_component"), default.default_component)
 
-    search =
-      case Map.get(data, "search") do
-        value when is_binary(value) -> value
-        _ -> default.search
-      end
-
     components =
       case Map.get(data, "components") do
         components_map when is_map(components_map) ->
@@ -174,12 +155,11 @@ defmodule MediaCentaur.Console.Filter do
           default.components
       end
 
-    put_search_lower(%__MODULE__{
+    %__MODULE__{
       level: level,
       components: components,
-      default_component: default_component,
-      search: search
-    })
+      default_component: default_component
+    }
   end
 
   # Fallback for any non-map input (nil, string, number, list, etc.) — return
@@ -190,14 +170,6 @@ defmodule MediaCentaur.Console.Filter do
 
   defp component_passes?(%Entry{component: component}, %__MODULE__{} = filter) do
     component_visible?(filter, component)
-  end
-
-  # Derived cache — keeps `search_passes?/2` from paying `String.downcase/1`
-  # on the filter's search term on every entry match. Always call via `new/1`
-  # or `from_persistable/1`; never construct `%Filter{search: "..."}` directly
-  # in production code.
-  defp put_search_lower(%__MODULE__{search: search} = filter) do
-    %{filter | search_lower: String.downcase(search)}
   end
 
   defp safe_level_atom(value, default) do

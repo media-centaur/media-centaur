@@ -187,13 +187,12 @@ defmodule MediaCentaur.Console.BufferTest do
     test "round-trip: set filter and read it back" do
       {_pid, name} = start_buffer()
 
-      new_filter = Filter.new(level: :error, search: "boom")
+      new_filter = Filter.new(level: :error)
       Buffer.put_filter(new_filter, name)
 
       returned_filter = Buffer.get_filter(name)
 
       assert returned_filter.level == :error
-      assert returned_filter.search == "boom"
     end
 
     test "broadcasts {:filter_changed, filter} when filter is updated" do

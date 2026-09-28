@@ -51,10 +51,32 @@ function buildSearchInput(value = "") {
 
 function buildRoot(searchInput, entriesContainer) {
   return {
+    _listeners: {},
     querySelector(selector) {
       if (selector === "[data-console-search]") return searchInput
       if (selector === "#console-entries") return entriesContainer
       return null
+    },
+    addEventListener(event, handler) {
+      this._listeners[event] = handler
+    },
+    removeEventListener(event, handler) {
+      if (this._listeners[event] === handler) delete this._listeners[event]
+    },
+    // What `JS.dispatch("console:request", detail: …)` delivers.
+    request(event) {
+      this._listeners["console:request"]?.({ detail: { event } })
+    },
+  }
+}
+
+function buildStorage(initial = {}) {
+  const items = { ...initial }
+  return {
+    items,
+    getItem: (key) => (key in items ? items[key] : null),
+    setItem: (key, value) => {
+      items[key] = String(value)
     },
   }
 }
@@ -65,6 +87,7 @@ function instantiateHook(root) {
   const hook = Object.create(ConsolePage)
   hook.el = root
   hook._serverEvents = {}
+  hook.pushEvent = mock(() => {})
   hook.handleEvent = mock((name, callback) => {
     hook._serverEvents[name] = callback
   })
@@ -159,6 +182,64 @@ describe("ConsolePage — client-side search", () => {
 
     expect(entryA.style.display).toBe("none")
     expect(entryB.style.display).toBe("")
+  })
+})
+
+describe("ConsolePage — the query is the browser's", () => {
+  test("a copy or download request pushes the event with the current query", () => {
+    const searchInput = buildSearchInput("")
+    const root = buildRoot(searchInput, buildEntriesContainer())
+    const hook = instantiateHook(root)
+
+    searchInput.value = "tmdb"
+    searchInput.dispatchInput()
+    root.request("copy_visible")
+    root.request("download_buffer")
+
+    expect(hook.pushEvent.mock.calls).toEqual([
+      ["copy_visible", { search: "tmdb" }],
+      ["download_buffer", { search: "tmdb" }],
+    ])
+  })
+
+  test("the query survives a reload through localStorage", () => {
+    const storage = buildStorage()
+    installGlobal("localStorage", storage)
+
+    const typed = buildSearchInput("")
+    instantiateHook(buildRoot(typed, buildEntriesContainer()))
+    typed.value = "tmdb"
+    typed.dispatchInput()
+    expect(storage.items["console:search"]).toBe("tmdb")
+
+    // The reloaded page renders an empty input; the hook restores the query.
+    const entryA = buildEntry("pipeline started")
+    const entryB = buildEntry("tmdb request failed")
+    const reloaded = buildSearchInput("")
+    instantiateHook(buildRoot(reloaded, buildEntriesContainer([entryA, entryB])))
+
+    expect(reloaded.value).toBe("tmdb")
+    expect(entryA.style.display).toBe("none")
+    expect(entryB.style.display).toBe("")
+  })
+
+  test("an unavailable localStorage leaves the search working", () => {
+    installGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("blocked")
+      },
+      setItem: () => {
+        throw new Error("blocked")
+      },
+    })
+
+    const entryA = buildEntry("pipeline started")
+    const searchInput = buildSearchInput("")
+    instantiateHook(buildRoot(searchInput, buildEntriesContainer([entryA])))
+
+    searchInput.value = "tmdb"
+    searchInput.dispatchInput()
+    expect(entryA.style.display).toBe("none")
   })
 })
 
