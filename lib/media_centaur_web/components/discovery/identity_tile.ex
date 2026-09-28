@@ -24,26 +24,20 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaur.Format
+  alias MediaCentaur.Social.Hue
   alias MediaCentaur.Social.Person
 
   attr :person, Person, required: true, doc: "as the reader sees them"
   attr :size, :integer, required: true, values: [40, 48]
 
   def identity_tile(assigns) do
-    hue = Person.hue(assigns.person)
-
-    # The style is spread from an assign rather than written as
-    # `style={…}`: HEEx renders a nil `style` (and a literal-keyword spread
-    # of one) as `style=""`, while a runtime spread omits a nil attribute,
-    # so a person with no hue carries no style and CSS draws the default.
     assigns =
       assign(assigns,
         size_classes: size_classes(assigns.size),
         glyph_classes: glyph_classes(assigns.size),
         mark: mark(assigns.person),
         own?: assigns.person.own?,
-        hue: hue,
-        style: [style: hue && "--hue: #{hue}"]
+        hue: Person.hue(assigns.person)
       )
 
     ~H"""
@@ -54,7 +48,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
         if(@own?, do: "identity-tile-own font-bold", else: "identity-tile-friend font-semibold"),
         @mark == :avatar && "identity-tile-avatar"
       ]}
-      {@style}
+      {hue_style(@hue)}
       data-component="identity-tile"
       data-size={@size}
       data-own={@own?}
@@ -75,6 +69,16 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
     </span>
     """
   end
+
+  @doc """
+  The `style` attribute carrying `--hue`, to spread on the element the
+  recipe draws (the tile, a swatch): absent when there is no hue so CSS
+  draws the default. An attribute list because HEEx renders `style={nil}`
+  as `style=""`, while a runtime spread drops a nil.
+  """
+  @spec hue_style(Hue.t() | nil) :: keyword()
+  def hue_style(nil), do: []
+  def hue_style(hue), do: [style: "--hue: #{hue}"]
 
   defp mark(%Person{avatar_url: url}) when is_binary(url), do: :avatar
   defp mark(%Person{own?: false} = person), do: if(Person.name(person), do: :letter, else: :glyph)
