@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events
+  alias MediaCentaur.Social.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
@@ -176,6 +177,50 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
       assert render_upload(upload, "next.png") =~ "next.png"
       refute has_element?(view, "#remove-avatar")
+    end
+
+    test "a new profile's form starts on a palette hue; a swatch or the slider changes it; Save publishes it",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+      tile = "#profile-form [data-component='identity-tile']"
+
+      [seed] =
+        view |> element(tile) |> render() |> LazyHTML.from_fragment() |> LazyHTML.attribute("data-hue")
+
+      assert String.to_integer(seed) in Enum.map(Hue.palette(), &elem(&1, 1))
+      assert has_element?(view, "#profile-hues button[data-hue='#{seed}'][aria-pressed='true']")
+
+      view |> element("#profile-hues button[data-hue='195']") |> render_click()
+      assert has_element?(view, tile <> "[data-hue='195']")
+      assert has_element?(view, "#profile-hues input[name='hue'][value='195']")
+
+      view |> form("#profile-form", %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
+      assert has_element?(view, tile <> "[data-hue='100']")
+      refute has_element?(view, "#profile-hues button[aria-pressed='true']")
+
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      assert %{hue: 100} = Social.own_profile()
+      assert has_element?(view, tile <> "[data-hue='100']")
+    end
+
+    test "a saved hue loads as saved; a profile saved before hues seeds one for the form only", %{
+      conn: conn
+    } do
+      {:ok, _profile} = Social.save_profile("Sample Name", :keep, 290)
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-hue='290']")
+      assert has_element?(view, "#profile-hues button[data-hue='290'][aria-pressed='true']")
+
+      {:ok, _profile} = Social.save_profile("Sample Name", :keep, nil)
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-hue]")
+      assert %{hue: nil} = Social.own_profile()
+    end
+
+    test "the name field is 16rem with Save beside it, not the card's width", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#profile-form input[name='name'].max-w-64")
+      refute has_element?(view, "#profile-form input[name='name'].flex-1")
     end
   end
 
