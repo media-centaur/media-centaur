@@ -31,9 +31,13 @@ defmodule MediaCentaur.Parser do
   **`candidate_name/1` fallback chain:**
 
   1. Parent is a season directory (`Season 1`, `S01`) → use grandparent (show name) + filename base
-  2. Filename is a bare episode marker (`S01E03`) → use parent directory + filename base
-  3. Filename is generic or very short lowercase → use parent directory
-  4. Otherwise → use filename base
+  2. Filename starts with the parent directory's release group
+     (`group-show.s01e05` inside `Show.S01.1080p.x264-GROUP`) → use parent
+     directory + the filename's episode marker, or the parent directory alone
+     when the filename has no marker
+  3. Filename is a bare episode marker (`S01E03`) → use parent directory + filename base
+  4. Filename is generic or very short lowercase → use parent directory
+  5. Otherwise → use filename base
 
   **Quality token stripping:** bracket patterns first, then quality keywords,
   then release groups.
@@ -107,7 +111,7 @@ defmodule MediaCentaur.Parser do
 
   @quality_bracket_pattern ~r/[\[(][^\])]*(1080|720|2160|BluRay|WEB|x26|HEVC|HDR|DDP|AAC|YTS|TGx)[^\])]*[\])]/i
 
-  @release_group_pattern ~r/\s*-\s*[A-Za-z0-9][A-Za-z0-9.]*$/
+  @release_group_pattern ~r/\s*-\s*([A-Za-z0-9][A-Za-z0-9.]*)$/
 
   @url_prefix_pattern ~r/^www\.\S+\s+-\s+/i
 
@@ -365,6 +369,16 @@ defmodule MediaCentaur.Parser do
           true -> base
         end
 
+      # Scene release: the file carries the directory's release group as a
+      # lowercase prefix ("group-show.s01e05") and often an abbreviated title,
+      # so the directory names the release and the file supplies only its
+      # episode marker, when it has one.
+      parent && release_group_prefixed?(base, parent) ->
+        case episode_marker(base) do
+          nil -> parent
+          marker -> parent <> " " <> marker
+        end
+
       # Bare episode filename (e.g. "S01E03") → prepend parent directory name
       bare_episode?(base) && parent ->
         parent <> " " <> base
@@ -380,6 +394,23 @@ defmodule MediaCentaur.Parser do
 
   defp season_directory?(dir) do
     Regex.match?(~r/^(Season\s+\d+|[Ss]\d{1,2})$/i, dir)
+  end
+
+  # True when the filename starts with the release group that ends the
+  # directory name — "TEAM-show.s01e05" inside "Show.S01.1080p.x264-TEAM".
+  defp release_group_prefixed?(base, dir) do
+    case Regex.run(@release_group_pattern, dir, capture: :all_but_first) do
+      [group] -> String.starts_with?(String.downcase(base), String.downcase(group) <> "-")
+      nil -> false
+    end
+  end
+
+  # The filename from its SxxExx marker onward, or nil when it has none.
+  defp episode_marker(base) do
+    case Regex.run(~r/(?:^|[.\s_-])([Ss]\d{1,2}[Ee]\d{1,2}.*)$/, base, capture: :all_but_first) do
+      [marker] -> marker
+      nil -> nil
+    end
   end
 
   defp bare_episode?(base) do

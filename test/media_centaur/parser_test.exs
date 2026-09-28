@@ -522,6 +522,46 @@ defmodule MediaCentaur.ParserTest do
     end
   end
 
+  # ─── Scene release: group-prefixed filename inside the release directory ──
+
+  describe "scene release — filename prefixed with the directory's release group" do
+    test "lowercase group-prefixed episode file takes its title from the release directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample.Show.US.S01.1080p.BluRay.x264-SAMPLEGRP/samplegrp-sample.show.us.s01e05.mkv"
+        )
+
+      assert result.title == "Sample Show US"
+      assert result.year == nil
+      assert result.season == 1
+      assert result.episode == 5
+      assert result.type == :tv
+    end
+
+    test "group-prefixed movie file with no episode marker takes the release directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample.Movie.2019.1080p.BluRay.x264-GRP/grp-samplemovie-1080p.mkv"
+        )
+
+      assert result.title == "Sample Movie"
+      assert result.year == 2019
+      assert result.type == :movie
+    end
+
+    test "hyphenated title whose first word is not the directory's release group keeps its own title" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample-Show.Two.S01.1080p.WEB-DL-GRP/sample-show.two.s01e02.1080p.web-dl-grp.mkv"
+        )
+
+      assert result.title == "Sample-show Two"
+      assert result.season == 1
+      assert result.episode == 2
+      assert result.type == :tv
+    end
+  end
+
   # ─── TV: "Episode NN" word marker with season only in pack directory ──────
 
   describe "tv — Episode NN filename with season in parent pack directory" do
