@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
           },
           expanded_seasons: nil,
           on_toggle_season: "toggle_board_season",
-          on_change_target: "change_target"
+          on_change_target: "request_decision"
         }
       },
       %Variation{
@@ -144,7 +144,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
               }
             ]
           },
-          on_change_target: "change_target"
+          on_change_target: "request_decision"
         }
       },
       %Variation{
@@ -170,7 +170,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
               }
             ]
           },
-          on_change_target: "change_target"
+          on_change_target: "request_decision"
         }
       },
       %Variation{
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
               }
             ]
           },
-          on_change_target: "change_target"
+          on_change_target: "request_decision"
         }
       },
       %Variation{
@@ -212,7 +212,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
               %UnitBoard.Row{id: "u-9", label: "Sample Movie 2010", state: :active, actionable?: true}
             ]
           },
-          on_change_target: "change_target"
+          on_change_target: "request_decision"
         }
       }
     ]

@@ -93,7 +93,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{
     Cancel,
-    ChangeTarget,
     RequestDecision
   }
 
@@ -1840,33 +1839,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         else: MapSet.put(expanded, season_key)
 
     {:noreply, assign(socket, :board_expanded_seasons, expanded)}
-  end
-
-  def handle_event("change_target", params, socket) do
-    # An optional `unit-id` (from the unit-board drill-down) scopes the
-    # pivot to one unit of a composite; without it the lead unit pivots.
-    args =
-      case params do
-        %{"unit-id" => unit_id} when is_binary(unit_id) ->
-          %{pursuit_id: socket.assigns.selected_pursuit_id, unit_id: unit_id}
-
-        _ ->
-          %{pursuit_id: socket.assigns.selected_pursuit_id}
-      end
-
-    case ChangeTarget.execute(args) do
-      {:ok, _pursuit} ->
-        {:noreply, socket |> put_flash(:info, "Looking for a new target…") |> load_pursuit_detail()}
-
-      {:error, :not_eligible} ->
-        {:noreply, put_flash(socket, :error, "This pursuit can't change target right now.")}
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "pursuit change-target failed — #{inspect(reason)}")
-
-        {:noreply,
-         put_flash(socket, :error, Logic.failure_flash("change target for this pursuit", reason))}
-    end
   end
 
   def handle_event("request_decision", params, socket) do
