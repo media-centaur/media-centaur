@@ -41,8 +41,8 @@ idiom one mechanism, and fixes the bugs the review found.
 
 In progress on branch `ui-state-ownership` (worktree
 `../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phases 1 and 2 done; Phase 3
-next. Line numbers are
+main checkout). Design approved 2026-09-28. Phases 1, 2 and 3a done; Phase
+3b next. Line numbers are
 from commit `d7ecc8b5` and will drift.
 
 ## Design (approved 2026-09-28)
@@ -212,6 +212,16 @@ with a stream reset per debounced change.
   `armed_button` does not. Scheduled convergence: `armed_button` gains a busy
   state, then the three buttons move onto it (Phase 3b or later, named here
   so it is not orphaned).
+* `2026-09-28` — Phase 3a as built. A disclosure body renders only while
+  open, so tests that read a collapsed body now open it first (Status logs,
+  the plan board, Settings' secret key). The subtitle fold is not a
+  disclosure (a one-way reveal whose head is its content), so it keeps its
+  own markup; only its owner moved. The `.settings-disclosure` CSS became
+  `.disclosure-head[aria-expanded="true"] .disclosure-caret`.
+* `2026-09-28` — Seen during Phase 3a, not caused by it:
+  `Nostr.ConnectionTest` "the first failed attempt logs once" failed once
+  under full-suite load (the line never reached `capture_log`) and passed
+  six times alone. A log-capture race; left to its owner.
 
 ## Next steps
 
@@ -237,13 +247,36 @@ the Reconcile leak and the Settings never-disarm cases. Move the hand-rolled
 sites onto `armed_button`. Incoming's hook is removed in favour of the shared
 one.
 
-### Phase 3 — Disclosures
+### Phase 3a — The component and the browser-owned sites (done 2026-09-28)
 
-One `<.disclosure>` component with its story, one shared hook, and every
-site converged: the server-owned sets, the 11 `<details>`, and the subtitle
-fold. Regression test for the patch-closes-`<details>` bug at the component
-level. Keyboard and gamepad check that TREE LEFT/RIGHT now works on every
-disclosure.
+`Components.Disclosure.disclosure/1` (story under `core_components`) and
+`Live.DisclosureState` (an `on_mount` on the `:default` live session: the
+set of ids the user toggled; open is the default flipped by it). Every
+native `<details>` is gone: Status' technical logs, recent requests and
+release history; the plan board's How we searched; Settings' secret key
+(`settings_disclosure/1` removed from the kit), Prefer the terminal?, the
+media directory dialog's Advanced (`keep_body`, its field must submit);
+the report modal's final text (a LiveComponent, so it keeps its own set).
+Show service details is host-owned (its first open runs `systemctl`). The
+subtitle fold is per-opening state (`ModalState.all_subtitles`). Verified
+in a browser on a worktree server (showcase data, port 4003): the recent
+requests list stayed open through 174 DOM mutations from strip-chart ticks,
+the logs panel through a patch, and Enter on a focused head toggles it.
+
+### Phase 3b — Host-owned disclosures onto the component
+
+Move the hand-rolled heads onto `disclosure/1`, keeping each host's own
+state and event: the season list and episode details, the Manage ledger's
+file groups (title detail), the unit board seasons, the plan picker's
+season expand, pursuit groups (Incoming activity and history), Incoming
+search result groups (`SearchSession`), the Review file list, and the
+Status journal (its comments still describe `<details>`). Each head gains
+`aria-expanded` and `data-nav-group` where it lacks them, so TREE
+LEFT/RIGHT works on every one. Consider whether `ModalState`'s
+`expanded_file_groups` (nil = automatic default, materialised on first
+toggle) should become the same default-flipped-by-toggles set as
+`DisclosureState`. Then the busy state on `armed_button` and the Manage
+sheet's three delete buttons (Phase 2 leftover).
 
 ### Phase 4 — Input events and round trips
 

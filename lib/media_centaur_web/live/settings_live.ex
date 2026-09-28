@@ -67,6 +67,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.Live.DisclosureState
 
   # Sections are grouped for sidebar display — a thin divider renders between
   # adjacent items whose :group differs. Order within a group is by frequency
@@ -1859,7 +1860,11 @@ defmodule MediaCentaurWeb.SettingsLive do
           Media-dir dialog — always in DOM so backdrop-filter compositing
           layer is kept warm.
         --%>
-        <.media_dir_dialog media_dir_dialog={@media_dir_dialog} media_dirs={@media_dirs} />
+        <.media_dir_dialog
+          media_dir_dialog={@media_dir_dialog}
+          media_dirs={@media_dirs}
+          disclosures={@disclosures}
+        />
       </:overlays>
       <%!-- Outer relative wrapper carries the page-behavior + default zone and
             scopes the ambient scrim, matching the library/downloads/upcoming
@@ -1991,6 +1996,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 glyph_style={@glyph_style}
                 listening={@listening}
                 armed_gesture={@armed_gesture}
+                disclosures={@disclosures}
               />
             </div>
           </div>
@@ -2046,6 +2052,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     ~H"""
     <SystemSettings.render
+      disclosures={@disclosures}
       config={@config}
       app_version={@app_version}
       build_info={@build_info}
@@ -2119,6 +2126,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp section_content(%{active_section: "social"} = assigns) do
     ~H"""
     <SocialSection.render
+      disclosures={@disclosures}
       npub={@identity_npub}
       profile_name={@profile_name}
       profile_hue={@profile_hue}
@@ -2605,6 +2613,8 @@ defmodule MediaCentaurWeb.SettingsLive do
     default: [],
     doc: "list of configured media directory paths (strings)."
 
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
+
   defp media_dir_dialog(assigns) do
     ~H"""
     <.modal
@@ -2667,31 +2677,32 @@ defmodule MediaCentaurWeb.SettingsLive do
           <.media_dir_errors errors={@media_dir_dialog.validation.errors} field={:name} />
         </div>
 
-        <details>
-          <summary class="cursor-pointer text-sm text-base-content/60">
-            Advanced — images directory
-          </summary>
-          <div class="mt-2 space-y-1">
-            <input
-              type="text"
-              name="entry[images_dir]"
-              value={@media_dir_dialog.entry["images_dir"]}
-              class="library-filter w-full"
-              placeholder="Leave blank to use the default"
-            />
-            <p class="text-xs text-base-content/55">
-              If blank, artwork is cached at
-              <code class="font-mono">
-                {MediaDirsLogic.default_images_dir_hint(@media_dir_dialog.entry["dir"])}
-              </code>
-              and automatically skipped by the file watcher.
-            </p>
-            <.media_dir_errors
-              errors={@media_dir_dialog.validation.errors}
-              field={:images_dir}
-            />
-          </div>
-        </details>
+        <%!-- keep_body: the field must submit with the form while collapsed. --%>
+        <.disclosure
+          id="media-dir-advanced"
+          open={DisclosureState.open?(@disclosures, "media-dir-advanced")}
+          label="Advanced — images directory"
+          keep_body
+        >
+          <input
+            type="text"
+            name="entry[images_dir]"
+            value={@media_dir_dialog.entry["images_dir"]}
+            class="library-filter w-full"
+            placeholder="Leave blank to use the default"
+          />
+          <p class="text-xs text-base-content/55">
+            If blank, artwork is cached at
+            <code class="font-mono">
+              {MediaDirsLogic.default_images_dir_hint(@media_dir_dialog.entry["dir"])}
+            </code>
+            and automatically skipped by the file watcher.
+          </p>
+          <.media_dir_errors
+            errors={@media_dir_dialog.validation.errors}
+            field={:images_dir}
+          />
+        </.disclosure>
 
         <%!-- The id is the deterministic signal that the debounced validate
               has landed. Tests waited on the copy ("video files") until an

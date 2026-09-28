@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
   def entry("action_toast"), do: [icon: {:fa, "rotate-left", :thin}, name: "Action toast"]
   def entry("badge"), do: [icon: {:fa, "tag", :thin}]
   def entry("button"), do: [icon: {:fa, "rectangle-ad", :thin}]
+  def entry("disclosure"), do: [icon: {:fa, "chevron-right", :thin}, name: "Disclosure"]
   def entry("empty_state"), do: [icon: {:fa, "wind", :thin}, name: "Empty state"]
   def entry("flash"), do: [icon: {:fa, "bolt", :thin}]
   def entry("header"), do: [icon: {:fa, "heading", :thin}]

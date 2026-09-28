@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
   @section "/settings?section=social"
 
+  # The secret key's card is a disclosure; its body renders only while open.
+  defp open_secret_key(view), do: view |> element("#social-secret-key-head") |> render_click()
+
   describe "profile" do
     # The avatar master lands under `{data_dir}/images/social/`.
     setup :setup_tmp_data_dir
@@ -326,6 +329,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
     test "the secret key is revealed only on request", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
+      open_secret_key(view)
       nsec = Identity.export_nsec()
 
       refute render(view) =~ nsec
@@ -341,6 +345,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
          %{conn: conn} do
       {:ok, _profile} = Social.save_profile("Sample Name", :keep, nil)
       {:ok, view, _html} = live_async!(conn, @section)
+      open_secret_key(view)
       before = Identity.pubkey()
       nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
 
@@ -360,7 +365,9 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
     test "replacing the identity in another tab clears the revealed key and the arm", %{conn: conn} do
       {:ok, tab_a, _html} = live_async!(conn, @section)
+      open_secret_key(tab_a)
       {:ok, tab_b, _html} = live_async!(conn, @section)
+      open_secret_key(tab_b)
 
       old_nsec = Identity.export_nsec()
       tab_a |> element("#reveal-nsec") |> render_click()
@@ -380,6 +387,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
     test "an invalid secret key is refused with a flash", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
+      open_secret_key(view)
       before = Identity.pubkey()
 
       view |> form("#import-nsec-form", %{"nsec" => "nsec1nope"}) |> render_submit()

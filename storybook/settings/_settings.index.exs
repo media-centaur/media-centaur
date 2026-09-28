@@ -13,7 +13,6 @@ defmodule MediaCentaurWeb.Storybook.Settings do
   def entry("settings_list"), do: [icon: {:fa, "list", :thin}, name: "List setting"]
   def entry("settings_field"), do: [icon: {:fa, "rectangle-list", :thin}, name: "Field"]
   def entry("settings_input"), do: [icon: {:fa, "i-cursor", :thin}, name: "Input"]
-  def entry("settings_disclosure"), do: [icon: {:fa, "chevron-right", :thin}, name: "Disclosure"]
   def entry("path_status"), do: [icon: {:fa, "circle-check", :thin}, name: "Path status"]
   def entry("connection_row"), do: [icon: {:fa, "plug", :thin}, name: "Connection row"]
 end

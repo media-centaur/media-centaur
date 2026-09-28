@@ -39,6 +39,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Live.DisclosureState
+
   import MediaCentaurWeb.Components.Settings
   import MediaCentaurWeb.Components.Settings.ConnectionRow
 
@@ -67,6 +69,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   attr :nsec_revealed, :string, default: nil, doc: "the nsec while revealed; nil hides it"
   attr :import_armed?, :boolean, required: true
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
   attr :import_draft, :string, default: "", doc: "the pasted nsec while the replace is armed"
   attr :relays, :list, required: true, doc: "`Social.Relay.t()` in URL order"
 
@@ -240,7 +243,11 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           </.button>
         </div>
 
-        <.settings_disclosure label="Secret key">
+        <.disclosure
+          id="social-secret-key"
+          open={DisclosureState.open?(@disclosures, "social-secret-key")}
+          label="Secret key"
+        >
           <p class="text-xs text-base-content/60 max-w-[60ch]">
             This key is your identity. Anyone who has it can publish as you. Keep it somewhere safe; it is the only way to move this identity to another machine.
           </p>
@@ -312,7 +319,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               Replace identity
             </.armed_button>
           </form>
-        </.settings_disclosure>
+        </.disclosure>
       </.settings_card>
 
       <.settings_card

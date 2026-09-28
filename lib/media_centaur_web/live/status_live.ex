@@ -378,6 +378,7 @@ defmodule MediaCentaurWeb.StatusLive do
       # http (connections) — the strips arrive as frames from the feed
       traffic_window: StripChart.Feed.window(assigns, "traffic"),
       traffic_recent: Traffic.recent(),
+      disclosures: assigns.disclosures,
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,
@@ -781,6 +782,7 @@ defmodule MediaCentaurWeb.StatusLive do
               buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
               retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
               log_lines={@log_lines}
+              disclosures={@disclosures}
               show_log_components={HealthBoard.multi_component?(@selected_subsystem)}
               on_select="select_incident"
             >

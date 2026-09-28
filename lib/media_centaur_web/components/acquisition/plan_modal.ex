@@ -59,6 +59,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaur.Acquisition.Targeting
@@ -126,6 +127,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc:
       "%SearchProgressPanel.View{} | nil — the board's expectation rows (TV plans); the headline is `gap_verdict`'s searching world."
+
+  attr :disclosures, :any,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — the board's How we searched."
 
   attr :alternatives, :any,
     default: nil,
@@ -259,6 +264,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           approving={@approving}
           last_activity={@last_activity}
           search_progress={@search_progress}
+          disclosures={@disclosures}
           search_health={@search_health}
           gap_verdict={@gap_verdict}
           rejected={@rejected}
@@ -594,6 +600,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%SearchProgressPanel.View{} | nil — typed at the public attr."
 
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
+
   attr :search_health, :any,
     required: true,
     doc: "IndexerHealth.t() | nil — typed at the public attr."
@@ -719,18 +727,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <.search_progress_rows search_progress={@search_progress} />
         </div>
 
-        <details
+        <.disclosure
           :if={@search_progress && @board.status != :planning}
           id="plan-how-we-searched"
-          class="glass-inset rounded-lg px-4 py-3"
+          variant={:panel}
+          open={DisclosureState.open?(@disclosures, "plan-how-we-searched")}
+          label="How we searched"
         >
-          <summary class="cursor-pointer text-xs text-base-content/50 select-none">
-            How we searched
-          </summary>
-          <div class="mt-2 space-y-2">
+          <div class="space-y-2">
             <.search_progress_rows search_progress={@search_progress} />
           </div>
-        </details>
+        </.disclosure>
       </div>
 
       <%!-- The episode grid is its own SHELF region: cells are focusable

@@ -1205,9 +1205,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # On a ready board the step rows live in the collapsed
       # How-we-searched disclosure; the headline duty moved to the
-      # adaptive verdict (UIDR-029).
-      html = render(view)
+      # adaptive verdict (UIDR-029). The body renders once opened, and the
+      # page keeps it open through the reloads below.
       assert has_element?(view, "#plan-how-we-searched")
+      refute has_element?(view, "#plan-how-we-searched-body")
+      view |> element("#plan-how-we-searched-head") |> render_click()
+
+      html = render(view)
       assert html =~ "How we searched"
       assert html =~ "not needed — already covered"
       refute html =~ "Everything covered — the deeper searches weren&#39;t needed."

@@ -25,6 +25,8 @@ defmodule MediaCentaurWeb.Router do
         # First, so its hooks run before any page's: the arm gesture's
         # "any other interaction disarms" rule must see every event.
         MediaCentaurWeb.Live.ArmGesture,
+        # Which disclosures the user opened, for the ones no handler reads.
+        MediaCentaurWeb.Live.DisclosureState,
         MediaCentaurWeb.Live.CapabilitiesAware,
         {MediaCentaurWeb.ShellBadges, :default},
         # The sidebar renders on every page, so its Discovery entry needs

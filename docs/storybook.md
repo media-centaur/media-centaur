@@ -120,7 +120,8 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |
 | `poster_row/1` | ✅ covered | Horizontal 8-up row + artwork fallback |
 | `strip_chart/1` | ✅ covered | Shell only (header, window pills, legend, footer slot); the strips render from frames pushed to the `StripChart` hook, so the hook container is empty in isolation. `status_widgets.http_widget/1` is its first tenant and pins the same shell |
-| `settings.settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_disclosure/1`, `path_status/1` | ✅ covered | The Settings kit (UIDR-041): each row kind's states; `storybook/settings/` |
+| `disclosure.disclosure/1` | ✅ covered | The one disclosure, owned by the LiveView: `:quiet`, `:panel`, `:bare` with a head slot, and `keep_body`; `storybook/core_components/` |
+| `settings.settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `path_status/1` | ✅ covered | The Settings kit (UIDR-041): each row kind's states; `storybook/settings/` |
 | `settings.connection_row/1` | ✅ covered | Every readout state (not configured, not tested, testing, connected, unreachable, detected, editing) + relay rows |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
 | `discovery.identity_tile/1` | ✅ covered | Monogram, own, photo at 40 and 48 |
