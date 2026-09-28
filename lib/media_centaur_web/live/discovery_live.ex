@@ -310,15 +310,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("feed_at_top", _params, socket),
     do: {:noreply, socket |> assign(:feed_head, nil) |> project()}
 
-  # "N new": the queue lands and the window scrolls back to its top.
-  def handle_event("feed_show_new", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:feed_head, nil)
-     |> project()
-     |> push_event("feed:scroll_top", %{})}
-  end
-
   # The pill patches the address; handle_params does the rest.
   def handle_event("feed_scope", %{"choice" => choice}, socket),
     do: {:noreply, push_patch(socket, to: feed_path(FeedEntries.parse_scope(choice)))}
@@ -733,7 +724,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     id="feed-new"
                     type="button"
                     class="absolute left-4 top-0 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3 text-sm text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
-                    phx-click="feed_show_new"
+                    phx-click={JS.dispatch("feed:scroll-top", to: "#feed-head")}
                   >
                     <.icon name="hero-arrow-up" class="size-4" /> {@feed_queued} new
                   </button>

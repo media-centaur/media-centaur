@@ -1259,7 +1259,10 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#feed-new", "1 new")
       assert has_element?(view, feed_badge(), "2")
 
-      view |> element("#feed-new") |> render_click()
+      # Pressing it scrolls in the browser (FeedHead, bun-tested); the
+      # sentinel coming back into view is what reaches the server.
+      assert has_element?(view, "#feed-new[phx-click*='feed:scroll-top']")
+      render_hook(view, "feed_at_top", %{})
       assert hd(entries(view)) == "feed-row-#{queued.id}"
       refute has_element?(view, "#feed-new")
 
