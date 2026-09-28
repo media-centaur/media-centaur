@@ -12,7 +12,7 @@ The person card's grade (UIDR-046, amended 2026-09-28) drew what people did with
 
 ## Decision Outcome
 
-One drawing of what people did with a title, on every surface: the **social glyph** (`Title.SocialGlyph`) — a flag at its grade (`Title.Grade`), plain a white line drawing, silver and gold the solid glyph in brushed metal. Formerly the *act glyph*.
+One drawing of what people did with a title, on every surface: the **social glyph** (`Title.SocialGlyph`) — a flag at its grade (`Title.Grade`), plain a white line drawing, silver and gold the solid glyph in metal (smooth since the same day's UIDR-046 amendment; it was first drawn brushed). Formerly the *act glyph*.
 
 1. **One feed, one count.** Every title surface reads `Activities.activity_for/1` — every known person's live acts, the reader's included — and grades it with `Title.Grade`, the same count the person cards make. "You and one friend" is silver on both.
 2. **Drawn when a friend did it.** A flag appears on a title surface only when at least one friend did that act; the reader counts toward its grade but never draws one alone (`SocialWords.drawn_flags/1`). The bookmark, the watched state and the Review control already say what the reader did.

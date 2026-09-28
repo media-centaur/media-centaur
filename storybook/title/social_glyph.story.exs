@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Title.SocialGlyph do
   @moduledoc """
   The social glyph: one flag at its grade — plain (a white line
-  drawing), silver or gold (the solid glyph in brushed metal) — as one
+  drawing), silver or gold (the solid glyph in metal) — as one
   person, two, or three or more did that act on the title (UIDR-046).
   Every surface that shows what people did with a title draws it here.
   """

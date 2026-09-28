@@ -238,7 +238,7 @@ title's group (`Components.Title.SocialGlyph`). A flag is heart
 review with no sentiment), eye (watched) or bookmark (listing), in that
 order (`Title.Flag`). Its grade is how many people the reader knows did
 it (`Title.Grade`): plain, a white line drawing, for one; silver for
-two; gold for three or more — the solid glyph in brushed metal. The
+two; gold for three or more — the solid glyph in metal. The
 grade owns the colour: no sentiment has a hue of its own. Size comes
 from `--glyph` on an ancestor or a size utility.
 

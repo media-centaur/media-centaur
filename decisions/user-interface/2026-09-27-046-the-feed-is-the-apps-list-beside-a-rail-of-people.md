@@ -54,3 +54,7 @@ The grade is progressive by count, for every flag alike: one person is plain, tw
 ## Amendment 2026-09-28 — the social glyph, on every title surface
 
 The act glyph is renamed the **social glyph** (`Title.SocialGlyph`), and `DiscoveryLive.Grade` moves to `Title.Grade`. UIDR-049 removes the pennant: the grade is drawn on every title surface — title rows and the title detail's social capsule — from one feed (`Activities.activity_for/1`) with the reader counted, so the amendment's "the pennant does not take the grade" no longer holds. The opened card's rows draw their flags at their grades.
+
+## Amendment 2026-09-28 — the metals are smooth
+
+The grain is removed: silver and gold are the three-stop sweep alone, with no noise over it. Lowered to a faint texture, the grain still read as rough, so the owner dropped it. `.social-glyph` in `app.css` is the authority.
