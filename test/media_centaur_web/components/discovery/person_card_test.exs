@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
       ago: "2h ago",
       episode: nil,
       flags: flags,
-      gold: Keyword.get(opts, :gold, []),
+      grades: Keyword.get(opts, :grades, Map.new(flags, &{&1, :plain})),
       entries: Enum.map(flags, &entry(&1, Keyword.fetch!(opts, :id)))
     }
   end
@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
 
   defp acts_of(count \\ 3) do
     [
-      act(7, [:love, :watched], id: "r7", gold: [:love]),
+      act(7, [:love, :watched], id: "r7", grades: %{love: :gold, watched: :silver}),
       act(9, [:watched], id: "w9a"),
       act(11, [:listing], id: "l11")
     ] ++
@@ -59,13 +59,13 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert posters |> LazyHTML.query("[data-flag='love']") |> Enum.count() == 1
   end
 
-  test "the glyphs sit centred above the poster in mast order; a flag at the grade is gold, the rest matte" do
+  test "the glyphs sit centred above the poster in mast order, each at its grade" do
     html = render(person: friend(), acts: acts_of(), width: :rail)
     glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .act-glyph")
 
     assert LazyHTML.attribute(glyphs, "data-flag") == ["love", "watched", "watched", "listing"]
+    assert LazyHTML.attribute(glyphs, "data-grade") == ["gold", "silver", "plain", "plain"]
     assert LazyHTML.attribute(glyphs, "data-slot") == []
-    assert html |> LazyHTML.query(".act-glyph-gold") |> LazyHTML.attribute("data-flag") == ["love"]
     assert Enum.empty?(LazyHTML.query(html, ".act-disc, .act-discs"))
   end
 

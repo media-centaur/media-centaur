@@ -131,7 +131,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
     assert bob.person == friend(@bob, "Bob", ~D[2026-08-30])
   end
 
-  test "a flag is gold when two or more friends did that act on that title; own acts count the roster, not the reader" do
+  test "each flag on an act carries its grade, counted over every person's acts on that title, the reader's included" do
     people =
       People.build(
         [
@@ -141,6 +141,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
             sentiment: :love,
             id: "a7",
             acted_at: ~U[2026-09-03 10:00:00Z]
+          }),
+          activity("Alice", @alice, %{
+            tmdb_id: 7,
+            kind: :watched,
+            id: "a7w",
+            acted_at: ~U[2026-09-03 09:30:00Z]
           }),
           activity("Bob", @bob, %{
             tmdb_id: 7,
@@ -170,7 +176,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
           own(%{
             tmdb_id: 7,
             kind: :review,
-            sentiment: :love,
+            sentiment: :like,
             id: "me7",
             acted_at: ~U[2026-09-03 11:00:00Z]
           }),
@@ -181,23 +187,27 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
       )
 
     by_name = Map.new(people, &{Format.person_name(&1.person), &1})
-    acts = fn card -> Map.new(card.acts, &{&1.ref, {&1.flags, &1.gold}}) end
+    acts = fn card -> Map.new(card.acts, &{&1.ref, {&1.flags, &1.grades}}) end
 
-    # Two friends loved 7: gold on every card that flies love there — the reader's included.
+    # On 7: three verdicts (Alice and Bob love, the reader likes), so love
+    # is two of three — gold — and the reader's like, one person, plain.
+    # Four people engaged; Alice and Cleo watched — Cleo once however
+    # many rows — two of four: silver. On 11 a listing is never graded.
     assert acts.(by_name["You"]) == %{
-             {7, :movie} => {[:love], [:love]},
-             {11, :movie} => {[:listing], []}
+             {7, :movie} => {[:like], %{like: :plain}},
+             {11, :movie} => {[:listing], %{listing: :plain}}
            }
 
-    assert acts.(by_name["Alice"]) == %{{7, :movie} => {[:love], [:love]}}
+    assert acts.(by_name["Alice"]) == %{
+             {7, :movie} => {[:love, :watched], %{love: :gold, watched: :silver}}
+           }
 
     assert acts.(by_name["Bob"]) == %{
-             {7, :movie} => {[:love], [:love]},
-             {11, :movie} => {[:listing], []}
+             {7, :movie} => {[:love], %{love: :gold}},
+             {11, :movie} => {[:listing], %{listing: :plain}}
            }
 
-    # One friend watched 7, twice: a friend counts once per act on a title.
-    assert acts.(by_name["Cleo"]) == %{{7, :movie} => {[:watched], []}}
+    assert acts.(by_name["Cleo"]) == %{{7, :movie} => {[:watched], %{watched: :silver}}}
   end
 
   test "a quiet friend is a card with no acts" do

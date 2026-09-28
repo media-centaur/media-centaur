@@ -8,10 +8,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   so every row lands on a card.
 
   A person's acts are one per title, newest first; each flies every act
-  on that title in mast order, and a flag is **gold** when two or more
-  friends did that act on that title — counted once over the rows this
-  fold already holds, one count per friend per title and flag, the
-  reader's own acts not counting. `rail/1` is the Feed's rail: the first
+  on that title in mast order, each at its grade (`Grade`) — counted
+  once over the rows this fold already holds, one count per person per
+  title and flag, the reader's own acts included. `rail/1` is the Feed's rail: the first
   eight of that order and how many the cap hid.
   """
 
@@ -21,6 +20,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   alias MediaCentaurWeb.Components.Discovery.Act
   alias MediaCentaurWeb.Components.Discovery.Act.Entry
   alias MediaCentaurWeb.Components.Title.Flag
+  alias MediaCentaurWeb.DiscoveryLive.Grade
 
   defmodule Card do
     @moduledoc """
@@ -35,7 +35,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
     @type t :: %__MODULE__{person: Person.t(), acts: [Act.t()]}
   end
 
-  @grade 2
   @rail_cap 8
 
   @doc """
@@ -46,13 +45,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   def build(rows, people, opts) do
     now = Keyword.fetch!(opts, :now)
     by_author = Enum.group_by(rows, & &1.activity.author_pubkey)
-    gold = rows |> Enum.reject(& &1.author.own?) |> gold_flags()
+    grades = grades(rows)
     {me, friends} = people |> Map.values() |> Enum.split_with(& &1.own?)
 
-    you = Enum.map(me, &card(&1, Map.get(by_author, &1.pubkey, []), now, gold))
+    you = Enum.map(me, &card(&1, Map.get(by_author, &1.pubkey, []), now, grades))
 
     friends
-    |> Enum.map(&card(&1, Map.get(by_author, &1.pubkey, []), now, gold))
+    |> Enum.map(&card(&1, Map.get(by_author, &1.pubkey, []), now, grades))
     |> Enum.sort_by(&sort_key/1)
     |> then(&(you ++ &1))
   end
@@ -64,15 +63,19 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
     %{cards: shown, hidden: length(hidden)}
   end
 
-  # The (title, flag) pairs at the grade: each friend once per pair
-  # however many rows they have on it.
-  defp gold_flags(rows) do
+  # Every (title, flag) pair's grade: per title, the distinct people who
+  # flew each flag and the distinct people who engaged at all.
+  defp grades(rows) do
     rows
-    |> Enum.map(&{ref(&1), Flag.flag(&1.activity), &1.activity.author_pubkey})
-    |> Enum.uniq()
-    |> Enum.frequencies_by(fn {ref, flag, _author} -> {ref, flag} end)
-    |> Enum.filter(fn {_pair, count} -> count >= @grade end)
-    |> MapSet.new(fn {pair, _count} -> pair end)
+    |> Enum.group_by(&ref/1, &{Flag.flag(&1.activity), &1.activity.author_pubkey})
+    |> Enum.flat_map(fn {ref, pairs} ->
+      pairs = Enum.uniq(pairs)
+      flown = Enum.frequencies_by(pairs, fn {flag, _author} -> flag end)
+      engaged = pairs |> Enum.uniq_by(fn {_flag, author} -> author end) |> length()
+
+      Enum.map(flown, fn {flag, _count} -> {{ref, flag}, Grade.grade(flag, flown, engaged)} end)
+    end)
+    |> Map.new()
   end
 
   # Latest act first; the quiet ones after, by name.
@@ -81,23 +84,23 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   defp sort_key(%Card{acts: [%Act{acted_at: at} | _rest], person: person}),
     do: {0, -DateTime.to_unix(at), Format.person_name(person)}
 
-  defp card(%Person{} = person, rows, now, gold) do
+  defp card(%Person{} = person, rows, now, grades) do
     sorted = Enum.sort_by(rows, & &1.activity.acted_at, {:desc, DateTime})
-    %Card{person: person, acts: acts(sorted, gold, now)}
+    %Card{person: person, acts: acts(sorted, grades, now)}
   end
 
   # One act per title in the order the titles first appear — newest
   # first, since the rows are sorted — with every row behind it.
-  defp acts(sorted, gold, now) do
+  defp acts(sorted, grades, now) do
     by_ref = Enum.group_by(sorted, &ref/1)
 
     sorted
     |> Enum.map(&ref/1)
     |> Enum.uniq()
-    |> Enum.map(&act(&1, Map.fetch!(by_ref, &1), gold, now))
+    |> Enum.map(&act(&1, Map.fetch!(by_ref, &1), grades, now))
   end
 
-  defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, gold, now) do
+  defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, grades, now) do
     flags = rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort_by_mast()
 
     %Act{
@@ -109,7 +112,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
       ago: Format.relative_ago(newest.acted_at, now: now, sub_minute: :just_now),
       episode: newest.episode,
       flags: flags,
-      gold: Enum.filter(flags, &MapSet.member?(gold, {ref, &1})),
+      grades: Map.new(flags, &{&1, Map.fetch!(grades, {ref, &1})}),
       entries: Enum.map(rows, &entry/1)
     }
   end
