@@ -44,9 +44,8 @@ The Feed is a list of the app's rows, on the app's page, in the app's type; a pe
 * **Per-surface type floors** — a page whose text is sized for a distance the interface-scale setting already serves.
 * **Fixed glyph slots** — an act glyph at the poster's edge because its slot is there.
 
-## Amendment 2026-09-28 — the grade has three tiers and counts a share
+## Amendment 2026-09-28 — the grade has three tiers, progressive by count
 
 Rule 5's grade ("gold at the grade — two or more friends did that act on that title", the glyph otherwise matte white) is replaced. A two-tier render check had found silver could not separate from matte white; with the plain tier a white line drawing (the heroicons outline set, love a hollow heart) the three separate, so the grade has three tiers: **plain**, **silver**, **gold** — silver and gold the solid glyph in metal.
 
-A flag's tier is its **share**: the people who flew it over a denominator that depends on the flag. Love, like and dislike count the people who gave the title a verdict; watched counts everyone who engaged with the title; a review without a verdict and a listing are never graded. Under two people a flag is plain; from two, half the share is silver and two-thirds gold. Every person counts once per flag, **the reader included** — the old rule left the reader out, so "you and one friend liked it" stayed matte. The rule and its thresholds live in `DiscoveryLive.Grade`'s moduledoc, which is the authority from here on. The pennant does not take the grade.
-
+The grade is progressive by count, for every flag alike: one person is plain, two silver, three or more gold. Every person counts once per flag on a title, **the reader included** — the old rule left the reader out, so "you and one friend liked it" stayed matte. An act is not weighed against another (a thumbs down does not lower a thumbs up); a share-based rule was considered and set aside as a model for a larger scale of data. `DiscoveryLive.Grade`'s moduledoc is the authority from here on. The pennant does not take the grade.

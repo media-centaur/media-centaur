@@ -251,8 +251,8 @@ rails carry no flags (a wall of posters is the title's surface, and
 friends' flags there are provenance noise; the detail modal flies
 them). A person's card is different: its acts strip flies the same
 flags as **act glyphs** centred above each poster, each at its grade —
-a white line drawing, silver or gold by the share of people who did
-that act (`DiscoveryLive.Grade`) — because there the poster is the act
+a white line drawing, silver or gold as one, two, or three or more
+people did that act (`DiscoveryLive.Grade`) — because there the poster is the act
 (UIDR-046). Story:
 `/storybook/title/pennants`.
 

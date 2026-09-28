@@ -398,8 +398,8 @@ project one enriched list — every live activity with its actor
   the reader first when an identity exists: the person's **acts**, one per title acted on,
   newest first, each carrying its flags (`Components.Title.Flag`, mast
   order) and each one's grade (`DiscoveryLive.Grade`: plain, silver or
-  gold by the share of people who did that act on that title, the
-  reader counted). `Components.Discovery.PersonCard`
+  gold as one, two, or three or more people did that act on that title,
+  the reader counted). `Components.Discovery.PersonCard`
   renders a person and their acts at two widths — the Feed's rail (`People.rail/1`: You
   first, then by latest act, eight at most) and the Friends grid — as
   the tile, the name and the acts strip of posters under their centred

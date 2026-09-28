@@ -189,22 +189,21 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
     by_name = Map.new(people, &{Format.person_name(&1.person), &1})
     acts = fn card -> Map.new(card.acts, &{&1.ref, {&1.flags, &1.grades}}) end
 
-    # On 7: three verdicts (Alice and Bob love, the reader likes), so love
-    # is two of three — gold — and the reader's like, one person, plain.
-    # Four people engaged; Alice and Cleo watched — Cleo once however
-    # many rows — two of four: silver. On 11 a listing is never graded.
+    # On 7 Alice and Bob love it — two people, silver — and the reader's
+    # like is one person, plain. Alice and Cleo watched it — Cleo once
+    # however many rows — silver. On 11 Bob and the reader list it: silver.
     assert acts.(by_name["You"]) == %{
              {7, :movie} => {[:like], %{like: :plain}},
-             {11, :movie} => {[:listing], %{listing: :plain}}
+             {11, :movie} => {[:listing], %{listing: :silver}}
            }
 
     assert acts.(by_name["Alice"]) == %{
-             {7, :movie} => {[:love, :watched], %{love: :gold, watched: :silver}}
+             {7, :movie} => {[:love, :watched], %{love: :silver, watched: :silver}}
            }
 
     assert acts.(by_name["Bob"]) == %{
-             {7, :movie} => {[:love], %{love: :gold}},
-             {11, :movie} => {[:listing], %{listing: :plain}}
+             {7, :movie} => {[:love], %{love: :silver}},
+             {11, :movie} => {[:listing], %{listing: :silver}}
            }
 
     assert acts.(by_name["Cleo"]) == %{{7, :movie} => {[:watched], %{watched: :silver}}}

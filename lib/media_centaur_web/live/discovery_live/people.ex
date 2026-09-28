@@ -8,9 +8,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   so every row lands on a card.
 
   A person's acts are one per title, newest first; each flies every act
-  on that title in mast order, each at its grade (`Grade`) — counted
-  once over the rows this fold already holds, one count per person per
-  title and flag, the reader's own acts included. `rail/1` is the Feed's rail: the first
+  on that title in mast order, each at its grade (`Grade`: by how many
+  people flew that flag on that title) — counted once over the rows this
+  fold already holds, one count per person per title and flag, the
+  reader included. `rail/1` is the Feed's rail: the first
   eight of that order and how many the cap hid.
   """
 
@@ -63,19 +64,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
     %{cards: shown, hidden: length(hidden)}
   end
 
-  # Every (title, flag) pair's grade: per title, the distinct people who
-  # flew each flag and the distinct people who engaged at all.
+  # Every (title, flag) pair's grade, from the distinct people who flew
+  # that flag on that title.
   defp grades(rows) do
     rows
-    |> Enum.group_by(&ref/1, &{Flag.flag(&1.activity), &1.activity.author_pubkey})
-    |> Enum.flat_map(fn {ref, pairs} ->
-      pairs = Enum.uniq(pairs)
-      flown = Enum.frequencies_by(pairs, fn {flag, _author} -> flag end)
-      engaged = pairs |> Enum.uniq_by(fn {_flag, author} -> author end) |> length()
-
-      Enum.map(flown, fn {flag, _count} -> {{ref, flag}, Grade.grade(flag, flown, engaged)} end)
-    end)
-    |> Map.new()
+    |> Enum.map(&{ref(&1), Flag.flag(&1.activity), &1.activity.author_pubkey})
+    |> Enum.uniq()
+    |> Enum.frequencies_by(fn {ref, flag, _author} -> {ref, flag} end)
+    |> Map.new(fn {pair, people} -> {pair, Grade.grade(people)} end)
   end
 
   # Latest act first; the quiet ones after, by name.
