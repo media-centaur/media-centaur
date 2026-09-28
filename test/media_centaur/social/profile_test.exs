@@ -20,7 +20,7 @@ defmodule MediaCentaur.Social.ProfileTest do
   setup :setup_tmp_data_dir
 
   defp friend_profile(name, created_at),
-    do: Event.sign(Translation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
+    do: Event.sign(Translation.to_event(%{name: name}, @friend_pubkey, created_at), @friend_secret)
 
   describe "save_profile/2" do
     test "mints the identity, stores the row, publishes, broadcasts; a blank name is refused" do
@@ -72,6 +72,23 @@ defmodule MediaCentaur.Social.ProfileTest do
         )
 
       assert {:error, :bad_content} = Social.ingest_profile(bad)
+    end
+
+    test "a friend's hue is stored with the profile; a newer profile without one clears it" do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+
+      {:ok, %Profile{hue: 195}} =
+        Social.ingest_profile(
+          Event.sign(
+            Translation.to_event(%{name: "One", hue: 195}, @friend_pubkey, 1_700_000_000),
+            @friend_secret
+          )
+        )
+
+      {:ok, %Profile{hue: nil}} =
+        Social.ingest_profile(
+          Event.sign(Translation.to_event(%{name: "One"}, @friend_pubkey, 1_700_000_001), @friend_secret)
+        )
     end
   end
 
@@ -126,8 +143,7 @@ defmodule MediaCentaur.Social.ProfileTest do
       with_avatar =
         Event.sign(
           Translation.to_event(
-            "One",
-            %{type: "image/webp", bytes: @webp},
+            %{name: "One", avatar: %{type: "image/webp", bytes: @webp}},
             @friend_pubkey,
             1_700_000_000
           ),
@@ -142,7 +158,11 @@ defmodule MediaCentaur.Social.ProfileTest do
 
       replaced =
         Event.sign(
-          Translation.to_event("One", %{type: "image/png", bytes: png}, @friend_pubkey, 1_700_000_001),
+          Translation.to_event(
+            %{name: "One", avatar: %{type: "image/png", bytes: png}},
+            @friend_pubkey,
+            1_700_000_001
+          ),
           @friend_secret
         )
 
@@ -152,7 +172,7 @@ defmodule MediaCentaur.Social.ProfileTest do
       assert Social.people()[@friend_pubkey].avatar_url =~ ".png?v=1700000001"
 
       without =
-        Event.sign(Translation.to_event("One", nil, @friend_pubkey, 1_700_000_002), @friend_secret)
+        Event.sign(Translation.to_event(%{name: "One"}, @friend_pubkey, 1_700_000_002), @friend_secret)
 
       assert {:ok, %Profile{avatar_type: nil}} = Social.ingest_profile(without)
       assert AvatarStore.read(@friend_pubkey, "image/png") == {:error, :enoent}
@@ -180,7 +200,11 @@ defmodule MediaCentaur.Social.ProfileTest do
       {:ok, _} =
         Social.ingest_profile(
           Event.sign(
-            Translation.to_event("One", %{type: "image/webp", bytes: @webp}, @friend_pubkey, 1),
+            Translation.to_event(
+              %{name: "One", avatar: %{type: "image/webp", bytes: @webp}},
+              @friend_pubkey,
+              1
+            ),
             @friend_secret
           )
         )

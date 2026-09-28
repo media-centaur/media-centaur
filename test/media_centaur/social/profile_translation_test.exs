@@ -26,15 +26,34 @@ defmodule MediaCentaur.Social.Profile.TranslationTest do
     assert Translation.kind() == 12_160
   end
 
-  test "to_event/4 builds an unsigned profile with the name and version, no tags" do
-    event = Translation.to_event("Sample Name", nil, @pubkey, 1_700_000_000)
+  test "to_event/3 builds an unsigned profile with the name and version, no tags" do
+    event = Translation.to_event(%{name: "Sample Name"}, @pubkey, 1_700_000_000)
 
     assert %Event{kind: 12_160, tags: [], pubkey: @pubkey, created_at: 1_700_000_000} = event
     assert Jason.decode!(event.content) == %{"v" => 1, "name" => "Sample Name"}
   end
 
-  test "to_event/4 leaves an absent name off the wire" do
-    assert Jason.decode!(Translation.to_event(nil, nil, @pubkey, 1).content) == %{"v" => 1}
+  test "to_event/3 leaves an absent name off the wire" do
+    assert Jason.decode!(Translation.to_event(%{}, @pubkey, 1).content) == %{"v" => 1}
+  end
+
+  test "to_event/3 carries the hue as an integer; an absent one is left off the wire" do
+    assert Jason.decode!(Translation.to_event(%{name: "Sample Name", hue: 195}, @pubkey, 1).content) ==
+             %{"v" => 1, "name" => "Sample Name", "hue" => 195}
+
+    refute Map.has_key?(Jason.decode!(Translation.to_event(%{name: "x"}, @pubkey, 1).content), "hue")
+  end
+
+  test "from_event/1 reads the hue; absent or null is none; anything else drops the profile" do
+    assert {:ok, %{hue: 195}} = Translation.from_event(signed(~s({"v":1,"hue":195})))
+    assert {:ok, %{hue: 0}} = Translation.from_event(signed(~s({"v":1,"hue":0})))
+    assert {:ok, %{hue: nil}} = Translation.from_event(signed(~s({"v":1})))
+    assert {:ok, %{hue: nil}} = Translation.from_event(signed(~s({"v":1,"hue":null})))
+
+    for bad <- [~s("195"), "195.0", "360", "-1", "true", "[195]"] do
+      assert {:error, :bad_content} = Translation.from_event(signed(~s({"v":1,"hue":#{bad}}))),
+             "a hue of #{bad} must drop the profile"
+    end
   end
 
   test "from_event/1 reads the name, the raw event and the wire time; a missing name is nil" do
@@ -74,11 +93,17 @@ defmodule MediaCentaur.Social.Profile.TranslationTest do
              Translation.from_event(signed(~s({"v":1,"name":"#{name}","later":true})))
   end
 
-  test "to_event/4 carries the avatar as base64 with its type; nil leaves it off" do
-    event = Translation.to_event("Sample Name", %{type: "image/webp", bytes: @webp}, @pubkey, 1)
+  test "to_event/3 carries the avatar as base64 with its type; nil leaves it off" do
+    event =
+      Translation.to_event(
+        %{name: "Sample Name", avatar: %{type: "image/webp", bytes: @webp}},
+        @pubkey,
+        1
+      )
+
     assert %{"avatar" => %{"type" => "image/webp", "data" => data}} = Jason.decode!(event.content)
     assert Base.decode64!(data) == @webp
-    refute Map.has_key?(Jason.decode!(Translation.to_event("x", nil, @pubkey, 1).content), "avatar")
+    refute Map.has_key?(Jason.decode!(Translation.to_event(%{name: "x"}, @pubkey, 1).content), "avatar")
   end
 
   test "from_event/1 reads a well-formed avatar of each type and hands the bytes on undecoded" do
