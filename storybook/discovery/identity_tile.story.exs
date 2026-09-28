@@ -3,9 +3,9 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   The app's one drawing of a person (UIDR-046, UIDR-047): the three
   marks — the avatar, the letter, the person glyph for a friend with no
   name at all — for a friend and for the reader's own filled tile, at
-  the two sizes the surfaces render: 40 on a Feed row and the rail's
-  person card, 48 on the Friends page's card and the Settings profile
-  card. The avatar is the picture a key published with its profile.
+  the three sizes the surfaces render: 32 in the title detail's social
+  panel and lead review, 40 on a Feed row and the rail's person card, 48
+  on the Friends page's card and the Settings profile card. The avatar is the picture a key published with its profile.
   The third group is the palette (UIDR-048): every hue on a friend's
   tile, on the reader's own, and as the ring around a picture; the
   first tile has no hue and is drawn in the default Blue.
@@ -25,6 +25,11 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
 
   def variations do
     [
+      %VariationGroup{
+        id: :panel_32,
+        description: "The title detail's social panel and lead review: 32px, the letter at 14",
+        variations: states(32)
+      },
       %VariationGroup{
         id: :row_40,
         description: "A Feed row and the rail's person card: 40px, the letter at 16",

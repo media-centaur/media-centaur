@@ -64,6 +64,13 @@ it" is silver on both. `grades/1` moves from `DiscoveryLive.People` into
 `friend_activity_for/1` becomes `activity_for/1` (it is no longer
 friends only); its row shape is unchanged.
 
+A flag is **drawn** on a title surface only when at least one friend
+did that act; the reader still counts toward its grade ("you and one
+friend" is silver). The reader's lone listing, watch or review draws
+nothing: the bookmark, the watched state and the Review control already
+say it. The social panel still lists the reader's review among the
+others'. (Decided 2026-09-28.)
+
 ### 3.2 The social glyph as one component
 
 The social glyph markup lives inline in `PersonCard` today. Three more

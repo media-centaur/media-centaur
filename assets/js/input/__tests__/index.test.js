@@ -280,6 +280,25 @@ describe("Detail overlay cast region (real config)", () => {
     const graph = openDetail({ detail_actions: 3, detail_menu: 0, detail_tracking: 4, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("detail_tracking")
   })
+
+  // The social capsule sits in the hero's upper right, above the action
+  // row: UP from the row reaches it, DOWN and BACK return to the row. While
+  // the social panel is open, its zone's dismiss event closes it on BACK.
+  // It is never the entry: the modal opens on the action row.
+  test("the social capsule is a toolbar region above the action row", () => {
+    expect(inputConfig.instanceTypes.detail_social).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.detail_social).toBe("[data-nav-zone='detail_social'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).not.toContain("detail_social")
+    const graph = openDetail({ detail_social: 1, detail_actions: 3, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.up).toBe("detail_social")
+    expect(graph.detail_social.down).toBe("detail_actions")
+    expect(graph.detail_social.back).toBe("detail_actions")
+  })
+
+  test("with no capsule, UP from the action row goes nowhere", () => {
+    const graph = openDetail({ detail_social: 0, detail_actions: 3, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.up).toBeUndefined()
+  })
 })
 
 // The plan modal (UIDR-029): its board is a vertical head (status, verdict

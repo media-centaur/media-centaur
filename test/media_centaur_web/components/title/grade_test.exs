@@ -66,4 +66,20 @@ defmodule MediaCentaurWeb.Components.Title.GradeTest do
 
     %{activity: build_activity(attrs)}
   end
+
+  describe "for_title/1" do
+    test "one title's rows graded by flag" do
+      rows = [
+        row(author: "a", kind: :review, sentiment: :love),
+        row(author: "b", kind: :review, sentiment: :love),
+        row(author: "a", kind: :watched)
+      ]
+
+      assert Grade.for_title(rows) == %{love: :silver, watched: :plain}
+    end
+
+    test "nothing for no rows" do
+      assert Grade.for_title([]) == %{}
+    end
+  end
 end

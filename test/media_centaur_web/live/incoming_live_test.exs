@@ -1980,7 +1980,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
     end
 
-    test "a result a friend reviewed flies their pennant from the row's edge", %{conn: conn} do
+    test "a result a friend reviewed shows the review's glyph at the row's edge", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi([
@@ -2020,8 +2020,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(
                view,
-               "[data-nav-zone='grid'] .pennant[data-flag='love']",
-               "Sample Friend"
+               "[data-nav-zone='grid'] .social-glyph[data-flag='love'][title='Sample Friend loves this']"
              )
 
       await_supervised_tasks()
@@ -3806,7 +3805,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#detail-modal[data-state=closed]")
     end
 
-    test "the modal flies a friend's pennant on a title opened from Coming up — resolved by identity, not by the page",
+    test "the modal shows a friend's act on a title opened from Coming up — resolved by identity, not by the page",
          %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Pennant Show"})
 
@@ -3846,9 +3845,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
-      # UIDR-037: friend provenance is the pennant, on every title surface —
+      # What friends did is the social capsule, on every title surface —
       # this one included, now that the host reads it by identity.
-      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
+      assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][title*='Sample Friend']")
     end
 
     test "a deep link to a series the library owns renders its seasons and offers Play", %{conn: conn} do

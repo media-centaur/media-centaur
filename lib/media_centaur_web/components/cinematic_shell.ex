@@ -21,8 +21,8 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
       `.orientation-backing*` replica of the backdrop;
     * the body sheet (`.detail-content-sheet` + `DetailBodyScroll`).
 
-  Tenants supply the content through slots: `:hero_mast` (the pennants
-  flying in from the hero window's right edge), `:orientation`
+  Tenants supply the content through slots: `:hero_corner` (the social
+  capsule in the hero window's upper right), `:orientation`
   (identity lockup, metadata, controls — the block that pins), and
   `:body` (the scrolling document below).
 
@@ -94,8 +94,8 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   attr :rest, :global, doc: "forwarded to the modal backdrop (nav wiring: `data-nav-overlay` etc.)."
 
-  slot :hero_mast,
-    doc: "flies in from the hero window's right edge, below the corner — the pennants (UIDR-037)."
+  slot :hero_corner,
+    doc: "sits in the hero window's upper right, over the orientation block — the social capsule."
 
   slot :orientation,
     doc: "content of the pinned block — identity lockup, metadata, controls."
@@ -160,12 +160,13 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
                     <div :if={@placeholder?} class="w-full h-full flex items-center justify-center">
                       <.icon name="hero-film" class="size-12 text-base-content/20" />
                     </div>
-                    <%!-- The mast hoists from the frame's right edge, just
-                          below the corner's rounding (`.detail-hero-mast`),
-                          so the flags fly in from the panel border itself. --%>
-                    <div :if={@hero_mast != []} class="detail-hero-mast">
-                      {render_slot(@hero_mast)}
-                    </div>
+                  </div>
+                  <%!-- Outside the frame, which clips when it is the
+                        placeholder, and above the orientation block
+                        (`.detail-hero-corner`), so what the corner opens
+                        can hang down over it. --%>
+                  <div :if={@hero_corner != []} class="detail-hero-corner">
+                    {render_slot(@hero_corner)}
                   </div>
                 </div>
                 <%!-- Orientation block: pinned as one unit once scrolled to

@@ -115,10 +115,6 @@ html { scrollbar-gutter: stable; }
   --glass-nav-bg: oklch(14% 0.015 264 / 0.8);
   --glass-gradient-a: oklch(40% 0.16 250 / 0.2);
   --glass-gradient-b: oklch(38% 0.14 300 / 0.15);
-  /* The one warm hue outside the health palette: a review's
-     love pennant. Rose, between error and secondary, so it never reads
-     as a fault. */
-  --color-love: oklch(66% 0.17 12);
   /* A person's colour is a hue on one ring (UIDR-048): the theme fixes the
      lightness and chroma, the person picks the angle in `--hue`. */
   --person-l: 70%;
@@ -892,18 +888,19 @@ body:has(.modal-backdrop[data-state="open"]) {
    rail short of it. Extend it by `--modal-rail-w` (published by the
    DetailScrollGeometry hook — the same correction the orientation
    backing's clip window makes) so the frame's right edge is the panel's
-   and everything hoisted from it, the pennant mast, meets the border. */
+   and what sits in its corner, the social capsule, keeps to the border. */
 .detail-hero {
   margin-right: calc(-1 * var(--modal-rail-w, 0px));
 }
 
-/* The pennant mast flies in from the frame's right edge, hoisted just
-   below the panel's rounded corner so the flags come off the straight
-   side rather than out of the arc. */
-.detail-hero-mast {
+/* The social capsule sits 12px in from the panel's top and right edges
+   (the hero's right edge is the panel's, `.detail-hero`), above the
+   pinned orientation block so its panel can hang over it. */
+.detail-hero-corner {
   position: absolute;
-  top: var(--modal-panel-radius);
-  right: 0;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
 }
 
 .detail-orientation {
@@ -2946,48 +2943,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   transform: rotate(90deg);
 }
 
-/* ── Pennant ──
-   What friends did with a title, as flags flying inward from the right
-   edge of a row or hero (the mast). The mast is a flex column hugging
-   that edge; a row bleeds it into its own right padding under
-   overflow-hidden so the hoist meets the border. The point is the
-   clip-path. One shape at every width, one flag per kind of act,
-   stacked love, like, watched, tracking. Only love is a colour. */
-.pennant-mast {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex: none;
-  pointer-events: none;
-}
-
-.pennant {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  padding: 0 12px 0 16px;
-  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  color: oklch(from var(--color-base-content) l c h / 0.7);
-  background: oklch(from var(--color-base-content) l c h / 0.12);
-}
-
-.pennant-love {
-  color: oklch(98% 0.01 12);
-  background: var(--color-love);
-}
-
-/* Over imagery the neutral tint has nothing to sit on. */
-.pennant-on-image:not(.pennant-love) {
-  color: oklch(from var(--color-base-content) l c h / 0.85);
-  background: oklch(14% 0.015 264 / 0.72);
-}
-
 /* ── Identity banners (UIDR-014) ─────────────────────────────────────
    Backdrop/logo treatment for title-doored cards (draft plans,
    TMDB-door pursuits). v1 renders the synthetic fallback everywhere:
@@ -3347,6 +3302,76 @@ body:has(.modal-backdrop[data-state="open"]) {
     oklch(62% 0.13 86) 55%,
     oklch(78% 0.161 86)
   );
+}
+
+/* The social capsule (`Title.Social`): the title's social glyphs on a
+   dark ink pill in the detail hero's upper right, 24px glyphs 12px
+   apart, then a chevron. The ink is what lets the plain white line
+   drawing and the metals read over any backdrop. */
+.social-capsule-anchor {
+  position: relative;
+}
+
+.social-capsule {
+  --glyph: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: oklch(12% 0.015 264 / 0.82);
+  box-shadow:
+    inset 0 0 0 1px oklch(100% 0 0 / 0.12),
+    0 4px 16px oklch(0% 0 0 / 0.45);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.social-capsule:hover,
+.social-capsule[aria-expanded="true"] {
+  box-shadow:
+    inset 0 0 0 1px oklch(100% 0 0 / 0.22),
+    0 4px 16px oklch(0% 0 0 / 0.45);
+}
+
+.social-capsule-chevron {
+  display: inline-flex;
+  margin-left: -4px;
+  color: oklch(100% 0 0 / 0.55);
+  transition: transform 150ms ease-out;
+}
+
+/* The social panel: the glass menu's surface, anchored under the
+   capsule's right edge over the backdrop; it never moves the modal. */
+.social-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: 420px;
+  max-width: calc(100vw - 4rem);
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.social-panel-review {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.social-panel-review + .social-panel-review,
+.social-panel-acts {
+  border-top: 1px solid oklch(from var(--color-base-content) l c h / 0.08);
+}
+
+.social-panel-acts {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 8px;
 }
 
 /* ── Feed rows (UIDR-046) ── the rows sit in a column with a hairline

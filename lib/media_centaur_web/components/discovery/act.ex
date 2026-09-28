@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Discovery.Act do
   @moduledoc """
   One title a person acted on (UIDR-046): what the person card's strip
-  shows for it — the poster under its flags, in mast order, `grades`
+  shows for it — the poster under its flags, in order, `grades`
   giving each flag's grade (`Title.Grade`) — and every activity behind it, newest
   first. The newest activity's id, time, ago and episode are the act's:
   the press opens it, the ago is its. Built by `DiscoveryLive.People`,

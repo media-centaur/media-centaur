@@ -130,12 +130,12 @@ defmodule MediaCentaur.ActivitiesTest do
     end
   end
 
-  describe "friend_activity_for/1" do
-    test "every live act on a title by a friend, own reviews only, newest first" do
+  describe "activity_for/1" do
+    test "every live act on a title by a known person, the reader's own of every kind, newest first" do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000, nil, :love))
       {:ok, mine} = Activities.review(title(), :like, "mine")
-      {:ok, _own_listing} = Activities.listing(title())
+      {:ok, own_listing} = Activities.listing(title())
       {:ok, other} = Activities.ingest(friend_event(title(604), "other", 1_700_000_000))
       {:ok, withdrawn} = Activities.review(title(605), :like, nil)
       {:ok, _tombstone} = Activities.delete(withdrawn.id)
@@ -152,16 +152,18 @@ defmodule MediaCentaur.ActivitiesTest do
       {:ok, friend_watched} = Activities.ingest(watched)
 
       result =
-        Activities.friend_activity_for([{603, :movie}, {604, :movie}, {605, :movie}, {999, :movie}])
+        Activities.activity_for([{603, :movie}, {604, :movie}, {605, :movie}, {999, :movie}])
 
       theirs_id = theirs.id
       mine_id = mine.id
       other_id = other.id
       watched_id = friend_watched.id
+      listing_id = own_listing.id
 
       assert %{
                {603, :movie} => [
-                 %{activity: %Activity{id: ^mine_id, kind: :review}, author: %Person{own?: true}},
+                 %{author: %Person{own?: true}},
+                 %{author: %Person{own?: true}},
                  %{
                    activity: %Activity{id: ^watched_id, kind: :watched},
                    author: %Person{name_override: "Sample Friend", own?: false}
@@ -179,19 +181,24 @@ defmodule MediaCentaur.ActivitiesTest do
                ]
              } = result
 
+      # The reader's two acts share a second, so their order between
+      # themselves is not fixed; both are newer than the friend's.
+      own_ids = result[{603, :movie}] |> Enum.take(2) |> MapSet.new(& &1.activity.id)
+      assert own_ids == MapSet.new([mine_id, listing_id])
+
       assert map_size(result) == 2
       await_supervised_tasks()
     end
 
     test "nothing for no refs, and nothing from a former friend" do
-      assert Activities.friend_activity_for([]) == %{}
+      assert Activities.activity_for([]) == %{}
 
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
-      assert %{{603, :movie} => [_row]} = Activities.friend_activity_for([{603, :movie}])
+      assert %{{603, :movie} => [_row]} = Activities.activity_for([{603, :movie}])
 
       :ok = Social.remove_friend(@friend_pubkey)
-      assert Activities.friend_activity_for([{603, :movie}]) == %{}
+      assert Activities.activity_for([{603, :movie}]) == %{}
       await_supervised_tasks()
     end
   end
@@ -238,7 +245,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert %{activity: %Activity{id: id}, author: nil} = Activities.get_row(rec.id)
       assert id == rec.id
       assert Activities.list_activities() == []
-      assert Activities.friend_activity_for([{603, :movie}]) == %{}
+      assert Activities.activity_for([{603, :movie}]) == %{}
       await_supervised_tasks()
     end
   end

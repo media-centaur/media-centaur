@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
     assert length(People.build([], people(false), now: @now)) == 3
   end
 
-  test "a person's acts are one per title, newest first, flying every act on it in mast order" do
+  test "a person's acts are one per title, newest first, showing every act on it in order" do
     episode = %Episode{season_number: 1, episode_number: 3}
 
     [bob | _rest] =

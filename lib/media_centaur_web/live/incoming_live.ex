@@ -260,7 +260,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searched: nil,
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
-         friend_activity_by_ref: %{},
+         social_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
          plan_menu_open?: false,
@@ -286,8 +286,8 @@ defmodule MediaCentaurWeb.IncomingLive do
      )}
   end
 
-  defp friend_activity_for_results(rows),
-    do: Activities.friend_activity_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
+  defp social_activity_for_results(rows),
+    do: Activities.activity_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
 
   defp subscribe_acquisition(socket) do
     socket
@@ -904,7 +904,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             scope={@omnibox_scope}
             title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
-            friend_activity_by_ref={@friend_activity_by_ref}
+            social_activity_by_ref={@social_activity_by_ref}
           />
 
           <Search.search_zone
@@ -2015,14 +2015,14 @@ defmodule MediaCentaurWeb.IncomingLive do
     do: {:noreply, socket |> assign(:title_rungs, Discovery.rungs()) |> build_view()}
 
   # A review arriving or withdrawn while results are up re-reads
-  # the pennants for exactly those results.
+  # the social glyphs for exactly those results.
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
     {:noreply,
      assign(
        socket,
-       :friend_activity_by_ref,
-       friend_activity_for_results(socket.assigns.omnibox_results)
+       :social_activity_by_ref,
+       social_activity_for_results(socket.assigns.omnibox_results)
      )}
   end
 
@@ -2318,7 +2318,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: rows,
          omnibox_searching?: false,
          in_library_refs: in_library_refs,
-         friend_activity_by_ref: friend_activity_for_results(rows)
+         social_activity_by_ref: social_activity_for_results(rows)
        )}
     else
       {:noreply, socket}

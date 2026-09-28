@@ -54,8 +54,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   release date as quiet markers — joined here from `ReleaseTracking`,
   because Discovery stays free of tracking (ADR-066); a row is armed
   from its modal. A row added from a friend's action carries a bare
-  `activity_id`; the friend's name reaches the page through the pennants
-  (`Activities.friend_activity_for/1`, whose rows carry their author as a
+  `activity_id`; the friend's name reaches the page through the social glyphs
+  (`Activities.activity_for/1`, whose rows carry their author as a
   `Social.Person`).
 
   A listing or an ignore made from a row carries that row's activity
@@ -433,15 +433,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   # The list row's decoration: Discovery owns the record and library
-  # presence; the poster, the friend activity (the pennants) and the
+  # presence; the poster, the social activity (the social glyphs) and the
   # tracked title's next date are joined here, because Discovery knows
   # nothing about Activities or ReleaseTracking. The rung comes straight
   # off the record — it is the authored fact, not something to look up.
   defp load_items(socket) do
     rows = Discovery.list_watchlist()
 
-    friend_activity =
-      Activities.friend_activity_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
+    social_activity =
+      Activities.activity_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
 
     tracked = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
 
@@ -453,7 +453,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         |> Map.put(:item, intent)
         |> Map.merge(%{
           poster_url: title_poster_url(intent.title),
-          friend_activity: Map.get(friend_activity, {intent.tmdb_id, intent.media_type}, []),
+          social_activity: Map.get(social_activity, {intent.tmdb_id, intent.media_type}, []),
           rung: intent.rung,
           next_air_date: next_air_date(tracked_item, socket.assigns.today)
         })
@@ -878,7 +878,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     )
                   }
                   notes={Logic.note_list(row.item.note)}
-                  friend_activity={row.friend_activity}
+                  social_activity={row.social_activity}
                 />
               </div>
             </div>

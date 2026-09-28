@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.CinematicShell.cinematic_shell/1
-  def imports, do: [{MediaCentaurWeb.Components.Title.Pennant, pennants: 1}]
+  def imports, do: [{MediaCentaurWeb.Components.Title.Social, social_capsule: 1}]
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         id: :open_full,
         description:
           "Open, `full: true` — scrolling document: placeholder hero window with the " <>
-            "pennant mast flying in from its right edge, pinned orientation block " <>
+            "social capsule in its upper right, pinned orientation block " <>
             "with sample lockup content, and a body sheet long enough to scroll (the " <>
             "orientation block pins once the hero scrolls away).",
         attributes: %{
@@ -114,12 +114,16 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         },
         slots: [
           """
-          <:hero_mast>
-            <.pennants
-              activity={MediaCentaurWeb.Storybook.Composites.CinematicShell.sample_activity()}
-              on_image
+          <:hero_corner>
+            <.social_capsule
+              id="cinematic-social"
+              rows={MediaCentaurWeb.Storybook.Composites.CinematicShell.sample_activity()}
+              open={false}
+              zone="detail_social"
+              on_toggle="social_panel_toggle"
+              on_close="social_panel_close"
             />
-          </:hero_mast>
+          </:hero_corner>
           """,
           """
           <:orientation>

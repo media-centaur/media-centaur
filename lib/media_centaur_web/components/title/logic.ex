@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   always; `library` (the `Detail.Library` half, nil when unowned),
   `activity`, `intent_note`, `poster_url`, `backdrop_url`, `logo_url`,
   `tracking`, `acquisition?`, `lower_quality_accepted?`, `complete?`,
-  `release_window`, `planning_mode`, `friend_activity` and `preview`
+  `release_window`, `planning_mode`, `social_activity` and `preview`
   when the host has them. Nothing here decides: the action row and the
   tracking card derive their rules from these facts where they mount
   (`Detail.Logic`). The residue — an owned entity with no TMDB identity
@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
       activity: Map.get(facts, :activity),
       intent_note: Map.get(facts, :intent_note),
-      friend_activity: Map.get(facts, :friend_activity, []),
+      social_activity: Map.get(facts, :social_activity, []),
       preview: Map.get(facts, :preview)
     }
   end
@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   the List rung's own marker is dropped as redundant. Everywhere else a
   listed title says so, which is the only place a search result can.
 
-  Who reviewed the title is the pennant's, and a feed row's
+  What people did with the title is the social glyphs', and a feed row's
   sender/when line is the host's; neither is a marker.
   """
   @spec row_markers(

@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     * `:closed` — the shell alone (`detail: nil`).
     * `:movie_basic`, `:movie_reviewed`, `:movie_with_progress` — a bare
-      movie: never watched; two friends' pennants on the mast; mid-watch
+      movie: never watched; two friends' reviews in the social capsule; mid-watch
       with Resume, the hairline and the time left.
     * `:tv_series_all_collapsed`, `:tv_series_with_seasons`,
       `:tv_series_gap_in_flight`, `:tv_series_complete`,
@@ -46,9 +46,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       `:series_all_seasons`, `:series_planning` — the Download split
       control and the series scope select, their menus and the pending
       state.
-    * `:from_friend`, `:every_flag`, `:own_note`, `:own_review`,
-      `:own_listing` — the pennants, a friend's note, your own note, and
-      Delete <noun> on an own activity.
+    * `:from_friend`, `:every_flag`, `:social_open`, `:own_note`,
+      `:own_review`, `:own_listing` — the social capsule and its panel,
+      the lead review, your own note, and Delete <noun> on an own
+      activity.
     * `:needs_review`, `:downloading`, `:not_out_yet` — the acquisition
       state as a fact, and no verb at all.
     * `:tracked_watch`, `:tracked_grab`, `:unowned_off`, `:forecast_only`,
@@ -142,13 +143,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :movie_reviewed,
         description:
-          "The same movie two friends reviewed: the pennants fly from the hero's " <>
-            "right edge under the actions, love above like, the like body dark glass.",
+          "The same movie two friends reviewed: the social capsule in the hero's " <>
+            "upper right holds love and like, each plain.",
         attributes: %{
           detail:
             movie_detail(%{
               tracking: tracking(%{}),
-              friend_activity: [
+              social_activity: [
                 act(603, :movie, "Other Friend", :review, :like),
                 act(603, :movie, "Sample Friend", :review, :love)
               ]
@@ -461,8 +462,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :from_friend,
         description:
-          "Opened from a friend's review: the love pennant on the mast says who, " <>
-            "and their note — the one thing a pennant cannot hold — leads the prose, attributed.",
+          "Opened from a friend's review: their words lead the prose as the lead review " <>
+            "(tile, name, glyph), and the social capsule holds their love.",
         attributes: %{
           detail:
             unowned(movie(), %{
@@ -476,21 +477,41 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
                   "Watch it before anyone spoils the ending."
                 ),
               rung: :follow,
-              friend_activity: [act(777, :movie, "Sample Friend", :review, :love)]
+              social_activity: [act(777, :movie, "Sample Friend", :review, :love)]
             })
         }
       },
       %Variation{
         id: :every_flag,
         description:
-          "Friends did everything: the pennants stack on the hero's right edge under the " <>
-            "actions — love, like, watched, listing — the neutral bodies dark glass over the art.",
+          "Friends did everything: the social capsule holds love, like, watched and " <>
+            "listing, each plain — one friend each.",
         attributes: %{
           detail:
             unowned(show(), %{
               rung: :follow,
               release_mode_available: false,
-              friend_activity: [
+              social_activity: [
+                act(42, :tv_series, "Third Friend", :listing),
+                act(42, :tv_series, "Other Friend", :watched),
+                act(42, :tv_series, "Other Friend", :review),
+                act(42, :tv_series, "Sample Friend", :review, :love)
+              ]
+            })
+        }
+      },
+      %Variation{
+        id: :social_open,
+        description:
+          "The social capsule pressed: the social panel hangs under it over the backdrop — " <>
+            "the reviews, then who watched and who wants to watch.",
+        attributes: %{
+          state: %{ModalState.new() | open_menu: :social},
+          detail:
+            unowned(show(), %{
+              rung: :follow,
+              release_mode_available: false,
+              social_activity: [
                 act(42, :tv_series, "Third Friend", :listing),
                 act(42, :tv_series, "Other Friend", :watched),
                 act(42, :tv_series, "Other Friend", :review),
@@ -509,13 +530,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :own_review,
         description:
-          "Opened from the You card: your own review flies You and carries " <>
-            "Delete review at the row's far end.",
+          "Opened from the You card: your own review alone draws no social capsule; " <>
+            "Delete review sits at the row's far end.",
         attributes: %{
           detail:
             unowned(movie(), %{
               activity: act(777, :movie, nil, :review),
-              friend_activity: [act(777, :movie, nil, :review)]
+              social_activity: [act(777, :movie, nil, :review)]
             })
         }
       },
@@ -523,7 +544,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :own_listing,
         description:
           "Opened from the You card: an own listing broadcast carries Delete listing. " <>
-            "It flies no pennant — a pennant tells you what friends did.",
+            "It draws no social capsule — your own acts alone never do.",
         attributes: %{
           detail:
             unowned(show(), %{
@@ -695,7 +716,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         text: text,
         tmdb_id: tmdb_id,
         media_type: media_type,
-        acted_at: ~U[2026-09-01 10:00:00Z]
+        acted_at: ~U[2026-09-01 10:00:00Z],
+        author_pubkey: name || "you"
       },
       author: author(name)
     }

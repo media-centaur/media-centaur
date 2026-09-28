@@ -14,7 +14,7 @@ defmodule MediaCentaur.Activities.Activity do
   stored direction column can disagree with the signature.
 
   Per-kind payload: `sentiment` (`:dislike`, `:like` or `:love`, or nil
-  for a review that gives no verdict — the flag the pennant flies) and
+  for a review that gives no verdict — the flag its social glyph shows) and
   `text` (the review's words, or nil) on a review; `episode` on a
   watched TV series (the episode finished, `Episode`), nil for a movie.
   A listing carries only the title. `sentiment` and `text` are nil on

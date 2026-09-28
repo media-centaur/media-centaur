@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   so every row lands on a card.
 
   A person's acts are one per title, newest first; each flies every act
-  on that title in mast order, each at its grade (`Grade`: by how many
+  on that title in order, each at its grade (`Grade`: by how many
   people flew that flag on that title) — counted once over the rows this
   fold already holds, one count per person per title and flag, the
   reader included. `rail/1` is the Feed's rail: the first

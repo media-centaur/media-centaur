@@ -29,8 +29,8 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   series. The rows derive their rule from these at the mount
   (`Logic.release_ahead?/3`).
 
-  `friend_activity` is the title's `Activities.friend_activity_for/1`
-  rows — the hero's pennants (UIDR-037). `activity` is the one row the
+  `social_activity` is the title's `Activities.activity_for/1`
+  rows — the hero's social capsule (`Title.Social`). `activity` is the one row the
   modal speaks for, read by identity from the `activity` param: a
   friend's, so that listing the title records where it came from and
   their words lead the body; an own one, opened from the You card, so
@@ -71,7 +71,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
     lower_quality_accepted?: false,
     complete?: false,
     planning_mode: :manually_select_release,
-    friend_activity: []
+    social_activity: []
   ]
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           planning_mode: PlanningMode.mode(),
           activity: Activities.activity_row() | nil,
           intent_note: String.t() | nil,
-          friend_activity: [Activities.activity_row()],
+          social_activity: [Activities.activity_row()],
           preview: TitlePreview.t() | nil
         }
 end
