@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.45.0 — 2026-09-28
+
+### Improved
+
+- **Every expandable section works the same way.** Seasons, folder lists, technical logs, a plan's seasons, grouped downloads, search results and Review's episode lists all open and close with one kind of control, and on each of them Right opens it and Left closes it with the keyboard or a gamepad.
+- **One way to confirm.** Removing a media directory and refreshing the image cache now ask you to press the same button again (*Click again to remove*, *Click again to refresh all artwork*) instead of showing Confirm and Cancel, like every other two-press button. Anything else you do in between cancels it.
+- **The console remembers your search.** The text you type in `/console`'s search box is still there after a reload, and Copy and Download hand over exactly the lines it shows.
+- **Lighter typing.** The History search on the Incoming page, Review's title search, the ignore-rule field, the problem report's fields and the console's buffer slider now wait for a pause in your typing before they act, instead of working on every keystroke.
+- **Quicker taps** on the Feed's *N new* button, on *Show all* under Coming up, and on dismissing the Settings setup banner.
+
+### Fixed
+
+- **Remapping a control no longer breaks Settings.** Pressing a key or gamepad button to rebind a control on Settings › Controls reloaded the page instead of saving the binding.
+- **Review keeps a match's type.** Choosing one of several equally likely matches for a TV episode could save it as a movie, and changing the Movie/TV selector after a search could file a result under the wrong type.
+- **Opened panels stay open.** A section you opened on the Status page, such as *Technical logs* or *Recent requests*, no longer snaps shut when new lines arrive.
+- **A pressed button forgets itself when you move on.** *Dismiss all* on the Episode mapping page stayed armed when you picked another show, so the next press dismissed that show's files; buttons in Settings stayed armed after you left the section and came back.
+
+### Migration safety
+
+- This release runs no migrations.
+
 ## v1.44.0 — 2026-09-28
 
 ### New
