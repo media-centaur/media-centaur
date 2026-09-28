@@ -22,8 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`ui-state-ownership.md`](ui-state-ownership.md) —
-  **built on branch `ui-state-ownership` 2026-09-28; merge, wiki and owner
-  check open.** One owner per kind of UI state (URL, LiveView, browser for
+  **shipped v1.45.0 2026-09-28; owner check open.** One owner per kind of UI state (URL, LiveView, browser for
   device and viewport only) and one mechanism per idiom: `Live.ArmGesture`
   (one armed slot per page, any other interaction disarms),
   `Components.Disclosure` with `Live.DisclosureState` (no native

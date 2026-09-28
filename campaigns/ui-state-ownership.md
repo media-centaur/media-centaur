@@ -39,13 +39,9 @@ idiom one mechanism, and fixes the bugs the review found.
 
 ## Status
 
-In progress on branch `ui-state-ownership` (worktree
-`../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phases 1 to 4 built and
-passing `mix precommit` on the branch, not merged. Open: the owner's merge,
-the wiki edits that go with it, the owner check, and the `ChangeTarget`
-decision (Next steps). Line numbers are
-from commit `d7ecc8b5` and will drift.
+Shipped in v1.45.0 (2026-09-28): Phases 1 to 4 merged to `main`, wiki
+updated. Open: the owner check (keyboard and gamepad pass) and the
+`ChangeTarget` decision (Next steps).
 
 ## Design (approved 2026-09-28)
 
@@ -245,6 +241,11 @@ with a stream reset per debounced change.
 * `2026-09-28` — The Playwright spec `detail-backdrop.spec.js` selected the
   season header by its chevron icon and would have skipped silently; it
   reads `aria-expanded` now.
+* `2026-09-28` — Shipped as v1.45.0. The first release notes claimed Right
+  and Left open and close every expandable section; they do so only in the
+  tree views (a title's body, Manage, a plan). The CHANGELOG entry and the
+  GitHub release were corrected the same day to say what holds everywhere:
+  each section is reachable and opens with Enter or A.
 
 ## Next steps
 
@@ -308,20 +309,11 @@ The media directory dialog's `Process.send_after` debounce became
 scrolls in the browser. Show all re-cuts the held feed. The setup banner's
 dismiss runs no probe. The update-label tick recomputes on System only.
 
-### Merge (owner)
+### Merge (done 2026-09-28, v1.45.0)
 
-1. Rebase `ui-state-ownership` onto `main` and merge; the worktree and its
-   build root (`~/.cache/agent-mix-build/media-centaur-app-ui-state`) can
-   then be removed.
-2. Wiki, in the same unit of work as the merge:
-   * `Settings-Reference.md`, Maintenance: *Refresh image cache* no longer
-     runs on **Confirm**; the button reads *Click again to refresh all
-     artwork* and runs on the second press, and anything else disarms it.
-   * `Settings-Reference.md`, Media directories: removing a directory is two
-     presses of its trash button (*Click again to remove*), not a
-     Confirm/Cancel pair.
-   * `Troubleshooting.md`, `/console`: the text search is kept across
-     reloads in this browser.
+Fast-forwarded onto `main` after v1.44.0 and released as v1.45.0. The wiki
+edits named here went out with it (`Settings-Reference.md`,
+`Troubleshooting.md`).
 
 ### Owner check
 
