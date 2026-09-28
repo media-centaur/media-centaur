@@ -41,8 +41,10 @@ idiom one mechanism, and fixes the bugs the review found.
 
 In progress on branch `ui-state-ownership` (worktree
 `../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phases 1 to 3 done; Phase 4
-next. Line numbers are
+main checkout). Design approved 2026-09-28. Phases 1 to 4 built and
+passing `mix precommit` on the branch, not merged. Open: the owner's merge,
+the wiki edits that go with it, the owner check, and the `ChangeTarget`
+decision (Next steps). Line numbers are
 from commit `d7ecc8b5` and will drift.
 
 ## Design (approved 2026-09-28)
@@ -296,25 +298,36 @@ component gained `:leading` / `:trailing` slots, `row_class` and
 `caret_class`. `armed_button` gained `busy` / `busy_label` and `nav`, and
 the Manage sheet's three delete buttons moved onto it.
 
-### Phase 4 — Input events and round trips
+### Phase 4 — Input events and round trips (done 2026-09-28)
 
-1. Debounce Credo check, then the four undebounced sites, then the
-   hand-rolled media-dir debounce.
-2. Console search to its one owner. This also removes the stale
-   `search_lower` bug.
-3. Discovery "N new": scroll on the client and let `feed_at_top` land the
-   queue, instead of two projections per click.
-4. Incoming "Show all" (`expand_shelf`): re-cap from the held feed instead
-   of `build_view`, which re-reads the database.
-5. `setup:dismiss_banner`: assign directly instead of re-running every
-   setup probe. Check the "called after any config save" comment on
-   `assign_setup_banner_state`.
-6. Scope the Settings `:refresh_update_schedule` tick to the System section.
+MC0040 (`TextInputDebounced`): a text field sending change events carries
+its own `phx-debounce`. It found the four known fields plus the report
+modal's three, whose debounce sat on the form, where LiveView ignores it.
+The media directory dialog's `Process.send_after` debounce became
+`phx-debounce`. The console search moved to the browser. The Feed's N new
+scrolls in the browser. Show all re-cuts the held feed. The setup banner's
+dismiss runs no probe. The update-label tick recomputes on System only.
+
+### Merge (owner)
+
+1. Rebase `ui-state-ownership` onto `main` and merge; the worktree and its
+   build root (`~/.cache/agent-mix-build/media-centaur-app-ui-state`) can
+   then be removed.
+2. Wiki, in the same unit of work as the merge:
+   * `Settings-Reference.md`, Maintenance: *Refresh image cache* no longer
+     runs on **Confirm**; the button reads *Click again to refresh all
+     artwork* and runs on the second press, and anything else disarms it.
+   * `Settings-Reference.md`, Media directories: removing a directory is two
+     presses of its trash button (*Click again to remove*), not a
+     Confirm/Cancel pair.
+   * `Troubleshooting.md`, `/console`: the text search is kept across
+     reloads in this browser.
 
 ### Owner check
 
 Keyboard and gamepad pass over every changed surface on the dev server,
-including BACK and TREE LEFT/RIGHT inside each disclosure.
+including BACK and TREE LEFT/RIGHT inside each disclosure, and every arm
+gesture (arm, then move away, then return).
 
 ## Completion criteria
 

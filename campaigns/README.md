@@ -22,16 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`ui-state-ownership.md`](ui-state-ownership.md) —
-  **planning 2026-09-28; four owner decisions open.** Started as a review
-  of which LiveView interactions should move to front-end JavaScript. Few
-  should. The real problem is that each UI idiom is implemented per page:
-  disclosures have three mechanisms (server `:if` toggles, native
-  `<details>` that a patch collapses, one JS-command fold), and arm gestures
-  have a dozen state names and five disarm rules. Proposed: one owner per
-  kind of state (URL, LiveView, browser for device and viewport only) and
-  one component plus shared hook per idiom. Also fixes the Controls remap
-  crash and the stale console search, adds a debounce Credo check, and
-  trims avoidable round trips.
+  **built on branch `ui-state-ownership` 2026-09-28; merge, wiki and owner
+  check open.** One owner per kind of UI state (URL, LiveView, browser for
+  device and viewport only) and one mechanism per idiom: `Live.ArmGesture`
+  (one armed slot per page, any other interaction disarms),
+  `Components.Disclosure` with `Live.DisclosureState` (no native
+  `<details>`, which a patch closes), MC0040 (a text field debounces
+  itself), and the console search owned by the browser. Fixed on the way:
+  the Controls remap crash, Review saving a match under the wrong type,
+  the stale console search, arms leaking across shows and sections. Open:
+  the `ChangeTarget` command's retirement (owner's call).
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
