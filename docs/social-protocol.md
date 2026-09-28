@@ -131,7 +131,7 @@ What a person says about themselves: the name their friends see them under and t
 | `type` | string | One of `image/webp`, `image/png`, `image/jpeg`. |
 | `data` | string | The image bytes, base64 with the standard alphabet and padding. At most 65 536 bytes once decoded (64 KB, inclusive). |
 
-The decoded bytes must open with the type's signature: for `image/webp`, `RIFF` at offset 0 and `WEBP` at offset 8; for `image/png`, the eight-byte PNG signature (`89 50 4E 47 0D 0A 1A 0A`); for `image/jpeg`, `FF D8 FF`. Media Centaur sends a 256×256 WebP, centre-cropped from the picture the person chose.
+The decoded bytes must open with the type's signature: for `image/webp`, `RIFF` at offset 0 and `WEBP` at offset 8; for `image/png`, the eight-byte PNG signature (`89 50 4E 47 0D 0A 1A 0A`); for `image/jpeg`, `FF D8 FF`. Media Centaur sends a 256×256 WebP, centre-cropped from the picture the person chose, flattened onto black, with the picture's metadata (EXIF, XMP, ICC) stripped, at a quality stepped down until it fits the cap.
 
 **Rules**
 

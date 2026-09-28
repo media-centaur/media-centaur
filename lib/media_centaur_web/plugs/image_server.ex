@@ -47,10 +47,14 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
           send_not_found(conn)
 
         master_path ->
-          serve_image(conn, master_path)
+          serve_image(conn, master_path, relative)
       end
     end
   end
+
+  # A social avatar is a friend's bytes, checked for a signature and never
+  # decoded (ADR-073): the master is served as it is, whatever the query.
+  @never_derived "images/social/"
 
   def call(conn, _opts), do: conn
 
@@ -60,7 +64,10 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   # tile that's 120px wide should not block on decoding a 3360px backdrop.
   # Large/full-bleed surfaces simply omit `?w=` and keep the master, so 4K
   # quality is untouched. Generation failure falls back to the master.
-  defp serve_image(conn, master_path) do
+  defp serve_image(conn, master_path, @never_derived <> _avatar),
+    do: send_file_response(conn, master_path)
+
+  defp serve_image(conn, master_path, _relative) do
     case requested_width(conn) do
       nil ->
         send_file_response(conn, master_path)

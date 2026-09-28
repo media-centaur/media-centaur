@@ -178,6 +178,18 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
       assert byte_size(conn.resp_body) == File.stat!(master_path).size
     end
 
+    test "a social avatar is served as it is, never derived", %{conn: conn} do
+      avatar = <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
+      dir = MediaCentaur.ImageFiles.on_disk_path("images/social")
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "#{String.duplicate("a", 64)}.webp"), avatar)
+
+      conn = call_plug(conn, "/media-images/images/social/#{String.duplicate("a", 64)}.webp", "w=160")
+
+      assert conn.status == 200
+      assert conn.resp_body == avatar
+    end
+
     test "a missing master with ?w= is a 404 too", %{conn: conn} do
       conn = call_plug(conn, "/media-images/nope/backdrop.jpg", "w=320")
 

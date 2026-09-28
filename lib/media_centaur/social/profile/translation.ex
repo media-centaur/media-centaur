@@ -63,6 +63,10 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @spec max_avatar_bytes() :: pos_integer()
   def max_avatar_bytes, do: @max_avatar_bytes
 
+  @doc "The type of the master this app publishes (`ImageFiles.square_webp/3`); one of the three."
+  @spec master_type() :: String.t()
+  def master_type, do: "image/webp"
+
   @doc "An unsigned profile event for `pubkey` at `created_at`; a nil name or avatar is left off the wire."
   @spec to_event(String.t() | nil, avatar() | nil, String.t(), non_neg_integer()) :: Event.t()
   def to_event(name, avatar, pubkey, created_at) do

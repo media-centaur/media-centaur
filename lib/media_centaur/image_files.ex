@@ -127,20 +127,41 @@ defmodule MediaCentaur.ImageFiles do
     end
   end
 
+  # The master's quality, then the steps down when it does not fit.
+  @webp_qualities [82, 70, 55, 40, 25]
+
   @doc """
   A square WebP master of `side` pixels from the image file at `path`,
-  centre-cropped, returned in memory: the avatar a sender publishes.
-  `{:error, reason}` when the file is not an image libvips can open. A
-  truncated file with a sound header opens without error and yields a
-  partly grey master, so the sender sees the result before publishing.
-  `path` is a file the app wrote (an upload's temp file), never a
-  user-typed name: libvips reads loader options after a `[` in it.
+  centre-cropped, flattened onto black and stripped of the source's
+  metadata (a photo's EXIF carries its GPS position, device and time,
+  and the master is published), returned in memory at most `max_bytes`
+  long: the avatar a sender publishes. Quality starts at 82 and steps
+  down until the bytes fit; `{:error, :too_large}` when the lowest step
+  does not. `{:error, reason}` when the file is not an image libvips can
+  open. A truncated file with a sound header opens without error and
+  yields a partly grey master, so the sender sees the result before
+  publishing. `path` is a file the app wrote (an upload's temp file),
+  never a user-typed name: libvips reads loader options after a `[` in
+  it.
   """
-  @spec square_webp(String.t(), pos_integer()) :: {:ok, binary()} | {:error, term()}
-  def square_webp(path, side) when is_binary(path) and is_integer(side) and side > 0 do
+  @spec square_webp(String.t(), pos_integer(), pos_integer()) ::
+          {:ok, binary()} | {:error, :too_large | term()}
+  def square_webp(path, side, max_bytes)
+      when is_binary(path) and is_integer(side) and side > 0 and is_integer(max_bytes) and max_bytes > 0 do
     with {:ok, image} <- Image.open(path),
-         {:ok, square} <- Image.thumbnail(image, side, crop: :center) do
-      Image.write(square, :memory, suffix: ".webp", quality: 82)
+         {:ok, square} <- Image.thumbnail(image, side, crop: :center),
+         {:ok, flat} <- Image.flatten(square) do
+      webp_under(flat, max_bytes, @webp_qualities)
+    end
+  end
+
+  defp webp_under(_image, _max_bytes, []), do: {:error, :too_large}
+
+  defp webp_under(image, max_bytes, [quality | lower]) do
+    case Image.write(image, :memory, suffix: ".webp", quality: quality, strip_metadata: true) do
+      {:ok, bytes} when byte_size(bytes) <= max_bytes -> {:ok, bytes}
+      {:ok, _too_big} -> webp_under(image, max_bytes, lower)
+      {:error, _reason} = error -> error
     end
   end
 

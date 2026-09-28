@@ -238,7 +238,7 @@ one per key (`pubkey` unique, `name`, `avatar_type`, `raw_event`,
 
 - `Social.save_profile/2` is the Settings form's save. It takes the name and
   an avatar change: `:keep` the stored avatar, `:none` to remove it, or
-  `{:new, bytes}`, the WebP master `ImageFiles.square_webp/2` made. It refuses
+  `{:new, bytes}`, the WebP master `ImageFiles.square_webp/3` made; bytes over the cap are refused (`:avatar_too_large`). It refuses
   a blank name (`:name_required`) or one over the cap (`:name_too_long`) before
   minting anything (`Social.check_name/1` is the same rule, for the form),
   then mints the identity if none exists, stamps strictly after the stored
@@ -447,7 +447,10 @@ LiveView upload (`allow_upload(:avatar)`): one JPEG, PNG or WebP up to 10 MB.
 On save the form checks the name with `Social.check_name/1` before it
 consumes the upload, so a name error leaves the chosen file pending; the
 file then becomes the 256×256 WebP master (`ImageFiles.square_webp(path,
-256)`), and a file libvips cannot open is refused with a flash. **Remove**
+256, max_bytes)`: centre-cropped, flattened onto black, the source's
+metadata stripped so a photo's GPS position never reaches the wire, the
+quality stepped down until the bytes fit the cap), and a file libvips
+cannot open is refused with a flash. **Remove**
 marks the stored avatar for removal until the save (the tile shows the
 letter meanwhile) and steps aside while a file is chosen; a chosen file wins
 over a pending Remove. **Your identity**, **Relays** and **Sharing** appear

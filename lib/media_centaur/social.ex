@@ -215,7 +215,20 @@ defmodule MediaCentaur.Social do
 
   # --- profiles ----------------------------------------------------------------
 
-  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/2` made)."
+  @doc """
+  The profile name rule, the one `save_profile/2` applies: trimmed, present
+  and within `Profile.Translation.max_name_length/0`. The form checks it
+  before it consumes a chosen picture, so a name error costs nothing.
+  """
+  @spec check_name(String.t()) :: {:ok, String.t()} | {:error, :name_required | :name_too_long}
+  def check_name(name) when is_binary(name) do
+    with {:ok, trimmed} <- present_name(name),
+         :ok <- within_name_cap(trimmed) do
+      {:ok, trimmed}
+    end
+  end
+
+  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/3` made)."
   @type avatar_change :: :keep | :none | {:new, binary()}
 
   @doc """
@@ -226,13 +239,17 @@ defmodule MediaCentaur.Social do
   `Profile.Translation.max_name_length/0` characters, checked before
   anything is minted: the form refuses to save without one. The avatar
   change keeps the stored avatar, removes it, or sets new bytes; the
-  stored file follows the row. `:keep` publishes the stored file's
-  bytes; when the file is missing it publishes none, and the row follows.
+  stored file follows the row. New bytes over
+  `Profile.Translation.max_avatar_bytes/0` are refused
+  (`:avatar_too_large`) before anything is minted. `:keep` publishes the
+  stored file's bytes; when the file is missing it publishes none, and
+  the row follows.
   """
   @spec save_profile(String.t(), avatar_change()) ::
-          {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
+          {:ok, Profile.t()} | {:error, :name_required | :name_too_long | :avatar_too_large}
   def save_profile(name, avatar_change) when is_binary(name) do
-    with {:ok, name} <- check_name(name) do
+    with {:ok, name} <- check_name(name),
+         :ok <- within_avatar_cap(avatar_change) do
       secret = Identity.ensure()
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
@@ -329,10 +346,18 @@ defmodule MediaCentaur.Social do
     end
   end
 
+  defp within_avatar_cap({:new, bytes}) when is_binary(bytes) do
+    if byte_size(bytes) <= ProfileTranslation.max_avatar_bytes(),
+      do: :ok,
+      else: {:error, :avatar_too_large}
+  end
+
+  defp within_avatar_cap(_keep_or_none), do: :ok
+
   defp resolve_avatar(:none, _stored), do: nil
 
   defp resolve_avatar({:new, bytes}, _stored) when is_binary(bytes),
-    do: %{type: "image/webp", bytes: bytes}
+    do: %{type: ProfileTranslation.master_type(), bytes: bytes}
 
   defp resolve_avatar(:keep, %Profile{pubkey: pubkey, avatar_type: type}) when is_binary(type) do
     case AvatarStore.read(pubkey, type) do
@@ -399,19 +424,6 @@ defmodule MediaCentaur.Social do
     do: AvatarStore.url(profile.pubkey, profile.avatar_type, profile.created_at)
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
-
-  @doc """
-  The profile name rule, the one `save_profile/2` applies: trimmed, present
-  and within `Profile.Translation.max_name_length/0`. The form checks it
-  before it consumes a chosen picture, so a name error costs nothing.
-  """
-  @spec check_name(String.t()) :: {:ok, String.t()} | {:error, :name_required | :name_too_long}
-  def check_name(name) when is_binary(name) do
-    with {:ok, trimmed} <- present_name(name),
-         :ok <- within_name_cap(trimmed) do
-      {:ok, trimmed}
-    end
-  end
 
   defp present_name(name) do
     case String.trim(name) do
