@@ -5,6 +5,7 @@ defmodule MediaCentaur.ImageFilesTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ImageFiles
+  alias Vix.Vips.Operation
 
   @moduletag :tmp_dir
 
@@ -404,9 +405,9 @@ defmodule MediaCentaur.ImageFilesTest do
 
     test "a detailed picture with transparency is flattened and fits the cap", %{tmp_dir: dir} do
       source = Path.join(dir, "noisy.png")
-      noise = fn -> Vix.Vips.Operation.gaussnoise!(256, 256, mean: 128.0, sigma: 60.0) end
-      {:ok, rgba} = Vix.Vips.Operation.bandjoin([noise.(), noise.(), noise.(), noise.()])
-      {:ok, rgba} = Vix.Vips.Operation.cast(rgba, :VIPS_FORMAT_UCHAR)
+      noise = fn -> Operation.gaussnoise!(256, 256, mean: 128.0, sigma: 60.0) end
+      {:ok, rgba} = Operation.bandjoin([noise.(), noise.(), noise.(), noise.()])
+      {:ok, rgba} = Operation.cast(rgba, :VIPS_FORMAT_UCHAR)
       {:ok, _} = Image.write(rgba, source)
 
       assert {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap)

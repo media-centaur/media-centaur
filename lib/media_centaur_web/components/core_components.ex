@@ -418,13 +418,16 @@ defmodule MediaCentaurWeb.CoreComponents do
   def phx_values(nil), do: %{}
 
   def phx_values(map) do
-    for {key, value} <- map, not is_nil(value), into: %{} do
-      if key in ["value", :value] do
-        raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
-      end
+    Map.reject(
+      for {key, value} <- map, into: %{} do
+        if key in ["value", :value] do
+          raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
+        end
 
-      {"phx-value-#{key}", value}
-    end
+        {"phx-value-#{key}", value}
+      end,
+      fn {_key, value} -> is_nil(value) end
+    )
   end
 
   attr :id, :string, default: nil
