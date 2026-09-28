@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.42.0 — 2026-09-28
+
+### New
+
+- **Your profile: the name and the picture your friends see.** Settings › Social now opens on **Your profile**. Give the name friends see you under, up to 50 characters, and, if you like, a picture: one JPEG, PNG or WebP up to 10 MB, cropped to a centred square and saved at 256×256 with the file's own details (location, camera, time) left out. **Create profile** creates your identity; opening the section no longer does. **Save** publishes both to your relays; **Remove**, then **Save**, clears the picture. Friends see your name and picture on Feed rows, on the Friends tab and beside your reviews, unless they have typed a name for you themselves.
+- **A friend's name is optional.** Add a friend by key alone and you see the name they publish; give a name and yours wins, for you only. A friend who has published nothing shows as **Unnamed** with a person glyph, never a made-up initial. Rename from the foot of their opened card on the Friends tab; clear the field to go back to the name they publish.
+- **Show their picture.** Each friend's opened card has a switch to hide or show the picture they publish, for you only. Off, their initial stands in.
+
+### Improved
+
+- **One switch control across the app.** The Sharing rows in Settings, the tracking block on a title and the new switch on a friend's card are one control, so they look and behave alike with a mouse, a keyboard or a controller.
+
+### Migration safety
+
+- This release runs four migrations on first start: a table for profiles, the friends table rebuilt so a name can be empty, and two added columns (the picture's type, the per-friend switch). Nothing touches your files, your library, your watch history or your list; the update runs it automatically, nothing to do by hand. A friend added in the seconds between the migration and the restart shows as Unnamed until renamed.
+
+### Relay note
+
+- Profiles need [social-relay](https://github.com/media-centaur/social-relay) **v0.7.0 or later**. Until a relay is upgraded it refuses them (the relay row under Settings › Social shows *blocked: kind 12160 is not stored by this relay*) and Media Centaur sends yours again on its own once it is. Until you save a profile, friends see you under the name they typed for you, or as Unnamed.
+
 ## v1.41.0 — 2026-09-27
 
 ### New
