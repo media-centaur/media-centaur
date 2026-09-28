@@ -751,6 +751,65 @@ defmodule MediaCentaur.Library.InboundTest do
       assert movie.id in entity_ids
     end
 
+    # A movie arrives when the library gains its row: announced on
+    # `library:additions` so the watchlist can let it go
+    # (`Settings.Preferences.WatchlistAutoRemove`). A second file for a
+    # movie the library already holds is not an arrival.
+    test "a movie new to the library is announced as arrived" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_additions())
+
+      assert {:ok, _movie, :new, _images} = Inbound.ingest(movie_event())
+
+      assert_receive {:movies_added, %{tmdb_ids: [550]}}
+    end
+
+    test "a second file for a movie the library holds is not an arrival" do
+      assert {:ok, _movie, :new, _images} = Inbound.ingest(movie_event())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_additions())
+
+      assert {:ok, _movie, :existing, _images} =
+               Inbound.ingest(movie_event(file_path: "/media/Sample.Movie.1999.2160p.mkv"))
+
+      refute_receive {:movies_added, _}
+    end
+
+    test "a collection's child movie new to the library is announced by its own TMDB id" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_additions())
+
+      assert {:ok, _collection, :new, _images} = Inbound.ingest(collection_event())
+      assert_receive {:movies_added, %{tmdb_ids: [155]}}
+
+      # A second file for that child is not an arrival.
+      assert {:ok, _collection, :new_child, _images} =
+               Inbound.ingest(collection_event(file_path: "/media/Sample.Movie.2008.2160p.mkv"))
+
+      refute_receive {:movies_added, _}
+    end
+
+    test "a bonus feature is not the arrival; the movie's own file after it is" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_additions())
+
+      extra_event =
+        movie_event(
+          file_path: "/media/extras/bts.mkv",
+          extra: %{name: "Behind the Scenes", content_url: "/media/extras/bts.mkv", season_number: nil}
+        )
+
+      assert {:ok, _movie, :new, _images} = Inbound.ingest(extra_event)
+      refute_receive {:movies_added, _}
+
+      assert {:ok, _movie, :existing, _images} = Inbound.ingest(movie_event())
+      assert_receive {:movies_added, %{tmdb_ids: [550]}}
+    end
+
+    test "a series episode is not a movie arrival" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_additions())
+
+      assert {:ok, _series, :new, _images} = Inbound.ingest(tv_event())
+
+      refute_receive {:movies_added, _}
+    end
+
     test "skips image queue broadcast when no images" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
 

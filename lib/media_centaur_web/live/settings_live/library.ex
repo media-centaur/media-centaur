@@ -45,6 +45,10 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
     required: true,
     doc: "inline validation error per kind — a string or nil."
 
+  attr :watchlist_auto_remove, :boolean,
+    required: true,
+    doc: "the `watchlist_auto_remove` preference"
+
   def render(assigns) do
     assigns =
       assign(assigns,
@@ -207,6 +211,15 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             placeholder="Sample"
           />
         </div>
+      </.settings_card>
+
+      <.settings_card title="Watchlist">
+        <.settings_row
+          label="Take arrived movies off your watchlist"
+          description="A movie leaves your watchlist when it arrives in the library. Series stay on it."
+          checked={@watchlist_auto_remove}
+          event="toggle_watchlist_auto_remove"
+        />
       </.settings_card>
 
       <.settings_card title="Cleanup">

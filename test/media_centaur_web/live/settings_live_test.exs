@@ -12,7 +12,8 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     DiscoveryVisibility,
     LetterboxdLinks,
     LibraryCardInfo,
-    UIScale
+    UIScale,
+    WatchlistAutoRemove
   }
 
   # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
@@ -252,6 +253,22 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
       assert AutoPlayNextEpisode.enabled?() == true
+    end
+  end
+
+  describe "library — watchlist" do
+    test "taking arrived movies off the watchlist is on by default and toggles", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
+
+      row = "div[phx-click=toggle_watchlist_auto_remove]"
+      assert has_element?(view, row, "Take arrived movies off your watchlist")
+      assert WatchlistAutoRemove.enabled?() == true
+
+      view |> element(row) |> render_click()
+      assert WatchlistAutoRemove.enabled?() == false
+
+      view |> element(row) |> render_click()
+      assert WatchlistAutoRemove.enabled?() == true
     end
   end
 

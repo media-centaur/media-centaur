@@ -20,6 +20,11 @@ defmodule MediaCentaurWeb.SettingsLive do
             {MediaCentaur.Settings.Preferences.AutoPlayNextEpisode, :auto_play_next_episode,
              :setting_aware_auto_play_next_episode}}
 
+  # Same for this one: release tracking reads it, Settings alone shows it.
+  on_mount {MediaCentaurWeb.Live.SettingAware,
+            {MediaCentaur.Settings.Preferences.WatchlistAutoRemove, :watchlist_auto_remove,
+             :setting_aware_watchlist_auto_remove}}
+
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
@@ -961,6 +966,12 @@ defmodule MediaCentaurWeb.SettingsLive do
      socket
      |> assign(ui_scale: applied)
      |> push_event("ui-scale", %{scale: applied})}
+  end
+
+  def handle_event("toggle_watchlist_auto_remove", _params, socket) do
+    enabled = !socket.assigns.watchlist_auto_remove
+    MediaCentaur.Settings.Preferences.WatchlistAutoRemove.set(enabled)
+    {:noreply, assign(socket, watchlist_auto_remove: enabled)}
   end
 
   def handle_event("toggle_show_card_info", _params, socket) do
@@ -1999,6 +2010,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 listening={@listening}
                 armed_gesture={@armed_gesture}
                 disclosures={@disclosures}
+                watchlist_auto_remove={@watchlist_auto_remove}
               />
             </div>
           </div>
@@ -2208,6 +2220,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       ignore_rules={@ignore_rules}
       ignore_rule_input={@ignore_rule_input}
       ignore_rule_error={@ignore_rule_error}
+      watchlist_auto_remove={@watchlist_auto_remove}
     />
     """
   end

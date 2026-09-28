@@ -54,7 +54,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 062 | 2026-08-18 | [Episode auto-advance rides the mpv playlist inside one session](architecture/2026-08-18-062-playlist-based-episode-advance.md) | accepted, amended 2026-08-19 |
 | 063 | 2026-08-31 | [Plan diagnosis model: per-unit outcomes, per-title quality bounds, status-observed cancellation](architecture/2026-08-31-063-plan-diagnosis-model.md) | accepted, amended 2026-09-07 |
 | 064 | 2026-09-04 | [Outbound HTTP goes through one seam: upstream tagging, instrumentation, and an origin-freshness cache](architecture/2026-09-04-064-outbound-http-seam.md) | accepted |
-| 066 | 2026-09-07 | [One ladder per title: an authored rung, and machinery derived from it](architecture/2026-09-07-066-one-ladder-per-title.md) | accepted, amended 2026-09-09 |
+| 066 | 2026-09-07 | [One ladder per title: an authored rung, and machinery derived from it](architecture/2026-09-07-066-one-ladder-per-title.md) | accepted, amended 2026-09-28 |
 | 067 | 2026-09-11 | [A listing replaces tracking as the shared act about wanting a title](architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md) | accepted |
 | 068 | 2026-09-12 | [A review replaces the recommendation as the shared opinion about a title](architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md) | accepted |
 | 069 | 2026-09-17 | [No Elixir dead-code gate; JS keeps one](architecture/2026-09-17-069-no-elixir-dead-code-gate.md) | accepted |
