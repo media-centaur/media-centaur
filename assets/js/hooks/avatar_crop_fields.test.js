@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { cropFields } from "./avatar_crop"
+// The helper, not the hook: the hook imports croppr, which touches `window` at load.
+import { cropFields } from "./avatar_crop_fields"
 
 // croppr hands a box in the picture's pixels as floats; the form carries
 // three integers, and a square is one side: the smaller of the two, so a
