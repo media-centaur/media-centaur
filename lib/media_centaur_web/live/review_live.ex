@@ -254,16 +254,21 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   def handle_event(
         "select_match",
-        %{"key" => key, "tmdb-id" => tmdb_id, "title" => title} = params,
+        %{"key" => key, "tmdb-id" => tmdb_id, "tmdb-type" => tmdb_type, "title" => title} =
+          params,
         socket
-      ) do
+      )
+      when tmdb_type in ~w(movie tv) do
     group_key = decode_key(key)
     group = socket.assigns.groups_by_key[group_key]
 
     if group do
       match = %{
         tmdb_id: tmdb_id,
-        tmdb_type: to_string(socket.assigns.search_type),
+        # The type the match was found under: the file's type for a scored
+        # candidate, the searched type for a result. Never the form's Type
+        # select, which can change while results are on screen.
+        tmdb_type: tmdb_type,
         title: title,
         year: params["year"],
         poster_path: params["poster-path"]
@@ -961,7 +966,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div
           :for={candidate <- @candidates}
-          id={"review-candidate-#{candidate["id"]}"}
+          id={"review-candidate-#{candidate["tmdb_id"]}"}
           class="glass-surface p-3 rounded-lg flex flex-col hover:border-primary transition-colors"
         >
           <div class="flex gap-3">
@@ -1006,6 +1011,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               phx-click="select_match"
               phx-value-key={@encoded_key}
               phx-value-tmdb-id={candidate["tmdb_id"]}
+              phx-value-tmdb-type={@tmdb_type}
               phx-value-title={candidate["title"]}
               phx-value-year={candidate["year"]}
               phx-value-poster-path={candidate["poster_path"]}
@@ -1130,6 +1136,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             phx-click="select_match"
             phx-value-key={@encoded_key}
             phx-value-tmdb-id={result.tmdb_id}
+            phx-value-tmdb-type={result.tmdb_type}
             phx-value-title={result.title}
             phx-value-year={result.year}
             phx-value-poster-path={result.poster_path}
