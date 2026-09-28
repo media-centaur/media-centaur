@@ -8,7 +8,7 @@ defmodule MediaCentaur.Social.Identity do
   per review-modal render; deriving it once beside the secret is the
   change to make if that ever shows in a profile.
 
-  Generated on first use (`ensure/0`) — called by `Social.save_profile/2`
+  Generated on first use (`ensure/0`) — called by `Social.save_profile/3`
   when the reader saves their profile (the Settings path; opening the
   section mints nothing, UIDR-047) and by `Activities.review/3` when a
   user reviews a title before ever saving one. Replaced only by
