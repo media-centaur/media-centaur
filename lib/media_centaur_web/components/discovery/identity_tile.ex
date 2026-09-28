@@ -6,11 +6,13 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   sees for them (`Format.person_name/1`, so the reader's own tile takes
   the Y of You); else the **person glyph**, for a friend with no name at
   all — neither an override nor a published one — so no letter is
-  invented from Unnamed. The reader's own tile is filled with the button
-  primary and a white mark, so an own row is found without reading; an
-  avatar inside a 2px primary ring says the same. Two sizes: 40 on a
-  Feed row and the rail's person card, 48 on the Friends page's and the
-  Settings profile card.
+  invented from Unnamed. The tile draws in the person's hue
+  (`Person.hue/1`, UIDR-048), the primary's angle when they have none: a
+  friend's mark in the hue on its tint, the reader's own filled in it
+  with a near-white mark, a picture ringed in it, 1 px for a friend and
+  2 px for the reader's own. The recipe is `.identity-tile*` in
+  `app.css`. Two sizes: 40 on a Feed row and the rail's person card, 48
+  on the Friends page's and the Settings profile card.
   `aria-hidden`: the name is read from the surface's text, the tile is
   its redundant channel.
 
@@ -28,30 +30,36 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   attr :size, :integer, required: true, values: [40, 48]
 
   def identity_tile(assigns) do
+    hue = Person.hue(assigns.person)
+
+    # The style is spread from an assign rather than written as
+    # `style={…}`: HEEx renders a nil `style` (and a literal-keyword spread
+    # of one) as `style=""`, while a runtime spread omits a nil attribute,
+    # so a person with no hue carries no style and CSS draws the default.
     assigns =
       assign(assigns,
         size_classes: size_classes(assigns.size),
         glyph_classes: glyph_classes(assigns.size),
         mark: mark(assigns.person),
-        own?: assigns.person.own?
+        own?: assigns.person.own?,
+        hue: hue,
+        style: [style: hue && "--hue: #{hue}"]
       )
 
     ~H"""
     <span
       class={[
-        "relative grid shrink-0 place-items-center overflow-hidden rounded-full leading-none",
+        "identity-tile relative grid shrink-0 place-items-center overflow-hidden rounded-full leading-none",
         @size_classes,
-        @mark != :avatar && !@own? &&
-          "bg-primary/20 font-semibold text-primary ring-1 ring-inset ring-primary/25 shadow-[0_2px_8px_oklch(0%_0_0/0.35)]",
-        @mark != :avatar && @own? &&
-          "bg-primary font-bold text-primary-content shadow-[0_2px_8px_oklch(0%_0_0/0.4)]",
-        @mark == :avatar && !@own? && "ring-1 ring-inset ring-base-content/20",
-        @mark == :avatar && @own? && "ring-2 ring-primary"
+        if(@own?, do: "identity-tile-own font-bold", else: "identity-tile-friend font-semibold"),
+        @mark == :avatar && "identity-tile-avatar"
       ]}
+      {@style}
       data-component="identity-tile"
       data-size={@size}
       data-own={@own?}
       data-mark={@mark}
+      data-hue={@hue}
       aria-hidden="true"
     >
       <img
@@ -72,9 +80,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   defp mark(%Person{own?: false} = person), do: if(Person.name(person), do: :letter, else: :glyph)
   defp mark(%Person{own?: true}), do: :letter
 
-  # The states are disjoint branches rather than a base plus overrides:
-  # class precedence is stylesheet order, not template order. The size
-  # is checked here as well as by `values:` because a template's check is
+  # The size is checked here as well as by `values:` because a template's check is
   # compile-time only — a dynamic `size={@n}` would otherwise render an
   # unsized circle.
   defp size_classes(40), do: "size-10 text-base"
