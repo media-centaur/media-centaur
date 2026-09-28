@@ -21,16 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`liveview-round-trips.md`](liveview-round-trips.md) —
-  **planning 2026-09-28.** Follow-up to a review of every `handle_event`
-  asking what should move to front-end JavaScript. Little should: the app is
-  single-user on localhost, and the input system resyncs only on server
-  patches, so menus, modals, armed buttons and URL state stay on the server.
-  Phase 1 fixes two confirmed bugs (Controls remap crash, stale console
-  search), verifies three more, and deletes three dead handlers. Phase 2
-  trims round trips on the server (missing debounces, a double round trip on
-  the Feed, needless DB reads and timers). Phase 3 moves three disclosures and
-  one filter to JS commands, and fixes focus on the subtitle fold.
+* [`ui-state-ownership.md`](ui-state-ownership.md) —
+  **planning 2026-09-28; four owner decisions open.** Started as a review
+  of which LiveView interactions should move to front-end JavaScript. Few
+  should. The real problem is that each UI idiom is implemented per page:
+  disclosures have three mechanisms (server `:if` toggles, native
+  `<details>` that a patch collapses, one JS-command fold), and arm gestures
+  have a dozen state names and five disarm rules. Proposed: one owner per
+  kind of state (URL, LiveView, browser for device and viewport only) and
+  one component plus shared hook per idiom. Also fixes the Controls remap
+  crash and the stale console search, adds a debounce Credo check, and
+  trims avoidable round trips.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
