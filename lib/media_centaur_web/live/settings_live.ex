@@ -66,6 +66,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
+  alias MediaCentaurWeb.Live.ArmGesture
 
   # Sections are grouped for sidebar display — a thin divider renders between
   # adjacent items whose :group differs. Order within a group is by frequency
@@ -202,7 +203,6 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(ignore_rules: %{path: [], name: []})
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
-     |> assign(controls_reset_armed: false)
      |> assign(connections: IntegrationHealth.all_statuses(), editing: nil)
      |> assign(auto_grab: %AutoGrabSettings{})
      |> assign(tmdb_missing: false)
@@ -218,7 +218,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      )
      |> assign(bindings: %{})
      |> assign(glyph_style: nil)
-     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
+     |> assign(identity_npub: nil, nsec_revealed: nil, import_draft: "")
      |> assign(profile_name: nil, profile_hue: nil, name_cap: ProfileTranslation.max_name_length())
      |> assign(own_person: nil, avatar_removed?: false)
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
@@ -227,12 +227,9 @@ defmodule MediaCentaurWeb.SettingsLive do
        ignore_rule_input: %{path: "", name: ""},
        ignore_rule_error: %{path: nil, name: nil},
        media_dir_dialog: nil,
-       media_dir_delete_confirm: nil,
        scanning: false,
        clearing_database: false,
-       controls_reset_armed: false,
        clear_database_prompt: false,
-       confirming_image_refresh: false,
        refreshing_images: false,
        repairing_images: false,
        rederiving_extra_names: false,
@@ -333,13 +330,41 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, socket}
   end
 
+  defp import_identity(socket, nsec) do
+    case Social.import_identity(nsec) do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(
+           identity_npub: Identity.npub(),
+           profile_name: profile_name(),
+           nsec_revealed: nil,
+           import_draft: ""
+         )
+         |> put_flash(:info, "Identity replaced")}
+
+      {:error, :invalid_secret} ->
+        {:noreply,
+         socket
+         |> assign(import_draft: "")
+         |> put_flash(:error, "That is not a valid secret key")}
+    end
+  end
+
+  # The armed import was aimed at the identity that is gone.
+  defp disarm_import(socket) do
+    if ArmGesture.armed_target(socket.assigns.armed_gesture, "import_nsec"),
+      do: ArmGesture.disarm(socket),
+      else: socket
+  end
+
   # Opening the Social section mints nothing (UIDR-047 rule 3): Create
   # profile does (`Social.save_profile/3`), and publishing an own activity
   # still mints silently (`Activities`). Without an identity only the
   # profile card shows.
   defp load_social(socket, "social") do
     socket
-    |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
+    |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_draft: "")
     |> assign(profile_name: profile_name(), profile_hue: profile_hue(), own_person: Social.own_person())
     |> assign(relay_status: Connections.status())
     |> assign(share_watched?: ShareWatched.enabled?(), share_watchlist?: ShareWatchlist.enabled?())
@@ -679,18 +704,18 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("media_dir:delete_confirm", %{"id" => id}, socket) do
-    {:noreply, assign(socket, :media_dir_delete_confirm, id)}
-  end
-
-  def handle_event("media_dir:delete_cancel", _, socket) do
-    {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
-  end
-
+  # Removing a directory stops watching it and costs the user re-adding it:
+  # the arm gesture (MC0027 tier 2).
   def handle_event("media_dir:delete", %{"id" => id}, socket) do
-    entries = MediaDirsLogic.remove(socket.assigns.media_dirs, id)
-    :ok = Config.put_media_dirs(entries)
-    {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
+    case ArmGesture.press(socket, "media_dir:delete", id) do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        entries = MediaDirsLogic.remove(socket.assigns.media_dirs, id)
+        :ok = Config.put_media_dirs(entries)
+        {:noreply, socket}
+    end
   end
 
   # Ignore-rule `kind` param => {assign key, config key}. The param is
@@ -805,17 +830,15 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # Refreshing the image cache is recoverable — it costs a long re-download,
   # not data — so it arms in place instead of raising a modal.
-  def handle_event("refresh_image_cache_confirm", _params, socket) do
-    {:noreply, assign(socket, confirming_image_refresh: true)}
-  end
-
-  def handle_event("refresh_image_cache_cancel", _params, socket) do
-    {:noreply, assign(socket, confirming_image_refresh: false)}
-  end
-
   def handle_event("refresh_image_cache", _params, socket) do
-    Maintenance.refresh_image_cache_async(self())
-    {:noreply, assign(socket, refreshing_images: true, confirming_image_refresh: false)}
+    case ArmGesture.press(socket, "refresh_image_cache") do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        Maintenance.refresh_image_cache_async(self())
+        {:noreply, assign(socket, refreshing_images: true)}
+    end
   end
 
   def handle_event("refresh_movie_subtitles", _params, socket) do
@@ -1029,29 +1052,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("hide_nsec", _params, socket), do: {:noreply, assign(socket, nsec_revealed: nil)}
 
   # Two-click arm (MC0027 treatment b): the first submit arms, the second
-  # replaces. Costly but recoverable — the old nsec can be re-imported.
-  def handle_event("import_nsec", %{"nsec" => nsec}, %{assigns: %{import_armed?: false}} = socket),
-    do: {:noreply, assign(socket, import_armed?: true, import_draft: nsec)}
-
+  # replaces. Costly but recoverable — the old nsec can be re-imported. The
+  # arm is aimed at the pasted secret, so editing it between the clicks
+  # re-arms rather than installing a key the user never confirmed.
   def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
-    case Social.import_identity(nsec) do
-      :ok ->
-        {:noreply,
-         socket
-         |> assign(
-           identity_npub: Identity.npub(),
-           profile_name: profile_name(),
-           nsec_revealed: nil,
-           import_armed?: false,
-           import_draft: ""
-         )
-         |> put_flash(:info, "Identity replaced")}
-
-      {:error, :invalid_secret} ->
-        {:noreply,
-         socket
-         |> assign(import_armed?: false, import_draft: "")
-         |> put_flash(:error, "That is not a valid secret key")}
+    case ArmGesture.press(socket, "import_nsec", nsec) do
+      {:armed, socket} -> {:noreply, assign(socket, import_draft: nsec)}
+      {:fire, socket} -> import_identity(socket, nsec)
     end
   end
 
@@ -1341,17 +1348,15 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # Resetting every binding has no undo: arm first (MC0027 tier 2).
-  def handle_event("controls:reset_all_arm", _params, socket) do
-    {:noreply, assign(socket, controls_reset_armed: true)}
-  end
-
-  def handle_event("controls:reset_all", _params, %{assigns: %{controls_reset_armed: false}} = socket) do
-    {:noreply, assign(socket, controls_reset_armed: true)}
-  end
-
   def handle_event("controls:reset_all", _params, socket) do
-    :ok = Controls.reset_all()
-    {:noreply, assign(socket, controls_reset_armed: false)}
+    case ArmGesture.press(socket, "controls:reset_all") do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        :ok = Controls.reset_all()
+        {:noreply, socket}
+    end
   end
 
   def handle_event("controls:reset_category", %{"category" => category}, socket) do
@@ -1656,15 +1661,16 @@ defmodule MediaCentaurWeb.SettingsLive do
   # and the picture are the new key's (none until its profile arrives).
   def handle_info({:identity_changed, _event}, socket) do
     {:noreply,
-     assign(socket,
-       identity_npub: Identity.npub(),
-       profile_name: profile_name(),
-       profile_hue: profile_hue(),
-       own_person: Social.own_person(),
-       avatar_removed?: false,
-       nsec_revealed: nil,
-       import_armed?: false,
-       import_draft: ""
+     disarm_import(
+       assign(socket,
+         identity_npub: Identity.npub(),
+         profile_name: profile_name(),
+         profile_hue: profile_hue(),
+         own_person: Social.own_person(),
+         avatar_removed?: false,
+         nsec_revealed: nil,
+         import_draft: ""
+       )
      )}
   end
 
@@ -1921,7 +1927,6 @@ defmodule MediaCentaurWeb.SettingsLive do
                 own_person={@own_person}
                 avatar_removed?={@avatar_removed?}
                 nsec_revealed={@nsec_revealed}
-                import_armed?={@import_armed?}
                 import_draft={@import_draft}
                 relays={@relays}
                 relay_status={@relay_status}
@@ -1937,7 +1942,6 @@ defmodule MediaCentaurWeb.SettingsLive do
                 scanning={@scanning}
                 config={@config}
                 clearing_database={@clearing_database}
-                confirming_image_refresh={@confirming_image_refresh}
                 refreshing_images={@refreshing_images}
                 repairing_images={@repairing_images}
                 rederiving_extra_names={@rederiving_extra_names}
@@ -1980,14 +1984,13 @@ defmodule MediaCentaurWeb.SettingsLive do
                 service_status_output={@service_status_output}
                 service_action_pending={@service_action_pending}
                 media_dirs={@media_dirs}
-                media_dir_delete_confirm={@media_dir_delete_confirm}
                 ignore_rules={@ignore_rules}
                 ignore_rule_input={@ignore_rule_input}
                 ignore_rule_error={@ignore_rule_error}
                 bindings={@bindings}
                 glyph_style={@glyph_style}
                 listening={@listening}
-                controls_reset_armed={@controls_reset_armed}
+                armed_gesture={@armed_gesture}
               />
             </div>
           </div>
@@ -2100,7 +2103,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       bindings={@bindings}
       glyph_style={@glyph_style}
       listening={@listening}
-      reset_armed={@controls_reset_armed}
+      reset_armed={ArmGesture.armed?(@armed_gesture, "controls:reset_all")}
     />
     """
   end
@@ -2124,7 +2127,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       own_person={@own_person}
       avatar_removed?={@avatar_removed?}
       nsec_revealed={@nsec_revealed}
-      import_armed?={@import_armed?}
+      import_armed?={ArmGesture.armed_target(@armed_gesture, "import_nsec") != nil}
       import_draft={@import_draft}
       relays={@relays}
       status={@relay_status}
@@ -2190,7 +2193,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <Library.render
       config={@config}
       media_dirs={@media_dirs}
-      media_dir_delete_confirm={@media_dir_delete_confirm}
+      armed_media_dir={ArmGesture.armed_target(@armed_gesture, "media_dir:delete")}
       scanning={@scanning}
       ignore_rules={@ignore_rules}
       ignore_rule_input={@ignore_rule_input}
@@ -2204,7 +2207,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <MaintenanceSection.render
       blank_extra_names_count={@blank_extra_names_count}
       missing_images_summary={@missing_images_summary}
-      confirming_image_refresh={@confirming_image_refresh}
+      image_refresh_armed={ArmGesture.armed?(@armed_gesture, "refresh_image_cache")}
       rederiving_extra_names={@rederiving_extra_names}
       refetching_backdrops={@refetching_backdrops}
       refreshing_images={@refreshing_images}

@@ -191,11 +191,11 @@ defmodule MediaCentaurWeb.CoreComponents do
   defp shape_classes("square"), do: "btn-square"
 
   @doc """
-  A destructive action behind the house arm gesture (MC0027 tier 2): the
-  first click arms the button (`arm` event), the second click on the same
-  armed button fires it (`fire` event). Any other interaction the host
-  treats as a change of mind disarms it (the host owns the `armed`
-  assign).
+  A destructive action behind the house arm gesture (MC0027 tier 2). The
+  button sends one `event`: the first click arms it, the second fires.
+  `MediaCentaurWeb.Live.ArmGesture` holds the armed slot and its rule (any
+  other interaction disarms); the handler asks `ArmGesture.press/3` which
+  this click was, and the host passes `armed` from `ArmGesture.armed?/3`.
 
   The armed state is house-owned: it relabels the button, leads the label
   with a warning glyph, turns it error-toned (`.btn[data-armed]` in
@@ -205,23 +205,28 @@ defmodule MediaCentaurWeb.CoreComponents do
   colour there without dimming the armed label it grows into.
 
       <.armed_button
-        armed={@dismiss_all_armed}
-        arm="dismiss_all_arm"
-        fire="dismiss_all"
+        armed={ArmGesture.armed?(@armed_gesture, "dismiss_all")}
+        event="dismiss_all"
         armed_label="Click again to dismiss all"
         variant="dismiss"
       >
         Dismiss all
       </.armed_button>
+
+  A form's submit button leaves `event` unset and passes `type="submit"`;
+  the form's `phx-submit` handler presses the gesture.
   """
-  attr :armed, :boolean, required: true, doc: "host-owned: the first click has landed."
-  attr :arm, :string, required: true, doc: "event the first click pushes."
-  attr :fire, :string, required: true, doc: "event the second click pushes, while armed."
+  attr :armed, :boolean, required: true, doc: "the first click has landed (`ArmGesture.armed?/3`)."
+
+  attr :event, :string,
+    default: nil,
+    doc: "the gesture's one event: arms, then fires. Unset for a form's submit button."
+
   attr :armed_label, :string, required: true, doc: "label shown while armed — say what fires."
   attr :variant, :string, default: "danger", values: ~w(danger risky dismiss destructive_inline)
   attr :size, :string, default: "sm", values: ~w(xs sm md lg)
   attr :class, :any, default: nil, doc: "utilities for the idle control only."
-  attr :rest, :global, include: ~w(disabled)
+  attr :rest, :global, include: ~w(disabled type form)
   slot :inner_block, required: true, doc: "the idle label."
 
   def armed_button(assigns) do
@@ -230,7 +235,7 @@ defmodule MediaCentaurWeb.CoreComponents do
       variant={if @armed, do: "danger", else: @variant}
       size={@size}
       class={if @armed, do: nil, else: @class}
-      phx-click={if @armed, do: @fire, else: @arm}
+      phx-click={@event}
       data-armed={@armed && "true"}
       aria-pressed={to_string(@armed)}
       data-nav-item

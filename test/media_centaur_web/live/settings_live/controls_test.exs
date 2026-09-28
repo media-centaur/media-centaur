@@ -94,6 +94,22 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       assert map[:back].key == nil
     end
 
+    # Regression: the armed state outlived the section, so returning to
+    # Controls found Reset all still one click from firing.
+    test "leaving the section disarms reset_all", %{conn: conn} do
+      {:ok, _} = Controls.put(:navigate_up, :keyboard, "w")
+      :ok = Controls.subscribe()
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      render_click(view, "controls:reset_all", %{})
+      render_patch(view, ~p"/settings?section=system")
+      render_patch(view, ~p"/settings?section=controls")
+
+      html = render_click(view, "controls:reset_all", %{})
+      assert html =~ "Click again to reset every binding"
+      refute_receive {:controls_changed, _}, 100
+    end
+
     test "reset_all button restores defaults", %{conn: conn} do
       {:ok, _} = Controls.put(:navigate_up, :keyboard, "w")
       :ok = Controls.subscribe()

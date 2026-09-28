@@ -72,8 +72,7 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
             and a fixed circle would clip the label it grows into. --%>
       <.armed_button
         armed={@cancel_armed_id == @item.id}
-        arm="cancel_download_prompt"
-        fire="cancel_download_confirm"
+        event="cancel_download"
         armed_label="Click again to cancel"
         variant="destructive_inline"
         size="xs"

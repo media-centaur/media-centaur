@@ -657,6 +657,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
+          armed_gesture={@armed_gesture}
           today={@today}
           review?={@show_discovery}
           spoiler_free={@spoiler_free}

@@ -331,7 +331,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
 
       # Cancel is a two-click control (MC0027 tier 2): the first click arms
       # it and changes nothing; the second fires.
-      render_click(view, "cancel_pursuit_arm", %{})
+      render_click(view, "cancel_pursuit", %{})
       assert Repo.reload(pursuit).state == "active"
       render_click(view, "cancel_pursuit", %{})
 

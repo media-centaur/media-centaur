@@ -30,8 +30,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
       <div class="flex justify-end mb-2">
         <.armed_button
           armed={@reset_armed}
-          arm="controls:reset_all_arm"
-          fire="controls:reset_all"
+          event="controls:reset_all"
           armed_label="Click again to reset every binding"
           variant="dismiss"
         >

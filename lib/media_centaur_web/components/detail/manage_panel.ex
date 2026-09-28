@@ -78,6 +78,10 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`."
   @doc_deleting "in-flight delete target (same sum type as `delete_confirm`). Set while the async deletion runs so the matching button shows \"Deleting…\" and all delete buttons disable."
 
+  @doc "The delete events this panel sends — one per button kind, one arm gesture each."
+  @spec delete_events() :: [String.t()]
+  def delete_events, do: ~w(delete_file_prompt delete_folder_prompt delete_all_prompt)
+
   attr :entity, :map,
     required: true,
     doc:
@@ -181,29 +185,17 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
                 {delete_all_label(@file_count)} ({format_file_size(@total_size)})
             <% end %>
           </.button>
-          <.button
-            :if={@delete_confirm == :all}
-            variant="dismiss"
-            size="sm"
-            phx-click="delete_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
           <span class="flex-1" />
-          <.button
+          <.armed_button
             :if={@tmdb_ready}
-            variant={if @rematch_confirm, do: "danger", else: "risky"}
-            size="sm"
-            phx-click="rematch"
+            armed={@rematch_confirm}
+            event="rematch"
+            armed_label="Click again to rematch"
+            variant="risky"
             phx-value-id={@entity.id}
-            data-nav-item
-            tabindex="0"
           >
-            <.icon name="hero-arrow-path-mini" class="size-4" />
-            {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
-          </.button>
+            <.icon name="hero-arrow-path-mini" class="size-4" /> Rematch
+          </.armed_button>
           <RefreshFromTmdb.refresh_from_tmdb
             :if={@tmdb_ready and @title_ref}
             id="manage-refresh-from-tmdb"

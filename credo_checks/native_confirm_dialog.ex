@@ -19,12 +19,24 @@ defmodule MediaCentaur.Credo.Checks.NativeConfirmDialog do
 
         * **Costly but recoverable** (work is lost, but only time) — the
           inline two-click gesture. The button itself arms and flips to
-          "Click again to confirm". No overlay, already themed, already
-          navigable.
+          "Click again to …". No overlay, already themed, already navigable.
+          `armed_button` draws it and `MediaCentaurWeb.Live.ArmGesture` holds
+          the state: one event, and any other interaction disarms.
 
-              <.button phx-click="refresh" ...>
-                {if @confirming, do: "Click again to confirm", else: "Refresh"}
-              </.button>
+              <.armed_button
+                armed={ArmGesture.armed?(@armed_gesture, "refresh")}
+                event="refresh"
+                armed_label="Click again to refresh"
+              >
+                Refresh
+              </.armed_button>
+
+              def handle_event("refresh", _params, socket) do
+                case ArmGesture.press(socket, "refresh") do
+                  {:armed, socket} -> {:noreply, socket}
+                  {:fire, socket} -> {:noreply, refresh(socket)}
+                end
+              end
 
         * **Irreversible and unbounded** (data is gone and the scope is the
           whole library) — `MediaCentaurWeb.Components.Modal` with

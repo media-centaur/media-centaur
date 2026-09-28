@@ -45,7 +45,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTe
 
       assert {:ok, _} =
                LibraryEvents.run_delete(%{
-                 delete_confirm: {:folder, folder},
+                 target: {:folder, folder},
                  detail_files: detail_files,
                  media_dirs: [media_dir]
                })
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTe
 
       assert {:error, _reason} =
                LibraryEvents.run_delete(%{
-                 delete_confirm: {:folder, folder},
+                 target: {:folder, folder},
                  detail_files: detail_files,
                  media_dirs: [media_dir]
                })
@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTe
 
       assert {:ok, []} =
                LibraryEvents.run_delete(%{
-                 delete_confirm: :all,
+                 target: :all,
                  detail_files: detail_files,
                  media_dirs: [media_dir]
                })

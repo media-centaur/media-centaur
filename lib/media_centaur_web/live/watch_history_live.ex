@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.WatchHistory
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.WatchHistory.Views, as: WatchHistoryViews
   alias MediaCentaurWeb.LibraryFormatters
@@ -36,7 +37,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         page: 1,
         events: [],
         has_next: false,
-        remove_confirm: nil,
         reload_timer: nil
       )
 
@@ -286,9 +286,8 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               {LibraryFormatters.format_human_duration(round(event.duration_seconds))}
             </span>
             <.armed_button
-              armed={@remove_confirm == event.id}
-              arm="remove_event_prompt"
-              fire="remove_event"
+              armed={ArmGesture.armed?(@armed_gesture, "remove_event", event.id)}
+              event="remove_event"
               armed_label="Click again to remove"
               variant="destructive_inline"
               size="xs"
@@ -386,40 +385,12 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   # Removing an event has no undo: the row's button arms on the first
-  # click and fires on the second (MC0027 tier 2). A different row, or a
-  # reload, disarms.
+  # click and fires on the second (MC0027 tier 2).
   @impl true
-  def handle_event("remove_event_prompt", %{"id" => id}, socket) do
-    {:noreply, assign(socket, remove_confirm: id)}
-  end
-
-  def handle_event("remove_event", %{"id" => id}, %{assigns: %{remove_confirm: confirm}} = socket)
-      when confirm != id do
-    {:noreply, assign(socket, remove_confirm: id)}
-  end
-
   def handle_event("remove_event", %{"id" => id}, socket) do
-    case WatchHistory.get_event(id) do
-      nil ->
-        {:noreply, assign(socket, remove_confirm: nil)}
-
-      event ->
-        # `delete_event!` is a local sqlite delete + PubSub broadcast —
-        # fast enough to run synchronously (ADR-044), and a delete must
-        # complete regardless of navigation (no cancel-on-leave). The
-        # aggregate refresh (stats / heatmap / rewatch counts) arrives via
-        # the `WatchHistory.Views.Summary` projection, which observes the
-        # `:watch_event_deleted` broadcast and re-emits
-        # `{:watch_history_view_updated, :summary}` on the derived topic.
-        WatchHistory.delete_event!(event)
-
-        socket = assign(socket, page: 1, remove_confirm: nil)
-        {events, has_next} = fetch_page(socket)
-
-        {:noreply,
-         socket
-         |> assign(events: events, has_next: has_next)
-         |> put_flash(:info, "Removed #{event.title} from history")}
+    case ArmGesture.press(socket, "remove_event", id) do
+      {:armed, socket} -> {:noreply, socket}
+      {:fire, socket} -> remove_event(socket, id)
     end
   end
 
@@ -481,6 +452,31 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       :episode -> Map.get(rewatch_counts.episode, event.episode_id, 0)
       :video_object -> Map.get(rewatch_counts.video_object, event.video_object_id, 0)
       _ -> 0
+    end
+  end
+
+  defp remove_event(socket, id) do
+    case WatchHistory.get_event(id) do
+      nil ->
+        {:noreply, socket}
+
+      event ->
+        # `delete_event!` is a local sqlite delete + PubSub broadcast —
+        # fast enough to run synchronously (ADR-044), and a delete must
+        # complete regardless of navigation (no cancel-on-leave). The
+        # aggregate refresh (stats / heatmap / rewatch counts) arrives via
+        # the `WatchHistory.Views.Summary` projection, which observes the
+        # `:watch_event_deleted` broadcast and re-emits
+        # `{:watch_history_view_updated, :summary}` on the derived topic.
+        WatchHistory.delete_event!(event)
+
+        socket = assign(socket, page: 1)
+        {events, has_next} = fetch_page(socket)
+
+        {:noreply,
+         socket
+         |> assign(events: events, has_next: has_next)
+         |> put_flash(:info, "Removed #{event.title} from history")}
     end
   end
 

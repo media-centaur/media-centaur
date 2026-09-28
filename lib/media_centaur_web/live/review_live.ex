@@ -19,6 +19,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Review.Events.GroupError
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.LiveHelpers
 
   @impl true
@@ -36,8 +37,6 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(tmdb_ready: false)
      |> assign(processing: MapSet.new())
      |> assign(selected_key: nil)
-     |> assign(delete_confirm: nil)
-     |> assign(dismiss_confirm: nil)
      |> assign(search_open: nil)
      |> assign(search_query: "")
      |> assign(search_type: :movie)
@@ -100,8 +99,6 @@ defmodule MediaCentaurWeb.ReviewLive do
       {:noreply,
        socket
        |> assign(selected_key: group_key)
-       |> assign(delete_confirm: nil)
-       |> assign(dismiss_confirm: nil)
        |> assign(search_open: nil)
        |> assign(search_query: "")
        |> assign(search_results: [])
@@ -122,76 +119,33 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  # Dismiss takes the arm gesture like delete: the first click arms this
-  # group (`dismiss_confirm`), the second fires. Selecting another item
-  # disarms (see select_item).
-  def handle_event("dismiss_prompt", %{"key" => key}, socket) do
-    {:noreply, assign(socket, dismiss_confirm: decode_key(key))}
-  end
-
+  # Dismiss and delete take the arm gesture (MC0027 tier 2): the first
+  # click arms the group, the second on the same group fires.
   def handle_event("dismiss", %{"key" => key}, socket) do
     group_key = decode_key(key)
-    group = socket.assigns.groups_by_key[group_key]
 
-    if group && socket.assigns.dismiss_confirm == group_key do
-      socket =
-        assign(socket,
-          processing: MapSet.put(socket.assigns.processing, group_key),
-          dismiss_confirm: nil
-        )
-
+    with %{} = group <- socket.assigns.groups_by_key[group_key],
+         {:fire, socket} <- ArmGesture.press(socket, "dismiss", group_key) do
       {_dismissed, errors} = Review.dismiss_group(group.files)
-
-      socket =
-        if errors > 0 do
-          socket
-          |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
-          |> put_flash(:error, "#{errors} file(s) failed to dismiss")
-        else
-          assign(socket, processing: MapSet.delete(socket.assigns.processing, group_key))
-        end
-
-      {:noreply, socket}
+      {:noreply, report_errors(socket, errors, "dismiss")}
     else
-      {:noreply, assign(socket, dismiss_confirm: group && group_key)}
+      {:armed, socket} -> {:noreply, socket}
+      nil -> {:noreply, socket}
     end
   end
 
-  # Click-to-confirm gesture (mirrors the title detail's delete_*_prompt, via
-  # the shared `LiveHelpers.delete_gesture_state/3`): the first click arms
-  # `delete_confirm` for this group and the button flips to "Click again to
-  # delete"; the second click on the SAME group actually deletes. Selecting
-  # a different item resets the arm (see select_item).
+  # The button's label and "Deleting…" state come from the shared
+  # `LiveHelpers.delete_gesture_state/3`, as on the title detail.
   def handle_event("delete_prompt", %{"key" => key}, socket) do
     group_key = decode_key(key)
-    group = socket.assigns.groups_by_key[group_key]
 
-    cond do
-      is_nil(group) ->
-        {:noreply, socket}
-
-      socket.assigns.delete_confirm == group_key ->
-        socket =
-          assign(socket,
-            delete_confirm: nil,
-            processing: MapSet.put(socket.assigns.processing, group_key)
-          )
-
-        {_deleted, errors} = execute_delete(group.files)
-
-        socket =
-          if errors > 0 do
-            socket
-            |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
-            |> put_flash(:error, "#{errors} file(s) failed to delete")
-          else
-            assign(socket, processing: MapSet.delete(socket.assigns.processing, group_key))
-          end
-
-        {:noreply, socket}
-
-      true ->
-        {:noreply, assign(socket, delete_confirm: group_key)}
+    with %{} = group <- socket.assigns.groups_by_key[group_key],
+         {:fire, socket} <- ArmGesture.press(socket, "delete_prompt", group_key) do
+      {_deleted, errors} = execute_delete(group.files)
+      {:noreply, report_errors(socket, errors, "delete")}
+    else
+      {:armed, socket} -> {:noreply, socket}
+      nil -> {:noreply, socket}
     end
   end
 
@@ -250,8 +204,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   def handle_event(
         "select_match",
-        %{"key" => key, "tmdb-id" => tmdb_id, "tmdb-type" => tmdb_type, "title" => title} =
-          params,
+        %{"key" => key, "tmdb-id" => tmdb_id, "tmdb-type" => tmdb_type, "title" => title} = params,
         socket
       )
       when tmdb_type in ~w(movie tv) do
@@ -311,6 +264,11 @@ defmodule MediaCentaurWeb.ReviewLive do
   # do, the whole folder goes (nfo/txt/samples included) and Review only
   # has to clean up its own `PendingFile` rows afterward; otherwise each
   # file is deleted individually.
+  defp report_errors(socket, 0, _verb), do: socket
+
+  defp report_errors(socket, errors, verb),
+    do: put_flash(socket, :error, "#{errors} file(s) failed to #{verb}")
+
   defp execute_delete(files) do
     paths = Enum.map(files, & &1.file_path)
 
@@ -524,8 +482,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               :if={@selected_key && @groups_by_key[@selected_key]}
               group={@groups_by_key[@selected_key]}
               processing={MapSet.member?(@processing, @selected_key)}
-              delete_confirm={@delete_confirm}
-              dismiss_confirm={@dismiss_confirm}
+              armed_gesture={@armed_gesture}
               search_open={@search_open == @selected_key}
               search_query={@search_query}
               search_type={@search_type}
@@ -696,7 +653,11 @@ defmodule MediaCentaurWeb.ReviewLive do
     deleting_target = if assigns.processing, do: assigns.group.key
 
     gesture =
-      LiveHelpers.delete_gesture_state(assigns.group.key, deleting_target, assigns.delete_confirm)
+      LiveHelpers.delete_gesture_state(
+        assigns.group.key,
+        deleting_target,
+        ArmGesture.armed_target(assigns.armed_gesture, "delete_prompt")
+      )
 
     assigns =
       assigns
@@ -782,9 +743,8 @@ defmodule MediaCentaurWeb.ReviewLive do
             Search TMDB
           </.button>
           <.armed_button
-            armed={@dismiss_confirm == @group.key}
-            arm="dismiss_prompt"
-            fire="dismiss"
+            armed={ArmGesture.armed?(@armed_gesture, "dismiss", @group.key)}
+            event="dismiss"
             armed_label={
               if @file_count > 1, do: "Click again to dismiss all", else: "Click again to dismiss"
             }

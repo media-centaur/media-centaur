@@ -29,8 +29,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
               id: id,
               attributes: %{
                 armed: false,
-                arm: "noop",
-                fire: "noop",
+                event: "noop",
                 armed_label: "Click again to delete",
                 variant: variant
               },
@@ -47,8 +46,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
             id: :idle,
             attributes: %{
               armed: false,
-              arm: "noop",
-              fire: "noop",
+              event: "noop",
               armed_label: "Click again to remove",
               variant: "destructive_inline",
               size: "xs",
@@ -61,8 +59,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
             id: :armed,
             attributes: %{
               armed: true,
-              arm: "noop",
-              fire: "noop",
+              event: "noop",
               armed_label: "Click again to remove",
               variant: "destructive_inline",
               size: "xs",
@@ -82,8 +79,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
               id: id,
               attributes: %{
                 armed: true,
-                arm: "noop",
-                fire: "noop",
+                event: "noop",
                 armed_label: "Click again to delete",
                 size: size
               },

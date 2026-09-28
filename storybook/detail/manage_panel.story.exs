@@ -129,8 +129,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
         id: :delete_pending_all,
         description:
           "`delete_confirm: :all` — the toolbar's danger button reads " <>
-            "**Click again to confirm — Delete all files (size)** with an " <>
-            "inline **Cancel** beside it. No secondary modal.",
+            "**Click again to confirm — Delete all files (size)**. Any other " <>
+            "interaction disarms it. No secondary modal.",
         attributes: %{
           entity: @entity,
           files: season_files(),

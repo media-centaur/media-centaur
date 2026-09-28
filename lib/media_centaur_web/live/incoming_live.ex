@@ -126,6 +126,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
@@ -167,35 +168,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   # open — the faster cadence costs nothing when nobody is watching.
   @storage_refresh_ms 30_000
 
-  # The two-click gestures this page owns: discarding a draft plan and
-  # cancelling a download. Both are MC0027 tier 2 — work is lost but the
-  # user can start over — so neither gets an overlay.
-  @armed_gesture_events ~w(
-    plan_discard_prompt plan_discard_confirm
-    cancel_download_prompt cancel_download_confirm
-  )
-
-  # MC0027's arm gesture requires that any other interaction reads as a
-  # change of mind. This page has dozens of events, and asking each to
-  # remember to disarm is how it would eventually stop being true — so one
-  # hook owns it: everything except the gestures themselves clears both
-  # armed states before the real handler runs.
-  defp disarm_gestures_on_other_events(socket) do
-    Phoenix.LiveView.attach_hook(socket, :disarm_gestures, :handle_event, fn
-      event, _params, socket when event in @armed_gesture_events ->
-        # The gestures' own events pass through untouched. The `confirm`
-        # halves especially: each is guarded on its armed state, so
-        # disarming ahead of one would make the second click a silent no-op.
-        {:cont, socket}
-
-      _event, _params, socket ->
-        {:cont, assign(socket, plan_discard_armed?: false, cancel_confirm: nil)}
-    end)
-  end
-
   @impl true
   def mount(_params, _session, socket) do
-    socket = socket |> assign(page_title: "Incoming") |> disarm_gestures_on_other_events()
+    socket = assign(socket, page_title: "Incoming")
 
     # No capability redirect: this page is the first acquisition surface
     # that renders without Prowlarr (forecast-only). Capability gating is
@@ -236,7 +211,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          queue_last_success_at: nil,
          queue_loaded?: false,
          board_expanded_seasons: nil,
-         cancel_confirm: nil,
          pending_cancels: %{},
          history_filter: :failed,
          history_search: "",
@@ -249,7 +223,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
-         cancel_pursuit_armed: nil,
          pursuit_detail: nil,
          alternatives_fetches_in_flight: MapSet.new(),
          omnibox_mode: :media,
@@ -275,7 +248,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_search_progress: nil,
          plan_alternatives: nil,
          plan_approving?: false,
-         plan_discard_armed?: false,
          plan_identity: nil,
          plan_artwork: nil,
          plan_title: nil,
@@ -818,7 +790,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           search_progress={@plan_search_progress}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
-          discard_armed={@plan_discard_armed?}
+          discard_armed={ArmGesture.armed?(@armed_gesture, "plan_discard")}
           search_health={@search_health}
           gap_verdict={@plan_gap_verdict}
           rejected={@plan_rejected}
@@ -836,11 +808,15 @@ defmodule MediaCentaurWeb.IncomingLive do
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
-          cancel_armed={@selected_pursuit_id != nil and @cancel_pursuit_armed == @selected_pursuit_id}
+          cancel_armed={
+            @selected_pursuit_id != nil and
+              ArmGesture.armed?(@armed_gesture, "cancel_pursuit", @selected_pursuit_id)
+          }
         />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
+          armed_gesture={@armed_gesture}
           today={@today}
           review?={@show_discovery}
           spoiler_free={@spoiler_free}
@@ -1077,7 +1053,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 download={download}
                 downloads={downloads}
                 queue_item_id={qid}
-                cancel_armed_id={@cancel_confirm && @cancel_confirm.id}
+                cancel_armed_id={ArmGesture.armed_target(@armed_gesture, "cancel_download")}
                 telemetry_age={@telemetry_age}
               />
               <.grouped_compact_rows entries={@active_compact} />
@@ -1096,7 +1072,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <OrphanQueue.orphan_zone
             :if={!@search_owns? && @zone == :activity}
             items={@orphan_queue}
-            cancel_armed_id={@cancel_confirm && @cancel_confirm.id}
+            cancel_armed_id={ArmGesture.armed_target(@armed_gesture, "cancel_download")}
           />
 
           <p
@@ -1199,50 +1175,13 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, assign(socket, search_session: session)}
   end
 
-  def handle_event("cancel_download_prompt", %{"id" => id, "title" => title}, socket) do
-    {:noreply, assign(socket, cancel_confirm: %{id: id, title: title})}
-  end
-
-  def handle_event("cancel_download_confirm", _params, %{assigns: %{cancel_confirm: nil}} = socket) do
-    {:noreply, socket}
-  end
-
-  def handle_event("cancel_download_confirm", _params, socket) do
-    %{id: id, title: title} = socket.assigns.cancel_confirm
-
-    socket =
-      case Acquisition.cancel_download(id) do
-        :ok ->
-          Log.info(:acquisition, "cancelled download — #{title}")
-          # Optimistically drop the row so the user sees feedback now,
-          # AND remember the id so the next snapshot — which may still
-          # contain the row if qBittorrent's DELETE hasn't propagated —
-          # can't ghost it back. Logic.apply_pending_cancels/3 expires
-          # the entry after a short grace window so a failed cancel
-          # eventually surfaces.
-          remaining = Enum.reject(socket.assigns.active_queue, &(&1.id == id))
-
-          pending_cancels =
-            Map.put(
-              socket.assigns.pending_cancels,
-              id,
-              System.monotonic_time(:second)
-            )
-
-          # Hurry the next reconciliation along instead of waiting for
-          # QueueMonitor's idle cadence.
-          Acquisition.poll_queue_now()
-
-          socket
-          |> assign(active_queue: remaining, pending_cancels: pending_cancels)
-          |> put_flash(:info, "Cancelled “#{title}”.")
-
-        {:error, reason} ->
-          Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
-          put_flash(socket, :error, Logic.failure_flash("cancel “#{title}”", reason))
-      end
-
-    {:noreply, assign(socket, cancel_confirm: nil)}
+  # Cancelling a download loses its progress: the arm gesture (MC0027
+  # tier 2), aimed at the one download.
+  def handle_event("cancel_download", %{"id" => id, "title" => title}, socket) do
+    case ArmGesture.press(socket, "cancel_download", id) do
+      {:armed, socket} -> {:noreply, socket}
+      {:fire, socket} -> {:noreply, cancel_download(socket, id, title)}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -1471,32 +1410,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  def handle_event("plan_discard_prompt", _params, socket) do
-    {:noreply, assign(socket, plan_discard_armed?: true)}
-  end
-
-  def handle_event("plan_discard_confirm", _params, %{assigns: %{plan_discard_armed?: false}} = socket) do
-    {:noreply, socket}
-  end
-
-  def handle_event("plan_discard_confirm", _params, socket) do
-    socket = assign(socket, plan_discard_armed?: false)
-
-    with %{plan_id: plan_id} <- socket.assigns.plan_board,
-         {:ok, plan} <- Plans.fetch(plan_id),
-         {:ok, _discarded} <- Plans.discard(plan) do
-      {:noreply,
-       socket
-       |> assign(plan_drafts: load_drafts())
-       |> build_view()
-       |> put_flash(:info, "Plan discarded.")
-       |> push_patch(to: incoming_path(socket))}
-    else
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, Logic.failure_flash("discard the plan", reason))}
-
-      _no_board ->
-        {:noreply, put_flash(socket, :error, "Could not discard the plan — no plan is open.")}
+  # Discarding a draft loses the user's targeting: the arm gesture
+  # (MC0027 tier 2).
+  def handle_event("plan_discard", _params, socket) do
+    case ArmGesture.press(socket, "plan_discard") do
+      {:armed, socket} -> {:noreply, socket}
+      {:fire, socket} -> discard_plan(socket)
     end
   end
 
@@ -1788,35 +1707,12 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Pursuit detail modal — manual actions. All four operate on
   # `selected_pursuit_id`; the open modal is the implicit target.
 
-  # Cancelling a pursuit has no undo: arm first, keyed by pursuit so a
-  # modal opened on another pursuit is never armed (MC0027 tier 2).
-  def handle_event("cancel_pursuit_arm", _params, socket) do
-    {:noreply, assign(socket, cancel_pursuit_armed: socket.assigns.selected_pursuit_id)}
-  end
-
-  def handle_event(
-        "cancel_pursuit",
-        _params,
-        %{assigns: %{cancel_pursuit_armed: armed, selected_pursuit_id: selected}} = socket
-      )
-      when armed != selected or is_nil(selected) do
-    {:noreply, assign(socket, cancel_pursuit_armed: selected)}
-  end
-
+  # Cancelling a pursuit has no undo: arm first, aimed at the open pursuit
+  # so a modal opened on another one is never armed (MC0027 tier 2).
   def handle_event("cancel_pursuit", _params, socket) do
-    socket = assign(socket, cancel_pursuit_armed: nil)
-
-    case Cancel.execute(%{
-           pursuit_id: socket.assigns.selected_pursuit_id,
-           cancelled_by: :user,
-           reason: CancelReasons.user_request()
-         }) do
-      {:ok, _pursuit} ->
-        {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit_detail()}
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, Logic.failure_flash("cancel the pursuit", reason))}
+    case ArmGesture.press(socket, "cancel_pursuit", socket.assigns.selected_pursuit_id) do
+      {:fire, socket} when socket.assigns.selected_pursuit_id != nil -> cancel_pursuit(socket)
+      {_outcome, socket} -> {:noreply, socket}
     end
   end
 
@@ -2402,6 +2298,73 @@ defmodule MediaCentaurWeb.IncomingLive do
   # A TMDB pursuit whose local artwork lookup came back empty fetches
   # and caches it off-process (one TMDB detail call + the standard
   # ImageStore downloads); the result re-lands on the open header only.
+  defp cancel_download(socket, id, title) do
+    case Acquisition.cancel_download(id) do
+      :ok ->
+        Log.info(:acquisition, "cancelled download — #{title}")
+        # Optimistically drop the row so the user sees feedback now,
+        # AND remember the id so the next snapshot — which may still
+        # contain the row if qBittorrent's DELETE hasn't propagated —
+        # can't ghost it back. Logic.apply_pending_cancels/3 expires
+        # the entry after a short grace window so a failed cancel
+        # eventually surfaces.
+        remaining = Enum.reject(socket.assigns.active_queue, &(&1.id == id))
+
+        pending_cancels =
+          Map.put(
+            socket.assigns.pending_cancels,
+            id,
+            System.monotonic_time(:second)
+          )
+
+        # Hurry the next reconciliation along instead of waiting for
+        # QueueMonitor's idle cadence.
+        Acquisition.poll_queue_now()
+
+        socket
+        |> assign(active_queue: remaining, pending_cancels: pending_cancels)
+        |> put_flash(:info, "Cancelled “#{title}”.")
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
+        put_flash(socket, :error, Logic.failure_flash("cancel “#{title}”", reason))
+    end
+  end
+
+  defp discard_plan(socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.fetch(plan_id),
+         {:ok, _discarded} <- Plans.discard(plan) do
+      {:noreply,
+       socket
+       |> assign(plan_drafts: load_drafts())
+       |> build_view()
+       |> put_flash(:info, "Plan discarded.")
+       |> push_patch(to: incoming_path(socket))}
+    else
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("discard the plan", reason))}
+
+      _no_board ->
+        {:noreply, put_flash(socket, :error, "Could not discard the plan — no plan is open.")}
+    end
+  end
+
+  defp cancel_pursuit(socket) do
+    case Cancel.execute(%{
+           pursuit_id: socket.assigns.selected_pursuit_id,
+           cancelled_by: :user,
+           reason: CancelReasons.user_request()
+         }) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit_detail()}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("cancel the pursuit", reason))}
+    end
+  end
+
   defp maybe_fetch_artwork(socket, header) do
     recipe = header.recipe
 
@@ -2654,7 +2617,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       plan_search_progress: nil,
       plan_alternatives: nil,
       plan_error: nil,
-      plan_discard_armed?: false,
       plan_identity: nil,
       plan_artwork: nil,
       plan_title: nil,

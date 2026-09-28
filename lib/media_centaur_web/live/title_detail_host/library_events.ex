@@ -15,9 +15,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   ADR-049): `deleting` marks the target so the matching button reads
   "Deleting…" and every delete button disables, and the result lands
   through `apply_delete_result/3`. Each delete button is its own two-step
-  gesture: the first click arms `delete_confirm` with the target, the
-  second on the same target executes, a different target re-arms. No
-  delete runs while the entity is playing.
+  gesture (`MediaCentaurWeb.Live.ArmGesture`): the first click arms it for
+  its target, the second on the same target executes, a different target
+  re-arms. No delete runs while the entity is playing.
   """
 
   import Phoenix.Component, only: [assign: 3, update: 3]
@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.LibraryProgress
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
 
@@ -42,7 +43,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   @events ~w(play toggle_watched toggle_extra_watched toggle_season toggle_item_details
              toggle_all_episode_details toggle_file_group filter_cast show_more_cast rematch
              refresh_artwork reset_track_override delete_file_prompt delete_folder_prompt
-             delete_all_prompt delete_cancel download_missing_episode)
+             delete_all_prompt download_missing_episode)
 
   @doc "The event names this module handles."
   @spec events() :: [String.t()]
@@ -120,11 +121,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   # Just a PubSub broadcast — instant; the rematch work runs in the
   # command handler. Synchronous (ADR-049).
   def handle("rematch", %{"id" => entity_id}, socket) do
-    if socket.assigns.modal_state.rematch_confirm do
-      MediaCentaur.Review.Rematch.rematch_entity(entity_id)
-      socket |> update_state(:rematch_confirm, fn _armed -> false end) |> push_navigate(to: "/review")
-    else
-      update_state(socket, :rematch_confirm, fn _armed -> true end)
+    case ArmGesture.press(socket, "rematch") do
+      {:fire, socket} ->
+        MediaCentaur.Review.Rematch.rematch_entity(entity_id)
+        push_navigate(socket, to: "/review")
+
+      {:armed, socket} ->
+        socket
     end
   end
 
@@ -149,20 +152,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   end
 
   def handle("delete_file_prompt", %{"path" => file_path}, socket),
-    do: delete_gesture(socket, {:file, file_path})
+    do: delete_gesture(socket, "delete_file_prompt", {:file, file_path})
 
   def handle("delete_folder_prompt", %{"path" => folder_path}, socket) do
     if folder_path in media_dirs() do
       put_flash(socket, :error, "Cannot delete a media directory")
     else
-      delete_gesture(socket, {:folder, folder_path})
+      delete_gesture(socket, "delete_folder_prompt", {:folder, folder_path})
     end
   end
 
-  def handle("delete_all_prompt", _params, socket), do: delete_gesture(socket, :all)
-
-  def handle("delete_cancel", _params, socket),
-    do: update_state(socket, :delete_confirm, fn _armed -> nil end)
+  def handle("delete_all_prompt", _params, socket), do: delete_gesture(socket, "delete_all_prompt", :all)
 
   def handle("download_missing_episode", %{"season" => season, "episode" => episode}, socket),
     do:
@@ -263,11 +263,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
   # --- Delete ---
 
-  defp delete_gesture(socket, target) do
-    cond do
-      playing?(socket) -> put_flash(socket, :error, "Stop playback before deleting")
-      socket.assigns.modal_state.delete_confirm == target -> run_pending_delete(socket)
-      true -> update_state(socket, :delete_confirm, fn _armed -> target end)
+  defp delete_gesture(socket, event, target) do
+    if playing?(socket) do
+      put_flash(socket, :error, "Stop playback before deleting")
+    else
+      case ArmGesture.press(socket, event, target) do
+        {:fire, socket} -> run_pending_delete(socket, target)
+        {:armed, socket} -> socket
+      end
     end
   end
 
@@ -275,22 +278,20 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     Map.has_key?(socket.assigns.title_playback, LibraryHalf.container_id(socket.assigns.title_detail))
   end
 
-  # Clears `delete_confirm`, marks `deleting` with the target, and hands
-  # the deletion to `start_async/3`; the result lands in
-  # `apply_delete_result/3`.
-  defp run_pending_delete(socket) do
+  # Marks `deleting` with the target and hands the deletion to
+  # `start_async/3`; the result lands in `apply_delete_result/3`.
+  defp run_pending_delete(socket, target) do
     detail = socket.assigns.title_detail
-    target = socket.assigns.modal_state.delete_confirm
-    args = %{delete_confirm: target, detail_files: files(socket), media_dirs: media_dirs()}
+    args = %{target: target, detail_files: files(socket), media_dirs: media_dirs()}
 
     socket
-    |> update(:modal_state, &%{&1 | delete_confirm: nil, deleting: target})
+    |> update(:modal_state, &%{&1 | deleting: target})
     |> start_async({:delete, LibraryHalf.subject(detail)}, fn -> run_delete(args) end)
   end
 
   @doc false
-  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, media_dirs: media_dirs}) do
-    case delete_confirm do
+  def run_delete(%{target: target, detail_files: detail_files, media_dirs: media_dirs}) do
+    case target do
       {:file, file_path} ->
         Deletion.delete_file(file_path)
 

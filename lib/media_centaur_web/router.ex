@@ -22,6 +22,9 @@ defmodule MediaCentaurWeb.Router do
     # in sync without any LiveView opting in.
     live_session :default,
       on_mount: [
+        # First, so its hooks run before any page's: the arm gesture's
+        # "any other interaction disarms" rule must see every event.
+        MediaCentaurWeb.Live.ArmGesture,
         MediaCentaurWeb.Live.CapabilitiesAware,
         {MediaCentaurWeb.ShellBadges, :default},
         # The sidebar renders on every page, so its Discovery entry needs

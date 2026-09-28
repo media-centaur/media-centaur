@@ -14,9 +14,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalStateTest do
       assert state.expanded_file_groups == nil
       assert state.cast_filter == ""
       assert state.cast_limit == nil
-      assert state.delete_confirm == nil
       assert state.deleting == nil
-      refute state.rematch_confirm
       assert state.open_menu == nil
       assert state.download_scope == :first_season
       assert state.pending == nil

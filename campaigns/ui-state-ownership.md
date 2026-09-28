@@ -41,7 +41,8 @@ idiom one mechanism, and fixes the bugs the review found.
 
 In progress on branch `ui-state-ownership` (worktree
 `../media-centaur-app-ui-state`, isolated from other agents working in the
-main checkout). Design approved 2026-09-28. Phase 1 done; Phase 2 next. Line numbers are
+main checkout). Design approved 2026-09-28. Phases 1 and 2 done; Phase 3
+next. Line numbers are
 from commit `d7ecc8b5` and will drift.
 
 ## Design (approved 2026-09-28)
@@ -187,15 +188,30 @@ with a stream reset per debounced change.
 * `2026-09-28` — The first plan moved four toggles to JS commands. The
   design pass replaced it: those moves would have added a fourth disclosure
   mechanism and a second owner for disclosure state.
-* `2026-09-28` — Phase 1: dead `change_target` handler removed, but the
-  `ChangeTarget` command it called is left in place. The owner kept it on
-  purpose in `8ab1ec7f`, so its retirement is the owner's call (Phase 1
-  leftover).
 * `2026-09-28` — **Owner approved the design and all four recommendations:**
   the ownership rule (nothing moves to JS commands); disclosures owned by the
   LiveView through one component; console search owned by the browser, with
   the query passed to copy and download; a Credo check enforces
   `phx-debounce`.
+* `2026-09-28` — Phase 1: dead `change_target` handler removed, but the
+  `ChangeTarget` command it called is left in place. The owner kept it on
+  purpose in `8ab1ec7f`, so its retirement is the owner's call (Phase 1
+  leftover).
+* `2026-09-28` — Phase 2 as built. `Live.ArmGesture` is registered first in
+  the `:default` live session's `on_mount`, so its `handle_event` hook runs
+  before every page's own hooks (the title detail host's included). A
+  gesture sends one event; `ArmGesture.press/3` answers arm or fire. The
+  Settings Confirm/Cancel swaps (media directory, image refresh) and the
+  Manage sheet's Delete-all Cancel are gone: any other interaction disarms.
+  The identity import arms on the pasted secret, so editing it between the
+  clicks re-arms. The idle import button is `risky`, not `neutral`, since
+  `armed_button` has no neutral variant.
+* `2026-09-28` — **The Manage sheet's three delete buttons keep their own
+  markup.** They share the slot and the rule, but they draw a third state
+  (*Deleting…* while the async delete runs) and a row tint that
+  `armed_button` does not. Scheduled convergence: `armed_button` gains a busy
+  state, then the three buttons move onto it (Phase 3b or later, named here
+  so it is not orphaned).
 
 ## Next steps
 
@@ -214,7 +230,7 @@ cards shared one DOM id), and the three dead handlers. Left for the owner:
    historical `target_changed` events and the `replaced_by_user_pivot` cancel
    reason), or name the caller it is waiting for.
 
-### Phase 2 — Arm gestures
+### Phase 2 — Arm gestures (done 2026-09-28)
 
 One slot, one shared hook, one rule, as designed above. Regression tests for
 the Reconcile leak and the Settings never-disarm cases. Move the hand-rolled
