@@ -219,6 +219,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           <input
             type="range"
             name="size"
+            phx-debounce="300"
             min="100"
             max="1000"
             step="100"

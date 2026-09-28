@@ -689,8 +689,21 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, close_media_dir_dialog(socket)}
   end
 
+  # The fields carry `phx-debounce`, so this runs once per typing pause
+  # (MC0040); the filesystem probe in `validate_dir/2` stays on the server.
   def handle_event("media_dir:validate", %{"entry" => params}, socket) do
-    {:noreply, schedule_media_dir_validation(socket, params)}
+    case socket.assigns.media_dir_dialog do
+      %{} = dialog ->
+        entry = merge_entry(dialog.entry, params)
+
+        validation =
+          MediaCentaur.Watcher.validate_dir(entry, other_entries(socket.assigns.media_dirs, entry))
+
+        {:noreply, assign(socket, :media_dir_dialog, %{dialog | entry: entry, validation: validation})}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("media_dir:save", _, socket) do
@@ -1557,25 +1570,6 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_info({:config_updated, :media_dirs, entries}, socket) do
     {:noreply, assign(socket, :media_dirs, entries)}
-  end
-
-  def handle_info({:media_dir_validate, params}, socket) do
-    case socket.assigns.media_dir_dialog do
-      %{} = dialog ->
-        entry = merge_entry(dialog.entry, params)
-
-        validation =
-          MediaCentaur.Watcher.validate_dir(
-            entry,
-            other_entries(socket.assigns.media_dirs, entry)
-          )
-
-        new_dialog = %{dialog | entry: entry, validation: validation, debounce_timer: nil}
-        {:noreply, assign(socket, :media_dir_dialog, new_dialog)}
-
-      _ ->
-        {:noreply, socket}
-    end
   end
 
   def handle_info({:controls_changed, map}, socket) do
@@ -2658,6 +2652,7 @@ defmodule MediaCentaurWeb.SettingsLive do
           <input
             type="text"
             name="entry[dir]"
+            phx-debounce="500"
             value={@media_dir_dialog.entry["dir"]}
             class="library-filter w-full"
           />
@@ -2671,6 +2666,7 @@ defmodule MediaCentaurWeb.SettingsLive do
           <input
             type="text"
             name="entry[name]"
+            phx-debounce="500"
             value={@media_dir_dialog.entry["name"]}
             class="library-filter w-full"
           />
@@ -2687,6 +2683,7 @@ defmodule MediaCentaurWeb.SettingsLive do
           <input
             type="text"
             name="entry[images_dir]"
+            phx-debounce="500"
             value={@media_dir_dialog.entry["images_dir"]}
             class="library-filter w-full"
             placeholder="Leave blank to use the default"
@@ -2868,25 +2865,12 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp open_media_dir_dialog(socket, entry) do
     assign(socket, :media_dir_dialog, %{
       entry: entry,
-      validation: %{errors: [], warnings: [], preview: nil},
-      debounce_timer: nil
+      validation: %{errors: [], warnings: [], preview: nil}
     })
   end
 
   defp close_media_dir_dialog(socket) do
     assign(socket, :media_dir_dialog, nil)
-  end
-
-  defp schedule_media_dir_validation(socket, params) do
-    case socket.assigns.media_dir_dialog do
-      %{debounce_timer: timer} = dialog ->
-        if timer, do: Process.cancel_timer(timer)
-        new_timer = Process.send_after(self(), {:media_dir_validate, params}, 500)
-        assign(socket, :media_dir_dialog, %{dialog | debounce_timer: new_timer})
-
-      _ ->
-        socket
-    end
   end
 
   defp merge_entry(old, params) do

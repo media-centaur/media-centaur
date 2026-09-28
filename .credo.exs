@@ -196,6 +196,7 @@
           {MediaCentaur.Credo.Checks.ModalBackdropViaComponent, []},
           {MediaCentaur.Credo.Checks.RawButtonClass, []},
           {MediaCentaur.Credo.Checks.NoPhxValueValue, []},
+          {MediaCentaur.Credo.Checks.TextInputDebounced, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
           # MC0027 bans `data-confirm` — the native browser dialog is unthemed
           # and not d-pad reachable, which is disqualifying for a couch app.
