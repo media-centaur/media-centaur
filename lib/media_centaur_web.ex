@@ -132,6 +132,8 @@ defmodule MediaCentaurWeb do
       import MediaCentaurWeb.CoreComponents
       # The modal seam (the only component allowed to render the backdrop/panel)
       import MediaCentaurWeb.Components.Modal
+      # The one disclosure (a head over a body, owned by the LiveView)
+      import MediaCentaurWeb.Components.Disclosure
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

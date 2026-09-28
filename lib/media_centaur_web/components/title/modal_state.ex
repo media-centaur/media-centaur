@@ -35,6 +35,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
             cast_limit: nil,
             deleting: nil,
             tmdb_checking: false,
+            all_subtitles: false,
             open_menu: nil,
             download_scope: :first_season,
             pending: nil
@@ -52,6 +53,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
           cast_limit: pos_integer() | nil,
           deleting: delete_target(),
           tmdb_checking: boolean(),
+          all_subtitles: boolean(),
           open_menu: nil | :mode | :scope | :social,
           download_scope: scope_choice(),
           pending: nil | {:download, String.t()} | {:missing_episode, {pos_integer(), pos_integer()}}

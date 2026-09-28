@@ -2928,18 +2928,12 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: var(--color-base-content);
 }
 
-/* --- Release notes disclosure (Settings > Overview) ------------------- */
+/* --- Disclosure (Components.Disclosure) -------------------------------- */
 
-.settings-disclosure > summary {
-  list-style: none;
-}
-.settings-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-.settings-disclosure .disclosure-caret {
+.disclosure-caret {
   transition: transform 200ms ease-out;
 }
-.settings-disclosure[open] > summary .disclosure-caret {
+.disclosure-head[aria-expanded="true"] .disclosure-caret {
   transform: rotate(90deg);
 }
 

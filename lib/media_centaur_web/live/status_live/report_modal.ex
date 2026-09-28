@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   import MediaCentaurWeb.ConsentComponents
 
   alias MediaCentaur.ErrorReports
+  alias MediaCentaurWeb.Live.DisclosureState
 
   # Same labels ReportPayload.build/2 uses, so submitted issues stay consistent.
   @labels ["incident", "auto-reported"]
@@ -28,7 +29,8 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
      |> assign_new(:body, fn -> payload.body end)
      |> assign_new(:consent, fn -> false end)
      |> assign_new(:snapshot, fn -> Map.get(assigns, :snapshot) end)
-     |> assign_new(:report_result, fn -> nil end)}
+     |> assign_new(:report_result, fn -> nil end)
+     |> assign_new(:disclosures, fn -> MapSet.new() end)}
   end
 
   @impl true
@@ -43,6 +45,10 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
 
   def handle_event("toggle_consent", _p, socket),
     do: {:noreply, assign(socket, :consent, not socket.assigns.consent)}
+
+  # A LiveComponent's events never reach the page's DisclosureState hook.
+  def handle_event("disclosure:toggle", %{"id" => id}, socket),
+    do: {:noreply, update(socket, :disclosures, &DisclosureState.toggle(&1, id))}
 
   def handle_event("send", _p, %{assigns: %{consent: false}} = socket), do: {:noreply, socket}
 
@@ -86,6 +92,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
         title={@title}
         body={@body}
         consent={@consent}
+        disclosures={@disclosures}
         myself={@myself}
       />
     </div>
@@ -137,6 +144,11 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   attr :title, :string, required: true
   attr :body, :string, required: true
   attr :consent, :boolean, required: true
+
+  attr :disclosures, :any,
+    required: true,
+    doc: "`DisclosureState.t()` (a MapSet of toggled ids) — this component's own."
+
   attr :myself, :any, required: true, doc: "the owning LiveComponent (@myself)"
 
   defp flow(assigns) do
@@ -151,7 +163,13 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     <div class="px-6 flex-1 min-h-0 overflow-y-auto">
       <.consent_intro :if={@step == 1} narrative={@narrative} target={@myself} />
       <.consent_review :if={@step == 2} title={@title} body={@body} target={@myself} />
-      <.consent_send :if={@step == 3} consent={@consent} final_text={@final_text} target={@myself} />
+      <.consent_send
+        :if={@step == 3}
+        consent={@consent}
+        final_text={@final_text}
+        disclosures={@disclosures}
+        target={@myself}
+      />
     </div>
 
     <div class="px-6 pt-4 pb-6 flex items-center gap-2 border-t border-base-300">

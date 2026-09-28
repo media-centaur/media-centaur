@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
 
   import MediaCentaurWeb.Components.StatusWidgets.Shared
 
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.Live.SettingsLive.ReleaseNotes
   alias MediaCentaurWeb.Live.SettingsLive.SystemSection
 
@@ -39,6 +40,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
     doc: "current Updater apply phase, or nil when no apply is in flight"
 
   attr :apply_progress, :integer, default: nil, doc: "apply progress percent (0-100), or nil"
+
+  attr :disclosures, :any,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — which disclosures the user toggled."
 
   attr :history, :list,
     default: [],
@@ -103,21 +108,20 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
           </h3>
           <ul class="space-y-1">
             <li :for={entry <- @history} id={history_row_id(entry)}>
-              <details :if={Map.get(entry, :notes_body)} class="group">
-                <summary class="flex items-center justify-between text-xs cursor-pointer list-none py-0.5">
-                  <span class="flex items-center gap-1.5">
-                    <.icon
-                      name="hero-chevron-right-mini"
-                      class="size-3.5 shrink-0 text-base-content/40 transition-transform group-open:rotate-90"
-                    />
-                    <span class="font-mono text-base-content/70">v{entry.version}</span>
-                  </span>
-                  <span class="text-base-content/55">{history_date(entry.recorded_at)}</span>
-                </summary>
-                <div class="mt-1.5 mb-2 pl-5">
-                  <ReleaseNotes.release_notes body={Map.get(entry, :notes_body)} class="text-xs" />
-                </div>
-              </details>
+              <.disclosure
+                :if={Map.get(entry, :notes_body)}
+                id={"#{history_row_id(entry)}-notes"}
+                open={DisclosureState.open?(@disclosures, "#{history_row_id(entry)}-notes")}
+                variant={:bare}
+                head_class="flex w-full items-center gap-1.5 text-xs py-0.5"
+                body_class="mt-1.5 mb-2 pl-5"
+              >
+                <:head>
+                  <span class="font-mono text-base-content/70">v{entry.version}</span>
+                  <span class="ml-auto text-base-content/55">{history_date(entry.recorded_at)}</span>
+                </:head>
+                <ReleaseNotes.release_notes body={Map.get(entry, :notes_body)} class="text-xs" />
+              </.disclosure>
               <div
                 :if={!Map.get(entry, :notes_body)}
                 class="flex items-center justify-between text-xs pl-5 py-0.5"

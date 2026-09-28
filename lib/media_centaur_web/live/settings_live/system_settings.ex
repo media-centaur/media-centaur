@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Live.DisclosureState
+
   import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.SelfUpdate
@@ -35,6 +37,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
   attr :tmdb_missing, :boolean, required: true
   attr :update_schedule_label, :string, required: true
   attr :update_status, :any, required: true, doc: "self-update status atom/tuple."
+  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
   attr :apply_phase, :any, required: true, doc: "update apply-phase state or nil."
   attr :update_check_enabled, :boolean, required: true
   attr :update_check_interval_minutes, :integer, required: true
@@ -126,85 +129,82 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
             </div>
           </div>
 
-          <details
+          <.disclosure
             :if={SystemSection.show_terminal_recovery?(@update_status)}
-            class="settings-disclosure mt-2"
+            id="system-terminal-recovery"
+            open={DisclosureState.open?(@disclosures, "system-terminal-recovery")}
+            label="Prefer the terminal?"
+            class="mt-2"
           >
-            <summary class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none">
-              <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
-              <span>Prefer the terminal?</span>
-            </summary>
-            <div class="mt-3 ml-5 pl-4 border-l border-base-content/10 space-y-3 text-sm">
-              <div class="space-y-1">
-                <p class="text-xs text-base-content/70">
-                  Standard update (same as the button):
-                </p>
-                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                    {SystemSection.terminal_recovery_command()}
-                  </code>
-                  <.button
-                    id="copy-terminal-update"
-                    variant="dismiss"
-                    size="xs"
-                    class="shrink-0"
-                    phx-hook="CopyButton"
-                    data-copy-text={SystemSection.terminal_recovery_command()}
-                    data-nav-item
-                    tabindex="0"
-                  >
-                    Copy
-                  </.button>
-                </div>
-              </div>
-
-              <div class="space-y-1">
-                <p class="text-xs text-base-content/70">
-                  Force a reinstall (if a previous apply got stuck):
-                </p>
-                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                    {SystemSection.force_recovery_command()}
-                  </code>
-                  <.button
-                    id="copy-terminal-force"
-                    variant="dismiss"
-                    size="xs"
-                    class="shrink-0"
-                    phx-hook="CopyButton"
-                    data-copy-text={SystemSection.force_recovery_command()}
-                    data-nav-item
-                    tabindex="0"
-                  >
-                    Copy
-                  </.button>
-                </div>
-              </div>
-
-              <div class="space-y-1">
-                <p class="text-xs text-base-content/70">
-                  Or reinstall from scratch:
-                </p>
-                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                    {SystemSection.bootstrap_install_command()}
-                  </code>
-                  <.button
-                    id="copy-terminal-bootstrap"
-                    variant="dismiss"
-                    size="xs"
-                    class="shrink-0"
-                    phx-hook="CopyButton"
-                    data-copy-text={SystemSection.bootstrap_install_command()}
-                    data-nav-item
-                    tabindex="0"
-                  >
-                    Copy
-                  </.button>
-                </div>
+            <div class="space-y-1">
+              <p class="text-xs text-base-content/70">
+                Standard update (same as the button):
+              </p>
+              <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                  {SystemSection.terminal_recovery_command()}
+                </code>
+                <.button
+                  id="copy-terminal-update"
+                  variant="dismiss"
+                  size="xs"
+                  class="shrink-0"
+                  phx-hook="CopyButton"
+                  data-copy-text={SystemSection.terminal_recovery_command()}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Copy
+                </.button>
               </div>
             </div>
-          </details>
+
+            <div class="space-y-1">
+              <p class="text-xs text-base-content/70">
+                Force a reinstall (if a previous apply got stuck):
+              </p>
+              <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                  {SystemSection.force_recovery_command()}
+                </code>
+                <.button
+                  id="copy-terminal-force"
+                  variant="dismiss"
+                  size="xs"
+                  class="shrink-0"
+                  phx-hook="CopyButton"
+                  data-copy-text={SystemSection.force_recovery_command()}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Copy
+                </.button>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <p class="text-xs text-base-content/70">
+                Or reinstall from scratch:
+              </p>
+              <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                  {SystemSection.bootstrap_install_command()}
+                </code>
+                <.button
+                  id="copy-terminal-bootstrap"
+                  variant="dismiss"
+                  size="xs"
+                  class="shrink-0"
+                  phx-hook="CopyButton"
+                  data-copy-text={SystemSection.bootstrap_install_command()}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Copy
+                </.button>
+              </div>
+            </div>
+          </.disclosure>
         </div>
 
         <div class="mt-4 pt-4 border-t border-base-content/10 space-y-5">
@@ -493,24 +493,21 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
           </.button>
         </div>
 
-        <details class="settings-disclosure" open={@service_status_visible}>
-          <summary
-            phx-click="service_toggle_status"
-            class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none"
-          >
-            <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
-            <span>Show service details</span>
-          </summary>
-          <div class="mt-3">
-            <pre
-              :if={@service_status_output}
-              class="glass-inset rounded-md p-3 text-[11px] font-mono text-base-content/80 overflow-x-auto thin-scrollbar max-h-80 overflow-y-auto whitespace-pre"
-            ><%= @service_status_output %></pre>
-            <p :if={!@service_status_output} class="text-xs text-base-content/55 italic">
-              Loading…
-            </p>
-          </div>
-        </details>
+        <%!-- Host-owned: the first open loads `systemctl status`. --%>
+        <.disclosure
+          id="system-service-details"
+          open={@service_status_visible}
+          event="service_toggle_status"
+          label="Show service details"
+        >
+          <pre
+            :if={@service_status_output}
+            class="glass-inset rounded-md p-3 text-[11px] font-mono text-base-content/80 overflow-x-auto thin-scrollbar max-h-80 overflow-y-auto whitespace-pre"
+          ><%= @service_status_output %></pre>
+          <p :if={!@service_status_output} class="text-xs text-base-content/55 italic">
+            Loading…
+          </p>
+        </.disclosure>
       </div>
 
       <p

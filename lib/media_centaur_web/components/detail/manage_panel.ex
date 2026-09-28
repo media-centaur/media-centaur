@@ -118,6 +118,10 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
     default: false,
     doc: "whether a Refresh from TMDB check is in flight (UIDR-044)."
 
+  attr :subtitles_expanded, :boolean,
+    default: false,
+    doc: "the subtitle row's `+` was pressed (`ModalState.all_subtitles`)."
+
   def manage_panel(assigns) do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
     file_count = length(assigns.files)
@@ -278,6 +282,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         <SubtitlesRow.subtitles_row
           languages={@subtitle_languages}
           understood={@understood_languages}
+          expanded={@subtitles_expanded}
         />
         <TrackOverrideBadge.track_override_badge entity={@entity} />
       </div>

@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   @events ~w(play toggle_watched toggle_extra_watched toggle_season toggle_item_details
              toggle_all_episode_details toggle_file_group filter_cast show_more_cast rematch
              refresh_artwork reset_track_override delete_file_prompt delete_folder_prompt
-             delete_all_prompt download_missing_episode)
+             delete_all_prompt download_missing_episode show_all_subtitles)
 
   @doc "The event names this module handles."
   @spec events() :: [String.t()]
@@ -95,6 +95,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
   def handle("toggle_all_episode_details", _params, socket),
     do: update_state(socket, :all_episode_details_open, &(!&1))
+
+  def handle("show_all_subtitles", _params, socket),
+    do: update_state(socket, :all_subtitles, fn _shown -> true end)
 
   # `expanded_file_groups` starts as nil — "the automatic default"
   # (`ManagePanel.effective_expanded_dirs/2`: everything open for small

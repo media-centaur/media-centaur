@@ -788,6 +788,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           error={@plan_error}
           last_activity={@plan_last_activity}
           search_progress={@plan_search_progress}
+          disclosures={@disclosures}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
           discard_armed={ArmGesture.armed?(@armed_gesture, "plan_discard")}

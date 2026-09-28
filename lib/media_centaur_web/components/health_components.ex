@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   import MediaCentaurWeb.ConsoleComponents, only: [log_line: 1]
 
   alias MediaCentaur.ErrorReports.Bucket
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaurWeb.StatusLive.SubsystemView
 
@@ -126,6 +127,10 @@ defmodule MediaCentaurWeb.HealthComponents do
     default: false,
     doc: "per-line component badges; true only where a subsystem folds more than one tag"
 
+  attr :disclosures, :any,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — which disclosures the user toggled."
+
   attr :on_select, :string, default: "select_incident"
   attr :on_dismiss, :string, default: "dismiss_incident"
   attr :on_dismiss_all, :string, default: "dismiss_all"
@@ -238,22 +243,21 @@ defmodule MediaCentaurWeb.HealthComponents do
           <%!-- Absence is the empty state: a subsystem with nothing recent in
                 its rings gets no disclosure at all, rather than a permanent
                 shut drawer that opens onto "No recent log lines." --%>
-          <details :if={@log_lines != []} id="subsystem-logs" class="glass-inset rounded-xl">
-            <summary
-              data-nav-item
-              tabindex="0"
-              class="cursor-pointer select-none px-4 py-3 text-sm text-base-content/60"
-            >
-              Technical logs
-            </summary>
-            <div class="max-h-96 overflow-y-auto border-t border-base-content/10 px-4 py-3">
+          <.disclosure
+            :if={@log_lines != []}
+            id="subsystem-logs"
+            variant={:panel}
+            open={DisclosureState.open?(@disclosures, "subsystem-logs")}
+            label="Technical logs"
+          >
+            <div class="max-h-96 overflow-y-auto">
               <.log_line
                 :for={entry <- @log_lines}
                 entry={entry}
                 show_component={@show_log_components}
               />
             </div>
-          </details>
+          </.disclosure>
 
           {render_slot(@rail)}
         </aside>

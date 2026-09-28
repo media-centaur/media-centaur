@@ -7,8 +7,8 @@ defmodule MediaCentaurWeb.Components.Settings do
   are the rows, each saving on the act; `settings_list/1` is a
   string-list setting; `settings_field/1` and `settings_input/1` are the
   label/control/help unit and the house input inside a connection row's
-  edit form; `settings_disclosure/1` hides rare content; `path_status/1`
-  is the glyph beside a path label. The connection row lives in
+  edit form; `path_status/1` is the glyph beside a path label. Rare
+  content hides behind `Components.Disclosure.disclosure/1`. The connection row lives in
   `MediaCentaurWeb.Components.Settings.ConnectionRow`.
 
   ## Narrow cards
@@ -498,30 +498,6 @@ defmodule MediaCentaurWeb.Components.Settings do
       </form>
       <p :if={@error} class="text-xs text-error">{@error}</p>
     </div>
-    """
-  end
-
-  attr :label, :string, required: true
-  attr :open, :boolean, default: false
-  attr :id, :string, default: nil
-  slot :inner_block, required: true
-
-  @doc "Rare content behind a caret and a label (UIDR-041): the secret key, service details."
-  def settings_disclosure(assigns) do
-    ~H"""
-    <details id={@id} class="settings-disclosure" open={@open}>
-      <summary
-        class="cursor-pointer select-none text-xs text-base-content/55 inline-flex items-center gap-1.5"
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
-        <span>{@label}</span>
-      </summary>
-      <div class="mt-3 ml-5 space-y-4 border-l border-base-content/10 pl-4 text-sm">
-        {render_slot(@inner_block)}
-      </div>
-    </details>
     """
   end
 end

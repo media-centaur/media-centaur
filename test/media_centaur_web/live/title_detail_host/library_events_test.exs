@@ -23,6 +23,23 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsTest do
     end
   end
 
+  describe "show_all_subtitles" do
+    # The reveal was a client-side JS command: the browser decided what was
+    # rendered, and it hid the focused `+` with no resync, leaving the
+    # cursor on a hidden element. It is per-opening state now.
+    test "reveals the full subtitle list for this opening" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{__changed__: %{}, modal_state: ModalState.new(:info)}
+      }
+
+      refute socket.assigns.modal_state.all_subtitles
+      assert "show_all_subtitles" in LibraryEvents.events()
+
+      revealed = LibraryEvents.handle("show_all_subtitles", %{}, socket)
+      assert revealed.assigns.modal_state.all_subtitles
+    end
+  end
+
   describe "apply_delete_result/3" do
     test "a result for a subject the person moved on from is dropped" do
       entity = %{id: "b", type: :movie, name: "Other Movie"}

@@ -492,12 +492,30 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       :ok
     end
 
+    # Regression: the panel was a native `<details>`, and a LiveView patch
+    # rebuilt it without the `open` the browser had set, so every arriving
+    # line or strip-chart tick closed the logs the user had just opened.
+    # The disclosure is the LiveView's now, and a re-render cannot close it.
+    test "an opened panel stays open while lines arrive", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      refute has_element?(view, "#subsystem-logs-body")
+
+      open_logs(view)
+      broadcast([entry(:watcher, "log panel late line")])
+
+      assert has_element?(view, "#subsystem-logs-head[aria-expanded='true']")
+      assert panel(view) =~ "log panel late line"
+    end
+
     test "a drill-in with recent lines opens onto them", %{conn: conn} do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
 
-      assert has_element?(view, "#subsystem-logs summary", "Technical logs")
+      assert has_element?(view, "#subsystem-logs-head", "Technical logs")
       assert panel(view) =~ "log panel seed line"
     end
 
@@ -514,6 +532,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
 
       # The broadcast batch is oldest-first; the panel reads newest-first.
       broadcast([entry(:watcher, "log panel alpha"), entry(:watcher, "log panel omega")])
@@ -528,6 +547,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
 
       broadcast([entry(:pipeline, "log panel foreign line")])
 
@@ -541,6 +561,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
       assert has_element?(view, "#subsystem-logs")
 
       view |> element("#health-drill-in [phx-click='close_subsystem']") |> render_click()
@@ -553,6 +574,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
       assert panel(view) =~ "log panel seed line"
 
       view |> element("#subsystem-tile-self_update") |> render_click()
@@ -564,6 +586,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
 
       refute has_element?(view, "#subsystem-logs .console-component-badge")
     end
@@ -572,6 +595,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       seed([entry(:nostr, "log panel relay line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=social")
+      open_logs(view)
 
       assert panel(view) =~ "log panel relay line"
       assert has_element?(view, "#subsystem-logs .console-component-badge")
@@ -580,6 +604,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     # Scoped to the drill-in's own disclosure: the sticky console drawer is
     # mounted on every page and echoes the same entries, so a whole-document
     # `=~` would pass on the drawer's copy.
+    defp open_logs(view), do: view |> element("#subsystem-logs-head") |> render_click()
+
     defp panel(view), do: view |> element("#subsystem-logs") |> render()
 
     defp entry(component, message) do

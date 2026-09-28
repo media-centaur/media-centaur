@@ -69,6 +69,17 @@ defmodule MediaCentaurWeb.Storybook.Detail.SubtitlesRow do
         }
       },
       %Variation{
+        id: :folded_revealed,
+        description:
+          "The same row after the `+` was pressed: the full list, the reveal gone. The title " <>
+            "detail's per-opening state (`ModalState.all_subtitles`) holds it.",
+        attributes: %{
+          languages: ["da", "de", "en", "es", "fi", "fr", "hi", "it", "nl", "no", "pl", "pt", "sv"],
+          understood: ["eng", "spa"],
+          expanded: true
+        }
+      },
+      %Variation{
         id: :no_understood_match,
         description: "None of the user's languages present — the whole list sits behind the reveal.",
         attributes: %{languages: ["da", "fi", "no", "sv"], understood: ["eng"]}

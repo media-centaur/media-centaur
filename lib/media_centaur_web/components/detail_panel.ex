@@ -369,6 +369,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               tmdb_ready={@tmdb_ready}
               tmdb_checking?={@state.tmdb_checking}
               expanded_groups={@state.expanded_file_groups}
+              subtitles_expanded={@state.all_subtitles}
               title_ref={@ref}
               lower_quality_accepted?={@detail.lower_quality_accepted?}
             />

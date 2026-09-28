@@ -7,10 +7,12 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   all wraps the row across lines for languages the user will never
   pick. The row leads with the languages the user configured as
   understood (Settings → Language), comma-delimited, folding the rest
-  behind a trailing `+` (`en+`) that expands to the full list on click —
-  a pure client-side toggle, no server round-trip. With no configured
-  languages everything shows up front; with none matching, the row is
-  just the `+`.
+  behind a trailing `+` (`en+`) that expands to the full list on click.
+  The reveal is the title detail's state (`ModalState.all_subtitles`, set
+  by the `show_all_subtitles` event), not the browser's: the server
+  decides what is rendered, and the input system re-seats the cursor when
+  the pressed `+` leaves the page. With no configured languages everything
+  shows up front; with none matching, the row is just the `+`.
 
   Pure display: takes the pre-aggregated list from
   `MediaCentaur.Subtitles.aggregate_track_languages/1`, where each
@@ -23,7 +25,6 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Iso639
-  alias Phoenix.LiveView.JS
 
   attr :languages, :list,
     required: true,
@@ -35,6 +36,8 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
     doc:
       "the user's understood-language codes (`LanguagePolicy.understood_languages`, ISO 639-2). Languages matching these lead the row; the rest fold behind the trailing-+ reveal. Empty list shows everything."
 
+  attr :expanded, :boolean, default: false, doc: "the `+` was pressed: show the full list."
+
   def subtitles_row(assigns) do
     {shown, hidden} = split_languages(assigns.languages, assigns.understood)
 
@@ -42,7 +45,7 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
       assigns
       |> assign(:collapsed_label, "#{join_labels(shown)}+")
       |> assign(:full_text, join_labels(assigns.languages))
-      |> assign(:folded?, hidden != [])
+      |> assign(:folded?, hidden != [] and not assigns.expanded)
 
     ~H"""
     <div :if={@languages != []} class="flex items-baseline gap-3 text-sm">
@@ -61,16 +64,12 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
           type="button"
           class="cursor-pointer hover:text-base-content"
           data-tip="Show all subtitle languages"
-          phx-click={
-            JS.hide(to: "#subtitles-row-folded")
-            |> JS.show(to: "#subtitles-row-all", display: "inline")
-          }
+          phx-click="show_all_subtitles"
           data-nav-item
           tabindex="0"
         >
           {@collapsed_label}
         </button>
-        <span id="subtitles-row-all" class="hidden">{@full_text}</span>
       </p>
     </div>
     """

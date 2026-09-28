@@ -7,6 +7,8 @@ defmodule MediaCentaurWeb.ConsentComponents do
   """
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Live.DisclosureState
+
   @doc "Step 1 — public-issue framing, redaction assurances, optional narrative."
   attr :narrative, :string, required: true
   attr :target, :any, required: true, doc: "the owning LiveComponent (@myself)"
@@ -92,6 +94,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
   attr :consent, :boolean, required: true
   attr :final_text, :string, required: true
   attr :target, :any, required: true, doc: "the owning LiveComponent (@myself)"
+  attr :disclosures, :any, default: MapSet.new(), doc: "the LiveComponent's `DisclosureState`."
 
   def consent_send(assigns) do
     ~H"""
@@ -111,12 +114,15 @@ defmodule MediaCentaurWeb.ConsentComponents do
         />
         <span>I've reviewed this and I'm posting it publicly on GitHub.</span>
       </label>
-      <details>
-        <summary class="text-xs text-base-content/55 cursor-pointer">
-          View exactly what will be posted
-        </summary>
-        <pre class="mt-2 whitespace-pre-wrap font-mono text-xs text-base-content/60">{@final_text}</pre>
-      </details>
+      <.disclosure
+        id="consent-final-text"
+        open={DisclosureState.open?(@disclosures, "consent-final-text")}
+        label="View exactly what will be posted"
+        target={@target}
+        nav={:none}
+      >
+        <pre class="whitespace-pre-wrap font-mono text-xs text-base-content/60">{@final_text}</pre>
+      </.disclosure>
     </div>
     """
   end

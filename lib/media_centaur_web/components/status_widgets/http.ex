@@ -16,11 +16,16 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
 
   alias MediaCentaur.HttpClient.Upstream
   alias MediaCentaur.TimeSeries.Window
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.StatusLive.TrafficFrame
 
   @doc "Connections Activity widget: request strip charts + recent-request feed."
   attr :traffic_window, :atom, required: true, values: Window.all()
   attr :traffic_recent, :list, default: [], doc: "Traffic.recent/0 — newest first"
+
+  attr :disclosures, :any,
+    default: MapSet.new(),
+    doc: "the page's `DisclosureState` — which disclosures the user toggled."
 
   def http_widget(assigns) do
     # The bundle is a plain map (no change tracking) — derive with Map.put/3.
@@ -36,9 +41,13 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
         legend={@legend}
       >
         <:footer>
-          <details :if={@traffic_recent != []} class="strip-chart-recent" data-component="http-recent">
-            <summary class="cursor-pointer text-xs text-base-content/55">Recent requests</summary>
-            <ul class="mt-2 space-y-0.5 font-mono text-xs">
+          <.disclosure
+            :if={@traffic_recent != []}
+            id="http-recent"
+            open={DisclosureState.open?(@disclosures, "http-recent")}
+            label="Recent requests"
+          >
+            <ul class="space-y-0.5 font-mono text-xs">
               <li
                 :for={entry <- @traffic_recent}
                 id={recent_row_id(entry)}
@@ -56,7 +65,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
                 <span class="text-base-content/55 shrink-0">{cache_label(entry.cache)}</span>
               </li>
             </ul>
-          </details>
+          </.disclosure>
         </:footer>
       </.strip_chart>
     </div>
