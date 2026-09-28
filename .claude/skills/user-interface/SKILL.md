@@ -228,33 +228,35 @@ Modals are **never** conditionally rendered with `:if={}`. They stay in the DOM 
 
 **Why always-in-DOM:** `backdrop-filter: blur()` has a first-frame compositing cost. Conditional rendering causes visible flash on every open.
 
-### Pennant ([UIDR-037])
+### Social glyphs and the social capsule ([UIDR-049])
 
-What friends did with a title, as flags flying inward from the right
-edge of the surface the title is on — the one place friend provenance
-shows. One component, `<.pennants activity={rows} />`
-(`Components.Title.Pennant`), fed the
-`Activities.friend_activity_for/1` rows for one title; `on_image` over a
-hero. The host places the mast: a row bleeds it into its own right
-padding under `overflow-hidden`; the cinematic shell has a `:hero_mast`
-slot. Six flags in mast order (UIDR-040): love (heart on `--color-love`,
-rose, the one warm hue outside the health palette), like (thumbs up),
-dislike (thumbs down), reviewed (speech bubble — a review with no
-sentiment), watched (eye), listing (bookmark), all but love on a neutral
-tint. A review flies its sentiment or the reviewed flag. Own acts fly
-only for reviews ("You"). The sentiment glyphs come from
-`Components.Title.Sentiment` (`<.sentiment_glyph sentiment={…} />`,
-story `/storybook/title/sentiment_glyph`), the one map every surface
-shares. Never a provenance line elsewhere; a friend's review text is the
-one thing that stays in the body. The Library grid and Home's poster
-rails carry no flags (a wall of posters is the title's surface, and
-friends' flags there are provenance noise; the detail modal flies
-them). A person's card is different: its acts strip flies the same
-flags as **act glyphs** centred above each poster, each at its grade —
-a white line drawing, silver or gold as one, two, or three or more
-people did that act (`DiscoveryLive.Grade`) — because there the poster is the act
-(UIDR-046). Story:
-`/storybook/title/pennants`.
+What people did with a title is drawn as **social glyphs** on every
+surface: `<SocialGlyph.social_glyph flag={…} grade={…} />` for one,
+`<SocialGlyph.social_glyphs flags={…} grades={…} titles={…} />` for a
+title's group (`Components.Title.SocialGlyph`). A flag is heart
+(love), thumbs up (like), thumbs down (dislike), speech bubble (a
+review with no sentiment), eye (watched) or bookmark (listing), in that
+order (`Title.Flag`). Its grade is how many people the reader knows did
+it (`Title.Grade`): plain, a white line drawing, for one; silver for
+two; gold for three or more — the solid glyph in brushed metal. The
+grade owns the colour: no sentiment has a hue of its own. Size comes
+from `--glyph` on an ancestor or a size utility.
+
+Every title surface reads one feed, `Activities.activity_for/1` (the
+reader's acts included, so the grade matches the person cards'), and
+draws a flag only when a friend did it (`SocialWords.drawn_flags/1`);
+each glyph's hover sentence is `SocialWords.sentences/1`'s. Title rows
+put the group at their right. The title detail puts it in the **social
+capsule** (`Components.Title.Social`): a dark pill in the hero's upper
+right, glyphs at 24px and a chevron, no names; pressing it opens the
+**social panel** over the backdrop — the reviews (tile, name, glyph,
+ago, words), then a sentence per wordless act. It is the modal's one
+place for names, dismissed like a glass menu (click-away, BACK, the
+capsule again), and its zone `detail_social` sits above the action row.
+A person card's acts strip draws the same glyphs centred above each
+poster (UIDR-046). The Library grid and Home's rails carry none.
+Stories: `/storybook/title/social_glyph`, `social_glyphs`,
+`social_capsule`, `social_panel`.
 
 ### File Paths
 
@@ -412,7 +414,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 034 | An empty surface states the diagnosed reason it is empty, via one `empty_state/1` |
 | 035 | Two title surfaces, split by whether the title has files (rules 1–2 superseded by 043) |
 | 036 | One control per title, because there is one ladder |
-| 037 | Friend provenance is the pennant, on every title surface |
+| 037 | Friend provenance is the pennant — superseded by 049 |
 | 038 | The Feed is friends' actions, one entry each |
 | 039 | Add to watchlist first, then the tracking controls |
 | 040 | A review is an opinion of any valence: the sentiment shows when given, nothing when none |
@@ -421,6 +423,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 043 | One title detail, composed by facts — one modal for one TMDB identity on every page; files are one more fact (supersedes 035 rules 1–2) |
 | 045 | Own actions join the Feed under an author scope; the segmented control is one component |
 | 046 | The Feed is the app's list beside a rail of people — the poster row, the identity tile, the person card's acts strip with centred glyphs and the grade, Library's frame; no still, no per-surface type floors |
+| 049 | What people did with a title is the social capsule — social glyphs at their grade on every title surface, one feed, drawn when a friend did it; no pennant, no rose |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -457,9 +460,11 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
-| `identity_tile/1` | `discovery/identity_tile.ex` | The app's one drawing of a person: monogram, photo, the filled own tile (UIDR-046) | ✅ |
+| `identity_tile/1` | `discovery/identity_tile.ex` | The app's one drawing of a person at 32, 40 or 48: monogram, photo, the filled own tile (UIDR-046) | ✅ |
 | `feed_row/1` | `discovery/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
 | `person_card/1` | `discovery/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
+| `social_glyph/1`, `social_glyphs/1` | `title/social_glyph.ex` | One flag at its grade; a title's group (UIDR-049) | ✅ |
+| `social_capsule/1`, `social_panel/1` | `title/social.ex` | The title detail's social capsule and the panel it opens (UIDR-049) | ✅ |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |
 | `action_footer/1` | `console_components.ex` | Console controls |

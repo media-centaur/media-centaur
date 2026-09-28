@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-09-27
+amended: 2026-09-28
 ---
 # The Feed is the app's list, beside a rail of people
 
@@ -49,3 +50,7 @@ The Feed is a list of the app's rows, on the app's page, in the app's type; a pe
 Rule 5's grade ("gold at the grade — two or more friends did that act on that title", the glyph otherwise matte white) is replaced. A two-tier render check had found silver could not separate from matte white; with the plain tier a white line drawing (the heroicons outline set, love a hollow heart) the three separate, so the grade has three tiers: **plain**, **silver**, **gold** — silver and gold the solid glyph in brushed metal: a three-stop sweep with its highlights held below white, under a fine grain running bottom-left to top-right, subtle enough to read as a surface rather than scratches at 28px. Every flag takes the same two metals; a dislike-specific red metal was rendered and set aside for now.
 
 The grade is progressive by count, for every flag alike: one person is plain, two silver, three or more gold. Every person counts once per flag on a title, **the reader included** — the old rule left the reader out, so "you and one friend liked it" stayed matte. An act is not weighed against another (a thumbs down does not lower a thumbs up); a share-based rule was considered and set aside as a model for a larger scale of data. `DiscoveryLive.Grade`'s moduledoc is the authority from here on. The pennant does not take the grade.
+
+## Amendment 2026-09-28 — the social glyph, on every title surface
+
+The act glyph is renamed the **social glyph** (`Title.SocialGlyph`), and `DiscoveryLive.Grade` moves to `Title.Grade`. UIDR-049 removes the pennant: the grade is drawn on every title surface — title rows and the title detail's social capsule — from one feed (`Activities.activity_for/1`) with the reader counted, so the amendment's "the pennant does not take the grade" no longer holds. The opened card's rows draw their flags at their grades.

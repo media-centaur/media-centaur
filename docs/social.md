@@ -396,8 +396,8 @@ project one enriched list — every live activity with its actor
 - **Friends** — `DiscoveryLive.People` folds the list into one
   `People.Card` (a `Social.Person` and their acts) per known person,
   the reader first when an identity exists: the person's **acts**, one per title acted on,
-  newest first, each carrying its flags (`Components.Title.Flag`, mast
-  order) and each one's grade (`DiscoveryLive.Grade`: plain, silver or
+  newest first, each carrying its flags (`Components.Title.Flag`, in
+  order) and each one's grade (`Components.Title.Grade`: plain, silver or
   gold as one, two, or three or more people did that act on that title,
   the reader counted). `Components.Discovery.PersonCard`
   renders a person and their acts at two widths — the Feed's rail (`People.rail/1`: You
@@ -425,16 +425,19 @@ project one enriched list — every live activity with its actor
   broadcasts `Social.Events.FriendChanged`, and the page rebuilds its
   `people_by_pubkey` map from `Social.people/0`.
 
-What friends did with a title — reviewed and with what sentiment, watched,
-or listed — is one component everywhere but the Feed, the pennant
-(`Components.Title.Pennant`, UIDR-037, six flags per UIDR-040; the
-sentiment glyphs are `Components.Title.Sentiment`'s), fed by
-`Activities.friend_activity_for/1` on the watchlist rows, the Incoming
-search rows and both detail modals. A feed row flies none: each
-action is its own row there. See
-`docs/plans/2026-09-05-recommendation-pennant.md` for the original
-decisions (written for the two-valued recommendation sentiment; UIDR-040
-is the current rule).
+What people did with a title — reviewed and with what sentiment, watched,
+or listed — is drawn as social glyphs (`Components.Title.SocialGlyph`,
+each flag at its grade, UIDR-049) from one feed,
+`Activities.activity_for/1`: every known person's live acts on the
+given titles, the reader's included, so a title's grade matches the
+person cards'. A flag is drawn only when a friend did it
+(`Components.Title.SocialWords.drawn_flags/1`). Title rows (the
+watchlist, Incoming's search results) show the glyphs at their right;
+the title detail shows them in the social capsule, which opens the
+social panel — the reviews, then a sentence per wordless act
+(`Components.Title.Social`). A feed row shows only its own sentiment:
+each action is its own row there. The pennant this replaced (UIDR-037)
+is superseded.
 
 The joins the contexts may not make happen here:
 

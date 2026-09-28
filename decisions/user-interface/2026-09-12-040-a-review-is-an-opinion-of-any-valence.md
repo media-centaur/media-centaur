@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-09-12
+amended: 2026-09-28
 ---
 # A review is an opinion of any valence: the sentiment shows when given, nothing when none
 
@@ -27,3 +28,7 @@ Like was the recommendation's floor, so surfaces encoded Like as absence, and th
 * **Absence as a value.**
 * **A colour per sentiment** — love keeps the one warm hue; dislike is not red.
 * **A required verdict** — a review is not a rating form.
+
+## Amendment 2026-09-28 — no warm hue
+
+UIDR-049 removes the rose: love is drawn like every other sentiment, as a social glyph at its grade, and `Components.Title.Sentiment` is gone (a Feed row draws its sentiment through `Title.SocialGlyph`). Rule 1's rose and the anti-pattern's "love keeps the one warm hue" no longer hold; the grade owns the glyph's colour. Rule 3's flags stand as the social glyph's flags; there is no mast. The Review modal's choice (rule 4) is the segmented control.

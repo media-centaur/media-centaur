@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded
 date: 2026-09-08
 amended: 2026-09-27
 ---
 # Friend provenance is the pennant, on every title surface
+
+Superseded 2026-09-28 by UIDR-049: the pennant and its rose are removed; the title surfaces draw what people did as social glyphs, and the title detail as the social capsule.
 
 Extends UIDR-035 and UIDR-038; UIDR-040 (2026-09-12) is folded in.
 
