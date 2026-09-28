@@ -29,7 +29,15 @@ function mount() {
 
   const pushed = []
   const handlers = {}
-  const el = {}
+  const listeners = {}
+  const el = {
+    addEventListener: (name, fn) => {
+      listeners[name] = fn
+    },
+    removeEventListener: (name, fn) => {
+      if (listeners[name] === fn) delete listeners[name]
+    },
+  }
   const hook = Object.assign(Object.create(FeedHead), {
     el,
     pushEvent: (name) => pushed.push(name),
@@ -45,6 +53,7 @@ function mount() {
     observed,
     pushed,
     handlers,
+    listeners,
     scrolls,
     cross: (isIntersecting) => callback([{ isIntersecting }]),
     disconnected: () => disconnected,
@@ -75,12 +84,21 @@ test("a crossing is reported once: the same state again pushes nothing", () => {
   expect(pushed).toEqual(["feed_scrolled"])
 })
 
-test("the server's scroll-to-top lands on the window; destroyed disconnects", () => {
-  const { hook, handlers, scrolls, disconnected } = mount()
+// "N new" scrolls in the browser (`JS.dispatch("feed:scroll-top")` on the
+// sentinel); the crossing it causes pushes `feed_at_top`, which lands the
+// queue. One round trip, where the server-pushed scroll made two.
+test("a scroll-to-top request lands on the window without a server event", () => {
+  const { listeners, pushed, scrolls } = mount()
 
-  handlers["feed:scroll_top"]()
+  listeners["feed:scroll-top"]()
   expect(scrolls).toEqual([{ top: 0, behavior: "instant" }])
+  expect(pushed).toEqual([])
+})
+
+test("destroyed disconnects and stops listening", () => {
+  const { hook, listeners, disconnected } = mount()
 
   hook.destroyed()
   expect(disconnected()).toBe(true)
+  expect(listeners["feed:scroll-top"]).toBeUndefined()
 })

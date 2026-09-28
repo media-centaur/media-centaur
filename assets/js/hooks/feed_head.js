@@ -6,7 +6,9 @@
 // "N new" (UIDR-046). The page scrolls the window, so the observer's root
 // is the viewport and scroll-to-top is the window's. The sentinel is a
 // one-pixel element at the column's top; the server keeps the head, this
-// hook only reports the crossing.
+// hook only reports the crossing. "N new" dispatches `feed:scroll-top` on
+// the sentinel: the scroll happens here, and the crossing it causes is what
+// tells the server to land the queue.
 export const FeedHead = {
   mounted() {
     this.atTop = true
@@ -17,10 +19,12 @@ export const FeedHead = {
       this.pushEvent(atTop ? "feed_at_top" : "feed_scrolled", {})
     })
     this.observer.observe(this.el)
-    this.handleEvent("feed:scroll_top", () => window.scrollTo({ top: 0, behavior: "instant" }))
+    this.onScrollTop = () => window.scrollTo({ top: 0, behavior: "instant" })
+    this.el.addEventListener("feed:scroll-top", this.onScrollTop)
   },
 
   destroyed() {
     this.observer?.disconnect()
+    this.el.removeEventListener("feed:scroll-top", this.onScrollTop)
   },
 }
