@@ -12,6 +12,10 @@ defmodule MediaCentaurWeb.Storybook.Title do
 
   def entry("sentiment_glyph"), do: [icon: {:fa, "thumbs-up", :thin}, name: "Sentiment glyph"]
 
+  def entry("social_glyph"), do: [icon: {:fa, "heart", :thin}, name: "Social glyph"]
+
+  def entry("social_glyphs"), do: [icon: {:fa, "icons", :thin}, name: "Social glyphs"]
+
   def entry("refresh_from_tmdb"), do: [icon: {:fa, "cloud-arrow-down", :thin}, name: "Refresh from TMDB"]
 
   def entry("tracking_controls"), do: [icon: {:fa, "sliders", :thin}, name: "Tracking controls"]

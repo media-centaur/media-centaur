@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
 
   test "the glyphs sit centred above the poster in mast order, each at its grade" do
     html = render(person: friend(), acts: acts_of(), width: :rail)
-    glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .act-glyph")
+    glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .social-glyph")
 
     assert LazyHTML.attribute(glyphs, "data-flag") == ["love", "watched", "watched", "listing"]
     assert LazyHTML.attribute(glyphs, "data-grade") == ["gold", "silver", "plain", "plain"]

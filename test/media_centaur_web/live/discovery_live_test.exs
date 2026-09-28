@@ -405,9 +405,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # the review's poster flies love. No presence line, no clock.
       show_act = friend_card() <> "-act-tv_series-1399"
       assert has_element?(view, show_act <> "[data-flags='watched listing']")
-      assert has_element?(view, show_act <> " .act-glyph[data-flag='watched']")
-      assert has_element?(view, show_act <> " .act-glyph[data-flag='listing']")
-      assert has_element?(view, friend_card() <> "-act-movie-777 .act-glyph[data-flag='love']")
+      assert has_element?(view, show_act <> " .social-glyph[data-flag='watched']")
+      assert has_element?(view, show_act <> " .social-glyph[data-flag='listing']")
+      assert has_element?(view, friend_card() <> "-act-movie-777 .social-glyph[data-flag='love']")
 
       refute has_element?(view, friend_card() <> " [data-role='presence']")
       refute has_element?(view, friend_card() <> " [data-role='ago']")
@@ -465,12 +465,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#person-you-act-movie-42 .act-glyph[data-flag='listing']"
+               "#person-you-act-movie-42 .social-glyph[data-flag='listing']"
              )
 
       assert has_element?(
                view,
-               "#person-you-act-movie-99 .act-glyph[data-flag='like']"
+               "#person-you-act-movie-99 .social-glyph[data-flag='like']"
              )
 
       # The rows are behind the card's press, in the second person.

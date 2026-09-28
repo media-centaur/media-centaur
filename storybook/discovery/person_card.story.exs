@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
   One person as their latest acts (UIDR-046): the identity tile, the
   name — no clock — and a strip of posters, one per title acted on,
-  each under its act glyphs centred as a group in mast order (the
+  each under its social glyphs centred as a group in order (the
   opinion, the eye, the bookmark), each at its grade — a white line
   drawing, silver, or gold. One
   component at two widths: the Feed's rail (480, a row in the rail's

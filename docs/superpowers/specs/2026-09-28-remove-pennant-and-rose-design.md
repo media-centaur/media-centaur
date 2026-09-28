@@ -69,7 +69,7 @@ friends only); its row shape is unchanged.
 The social glyph markup lives inline in `PersonCard` today. Three more
 surfaces need it, so it becomes a component with a story:
 `Title.SocialGlyph.social_glyph/1` (`flag`, `grade`, `class`) and
-`glyphs/1` (a title's flags with their grades). The brushed-metal
+`social_glyphs/1` (a title's flags with their grades). The brushed-metal
 CSS moves from `.act-slots` to the glyph (`.act-glyph`/`.act-icon` become `.social-glyph`/`.social-icon`), so it works outside a person
 card. `Title.Sentiment` and its story are removed; the feed row renders
 its sentiment through `social_glyph` at plain.

@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Act do
   @moduledoc """
   One title a person acted on (UIDR-046): what the person card's strip
   shows for it — the poster under its flags, in mast order, `grades`
-  giving each flag's grade (`DiscoveryLive.Grade`) — and every activity behind it, newest
+  giving each flag's grade (`Title.Grade`) — and every activity behind it, newest
   first. The newest activity's id, time, ago and episode are the act's:
   the press opens it, the ago is its. Built by `DiscoveryLive.People`,
   rendered by `PersonCard`; a view-model, the card decides nothing.
@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Act do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Flag
-  alias MediaCentaurWeb.DiscoveryLive.Grade
+  alias MediaCentaurWeb.Components.Title.Grade
 
   defmodule Entry do
     @moduledoc "One activity behind an act: what the opened card's row and the title modal need."

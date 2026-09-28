@@ -3264,7 +3264,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   gap: var(--gap);
 }
 
-/* A cell is the act glyphs over the poster: 36 + 144 in the rail, 36 + 195
+/* A cell is the social glyphs over the poster: 36 + 144 in the rail, 36 + 195
    on the page. */
 .act {
   position: relative;
@@ -3302,9 +3302,9 @@ body:has(.modal-backdrop[data-state="open"]) {
   padding: 12px;
 }
 
-/* The act glyphs (UIDR-046): a 36px strip on the card's ground above the
-   poster — no backing — with the glyphs for what the person did centred
-   as a group in mast order: one act sits in the middle, two as a pair,
+/* The social glyphs over a person card's poster (UIDR-046): a 36px strip
+   on the card's ground — no backing — with the glyphs for what the person
+   did centred as a group in order: one act sits in the middle, two as a pair,
    three across. An absent act has no element. */
 .act-slots {
   display: flex;
@@ -3316,16 +3316,22 @@ body:has(.modal-backdrop[data-state="open"]) {
   pointer-events: none;
 }
 
-.act-glyph {
-  width: var(--glyph);
-  height: var(--glyph);
-  color: oklch(100% 0 0 / 0.72); /* plain: a white line drawing */
+/* The social glyph (`Title.SocialGlyph`): one flag at its grade, on
+   every surface that shows one — a person card, a title row, a Feed row,
+   the title detail's social capsule. Its size is the host's: `--glyph`,
+   or a size utility on the element. Plain is a white line drawing. */
+.social-glyph {
+  display: inline-block;
+  flex: none;
+  width: var(--glyph, 1em);
+  height: var(--glyph, 1em);
+  color: oklch(100% 0 0 / 0.72);
 }
 
-.act-icon {
+.social-icon {
   display: block;
-  width: var(--glyph);
-  height: var(--glyph);
+  width: 100%;
+  height: 100%;
 }
 
 /* The grade's metals, three stops on one 135° sweep, brushed: a grain
@@ -3335,17 +3341,21 @@ body:has(.modal-backdrop[data-state="open"]) {
    CSS mask over `background-color: currentColor`, so the layers are
    background images under the mask, not an SVG fill. One 128px tile
    covers any glyph size, so it never repeats. */
-.act-glyph[data-grade="silver"] > .act-icon,
-.act-glyph[data-grade="gold"] > .act-icon {
-  background-image: var(--act-brush), var(--act-metal);
+:root {
+  --social-brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='matrix' values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncG type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncB type='linear' slope='0.8' intercept='0.100'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cg transform='rotate(-45 64 64)'%3E%3Crect x='-64' y='-64' width='256' height='256' filter='url(%23n)'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.social-glyph[data-grade="silver"] > .social-icon,
+.social-glyph[data-grade="gold"] > .social-icon {
+  background-image: var(--social-brush), var(--social-metal);
   background-size: 128px 128px, 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
   background-blend-mode: overlay, normal;
 }
 
-.act-glyph[data-grade="silver"] {
-  --act-metal: linear-gradient(
+.social-glyph[data-grade="silver"] {
+  --social-metal: linear-gradient(
     135deg,
     oklch(91% 0.007 250),
     oklch(56% 0.018 250) 55%,
@@ -3353,17 +3363,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
-.act-glyph[data-grade="gold"] {
-  --act-metal: linear-gradient(
+.social-glyph[data-grade="gold"] {
+  --social-metal: linear-gradient(
     135deg,
     oklch(84% 0.15 86),
     oklch(62% 0.13 86) 55%,
     oklch(78% 0.161 86)
   );
-}
-
-.act-slots {
-  --act-brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='matrix' values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncG type='linear' slope='0.8' intercept='0.100'/%3E%3CfeFuncB type='linear' slope='0.8' intercept='0.100'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cg transform='rotate(-45 64 64)'%3E%3Crect x='-64' y='-64' width='256' height='256' filter='url(%23n)'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* ── Feed rows (UIDR-046) ── the rows sit in a column with a hairline
