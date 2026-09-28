@@ -3151,6 +3151,51 @@ body:has(.modal-backdrop[data-state="open"]) {
   box-shadow: 0 0 0 2px var(--person);
 }
 
+/* The swatch row and the ring slider (UIDR-048). A swatch is the ring at
+   its angle; the pressed one wears an outline. The slider's track is the
+   whole ring. */
+.hue-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  cursor: pointer;
+  background: oklch(var(--person-l) var(--person-c) var(--hue, 250));
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.4);
+}
+
+.hue-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--color-base-content);
+  outline-offset: 3px;
+}
+
+.hue-slider {
+  appearance: none;
+  width: 100%;
+  max-width: 16rem;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    oklch(var(--person-l) var(--person-c) 0),
+    oklch(var(--person-l) var(--person-c) 60),
+    oklch(var(--person-l) var(--person-c) 120),
+    oklch(var(--person-l) var(--person-c) 180),
+    oklch(var(--person-l) var(--person-c) 240),
+    oklch(var(--person-l) var(--person-c) 300),
+    oklch(var(--person-l) var(--person-c) 360)
+  );
+}
+
+.hue-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--color-base-content);
+  border: 2px solid var(--color-base-200);
+  cursor: pointer;
+}
+
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's
    row and the Friends page's card. Every size is a custom property of the
    width class; the text is Tailwind on top. The rail's card has no ground
