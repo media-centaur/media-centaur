@@ -194,11 +194,11 @@ defmodule MediaCentaur.Social do
   """
   @spec people() :: %{optional(String.t()) => Person.t()}
   def people do
-    # Four fields per row: `raw_event` carries the encoded avatar and is
+    # Five fields per row: `raw_event` carries the encoded avatar and is
     # for republish, not for a page load.
     profiles =
       Profile
-      |> select([p], struct(p, [:pubkey, :name, :avatar_type, :created_at]))
+      |> select([p], struct(p, [:pubkey, :name, :avatar_type, :hue, :created_at]))
       |> Repo.all()
       |> Map.new(&{&1.pubkey, &1})
 
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Social do
   # --- profiles ----------------------------------------------------------------
 
   @doc """
-  The profile name rule, the one `save_profile/2` applies: trimmed, present
+  The profile name rule, the one `save_profile/3` applies: trimmed, present
   and within `Profile.Translation.max_name_length/0`. The form checks it
   before it consumes a chosen picture, so a name error costs nothing.
   """
@@ -259,13 +259,17 @@ defmodule MediaCentaur.Social do
   `Profile.Translation.max_avatar_bytes/0` are refused
   (`:avatar_too_large`) before anything is minted. `:keep` publishes the
   stored file's bytes; when the file is missing it publishes none, and
-  the row follows.
+  the row follows. The hue is the angle the circle takes (UIDR-048), nil
+  for none; out of range is refused (`:invalid_hue`) before anything is
+  minted.
   """
-  @spec save_profile(String.t(), avatar_change()) ::
-          {:ok, Profile.t()} | {:error, :name_required | :name_too_long | :avatar_too_large}
-  def save_profile(name, avatar_change) when is_binary(name) do
+  @spec save_profile(String.t(), avatar_change(), Hue.t() | nil) ::
+          {:ok, Profile.t()}
+          | {:error, :name_required | :name_too_long | :avatar_too_large | :invalid_hue}
+  def save_profile(name, avatar_change, hue) when is_binary(name) do
     with {:ok, name} <- check_name(name),
-         :ok <- within_avatar_cap(avatar_change) do
+         :ok <- within_avatar_cap(avatar_change),
+         :ok <- valid_hue(hue) do
       secret = Identity.ensure()
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
@@ -273,7 +277,9 @@ defmodule MediaCentaur.Social do
       created_at = Event.stamp_after(stored && stored.created_at, System.os_time(:second))
 
       event =
-        Event.sign(ProfileTranslation.to_event(%{name: name, avatar: avatar}, me, created_at), secret)
+        %{name: name, avatar: avatar, hue: hue}
+        |> ProfileTranslation.to_event(me, created_at)
+        |> Event.sign(secret)
 
       {:ok, attrs} = ProfileTranslation.from_event(event)
       profile = store_profile(stored, attrs)
@@ -420,6 +426,7 @@ defmodule MediaCentaur.Social do
       own?: true,
       published_name: profile && profile.name,
       avatar_url: avatar_url(profile),
+      published_hue: profile && profile.hue,
       short_npub: pubkey && short_npub(pubkey)
     }
   end
@@ -431,6 +438,8 @@ defmodule MediaCentaur.Social do
       published_name: profile && profile.name,
       avatar_url: if(friend.show_avatar, do: avatar_url(profile)),
       show_avatar: friend.show_avatar,
+      published_hue: profile && profile.hue,
+      hue_override: friend.hue_override,
       own?: false,
       short_npub: short_npub(friend.pubkey),
       added_on: DateTime.to_date(friend.inserted_at)

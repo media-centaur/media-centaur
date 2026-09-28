@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
   four cards. Your profile — the name friends see and the picture beside
   it, one form whose save mints the identity when none exists
-  (`Social.save_profile/2`); it is the only card before an identity
+  (`Social.save_profile/3`); it is the only card before an identity
   exists, so opening the section mints nothing. The picture is a
   LiveView upload: the identity tile shows the stored avatar (or the
   letter while a Remove is pending), the file input takes one JPEG, PNG

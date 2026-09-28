@@ -333,7 +333,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # Opening the Social section mints nothing (UIDR-047 rule 3): Create
-  # profile does (`Social.save_profile/2`), and publishing an own activity
+  # profile does (`Social.save_profile/3`), and publishing an own activity
   # still mints silently (`Activities`). Without an identity only the
   # profile card shows.
   defp load_social(socket, "social") do
@@ -950,7 +950,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("save_profile", %{"name" => name}, socket) do
     with {:ok, _name} <- Social.check_name(name),
          {:ok, avatar} <- avatar_change(socket),
-         {:ok, profile} <- Social.save_profile(name, avatar) do
+         {:ok, profile} <- Social.save_profile(name, avatar, nil) do
       {:noreply,
        socket
        |> assign(identity_npub: Identity.npub(), profile_name: profile.name, avatar_removed?: false)

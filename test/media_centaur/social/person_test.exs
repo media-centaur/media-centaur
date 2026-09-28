@@ -77,9 +77,35 @@ defmodule MediaCentaur.Social.PersonTest do
       assert Social.people()[me].short_npub == Social.short_npub(me)
       assert Social.people()[me].published_name == nil
 
-      {:ok, _profile} = Social.save_profile("Me", :keep)
+      {:ok, _profile} = Social.save_profile("Me", :keep, nil)
       assert Social.people()[me].published_name == "Me"
       assert Social.own_person().published_name == "Me"
+    end
+
+    test "the hue: the reader's override, else the published one, else nil; the own Person has no override" do
+      {:ok, _friend} = Social.add_friend(@signer, "Nick")
+      assert %Person{published_hue: nil, hue_override: nil} = person = Social.people()[@signer]
+      assert Person.hue(person) == nil
+
+      {:ok, _profile} =
+        Social.ingest_profile(
+          Event.sign(
+            Translation.to_event(%{name: "One", hue: 195}, @signer, 1_700_000_000),
+            @signer_secret
+          )
+        )
+
+      assert %Person{published_hue: 195, hue_override: nil} = person = Social.people()[@signer]
+      assert Person.hue(person) == 195
+
+      {:ok, _friend} = Social.set_hue_override(@signer, 12)
+      assert %Person{published_hue: 195, hue_override: 12} = person = Social.people()[@signer]
+      assert Person.hue(person) == 12
+
+      {:ok, _profile} = Social.save_profile("Me", :keep, 290)
+      me = Social.own_person()
+      assert %Person{own?: true, published_hue: 290, hue_override: nil} = me
+      assert Person.hue(me) == 290
     end
   end
 
