@@ -40,7 +40,9 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   does not press the card; the avatar switch pushes `set_show_avatar`
   with the key and the value to set — the opposite of the current — and
   its own `phx-click` is what keeps the card's press from it;
-  `open_person` and `toggle_person` are the card's own presses. The root
+  the hue form swallows its clicks the same way, so a drag on the
+  slider does not toggle the card; `open_person` and `toggle_person` are
+  the card's own presses. The root
   gets no nav wiring until the hardening pass.
   """
 
@@ -219,6 +221,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             theirs_hue={@person.published_hue}
             event="set_hue_override"
             values={%{"pubkey" => @person.pubkey}}
+            aria-label="Colour"
           />
         </form>
         <div class="flex items-center justify-between">

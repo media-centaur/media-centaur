@@ -78,70 +78,91 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           phx-change="validate_profile"
           class="space-y-3"
         >
-          <div class="flex items-center gap-3">
-            <IdentityTile.identity_tile
-              person={shown_person(@own_person, @avatar_removed?, @profile_hue)}
-              size={48}
-            />
-            <.live_file_input upload={@uploads.avatar} class="file-input file-input-sm min-w-0" />
-            <.button
-              :if={@own_person.avatar_url && !@avatar_removed? && @uploads.avatar.entries == []}
-              id="remove-avatar"
-              type="button"
-              variant="dismiss"
-              size="xs"
-              phx-click="remove_avatar"
-              data-nav-item
-              tabindex="0"
+          <div class="flex flex-wrap gap-x-8">
+            <.settings_field
+              label="Picture"
+              description="Shown in your circle. One JPEG, PNG or WebP."
+              layout={:stacked}
+              class="w-72 shrink-0"
             >
-              Remove
-            </.button>
+              <div class="flex items-center gap-3">
+                <IdentityTile.identity_tile
+                  person={shown_person(@own_person, @avatar_removed?, @profile_hue)}
+                  size={48}
+                />
+                <.live_file_input upload={@uploads.avatar} class="sr-only" />
+                <.button
+                  id="choose-avatar"
+                  type="button"
+                  variant="neutral"
+                  size="sm"
+                  phx-click={JS.dispatch("click", to: "##{@uploads.avatar.ref}")}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Choose picture
+                </.button>
+                <.button
+                  :if={@own_person.avatar_url && !@avatar_removed? && @uploads.avatar.entries == []}
+                  id="remove-avatar"
+                  type="button"
+                  variant="dismiss"
+                  size="xs"
+                  phx-click="remove_avatar"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Remove
+                </.button>
+              </div>
+              <p :for={err <- upload_errors(@uploads.avatar)} class="mt-2 text-xs text-error">
+                {upload_error_words(err, @uploads.avatar)}
+              </p>
+              <p
+                :for={entry <- @uploads.avatar.entries}
+                class="mt-2 flex items-center gap-2 text-xs text-base-content/60"
+              >
+                <span class="truncate">{entry.client_name}</span>
+                <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
+                  {upload_error_words(err, @uploads.avatar)}
+                </span>
+                <.button
+                  type="button"
+                  variant="dismiss"
+                  size="xs"
+                  phx-click="cancel_avatar"
+                  phx-value-ref={entry.ref}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Cancel
+                </.button>
+              </p>
+            </.settings_field>
+            <div class="min-w-0 grow basis-64">
+              <.settings_field label="Name" layout={:stacked}>
+                <.settings_input
+                  id="profile-name"
+                  name="name"
+                  value={@profile_name}
+                  maxlength={@name_cap}
+                  autocomplete="off"
+                  phx-debounce="blur"
+                  class="max-w-64"
+                />
+              </.settings_field>
+              <.settings_field label="Colour" description="Your circle's colour." layout={:stacked}>
+                <HueSwatches.hue_swatches
+                  id="profile-hues"
+                  selected={@profile_hue}
+                  event="set_profile_hue"
+                  aria-label="Colour"
+                />
+              </.settings_field>
+            </div>
           </div>
-          <p :for={err <- upload_errors(@uploads.avatar)} class="text-xs text-error">
-            {upload_error_words(err, @uploads.avatar)}
-          </p>
-          <p
-            :for={entry <- @uploads.avatar.entries}
-            class="flex items-center gap-2 text-xs text-base-content/60"
-          >
-            <span class="truncate">{entry.client_name}</span>
-            <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
-              {upload_error_words(err, @uploads.avatar)}
-            </span>
-            <.button
-              type="button"
-              variant="dismiss"
-              size="xs"
-              phx-click="cancel_avatar"
-              phx-value-ref={entry.ref}
-              data-nav-item
-              tabindex="0"
-            >
-              Cancel
-            </.button>
-          </p>
-          <div class="flex items-start gap-3">
-            <span id="profile-hues-label" class="w-14 shrink-0 pt-1 text-sm font-medium">Colour</span>
-            <HueSwatches.hue_swatches
-              id="profile-hues"
-              selected={@profile_hue}
-              event="set_profile_hue"
-              class="min-w-0 flex-1"
-              aria-labelledby="profile-hues-label"
-            />
-          </div>
-          <div class="flex items-center gap-3">
-            <label for="profile-name" class="w-14 shrink-0 text-sm font-medium">Name</label>
-            <.settings_input
-              id="profile-name"
-              name="name"
-              value={@profile_name}
-              maxlength={@name_cap}
-              autocomplete="off"
-              phx-debounce="blur"
-              class="max-w-64"
-            />
-            <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+          <div class="flex justify-end">
+            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
               {if @npub, do: "Save", else: "Create profile"}
             </.button>
           </div>

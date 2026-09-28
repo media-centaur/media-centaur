@@ -31,13 +31,16 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
   attr :event, :string, required: true, doc: "pushed by a swatch with `values` and `hue`"
   attr :values, :map, default: %{}, doc: "phx-value-* params a swatch carries beside `hue`"
   attr :class, :any, default: nil, doc: "the row's spacing; the host sets it"
-  attr :rest, :global, doc: "`data-*` markers a host or a test reads the row by"
+
+  attr :rest, :global,
+    doc:
+      "the group's name (`aria-label=\"Colour\"`) and `data-*` markers a host or a test reads the row by"
 
   def hue_swatches(assigns) do
     assigns = assign(assigns, thumb: assigns.selected || assigns.theirs_hue || 250)
 
     ~H"""
-    <div id={@id} class={["space-y-2", @class]} data-component="hue-swatches" {@rest}>
+    <div id={@id} role="group" class={["space-y-2", @class]} data-component="hue-swatches" {@rest}>
       <div class="flex flex-wrap items-center gap-2.5">
         <button
           :if={@theirs?}

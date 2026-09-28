@@ -277,7 +277,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       {:noreply, socket}
     else
       {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
-      _bad_hue -> {:noreply, socket}
+      :error -> {:noreply, socket}
     end
   end
 

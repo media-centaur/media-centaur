@@ -78,8 +78,10 @@ The brief and its six open questions are in this file's history
   hand-rolled hook — the owner's rule: an exceedingly minimal package
   for anything required. The client sends the box; the server cuts it
   (`square_webp/4` with `crop:`), autorotating first. No Elixir package.
-* The name field at 16 rem with Save beside it; the card's rename field
-  the same width.
+* The name field at 16 rem; the card's rename field the same width. After
+  the first build the owner asked for the card to use its width: two
+  columns of the kit's stacked fields, Save in the kit's form footer
+  (spec § The name field, and the card's two columns).
 
 ## Ship notes for phase 2 (the CHANGELOG draws on these)
 

@@ -493,11 +493,21 @@ sends the box, the server cuts it.
   crop, the master today; the form never refuses a crop.
 - Cancel discards the entry and the box with it. Remove stays as it is.
 
-### The name field
+### The name field, and the card's two columns
 
-The Settings name field is 16 rem with Save beside it, the row no
-longer stretched to the card; the card foot's rename input takes the
-same width. One width for a person's name field.
+The Settings name field is 16 rem, no longer stretched to the card; the
+card foot's rename input takes the same width. One width for a person's
+name field.
+
+2026-09-28, owner's request after the first build: the profile card
+uses its width as two columns of the Settings kit's stacked fields
+(`settings_field layout={:stacked}`, UIDR-041), the idiom the
+acquisition section's connection forms already use — **Picture** on the
+left (the tile, *Choose picture* opening the hidden file input, Remove,
+the chosen file's line; the cropper goes under them in 5b), **Name**
+and **Colour** stacked on the right — with Save in the form's footer at
+the right, where every kit form keeps its buttons. No hand-rolled
+labels: a surface composes from the kit or adds a component to it.
 
 ### Errors
 

@@ -488,6 +488,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 
 ## Anti-Patterns
 
+- Hand-rolled markup for something a component draws — a label over a control, a form's button row, a field — instead of composing from the kit (`settings_field`, `settings_input`, the form footer idiom in the acquisition section) or adding a component with a story. Two surfaces drawing one idea drift (CLAUDE.md § Compose from the kit).
 - Solid-fill semantic buttons (`btn-error` without `btn-soft`)
 - Hardcoded oklch color values for themeable colors
 - `:if={}` on elements with `backdrop-filter`
