@@ -31,9 +31,8 @@ New terms:
 
 | Term | Meaning |
 |---|---|
-| **Act group** | The act glyphs of one title in mast order, each at its grade. On a person card it is the flags that person did; on a title surface, the flags anyone the reader knows did. |
-| **Act capsule** | The act group on a dark ink pill, for a title surface over imagery: the title detail's hero, upper right. A control: pressing it opens the act panel. |
-| **Act panel** | The glass panel the act capsule opens, anchored beneath it over the backdrop: every review on the title, then one sentence per flag that carries no text. The one place the modal names who did each act. (Name to confirm.) |
+| **Social capsule** | The title's glyphs, at their grades, on a dark ink pill, for a title surface over imagery: the title detail's hero, upper right. A control: pressing it opens the social panel. |
+| **Social panel** | The glass panel the social capsule opens, anchored beneath it over the backdrop: every review on the title, then one sentence per flag that carries no text. The one place the modal names who did each act. |
 | **Lead review** | The review the modal was opened from (a Feed row, a person card), shown above the synopsis. |
 
 ## 2. Where the pennant and the rose are today
@@ -70,26 +69,26 @@ friends only); its row shape is unchanged.
 The act glyph markup lives inline in `PersonCard` today. Three more
 surfaces need it, so it becomes a component with a story:
 `Title.ActGlyph.act_glyph/1` (`flag`, `grade`, `class`) and
-`act_group/1` (a title's flags with their grades). The brushed-metal
+`glyphs/1` (a title's flags with their grades). The brushed-metal
 CSS moves from `.act-slots` to the glyph, so it works outside a person
 card. `Title.Sentiment` and its story are removed; the feed row renders
 its sentiment through `act_glyph` at plain.
 
-### 3.3 Title detail hero — the act capsule and the act panel
+### 3.3 Title detail hero — the social capsule and the social panel
 
 Mockups: `2026-09-28-remove-pennant-and-rose-mockups/` (round 1:
 `1-at-rest`, `2-open` 2b, `3-from-review`; `build.py` regenerates them).
 
-**The act capsule.** In the hero's upper right, 12px in from the panel's
+**The social capsule.** In the hero's upper right, 12px in from the panel's
 top and right edges: a dark ink pill (`oklch(12% 0.015 264 / 0.82)`, a
-1px white/12 inner ring, blur) holding the title's act group, 24px
+1px white/12 inner ring, blur) holding the title's glyphs, 24px
 glyphs at their grades, 12px apart, then a 12px chevron. The ink ground
 is what makes the plain white line drawing and the metals read over any
 backdrop. No names in the capsule. It is a button and a nav item,
 present whenever the title has any act; `aria-expanded` follows the
 panel. `CinematicShell`'s `:hero_mast` slot is renamed `:hero_corner`.
 
-**The act panel.** Pressing the capsule opens a glass panel anchored
+**The social panel.** Pressing the capsule opens a glass panel anchored
 beneath it, 420px wide, over the backdrop — the glass menu's surface
 and dismissal (click-away, BACK, pressing the capsule again), never
 pushing the modal's content. It lists:
@@ -114,11 +113,11 @@ watchlist note (`intent_note`) keeps its current unattributed line.
 
 ### 3.4 Title rows (Watchlist, Incoming search results)
 
-The act group at the row's right, vertically centred, where the mast
+The glyphs at the row's right, vertically centred, where the mast
 was — no capsule, since the row is on the app's ground like the person
 card. No names; the grade says how many, the title's view says who.
 The hover tooltip keeps the pennant's sentence ("Nick and you watched
-this"), moved to the act group.
+this"), moved to the glyphs.
 
 ### 3.5 Review modal
 
@@ -156,24 +155,24 @@ the user-interface skill's Pennant recipe; the wiki's `Social.md`
 
 ## 5. Decisions (2026-09-28)
 
-1. **Names**: *act group* and *act capsule*.
+1. **Names**: *social capsule* and *social panel* (the owner's; "act" terms were rejected).
 2. **Who, on the hero**: no names in the capsule; the capsule opens
-   the act panel (reviews, then one sentence per text-less flag), over
+   the social panel (reviews, then one sentence per text-less flag), over
    the backdrop. Glyphs at 24px. Tiles inside the capsule, a Reviews
    view, a reviews block in the prose band and a section at the body's
    foot were considered and set aside.
 5. **Lead review**: kept, with the tile and the sentiment glyph.
-3. **Rows**: the act group with no ground.
+3. **Rows**: the glyphs with no ground.
 4. **Review modal**: the segmented control, words only.
 
 ## 6. Test strategy
 
 - `Grade.grades/1`: pure unit tests (moved from `People`), including the
   reader's watch counting on a title surface.
-- `ActGlyph`, `ActCapsule`, `ActPanel`: stories for the flag × grade
+- `ActGlyph`, `SocialCapsule`, `SocialPanel`: stories for the flag × grade
   matrix, the capsule on imagery, the panel with reviews only, with acts
   only and with both (no markup assertions, per the testing policy).
-- The act panel's content (reviews newest first, the text-less flags'
+- The social panel's content (reviews newest first, the text-less flags'
   sentences in flag order) is a pure function with unit tests.
 - Title detail host: pressing the capsule opens the panel, click-away
   and BACK close it (LiveView test on the open assign and the rendered
@@ -181,7 +180,7 @@ the user-interface skill's Pennant recipe; the wiki's `Social.md`
 - `activity_for/1`: the reader's watched and listing acts are included;
   a former friend's are not.
 - Detail panel, title row, review modal, feed row: rewrite the pennant
-  assertions against `data-flag` / `data-grade` on the act group; the
+  assertions against `data-flag` / `data-grade` on the glyphs; the
   review modal's clear-on-second-press stays covered.
 - Credo/boundaries/precommit green; a page-shot of the hero, a watchlist
   row and the review modal.
