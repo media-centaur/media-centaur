@@ -21,20 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`profiles.md`](profiles.md) —
-  **shipped v1.42.0 2026-09-28 with social-relay v0.7.0; phases 5a (the hue, the name field, the two-column card) and 5b (the crop) built on main 2026-09-28, unreleased; the release retires the file.** A person
-  publishes how they appear: a name, required in the form, and an optional
-  picture, as one replaceable event (kind 12160) per identity, the picture
-  inline as a 256×256 WebP under a 64 KB cap. Friends see it in the identity
-  tile under the reader's override and a per-friend **Show their picture**
-  switch. One `Social.Person` read model replaces the five copies of a
-  person's name; the sync loop moves to `RelaySync`; one `Components.Switch`
-  serves the card, the Settings row and the tracking block. ADR-073, ADR-074,
-  UIDR-047 accepted. Open: phase 5 — a **hue** for the circle (UIDR-048:
-  eight palette angles on one oklch ring, Custom from a slider, the
-  reader's override first), a croppr box with a preview, the name
-  field at 16 rem — designed, to be planned and built as 5a and 5b;
-  the `nickname` drop rides in that release; then the file is retired.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
@@ -153,6 +139,32 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **Profiles** —
+  **complete 2026-09-28; file retired (git history holds it: `campaigns/profiles.md` at `d0850575`).**
+  A person publishes how they appear and the reader keeps the last word.
+  v1.42.0 (with social-relay v0.7.0): one replaceable event (kind 12160)
+  per identity carrying a name, optional on the wire, and an avatar inline
+  as a 256×256 WebP under 64 KB; one `Social.Person` read model in place
+  of five copies of a name; the name override and the *Show their picture*
+  switch; `RelaySync` above `Activities` and `Social`; one
+  `Components.Switch`. v1.43.0: a colour is a **hue**, an angle on one
+  oklch ring the theme fixes the lightness and chroma of, eight palette
+  angles plus the ring as a slider, the reader's override first
+  ([UIDR-048](../decisions/user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md));
+  the profile card as two columns of the Settings kit's stacked fields;
+  a crop box (croppr, 5 KB) with *How it will look* previews, the master
+  turned upright by its orientation tag first; `friends.nickname` dropped.
+  ADR-073, ADR-074, UIDR-047 accepted; the design in
+  `docs/superpowers/specs/2026-09-27-profiles-design.md`, five plans
+  beside it. The build broke one rule at the plan, so CLAUDE.md gained
+  "Compose from the kit; never re-draw what a component draws".
+  Leftovers: the ring slider's and the crop box's keyboard paths (arrows
+  on a focused input are navigation) → the input-system rollout, said in
+  the `HueSwatches` moduledoc and the `AvatarCrop` header; per-group
+  personas → multi-identity, its own campaign when asked; a boot-time
+  heal for a missing avatar file, an avatar by URL and a hide-all switch
+  → declined until asked (spec § Not in scope).
 
 * **Feed appearance** —
   **complete 2026-09-27; file retired (git history holds it: `campaigns/feed-appearance.md` at `6c362a6c`).**
