@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.46.0 — 2026-09-28
+
+### New
+
+- **Arrived movies leave your watchlist.** When a movie on your watchlist arrives in your library, it comes off the watchlist, and a listing your friends can see is withdrawn as though you had removed it yourself. Series stay on the watchlist, since they keep releasing. It is on by default; turn it off under Settings › Library › *Take arrived movies off your watchlist*. A movie you add to the watchlist after it is already in your library stays there.
+
+### Migration safety
+
+- This release runs no migrations.
+
 ## v1.45.0 — 2026-09-28
 
 ### Improved
