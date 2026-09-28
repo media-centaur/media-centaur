@@ -247,6 +247,12 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, stage <> " .identity-tile.identity-tile-own.identity-tile-avatar")
       assert render(view) =~ "How it will look"
 
+      # The previews follow the pending hue: it sits on the stage's parent,
+      # outside the hook's ignored subtree, and inherits into the rings.
+      view |> element("#profile-hues button[data-hue='195']") |> render_click()
+      assert has_element?(view, "#profile-form [data-role='pending-picture'][style='--hue: 195']")
+      refute has_element?(view, stage <> " .identity-tile[style]")
+
       view |> element("#profile-form button", "Cancel") |> render_click()
       refute has_element?(view, "#profile-form [phx-hook='AvatarCrop']")
     end
