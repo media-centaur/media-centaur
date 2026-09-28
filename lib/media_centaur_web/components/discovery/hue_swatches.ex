@@ -8,7 +8,9 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
   the host's enclosing form's `phx-change` receives it (Settings' profile
   form; a small `set_hue_override` form on a friend's card foot), so a
   click and a drag reach one handler with one payload. Every swatch and
-  the slider are nav items.
+  the slider are nav items; the slider's angle is set by pointer until
+  the input system learns a range (arrows on a focused input are
+  navigation today).
 
   `theirs?` leads the row with **Theirs**, the friend's published hue
   (`theirs_hue`; the default Blue when nil), pressed while `selected` is
@@ -17,6 +19,7 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.Components.Discovery.IdentityTile, only: [hue_style: 1]
   import MediaCentaurWeb.CoreComponents, only: [phx_values: 1]
 
   alias MediaCentaur.Social.Hue
@@ -27,8 +30,8 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
   attr :theirs_hue, :integer, default: nil, doc: "the published hue Theirs draws; nil draws the default"
   attr :event, :string, required: true, doc: "pushed by a swatch with `values` and `hue`"
   attr :values, :map, default: %{}, doc: "phx-value-* params a swatch carries beside `hue`"
-  attr :class, :any, default: nil
-  attr :rest, :global
+  attr :class, :any, default: nil, doc: "the row's spacing; the host sets it"
+  attr :rest, :global, doc: "`data-*` markers a host or a test reads the row by"
 
   def hue_swatches(assigns) do
     assigns = assign(assigns, thumb: assigns.selected || assigns.theirs_hue || 250)
@@ -40,7 +43,7 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
           :if={@theirs?}
           type="button"
           class="hue-swatch"
-          {theirs_style(@theirs_hue)}
+          {hue_style(@theirs_hue)}
           aria-pressed={to_string(is_nil(@selected))}
           aria-label="Theirs"
           title="Theirs"
@@ -54,7 +57,7 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
           :for={{name, hue} <- Hue.palette()}
           type="button"
           class="hue-swatch"
-          style={"--hue: #{hue}"}
+          {hue_style(hue)}
           aria-pressed={to_string(@selected == hue)}
           aria-label={name}
           title={name}
@@ -80,11 +83,4 @@ defmodule MediaCentaurWeb.Components.Discovery.HueSwatches do
     </div>
     """
   end
-
-  # Theirs with no published hue carries no `style` at all, so the CSS
-  # default draws it. A `style={…}` of nil, or a literal spread of one,
-  # still renders `style=""` — HEEx treats `style` like `class` — so the
-  # attribute list is built here and spread at runtime, which drops nil.
-  defp theirs_style(nil), do: []
-  defp theirs_style(hue), do: [style: "--hue: #{hue}"]
 end
