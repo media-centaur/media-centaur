@@ -119,138 +119,22 @@ defmodule MediaCentaur.ReviewTest do
 
   # The library reports every file's link outcome by path; these are the
   # only ways a review item closes or reopens.
-  # A series match needs an episode to link the file to. A file whose name
-  # carries none gets it from the reviewer, and cannot be approved without
-  # it — the library would have nothing to attach it to.
-  describe "choosing the episode" do
-    test "a series match for a file with no season and episode needs an episode" do
-      pending = create_pending_file(%{tmdb_type: "tv", parsed_type: "movie"})
-
-      assert Review.needs_episode?(pending)
-    end
-
-    test "a series match whose file names its episode does not" do
-      pending =
-        create_pending_file(%{
-          tmdb_type: "tv",
-          parsed_type: "tv",
-          season_number: 1,
-          episode_number: 3
-        })
-
-      refute Review.needs_episode?(pending)
-    end
-
-    test "a movie match does not" do
-      refute Review.needs_episode?(create_pending_file(%{tmdb_type: "movie"}))
-    end
-
-    test "a bonus feature matched to a series does not — it belongs to the series" do
-      refute Review.needs_episode?(create_pending_file(%{tmdb_type: "tv", parsed_type: "extra"}))
-    end
-
-    # The reviewer chooses the episode for a file whose name does not number
-    # it — and can still change the choice once made.
-    test "the reviewer chooses the episode of a series match whose name does not number it" do
+  # Replaces "choosing the episode" and "episode_choices/1" (2026-09-29,
+  # campaign `review-coherence`): Review chose the episode of a series match
+  # whose name numbered none, and refused approval until it had one. A
+  # position is now decided only in episode mapping, which Import sends such
+  # a file to (`pipeline_test.exs`), so Review approves the identity alone.
+  describe "a series match whose name numbers no episode" do
+    test "is approved on its identity; the position is episode mapping's" do
       pending =
         create_pending_file(%{
           file_path: "/media/test/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4",
-          tmdb_type: "tv",
-          parsed_type: "movie"
-        })
-
-      assert Review.chooses_episode?(pending)
-      {:ok, placed} = Review.set_episode(pending, 1, 22)
-      assert Review.chooses_episode?(placed)
-    end
-
-    test "a file whose name numbers the episode keeps it" do
-      pending =
-        create_pending_file(%{
-          file_path: "/media/test/Sample.Show.S01E05.1080p.mkv",
-          tmdb_type: "tv",
-          parsed_type: "tv",
-          season_number: 1,
-          episode_number: 5
-        })
-
-      refute Review.chooses_episode?(pending)
-    end
-
-    test "set_episode/3 places the file at the chosen episode" do
-      pending = create_pending_file(%{tmdb_type: "tv", parsed_type: "movie"})
-
-      assert {:ok, placed} = Review.set_episode(pending, 1, 22)
-      assert {placed.season_number, placed.episode_number} == {1, 22}
-      refute Review.needs_episode?(placed)
-    end
-
-    # A chosen episode belongs to the series it was chosen from.
-    test "a new match clears an episode the reviewer chose" do
-      pending =
-        create_pending_file(%{
-          file_path: "/media/test/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4",
+          parsed_type: "movie",
           tmdb_id: 1396,
-          tmdb_type: "tv",
-          parsed_type: "movie"
+          tmdb_type: "tv"
         })
 
-      {:ok, placed} = Review.set_episode(pending, 1, 22)
-
-      {1, 0} =
-        Review.set_group_match([placed], %{
-          tmdb_id: "4242",
-          tmdb_type: "tv",
-          title: "Another Show",
-          year: "2019",
-          poster_path: nil
-        })
-
-      rematched = Repo.get!(Review.PendingFile, pending.id)
-      assert rematched.tmdb_id == 4242
-      assert {rematched.season_number, rematched.episode_number} == {nil, nil}
-    end
-
-    test "approval is refused until the file has an episode" do
-      pending = create_pending_file(%{tmdb_type: "tv", parsed_type: "movie"})
-
-      assert {:error, %Ecto.Changeset{}} = Review.approve_pending_file(pending)
-
-      {:ok, placed} = Review.set_episode(pending, 1, 22)
-      assert {:ok, %{status: :approved}} = Review.approve_pending_file(placed)
-    end
-  end
-
-  describe "episode_choices/1" do
-    setup do
-      MediaCentaur.TmdbStubs.setup_tmdb_client()
-    end
-
-    test "lists a series' seasons with their episodes, specials last" do
-      MediaCentaur.TmdbStubs.stub_routes([
-        {"/tv/1396/season/0",
-         MediaCentaur.TmdbStubs.season_detail(%{
-           "season_number" => 0,
-           "name" => "Specials",
-           "episodes" => [%{"episode_number" => 1, "name" => "Sample Extra Night"}]
-         })},
-        {"/tv/1396/season/1", MediaCentaur.TmdbStubs.season_detail()},
-        {"/tv/1396",
-         MediaCentaur.TmdbStubs.tv_detail(%{
-           "seasons" => [
-             %{"season_number" => 0, "name" => "Specials"},
-             %{"season_number" => 1, "name" => "Season 1"}
-           ]
-         })}
-      ])
-
-      assert {:ok, [season_one, specials]} = Review.episode_choices(1396)
-
-      assert season_one.season_number == 1
-      assert Enum.map(season_one.episodes, & &1.episode_number) == [1, 2]
-      assert hd(season_one.episodes).name == "Pilot"
-      assert specials.season_number == 0
-      assert [%{episode_number: 1, name: "Sample Extra Night"}] = specials.episodes
+      assert {:ok, 1} = Review.approve_group([pending.id])
     end
   end
 
@@ -514,7 +398,7 @@ defmodule MediaCentaur.ReviewTest do
                Review.file_not_linked(%{
                  file_path: "/media/test/Sample.Show.S01.1080p.mkv",
                  media_dir: "/media/test",
-                 reason: :no_episode,
+                 reason: {:import_failed, :insufficient_disk_space},
                  match: nil
                })
 
@@ -522,7 +406,7 @@ defmodule MediaCentaur.ReviewTest do
       assert queued.file_path == "/media/test/Sample.Show.S01.1080p.mkv"
       assert queued.media_directory == "/media/test"
       assert queued.parsed_title == "Sample Show"
-      assert queued.error_message =~ "season and episode"
+      assert queued.error_message =~ "disk space"
     end
 
     # Approving a returned item is the retry: the old reason no longer
@@ -554,7 +438,7 @@ defmodule MediaCentaur.ReviewTest do
                Review.file_not_linked(%{
                  file_path: "/media/test/dismissed.mkv",
                  media_dir: "/media/test",
-                 reason: :no_episode,
+                 reason: :crashed,
                  match: nil
                })
 
@@ -563,7 +447,6 @@ defmodule MediaCentaur.ReviewTest do
 
     test "names the reason for each way a link can fail" do
       for {reason, fragment} <- [
-            {:no_episode, "season and episode"},
             {{:ingest_failed, :boom}, "Adding it to the library failed"},
             {:crashed, "Adding it to the library failed"},
             {{:import_failed, :insufficient_disk_space}, "disk space"},

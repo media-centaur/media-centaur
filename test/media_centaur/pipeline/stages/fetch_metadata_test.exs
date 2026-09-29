@@ -307,6 +307,72 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert metadata.divert.claimed_episode == 1
     end
 
+    # 2026-09-29 (campaign `review-coherence`): a TV file whose name numbers
+    # no episode has no position to place it at. It used to be ingested with
+    # nothing to link, sent back to Review, and placed there by hand; the
+    # episode-mapping queue is where a position is decided.
+    test "diverts a TV file whose name numbers no episode, keeping its year" do
+      stub_routes([{"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 1}]})}])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          type: :movie,
+          title: "Sample Special",
+          year: 2025,
+          season: nil,
+          episode: nil,
+          file_path: "/media/TV/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+
+      assert result.metadata.season == nil
+
+      assert %{tmdb_id: 1396, claimed_season: nil, claimed_episode: nil, claimed_year: 2025} =
+               result.metadata.divert
+    end
+
+    test "diverts a TV file whose name numbers a season but no episode" do
+      stub_routes([{"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 1}]})}])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          type: :tv,
+          season: 1,
+          episode: nil,
+          file_path: "/media/TV/Sample.Show.S01.1080p.mkv"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+      assert %{claimed_season: 1, claimed_episode: nil} = result.metadata.divert
+    end
+
+    test "does not divert a bonus feature — it has no episode of its own" do
+      stub_routes([
+        {"/tv/1396/season/1", season_detail()},
+        {"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 1}]})}
+      ])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          type: :extra,
+          title: "Behind the Scenes",
+          season: 1,
+          episode: nil,
+          file_path: "/media/TV/Sample Show/Season 1/Extras/Behind the Scenes.mkv"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+      assert result.metadata.divert == nil
+      assert result.metadata.extra.name == "Behind the Scenes"
+    end
+
     test "does not divert when the parsed season is canonical" do
       stub_routes([
         {"/tv/1396/season/1", season_detail()},

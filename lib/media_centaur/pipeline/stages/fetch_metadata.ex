@@ -231,15 +231,24 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     end
   end
 
-  # The episode-mapping case: the parsed season is **not**
-  # in TMDB's canonical season list — the cour / absolute-numbering mismatch.
-  # Diverting (rather than `build_minimal_season`) is what stops the phantom
-  # season. Guarded on a non-empty season list so a trimmed `data` (or a TV
-  # detail without `seasons`) falls back to the normal path rather than
-  # diverting everything.
-  defp divert?(data, parsed) do
-    season_numbers = tmdb_season_numbers(data)
-    parsed.season != nil and season_numbers != [] and parsed.season not in season_numbers
+  # A TV file's position resolves when its name claims a season TMDB lists
+  # and an episode number; an episode number beyond TMDB's list still
+  # resolves, because the list lags an airing show. Anything else — no
+  # season, no episode, or an unlisted season (the cour / absolute-numbering
+  # mismatch) — goes to the episode-mapping queue, which is the one place a
+  # position is decided; building a season for it would mint a phantom. A
+  # bonus feature belongs to the series itself and has no position. The
+  # season check is skipped on a trimmed `data` (a TV detail without
+  # `seasons`), which cannot judge it.
+  defp divert?(_data, %{type: :extra}), do: false
+  defp divert?(_data, %{season: nil}), do: true
+  defp divert?(_data, %{episode: nil}), do: true
+
+  defp divert?(data, %{season: season}) do
+    case tmdb_season_numbers(data) do
+      [] -> false
+      season_numbers -> season not in season_numbers
+    end
   end
 
   defp tmdb_season_numbers(data) do
@@ -290,13 +299,15 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
         series_title: data["name"],
         claimed_season: parsed.season,
         claimed_episode: parsed.episode,
-        claimed_title: parsed.episode_title
+        claimed_title: parsed.episode_title,
+        claimed_year: parsed.year
       }
     }
 
     Log.info(
       :pipeline,
-      "diverted TV file to episode mapping — tmdb:#{tmdb_id} S#{parsed.season} not in canonical seasons"
+      "diverted TV file to episode mapping — tmdb:#{tmdb_id} has no episode at " <>
+        "season #{inspect(parsed.season)}, episode #{inspect(parsed.episode)}"
     )
 
     {:ok, metadata}

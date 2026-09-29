@@ -33,8 +33,8 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   @doc """
   Whether the reviewer can approve `group` now, or what stands in the way:
   `:approvable`; `:importing` when no file is left pending; `:tied` when a
-  file's candidates are tied; `:needs_episode`; or the reason
-  `Review.group_identity/1` gives for its pending files.
+  file's candidates are tied; or the reason `Review.group_identity/1` gives
+  for its pending files.
   """
   def approval(%{files: files}) do
     pending = Enum.filter(files, &(&1.status == :pending))
@@ -49,9 +49,7 @@ defmodule MediaCentaurWeb.ReviewHelpers do
       true ->
         case MediaCentaur.Review.group_identity(pending) do
           {:ok, _identity} ->
-            if Enum.any?(pending, &MediaCentaur.Review.needs_episode?/1),
-              do: :needs_episode,
-              else: :approvable
+            :approvable
 
           {:error, reason} ->
             reason

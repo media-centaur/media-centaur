@@ -439,12 +439,16 @@ defmodule MediaCentaur.PipelineTest do
     # attach it to. Regression: the review item was deleted as soon as the
     # entity was published, the series stayed hidden for want of a file, and
     # the item came back only after a restart — without the chosen match.
-    # Review now refuses to approve such a match without an episode, so the
-    # path is an automatic series match for a file with no episode in its
-    # name (a season pack's name, say) meeting an open review item.
-    test "a series match for a file with no season and episode returns to review with the reason" do
+    #
+    # Changed 2026-09-29 (campaign `review-coherence`): the file used to
+    # return to Review with the reason, where the reviewer chose its
+    # episode. A position is now decided in one place, so Import parks the
+    # file in the episode-mapping queue with the year its name claims, and
+    # the review item closes. The regression — an item gone and a title
+    # absent — is still guarded: the file is held by a queue, never dropped.
+    test "a series match for a file with no season and episode is parked for episode mapping" do
       stub_routes([
-        {"/tv/1396", tv_detail()}
+        {"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 1}]})}
       ])
 
       path = "/media/pipeline/TV/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4"
@@ -472,18 +476,16 @@ defmodule MediaCentaur.PipelineTest do
 
       assert {:ok, _result} = Import.process_payload(import_payload)
 
-      assert_receive {:entity_published, event}
+      assert_receive {:entity_published, %{parked: true} = event}
       assert {:ok, _tv_series, :new, _images} = Inbound.ingest(event)
 
       FileEventHandler.__sync_for_test__()
 
       refute Library.Files.linked?(path)
-      reopened = Repo.get!(Review.PendingFile, pending.id)
-      assert reopened.status == :pending
-      assert reopened.error_message =~ "season and episode"
-      # The reviewer's choice is kept, so they can see what they picked.
-      assert reopened.tmdb_id == 1396
-      assert reopened.tmdb_type == "tv"
+      refute Repo.get(Review.PendingFile, pending.id)
+
+      assert [%{file_path: ^path, tmdb_id: 1396, claimed_year: 2025}] =
+               MediaCentaur.EpisodeMapping.list_awaiting()
     end
 
     # The match decides which episode a file is, not the filename: a
