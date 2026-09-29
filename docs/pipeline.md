@@ -31,15 +31,16 @@ inotify + scan               high confidence → matched       → publish entit
 | Topic | Producer | Consumer | Payload |
 |-------|----------|----------|---------|
 | `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, media_dir}}` |
-| `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type, season, episode}}` — the whole match; `season` and `episode` are required (`nil` for a movie) |
+| `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type}}` — the match's identity; Import reads the season and episode the name claims from its own parse |
 | `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
 | `pipeline:images` | Library.Inbound (and ImageRefresh / ImageRepair) | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` — the producer creates the queue rows, then sends itself `{:images_pending, %{entity_id, media_dir}}` |
 | `tmdb:titles` | TMDB.Store | Pipeline.TmdbProjection (and ReleaseTracking.TmdbListener) | `{:tmdb_title_changed, {tmdb_id, media_type}}` — an owned title's TMDB fields, season episode lists and episode details are re-applied from the store (ADR-071) |
 | `review:intake` | Discovery, Library.Inbound | Review.Intake | `{:needs_review, attrs}`, `{:files_for_review, files}` |
-| `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
+| `review:updates` | `Review.Events` | LiveViews, ShellBadges | `{:file_added, _}` (entered or returned to the queue), `{:files_approved, _}`, `{:file_reviewed, _}` (left the queue) |
+| `episode_mapping:updates` | `EpisodeMapping` | LiveViews, ShellBadges | `{:episode_mapping_updated}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
 | `library:commands` | Review.Rematch | Library.Inbound | `{:rematch_requested, entity_id}` |
-| `library:file_events` | Library.Inbound, Import, Watcher, AbsenceSweeper, Rescan | Review.FileEventHandler, Library.FileEventHandler | `{:file_linked, path}`, `{:file_parked, path}`, `{:file_not_linked, %{file_path, media_dir, reason}}` — the link outcome, one per published match (see *Review Flow*); `{:files_removed, paths}` |
+| `library:file_events` | Library.Inbound, Import, Watcher, AbsenceSweeper, Rescan | Review.FileEventHandler, EpisodeMapping.FileEventHandler, Library.FileEventHandler | `{:file_linked, path}`, `{:file_parked, path}`, `{:file_not_linked, %{file_path, media_dir, reason, match}}` — the link outcome, one per published match (see *Review Flow*); `{:files_removed, paths}` |
 
 ---
 
@@ -52,7 +53,6 @@ inotify + scan               high confidence → matched       → publish entit
 | `file_path` | Producer | Absolute path to the video file |
 | `media_directory` | Producer | Media directory the file was found in |
 | `parsed` | Parse stage | `%Parser.Result{}` with title, year, type, season, episode |
-| `match_season` / `match_episode` | Import Producer | The season and episode the match places the file at; Import uses them instead of the parsed values, so a reviewer's choice reaches the library |
 | `tmdb_id` | Search stage (or Import Producer for review-resolved files) | TMDB ID of the matched entity |
 | `tmdb_type` | Search stage (or Import Producer) | `:movie` or `:tv` |
 | `confidence` | Search stage | Match confidence score (0.0–1.0) |
@@ -96,14 +96,26 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 - No batcher — each message acks after `handle_message`; a failed message reaches `handle_failed/2`, which reports its link outcome
 
 **Processing flow:**
-1. **Parse** — parse the file path via `Parser.parse/2` for what the match does not say (bonus feature or not, its parent), then set the season and episode from the match
+1. **Parse** — parse the file path via `Parser.parse/2` for what the match does not say: bonus feature or not, its parent, and the season and episode the name claims
 2. **Disk space check** — aborts with `{:error, :insufficient_disk_space}` if the image directory's filesystem has less than 100 MB free
-3. **FetchMetadata** — read the title's TMDB details from `TMDB.Store`: first contact for a title the app has never held, the whole answer with credits (`Store.fetch_full/2`) for one the library is about to create, the stored copy for one it owns; the collection detail is still fetched directly
+3. **FetchMetadata** — read the title's TMDB details from `TMDB.Store`: first contact for a title the app has never held, the whole answer with credits (`Store.fetch_full/2`) for one the library is about to create, the stored copy for one it owns; the collection detail is still fetched directly. For a TV file it also decides whether the file's **position** resolves — see *Where a position is decided*
 4. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
 
 After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
 
-`Library.Inbound` then reports the file's **link outcome** on `"library:file_events"`: `{:file_linked, path}`, `{:file_parked, path}` (parked in the episode-mapping queue, no link by design), or `{:file_not_linked, %{file_path, media_dir, reason}}` (`:no_episode` for a series match with no season and episode, `{:ingest_failed, _}`, `:crashed`). An import that fails before publishing never reaches the library, so `Import.handle_failed/2` reports `{:file_not_linked, %{reason: {:import_failed, reason}}}` itself. Every match ends in exactly one outcome.
+`Library.Inbound` then reports the file's **link outcome** on `"library:file_events"`: `{:file_linked, path}`, `{:file_parked, path}` (parked in the episode-mapping queue, no link by design), or `{:file_not_linked, %{file_path, media_dir, reason, match}}` (`{:ingest_failed, _}` — `{:ingest_failed, :no_link}` for an ingest that linked nothing — or `:crashed`). An import that fails before publishing never reaches the library, so `Import.handle_failed/2` reports `{:file_not_linked, %{reason: {:import_failed, reason}}}` itself. `match` is the `%{tmdb_id, tmdb_type}` the file was imported under. Every match ends in exactly one outcome.
+
+### Where a position is decided
+
+A match has two parts: the **identity** (TMDB type and id) and, for a TV file, the **position** (season and episode on TMDB's episode list). Discovery and Review decide identity only. FetchMetadata resolves the position from what the file's name claims:
+
+| The name claims | Outcome |
+|---|---|
+| a season TMDB lists and an episode number | placed there; an episode number beyond TMDB's list still links, because the list lags an airing show |
+| no season, no episode, or a season TMDB does not list | **parked** in the episode-mapping queue (`EpisodeMapping.divert/1`) with its claims, year included; the library creates the series and links nothing |
+| a bonus feature | no position — it belongs to the series |
+
+`EpisodeMapping` decides a parked file's position: its engine proposes placements from the claims (`GapFill` by order, `TitleMatch` by episode title, `YearMatch` by the year a yearly special is named for) and a person confirms them at `/episode-mapping`.
 
 ---
 
@@ -171,11 +183,13 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 
 ## Idempotency & Concurrency Safety
 
-- **Already-settled check:** before parsing anything, Discovery asks whether the file has already been decided, and skips it if so. Two terminal states, each answered by the context that owns the table:
+- **Already-settled check:** before parsing anything, Discovery asks whether the file has already been decided, and skips it if so. Three states, each answered by the context that owns the table:
   - **linked** — `Library.Files.linked?/1`, true when either presence table (`library_watched_files` for playable items, `library_extra_files` for bonus features) owns the path. Shares its definition with `Library.Files.linked_paths_subquery/0`, which is what `Watcher.Rescan.rescan_unlinked/0` composes against, so the two cannot disagree.
   - **dismissed** — `Review.dismissed?/1`, true when a person decided in review that the file is not library content. `Review.add_pending_file/1` keys on `file_path` regardless of status, so a dismissed row can never be replaced by a fresh pending one: any match computed for that path afterwards is discarded. Stopping here is what makes the decision free instead of costing a parse and two TMDB searches on every scan and restart.
 
-  A `:pending` row is deliberately **not** settled — it is an open question, and `rescan_unlinked/0` exists to re-run those once a transient failure (a rejected TMDB key) is resolved. The skip reason is logged rather than collapsed to a bare "skipped", because the Console line is the only place a dismissal is visible at runtime.
+  - **in episode mapping** — `EpisodeMapping.awaiting?/1`, true when the file has an awaiting row, pending or dismissed. Its identity is settled; searching it again could only put it back in Review beside its mapping entry, which every restart did until 2026-09-29.
+
+  A `:pending` Review row is deliberately **not** settled — it is an open question, and `rescan_unlinked/0` exists to re-run those once a transient failure (a rejected TMDB key) is resolved. The skip reason is logged rather than collapsed to a bare "skipped", because the Console line is the only place a dismissal is visible at runtime.
 - **Entity deduplication:** `Library.Inbound` looks up existing entities by TMDB ID via `Library.ExternalId`, which has a unique constraint on `(source, external_id)`
 - **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
 - **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification
@@ -198,41 +212,32 @@ That list comes from `Settings.Config.extras_dirs/0` — one accessor, read by e
 
 ## Review Flow
 
-Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `{:needs_review, attrs}` to `"review:intake"`. `Review.Intake` creates a PendingFile for human review.
+Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `{:needs_review, attrs}` to `"review:intake"`. `Review.Intake` creates a PendingFile for human review. Review decides a file's **identity** only; a TV file whose position its name does not settle is parked for episode mapping on import (*Where a position is decided*).
 
-The `/review` UI surfaces PendingFiles. The reviewer can:
-1. **Approve** — accepts the match, broadcasts `{:file_matched, ...}` to `"pipeline:matched"` → Import processes it
-2. **Search** — manual TMDB search, then approve with selected result. A series match for a file whose name does not number its episode (`Review.chooses_episode?/1`) needs the reviewer to choose the episode from the series' episode list (`Review.episode_choices/1`); `Review.EpisodeChoice.preselect/2` offers the one episode the file's year identifies. Approval is refused until the file has an episode, and the approved match carries it to Import
-3. **Dismiss** — flips the PendingFile to `status: :dismissed` (the row stays; a link outcome is what deletes one). Terminal: `Discovery.process/1` skips a dismissed path before parsing or searching — see the already-settled check above
+The `/review` UI groups PendingFiles by series root. A group is judged by `Review.representative/1`, its first file still awaiting a decision. The reviewer can:
+1. **Approve** — `Review.approve_group/1`, synchronous: the group's pending files are approved and each match is sent as `{:file_matched, ...}` to `"pipeline:matched"`, then `FilesApproved` is broadcast. The group is refused whole unless its pending files share one identity (`Review.group_identity/1`: `:no_identity`, `:mixed_identities`); the approve changeset also requires one
+2. **Search** — manual TMDB search; the chosen result becomes the match of every file in the group
+3. **Dismiss** — flips the PendingFile to `status: :dismissed`. Discovery skips a dismissed path before parsing or searching — see the already-settled check above
+4. **Restore** — the page lists dismissed files; `Review.restore/1` returns one to `:pending` with the match it had
+5. **Delete** — deletes the group's files from disk (the whole folder when `DeleteTargets` finds one safe to delete) and their rows
 
-### One row per path, and what its status means
+### One row per path
 
-`file_path` carries a unique index, so a path has at most one queue row and its status *is* the state of that path's review. `find_or_create_pending_file/1` reads it:
+`file_path` carries a unique index, so a path has at most one queue row. `find_or_create_pending_file/1` returns an existing row unchanged whatever its status — `:pending` (repeated detection is idempotent), `:approved` (an import outstanding) or `:dismissed` (a decision that keeps blocking). `Review.reopen_for_review/1` is the override the re-match path uses (`Library.Inbound` handing an entity's files back on `{:files_for_review, …}`): a re-match is an explicit act on files the user owns, so it supersedes any earlier decision.
 
-| Status | Meaning | On re-detection |
-|---|---|---|
-| `:pending` | an open review | returned unchanged — this is what makes repeated detection idempotent |
-| `:approved`, file linked | the import finished; `Review.file_linked/1` should have destroyed this row | **reopened** — stale, see below |
-| `:approved`, file not linked | decision made, link outcome outstanding | returned unchanged; reopening would re-queue a file mid-import |
-| `:dismissed` | a person decided it is not library content | returned unchanged, so it keeps blocking |
+### Membership follows the library
 
-`Review.reopen_for_review/1` is the deliberate override, used by the re-match path (`Library.Inbound` handing an entity's files back on `{:files_for_review, …}`). A re-match is an explicit act on files the user owns, so it supersedes any earlier decision including a dismissal — and is currently the only way to undo one, since nothing in the UI lists dismissed files.
-
-### An item closes on its file's link outcome
-
-An approved item stays in the queue, shown as importing, until the library reports what became of its file. `Review.FileEventHandler` routes the outcome:
+Every read of the queue leaves out files the library has linked (`Library.Files.linked_paths_subquery/0`), and so does every read of the episode-mapping queue. A dropped link outcome therefore never leaves a linked file listed. An approved item stays in the queue, shown as importing, until the library reports what became of its file. `Review.FileEventHandler` routes the outcome:
 
 | Outcome | Review item |
 |---|---|
-| `{:file_linked, path}` | removed (`Review.file_linked/1`) — also for a `:pending` item a confident re-run linked |
-| `{:file_parked, path}` | removed (`Review.file_parked/1`) — the episode-mapping queue owns the file |
-| `{:file_not_linked, %{reason: r}}` | back to `:pending` with the reason in `error_message`, the chosen match kept; a file with no item is queued with the reason (`Review.file_not_linked/1`) |
-
-Nothing else closes an approved item. Before this, Import told Review an item was done as soon as it published the entity, before the library linked the file; a series match for a file with no season and episode created a hidden series, linked nothing, and the item vanished.
+| `{:file_linked, path}` | row deleted (`Review.file_linked/1`) — storage cleanup; the queue already stops listing a linked file |
+| `{:file_parked, path}` | row deleted (`Review.file_parked/1`) — the episode-mapping queue owns the file |
+| `{:file_not_linked, %{reason: r, match: m}}` | back to `:pending` with the reason in `error_message`, the chosen match kept; a file with no item is queued with the reason and the match it was imported under, so approving it again is the retry (`Review.file_not_linked/1`) |
 
 ### Startup recovery
 
-The outcomes travel over PubSub, which has no replay, so a listener that was not subscribed at that instant loses one. A live instance once carried 73 approved rows orphaned that way. `Review.settle_with_library/0` runs first in startup recovery (composed in `Discovery.Producer`, the boundary that can see both contexts), while nothing is in flight: an item whose file is linked is removed, and an `:approved` item whose file is not linked returns to `:pending` with "Importing it didn't finish". It runs before `Watcher.Rescan.recover/0`, so a reopened item is `:pending` when its file is re-run.
+PubSub has no replay, so a listener not subscribed at that instant loses a message. `Review.settle_with_library/0` runs first in startup recovery (composed in `Discovery.Producer`, the boundary that can see both contexts), while nothing is in flight: rows whose file is linked are deleted, and an `:approved` item whose file is not linked returns to `:pending` with "Importing it didn't finish". It broadcasts `FileReviewed` and `FileAdded` for what it changed, so the badge follows. It runs before `Watcher.Rescan.recover/0`, so a reopened item is `:pending` when its file is re-run. An import lost to a crash mid-flight shows as importing until this runs.
 
 **Rematch:** From the Library UI, a user can rematch an entity. `Review.Rematch` broadcasts `{:rematch_requested, entity_id}` to `"library:commands"`. `Library.Inbound` destroys the entity and sends `{:files_for_review, files}` to `"review:intake"` → Intake creates PendingFiles for re-review.
 
