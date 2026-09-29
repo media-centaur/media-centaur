@@ -36,8 +36,9 @@ choose the episode for a TV match the filename does not number.
 
 ## Status
 
-Layer 1 implemented 2026-09-29 (close on link, reopen with a reason; not
-pushed). Layer 2 (choose the episode) next.
+Layers 1 and 2 implemented 2026-09-29 and committed, not pushed. What
+remains is shipping: push, release, the wiki push, and confirming the
+reported file end to end on the reporter's install.
 
 ## Decisions made
 
@@ -102,27 +103,32 @@ pushed). Layer 2 (choose the episode) next.
   changed meaning on purpose (an approved-unlinked row at boot is reopened,
   a pending-linked row is removed) and one ReviewLive test (an approved
   group stays listed as importing). Each carries a dated comment.
+* `2026-09-29` — The picker shows for a series match whose *name* does not
+  number the episode (`Review.chooses_episode?/1`, which parses the path),
+  not only while the episode is missing, so a choice can be changed. Files
+  named with their episode keep it and cost no episode-list fetch.
+* `2026-09-29` — The offered episode is stored on the item when the list
+  loads, so Approve places the file there; the reviewer sees it in the
+  picker before approving. A new match clears a chosen episode — it belongs
+  to the series it was chosen from.
+* `2026-09-29` — Episode lists read through `TMDB.Store`
+  (`Review.episode_choices/1`): every season of the series, loaded once per
+  series when a group needing a choice is selected.
 
 ## Next steps
 
-### Layer 1 — close on link, reopen with a reason
+1. Push `main` (with the other unpushed commits on it) and release.
+2. Push the wiki (`Review-Queue.md` — *After confirming* and *Choose the
+   episode*; `Troubleshooting.md`), committed locally, with the release.
+3. With the release on the reporter's install: match the yearly special to
+   its series in Review, confirm S01E22 is offered, approve, and see it in
+   the library. Then retire this file.
 
-Implemented 2026-09-29 (commit pending push). Remaining: push the wiki
-(`Review-Queue.md` § After confirming, `Troubleshooting.md`, committed
-locally) together with the release that ships it.
-
-### Layer 2 — choose the episode
-
-1. Review: `set_group_match` for a TV match on files without season and
-   episode leaves them unset; approval is refused until each such file has
-   both.
-2. Review: a per-file episode choice stored in the item's
-   `season_number` / `episode_number`, sourced from `TMDB.Store.ensure/1`
-   and `ensure_season/2` (`Mapper.episode_list/1`).
-3. Preselection: a pure function choosing the single episode whose name or
-   air-date year equals the parsed year; unit tested.
-4. Review page: the episode picker as a kit component with a story.
-5. Wiki: the Review page documents choosing an episode.
+Verified on the dev instance 2026-09-29 without a real file: the not-added
+and importing states render, and a temporary item matched to the real
+series (TMDB 3811) was offered S01E22 from the live episode list. The
+approve → import → link path is covered by `pipeline_test.exs` and
+`review_live_test.exs`, not by a real file.
 
 ## Completion criteria
 

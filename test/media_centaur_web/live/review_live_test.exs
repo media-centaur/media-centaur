@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.ReviewLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TaskAwaits
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
@@ -109,6 +110,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     test "a scored candidate is saved under the file's type", %{conn: conn} do
       file =
         create_pending_file(%{
+          file_path: "/media/test/Sample.Show.S01E01.1080p.mkv",
           parsed_title: "Sample Show",
           parsed_type: "tv",
           season_number: 1,
@@ -373,6 +375,98 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
       refute File.exists?(path)
       assert File.dir?(media_dir), "the media directory root itself must never be removed"
+    end
+  end
+
+  # A yearly special parses as a movie with no season or episode. Matched to
+  # its series, it needs the reviewer to say which episode it is before it
+  # can be approved; the year offers the one episode it identifies.
+  describe "choosing the episode of a series match" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/1396/season/1",
+         MediaCentaur.TmdbStubs.season_detail(%{
+           "episodes" => [
+             %{"episode_number" => 21, "name" => "Sample Special 2024", "air_date" => "2024-12-27"},
+             %{"episode_number" => 22, "name" => "Sample Special 2025", "air_date" => "2025-12-26"}
+           ]
+         })},
+        {"/tv/1396",
+         MediaCentaur.TmdbStubs.tv_detail(%{
+           "seasons" => [%{"season_number" => 1, "name" => "Season 1"}]
+         })}
+      ])
+
+      special =
+        create_pending_file(%{
+          file_path: "/media/test/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4",
+          media_directory: "/media/test",
+          parsed_title: "Sample Special",
+          parsed_year: 2025,
+          parsed_type: "movie",
+          tmdb_id: 1396,
+          tmdb_type: "tv",
+          match_title: "Sample Show",
+          confidence: 1.0
+        })
+
+      %{special: special}
+    end
+
+    test "offers the episode the year identifies, and Approve places the file there",
+         %{conn: conn, special: special} do
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_async(view)
+
+      assert has_element?(view, "#episode-picker-#{special.id} option[value='1:22'][selected]")
+      placed = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, special.id)
+      assert {placed.season_number, placed.episode_number} == {1, 22}
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+      view |> element("button", "Approve") |> render_click()
+
+      assert_receive {:file_matched, %{season: 1, episode: 22, tmdb_id: 1396}}, 1000
+      await_supervised_tasks()
+    end
+
+    test "choosing another episode places the file there", %{conn: conn, special: special} do
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_async(view)
+
+      view
+      |> element("#episode-picker-#{special.id}")
+      |> render_change(%{"file_id" => special.id, "episode" => "1:21"})
+
+      placed = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, special.id)
+      assert {placed.season_number, placed.episode_number} == {1, 21}
+      assert has_element?(view, "#episode-picker-#{special.id} option[value='1:21'][selected]")
+    end
+
+    test "Approve waits for an episode when the year identifies none", %{conn: conn} do
+      file =
+        create_pending_file(%{
+          file_path: "/media/test/Sample Special Night/Sample.Special.Night.mp4",
+          media_directory: "/media/test",
+          parsed_title: "Sample Special Night",
+          parsed_type: "movie",
+          tmdb_id: 1396,
+          tmdb_type: "tv",
+          match_title: "Sample Show",
+          confidence: 0.1
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+
+      view
+      |> element("#review-group-#{:erlang.phash2({"/media/test", "Sample Special Night"})}")
+      |> render_click()
+
+      render_async(view)
+
+      assert has_element?(view, "#episode-picker-#{file.id} option[value=''][selected]")
+      refute has_element?(view, "button", "Approve")
     end
   end
 

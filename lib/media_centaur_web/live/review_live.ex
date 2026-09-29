@@ -9,12 +9,14 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   require MediaCentaur.Log, as: Log
 
+  import MediaCentaurWeb.Components.EpisodePicker
   import MediaCentaurWeb.Components.ReviewTabs
   import MediaCentaurWeb.ReviewHelpers
 
   alias MediaCentaur.DeleteTargets
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review
+  alias MediaCentaur.Review.EpisodeChoice
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Review.Events.GroupApproved
@@ -37,6 +39,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(groups_by_key: %{})
      |> assign(tmdb_ready: false)
      |> assign(processing: MapSet.new())
+     |> assign(episode_choices: %{})
      |> assign(selected_key: nil)
      |> assign(search_open: nil)
      |> assign(search_query: "")
@@ -82,6 +85,34 @@ defmodule MediaCentaurWeb.ReviewLive do
     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
     |> apply_group_stats()
     |> ensure_selection()
+    |> load_episode_choices()
+  end
+
+  # The selected group's series episodes, for the files whose names do not
+  # number their episode (`Review.chooses_episode?/1`). Loaded once per
+  # series and kept; `nil` in the map while loading.
+  defp load_episode_choices(socket) do
+    with %{} = group <- socket.assigns.groups_by_key[socket.assigns.selected_key],
+         %{tmdb_type: "tv", tmdb_id: tmdb_id} when is_integer(tmdb_id) <- group.representative,
+         false <- Map.has_key?(socket.assigns.episode_choices, tmdb_id),
+         true <- Enum.any?(group.files, &Review.chooses_episode?/1) do
+      socket
+      |> assign(episode_choices: Map.put(socket.assigns.episode_choices, tmdb_id, nil))
+      |> start_async({:episode_choices, tmdb_id}, fn -> Review.episode_choices(tmdb_id) end)
+    else
+      _ -> socket
+    end
+  end
+
+  defp refresh_groups(socket) do
+    groups = Review.fetch_review_groups()
+
+    socket
+    |> assign(groups: groups)
+    |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+    |> apply_group_stats()
+    |> ensure_selection()
+    |> load_episode_choices()
   end
 
   @impl true
@@ -104,7 +135,8 @@ defmodule MediaCentaurWeb.ReviewLive do
        |> assign(search_query: "")
        |> assign(search_results: [])
        |> assign(searching: false)
-       |> assign(searched: false)}
+       |> assign(searched: false)
+       |> load_episode_choices()}
     end
   end
 
@@ -117,6 +149,18 @@ defmodule MediaCentaurWeb.ReviewLive do
       {:noreply, assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))}
     else
       {:noreply, socket}
+    end
+  end
+
+  def handle_event("choose_episode", %{"file_id" => file_id, "episode" => episode}, socket) do
+    with [season, number] <- String.split(episode, ":"),
+         {season_number, ""} <- Integer.parse(season),
+         {episode_number, ""} <- Integer.parse(number),
+         %{} = file <- find_file(socket.assigns.groups, file_id),
+         {:ok, _placed} <- Review.set_episode(file, season_number, episode_number) do
+      {:noreply, refresh_groups(socket)}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not set the episode")}
     end
   end
 
@@ -234,17 +278,11 @@ defmodule MediaCentaurWeb.ReviewLive do
         end
 
       if updated > 0 do
-        # Reload groups to reflect updated match info
-        groups = Review.fetch_review_groups()
-
         {:noreply,
          socket
-         |> assign(groups: groups)
-         |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
          |> assign(search_open: nil)
          |> assign(search_results: [])
-         |> apply_group_stats()
-         |> ensure_selection()}
+         |> refresh_groups()}
       else
         {:noreply, socket}
       end
@@ -292,15 +330,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   def handle_info(:reload_groups, socket) do
-    groups = Review.fetch_review_groups()
-
-    {:noreply,
-     socket
-     |> assign(groups: groups)
-     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-     |> assign(reload_timer: nil)
-     |> apply_group_stats()
-     |> ensure_selection()}
+    {:noreply, socket |> assign(reload_timer: nil) |> refresh_groups()}
   end
 
   def handle_info({:file_reviewed, %FileReviewed{pending_file_id: file_id}}, socket) do
@@ -387,6 +417,35 @@ defmodule MediaCentaurWeb.ReviewLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # With the series' episodes in hand, each file still without one is offered
+  # the episode its year identifies (`EpisodeChoice.preselect/2`), stored so
+  # Approve places it there. The reviewer sees it in the picker first.
+  def handle_async({:episode_choices, tmdb_id}, {:ok, {:ok, seasons}}, socket) do
+    socket = assign(socket, episode_choices: Map.put(socket.assigns.episode_choices, tmdb_id, seasons))
+
+    offers =
+      for group <- socket.assigns.groups,
+          file <- group.files,
+          file.tmdb_id == tmdb_id and Review.needs_episode?(file),
+          {season_number, episode_number} <- [EpisodeChoice.preselect(seasons, file.parsed_year)],
+          do: {file, season_number, episode_number}
+
+    Enum.each(offers, fn {file, season_number, episode_number} ->
+      Review.set_episode(file, season_number, episode_number)
+    end)
+
+    {:noreply, if(offers == [], do: socket, else: refresh_groups(socket))}
+  end
+
+  def handle_async({:episode_choices, tmdb_id}, result, socket) do
+    Log.warning(:review, "loading episodes for tmdb:#{tmdb_id} failed — #{inspect(result)}")
+
+    {:noreply,
+     socket
+     |> assign(episode_choices: Map.delete(socket.assigns.episode_choices, tmdb_id))
+     |> put_flash(:error, "Couldn't load the series' episodes from TMDB")}
   end
 
   # A crashed search must clear `searching`; leaving it true strands the
@@ -505,6 +564,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               searching={@searching}
               searched={@searched}
               disclosures={@disclosures}
+              episode_choices={@episode_choices}
               tmdb_ready={@tmdb_ready}
             />
             <div
@@ -695,6 +755,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(encoded_key: encode_key(assigns.group.key))
       |> assign(delete_target: delete_target)
       |> assign(delete_gesture: gesture)
+      |> assign(choosing_files: Enum.filter(assigns.group.files, &Review.chooses_episode?/1))
 
     ~H"""
     <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
@@ -737,6 +798,29 @@ defmodule MediaCentaurWeb.ReviewLive do
           encoded_key={@encoded_key}
         />
 
+        <div
+          :if={@choosing_files != [] and @reason != :importing}
+          class="glass-inset rounded-lg p-4 space-y-3"
+        >
+          <div :for={file <- @choosing_files} id={"review-episode-#{file.id}"} class="space-y-1">
+            <p
+              :if={@file_count > 1}
+              class="font-mono text-xs text-base-content/60 truncate-left"
+              title={relative_file_path(file)}
+            >
+              <bdo dir="ltr">{relative_file_path(file)}</bdo>
+            </p>
+            <.episode_picker
+              id={"episode-picker-#{file.id}"}
+              file_id={file.id}
+              seasons={@episode_choices[file.tmdb_id]}
+              selected={
+                file.season_number && file.episode_number && {file.season_number, file.episode_number}
+              }
+            />
+          </div>
+        </div>
+
         <.episode_list
           :if={@file_count > 1}
           group={@group}
@@ -752,7 +836,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6"
         >
           <.button
-            :if={@file.tmdb_id && !@tied}
+            :if={@file.tmdb_id && !@tied && !Enum.any?(@group.files, &Review.needs_episode?/1)}
             variant="action"
             size="sm"
             phx-click="approve"
@@ -829,7 +913,12 @@ defmodule MediaCentaurWeb.ReviewLive do
         ({@file.parsed_year})
       </span>
       <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
-      <span :if={@file.season_number && @file.episode_number} class="text-sm text-base-content/60">
+      <%!-- A file whose name does not number its episode carries the one the
+            reviewer chose, shown in the episode picker, not as parsed. --%>
+      <span
+        :if={@file.season_number && @file.episode_number && !Review.chooses_episode?(@file)}
+        class="text-sm text-base-content/60"
+      >
         S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
       </span>
     </div>
@@ -1253,6 +1342,10 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   # Group keys are `{media_dir, series_root}` tuples. We encode them as a
   # single string for phx-value-key attributes and decode on the way back.
+  defp find_file(groups, file_id) do
+    Enum.find_value(groups, fn group -> Enum.find(group.files, &(&1.id == file_id)) end)
+  end
+
   defp encode_key({media_dir, root}) do
     Base.url_encode64(:erlang.term_to_binary({media_dir, root}))
   end
