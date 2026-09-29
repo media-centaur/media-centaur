@@ -88,9 +88,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: discovered.file_path,
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
-          tmdb_type: discovered.tmdb_type,
-          season: discovered.parsed.season,
-          episode: discovered.parsed.episode
+          tmdb_type: discovered.tmdb_type
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -139,9 +137,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: discovered.file_path,
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
-          tmdb_type: discovered.tmdb_type,
-          season: discovered.parsed.season,
-          episode: discovered.parsed.episode
+          tmdb_type: discovered.tmdb_type
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -184,9 +180,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: discovered.file_path,
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
-          tmdb_type: discovered.tmdb_type,
-          season: discovered.parsed.season,
-          episode: discovered.parsed.episode
+          tmdb_type: discovered.tmdb_type
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -410,9 +404,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: "/media/pipeline/Review.Resolved.mkv",
           media_dir: "/media/pipeline",
           tmdb_id: 550,
-          tmdb_type: :movie,
-          season: nil,
-          episode: nil
+          tmdb_type: :movie
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -469,9 +461,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: path,
           media_dir: "/media/pipeline/TV",
           tmdb_id: 1396,
-          tmdb_type: :tv,
-          season: nil,
-          episode: nil
+          tmdb_type: :tv
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -488,24 +478,26 @@ defmodule MediaCentaur.PipelineTest do
                MediaCentaur.EpisodeMapping.list_awaiting()
     end
 
-    # The match decides which episode a file is, not the filename: a
-    # reviewer's episode choice has to reach the library.
-    test "the match's season and episode place the file, whatever its name says" do
+    # Changed 2026-09-29 (campaign `review-coherence`): this placed a file at
+    # the season and episode the match carried, whatever its name said, so
+    # a reviewer's episode choice reached the library. Review no longer
+    # chooses one; a file whose name settles no position is parked for
+    # episode mapping (above). A named episode is placed where its name
+    # says, which Import reads from the path.
+    test "a matched episode is placed at the season and episode its name claims" do
       stub_routes([
-        {"/tv/1396", tv_detail()},
-        {"/tv/1396/season/1", season_detail()}
+        {"/tv/1396/season/1", season_detail()},
+        {"/tv/1396", tv_detail()}
       ])
 
-      path = "/media/pipeline/TV/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4"
+      path = "/media/pipeline/TV/Sample Show/Season 1/Sample.Show.S01E01.1080p.WEBRip.mkv"
 
       import_payload =
         ImportProducer.build_payload(%{
           file_path: path,
           media_dir: "/media/pipeline/TV",
           tmdb_id: 1396,
-          tmdb_type: :tv,
-          season: 1,
-          episode: 1
+          tmdb_type: :tv
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -539,9 +531,7 @@ defmodule MediaCentaur.PipelineTest do
           file_path: path,
           media_dir: "/media/pipeline",
           tmdb_id: 550,
-          tmdb_type: :movie,
-          season: nil,
-          episode: nil
+          tmdb_type: :movie
         })
 
       failed =

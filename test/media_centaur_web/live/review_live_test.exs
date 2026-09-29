@@ -70,8 +70,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         create_pending_file(%{
           parsed_title: "Panel Pending Show",
           parsed_type: "tv",
-          season_number: 1,
-          episode_number: 1
+          parsed_season: 1,
+          parsed_episode: 1
         })
 
       {:ok, view, _html} = live_async!(conn, "/review")
@@ -110,8 +110,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           file_path: "/media/test/Sample.Show.S01E01.1080p.mkv",
           parsed_title: "Sample Show",
           parsed_type: "tv",
-          season_number: 1,
-          episode_number: 1,
+          parsed_season: 1,
+          parsed_episode: 1,
           tmdb_type: "tv",
           # Two candidates on one score: the chooser only shows for a tie.
           candidates: [
@@ -181,8 +181,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
             file_path: "/media/test/Sample Show/Season 1/Sample.Show.S01E0#{episode}.mkv",
             parsed_title: "Sample Show",
             parsed_type: "tv",
-            season_number: 1,
-            episode_number: episode
+            parsed_season: 1,
+            parsed_episode: episode
           })
         end
 
@@ -205,8 +205,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       create_pending_file(%{
         parsed_title: "Crash Pending Show",
         parsed_type: "tv",
-        season_number: 1,
-        episode_number: 1
+        parsed_season: 1,
+        parsed_episode: 1
       })
 
       # The task calls TMDB through its Req.Test stub; a stub that raises
@@ -461,8 +461,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           media_directory: "/media/test",
           parsed_title: "Approved Show",
           parsed_type: "tv",
-          season_number: 1,
-          episode_number: 1,
+          parsed_season: 1,
+          parsed_episode: 1,
           tmdb_id: 4242,
           tmdb_type: "tv"
         })
@@ -473,8 +473,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           media_directory: "/media/test",
           parsed_title: "Approved Show",
           parsed_type: "tv",
-          season_number: 1,
-          episode_number: 2,
+          parsed_season: 1,
+          parsed_episode: 2,
           tmdb_id: 4242,
           tmdb_type: "tv"
         })
@@ -521,8 +521,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           media_directory: "/media/test",
           parsed_title: "Mixed Show",
           parsed_type: "tv",
-          season_number: 1,
-          episode_number: episode,
+          parsed_season: 1,
+          parsed_episode: episode,
           tmdb_id: tmdb_id,
           tmdb_type: "tv"
         })

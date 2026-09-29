@@ -11,11 +11,6 @@ defmodule MediaCentaur.Pipeline.Payload do
   **Input (set by producer):**
   - `file_path` — absolute path to the video file
   - `media_directory` — the media directory it was detected in
-  - `match_season`, `match_episode` — Import only: the season and episode
-    the match places the file at (`nil` for a movie). They come with the
-    match, from the parse for a Discovery match and from the review item
-    for an approval, and Import uses them instead of reading the path
-    again — so a reviewer's choice reaches the library.
 
   **Parse stage:**
   - `parsed` — `%Parser.Result{}` with title, year, type, season, episode
@@ -51,8 +46,6 @@ defmodule MediaCentaur.Pipeline.Payload do
     # Input
     :file_path,
     :media_directory,
-    :match_season,
-    :match_episode,
 
     # Parse stage
     :parsed,

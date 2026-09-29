@@ -629,9 +629,7 @@ defmodule MediaCentaur.Review do
            file_path: pending_file.file_path,
            media_dir: pending_file.media_directory,
            tmdb_id: pending_file.tmdb_id,
-           tmdb_type: pending_file.tmdb_type,
-           season: pending_file.season_number,
-           episode: pending_file.episode_number
+           tmdb_type: pending_file.tmdb_type
          }}
       )
 

@@ -12,8 +12,8 @@ defmodule MediaCentaur.ReviewIntakeTest do
       parsed_title: "Sample Movie",
       parsed_year: 2010,
       parsed_type: "movie",
-      season_number: nil,
-      episode_number: nil,
+      parsed_season: nil,
+      parsed_episode: nil,
       tmdb_id: 27_205,
       tmdb_type: "movie",
       confidence: 0.72,
@@ -217,7 +217,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       Enum.each(pending_files, fn file ->
         assert file.parsed_type == "tv"
-        assert file.season_number == 1
+        assert file.parsed_season == 1
       end)
 
       assert_received {:file_added, %FileAdded{}}

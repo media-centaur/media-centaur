@@ -157,8 +157,8 @@ defmodule MediaCentaur.ReviewTest do
             file_path: path,
             media_directory: "/media/test",
             parsed_type: "tv",
-            season_number: 1,
-            episode_number: 1,
+            parsed_season: 1,
+            parsed_episode: 1,
             tmdb_id: 4242,
             tmdb_type: "tv",
             confidence: 0.6
@@ -170,7 +170,7 @@ defmodule MediaCentaur.ReviewTest do
 
     test "approves the group's pending files and sends each match to Import" do
       first = matched_file("/media/test/Sample Show/S01E01.mkv")
-      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{episode_number: 2})
+      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{parsed_episode: 2})
 
       assert {:ok, 2} = Review.approve_group([first.id, second.id])
 
@@ -202,7 +202,7 @@ defmodule MediaCentaur.ReviewTest do
     test "approves only the files still pending — an importing sibling is left alone" do
       importing = matched_file("/media/test/Sample Show/S01E01.mkv")
       {:ok, _} = Review.approve_pending_file(importing)
-      pending = matched_file("/media/test/Sample Show/S01E02.mkv", %{episode_number: 2})
+      pending = matched_file("/media/test/Sample Show/S01E02.mkv", %{parsed_episode: 2})
 
       assert {:ok, 1} = Review.approve_group([importing.id, pending.id])
 
@@ -352,8 +352,8 @@ defmodule MediaCentaur.ReviewTest do
           file_path: "/media/test/special.mp4",
           tmdb_id: 1396,
           tmdb_type: "tv",
-          season_number: 1,
-          episode_number: 22,
+          parsed_season: 1,
+          parsed_episode: 22,
           match_title: "Sample Show"
         })
 

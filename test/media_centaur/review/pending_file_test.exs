@@ -183,8 +183,8 @@ defmodule MediaCentaur.Review.PendingFileTest do
                parsed_title: "Sample Show",
                parsed_year: nil,
                parsed_type: "tv",
-               season_number: 1,
-               episode_number: 2
+               parsed_season: 1,
+               parsed_episode: 2
              }
     end
 
