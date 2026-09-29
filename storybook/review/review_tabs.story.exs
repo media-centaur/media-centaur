@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Storybook.Review.ReviewTabs do
       },
       %Variation{
         id: :only_mapping_work,
-        description: "Only mapping work — how the strip looks landing on /reconcile",
+        description: "Only mapping work — how the strip looks landing on /episode-mapping",
         attributes: %{active: :mapping, identity_count: 0, mapping_count: 5}
       }
     ]

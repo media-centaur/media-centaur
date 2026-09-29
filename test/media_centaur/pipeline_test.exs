@@ -349,7 +349,7 @@ defmodule MediaCentaur.PipelineTest do
       path = "/media/pipeline/TV/Sample Show/Sample.Show.S03E01.mkv"
 
       {:ok, _awaiting} =
-        MediaCentaur.Reconciliation.divert(%{
+        MediaCentaur.EpisodeMapping.divert(%{
           file_path: path,
           media_dir: "/media/pipeline/TV",
           tmdb_id: 4242,
@@ -367,7 +367,7 @@ defmodule MediaCentaur.PipelineTest do
       path = "/media/pipeline/TV/Sample Show/Sample.Show.S03E02.mkv"
 
       {:ok, awaiting} =
-        MediaCentaur.Reconciliation.divert(%{
+        MediaCentaur.EpisodeMapping.divert(%{
           file_path: path,
           media_dir: "/media/pipeline/TV",
           tmdb_id: 4242,
@@ -375,7 +375,7 @@ defmodule MediaCentaur.PipelineTest do
           claimed_episode: 2
         })
 
-      {:ok, _dismissed} = MediaCentaur.Reconciliation.dismiss_awaiting(awaiting)
+      {:ok, _dismissed} = MediaCentaur.EpisodeMapping.dismiss_awaiting(awaiting)
 
       payload = %Payload{file_path: path, media_directory: "/media/pipeline/TV"}
 

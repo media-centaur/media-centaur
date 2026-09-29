@@ -6,7 +6,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   events from the Watcher, converts them to `%Payload{}` structs, and dispatches
   to Broadway processors on demand.
 
-  On startup, sends `{:reconcile, 0}` to trigger watcher rescan (ADR-023).
+  On startup, sends `{:recover, 0}` to trigger watcher rescan (ADR-023).
   """
   use GenStage
   @behaviour Broadway.Acknowledger
@@ -22,34 +22,34 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   # `running?/0` can read `false` for a moment after this producer's `init/1`
   # runs, purely because the watchers haven't been told to start yet. A single
   # unconditional check races that startup ordering and can silently skip
-  # reconciliation for the entire session. Retrying briefly closes the race
+  # startup recovery for the entire session. Retrying briefly closes the race
   # without polling indefinitely: a deliberately-disabled watcher
   # (`services:*:start_watchers` off) exhausts the budget and is skipped
   # exactly as before.
-  @max_reconcile_attempts 20
-  @reconcile_retry_ms 100
+  @max_recover_attempts 20
+  @recover_retry_ms 100
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
   @impl true
   def init(_opts) do
     MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_input())
-    send(self(), {:reconcile, 0})
+    send(self(), {:recover, 0})
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
   @doc false
-  def max_reconcile_attempts, do: @max_reconcile_attempts
+  def max_recover_attempts, do: @max_recover_attempts
 
   @doc """
-  Decides what `{:reconcile, attempt}` should do next, given whether the
+  Decides what `{:recover, attempt}` should do next, given whether the
   watcher currently reports running. Pure — exposed for testing the
   race-retry boundary without spinning up the GenStage process.
   """
-  @spec reconcile_action(non_neg_integer(), boolean()) :: :run | {:retry, pos_integer()} | :skip
-  def reconcile_action(_attempt, true), do: :run
-  def reconcile_action(attempt, false) when attempt >= @max_reconcile_attempts, do: :skip
-  def reconcile_action(_attempt, false), do: {:retry, @reconcile_retry_ms}
+  @spec recover_action(non_neg_integer(), boolean()) :: :run | {:retry, pos_integer()} | :skip
+  def recover_action(_attempt, true), do: :run
+  def recover_action(attempt, false) when attempt >= @max_recover_attempts, do: :skip
+  def recover_action(_attempt, false), do: {:retry, @recover_retry_ms}
 
   @impl true
   def handle_demand(incoming_demand, state) do
@@ -74,34 +74,34 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
     end
   end
 
-  # Startup reconciliation (ADR-023), in two named operations. The
+  # Startup recovery (ADR-023), in two named operations. The
   # ingestion path spans two contexts and `Pipeline` is the boundary that
   # depends on both, so this is where they compose; neither can call the
   # other (`Watcher` deps `[Library]`, and `Review` is above it).
   #
-  # - `Watcher.Rescan.reconcile/0` — retract what the ignore rules no
+  # - `Watcher.Rescan.recover/0` — retract what the ignore rules no
   #   longer admit, rescan all media directories to re-detect files
   #   missed while the pipeline was down, and re-emit files the watcher
   #   knows about but the pipeline never finished ingesting (stranded by
   #   a transient TMDB/network failure on a prior run).
-  # - `Review.reconcile_with_library/0` — settle the review queue first,
+  # - `Review.settle_with_library/0` — settle the review queue first,
   #   while nothing is in flight: close items whose file is linked and
   #   reopen approved items whose import did not finish. Review closes
   #   items on link outcomes delivered over PubSub, which has no replay;
   #   this heals a dropped one. It runs before the rescan so a reopened
   #   item is `:pending` when its file is re-run.
-  def handle_info({:reconcile, attempt}, state) do
-    case reconcile_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
+  def handle_info({:recover, attempt}, state) do
+    case recover_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
-        Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
+        Log.info(:pipeline, "triggered watcher rescan — startup recovery")
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          MediaCentaur.Review.reconcile_with_library()
-          MediaCentaur.Watcher.Rescan.reconcile()
+          MediaCentaur.Review.settle_with_library()
+          MediaCentaur.Watcher.Rescan.recover()
         end)
 
       {:retry, delay_ms} ->
-        Process.send_after(self(), {:reconcile, attempt + 1}, delay_ms)
+        Process.send_after(self(), {:recover, attempt + 1}, delay_ms)
 
       :skip ->
         :ok

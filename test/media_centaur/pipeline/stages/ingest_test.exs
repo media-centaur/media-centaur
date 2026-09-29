@@ -75,7 +75,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert event.extra == nil
     end
 
-    test "parks a flagged TV file in the reconciliation queue" do
+    test "parks a flagged TV file in the episode-mapping queue" do
       payload = %Payload{
         file_path: "/media/TV/Sample.Show.S02E01.mkv",
         media_directory: "/media/TV",
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
       assert {:ok, _result} = Ingest.run(payload)
 
-      assert [awaiting] = MediaCentaur.Reconciliation.list_awaiting()
+      assert [awaiting] = MediaCentaur.EpisodeMapping.list_awaiting()
       assert awaiting.file_path == "/media/TV/Sample.Show.S02E01.mkv"
       assert awaiting.tmdb_id == 4242
       assert awaiting.claimed_season == 2
@@ -109,7 +109,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
     # The library links nothing for a parked file on purpose. The event says
     # so, and the library reports `{:file_parked, path}` rather than a link
-    # that failed — Review must not reopen a file the reconciliation queue
+    # that failed — Review must not reopen a file the episode-mapping queue
     # owns.
     test "a parked file's event says it is parked" do
       payload = %Payload{

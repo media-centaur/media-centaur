@@ -219,7 +219,7 @@ defmodule MediaCentaur.Library.ExternalIds do
   @doc """
   Returns the set of `{season_number, episode_number}` pairs for a TV
   series whose episode has a linked file on disk — the "present-set" used
-  by reconciliation to mark which canonical spine nodes are already filled.
+  by episode mapping to mark which canonical spine nodes are already filled.
   """
   @spec present_episode_keys(Ecto.UUID.t()) :: MapSet.t({integer(), integer()})
   def present_episode_keys(tv_series_id) when is_binary(tv_series_id) do

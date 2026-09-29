@@ -180,7 +180,7 @@ defmodule MediaCentaur.Watcher.RetractIgnoredTest do
     end
   end
 
-  describe "reconcile/0" do
+  describe "recover/0" do
     test "retracts what a rule covers and re-emits what is still stranded", %{
       media_dir: media_dir
     } do
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Watcher.RetractIgnoredTest do
       ignored_path = stamp_file!(captures, "clip.mkv")
       stranded_path = stamp_file!(Path.join(media_dir, "Movies"), "Sample.Movie.mkv")
 
-      assert {:ok, %{retracted: 1, reemitted: 1}} = Rescan.reconcile()
+      assert {:ok, %{retracted: 1, reemitted: 1}} = Rescan.recover()
 
       assert_receive {:file_detected, %{path: ^stranded_path}}, 500
       refute_receive {:file_detected, %{path: ^ignored_path}}, 100

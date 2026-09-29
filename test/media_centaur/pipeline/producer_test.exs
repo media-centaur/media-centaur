@@ -87,25 +87,25 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
     end
   end
 
-  describe "DiscoveryProducer.reconcile_action/2" do
+  describe "DiscoveryProducer.recover_action/2" do
     test "runs immediately once the watcher reports running, regardless of attempt count" do
-      assert DiscoveryProducer.reconcile_action(0, true) == :run
-      assert DiscoveryProducer.reconcile_action(19, true) == :run
+      assert DiscoveryProducer.recover_action(0, true) == :run
+      assert DiscoveryProducer.recover_action(19, true) == :run
     end
 
     test "retries with a delay while the watcher isn't running yet and attempts remain" do
-      assert {:retry, delay} = DiscoveryProducer.reconcile_action(0, false)
+      assert {:retry, delay} = DiscoveryProducer.recover_action(0, false)
       # `is_integer(delay)` is proven by the type checker since Elixir 1.20
       # (asserting it is a compile warning); the bound is the real check.
       assert delay > 0
     end
 
     test "gives up silently once the attempt budget is exhausted" do
-      # Startup reconciliation is a one-time opportunity racing against
+      # Startup recovery is a one-time opportunity racing against
       # `MediaCentaur.Watcher.Supervisor.start_watchers/0` (ADR-023) — it must
       # not retry forever, and it must not treat a deliberately-disabled
       # watcher (`services:*:start_watchers` off) as an error worth logging.
-      assert DiscoveryProducer.reconcile_action(DiscoveryProducer.max_reconcile_attempts(), false) ==
+      assert DiscoveryProducer.recover_action(DiscoveryProducer.max_recover_attempts(), false) ==
                :skip
     end
   end

@@ -70,7 +70,7 @@ defmodule MediaCentaur.Topics do
   | `self_update:status`, `:progress` | `SelfUpdate` | release self-update lifecycle |
   | `error_reports:updates` | `ErrorReports` | error-report intake |
   | `integration_health:updates` | `IntegrationHealth` | `{:integration_health_changed, %Status{}}` |
-  | `reconciliation:updates` | `Reconciliation` | awaiting-file changes |
+  | `episode_mapping:updates` | `EpisodeMapping` | awaiting-file changes |
 
   ### 2. Derived view topics (`*:views`)
 
@@ -200,5 +200,5 @@ defmodule MediaCentaur.Topics do
   def status_views, do: "status:views"
   def shell_badges, do: "shell:badges"
   def integration_health, do: "integration_health:updates"
-  def reconciliation_updates, do: "reconciliation:updates"
+  def episode_mapping_updates, do: "episode_mapping:updates"
 end

@@ -18,7 +18,7 @@
 import { createStatusBehavior } from "./status_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
-import { createReconcileBehavior } from "./reconcile_behavior"
+import { createEpisodeMappingBehavior } from "./episode_mapping_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
@@ -36,7 +36,7 @@ const BEHAVIOR_REGISTRY = {
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
-  reconcile: () => createReconcileBehavior(),
+  "episode-mapping": () => createEpisodeMappingBehavior(),
   settings: () => createSettingsBehavior(),
   incoming: () => createIncomingBehavior(incomingDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),

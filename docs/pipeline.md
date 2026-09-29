@@ -103,7 +103,7 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 
 After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
 
-`Library.Inbound` then reports the file's **link outcome** on `"library:file_events"`: `{:file_linked, path}`, `{:file_parked, path}` (parked in the reconciliation queue, no link by design), or `{:file_not_linked, %{file_path, media_dir, reason}}` (`:no_episode` for a series match with no season and episode, `{:ingest_failed, _}`, `:crashed`). An import that fails before publishing never reaches the library, so `Import.handle_failed/2` reports `{:file_not_linked, %{reason: {:import_failed, reason}}}` itself. Every match ends in exactly one outcome.
+`Library.Inbound` then reports the file's **link outcome** on `"library:file_events"`: `{:file_linked, path}`, `{:file_parked, path}` (parked in the episode-mapping queue, no link by design), or `{:file_not_linked, %{file_path, media_dir, reason}}` (`:no_episode` for a series match with no season and episode, `{:ingest_failed, _}`, `:crashed`). An import that fails before publishing never reaches the library, so `Import.handle_failed/2` reports `{:file_not_linked, %{reason: {:import_failed, reason}}}` itself. Every match ends in exactly one outcome.
 
 ---
 
@@ -225,14 +225,14 @@ An approved item stays in the queue, shown as importing, until the library repor
 | Outcome | Review item |
 |---|---|
 | `{:file_linked, path}` | removed (`Review.file_linked/1`) — also for a `:pending` item a confident re-run linked |
-| `{:file_parked, path}` | removed (`Review.file_parked/1`) — the reconciliation queue owns the file |
+| `{:file_parked, path}` | removed (`Review.file_parked/1`) — the episode-mapping queue owns the file |
 | `{:file_not_linked, %{reason: r}}` | back to `:pending` with the reason in `error_message`, the chosen match kept; a file with no item is queued with the reason (`Review.file_not_linked/1`) |
 
 Nothing else closes an approved item. Before this, Import told Review an item was done as soon as it published the entity, before the library linked the file; a series match for a file with no season and episode created a hidden series, linked nothing, and the item vanished.
 
-### The startup reconciliation
+### Startup recovery
 
-The outcomes travel over PubSub, which has no replay, so a listener that was not subscribed at that instant loses one. A live instance once carried 73 approved rows orphaned that way. `Review.reconcile_with_library/0` runs first in the startup reconciliation (composed in `Discovery.Producer`, the boundary that can see both contexts), while nothing is in flight: an item whose file is linked is removed, and an `:approved` item whose file is not linked returns to `:pending` with "Importing it didn't finish". It runs before `Watcher.Rescan.reconcile/0`, so a reopened item is `:pending` when its file is re-run.
+The outcomes travel over PubSub, which has no replay, so a listener that was not subscribed at that instant loses one. A live instance once carried 73 approved rows orphaned that way. `Review.settle_with_library/0` runs first in startup recovery (composed in `Discovery.Producer`, the boundary that can see both contexts), while nothing is in flight: an item whose file is linked is removed, and an `:approved` item whose file is not linked returns to `:pending` with "Importing it didn't finish". It runs before `Watcher.Rescan.recover/0`, so a reopened item is `:pending` when its file is re-run.
 
 **Rematch:** From the Library UI, a user can rematch an entity. `Review.Rematch` broadcasts `{:rematch_requested, entity_id}` to `"library:commands"`. `Library.Inbound` destroys the entity and sends `{:files_for_review, files}` to `"review:intake"` → Intake creates PendingFiles for re-review.
 

@@ -485,7 +485,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 | **Discovery** | `/discovery`, `/discovery/watchlist`, `/discovery/friends` | Feed, watchlist, friends |
 | **Apps** | `/apps` | App launcher |
 | **Review** | `/review` | Manual TMDB matching for pending files |
-| **Reconcile** | `/reconcile` | Episode-mapping review |
+| **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
 | **Settings** | `/settings`, `?section=…` | Sections: acquisition, import, social, system, maintenance, danger zone |
 | **Setup** | `/setup` | First-run tour |

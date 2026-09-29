@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Status,
       MediaCentaur.Guide,
       MediaCentaur.HttpClient,
-      MediaCentaur.Reconciliation,
+      MediaCentaur.EpisodeMapping,
       MediaCentaur.DeleteTargets,
       MediaCentaur.Discovery,
       MediaCentaur.Social,

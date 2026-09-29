@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Router do
       live "/history", WatchHistoryLive, :index
       live "/incoming", IncomingLive, :index
       live "/library", LibraryLive, :index
-      live "/reconcile", ReconcileLive, :index
+      live "/episode-mapping", EpisodeMappingLive, :index
       live "/review", ReviewLive, :index
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index

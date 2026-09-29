@@ -96,7 +96,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |
 | `MediaCentaur.Search` | Indexer search providers (Prowlarr) + query expansion | Feeds Acquisition; gated by `Capabilities`. |
 | `MediaCentaur.Subtitles` | `subtitles_*` table, embedded + sidecar track detection | Owned by Library's ingest path, read by Playback. |
-| `MediaCentaur.Reconciliation` | `reconciliation_*` table, episode-mapping models | Resolves files whose season/episode claim disagrees with the library. |
+| `MediaCentaur.EpisodeMapping` | `episode_mapping_awaiting_files`, the placement engine and its models | Decides which episode on TMDB's list a file of a known series is. |
 | `MediaCentaur.ErrorReports` | `incidents` table, error buckets, public-issue submission | Drives the Status page's report modal. |
 | `MediaCentaur.IntegrationHealth` | The connection state owner: per-integration `configured? × test_state` in ETS for the four `Capabilities` subjects | Runs every connection test (`verify/1`), persists an explicit verify's result through `Capabilities`, seeds from the persisted test at boot and probes nothing on its own; serves Settings and the Setup tour (UIDR-041). No DB tables. |
 | `MediaCentaur.Diagnostics` | Read-side aggregator over ErrorReports + Playback | Composition only, owns no state. |

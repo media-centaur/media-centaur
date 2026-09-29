@@ -108,7 +108,7 @@ defmodule MediaCentaur.Library.Deletion do
 
   Also drops the `Library.FilePresence` row for each path — a file gone from
   disk has nothing left for `Watcher.Rescan.rescan_unlinked/0` to recover,
-  and leaving the row behind let a later reconciliation pass resurrect a
+  and leaving the row behind let a later startup recovery pass resurrect a
   deleted title from a path that no longer exists (the incident this guards
   against). `AbsenceSweeper.purge_expired/1` also calls this before its own
   `FilePresence.delete_paths/1` — redundant with the call here, but harmless

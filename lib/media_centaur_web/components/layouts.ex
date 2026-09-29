@@ -209,9 +209,9 @@ defmodule MediaCentaurWeb.Layouts do
           </.link>
           <.link
             :if={@badges.review_pending + @badges.mapping_pending > 0}
-            navigate={if @badges.review_pending > 0, do: "/review", else: "/reconcile"}
+            navigate={if @badges.review_pending > 0, do: "/review", else: "/episode-mapping"}
             class={
-              sidebar_link_class(@current_path, ["/review", "/reconcile"]) <>
+              sidebar_link_class(@current_path, ["/review", "/episode-mapping"]) <>
                 " sidebar-link-system"
             }
             data-tip="Review"
@@ -416,7 +416,7 @@ defmodule MediaCentaurWeb.Layouts do
   end
 
   # `paths` may be a list when one nav entry fronts several routes — the
-  # Review entry covers both review dimensions (/review and /reconcile).
+  # Review entry covers both review dimensions (/review and /episode-mapping).
   # Collapsed-rail tooltips come from the Tooltip hook reading each
   # link's data-tip — no tooltip classes here.
   defp sidebar_link_class(current_path, paths) do

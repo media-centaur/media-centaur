@@ -20,7 +20,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
-  alias MediaCentaur.Reconciliation
+  alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.Review
   alias MediaCentaur.Review.PendingFile
 
@@ -228,7 +228,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   #   Stopping here is what makes the decision free instead of costing a
   #   parse and two TMDB searches on every scan and restart.
   # - **in episode mapping** — its identity is settled and a person
-  #   decides its position (`Reconciliation.awaiting?/1`), or dismissed
+  #   decides its position (`EpisodeMapping.awaiting?/1`), or dismissed
   #   it there. Searching it again could only put it back in Review
   #   beside its mapping entry, which is what every restart did until
   #   2026-09-29.
@@ -239,7 +239,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
     cond do
       Library.Files.linked?(file_path) -> "already linked"
       Review.dismissed?(file_path) -> "dismissed in review"
-      Reconciliation.awaiting?(file_path) -> "in episode mapping"
+      EpisodeMapping.awaiting?(file_path) -> "in episode mapping"
       true -> nil
     end
   end
