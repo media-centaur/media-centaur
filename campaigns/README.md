@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`review-closes-on-link.md`](review-closes-on-link.md) —
+  **planning 2026-09-29.** A review item stays open until its file is in the
+  library. The library reports every link outcome by path
+  (`{:file_linked, path}` / `{:file_not_linked, path, reason}`); Review
+  removes an item on a link and reopens it with the reason otherwise, so an
+  approval can no longer vanish without a trace. The match carries season
+  and episode to Import, and `pending_file_id` is removed. Layer 2 lets a
+  reviewer choose the episode for a TV match the filename does not number,
+  preselected from the year. Triggered by a yearly special that parsed as a
+  movie, was matched to its series in Review, and never appeared.
+
 * [`ui-state-ownership.md`](ui-state-ownership.md) —
   **shipped v1.45.0 2026-09-28; owner check open.** One owner per kind of UI state (URL, LiveView, browser for
   device and viewport only) and one mechanism per idiom: `Live.ArmGesture`
