@@ -23,6 +23,12 @@ last_updated: 2026-09-29
   leaves the state with no job. Oban runs on the Lite engine through the
   app's `Repo`, so an insert inside `Repo.transaction` commits or rolls
   back with it.
+* **Durable job.** An Oban job carrying work in ADR-076's first row,
+  built by ADR-077's rules.
+* **Command.** The context function that records a decision — and,
+  under ADR-077, inserts its durable job in the same transaction.
+* **Orphaned job.** A job left `executing` because the node stopped
+  while it ran.
 
 ## Goal
 
@@ -36,8 +42,8 @@ message a crash could lose.
 ## Status
 
 Planning. Inventory reconciled and every site classified (2026-09-29,
-below). Twelve findings, F1–F12. Two owner decisions open (*Next
-steps*). No code yet.
+below). Fifteen findings, F1–F15. ADR-077 (how a durable job is built)
+accepted. No code yet.
 
 ## Method
 
@@ -72,6 +78,9 @@ Numbered by finding, not by order of work. File:line as of `38ec7959`.
 | F10 | Library → release-tracking listeners | `library/events.ex:88` `containers_deleted`, `:96` `movies_added` → `release_tracking/library_listener.ex:23-24` | Tracked item dangles on a deleted container and can keep grabbing (moduledoc: "would dangle forever"); an arrived movie stays listed | Jobs inserted with the library write, or a reconcile pass that reads the state |
 | F11 | Person-run image and Maintenance work | `maintenance.ex:103` (`clear_database_async`, `refresh_image_cache_async`); `ImageRefreshWorker` completes on a PubSub hand-off (`image_refresh.ex:86` `enqueue_images`); `image_ready` row upsert (`pipeline/image.ex:109` → `inbound.ex:81`) | Partial database clear; library without artwork mid-refresh; a refresh that reports done and never ran; a downloaded image with no `Library.Image` row | Oban jobs; the refresh job writes the queue rows itself |
 | F12 | Remount reset runs async | `library/absence_sweeper.ex:170` | The next TTL check can purge files ADR-045's remount rule protects | Run the `UPDATE` inline, before the TTL check (not a carrier move) |
+| F13 | Uniqueness drops a re-arm | `PursueTarget` `unique: [period: 300, keys: [:target_id]]` with Oban's default `:successful` states (includes `completed`); `targets.ex:127` re-arms under the same id | A re-arm within 5 min of a finished job inserts nothing: `"seeking"` with no job | `states: :incomplete` (ADR-077 rule 6), on every durable worker |
+| F14 | Job failures are invisible | No `[:oban, :job, …]` handler in `lib/` | A raising job leaves its error in `oban_jobs.errors` only — no Console line, no incident | One telemetry handler (ADR-077 rule 7) |
+| F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Enable Lifeline; workers declare `timeout/1` (ADR-077 rule 8) |
 
 **Minor, not ADR-076 violations but the same shape** — take when
 touching the file:
@@ -170,25 +179,27 @@ pending state: `PursueTarget` (F4), `RunPlan` (F3). `ImageRefreshWorker`
 
 * `2026-09-29` — ADR-076 accepted: durability follows the cost of losing
   the work. (commit `f21552c1`)
+* `2026-09-29` — The four idempotent Maintenance repairs stay as they
+  are: no stored pending state, and losing one costs a re-click. (owner)
+* `2026-09-29` — Before any site moves, one standard for building a
+  durable job: ADR-077, from a `unify_design` pass. Oban is kept — it
+  is the only option that commits the job in the decision's transaction
+  (Lite engine, same SQLite file). Orphan rescue by `Oban.Lifeline`
+  over a hand-built boot rescue (owner).
 
 ## Next steps
 
-1. **Owner decision:** do the four idempotent Maintenance repairs
-   (`refresh_movie_subtitles`, `repair_missing_images`,
-   `refetch_backdrops`, `rederive_extra_names`) fall under ADR-076 row 1?
-   Nothing stores them as pending and losing one costs a re-click.
-2. **Owner decision:** the order of work. Proposed: F4 and the
-   `RunPlan` inserts of F3 first (post-commit inserts; small, mechanical,
-   and they leave states nothing recovers), then F1 (design), the rest
-   of F3, F8, F6, F7, F5, F2, F9, F10, F11, F12.
-3. Design the single import path (F1) — `unify_design` pass; the job's
-   last step needs a design for the `Pipeline` → `Library.Inbound`
-   boundary (call ingest, or await the link outcome). Record it here.
-4. Decide whether a Credo check can hold "no `Oban.insert` after a
-   `Repo.transaction` that writes a pending state" — likely not
-   statically; consider a single `enqueue-in-transaction` helper the
-   check can require instead.
-5. Move sites one per commit (Method step 4).
+1. The shared layer, test-first, one commit each: the test suite to
+   `testing: :manual` (107 tests in 13 files to fix, measured
+   2026-09-29); `MediaCentaur.Jobs` with the failure handler (F14);
+   Lifeline and worker timeouts (F15); `states: :incomplete` (F13).
+2. Credo checks for what is static in ADR-077: a worker's `unique`
+   declares `states:`; a worker defines `timeout/1`. Rule 1 (insert in
+   the transaction) is probably not statically checkable — decide.
+3. Move sites, highest cost first: F4, F3, F1 (design first — the
+   `Pipeline` → `Library.Inbound` boundary and one job per file vs.
+   batching, measured), F8, F6, F7, F5, F2, F9, F10, F11, F12. One
+   commit per site (Method step 4).
 
 ## Completion criteria
 
