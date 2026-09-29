@@ -24,6 +24,21 @@ defmodule MediaCentaur.Review do
 
   Approval broadcasts a `{:file_matched, ...}` event to `MediaCentaur.Topics.pipeline_matched()`,
   which the Import Pipeline Producer picks up for async processing via Broadway.
+
+  ## An item closes on its file's link outcome
+
+  An approved item stays in the queue until the library reports what
+  became of its file (`Library.Inbound`, "Link outcome", on
+  `Topics.library_file_events/0`; `Review.FileEventHandler` routes it):
+
+    * linked or parked → `file_linked/1` / `file_parked/1` remove the item;
+    * not linked → `file_not_linked/1` returns it to `:pending` with the
+      reason in `error_message`, keeping the reviewer's match, or queues
+      the file if it had no item (an automatic match that linked nothing).
+
+  Nothing else closes an approved item, so an approval can no longer end
+  with the item gone and the title absent. `reconcile_with_library/0`
+  settles at startup whatever a dropped message left behind.
   """
   import Ecto.Query
 
@@ -117,8 +132,8 @@ defmodule MediaCentaur.Review do
     * `:pending` — an open review; returned unchanged, which is what
       makes repeated detection idempotent.
     * `:approved` **and the file is linked** — the import finished, so
-      `complete_review/1` should have destroyed this row and a dropped
-      `{:review_completed, id}` message left it behind. Stale: reopened,
+      `file_linked/1` should have destroyed this row and a dropped
+      `{:file_linked, path}` message left it behind. Stale: reopened,
       because otherwise the row exists but the queue does not list it and
       the path can never be reviewed again.
     * `:approved` **and the file is not linked** — the decision is made
@@ -173,39 +188,49 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  Deletes every queue row whose review is already complete: `:approved`
-  with the file linked.
+  Settles the queue against the library at startup, when nothing is in
+  flight: an item whose file is linked is done and removed, and an
+  `:approved` item whose file is not linked is an import that did not
+  finish — it returns to `:pending` with that reason.
 
-  `complete_review/1` destroys the row when an import finishes, driven by
-  `{:review_completed, id}` from `Pipeline.Import`. PubSub has no replay,
-  so a listener that was not subscribed at that instant loses the message
-  and the row is orphaned at `:approved` with nothing to notice. A live
-  instance carried 73 of them from one bulk approve three months earlier.
-
-  Run from the startup reconciliation, so a dropped completion heals on
-  the next start rather than accumulating. `:approved` with no link is
-  the legitimate in-flight state and is left alone; so are `:pending` and
-  `:dismissed`. Nothing user-visible changes — these rows were already
-  out of the queue — so there is no broadcast.
+  The link outcomes that close and reopen items (`file_linked/1`,
+  `file_not_linked/1`) travel over PubSub, which has no replay; a listener
+  not subscribed at that instant loses one. A live instance once carried
+  73 approved rows orphaned that way, invisible in the queue. `:dismissed`
+  rows are decisions and are left alone. Returns the counts.
   """
-  @spec sweep_completed_reviews() :: {:ok, non_neg_integer()}
-  def sweep_completed_reviews do
-    approved =
+  @spec reconcile_with_library() :: %{closed: non_neg_integer(), reopened: non_neg_integer()}
+  def reconcile_with_library do
+    open =
       PendingFile
-      |> where([p], p.status == :approved)
-      |> select([p], %{id: p.id, file_path: p.file_path})
+      |> where([p], p.status in [:pending, :approved])
+      |> select([p], %{id: p.id, file_path: p.file_path, status: p.status})
       |> Repo.all()
 
-    linked = Library.Files.linked_paths(Enum.map(approved, & &1.file_path))
-    stale_ids = for row <- approved, MapSet.member?(linked, row.file_path), do: row.id
+    linked = Library.Files.linked_paths(Enum.map(open, & &1.file_path))
+    {done, unlinked} = Enum.split_with(open, &MapSet.member?(linked, &1.file_path))
+    unfinished_ids = for %{status: :approved, id: id} <- unlinked, do: id
 
-    {count, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^stale_ids))
+    {closed, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^Enum.map(done, & &1.id)))
 
-    if count > 0 do
-      Log.info(:review, "swept #{count} completed review row(s) whose import had finished")
+    {reopened, _} =
+      Repo.update_all(from(p in PendingFile, where: p.id in ^unfinished_ids),
+        set: [
+          status: :pending,
+          error_message: unlinked_message(:unfinished),
+          updated_at: DateTime.utc_now(:second)
+        ]
+      )
+
+    if closed + reopened > 0 do
+      Log.info(
+        :review,
+        "startup reconciliation — closed #{closed} review item(s) whose file is linked, " <>
+          "reopened #{reopened} whose import did not finish"
+      )
     end
 
-    {:ok, count}
+    %{closed: closed, reopened: reopened}
   end
 
   def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
@@ -268,25 +293,6 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  The id of the row awaiting review for `file_path`, or `nil` when the
-  file has no open review.
-
-  `Pipeline.Discovery` reads this when a re-run of a queued file matches
-  with confidence: the match answers the open review, so the import
-  carries the row's id and completes it through `complete_review/1`.
-  """
-  @spec pending_file_id(String.t()) :: Ecto.UUID.t() | nil
-  def pending_file_id(file_path) when is_binary(file_path) do
-    Repo.one(
-      from(p in PendingFile,
-        where: p.file_path == ^file_path and p.status == :pending,
-        select: p.id,
-        limit: 1
-      )
-    )
-  end
-
-  @doc """
   Drops the queue rows for `file_paths` — the files are no longer
   library content, so there is no decision left to make about them.
 
@@ -316,20 +322,95 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  Removes a file from the review queue once its import has finished and
-  broadcasts `FileReviewed`. `:ok` even when the record is already gone.
+  The library linked `file_path`: its review, if any, is answered.
+  Removes the item and broadcasts `FileReviewed`. A dismissed item is a
+  decision and stays.
   """
-  @spec complete_review(Ecto.UUID.t()) :: :ok
-  def complete_review(pending_file_id) do
-    case fetch_pending_file(pending_file_id) do
-      {:ok, pending_file} ->
-        destroy_pending_file!(pending_file)
-        broadcast_reviewed(pending_file_id)
+  @spec file_linked(String.t()) :: :ok
+  def file_linked(file_path), do: close_review(file_path)
 
-      {:error, :not_found} ->
-        :ok
+  @doc """
+  The pipeline parked `file_path` in the reconciliation queue, which owns
+  it from here: its review item is removed, as for `file_linked/1`.
+  """
+  @spec file_parked(String.t()) :: :ok
+  def file_parked(file_path), do: close_review(file_path)
+
+  defp close_review(file_path) do
+    with %PendingFile{status: status} = pending_file when status in [:pending, :approved] <-
+           Repo.get_by(PendingFile, file_path: file_path),
+         {:ok, _} <- destroy_pending_file(pending_file) do
+      Log.info(:review, "\"#{Path.basename(file_path)}\" is in the library — review closed")
+      broadcast_reviewed(pending_file.id)
     end
+
+    :ok
   end
+
+  @doc """
+  The library did not link the file: `%{file_path, media_dir, reason}`,
+  `reason` as `Library.Inbound` and `Pipeline.Import` report it.
+
+  An `:approved` or `:pending` item returns to `:pending` with the reason
+  in `error_message`, keeping the match the reviewer chose. A file with no
+  item is queued with the reason — an automatic match that linked nothing
+  needs a person too. A dismissed item stays dismissed. Broadcasts
+  `FileAdded`.
+  """
+  @spec file_not_linked(%{file_path: String.t(), media_dir: String.t(), reason: term()}) :: :ok
+  def file_not_linked(%{file_path: file_path, media_dir: media_dir, reason: reason}) do
+    message = unlinked_message(reason)
+
+    result =
+      case Repo.get_by(PendingFile, file_path: file_path) do
+        nil ->
+          %{file_path: file_path, media_dir: media_dir}
+          |> parsed_pending_attrs()
+          |> Map.put(:error_message, message)
+          |> PendingFile.create_changeset()
+          |> Repo.insert()
+
+        %PendingFile{status: :dismissed} ->
+          :dismissed
+
+        pending_file ->
+          Repo.update(PendingFile.unlinked_changeset(pending_file, message))
+      end
+
+    case result do
+      {:ok, pending_file} ->
+        Log.info(:review, "\"#{Path.basename(file_path)}\" was not added — back in review: #{message}")
+        Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
+
+      :dismissed ->
+        :ok
+
+      {:error, changeset} ->
+        Log.warning(:review, "failed to reopen #{file_path} — #{inspect(changeset.errors)}")
+    end
+
+    :ok
+  end
+
+  # What the reviewer reads on a returned item: what happened, and the one
+  # thing to do about it.
+  defp unlinked_message(:no_episode),
+    do:
+      "This file has no season and episode number, so it can't be added to a series. " <>
+        "Rename it with them (for example S01E05), or match it to a movie."
+
+  defp unlinked_message({:ingest_failed, _reason}),
+    do: "Adding it to the library failed. Approve it again to retry."
+
+  defp unlinked_message(:crashed), do: "Adding it to the library failed. Approve it again to retry."
+
+  defp unlinked_message({:import_failed, :insufficient_disk_space}),
+    do: "There isn't enough disk space to import it. Free some space and approve it again."
+
+  defp unlinked_message({:import_failed, _reason}), do: "Importing it failed. Approve it again to retry."
+
+  defp unlinked_message(:unfinished),
+    do: "Importing it didn't finish before the app stopped. Approve it again to retry."
 
   # Parses the same path discovery and import parse, so it reads the same
   # extras setting. It used to fall through to `Parser`'s own literal
@@ -367,8 +448,10 @@ defmodule MediaCentaur.Review do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Groups pending files by series root — the first directory component below
-  the media directory. Two files share a group when they have the same
+  The review page's groups: every open item — `:pending`, awaiting a
+  decision, and `:approved`, awaiting its file's link outcome — grouped by
+  series root, the first directory component below the media directory.
+  Two files share a group when they have the same
   `{media_directory, series_root}`.
 
   Returns a list of group maps:
@@ -377,8 +460,13 @@ defmodule MediaCentaur.Review do
 
   Single-file groups (movies, flat downloads) are groups of 1 — same shape.
   """
-  def fetch_pending_groups do
-    list_pending_files_for_review()
+  def fetch_review_groups do
+    Repo.all(
+      from(p in PendingFile,
+        where: p.status in [:pending, :approved],
+        order_by: [asc: p.inserted_at]
+      )
+    )
     |> Enum.group_by(fn file ->
       {file.media_directory, series_root(file)}
     end)
@@ -515,7 +603,8 @@ defmodule MediaCentaur.Review do
            media_dir: pending_file.media_directory,
            tmdb_id: pending_file.tmdb_id,
            tmdb_type: pending_file.tmdb_type,
-           pending_file_id: pending_file.id
+           season: pending_file.season_number,
+           episode: pending_file.episode_number
          }}
       )
 

@@ -28,6 +28,25 @@ defmodule MediaCentaurWeb.ReviewHelpersTest do
 
       assert ReviewHelpers.review_reason(file) == :low_confidence
     end
+
+    # An approved item stays in the queue until the library reports its
+    # file linked; until then it is importing, whatever its match looked like.
+    test "returns :importing for an approved file" do
+      file = %{status: :approved, tmdb_id: 123, candidates: [], error_message: nil}
+      assert ReviewHelpers.review_reason(file) == :importing
+    end
+
+    # A file the library did not link comes back with the reason.
+    test "returns :not_added for a file returned with a reason" do
+      file = %{
+        status: :pending,
+        tmdb_id: 123,
+        candidates: [],
+        error_message: "Adding it to the library failed."
+      }
+
+      assert ReviewHelpers.review_reason(file) == :not_added
+    end
   end
 
   # --- count_by_reason/1 ---
@@ -38,18 +57,28 @@ defmodule MediaCentaurWeb.ReviewHelpersTest do
         %{representative: %{tmdb_id: nil, candidates: []}},
         %{representative: %{tmdb_id: nil, candidates: []}},
         %{representative: %{tmdb_id: 1, candidates: [%{"score" => 0.5}, %{"score" => 0.5}]}},
-        %{representative: %{tmdb_id: 1, candidates: [%{"score" => 0.8}, %{"score" => 0.3}]}}
+        %{representative: %{tmdb_id: 1, candidates: [%{"score" => 0.8}, %{"score" => 0.3}]}},
+        %{representative: %{status: :approved, tmdb_id: 1, candidates: []}},
+        %{representative: %{status: :pending, tmdb_id: 1, candidates: [], error_message: "x"}}
       ]
 
       assert ReviewHelpers.count_by_reason(groups) == %{
                no_results: 2,
                tied: 1,
-               low_confidence: 1
+               low_confidence: 1,
+               importing: 1,
+               not_added: 1
              }
     end
 
     test "returns zeros for empty list" do
-      assert ReviewHelpers.count_by_reason([]) == %{no_results: 0, tied: 0, low_confidence: 0}
+      assert ReviewHelpers.count_by_reason([]) == %{
+               no_results: 0,
+               tied: 0,
+               low_confidence: 0,
+               importing: 0,
+               not_added: 0
+             }
     end
   end
 

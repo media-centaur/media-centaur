@@ -107,6 +107,47 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert awaiting.claimed_season == 2
     end
 
+    # The library links nothing for a parked file on purpose. The event says
+    # so, and the library reports `{:file_parked, path}` rather than a link
+    # that failed — Review must not reopen a file the reconciliation queue
+    # owns.
+    test "a parked file's event says it is parked" do
+      payload = %Payload{
+        file_path: "/media/TV/Sample.Show.S02E01.mkv",
+        media_directory: "/media/TV",
+        tmdb_id: 4242,
+        tmdb_type: :tv,
+        metadata: %{
+          entity_type: :tv_series,
+          entity_attrs: %{type: :tv_series, name: "Sample Show"},
+          identifier: %{source: "tmdb", external_id: "4242"},
+          images: [],
+          season: nil,
+          child_movie: nil,
+          extra: nil,
+          divert: %{
+            tmdb_id: 4242,
+            series_title: "Sample Show",
+            claimed_season: 2,
+            claimed_episode: 1,
+            claimed_title: nil
+          }
+        }
+      }
+
+      assert {:ok, _result} = Ingest.run(payload)
+
+      assert_receive {:entity_published, event}
+      assert event.parked == true
+    end
+
+    test "an event for a file that is not parked says so" do
+      assert {:ok, _result} = Ingest.run(movie_payload())
+
+      assert_receive {:entity_published, event}
+      assert event.parked == false
+    end
+
     test "broadcasts collection event with child_movie" do
       payload = %Payload{
         file_path: "/media/The.Shadowy.Sentinel.2008.mkv",

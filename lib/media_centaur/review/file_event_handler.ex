@@ -1,7 +1,16 @@
 defmodule MediaCentaur.Review.FileEventHandler do
   @moduledoc """
-  Reacts to `{:files_removed, paths}` on `Topics.library_file_events()`
-  by dropping those paths from the review queue.
+  Reacts to the library's file events on `Topics.library_file_events()`:
+
+    * `{:files_removed, paths}` → drops those paths from the review queue;
+    * `{:file_linked, path}` / `{:file_parked, path}` → the file is in the
+      library or the reconciliation queue, so its review item closes
+      (`Review.file_linked/1`, `Review.file_parked/1`);
+    * `{:file_not_linked, outcome}` → the item returns to the queue with
+      the reason (`Review.file_not_linked/1`).
+
+  The link outcomes are the only way an approved item closes — see
+  `MediaCentaur.Review`, "An item closes on its file's link outcome".
 
   The review queue holds files awaiting a decision. When a file stops
   being library content there is no decision left to make, so its row
@@ -17,7 +26,7 @@ defmodule MediaCentaur.Review.FileEventHandler do
   cannot call `Review` — `Review` depends on `Library`, not the
   reverse.
 
-  The delete runs inline in the GenServer: it is one `delete_all` by
+  Each reaction runs inline in the GenServer: it is one or two writes by
   path, so there is nothing to hand to a task, and staying synchronous
   is what makes `__sync_for_test__/0` a complete await.
   """
@@ -29,7 +38,7 @@ defmodule MediaCentaur.Review.FileEventHandler do
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   @doc false
-  # Test-only sync point: any prior `{:files_removed, _}` message in this
+  # Test-only sync point: any prior message in this
   # GenServer's mailbox is guaranteed processed before the call returns.
   @spec __sync_for_test__() :: :ok
   def __sync_for_test__, do: GenServer.call(__MODULE__, :__sync_for_test__)
@@ -50,6 +59,21 @@ defmodule MediaCentaur.Review.FileEventHandler do
         Log.info(:review, "dropped #{count} queued file(s) — no longer library content")
     end
 
+    {:noreply, state}
+  end
+
+  def handle_info({:file_linked, file_path}, state) do
+    Review.file_linked(file_path)
+    {:noreply, state}
+  end
+
+  def handle_info({:file_parked, file_path}, state) do
+    Review.file_parked(file_path)
+    {:noreply, state}
+  end
+
+  def handle_info({:file_not_linked, outcome}, state) do
+    Review.file_not_linked(outcome)
     {:noreply, state}
   end
 

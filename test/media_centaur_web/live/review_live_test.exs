@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
   alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Review.Events.GroupError
 
-  # `ReviewLive.ensure_loaded/1` defers `Review.fetch_pending_groups/0`
+  # `ReviewLive.ensure_loaded/1` defers `Review.fetch_review_groups/0`
   # to an owned `start_async(:review_load, …)` (ADR-049). `render_async/1`
   # awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
@@ -415,7 +415,12 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       refute render(view) =~ "Single Review File"
     end
 
-    test "group_approved broadcast removes the whole group from the list",
+    # Changed 2026-09-29 (campaign `review-closes-on-link`): approval no
+    # longer removes the group. It stays, marked as importing, until the
+    # library reports each file linked (`file_reviewed`) or returns it with a
+    # reason. Removing it at approval is how an approval that linked
+    # nothing looked like one that worked.
+    test "an approved group stays listed as importing until its files are linked",
          %{conn: conn} do
       file_a =
         create_pending_file(%{
@@ -425,7 +430,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           parsed_type: "tv"
         })
 
-      _file_b =
+      file_b =
         create_pending_file(%{
           file_path: "/media/test/Approved Show/S01E02.mkv",
           media_directory: "/media/test",
@@ -436,10 +441,33 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Approved Show"
 
+      {:ok, _} = MediaCentaur.Review.approve_pending_file(file_a)
+      {:ok, _} = MediaCentaur.Review.approve_pending_file(file_b)
       group_key = {file_a.media_directory, "Approved Show"}
       send(view.pid, {:group_approved, %GroupApproved{group_key: group_key, count: 2}})
 
+      html = render(view)
+      assert html =~ "Approved Show"
+      assert html =~ "Importing"
+
+      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_a.id}})
+      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_b.id}})
+
       refute render(view) =~ "Approved Show"
+    end
+
+    test "a file returned from the library shows why it was not added", %{conn: conn} do
+      create_pending_file(%{
+        parsed_title: "Returned File",
+        parsed_type: "movie",
+        error_message: "Adding it to the library failed. Approve it again to retry."
+      })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      html = render_after_async_load(view)
+
+      assert html =~ "Not added"
+      assert html =~ "Adding it to the library failed. Approve it again to retry."
     end
 
     test "group_error broadcast surfaces a flash without removing the group",

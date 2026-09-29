@@ -6,6 +6,11 @@ defmodule MediaCentaurWeb.ReviewHelpers do
 
   # --- Reason Classification ---
 
+  # An approved file waits for the library to link it (`:importing`); a
+  # file the library did not link comes back with the reason (`:not_added`).
+  def review_reason(%{status: :approved}), do: :importing
+  def review_reason(%{error_message: message}) when is_binary(message), do: :not_added
+
   def review_reason(file) do
     cond do
       is_nil(file.tmdb_id) -> :no_results
@@ -15,7 +20,9 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   end
 
   def count_by_reason(groups) do
-    Enum.reduce(groups, %{no_results: 0, tied: 0, low_confidence: 0}, fn group, acc ->
+    zero = %{no_results: 0, tied: 0, low_confidence: 0, importing: 0, not_added: 0}
+
+    Enum.reduce(groups, zero, fn group, acc ->
       reason = review_reason(group.representative)
       Map.update!(acc, reason, &(&1 + 1))
     end)
@@ -26,10 +33,14 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   def reason_label(:no_results), do: "No TMDB results"
   def reason_label(:low_confidence), do: "Low confidence"
   def reason_label(:tied), do: "Tied match"
+  def reason_label(:importing), do: "Importing"
+  def reason_label(:not_added), do: "Not added"
 
   def reason_text_class(:no_results), do: "text-error"
   def reason_text_class(:low_confidence), do: "text-warning"
   def reason_text_class(:tied), do: "text-info"
+  def reason_text_class(:importing), do: "text-base-content/60"
+  def reason_text_class(:not_added), do: "text-error"
 
   # --- Candidate Analysis ---
 
@@ -78,9 +89,12 @@ defmodule MediaCentaurWeb.ReviewHelpers do
 
   # --- Sort ---
 
+  # Groups awaiting a decision first, weakest match first; importing groups
+  # need nothing from the reviewer and sort last.
   def sort_groups(groups) do
     Enum.sort_by(groups, fn %{representative: file} ->
-      {if(file.tmdb_id, do: 1, else: 0), file.confidence || 0}
+      {if(review_reason(file) == :importing, do: 1, else: 0), if(file.tmdb_id, do: 1, else: 0),
+       file.confidence || 0}
     end)
   end
 end

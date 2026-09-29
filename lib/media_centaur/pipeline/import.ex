@@ -10,10 +10,14 @@ defmodule MediaCentaur.Pipeline.Import do
 
   The Ingest stage broadcasts `{:entity_published, event}` to
   `"pipeline:publish"`. `Library.Inbound` subscribes and creates all
-  library records, links files, and queues images.
+  library records, links files, queues images, and reports the file's
+  link outcome on `"library:file_events"`.
 
-  On completion, broadcasts `{:review_completed, pending_file_id}` to
-  `"review:intake"` if the file came from a review approval.
+  An import that fails before publishing never reaches the library, so
+  `handle_failed/2` reports that outcome itself —
+  `{:file_not_linked, %{reason: {:import_failed, reason}}}` on the same
+  topic. Every match therefore ends in exactly one link outcome, which is
+  what `Review` closes and reopens its items on.
 
   Broadway config: 1 producer (PubSub subscriber), 5 processors (partitioned
   by file path), no batcher — each message acks after `handle_message`.
@@ -67,6 +71,30 @@ defmodule MediaCentaur.Pipeline.Import do
     end
   end
 
+  # Every failed message — an `{:error, _}` from `process_payload/1` or an
+  # exception Broadway caught — ends here. The file never reached the
+  # library, so this is its link outcome.
+  @impl true
+  def handle_failed(messages, _context) do
+    Enum.each(messages, fn %Broadway.Message{data: payload, status: status} ->
+      report_not_linked(payload, failure_reason(status))
+    end)
+
+    messages
+  end
+
+  defp failure_reason({:failed, reason}), do: reason
+
+  defp failure_reason({kind, reason, _stacktrace}) when kind in [:error, :throw, :exit],
+    do: {kind, reason}
+
+  defp report_not_linked(%Payload{file_path: file_path, media_directory: media_dir}, reason) do
+    MediaCentaur.Topics.publish(
+      MediaCentaur.Topics.library_file_events(),
+      {:file_not_linked, %{file_path: file_path, media_dir: media_dir, reason: {:import_failed, reason}}}
+    )
+  end
+
   defp partition_key(%Broadway.Message{data: %Payload{file_path: path}}) do
     :erlang.phash2(path)
   end
@@ -74,24 +102,27 @@ defmodule MediaCentaur.Pipeline.Import do
   @doc """
   Processes a single payload through the Import pipeline.
 
-  Parses the file path (for season/episode info), checks disk space,
-  fetches full TMDB metadata, and ingests into the library.
+  Parses the file path, places it at the match's season and episode,
+  checks disk space, fetches full TMDB metadata, and ingests into the
+  library.
 
   Returns `{:ok, payload}` or `{:error, reason}`.
   """
   def process_payload(%Payload{} = payload) do
     # The payload arrives over `pipeline:matched` from Discovery or a
     # review approval, built by `Import.Producer.build_payload/1`, which
-    # carries no parse — so this stage genuinely parses rather than
-    # re-parsing. It has to use the same extras setting as the stage that
-    # classified the file, or the same path is a title to one and a bonus
-    # feature to the other.
-    payload = %{payload | parsed: Parser.parse(payload.file_path, extras_dirs: Config.extras_dirs())}
+    # carries no parse — so this stage parses for what the match does not
+    # say (bonus feature or not, its parent). It has to use the same extras
+    # setting as the stage that classified the file, or the same path is a
+    # title to one and a bonus feature to the other. The season and episode
+    # are the match's, not the path's.
+    parsed = Parser.parse(payload.file_path, extras_dirs: Config.extras_dirs())
+    parsed = %{parsed | season: payload.match_season, episode: payload.match_episode}
+    payload = %{payload | parsed: parsed}
 
     with :ok <- check_disk_space(payload.media_directory),
-         {:ok, payload} <- Stage.run(:fetch_metadata, FetchMetadata, payload),
-         {:ok, payload} <- Stage.run(:ingest, Ingest, payload) do
-      handle_complete(payload)
+         {:ok, payload} <- Stage.run(:fetch_metadata, FetchMetadata, payload) do
+      Stage.run(:ingest, Ingest, payload)
     end
   end
 
@@ -112,16 +143,5 @@ defmodule MediaCentaur.Pipeline.Import do
       _ ->
         :ok
     end
-  end
-
-  defp handle_complete(payload) do
-    if payload.pending_file_id do
-      MediaCentaur.Topics.publish(
-        MediaCentaur.Topics.review_intake(),
-        {:review_completed, payload.pending_file_id}
-      )
-    end
-
-    {:ok, payload}
   end
 end

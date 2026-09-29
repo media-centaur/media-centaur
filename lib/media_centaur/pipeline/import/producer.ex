@@ -39,9 +39,8 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
 
     Log.info(
       :pipeline,
-      "import queued #{Path.basename(file_path)} — " <>
-        "tmdb:#{tmdb_id} (#{tmdb_type})" <>
-        if(data[:pending_file_id], do: " [review]", else: "")
+      "import queued #{Path.basename(file_path)} — tmdb:#{tmdb_id} (#{tmdb_type})" <>
+        if(data.season, do: " S#{data.season}E#{data.episode}", else: "")
     )
 
     state = %{state | queue: :queue.in(payload, state.queue)}
@@ -60,18 +59,29 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   @doc """
   Builds a `%Payload{}` from a file-matched event.
 
+  The event is the whole match: the TMDB id and type, and the season and
+  episode the file is placed at (`nil` for a movie). Both keys are
+  required — a match without them would leave Import to guess them from
+  the path, which is how a reviewer's choice used to be ignored.
+
   Exposed as a public function for testing.
   """
   @spec build_payload(map()) :: Payload.t()
-  def build_payload(
-        %{file_path: file_path, media_dir: media_dir, tmdb_id: tmdb_id, tmdb_type: tmdb_type} = data
-      ) do
+  def build_payload(%{
+        file_path: file_path,
+        media_dir: media_dir,
+        tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
+        season: season,
+        episode: episode
+      }) do
     %Payload{
       file_path: file_path,
       media_directory: media_dir,
       tmdb_id: tmdb_id,
       tmdb_type: validated_tmdb_type(tmdb_type),
-      pending_file_id: data[:pending_file_id]
+      match_season: season,
+      match_episode: episode
     }
   end
 

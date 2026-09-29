@@ -81,6 +81,43 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
       assert kept.id in ids
     end
 
+    test "closes the item of a file the library reports linked" do
+      pending = create_pending_file(%{file_path: "/media/test/linked.mkv"})
+      {:ok, _} = Review.approve_pending_file(pending)
+
+      Topics.publish(Topics.library_file_events(), {:file_linked, "/media/test/linked.mkv"})
+      :ok = FileEventHandler.__sync_for_test__()
+
+      assert Review.list_pending_files() == []
+    end
+
+    test "closes the item of a file the library reports parked" do
+      pending = create_pending_file(%{file_path: "/media/test/parked.mkv"})
+      {:ok, _} = Review.approve_pending_file(pending)
+
+      Topics.publish(Topics.library_file_events(), {:file_parked, "/media/test/parked.mkv"})
+      :ok = FileEventHandler.__sync_for_test__()
+
+      assert Review.list_pending_files() == []
+    end
+
+    test "reopens the item of a file the library reports not linked" do
+      pending = create_pending_file(%{file_path: "/media/test/unlinked.mkv"})
+      {:ok, _} = Review.approve_pending_file(pending)
+
+      Topics.publish(
+        Topics.library_file_events(),
+        {:file_not_linked,
+         %{file_path: "/media/test/unlinked.mkv", media_dir: "/media/test", reason: :no_episode}}
+      )
+
+      :ok = FileEventHandler.__sync_for_test__()
+
+      assert [reopened] = Review.list_pending_files_for_review()
+      assert reopened.id == pending.id
+      assert reopened.error_message
+    end
+
     test "ignores an unrelated message on the topic" do
       kept = create_pending_file(%{file_path: "/media/test/stays.mkv"})
 

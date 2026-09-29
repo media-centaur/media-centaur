@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-29
 last_updated: 2026-09-29
 ---
@@ -36,7 +36,8 @@ choose the episode for a TV match the filename does not number.
 
 ## Status
 
-Design agreed 2026-09-29. No code for Layer 1 or Layer 2 yet.
+Layer 1 implemented 2026-09-29 (close on link, reopen with a reason; not
+pushed). Layer 2 (choose the episode) next.
 
 ## Decisions made
 
@@ -88,38 +89,27 @@ Design agreed 2026-09-29. No code for Layer 1 or Layer 2 yet.
 * `2026-09-29` — Built in two layers, each shipped on its own. Layer 1
   makes every failure visible and correct; Layer 2 makes the TV-without-
   episode case resolvable.
+* `2026-09-29` — A third link outcome, `{:file_parked, path}`: a file the
+  pipeline diverted to the reconciliation queue reaches the library with no
+  link by design. The Ingest event carries `parked: true`; Review closes the
+  item, because the reconciliation queue owns the file from there.
+* `2026-09-29` — A not-linked outcome for a file with no review item queues
+  it with the reason. An automatic match that linked nothing (a season-pack
+  name, say) used to leave no trace and be re-searched on every restart.
+* `2026-09-29` — Approving a returned item clears its reason; approval is
+  the retry.
+* `2026-09-29` — Two regression tests of `sweep_completed_reviews/0`
+  changed meaning on purpose (an approved-unlinked row at boot is reopened,
+  a pending-linked row is removed) and one ReviewLive test (an approved
+  group stays listed as importing). Each carries a dated comment.
 
 ## Next steps
 
 ### Layer 1 — close on link, reopen with a reason
 
-1. Write the design spec under `docs/superpowers/specs/` and the Layer 1
-   plan under `docs/superpowers/plans/`, test-first per the
-   `automated-testing` skill.
-2. Library: `Inbound` publishes `{:file_linked, path}` after `link_file`
-   attaches a file, and `{:file_not_linked, path, reason}` when it does not
-   (`leaf_container_for` returns nil, or ingest fails). Replace the
-   info-level "skipped file link" line and its false "the Watcher will
-   retry" comment (`library/inbound.ex` ~802).
-3. Pipeline: Import reports a failure before the library
-   (`{:error, _}` in `handle_message`, insufficient disk space, a stage
-   exception) as a not-linked outcome for the path.
-4. Pipeline: `{:file_matched, ...}` carries `season` and `episode`; Import
-   uses them instead of the parsed values. Remove `pending_file_id`
-   everywhere listed in the decisions.
-5. Review: `FileEventHandler` handles `{:file_linked, path}` (delete the
-   item and broadcast `FileReviewed`) and `{:file_not_linked, path, reason}`
-   (reopen with `error_message`). Replace `sweep_completed_reviews/0` with
-   the boot reconciliation.
-6. Review page: an `:approved` item stays listed and renders as importing;
-   a reopened item shows its `error_message`. Compose from the kit; any new
-   idiom becomes a component with a story.
-7. Tests: the reported case end to end (TV match on a year-only file →
-   item returns to `:pending` with a reason, not deleted), Import failure →
-   reopened, successful link → item removed, boot reconciliation both
-   directions. Regression tests append-only (ADR-027).
-8. Docs: `docs/pipeline.md` (topics table, payload fields, the review
-   completion paragraphs); wiki Review page and `Troubleshooting.md`.
+Implemented 2026-09-29 (commit pending push). Remaining: push the wiki
+(`Review-Queue.md` § After confirming, `Troubleshooting.md`, committed
+locally) together with the release that ships it.
 
 ### Layer 2 — choose the episode
 

@@ -18,44 +18,44 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
       assert payload.media_directory == "/media/movies"
       assert payload.tmdb_id == nil
       assert payload.tmdb_type == nil
-      assert payload.pending_file_id == nil
     end
   end
 
   describe "ImportProducer.build_payload/1" do
-    test "builds payload with tmdb_id, tmdb_type, and no pending_file_id" do
+    test "builds payload with the whole match: tmdb id, type, season and episode" do
       payload =
         ImportProducer.build_payload(%{
-          file_path: "/media/movies/Fight.Club.1999.mkv",
+          file_path: "/media/tv/Sample.Special.2025.mkv",
+          media_dir: "/media/tv",
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          season: 1,
+          episode: 22
+        })
+
+      assert %Payload{} = payload
+      assert payload.file_path == "/media/tv/Sample.Special.2025.mkv"
+      assert payload.media_directory == "/media/tv"
+      assert payload.tmdb_id == 1396
+      assert payload.tmdb_type == :tv
+      assert payload.match_season == 1
+      assert payload.match_episode == 22
+    end
+
+    # The match decides where the file goes. A message without season and
+    # episode would let Import fall back to guessing them from the path,
+    # which is how a reviewer's choice used to be ignored.
+    test "a match without season and episode is refused" do
+      # Built at runtime: the type checker already rejects the literal.
+      incomplete =
+        Function.identity(%{
+          file_path: "/media/movies/Sample.Movie.1999.mkv",
           media_dir: "/media/movies",
           tmdb_id: 550,
           tmdb_type: :movie
         })
 
-      assert %Payload{} = payload
-      assert payload.file_path == "/media/movies/Fight.Club.1999.mkv"
-      assert payload.media_directory == "/media/movies"
-      assert payload.tmdb_id == 550
-      assert payload.tmdb_type == :movie
-      assert payload.pending_file_id == nil
-    end
-
-    test "builds payload with pending_file_id for review-resolved" do
-      pending_id = Ecto.UUID.generate()
-
-      payload =
-        ImportProducer.build_payload(%{
-          file_path: "/media/movies/Ambiguous.Title.mkv",
-          media_dir: "/media/movies",
-          tmdb_id: 550,
-          tmdb_type: :movie,
-          pending_file_id: pending_id
-        })
-
-      assert %Payload{} = payload
-      assert payload.tmdb_id == 550
-      assert payload.tmdb_type == :movie
-      assert payload.pending_file_id == pending_id
+      assert_raise FunctionClauseError, fn -> ImportProducer.build_payload(incomplete) end
     end
 
     test "normalizes string tmdb_type to atom" do
@@ -64,7 +64,9 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
           file_path: "/media/tv/Some.Show.S01E01.mkv",
           media_dir: "/media/tv",
           tmdb_id: 1399,
-          tmdb_type: "tv"
+          tmdb_type: "tv",
+          season: nil,
+          episode: nil
         })
 
       assert payload.tmdb_type == :tv
@@ -76,7 +78,9 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
           file_path: "/media/movies/Movie.mkv",
           media_dir: "/media/movies",
           tmdb_id: 550,
-          tmdb_type: "movie"
+          tmdb_type: "movie",
+          season: nil,
+          episode: nil
         })
 
       assert payload.tmdb_type == :movie
