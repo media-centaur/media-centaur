@@ -24,8 +24,11 @@ Use [`template.md`](template.md) as a starter.
 * [`durable-work.md`](durable-work.md) —
   **planning.** Bring every background carrier in line with ADR-076:
   the mechanism matches what losing the work costs, and no stored
-  pending state lacks a stored job behind it. First known finding: the
-  Review approval → Import path (one import path through an Oban job).
+  pending state lacks a stored job behind it. Audit done 2026-09-29:
+  twelve findings, among them the Review approval → Import path, plan
+  and target jobs inserted after their state commits (a crash leaves a
+  `"planning"` plan or `"seeking"` target nothing picks up), and the
+  watch-history → share chain on PubSub. No code yet.
 
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
