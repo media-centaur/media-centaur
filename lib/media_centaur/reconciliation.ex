@@ -141,6 +141,33 @@ defmodule MediaCentaur.Reconciliation do
 
   defp file_path(attrs), do: attrs[:file_path] || attrs["file_path"]
 
+  @doc """
+  True when `file_path` has a row in the awaiting queue, whatever its
+  status: its identity is settled and its position is a person's to
+  decide, or was dismissed by one. `Pipeline.Discovery` reads this to
+  leave the file alone — searching it again could only send it to Review.
+  """
+  @spec awaiting?(String.t()) :: boolean()
+  def awaiting?(file_path) when is_binary(file_path) do
+    Repo.exists?(from f in AwaitingFile, where: f.file_path == ^file_path)
+  end
+
+  @doc """
+  Drops the rows for `file_paths` — the files are no longer library
+  content, so there is no position left to decide. Status-blind: a
+  dismissed row would otherwise outlive its file. Called by
+  `Reconciliation.FileEventHandler` on `{:files_removed, paths}`.
+  Returns `{:ok, count}`.
+  """
+  @spec drop_awaiting_files([String.t()]) :: {:ok, non_neg_integer()}
+  def drop_awaiting_files([]), do: {:ok, 0}
+
+  def drop_awaiting_files(file_paths) when is_list(file_paths) do
+    {count, _} = Repo.delete_all(from f in AwaitingFile, where: f.file_path in ^file_paths)
+    if count > 0, do: broadcast({:ok, count})
+    {:ok, count}
+  end
+
   @doc "All files still awaiting a mapping decision, oldest first."
   @spec list_awaiting() :: [AwaitingFile.t()]
   def list_awaiting do
