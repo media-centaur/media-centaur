@@ -6,6 +6,8 @@
 
 A name conflict matters only **within one bounded context**. The same word meaning different things in two contexts is not a conflict: `Review` (the file-identity queue) and a social review (`Activities`) are different contexts, so neither gets renamed. Split a name only when two meanings live inside the same context. Do not rename, qualify or coin a term to disambiguate across contexts, and do not flag such a pair as a terminology problem.
 
+A context itself is named for the capability it provides, as the short form of its one-sentence purpose, and agrees with its UI surface — see [ADR-075](decisions/architecture/2026-09-29-075-bounded-context-naming.md).
+
 Phoenix Storybook in this repo pins **component contracts** (typed attrs + their state matrix) and is enforced by `mix precommit`: every function component under `lib/media_centaur_web/components/**` must have a story (Credo check MC0009) and every story must compile + render in `storybook_compile_test` / `storybook_render_test`. When you change a component's attrs, default state, or variation matrix, update the story in the same change — the precommit will tell you if you didn't.
 
 Stories are a **typed coupling check** and a **state-matrix forcing function**, not a guarantee of visual correctness in the app and not a substitute for integration testing. They render in isolation with attribute fixtures; they do not exercise click handlers, PubSub, or LiveView state machines. Interaction bugs (event → assign update → re-render) live in `*_live_test.exs`, not in stories. Don't oversell the storybook to yourself: if a regression is in the wiring rather than the render, no story will catch it.
