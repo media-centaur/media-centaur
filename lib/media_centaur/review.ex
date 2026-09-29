@@ -12,8 +12,7 @@ defmodule MediaCentaur.Review do
       Events,
       Events.FileAdded,
       Events.FileReviewed,
-      Events.GroupApproved,
-      Events.GroupError
+      Events.FilesApproved
     ]
 
   @moduledoc """
@@ -55,8 +54,7 @@ defmodule MediaCentaur.Review do
   alias MediaCentaur.Review.Events
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
-  alias MediaCentaur.Review.Events.GroupError
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaur.Topics
 
   @doc "Subscribe the caller to review process events."
@@ -567,40 +565,47 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  Approves all files in a group and sends them to the pipeline.
-  Returns `{approved_count, error_count}`.
+  Approves a group as one decision: its files still `:pending`, read fresh
+  by `file_ids`, are approved and each match is sent to Import. Files
+  already approved or dismissed are left alone.
+
+  The group is refused whole when its pending files do not share one
+  identity (`group_identity/1`) — a file without one would reach Import
+  with no type, and files with different ones are not the single match the
+  reviewer saw. Returns `{:ok, approved_count}` and broadcasts
+  `FilesApproved`, or `{:error, :no_identity | :mixed_identities}`.
   """
-  def approve_group(files) do
-    results = Enum.map(files, &approve_and_process/1)
-    approved = Enum.count(results, &match?({:ok, _}, &1))
-    errors = Enum.count(results, &match?({:error, _}, &1))
-    {approved, errors}
+  @spec approve_group([Ecto.UUID.t()]) ::
+          {:ok, non_neg_integer()} | {:error, :no_identity | :mixed_identities}
+  def approve_group(file_ids) when is_list(file_ids) do
+    pending = Repo.all(from(p in PendingFile, where: p.id in ^file_ids and p.status == :pending))
+
+    with {:ok, _identity} <- group_identity(pending) do
+      approved_ids =
+        for file <- pending, match?({:ok, _}, approve_and_process(file)), do: file.id
+
+      if approved_ids != [], do: Events.broadcast(%FilesApproved{pending_file_ids: approved_ids})
+      {:ok, length(approved_ids)}
+    end
   end
 
   @doc """
-  Fire-and-forget group approval. Runs the (file-moving) `approve_group/1`
-  on a supervised context-layer task — the approval must complete
-  regardless of the review LiveView's lifecycle (ADR-049: must-outlive
-  background work lives in the context, not a web-layer `start_child`).
-  Per-group results are broadcast on `Topics.review_updates/0`.
+  The identity — `{tmdb_id, tmdb_type}` — every file in `files` shares, or
+  why there is none: `:no_identity` when a file has no match (reported
+  first, since choosing a match fixes both), `:mixed_identities` when the
+  files carry different ones. An empty list has no identity.
   """
-  def approve_group_async(group_key, files) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      {approved, errors} = approve_group(files)
+  @spec group_identity([PendingFile.t()]) ::
+          {:ok, {integer(), String.t()}} | {:error, :no_identity | :mixed_identities}
+  def group_identity(files) do
+    identities = files |> Enum.map(&{&1.tmdb_id, &1.tmdb_type}) |> Enum.uniq()
 
-      if errors > 0 do
-        Events.broadcast(%GroupError{
-          group_key: group_key,
-          message: "#{errors} file(s) failed to approve"
-        })
-      end
-
-      if approved > 0 do
-        Events.broadcast(%GroupApproved{group_key: group_key, count: approved})
-      end
-    end)
-
-    :ok
+    cond do
+      identities == [] -> {:error, :no_identity}
+      Enum.any?(identities, fn {id, type} -> is_nil(id) or is_nil(type) end) -> {:error, :no_identity}
+      match?([_], identities) -> {:ok, hd(identities)}
+      true -> {:error, :mixed_identities}
+    end
   end
 
   @doc """

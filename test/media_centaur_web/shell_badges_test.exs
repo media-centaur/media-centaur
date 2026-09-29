@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
   alias MediaCentaur.ErrorReports.Fingerprint
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.ShellBadges
 
@@ -81,7 +81,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     test "relevant?/1 accepts the source events feeding the counts" do
       assert ShellBadges.relevant?({:file_added, %FileAdded{pending_file_id: "id"}})
       assert ShellBadges.relevant?({:file_reviewed, %FileReviewed{pending_file_id: "id"}})
-      assert ShellBadges.relevant?({:group_approved, %GroupApproved{group_key: "key", count: 2}})
+      assert ShellBadges.relevant?({:files_approved, %FilesApproved{pending_file_ids: ["id"]}})
       assert ShellBadges.relevant?({:reconciliation_updated})
       assert ShellBadges.relevant?({:buckets_changed, []})
       assert ShellBadges.relevant?({:setting_changed, "diagnostics_seen_at", %{}})

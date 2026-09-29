@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.DiagnosticsBadge
   alias MediaCentaurWeb.StatusLive.HealthBoard
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   @impl MediaCentaur.Cache
   def relevant?({:file_added, %FileAdded{}}), do: true
   def relevant?({:file_reviewed, %FileReviewed{}}), do: true
-  def relevant?({:group_approved, %GroupApproved{}}), do: true
+  def relevant?({:files_approved, %FilesApproved{}}), do: true
   def relevant?({:reconciliation_updated}), do: true
   def relevant?({:buckets_changed, _buckets}), do: true
   # `mark_seen/0` advances the seen-marker via a Settings write.
@@ -186,7 +186,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   # below lands and corrects it).
   defp refresh({:file_added, %FileAdded{}}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:file_reviewed, %FileReviewed{}}, socket), do: {:cont, assign_counts(socket)}
-  defp refresh({:group_approved, %GroupApproved{}}, socket), do: {:cont, assign_counts(socket)}
+  defp refresh({:files_approved, %FilesApproved{}}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:reconciliation_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:shell_badges_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh(_msg, socket), do: {:cont, socket}

@@ -32,7 +32,7 @@ defmodule MediaCentaur.Status.Views.Overview do
 
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaur.Status
   alias MediaCentaur.Status.LibraryOverview
   alias MediaCentaur.Topics
@@ -50,7 +50,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   def relevant?({:entities_changed, _payload}), do: true
   def relevant?({:file_added, %FileAdded{}}), do: true
   def relevant?({:file_reviewed, %FileReviewed{}}), do: true
-  def relevant?({:group_approved, %GroupApproved{}}), do: true
+  def relevant?({:files_approved, %FilesApproved{}}), do: true
   def relevant?(_message), do: false
 
   @impl MediaCentaur.Cache

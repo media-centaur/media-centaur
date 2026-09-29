@@ -28,6 +28,43 @@ defmodule MediaCentaurWeb.ReviewHelpers do
     end)
   end
 
+  # --- Approval ---
+
+  @doc """
+  Whether the reviewer can approve `group` now, or what stands in the way:
+  `:approvable`; `:importing` when no file is left pending; `:tied` when a
+  file's candidates are tied; `:needs_episode`; or the reason
+  `Review.group_identity/1` gives for its pending files.
+  """
+  def approval(%{files: files}) do
+    pending = Enum.filter(files, &(&1.status == :pending))
+
+    cond do
+      pending == [] ->
+        :importing
+
+      Enum.any?(pending, &tied_candidates?/1) ->
+        :tied
+
+      true ->
+        case MediaCentaur.Review.group_identity(pending) do
+          {:ok, _identity} ->
+            if Enum.any?(pending, &MediaCentaur.Review.needs_episode?/1),
+              do: :needs_episode,
+              else: :approvable
+
+          {:error, reason} ->
+            reason
+        end
+    end
+  end
+
+  @doc "The flash for an approval `Review.approve_group/1` refused."
+  def approval_refusal(:no_identity), do: "A file in this group has no match. Search TMDB to choose one."
+
+  def approval_refusal(:mixed_identities),
+    do: "These files carry different matches. Search TMDB to choose one for all of them."
+
   # --- Reason Display ---
 
   def reason_label(:no_results), do: "No TMDB results"

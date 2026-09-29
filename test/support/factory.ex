@@ -795,6 +795,27 @@ defmodule MediaCentaur.TestFactory do
     end
   end
 
+  @doc "A `Review.PendingFile` struct, not persisted — for pure tests."
+  def build_pending_file(overrides \\ %{}) do
+    struct!(
+      Review.PendingFile,
+      Map.merge(
+        %{
+          id: Ecto.UUID.generate(),
+          file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
+          media_directory: "/media/test",
+          parsed_title: "Test File",
+          confidence: 0.5,
+          tmdb_id: 12_345,
+          tmdb_type: "movie",
+          match_title: "Test Match",
+          status: :pending
+        },
+        overrides
+      )
+    )
+  end
+
   def create_pending_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",

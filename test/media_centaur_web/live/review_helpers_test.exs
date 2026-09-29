@@ -1,7 +1,45 @@
 defmodule MediaCentaurWeb.ReviewHelpersTest do
   use MediaCentaur.Case, async: true
 
+  import MediaCentaur.TestFactory
+
   alias MediaCentaurWeb.ReviewHelpers
+
+  describe "approval/1" do
+    test "a group whose pending files share one identity is approvable" do
+      group = %{files: [build_pending_file(), build_pending_file()]}
+      assert ReviewHelpers.approval(group) == :approvable
+    end
+
+    test "a group with nothing pending is importing" do
+      group = %{files: [build_pending_file(%{status: :approved})]}
+      assert ReviewHelpers.approval(group) == :importing
+    end
+
+    test "an importing sibling does not block approving the pending files" do
+      group = %{
+        files: [build_pending_file(%{status: :approved, tmdb_id: 1}), build_pending_file(%{tmdb_id: 2})]
+      }
+
+      assert ReviewHelpers.approval(group) == :approvable
+    end
+
+    test "a file without a match stops the group" do
+      group = %{files: [build_pending_file(), build_pending_file(%{tmdb_id: nil, tmdb_type: nil})]}
+      assert ReviewHelpers.approval(group) == :no_identity
+    end
+
+    test "files with different matches stop the group" do
+      group = %{files: [build_pending_file(%{tmdb_id: 1}), build_pending_file(%{tmdb_id: 2})]}
+      assert ReviewHelpers.approval(group) == :mixed_identities
+    end
+
+    test "tied candidates stop the group until one is chosen" do
+      tied = [%{"tmdb_id" => "1", "score" => 0.7}, %{"tmdb_id" => "2", "score" => 0.7}]
+      group = %{files: [build_pending_file(%{candidates: tied})]}
+      assert ReviewHelpers.approval(group) == :tied
+    end
+  end
 
   # --- review_reason/1 ---
 

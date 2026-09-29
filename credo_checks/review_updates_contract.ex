@@ -12,24 +12,24 @@ defmodule MediaCentaur.Credo.Checks.ReviewUpdatesContract do
 
           # preferred
           alias MediaCentaur.Review.Events
-          alias MediaCentaur.Review.Events.GroupApproved
+          alias MediaCentaur.Review.Events.FilesApproved
 
-          Events.broadcast(%GroupApproved{group_key: key, count: approved})
+          Events.broadcast(%FilesApproved{pending_file_ids: ids})
 
-          # NOT preferred — nothing checks the arity or the order
-          Topics.publish(Topics.review_updates(), {:group_approved, key, approved})
+          # NOT preferred — nothing checks the payload's shape
+          Topics.publish(Topics.review_updates(), {:files_approved, ids})
 
-      `review:updates` is ADR-060's worked example, and two of its four
-      messages used to be positional 3-tuples — the shape where a
-      publisher can swap two same-typed arguments and no subscriber can
-      tell. That is what the structs are for.
+      `review:updates` is ADR-060's worked example: two of its messages
+      were once positional 3-tuples, the shape where a publisher can swap
+      two same-typed arguments and no subscriber can tell. That is what
+      the structs are for.
 
       The check exempts `lib/media_centaur/review/events.ex` itself (the
       canonical chokepoint) and all test files.
       """
     ]
 
-  @forbidden_tags [:file_added, :file_reviewed, :group_approved, :group_error]
+  @forbidden_tags [:file_added, :files_approved, :file_reviewed]
   @chokepoint "lib/media_centaur/review/events.ex"
 
   alias MediaCentaur.Credo.Checks.EventChokepoint

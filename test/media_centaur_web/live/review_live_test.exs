@@ -7,8 +7,6 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
-  alias MediaCentaur.Review.Events.GroupError
 
   # `ReviewLive.ensure_loaded/1` defers `Review.fetch_review_groups/0`
   # to an owned `start_async(:review_load, …)` (ADR-049). `render_async/1`
@@ -514,6 +512,10 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     # library reports each file linked (`file_reviewed`) or returns it with a
     # reason. Removing it at approval is how an approval that linked
     # nothing looked like one that worked.
+    #
+    # Changed again 2026-09-29 (campaign `review-coherence`): approval is a
+    # synchronous call, not a task reporting back through `group_approved`,
+    # so the test clicks Approve instead of sending that message.
     test "an approved group stays listed as importing until its files are linked",
          %{conn: conn} do
       file_a =
@@ -521,7 +523,11 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           file_path: "/media/test/Approved Show/S01E01.mkv",
           media_directory: "/media/test",
           parsed_title: "Approved Show",
-          parsed_type: "tv"
+          parsed_type: "tv",
+          season_number: 1,
+          episode_number: 1,
+          tmdb_id: 4242,
+          tmdb_type: "tv"
         })
 
       file_b =
@@ -529,20 +535,22 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           file_path: "/media/test/Approved Show/S01E02.mkv",
           media_directory: "/media/test",
           parsed_title: "Approved Show",
-          parsed_type: "tv"
+          parsed_type: "tv",
+          season_number: 1,
+          episode_number: 2,
+          tmdb_id: 4242,
+          tmdb_type: "tv"
         })
 
       {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Approved Show"
 
-      {:ok, _} = MediaCentaur.Review.approve_pending_file(file_a)
-      {:ok, _} = MediaCentaur.Review.approve_pending_file(file_b)
-      group_key = {file_a.media_directory, "Approved Show"}
-      send(view.pid, {:group_approved, %GroupApproved{group_key: group_key, count: 2}})
+      view |> element("button", "Approve All") |> render_click()
 
       html = render(view)
       assert html =~ "Approved Show"
       assert html =~ "Importing"
+      refute has_element?(view, "button", "Approve All")
 
       send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_a.id}})
       send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_b.id}})
@@ -564,23 +572,31 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert html =~ "Adding it to the library failed. Approve it again to retry."
     end
 
-    test "group_error broadcast surfaces a flash without removing the group",
+    # Replaces "group_error broadcast surfaces a flash" (2026-09-29, campaign
+    # `review-coherence`): approval reports its outcome synchronously and no
+    # longer broadcasts `group_error`. What that test guarded — a group that
+    # cannot be approved stays listed and says why — is asserted here.
+    test "a group whose files carry different matches cannot be approved until one is chosen",
          %{conn: conn} do
-      file =
+      for {episode, tmdb_id} <- [{1, 4242}, {2, 9999}] do
         create_pending_file(%{
-          parsed_title: "Errored Group File",
-          parsed_type: "movie"
+          file_path: "/media/test/Mixed Show/S01E0#{episode}.mkv",
+          media_directory: "/media/test",
+          parsed_title: "Mixed Show",
+          parsed_type: "tv",
+          season_number: 1,
+          episode_number: episode,
+          tmdb_id: tmdb_id,
+          tmdb_type: "tv"
         })
+      end
 
       {:ok, view, _html} = live_async!(conn, "/review")
+      html = render_after_async_load(view)
 
-      group_key = {file.media_directory, "Errored Group File"}
-      send(view.pid, {:group_error, %GroupError{group_key: group_key, message: "boom"}})
-
-      html = render(view)
-      assert html =~ "boom"
-      # Group remains visible — error did not remove it from the list.
-      assert html =~ "Errored Group File"
+      assert html =~ "Mixed Show"
+      refute has_element?(view, "button", "Approve All")
+      assert html =~ "different matches"
     end
   end
 end

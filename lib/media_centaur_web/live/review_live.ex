@@ -19,8 +19,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   alias MediaCentaur.Review.EpisodeChoice
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
-  alias MediaCentaur.Review.Events.GroupError
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.LiveHelpers
@@ -38,7 +37,6 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(groups: [])
      |> assign(groups_by_key: %{})
      |> assign(tmdb_ready: false)
-     |> assign(processing: MapSet.new())
      |> assign(episode_choices: %{})
      |> assign(selected_key: nil)
      |> assign(search_open: nil)
@@ -141,14 +139,18 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   def handle_event("approve", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-    group = socket.assigns.groups_by_key[group_key]
+    case socket.assigns.groups_by_key[decode_key(key)] do
+      nil ->
+        {:noreply, socket}
 
-    if group do
-      Review.approve_group_async(group_key, group.files)
-      {:noreply, assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))}
-    else
-      {:noreply, socket}
+      group ->
+        case Review.approve_group(Enum.map(group.files, & &1.id)) do
+          {:ok, _approved} ->
+            {:noreply, refresh_groups(socket)}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, approval_refusal(reason))}
+        end
     end
   end
 
@@ -361,31 +363,13 @@ defmodule MediaCentaurWeb.ReviewLive do
      socket
      |> assign(groups: groups)
      |> assign(groups_by_key: groups_by_key)
-     |> assign(processing: MapSet.delete(socket.assigns.processing, file_id))
      |> apply_group_stats()
      |> advance_selection(socket.assigns.selected_key)}
   end
 
-  def handle_info({:group_error, %GroupError{group_key: group_key, message: message}}, socket) do
-    {:noreply,
-     socket
-     |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
-     |> put_flash(:error, message)}
-  end
-
-  # The group stays: its files are importing until the library reports
-  # each one linked (`file_reviewed` removes it) or returns it with the
-  # reason (`file_added` reloads it). Reloading picks up their new status.
-  def handle_info({:group_approved, %GroupApproved{group_key: group_key}}, socket) do
-    groups = Review.fetch_review_groups()
-
-    {:noreply,
-     socket
-     |> assign(groups: groups)
-     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-     |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
-     |> apply_group_stats()
-     |> ensure_selection()}
+  # Another page (or tab) approved files; this one shows them importing.
+  def handle_info({:files_approved, %FilesApproved{}}, socket) do
+    {:noreply, refresh_groups(socket)}
   end
 
   def handle_info(:capabilities_changed, socket) do
@@ -546,7 +530,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             <.list_section
               groups={@sorted_groups}
               selected_key={@selected_key}
-              processing={@processing}
             />
           </div>
 
@@ -555,7 +538,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             <.detail_panel
               :if={@selected_key && @groups_by_key[@selected_key]}
               group={@groups_by_key[@selected_key]}
-              processing={MapSet.member?(@processing, @selected_key)}
               armed_gesture={@armed_gesture}
               search_open={@search_open == @selected_key}
               search_query={@search_query}
@@ -607,7 +589,6 @@ defmodule MediaCentaurWeb.ReviewLive do
         id={"review-group-#{:erlang.phash2(group.key)}"}
         group={group}
         selected={group.key == @selected_key}
-        processing={MapSet.member?(@processing, group.key)}
       />
       <div
         :if={@tv != []}
@@ -620,7 +601,6 @@ defmodule MediaCentaurWeb.ReviewLive do
         id={"review-group-#{:erlang.phash2(group.key)}"}
         group={group}
         selected={group.key == @selected_key}
-        processing={MapSet.member?(@processing, group.key)}
       />
     </div>
     """
@@ -652,12 +632,6 @@ defmodule MediaCentaurWeb.ReviewLive do
       data-review-pending
       tabindex="0"
     >
-      <div
-        :if={@processing}
-        class="absolute inset-0 flex items-center justify-center bg-base-300/60 rounded-md z-[1]"
-      >
-        <span class="loading loading-spinner loading-xs"></span>
-      </div>
       <img
         :if={@file.match_poster_path}
         src={tmdb_cdn_url(@file.match_poster_path, :w92)}
@@ -737,12 +711,10 @@ defmodule MediaCentaurWeb.ReviewLive do
     delete_target =
       DeleteTargets.resolve_folder_target(Enum.map(assigns.group.files, & &1.file_path))
 
-    deleting_target = if assigns.processing, do: assigns.group.key
-
     gesture =
       LiveHelpers.delete_gesture_state(
         assigns.group.key,
-        deleting_target,
+        nil,
         ArmGesture.armed_target(assigns.armed_gesture, "delete_prompt")
       )
 
@@ -755,16 +727,11 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(encoded_key: encode_key(assigns.group.key))
       |> assign(delete_target: delete_target)
       |> assign(delete_gesture: gesture)
+      |> assign(approval: approval(assigns.group))
       |> assign(choosing_files: Enum.filter(assigns.group.files, &Review.chooses_episode?/1))
 
     ~H"""
     <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
-      <div
-        :if={@processing}
-        class="absolute inset-0 bg-base-300/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg"
-      >
-        <span class="loading loading-spinner loading-lg"></span>
-      </div>
 
       <div class="p-6 space-y-5">
         <%!-- Header: title + filepath + reason --%>
@@ -785,6 +752,9 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
 
         <p :if={@file.error_message} class="text-sm text-error">{@file.error_message}</p>
+        <p :if={@approval == :mixed_identities} class="text-sm text-warning">
+          These files carry different matches. Search TMDB to choose one for all of them.
+        </p>
 
         <.parsed_info file={@file} />
 
@@ -836,12 +806,11 @@ defmodule MediaCentaurWeb.ReviewLive do
           class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6"
         >
           <.button
-            :if={@file.tmdb_id && !@tied && !Enum.any?(@group.files, &Review.needs_episode?/1)}
+            :if={@approval == :approvable}
             variant="action"
             size="sm"
             phx-click="approve"
             phx-value-key={@encoded_key}
-            disabled={@processing}
             data-nav-item
             tabindex="0"
           >
@@ -853,7 +822,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             size="sm"
             phx-click="open_search"
             phx-value-key={@encoded_key}
-            disabled={@processing}
             data-nav-item
             tabindex="0"
           >
@@ -867,7 +835,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             }
             variant="dismiss"
             phx-value-key={@encoded_key}
-            disabled={@processing}
           >
             {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
           </.armed_button>
@@ -876,7 +843,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             size="sm"
             phx-click="delete_prompt"
             phx-value-key={@encoded_key}
-            disabled={@processing}
             data-nav-item
             tabindex="0"
             aria-label={delete_action_label(@delete_gesture, @delete_target, @file_count)}

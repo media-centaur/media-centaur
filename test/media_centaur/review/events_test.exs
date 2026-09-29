@@ -9,8 +9,7 @@ defmodule MediaCentaur.Review.EventsTest do
   alias MediaCentaur.Review.Events
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.Events.GroupApproved
-  alias MediaCentaur.Review.Events.GroupError
+  alias MediaCentaur.Review.Events.FilesApproved
   alias MediaCentaur.Topics
 
   setup do
@@ -30,16 +29,10 @@ defmodule MediaCentaur.Review.EventsTest do
       assert_receive {:file_reviewed, %FileReviewed{pending_file_id: "file-2"}}
     end
 
-    test "GroupApproved carries the key and the count" do
-      assert :ok = Events.broadcast(%GroupApproved{group_key: "group-1", count: 3})
+    test "FilesApproved carries the approved ids" do
+      assert :ok = Events.broadcast(%FilesApproved{pending_file_ids: ["file-1", "file-2"]})
 
-      assert_receive {:group_approved, %GroupApproved{group_key: "group-1", count: 3}}
-    end
-
-    test "GroupError carries the key and the message" do
-      assert :ok = Events.broadcast(%GroupError{group_key: "group-1", message: "boom"})
-
-      assert_receive {:group_error, %GroupError{group_key: "group-1", message: "boom"}}
+      assert_receive {:files_approved, %FilesApproved{pending_file_ids: ["file-1", "file-2"]}}
     end
   end
 
@@ -47,15 +40,14 @@ defmodule MediaCentaur.Review.EventsTest do
     test "every event enforces its keys" do
       assert_raise ArgumentError, fn -> struct!(FileAdded, %{}) end
       assert_raise ArgumentError, fn -> struct!(FileReviewed, %{}) end
-      assert_raise ArgumentError, fn -> struct!(GroupApproved, %{group_key: "k"}) end
-      assert_raise ArgumentError, fn -> struct!(GroupError, %{group_key: "k"}) end
+      assert_raise ArgumentError, fn -> struct!(FilesApproved, %{}) end
     end
 
     test "subscribers can still map-match, because a struct is a map" do
-      Events.broadcast(%GroupApproved{group_key: "group-1", count: 3})
+      Events.broadcast(%FilesApproved{pending_file_ids: ["file-1"]})
 
-      assert_receive {:group_approved, payload}
-      assert %{group_key: "group-1", count: 3} = payload
+      assert_receive {:files_approved, payload}
+      assert %{pending_file_ids: ["file-1"]} = payload
     end
   end
 end
