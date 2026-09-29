@@ -36,8 +36,15 @@ defmodule MediaCentaur.Review do
       the file if it had no item (an automatic match that linked nothing).
 
   Nothing else closes an approved item, so an approval can no longer end
-  with the item gone and the title absent. `settle_with_library/0`
-  settles at startup whatever a dropped message left behind.
+  with the item gone and the title absent.
+
+  ## Membership follows the library
+
+  Every read of the queue (`open/1`) leaves out files the library has
+  linked, so a dropped `{:file_linked, path}` never leaves a linked file
+  listed. Deleting the row on that message is storage cleanup, and
+  `settle_with_library/0` does the same at startup; neither is what keeps
+  the queue correct.
   """
   import Ecto.Query
 
@@ -87,17 +94,23 @@ defmodule MediaCentaur.Review do
 
   def list_pending_files_for_review do
     Repo.all(
-      from(p in PendingFile,
+      from(p in open(PendingFile),
         where: p.status == :pending,
         order_by: [asc: p.inserted_at]
       )
     )
   end
 
-  @doc "Number of files still awaiting review (status `:pending`)."
+  @doc "Number of files still awaiting review (status `:pending`, not linked)."
   @spec count_pending() :: non_neg_integer()
   def count_pending do
-    Repo.aggregate(from(p in PendingFile, where: p.status == :pending), :count)
+    Repo.aggregate(from(p in open(PendingFile), where: p.status == :pending), :count)
+  end
+
+  # The rows whose file the library has not linked — the queue's members
+  # (see "Membership follows the library").
+  defp open(queryable) do
+    from(p in queryable, where: p.file_path not in subquery(Library.Files.linked_paths_subquery()))
   end
 
   @doc """
@@ -109,6 +122,7 @@ defmodule MediaCentaur.Review do
   @spec pending_file_paths() :: MapSet.t(String.t())
   def pending_file_paths do
     PendingFile
+    |> open()
     |> where([p], p.status == :pending)
     |> select([p], p.file_path)
     |> Repo.all()
@@ -124,38 +138,18 @@ defmodule MediaCentaur.Review do
   @doc """
   The open review for `attrs`' path, creating one if there is none.
 
-  `file_path` is unique, so there is at most one row per path and its
-  status says what state that path's review is in:
-
-    * `:pending` — an open review; returned unchanged, which is what
-      makes repeated detection idempotent.
-    * `:approved` **and the file is linked** — the import finished, so
-      `file_linked/1` should have destroyed this row and a dropped
-      `{:file_linked, path}` message left it behind. Stale: reopened,
-      because otherwise the row exists but the queue does not list it and
-      the path can never be reviewed again.
-    * `:approved` **and the file is not linked** — the decision is made
-      and the import is still outstanding. Returned unchanged; reopening
-      would put a file back in the queue while it is being imported.
-    * `:dismissed` — a person decided the path is not library content.
-      Returned unchanged, so it keeps blocking. `reopen_for_review/1` is
-      the deliberate override.
+  `file_path` is unique, so there is at most one row per path, and an
+  existing one is returned unchanged whatever its status: `:pending` is an
+  open review (repeated detection is idempotent), `:approved` is an import
+  still outstanding, and `:dismissed` is a person's decision that keeps
+  blocking — `reopen_for_review/1` is the deliberate override.
   """
   def find_or_create_pending_file(attrs) do
     file_path = attrs[:file_path] || attrs["file_path"]
 
     case Repo.get_by(PendingFile, file_path: file_path) do
       nil -> Repo.insert(PendingFile.create_changeset(attrs))
-      %PendingFile{status: :approved} = existing -> maybe_reopen_completed(existing, attrs)
       existing -> {:ok, existing}
-    end
-  end
-
-  defp maybe_reopen_completed(%PendingFile{file_path: file_path} = existing, attrs) do
-    if Library.Files.linked?(file_path) do
-      Repo.update(PendingFile.reopen_changeset(existing, attrs))
-    else
-      {:ok, existing}
     end
   end
 
@@ -473,7 +467,7 @@ defmodule MediaCentaur.Review do
   """
   def fetch_review_groups do
     Repo.all(
-      from(p in PendingFile,
+      from(p in open(PendingFile),
         where: p.status in [:pending, :approved],
         order_by: [asc: p.inserted_at]
       )

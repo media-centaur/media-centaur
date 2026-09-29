@@ -284,6 +284,23 @@ defmodule MediaCentaur.ReviewTest do
     end
   end
 
+  # 2026-09-29: an item closed only when its file's link outcome arrived,
+  # over PubSub with no replay. One that was dropped left a linked file
+  # listed until the next restart. Membership now follows the library.
+  describe "a file the library has linked" do
+    test "is not listed or counted, even before its link outcome arrives" do
+      path = "/media/test/linked.mkv"
+      create_pending_file(%{file_path: path})
+      movie = create_movie(%{name: "Sample Movie"})
+      create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
+
+      assert Review.fetch_review_groups() == []
+      assert Review.list_pending_files_for_review() == []
+      assert Review.count_pending() == 0
+      refute MapSet.member?(Review.pending_file_paths(), path)
+    end
+  end
+
   describe "fetch_review_groups/0" do
     # An approved item waits in the queue for its file's link outcome, so
     # the review page lists it (as importing) alongside the open items.
@@ -468,7 +485,11 @@ defmodule MediaCentaur.ReviewTest do
   end
 
   describe "find_or_create_pending_file/1 on a terminal row" do
-    test "reopens a stale approved row — its import finished, the row should have gone" do
+    # Changed 2026-09-29 (campaign `review-coherence`): this reopened the
+    # row, because a leftover approved row hid its path from the queue for
+    # good. The queue now reads membership from the library: the row of a
+    # linked file is simply not listed, and nothing needs reopening.
+    test "leaves a leftover approved row of a linked file alone — the queue does not list it" do
       path = "/media/test/stale.mkv"
       pending = create_pending_file(%{file_path: path})
       {:ok, _} = Review.approve_pending_file(pending)
@@ -476,9 +497,8 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert {:ok, reopened} = Review.find_or_create_pending_file(%{file_path: path})
-      assert reopened.status == :pending
-      assert length(Review.list_pending_files_for_review()) == 1
+      assert {:ok, %{status: :approved}} = Review.find_or_create_pending_file(%{file_path: path})
+      assert Review.fetch_review_groups() == []
     end
 
     test "leaves an approved row alone while its import is outstanding" do

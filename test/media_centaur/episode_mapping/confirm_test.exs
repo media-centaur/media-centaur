@@ -87,6 +87,8 @@ defmodule MediaCentaur.EpisodeMapping.ConfirmTest do
     # The awaiting record is resolved and off the pending queue.
     assert EpisodeMapping.list_awaiting() == []
     refute awaiting.id in Enum.map(EpisodeMapping.list_awaiting(), & &1.id)
+    # A confirmed file is linked; its row has nothing left to hold.
+    refute MediaCentaur.Repo.get(MediaCentaur.EpisodeMapping.AwaitingFile, awaiting.id)
   end
 
   test "confirm/2 honors explicit per-file targets (override / partial-accept)" do
