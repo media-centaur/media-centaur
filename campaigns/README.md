@@ -21,6 +21,12 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`durable-work.md`](durable-work.md) —
+  **planning.** Bring every background carrier in line with ADR-076:
+  the mechanism matches what losing the work costs, and no stored
+  pending state lacks a stored job behind it. First known finding: the
+  Review approval → Import path (one import path through an Oban job).
+
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
