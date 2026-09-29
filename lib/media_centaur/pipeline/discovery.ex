@@ -20,6 +20,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
+  alias MediaCentaur.Reconciliation
   alias MediaCentaur.Review
   alias MediaCentaur.Review.PendingFile
 
@@ -226,13 +227,19 @@ defmodule MediaCentaur.Pipeline.Discovery do
   #   status, so a match computed for a dismissed path is thrown away.
   #   Stopping here is what makes the decision free instead of costing a
   #   parse and two TMDB searches on every scan and restart.
+  # - **in episode mapping** — its identity is settled and a person
+  #   decides its position (`Reconciliation.awaiting?/1`), or dismissed
+  #   it there. Searching it again could only put it back in Review
+  #   beside its mapping entry, which is what every restart did until
+  #   2026-09-29.
   #
-  # A `:pending` row is not settled: it is an open question, and the
-  # recovery re-emit exists to re-run it.
+  # A `:pending` Review row is not settled: it is an open question, and
+  # the recovery re-emit exists to re-run it.
   defp settled_reason(file_path) do
     cond do
       Library.Files.linked?(file_path) -> "already linked"
       Review.dismissed?(file_path) -> "dismissed in review"
+      Reconciliation.awaiting?(file_path) -> "in episode mapping"
       true -> nil
     end
   end

@@ -308,6 +308,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Library.Inbound,
       MediaCentaur.Review.Intake,
       MediaCentaur.Review.FileEventHandler,
+      MediaCentaur.Reconciliation.FileEventHandler,
       MediaCentaur.ReleaseTracking.LibraryListener,
       MediaCentaur.ReleaseTracking.TmdbListener,
       MediaCentaur.Pipeline.TmdbProjection,

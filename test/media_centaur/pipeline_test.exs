@@ -339,6 +339,48 @@ defmodule MediaCentaur.PipelineTest do
 
       refute Discovery.process(payload) == :skipped
     end
+
+    # 2026-09-29 regression: a file parked in the episode-mapping queue has a
+    # known identity and waits for a person to place it. Startup recovery
+    # re-sends every unlinked file, and Discovery searched it again; a
+    # low-confidence result put it back in Review beside its mapping entry,
+    # on every restart. No TMDB stub: `:skipped` proves the search never ran.
+    test "discovery skips a file waiting in the episode-mapping queue, without searching TMDB" do
+      path = "/media/pipeline/TV/Sample Show/Sample.Show.S03E01.mkv"
+
+      {:ok, _awaiting} =
+        MediaCentaur.Reconciliation.divert(%{
+          file_path: path,
+          media_dir: "/media/pipeline/TV",
+          tmdb_id: 4242,
+          claimed_season: 3,
+          claimed_episode: 1
+        })
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline/TV"}
+
+      assert :skipped = Discovery.process(payload)
+      assert Review.count_pending() == 0
+    end
+
+    test "discovery skips a file dismissed in the episode-mapping queue" do
+      path = "/media/pipeline/TV/Sample Show/Sample.Show.S03E02.mkv"
+
+      {:ok, awaiting} =
+        MediaCentaur.Reconciliation.divert(%{
+          file_path: path,
+          media_dir: "/media/pipeline/TV",
+          tmdb_id: 4242,
+          claimed_season: 3,
+          claimed_episode: 2
+        })
+
+      {:ok, _dismissed} = MediaCentaur.Reconciliation.dismiss_awaiting(awaiting)
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline/TV"}
+
+      assert :skipped = Discovery.process(payload)
+    end
   end
 
   # ---------------------------------------------------------------------------
