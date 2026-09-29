@@ -90,14 +90,24 @@ defmodule MediaCentaurWeb.ReviewHelpersTest do
   # --- count_by_reason/1 ---
 
   describe "count_by_reason/1" do
-    test "counts groups by reason category" do
+    # Changed 2026-09-29 (campaign `review-coherence`): the chips count
+    # files, the unit of the "pending" chip beside them, not groups.
+    test "counts files by reason category, across groups" do
       groups = [
-        %{representative: %{tmdb_id: nil, candidates: []}},
-        %{representative: %{tmdb_id: nil, candidates: []}},
-        %{representative: %{tmdb_id: 1, candidates: [%{"score" => 0.5}, %{"score" => 0.5}]}},
-        %{representative: %{tmdb_id: 1, candidates: [%{"score" => 0.8}, %{"score" => 0.3}]}},
-        %{representative: %{status: :approved, tmdb_id: 1, candidates: []}},
-        %{representative: %{status: :pending, tmdb_id: 1, candidates: [], error_message: "x"}}
+        %{
+          files: [
+            %{tmdb_id: nil, candidates: []},
+            %{tmdb_id: nil, candidates: []}
+          ]
+        },
+        %{files: [%{tmdb_id: 1, candidates: [%{"score" => 0.5}, %{"score" => 0.5}]}]},
+        %{
+          files: [
+            %{tmdb_id: 1, candidates: [%{"score" => 0.8}, %{"score" => 0.3}]},
+            %{status: :approved, tmdb_id: 1, candidates: []}
+          ]
+        },
+        %{files: [%{status: :pending, tmdb_id: 1, candidates: [], error_message: "x"}]}
       ]
 
       assert ReviewHelpers.count_by_reason(groups) == %{

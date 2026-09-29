@@ -19,13 +19,13 @@ defmodule MediaCentaurWeb.ReviewHelpers do
     end
   end
 
+  # Files, not groups: the chips sit beside the "N pending" file count.
   def count_by_reason(groups) do
     zero = %{no_results: 0, tied: 0, low_confidence: 0, importing: 0, not_added: 0}
 
-    Enum.reduce(groups, zero, fn group, acc ->
-      reason = review_reason(group.representative)
-      Map.update!(acc, reason, &(&1 + 1))
-    end)
+    for group <- groups, file <- group.files, reduce: zero do
+      acc -> Map.update!(acc, review_reason(file), &(&1 + 1))
+    end
   end
 
   # --- Approval ---
