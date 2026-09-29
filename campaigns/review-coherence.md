@@ -38,7 +38,8 @@ and fixes every defect the audit found.
 
 ## Status
 
-Planning done; Layer 1 next.
+Layers 1–4 committed on branch `review-coherence` (worktree
+`../media-centaur-app-review-coherence`); Layer 5 (Dismissed lists) next.
 
 ## Design
 
@@ -111,13 +112,30 @@ Each layer leaves the product working and is committed on its own.
 * `2026-09-29` — The boot pass is "startup recovery".
 * `2026-09-29` — Dismissals get a Dismissed list with Restore on both
   queue pages. Owner ruling.
+* `2026-09-29` — Approval events: `GroupApproved`/`GroupError` replaced by
+  `FilesApproved`; approval returns its outcome synchronously. (commit
+  `e06c2831`)
+* `2026-09-29` — The not-linked outcome carries `match: %{tmdb_id,
+  tmdb_type}`; an ingest that links nothing reports `{:ingest_failed,
+  :no_link}`. (commit `572fcd78`)
+* `2026-09-29` — `GapFill` abstains for a file that numbers no episode;
+  `YearMatch` (by title 0.9, by air date 0.75) places it. (commit
+  `92c15c90`)
+* `2026-09-29` — `{:file_matched, ...}` carries identity only; Import reads
+  the position claim from its own parse. (commit `44623936`)
+* `2026-09-29` — `find_or_create_pending_file/1` returns any existing row
+  unchanged; membership is read from the library. (commit `1aa8a384`)
 * `2026-09-29` — This campaign supersedes `review-closes-on-link.md`'s
   Layer 2 (the episode picker in Review). That campaign's remaining step,
   the reporter's check of the yearly special, moves here.
 
 ## Next steps
 
-1. Layer 1.
+1. Layer 5 — Dismissed lists with Restore on both queue pages.
+2. Layer 6 — async delete and delete-target resolution in ReviewLive;
+   async spine assembly in EpisodeMappingLive.
+3. Layer 7 — docs and wiki.
+4. `mix precommit`, rebase onto `main`, hand the branch to the owner.
 
 ## Completion criteria
 
