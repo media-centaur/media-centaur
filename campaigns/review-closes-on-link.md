@@ -36,9 +36,8 @@ choose the episode for a TV match the filename does not number.
 
 ## Status
 
-Layers 1 and 2 implemented 2026-09-29 and committed, not pushed. What
-remains is shipping: push, release, the wiki push, and confirming the
-reported file end to end on the reporter's install.
+Shipped in v1.47.0 on 2026-09-29, with the wiki. What remains is
+confirming the reported file end to end on the reporter's install.
 
 ## Decisions made
 
@@ -117,10 +116,7 @@ reported file end to end on the reporter's install.
 
 ## Next steps
 
-1. Push `main` (with the other unpushed commits on it) and release.
-2. Push the wiki (`Review-Queue.md` — *After confirming* and *Choose the
-   episode*; `Troubleshooting.md`), committed locally, with the release.
-3. With the release on the reporter's install: match the yearly special to
+1. With v1.47.0 on the reporter's install: match the yearly special to
    its series in Review, confirm S01E22 is offered, approve, and see it in
    the library. Then retire this file.
 

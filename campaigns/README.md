@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`review-closes-on-link.md`](review-closes-on-link.md) —
-  **planning 2026-09-29.** A review item stays open until its file is in the
+  **shipped v1.47.0 2026-09-29; reporter check open.** A review item stays open until its file is in the
   library. The library reports every link outcome by path
   (`{:file_linked, path}` / `{:file_not_linked, path, reason}`); Review
   removes an item on a link and reopens it with the reason otherwise, so an
