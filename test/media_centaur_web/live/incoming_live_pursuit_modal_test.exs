@@ -26,9 +26,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   alias MediaCentaur.Acquisition.Target
 
   setup do
-    # Inline Oban runs PursueTarget synchronously after ChangeTarget. Stub
-    # Prowlarr so the worker snoozes cleanly rather than crashing on no
-    # client configured.
+    # The Incoming page reads Prowlarr's indexer roster when it mounts.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})

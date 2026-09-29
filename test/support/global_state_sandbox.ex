@@ -109,7 +109,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaurWeb.Endpoint => {:unobservable, "config only"},
     MediaCentaurWeb.Telemetry => {:unobservable, "poller"},
     Phoenix.PubSub.Supervisor => {:unobservable, "message transport"},
-    Oban => {:unobservable, "testing: :inline — no queues run"},
+    Oban => {:unobservable, "testing: :manual — no queues run; jobs are sandboxed rows"},
     MediaCentaur.Playback.Supervisor =>
       {:unobservable, "supervisor; sessions are temporary and registry-deregistered"},
     MediaCentaur.Pipeline.Supervisor =>

@@ -491,6 +491,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       render_async(view, 2_000)
@@ -508,6 +509,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
@@ -524,7 +526,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       conn: conn
     } do
       {:ok, plan_a} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan_b} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Other Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan_a.id}")
 
@@ -890,7 +894,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert render(view) =~ ~s(value="z")
 
-      # Create: inline Oban solves immediately; the patch carries the plan id.
+      # Create: the patch carries the plan id; running the enqueued job
+      # solves it.
       view
       |> element("button[phx-click='plan_create']")
       |> render_click()
@@ -898,6 +903,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       _ = render(view)
       [draft] = Plans.list_drafts()
       assert_patch(view, "/incoming?plan=#{draft.id}")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       # …but materializing the intent into a draft resets the omnibox.
       refute render(view) =~ ~s(value="z")
@@ -986,6 +992,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1041,6 +1048,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button[phx-click='plan_swap_release']", "Remove it & re-solve")
       |> render_click()
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       html = render(view)
       refute html =~ "download twice"
 
@@ -1088,6 +1096,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1185,6 +1194,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1244,6 +1254,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       assert has_element?(view, "#plan-draft-#{plan.id}")
@@ -1276,6 +1288,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       view
@@ -1305,6 +1319,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, kept} = Plans.fetch(plan.id)
       refute kept.status == "discarded"
 
+      # Search again re-solves the plan; the board is back to ready.
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      _ = render(view)
+
       # And a disarmed second click cannot fire: the control is back to
       # arming, so the plan still survives.
       view
@@ -1320,6 +1338,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Default Prowlarr stub returns nothing — every wanted unit is a gap.
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
@@ -1392,6 +1411,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1990})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
@@ -1442,6 +1462,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       [unit | _] = Plans.units_for(plan.id)
@@ -1466,6 +1487,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       [unit | _] = Plans.units_for(plan.id)
@@ -1487,12 +1509,15 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_lower_quality_movie()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
       view
       |> element("button[phx-click='plan_accept_lower_quality']")
       |> render_click()
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert TitleDownloadParams.get(246_813, :movie).min_quality == "any"
 
@@ -1518,6 +1543,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_lower_quality_movie()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1528,7 +1554,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_lower_quality_movie()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
-      # The struct still says "planning" from before the inline run, so a
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      # The struct still says "planning" from before the run, so a
       # stale-struct force diffs to a no-op — refetch first.
       {:ok, ready} = Plans.fetch(plan.id)
       force_attrs(ready, status: "planning")
@@ -1597,6 +1624,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
@@ -1677,6 +1705,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: today.year})
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
 
@@ -1709,6 +1739,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: today.year})
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
       assert render(view) =~ "Not out yet — in theaters from #{MediaCentaur.Format.month_day(opens)}"
@@ -1722,6 +1754,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1737,6 +1770,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.stub_tmdb_error("/movie/246813", 500)
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -1748,6 +1782,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_tmdb()
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       assert has_element?(view, "#plan-add-to-watchlist")
@@ -1764,6 +1799,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_prowlarr()
 
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
@@ -2810,6 +2846,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     } do
       stub_plan_tmdb()
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 

@@ -51,6 +51,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlanTest do
 
   test "a movie approve lands the target with the release's infohash and quality" do
     {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2010})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
     {:ok, plan} = Plans.fetch(plan.id)
     assert plan.status == "ready"
 

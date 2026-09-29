@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.IncomingBadgeTest do
 
   test "a ready draft shows the count; discarding it clears the pill", %{conn: conn} do
     {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
 
     {:ok, view, _html} = live(conn, ~p"/history")
     assert has_element?(view, @incoming_pill, "1")

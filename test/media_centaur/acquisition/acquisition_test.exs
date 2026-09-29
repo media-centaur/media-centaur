@@ -18,8 +18,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.TmdbStubs
 
   setup do
-    # Oban runs jobs inline in tests (`testing: :inline` in config/test.exs).
-    # Running PursueTarget calls Prowlarr.search — install an
+    # A PursueTarget run calls Prowlarr.search — install an
     # empty-response stub so the worker snoozes cleanly instead of
     # crashing.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -222,6 +221,28 @@ defmodule MediaCentaur.AcquisitionTest do
 
     test "returns :not_found for unknown id" do
       assert {:error, :not_found} = Targets.rearm_target(Ecto.UUID.generate())
+    end
+
+    # Regression: PursueTarget was unique on target_id for 300 s in states
+    # that include `completed`, and a re-arm reuses the target's id — so
+    # re-arming soon after its last job finished inserted nothing and left
+    # the target seeking with no job behind it (ADR-077, rule 6).
+    test "re-arming right after the target's last job finished enqueues a new one" do
+      target = create_target(%{tmdb_id: "rearm-2", title: "Comeback"})
+      force_attrs(target, status: "cancelled", cancelled_reason: CancelReasons.user_request())
+
+      {:ok, _job} =
+        Oban.insert(MediaCentaur.Acquisition.Jobs.PursueTarget.new(%{"target_id" => target.id}))
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert {:ok, %Target{status: "seeking"}} = Targets.rearm_target(target.id)
+
+      assert_enqueued(
+        worker: MediaCentaur.Acquisition.Jobs.PursueTarget,
+        args: %{"target_id" => target.id},
+        state: "available"
+      )
     end
   end
 

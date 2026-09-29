@@ -68,6 +68,8 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
           year: 2005
         })
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       assert %ShellBadges.Counts{plans_awaiting_review: 1} = ShellBadges.counts()
     end
 

@@ -109,11 +109,12 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   end
 
   # Drives the production flow a DataCase test can't get from PubSub:
-  # the tick creates plans (RunPlan solves inline under Oban's test
-  # mode), then the mode gate fires for each ready tracking plan the
+  # the tick creates plans (running the enqueued RunPlan jobs solves
+  # them), then the mode gate fires for each ready tracking plan the
   # way the Reactor would on PlanEvents.Changed.
   defp tick_and_gate do
     DropPlanner.run_tick()
+    MediaCentaur.JobRuns.run_enqueued_jobs()
 
     Enum.each(Plans.list_drafts(), fn plan ->
       Handlers.plan_changed(%PlanEvents.Changed{plan_id: plan.id, status: plan.status})
@@ -272,6 +273,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       :ok = ReleaseTracking.sync_wants(item)
 
       DropPlanner.run_tick()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Repo.all(Plans.Plan)
       assert plan.span_sizes == %{"1" => 22}
@@ -316,6 +318,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       :ok = ReleaseTracking.sync_wants(item)
 
       DropPlanner.run_tick()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Repo.all(Plans.Plan)
       assert plan.status == "ready"
@@ -440,6 +443,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
 
       assert :ok = DropPlanner.run_tick()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Repo.all(Plans.Plan) == []
       assert [want] = ReleaseTracking.open_wants_for_item(item.id)
