@@ -72,6 +72,20 @@ defmodule MediaCentaur.EpisodeMapping.SpineTest do
       assert %SpineNode{episode: 3, present?: false} = at(spine, 1, 3)
     end
 
+    test "carries each episode's air date, and none for an undated one" do
+      stub_show(43, [1], %{
+        1 => [
+          %{"episode_number" => 1, "name" => "Alpha", "air_date" => "2025-12-26"},
+          %{"episode_number" => 2, "name" => "Beta", "air_date" => ""}
+        ]
+      })
+
+      spine = Spine.assemble(43, MapSet.new())
+
+      assert at(spine, 1, 1).air_date == ~D[2025-12-26]
+      assert at(spine, 1, 2).air_date == nil
+    end
+
     test "spans multiple seasons including season 0 specials" do
       stub_show(7, [0, 1], %{
         0 => [%{"episode_number" => 1, "name" => "OVA"}],

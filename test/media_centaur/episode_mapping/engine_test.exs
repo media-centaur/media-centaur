@@ -123,6 +123,21 @@ defmodule MediaCentaur.EpisodeMapping.EngineTest do
       refute resolution.auto?
     end
 
+    test "a yearly special is recommended on the episode its year names, not on the gap" do
+      spine = [
+        %SpineNode{season: 1, episode: 21, title: "Sample Special 2024", present?: true},
+        %SpineNode{season: 1, episode: 22, title: "Sample Special 2025", present?: false},
+        %SpineNode{season: 1, episode: 23, title: "Sample Special 2026", present?: false}
+      ]
+
+      special = %Artifact{id: "special", claimed_year: 2025}
+
+      resolution = Engine.resolve(spine, [special])
+
+      assert targets(resolution.recommended) == %{"special" => 22}
+      refute resolution.auto?
+    end
+
     test "an empty batch yields an empty resolution" do
       spine = titled_spine(["A", "B", "C"], 1)
 

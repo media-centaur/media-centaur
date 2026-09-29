@@ -10,12 +10,13 @@ defmodule MediaCentaur.EpisodeMapping.SpineNode do
   """
 
   @enforce_keys [:season, :episode]
-  defstruct [:season, :episode, :title, present?: false]
+  defstruct [:season, :episode, :title, :air_date, present?: false]
 
   @type t :: %__MODULE__{
           season: integer(),
           episode: integer(),
           title: String.t() | nil,
+          air_date: Date.t() | nil,
           present?: boolean()
         }
 end

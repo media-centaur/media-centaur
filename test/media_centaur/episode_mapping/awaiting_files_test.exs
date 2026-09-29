@@ -30,6 +30,20 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
       assert file.claimed_title == "Shall We Go, Then"
     end
 
+    test "keeps the year the file's name claims" do
+      assert {:ok, file} =
+               EpisodeMapping.divert(
+                 attrs(%{
+                   claimed_season: nil,
+                   claimed_episode: nil,
+                   claimed_title: nil,
+                   claimed_year: 2025
+                 })
+               )
+
+      assert file.claimed_year == 2025
+    end
+
     test "requires file_path, media_dir and tmdb_id" do
       assert {:error, changeset} = EpisodeMapping.divert(%{claimed_season: 2})
 

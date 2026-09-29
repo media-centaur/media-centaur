@@ -13,7 +13,8 @@ defmodule MediaCentaur.EpisodeMapping do
       Spine,
       SpineNode,
       Models.GapFill,
-      Models.TitleMatch
+      Models.TitleMatch,
+      Models.YearMatch
     ]
 
   @moduledoc """
@@ -242,7 +243,8 @@ defmodule MediaCentaur.EpisodeMapping do
       id: file.id,
       claimed_season: file.claimed_season,
       claimed_episode: file.claimed_episode,
-      claimed_title: file.claimed_title
+      claimed_title: file.claimed_title,
+      claimed_year: file.claimed_year
     }
   end
 
