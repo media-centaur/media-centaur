@@ -4,6 +4,33 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.48.0 — 2026-09-29
+
+### New
+
+- **Undo a dismissal.** Files you dismiss in Review or Episode mapping are listed under **Dismissed** below the list, and **Restore** puts one back where it was. Before, a dismissed file was skipped on every scan and nothing listed it.
+- **Yearly specials are placed by their year.** A TV file whose name gives no episode number but a year — `Show.Name.2025.1080p.mkv` — now waits in **Episode mapping**, which recommends the one episode the year identifies: by the year in the episode's title, or else the year it aired.
+
+### Improved
+
+- **Review asks which title; Episode mapping asks which episode.** A TV file whose name doesn't settle its episode — no episode number, or a season the show doesn't list — goes to Episode mapping after you confirm the series in Review. The episode list that v1.47.0 added to Review is gone; choosing an episode happens in one place.
+- **Files matched automatically that couldn't be added keep their match** in Review, so **Approve** is there to retry them.
+- **Review's counts all count files.** The chips beside *pending* used to count groups of files.
+
+### Fixed
+
+- **A file waiting in Episode mapping no longer comes back to Review after every restart.**
+- **Approving a group can no longer stall other imports.** If one file in a group had no match, approving the group could stop every import queued after it, and those files stayed *Importing* until a restart. A group now needs one match for all its files before it can be approved, and says so when its files carry different matches.
+- **A file that joins a group still importing can be acted on** instead of waiting behind *Importing*.
+- **The Delete button no longer reads "Deleting…" while you approve.**
+- **The Review badge updates after a restart** instead of keeping its old count until the next change.
+- **A file already in your library never lingers in Review or Episode mapping.**
+- **Deleting from Review and opening a show in Episode mapping no longer freeze the page** while the disk or TMDB answers.
+
+### Migration safety
+
+- This release runs migrations. The Episode mapping table is renamed and gains the year a file's name claims; Review's season and episode columns are renamed; Episode mapping rows already marked as placed are removed, since those files are in your library. No files on disk are touched.
+
 ## v1.47.0 — 2026-09-29
 
 ### New
