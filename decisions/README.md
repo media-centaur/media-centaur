@@ -65,6 +65,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 074 | 2026-09-27 | [A person is read through `Social.Person`; RelaySync owns the reconciliation loop](architecture/2026-09-27-074-person-read-model-and-relay-sync-context.md) | accepted |
 | 075 | 2026-09-29 | [Bounded context naming](architecture/2026-09-29-075-bounded-context-naming.md) | accepted |
 | 076 | 2026-09-29 | [Durability follows the cost of losing the work](architecture/2026-09-29-076-durability-follows-the-cost-of-losing-the-work.md) | accepted |
+| 077 | 2026-09-29 | [A durable job is recorded with the decision that owes it](architecture/2026-09-29-077-a-durable-job-is-recorded-with-the-decision-that-owes-it.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
