@@ -15,7 +15,7 @@ defmodule MediaCentaur.Pipeline.Import do
 
   An import that fails before publishing never reaches the library, so
   `handle_failed/2` reports that outcome itself —
-  `{:file_not_linked, %{reason: {:import_failed, reason}}}` on the same
+  `{:file_not_linked, %{reason: {:import_failed, reason}, match: ...}}` on the same
   topic. Every match therefore ends in exactly one link outcome, which is
   what `Review` closes and reopens its items on.
 
@@ -88,10 +88,16 @@ defmodule MediaCentaur.Pipeline.Import do
   defp failure_reason({kind, reason, _stacktrace}) when kind in [:error, :throw, :exit],
     do: {kind, reason}
 
-  defp report_not_linked(%Payload{file_path: file_path, media_directory: media_dir}, reason) do
+  defp report_not_linked(%Payload{} = payload, reason) do
     MediaCentaur.Topics.publish(
       MediaCentaur.Topics.library_file_events(),
-      {:file_not_linked, %{file_path: file_path, media_dir: media_dir, reason: {:import_failed, reason}}}
+      {:file_not_linked,
+       %{
+         file_path: payload.file_path,
+         media_dir: payload.media_directory,
+         reason: {:import_failed, reason},
+         match: %{tmdb_id: payload.tmdb_id, tmdb_type: payload.tmdb_type}
+       }}
     )
   end
 

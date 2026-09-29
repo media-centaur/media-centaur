@@ -51,7 +51,8 @@ defmodule MediaCentaur.Library.InboundTest do
       season: nil,
       extra: nil,
       file_path: "/media/Sample.Movie.1999.mkv",
-      media_dir: "/media"
+      media_dir: "/media",
+      match: %{tmdb_id: 550, tmdb_type: :movie}
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -87,7 +88,8 @@ defmodule MediaCentaur.Library.InboundTest do
       season: nil,
       extra: nil,
       file_path: "/media/Sample.Movie.2008.mkv",
-      media_dir: "/media"
+      media_dir: "/media",
+      match: %{tmdb_id: 155, tmdb_type: :movie}
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -128,7 +130,8 @@ defmodule MediaCentaur.Library.InboundTest do
       },
       extra: nil,
       file_path: "/media/TV/Sample.Show.S01E01.mkv",
-      media_dir: "/media/TV"
+      media_dir: "/media/TV",
+      match: %{tmdb_id: 1396, tmdb_type: :tv}
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -787,6 +790,30 @@ defmodule MediaCentaur.Library.InboundTest do
 
       assert_receive {:file_not_linked,
                       %{file_path: "/media/Sample.Movie.1999.mkv", reason: {:ingest_failed, _}}}
+    end
+
+    # 2026-09-29: an automatic match that linked nothing was queued in Review
+    # without the match it was imported under, so the item read "No TMDB
+    # results" and offered no Approve, while its reason said to approve again.
+    test "the not-linked report carries the match the file was imported under" do
+      assert {:error, _reason} =
+               Inbound.ingest(movie_event(entity_attrs: %{type: :movie, name: nil, tmdb_id: "550"}))
+
+      assert_receive {:file_not_linked,
+                      %{
+                        file_path: "/media/Sample.Movie.1999.mkv",
+                        match: %{tmdb_id: 550, tmdb_type: :movie}
+                      }}
+    end
+
+    # 2026-09-29: the unlinked reason had a clause for series only, so any
+    # other ingest that linked nothing raised after its writes, skipping the
+    # image queue and the change broadcast, and was reported as a crash.
+    test "an ingest outside a series that links nothing is reported not linked, not crashed" do
+      assert {:ok, _collection, _status, _images} = Inbound.ingest(collection_event(child_movie: nil))
+
+      assert_receive {:file_not_linked,
+                      %{file_path: "/media/Sample.Movie.2008.mkv", reason: {:ingest_failed, :no_link}}}
     end
   end
 

@@ -348,17 +348,24 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  The library did not link the file: `%{file_path, media_dir, reason}`,
-  `reason` as `Library.Inbound` and `Pipeline.Import` report it.
+  The library did not link the file: `%{file_path, media_dir, reason,
+  match}`, as `Library.Inbound` and `Pipeline.Import` report it — `match`
+  is the `%{tmdb_id, tmdb_type}` the file was imported under, or nil.
 
   An `:approved` or `:pending` item returns to `:pending` with the reason
   in `error_message`, keeping the match the reviewer chose. A file with no
-  item is queued with the reason — an automatic match that linked nothing
-  needs a person too. A dismissed item stays dismissed. Broadcasts
+  item is queued with the reason and the match it was imported under — an
+  automatic match that linked nothing needs a person too, and approving it
+  again is the retry. A dismissed item stays dismissed. Broadcasts
   `FileAdded`.
   """
-  @spec file_not_linked(%{file_path: String.t(), media_dir: String.t(), reason: term()}) :: :ok
-  def file_not_linked(%{file_path: file_path, media_dir: media_dir, reason: reason}) do
+  @spec file_not_linked(%{
+          file_path: String.t(),
+          media_dir: String.t(),
+          reason: term(),
+          match: %{tmdb_id: integer(), tmdb_type: :movie | :tv} | nil
+        }) :: :ok
+  def file_not_linked(%{file_path: file_path, media_dir: media_dir, reason: reason, match: match}) do
     message = unlinked_message(reason)
 
     result =
@@ -366,6 +373,7 @@ defmodule MediaCentaur.Review do
         nil ->
           %{file_path: file_path, media_dir: media_dir}
           |> parsed_pending_attrs()
+          |> Map.merge(match_attrs(match))
           |> Map.put(:error_message, message)
           |> PendingFile.create_changeset()
           |> Repo.insert()
@@ -391,6 +399,11 @@ defmodule MediaCentaur.Review do
 
     :ok
   end
+
+  defp match_attrs(nil), do: %{}
+
+  defp match_attrs(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}),
+    do: %{tmdb_id: tmdb_id, tmdb_type: to_string(tmdb_type)}
 
   # What the reviewer reads on a returned item: what happened, and the one
   # thing to do about it.
