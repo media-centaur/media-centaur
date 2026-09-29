@@ -64,6 +64,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 073 | 2026-09-27 | [A profile is one replaceable event per identity](architecture/2026-09-27-073-a-profile-is-one-replaceable-event-per-identity.md) | accepted |
 | 074 | 2026-09-27 | [A person is read through `Social.Person`; RelaySync owns the reconciliation loop](architecture/2026-09-27-074-person-read-model-and-relay-sync-context.md) | accepted |
 | 075 | 2026-09-29 | [Bounded context naming](architecture/2026-09-29-075-bounded-context-naming.md) | accepted |
+| 076 | 2026-09-29 | [Durability follows the cost of losing the work](architecture/2026-09-29-076-durability-follows-the-cost-of-losing-the-work.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
