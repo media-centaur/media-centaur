@@ -62,6 +62,11 @@ in `:manual` and F13 is fixed (`abf65eec`); F14 is fixed
 4. Move non-compliant sites one per commit, each with a test that kills
    the carrier mid-work (or restarts) and asserts the work completes or
    is reported.
+5. Before moving a site, check that ADR-077's shape serves it. A job is
+   one answer, not the answer: a write can move into the decision's
+   transaction (F5, F8's watch event, F12), a reconcile pass can read the
+   state (F10), and volume may argue against one job per item (F1). A
+   misfit is reported to the owner as a finding, never bent to the rule.
 
 ## Findings (non-compliant)
 
