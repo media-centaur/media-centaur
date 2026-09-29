@@ -29,8 +29,7 @@ defmodule MediaCentaur.Library.Inbound do
       pipeline parked the file in the episode-mapping queue, which owns it
       from here.
     * `{:file_not_linked, %{file_path, media_dir, reason, match}}` —
-      nothing is attached. `reason` is `:no_episode` (a series match for a
-      file with no season and episode), `{:ingest_failed, term}` or
+      nothing is attached. `reason` is `{:ingest_failed, term}` or
       `:crashed`; `match` is the event's `%{tmdb_id, tmdb_type}`, the match
       the file was imported under.
 
@@ -142,16 +141,13 @@ defmodule MediaCentaur.Library.Inbound do
     if Library.Files.linked?(file_path) do
       publish_link_outcome({:file_linked, file_path})
     else
-      publish_not_linked(event, unlinked_reason(event))
+      # Every leaf path links, and a series file without a position is
+      # parked before it gets here (`Pipeline.Stages.FetchMetadata`), so an
+      # ingest that linked nothing broke that invariant. It says so rather
+      # than raising after its writes.
+      publish_not_linked(event, {:ingest_failed, :no_link})
     end
   end
-
-  # A successful ingest links nothing for a series match whose file names
-  # no season and episode — there is no episode to attach it to
-  # (`leaf_container_for/2`). Any other ingest that links nothing broke the
-  # leaf invariant, and says so rather than raising after its writes.
-  defp unlinked_reason(%{entity_type: :tv_series, season: nil}), do: :no_episode
-  defp unlinked_reason(_event), do: {:ingest_failed, :no_link}
 
   defp publish_not_linked(%{file_path: file_path, media_dir: media_dir, match: match}, reason) do
     Log.warning(:library, "file not linked — #{inspect(reason)} (file=#{file_path})")
@@ -866,9 +862,8 @@ defmodule MediaCentaur.Library.Inbound do
     case leaf_playable_item_id_for(entity, event) do
       nil ->
         # No leaf to attach this WatchedFile to: a bonus feature (linked
-        # as an ExtraFile by `create_or_link/1`), a file parked for
-        # episode mapping, or a series match with no season and episode.
-        # `report_link_outcome/1` says which.
+        # as an ExtraFile by `create_or_link/1`) or a file parked for
+        # episode mapping. `report_link_outcome/1` says which.
         nil
 
       playable_item_id when is_binary(playable_item_id) ->

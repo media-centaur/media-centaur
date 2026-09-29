@@ -763,6 +763,10 @@ defmodule MediaCentaur.Library.InboundTest do
       assert_receive {:file_linked, "/media/Extras/bts.mkv"}
     end
 
+    # Changed 2026-09-29 (campaign `review-coherence`): the reason was
+    # `:no_episode`, which sent the file to Review to choose its episode.
+    # Import now parks every series file without a position, so an unparked
+    # series event with no season is a broken invariant like any other.
     test "a series match with no season and episode is reported not linked, with the reason" do
       assert {:ok, _tv, :new, _images} = Inbound.ingest(tv_event(season: nil))
 
@@ -770,7 +774,7 @@ defmodule MediaCentaur.Library.InboundTest do
                       %{
                         file_path: "/media/TV/Sample.Show.S01E01.mkv",
                         media_dir: "/media/TV",
-                        reason: :no_episode
+                        reason: {:ingest_failed, :no_link}
                       }}
 
       refute Library.Files.linked?("/media/TV/Sample.Show.S01E01.mkv")

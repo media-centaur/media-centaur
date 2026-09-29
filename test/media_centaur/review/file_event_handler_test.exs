@@ -111,7 +111,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
          %{
            file_path: "/media/test/unlinked.mkv",
            media_dir: "/media/test",
-           reason: :no_episode,
+           reason: :crashed,
            match: nil
          }}
       )

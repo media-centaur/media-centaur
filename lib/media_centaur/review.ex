@@ -2,7 +2,6 @@ defmodule MediaCentaur.Review do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.TMDB],
     exports: [
-      EpisodeChoice,
       PendingFile,
       Rematch,
       Search,
@@ -44,7 +43,6 @@ defmodule MediaCentaur.Review do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Library
-  alias MediaCentaur.TMDB
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review.PendingFile
 
@@ -411,12 +409,6 @@ defmodule MediaCentaur.Review do
 
   # What the reviewer reads on a returned item: what happened, and the one
   # thing to do about it.
-  defp unlinked_message(:no_episode),
-    do:
-      "This file has no season and episode number, so it can't be added to a series " <>
-        "until you choose its episode. Match it to the series and choose the episode, " <>
-        "or match it to a movie."
-
   defp unlinked_message({:ingest_failed, _reason}),
     do: "Adding it to the library failed. Approve it again to retry."
 
@@ -459,75 +451,6 @@ defmodule MediaCentaur.Review do
   def destroy_pending_file!(pending_file) do
     Repo.bang!(Repo.delete(pending_file))
     :ok
-  end
-
-  # ---------------------------------------------------------------------------
-  # Choosing the episode
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  True when `pending_file` is matched to a series but carries no season and
-  episode, so the library would have nothing to attach it to. The reviewer
-  chooses the episode (`set_episode/3`) before it can be approved. A bonus
-  feature belongs to the series itself and needs none.
-  """
-  @spec needs_episode?(PendingFile.t()) :: boolean()
-  def needs_episode?(%PendingFile{} = pending_file), do: PendingFile.needs_episode?(pending_file)
-
-  @doc """
-  True when `pending_file` is matched to a series and its name does not
-  number the episode, so the reviewer chooses it — and can change the
-  choice once made, which is why this reads the name rather than the
-  stored season and episode.
-  """
-  @spec chooses_episode?(PendingFile.t()) :: boolean()
-  def chooses_episode?(%PendingFile{tmdb_type: "tv", parsed_type: parsed_type, file_path: file_path})
-      when parsed_type != "extra" do
-    is_nil(Parser.parse(file_path, extras_dirs: MediaCentaur.Settings.Config.extras_dirs()).episode)
-  end
-
-  def chooses_episode?(%PendingFile{}), do: false
-
-  @doc "Places `pending_file` at the reviewer's chosen season and episode."
-  @spec set_episode(PendingFile.t(), non_neg_integer(), non_neg_integer()) ::
-          {:ok, PendingFile.t()} | {:error, Ecto.Changeset.t()}
-  def set_episode(%PendingFile{} = pending_file, season_number, episode_number) do
-    Repo.update(PendingFile.set_episode_changeset(pending_file, season_number, episode_number))
-  end
-
-  @doc """
-  The seasons of TMDB series `tmdb_id` with their episodes, for the
-  reviewer's episode picker: `[%{season_number, name, episodes:
-  [%{episode_number, name, air_date}]}]`, regular seasons in order and
-  specials (season 0) last. Read through `TMDB.Store`, so a series the app
-  already holds costs no request.
-  """
-  @spec episode_choices(integer()) :: {:ok, [map()]} | {:error, term()}
-  def episode_choices(tmdb_id) do
-    with {:ok, %TMDB.Store.TitleRecord{payload: payload}} <- TMDB.Store.ensure({tmdb_id, :tv_series}) do
-      payload
-      |> Map.get("seasons", [])
-      |> Enum.sort_by(&{&1["season_number"] == 0, &1["season_number"]})
-      |> Enum.reduce_while({:ok, []}, fn season, {:ok, acc} ->
-        case TMDB.Store.ensure_season(tmdb_id, season["season_number"]) do
-          {:ok, %TMDB.Store.SeasonRecord{payload: season_payload}} ->
-            choice = %{
-              season_number: season["season_number"],
-              name: season["name"],
-              episodes: TMDB.Mapper.episode_list(season_payload)
-            }
-
-            {:cont, {:ok, [choice | acc]}}
-
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
-      end)
-      |> then(fn
-        {:ok, seasons} -> {:ok, Enum.reverse(seasons)}
-        error -> error
-      end)
-    end
   end
 
   # ---------------------------------------------------------------------------
@@ -775,21 +698,14 @@ defmodule MediaCentaur.Review do
         id when is_binary(id) -> String.to_integer(id)
       end
 
-    # An episode the reviewer chose belongs to the series it was chosen from.
-    chosen_episode =
-      if chooses_episode?(pending_file), do: %{season_number: nil, episode_number: nil}, else: %{}
-
-    set_pending_file_match(
-      pending_file,
-      Map.merge(chosen_episode, %{
-        tmdb_id: tmdb_id_int,
-        tmdb_type: tmdb_type,
-        match_title: title,
-        match_year: year,
-        match_poster_path: poster_path,
-        confidence: 1.0
-      })
-    )
+    set_pending_file_match(pending_file, %{
+      tmdb_id: tmdb_id_int,
+      tmdb_type: tmdb_type,
+      match_title: title,
+      match_year: year,
+      match_poster_path: poster_path,
+      confidence: 1.0
+    })
   end
 
   defp broadcast_reviewed(file_id) do
