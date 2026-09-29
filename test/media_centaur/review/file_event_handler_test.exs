@@ -108,7 +108,12 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
       Topics.publish(
         Topics.library_file_events(),
         {:file_not_linked,
-         %{file_path: "/media/test/unlinked.mkv", media_dir: "/media/test", reason: :no_episode}}
+         %{
+           file_path: "/media/test/unlinked.mkv",
+           media_dir: "/media/test",
+           reason: :no_episode,
+           match: nil
+         }}
       )
 
       :ok = FileEventHandler.__sync_for_test__()

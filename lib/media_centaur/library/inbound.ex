@@ -28,9 +28,11 @@ defmodule MediaCentaur.Library.Inbound do
     * `{:file_parked, file_path}` — the event asked for no link: the
       pipeline parked the file in the reconciliation queue, which owns it
       from here.
-    * `{:file_not_linked, %{file_path, media_dir, reason}}` — nothing is
-      attached. `reason` is `:no_episode` (a series match for a file with
-      no season and episode), `{:ingest_failed, term}` or `:crashed`.
+    * `{:file_not_linked, %{file_path, media_dir, reason, match}}` —
+      nothing is attached. `reason` is `:no_episode` (a series match for a
+      file with no season and episode), `{:ingest_failed, term}` or
+      `:crashed`; `match` is the event's `%{tmdb_id, tmdb_type}`, the match
+      the file was imported under.
 
   This is the only record of whether a file reached the library: the
   series of an unlinked episode exists but is hidden, so without the
@@ -144,16 +146,18 @@ defmodule MediaCentaur.Library.Inbound do
     end
   end
 
-  # The one way a successful ingest links nothing: a series match whose
-  # file names no season and episode, so there is no episode to attach it
-  # to (`leaf_container_for/2`).
-  defp unlinked_reason(%{entity_type: :tv_series}), do: :no_episode
+  # A successful ingest links nothing for a series match whose file names
+  # no season and episode — there is no episode to attach it to
+  # (`leaf_container_for/2`). Any other ingest that links nothing broke the
+  # leaf invariant, and says so rather than raising after its writes.
+  defp unlinked_reason(%{entity_type: :tv_series, season: nil}), do: :no_episode
+  defp unlinked_reason(_event), do: {:ingest_failed, :no_link}
 
-  defp publish_not_linked(%{file_path: file_path, media_dir: media_dir}, reason) do
+  defp publish_not_linked(%{file_path: file_path, media_dir: media_dir, match: match}, reason) do
     Log.warning(:library, "file not linked — #{inspect(reason)} (file=#{file_path})")
 
     publish_link_outcome(
-      {:file_not_linked, %{file_path: file_path, media_dir: media_dir, reason: reason}}
+      {:file_not_linked, %{file_path: file_path, media_dir: media_dir, reason: reason, match: match}}
     )
   end
 

@@ -27,6 +27,9 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
       extra: payload.metadata.extra,
       file_path: payload.file_path,
       media_dir: payload.media_directory,
+      # The match the file was imported under, carried to its link outcome
+      # so a file that is not linked keeps it (`Library.Inbound`).
+      match: %{tmdb_id: payload.tmdb_id, tmdb_type: payload.tmdb_type},
       # A parked file gets no link by design; the library reports it
       # parked rather than unlinked (`Library.Inbound`, "Link outcome").
       parked: parked?(payload)

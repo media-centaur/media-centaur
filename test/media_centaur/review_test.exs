@@ -437,7 +437,8 @@ defmodule MediaCentaur.ReviewTest do
                Review.file_not_linked(%{
                  file_path: "/media/test/special.mp4",
                  media_dir: "/media/test",
-                 reason: {:ingest_failed, :boom}
+                 reason: {:ingest_failed, :boom},
+                 match: %{tmdb_id: 1396, tmdb_type: :tv}
                })
 
       reopened = hd(Review.list_pending_files_for_review())
@@ -452,12 +453,27 @@ defmodule MediaCentaur.ReviewTest do
 
     # An automatic match that links nothing used to leave no trace at all:
     # no review item, and the file re-searched on every restart.
+    test "queues a file that has no item with the match it was imported under" do
+      assert :ok =
+               Review.file_not_linked(%{
+                 file_path: "/media/test/Movie.A.2010.mkv",
+                 media_dir: "/media/test",
+                 reason: {:import_failed, :insufficient_disk_space},
+                 match: %{tmdb_id: 550, tmdb_type: :movie}
+               })
+
+      assert [queued] = Review.list_pending_files_for_review()
+      assert {queued.tmdb_id, queued.tmdb_type} == {550, "movie"}
+      assert {:ok, 1} = Review.approve_group([queued.id])
+    end
+
     test "queues a file that has no item, with the reason" do
       assert :ok =
                Review.file_not_linked(%{
                  file_path: "/media/test/Sample.Show.S01.1080p.mkv",
                  media_dir: "/media/test",
-                 reason: :no_episode
+                 reason: :no_episode,
+                 match: nil
                })
 
       assert [queued] = Review.list_pending_files_for_review()
@@ -477,7 +493,8 @@ defmodule MediaCentaur.ReviewTest do
         Review.file_not_linked(%{
           file_path: "/media/test/retry.mkv",
           media_dir: "/media/test",
-          reason: :crashed
+          reason: :crashed,
+          match: nil
         })
 
       returned = Repo.get_by!(Review.PendingFile, file_path: "/media/test/retry.mkv")
@@ -495,7 +512,8 @@ defmodule MediaCentaur.ReviewTest do
                Review.file_not_linked(%{
                  file_path: "/media/test/dismissed.mkv",
                  media_dir: "/media/test",
-                 reason: :no_episode
+                 reason: :no_episode,
+                 match: nil
                })
 
       assert Review.dismissed?("/media/test/dismissed.mkv")
@@ -511,7 +529,13 @@ defmodule MediaCentaur.ReviewTest do
           ] do
         path = "/media/test/#{System.unique_integer([:positive])}.mkv"
 
-        :ok = Review.file_not_linked(%{file_path: path, media_dir: "/media/test", reason: reason})
+        :ok =
+          Review.file_not_linked(%{
+            file_path: path,
+            media_dir: "/media/test",
+            reason: reason,
+            match: nil
+          })
 
         assert Repo.get_by!(Review.PendingFile, file_path: path).error_message =~ fragment
       end
