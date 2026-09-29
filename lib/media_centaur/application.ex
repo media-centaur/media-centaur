@@ -21,6 +21,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Playback,
       MediaCentaur.Console,
       MediaCentaur.ErrorReports,
+      MediaCentaur.Jobs,
       MediaCentaur.Acquisition,
       MediaCentaur.Downloads,
       MediaCentaur.WatchHistory,
@@ -65,6 +66,9 @@ defmodule MediaCentaur.Application do
         %{level: :warning, config: %{}}
       )
     end
+
+    # Every failed Oban job reaches the Console (ADR-077, rule 7).
+    :ok = MediaCentaur.Jobs.attach()
 
     children =
       [

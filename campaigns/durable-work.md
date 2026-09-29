@@ -41,9 +41,13 @@ message a crash could lose.
 
 ## Status
 
-Planning. Inventory reconciled and every site classified (2026-09-29,
-below). Fifteen findings, F1–F15. ADR-077 (how a durable job is built)
-accepted. No code yet.
+In progress on branch `durable-work` (worktree
+`../media-centaur-app-durable-work`). Inventory reconciled and every
+site classified (2026-09-29, below); fifteen findings, F1–F15; ADR-077
+(how a durable job is built) accepted. Shared layer: the suite runs Oban
+in `:manual` and F13 is fixed (`abf65eec`); F14 is fixed
+(`MediaCentaur.Jobs`). F15 (orphan rescue) is back with the owner — see
+*Next steps* 1.
 
 ## Method
 
@@ -189,10 +193,16 @@ pending state: `PursueTarget` (F4), `RunPlan` (F3). `ImageRefreshWorker`
 
 ## Next steps
 
-1. The shared layer, test-first, one commit each: the test suite to
-   `testing: :manual` (107 tests in 13 files to fix, measured
-   2026-09-29); `MediaCentaur.Jobs` with the failure handler (F14);
-   Lifeline and worker timeouts (F15); `states: :incomplete` (F13).
+1. **Owner decision — F15, how orphans are rescued.** Lifeline was
+   chosen on the premise that every job is short. It is not: a Prowlarr
+   search may take 60 s (`@search_timeout_ms`), and a `RunPlan` over a
+   long show searches one term per uncovered episode, so a legitimate run
+   can take tens of minutes. Lifeline rescues by age alone — a short
+   `rescue_after` runs a live `RunPlan` twice, a long one delays every
+   orphan by that much. A boot rescue (reset jobs attempted before this
+   boot; exact on a single node) has no such limit. Keeping Lifeline means
+   bounding every job first (a `RunPlan` split into self-enqueuing
+   steps).
 2. Credo checks for what is static in ADR-077: a worker's `unique`
    declares `states:`; a worker defines `timeout/1`. Rule 1 (insert in
    the transaction) is probably not statically checkable — decide.
