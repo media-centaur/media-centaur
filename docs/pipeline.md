@@ -202,7 +202,7 @@ Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `
 
 The `/review` UI surfaces PendingFiles. The reviewer can:
 1. **Approve** — accepts the match, broadcasts `{:file_matched, ...}` to `"pipeline:matched"` → Import processes it
-2. **Search** — manual TMDB search, then approve with selected result
+2. **Search** — manual TMDB search, then approve with selected result. A series match for a file whose name does not number its episode (`Review.chooses_episode?/1`) needs the reviewer to choose the episode from the series' episode list (`Review.episode_choices/1`); `Review.EpisodeChoice.preselect/2` offers the one episode the file's year identifies. Approval is refused until the file has an episode, and the approved match carries it to Import
 3. **Dismiss** — flips the PendingFile to `status: :dismissed` (the row stays; a link outcome is what deletes one). Terminal: `Discovery.process/1` skips a dismissed path before parsing or searching — see the already-settled check above
 
 ### One row per path, and what its status means

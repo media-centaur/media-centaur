@@ -393,11 +393,14 @@ defmodule MediaCentaur.PipelineTest do
     end
 
     # The reported case: a yearly special parses as a movie with no season or
-    # episode, the reviewer picks its series, and the library has no episode
-    # to attach it to. Regression: the review item was deleted as soon as the
+    # episode, its series is the match, and the library has no episode to
+    # attach it to. Regression: the review item was deleted as soon as the
     # entity was published, the series stayed hidden for want of a file, and
-    # the item came back only after a restart — without the reviewer's choice.
-    test "an approved series match for a file with no season and episode returns to review with the reason" do
+    # the item came back only after a restart — without the chosen match.
+    # Review now refuses to approve such a match without an episode, so the
+    # path is an automatic series match for a file with no episode in its
+    # name (a season pack's name, say) meeting an open review item.
+    test "a series match for a file with no season and episode returns to review with the reason" do
       stub_routes([
         {"/tv/1396", tv_detail()}
       ])
@@ -415,16 +418,14 @@ defmodule MediaCentaur.PipelineTest do
           match_title: "Sample Show"
         })
 
-      {:ok, approved} = Review.approve_pending_file(pending)
-
       import_payload =
         ImportProducer.build_payload(%{
           file_path: path,
           media_dir: "/media/pipeline/TV",
           tmdb_id: 1396,
           tmdb_type: :tv,
-          season: approved.season_number,
-          episode: approved.episode_number
+          season: nil,
+          episode: nil
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)

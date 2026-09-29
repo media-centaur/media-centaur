@@ -88,13 +88,46 @@ defmodule MediaCentaur.Review.PendingFile do
   end
 
   # Approval is the retry of an item the library returned, so the reason it
-  # came back with no longer describes it.
+  # came back with no longer describes it. A series match without an episode
+  # cannot be approved: the library would have nothing to attach it to.
   def approve_changeset(pending_file) do
     pending_file
     |> change()
     |> validate_status(:pending)
+    |> validate_episode_chosen()
     |> put_change(:status, :approved)
     |> put_change(:error_message, nil)
+  end
+
+  @doc """
+  True when the file is matched to a series but carries no season and
+  episode. A bonus feature belongs to the series itself and needs none.
+  """
+  def needs_episode?(%__MODULE__{tmdb_type: "tv", parsed_type: parsed_type} = pending_file)
+      when parsed_type != "extra" do
+    is_nil(pending_file.season_number) or is_nil(pending_file.episode_number)
+  end
+
+  def needs_episode?(%__MODULE__{}), do: false
+
+  def set_episode_changeset(pending_file, season_number, episode_number) do
+    pending_file
+    |> cast(%{season_number: season_number, episode_number: episode_number}, [
+      :season_number,
+      :episode_number
+    ])
+    |> validate_required([:season_number, :episode_number])
+    |> validate_number(:season_number, greater_than_or_equal_to: 0)
+    |> validate_number(:episode_number, greater_than_or_equal_to: 0)
+    |> validate_status(:pending)
+  end
+
+  defp validate_episode_chosen(changeset) do
+    if needs_episode?(changeset.data) do
+      add_error(changeset, :episode_number, "choose the episode this file is")
+    else
+      changeset
+    end
   end
 
   def dismiss_changeset(pending_file) do
@@ -141,7 +174,9 @@ defmodule MediaCentaur.Review.PendingFile do
       :confidence,
       :match_title,
       :match_year,
-      :match_poster_path
+      :match_poster_path,
+      :season_number,
+      :episode_number
     ])
     |> validate_status(:pending)
     |> put_change(:candidates, [])
