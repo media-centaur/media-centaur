@@ -150,4 +150,24 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     assert EpisodeMapping.list_awaiting() == []
     assert Library.ExternalIds.find_present_episode("42", 1, 3) == :not_found
   end
+
+  describe "dismissed files" do
+    test "are listed under Dismissed, and Restore puts one back in the queue", %{conn: conn} do
+      seed_show()
+      file = divert_file()
+      {:ok, _} = EpisodeMapping.dismiss_awaiting(file)
+
+      {:ok, view, _html} = live(conn, "/episode-mapping")
+
+      view |> element("#episode-mapping-dismissed .disclosure-head") |> render_click()
+      assert has_element?(view, "#episode-mapping-dismissed-#{file.id}")
+
+      view |> element("#episode-mapping-dismissed-#{file.id} button", "Restore") |> render_click()
+
+      assert [%{id: restored_id}] = EpisodeMapping.list_awaiting()
+      assert restored_id == file.id
+      refute has_element?(view, "#episode-mapping-dismissed")
+      assert has_element?(view, "#episode-mapping-row-#{file.id}")
+    end
+  end
 end

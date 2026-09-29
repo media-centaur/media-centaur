@@ -536,4 +536,44 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert html =~ "different matches"
     end
   end
+
+  # 2026-09-29: a dismissal could not be undone from the page.
+  describe "dismissed files" do
+    test "are listed under Dismissed, and Restore puts one back in the queue", %{conn: conn} do
+      file =
+        create_pending_file(%{
+          file_path: "/media/test/Dismissed Movie/Dismissed.Movie.2010.mkv",
+          media_directory: "/media/test",
+          parsed_title: "Dismissed Movie"
+        })
+
+      {:ok, _} = MediaCentaur.Review.dismiss(file)
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      view |> element("#review-dismissed .disclosure-head") |> render_click()
+      assert has_element?(view, "#review-dismissed-#{file.id}")
+
+      view |> element("#review-dismissed-#{file.id} button", "Restore") |> render_click()
+
+      refute has_element?(view, "#review-dismissed")
+      assert render(view) =~ "Dismissed Movie"
+      assert [%{id: restored_id}] = MediaCentaur.Review.list_pending_files_for_review()
+      assert restored_id == file.id
+    end
+
+    test "dismissing a group lists it under Dismissed", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Soon Dismissed", parsed_type: "movie"})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+      key = select_first_group(view)
+
+      render_click(view, "dismiss", %{"key" => key})
+      render_click(view, "dismiss", %{"key" => key})
+
+      assert has_element?(view, "#review-dismissed")
+    end
+  end
 end

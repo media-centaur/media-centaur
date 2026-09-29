@@ -17,11 +17,13 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
   """
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.Components.DismissedFiles
   import MediaCentaurWeb.Components.ReviewTabs
 
   alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.EpisodeMapping.ShowReview
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.EpisodeMappingView
 
   @impl true
@@ -35,7 +37,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
     {:ok,
      socket
      |> assign(loaded?: false, selected_tmdb: nil, review: nil, targets: %{}, episode_options: [])
-     |> assign(shows: [])}
+     |> assign(shows: [], dismissed: [])}
   end
 
   @impl true
@@ -48,8 +50,12 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
     shows = EpisodeMappingView.show_summaries(EpisodeMapping.list_awaiting())
     selected = pick_selected(shows, socket.assigns.selected_tmdb)
 
+    dismissed =
+      for file <- EpisodeMapping.list_dismissed(),
+          do: %{id: file.id, path: Path.relative_to(file.file_path, file.media_dir)}
+
     socket
-    |> assign(shows: shows)
+    |> assign(shows: shows, dismissed: dismissed)
     |> select(selected)
   end
 
@@ -124,6 +130,16 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
     end
   end
 
+  def handle_event("restore", %{"id" => id}, socket) do
+    case EpisodeMapping.restore_awaiting(id) do
+      {:ok, _restored} ->
+        {:noreply, load(socket)}
+
+      {:error, _reason} ->
+        {:noreply, socket |> put_flash(:error, "Could not restore the file") |> load()}
+    end
+  end
+
   @impl true
   def handle_info({:episode_mapping_updated}, socket), do: {:noreply, load(socket)}
   def handle_info(_message, socket), do: {:noreply, socket}
@@ -169,19 +185,23 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
         />
 
         <p :if={@shows != []} class="text-sm text-base-content/55">
-          Files whose release numbering doesn't line up with the episode list. Confirm where each one belongs.
+          Files of a known show that name no episode, or number it differently from the episode list.
+          Confirm where each one belongs.
         </p>
 
-        <.empty_state
-          :if={@shows == []}
-          icon="hero-queue-list"
-          headline="Episodes we could not place land here"
-          data-nav-zone="episode-mapping-list"
-        >
-          When a download labels its episodes in a numbering we can't place on the show's episode
-          list — a separately-numbered cour, absolute numbering — the files wait here instead of
-          inventing a season for them. You map them to the right episodes by hand.
-        </.empty_state>
+        <div :if={@shows == []} class="space-y-4" data-nav-zone="episode-mapping-list">
+          <.empty_state icon="hero-queue-list" headline="Episodes we could not place land here">
+            When a file of a known show names no episode, or numbers it in a way the show's
+            episode list doesn't have — a separately-numbered cour, absolute numbering — it
+            waits here instead of inventing a season for it. You map it to the right episode.
+          </.empty_state>
+          <.dismissed_files
+            id="episode-mapping-dismissed"
+            open={DisclosureState.open?(@disclosures, "episode-mapping-dismissed")}
+            files={@dismissed}
+            hint={dismissed_hint()}
+          />
+        </div>
 
         <div :if={@shows != []} class="flex gap-4 flex-1 min-h-0">
           <div
@@ -204,6 +224,13 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
               <div class="font-medium truncate">{show.title}</div>
               <div class="text-xs text-base-content/55">{show.count} file(s) waiting</div>
             </button>
+            <.dismissed_files
+              id="episode-mapping-dismissed"
+              open={DisclosureState.open?(@disclosures, "episode-mapping-dismissed")}
+              files={@dismissed}
+              hint={dismissed_hint()}
+              class="mt-2"
+            />
           </div>
 
           <div
@@ -223,6 +250,8 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
     </Layouts.app>
     """
   end
+
+  defp dismissed_hint, do: "Dismissed files are skipped on every scan. Restore one to map it again."
 
   attr :review, ShowReview, required: true
   attr :dismiss_all_armed, :boolean, default: false, doc: "Dismiss all is one click from firing."

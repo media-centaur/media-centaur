@@ -160,8 +160,8 @@ defmodule MediaCentaur.Review do
   The re-match path (`Library.Inbound` handing an entity's files back).
   Unlike detection it is an explicit act on files the user owns, so it
   supersedes an older decision — a dismissal included, which every
-  automatic path still refuses to reconsider. It is also, for now, the
-  only way to undo a dismissal: nothing in the UI lists dismissed files.
+  automatic path still refuses to reconsider. A person undoes a dismissal
+  from the page with `restore/1`.
   """
   @spec reopen_for_review(map()) :: {:ok, PendingFile.t()} | {:error, term()}
   def reopen_for_review(attrs) do
@@ -628,6 +628,27 @@ defmodule MediaCentaur.Review do
       )
 
       {:ok, pending_file}
+    end
+  end
+
+  @doc "Dismissed files the library has not linked, most recently dismissed first."
+  @spec list_dismissed() :: [PendingFile.t()]
+  def list_dismissed do
+    Repo.all(from(p in open(PendingFile), where: p.status == :dismissed, order_by: [desc: p.updated_at]))
+  end
+
+  @doc """
+  Undoes a dismissal: the file returns to the queue as `:pending`, with the
+  match it had. Broadcasts `FileAdded`. `{:error, changeset}` for a file
+  that is not dismissed.
+  """
+  @spec restore(Ecto.UUID.t()) :: {:ok, PendingFile.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def restore(id) do
+    with {:ok, pending_file} <- fetch_pending_file(id),
+         {:ok, restored} <- Repo.update(PendingFile.restore_changeset(pending_file)) do
+      Log.info(:review, "restored \"#{Path.basename(restored.file_path)}\" — back in review")
+      Events.broadcast(%FileAdded{pending_file_id: restored.id})
+      {:ok, restored}
     end
   end
 

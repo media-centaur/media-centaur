@@ -44,6 +44,13 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFile do
 
   @type t :: %__MODULE__{}
 
+  @doc "Undoes a dismissal: the file awaits a decision again."
+  def restore_changeset(%__MODULE__{status: :dismissed} = awaiting_file),
+    do: change(awaiting_file, status: :pending)
+
+  def restore_changeset(%__MODULE__{} = awaiting_file),
+    do: awaiting_file |> change() |> add_error(:status, "must be dismissed")
+
   @doc "Changeset for parking a freshly diverted file."
   def changeset(awaiting_file, attrs) do
     awaiting_file
