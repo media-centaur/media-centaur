@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`review-coherence.md`](review-coherence.md) —
-  **in progress.** Each half of a file's match is decided in one place:
+  **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
   formerly `Reconciliation`). Both queues read membership from the
   library, dismissals can be restored, and the audit's defects (a parked

@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: shipped
 started: 2026-09-29
 last_updated: 2026-09-29
 ---
@@ -38,10 +38,8 @@ and fixes every defect the audit found.
 
 ## Status
 
-All seven layers committed on branch `review-coherence` (worktree
-`../media-centaur-app-review-coherence`); the wiki changes are on the
-unpushed `review-coherence` branch of the wiki repo. Waiting on the
-owner's merge and release, then the reporter's check.
+Shipped in v1.48.0 on 2026-09-29, with the wiki. What remains is the
+reporter's check and one open decision (Next steps).
 
 ## Design
 
@@ -133,11 +131,11 @@ Each layer leaves the product working and is committed on its own.
 
 ## Next steps
 
-1. Owner: merge `review-coherence`, merge and push the wiki branch, ship.
-2. With the release on the reporter's install: the yearly special
+1. With v1.48.0 on the reporter's install: the yearly special
    (`Show.Name.2025…`) confirmed as its series in Review is offered
-   S01E22 in Episode mapping; confirming puts it in the library.
-3. Open decision (owner): an import lost to a crash mid-flight shows as
+   S01E22 in Episode mapping; confirming puts it in the library. Then
+   retire this file.
+2. Open decision (owner): an import lost to a crash mid-flight shows as
    importing until startup recovery. Making approval durable (an Oban
    job per approval instead of a PubSub message to Import) would close
    it; not built, because every known cause of a lost import is fixed at
