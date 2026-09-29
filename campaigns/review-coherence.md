@@ -38,8 +38,10 @@ and fixes every defect the audit found.
 
 ## Status
 
-Layers 1–4 committed on branch `review-coherence` (worktree
-`../media-centaur-app-review-coherence`); Layer 5 (Dismissed lists) next.
+All seven layers committed on branch `review-coherence` (worktree
+`../media-centaur-app-review-coherence`); the wiki changes are on the
+unpushed `review-coherence` branch of the wiki repo. Waiting on the
+owner's merge and release, then the reporter's check.
 
 ## Design
 
@@ -131,11 +133,15 @@ Each layer leaves the product working and is committed on its own.
 
 ## Next steps
 
-1. Layer 5 — Dismissed lists with Restore on both queue pages.
-2. Layer 6 — async delete and delete-target resolution in ReviewLive;
-   async spine assembly in EpisodeMappingLive.
-3. Layer 7 — docs and wiki.
-4. `mix precommit`, rebase onto `main`, hand the branch to the owner.
+1. Owner: merge `review-coherence`, merge and push the wiki branch, ship.
+2. With the release on the reporter's install: the yearly special
+   (`Show.Name.2025…`) confirmed as its series in Review is offered
+   S01E22 in Episode mapping; confirming puts it in the library.
+3. Open decision (owner): an import lost to a crash mid-flight shows as
+   importing until startup recovery. Making approval durable (an Oban
+   job per approval instead of a PubSub message to Import) would close
+   it; not built, because every known cause of a lost import is fixed at
+   its source and the remaining one is a process crash.
 
 ## Completion criteria
 
