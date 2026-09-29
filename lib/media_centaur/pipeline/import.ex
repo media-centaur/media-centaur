@@ -108,22 +108,20 @@ defmodule MediaCentaur.Pipeline.Import do
   @doc """
   Processes a single payload through the Import pipeline.
 
-  Parses the file path, places it at the match's season and episode,
-  checks disk space, fetches full TMDB metadata, and ingests into the
-  library.
+  Parses the file path, checks disk space, fetches full TMDB metadata,
+  and ingests into the library.
 
   Returns `{:ok, payload}` or `{:error, reason}`.
   """
   def process_payload(%Payload{} = payload) do
     # The payload arrives over `pipeline:matched` from Discovery or a
     # review approval, built by `Import.Producer.build_payload/1`, which
-    # carries no parse — so this stage parses for what the match does not
-    # say (bonus feature or not, its parent). It has to use the same extras
+    # carries the match's identity and no parse — so this stage parses for
+    # what the match does not say: bonus feature or not, its parent, and
+    # the season and episode the name claims. It has to use the same extras
     # setting as the stage that classified the file, or the same path is a
-    # title to one and a bonus feature to the other. The season and episode
-    # are the match's, not the path's.
+    # title to one and a bonus feature to the other.
     parsed = Parser.parse(payload.file_path, extras_dirs: Config.extras_dirs())
-    parsed = %{parsed | season: payload.match_season, episode: payload.match_episode}
     payload = %{payload | parsed: parsed}
 
     with :ok <- check_disk_space(payload.media_directory),

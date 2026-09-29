@@ -588,7 +588,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           :if={@file_count > 1}
           class="text-[0.6875rem] text-base-content/55 mt-0.5"
         >
-          {@file_count} episodes{if @file.season_number, do: " · S#{zero_pad(@file.season_number)}"}
+          {@file_count} episodes{if @file.parsed_season, do: " · S#{zero_pad(@file.parsed_season)}"}
         </div>
         <div :if={@file_count == 1} class="text-xs text-base-content/55 mt-0.5">
           {if @file.parsed_year, do: "#{@file.parsed_year} · "}{format_type(@file.parsed_type)}
@@ -791,10 +791,10 @@ defmodule MediaCentaurWeb.ReviewLive do
       </span>
       <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
       <span
-        :if={@file.season_number && @file.episode_number}
+        :if={@file.parsed_season && @file.parsed_episode}
         class="text-sm text-base-content/60"
       >
-        S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
+        S{zero_pad(@file.parsed_season)}E{zero_pad(@file.parsed_episode)}
       </span>
     </div>
     """
@@ -886,12 +886,12 @@ defmodule MediaCentaurWeb.ReviewLive do
           class="flex items-center gap-2"
         >
           <.badge
-            :if={file.season_number && file.episode_number}
+            :if={file.parsed_season && file.parsed_episode}
             variant="ghost"
             size="xs"
             class="font-mono"
           >
-            S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
+            S{zero_pad(file.parsed_season)}E{zero_pad(file.parsed_episode)}
           </.badge>
           <span
             class="font-mono text-xs text-base-content/70 truncate-left"
@@ -995,8 +995,8 @@ defmodule MediaCentaurWeb.ReviewLive do
 
       <p :if={@type == :tv} class="text-sm text-base-content/70">
         Match this episode to a TV series.
-        <span :if={@file.season_number && @file.episode_number}>
-          Season {@file.season_number}, Episode {@file.episode_number} already parsed from the
+        <span :if={@file.parsed_season && @file.parsed_episode}>
+          Season {@file.parsed_season}, Episode {@file.parsed_episode} already parsed from the
           filename.
         </span>
       </p>

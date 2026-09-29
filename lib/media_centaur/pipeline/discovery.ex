@@ -107,9 +107,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
            file_path: payload.file_path,
            media_dir: payload.media_directory,
            tmdb_id: payload.tmdb_id,
-           tmdb_type: payload.tmdb_type,
-           season: payload.parsed.season,
-           episode: payload.parsed.episode
+           tmdb_type: payload.tmdb_type
          }}
       )
     end)

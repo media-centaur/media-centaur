@@ -22,15 +22,17 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
   end
 
   describe "ImportProducer.build_payload/1" do
-    test "builds payload with the whole match: tmdb id, type, season and episode" do
+    # Changed 2026-09-29 (campaign `review-coherence`): the match carried a
+    # season and episode so a reviewer's episode choice reached Import.
+    # Review no longer chooses one — a position is decided in episode
+    # mapping — so the match is the identity and Import parses the claim.
+    test "builds payload with the match's identity: tmdb id and type" do
       payload =
         ImportProducer.build_payload(%{
           file_path: "/media/tv/Sample.Special.2025.mkv",
           media_dir: "/media/tv",
           tmdb_id: 1396,
-          tmdb_type: :tv,
-          season: 1,
-          episode: 22
+          tmdb_type: :tv
         })
 
       assert %Payload{} = payload
@@ -38,21 +40,19 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
       assert payload.media_directory == "/media/tv"
       assert payload.tmdb_id == 1396
       assert payload.tmdb_type == :tv
-      assert payload.match_season == 1
-      assert payload.match_episode == 22
     end
 
-    # The match decides where the file goes. A message without season and
-    # episode would let Import fall back to guessing them from the path,
-    # which is how a reviewer's choice used to be ignored.
-    test "a match without season and episode is refused" do
+    # Changed 2026-09-29 (campaign `review-coherence`): this refused a match
+    # without season and episode. What a match cannot lack now is its
+    # identity — one without a type once crashed the producer and lost the
+    # imports queued behind it.
+    test "a match without an identity is refused" do
       # Built at runtime: the type checker already rejects the literal.
       incomplete =
         Function.identity(%{
           file_path: "/media/movies/Sample.Movie.1999.mkv",
           media_dir: "/media/movies",
-          tmdb_id: 550,
-          tmdb_type: :movie
+          tmdb_id: 550
         })
 
       assert_raise FunctionClauseError, fn -> ImportProducer.build_payload(incomplete) end
@@ -64,9 +64,7 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
           file_path: "/media/tv/Some.Show.S01E01.mkv",
           media_dir: "/media/tv",
           tmdb_id: 1399,
-          tmdb_type: "tv",
-          season: nil,
-          episode: nil
+          tmdb_type: "tv"
         })
 
       assert payload.tmdb_type == :tv
@@ -78,9 +76,7 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
           file_path: "/media/movies/Movie.mkv",
           media_dir: "/media/movies",
           tmdb_id: 550,
-          tmdb_type: "movie",
-          season: nil,
-          episode: nil
+          tmdb_type: "movie"
         })
 
       assert payload.tmdb_type == :movie

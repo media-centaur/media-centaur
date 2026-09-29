@@ -24,8 +24,8 @@ defmodule MediaCentaur.Review.PendingFile do
     field :parsed_title, :string
     field :parsed_year, :integer
     field :parsed_type, :string
-    field :season_number, :integer
-    field :episode_number, :integer
+    field :parsed_season, :integer
+    field :parsed_episode, :integer
 
     # Best TMDB match (from Search stage)
     field :tmdb_id, :integer
@@ -53,8 +53,8 @@ defmodule MediaCentaur.Review.PendingFile do
     :parsed_title,
     :parsed_year,
     :parsed_type,
-    :season_number,
-    :episode_number,
+    :parsed_season,
+    :parsed_episode,
     :tmdb_id,
     :tmdb_type,
     :confidence,
@@ -78,8 +78,8 @@ defmodule MediaCentaur.Review.PendingFile do
       parsed_title: title,
       parsed_year: year,
       parsed_type: Atom.to_string(parsed.type),
-      season_number: parsed.season,
-      episode_number: parsed.episode
+      parsed_season: parsed.season,
+      parsed_episode: parsed.episode
     }
   end
 
