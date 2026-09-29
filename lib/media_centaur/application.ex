@@ -37,6 +37,10 @@ defmodule MediaCentaur.Application do
 
   @impl true
   def start(_type, _args) do
+    # Taken before Oban starts: a job attempted before this instant was
+    # left executing by the last run (see `MediaCentaur.Jobs.rescue_orphans/1`).
+    booted_at = DateTime.utc_now()
+
     Config.load!()
 
     :logger.add_handler(
@@ -132,7 +136,7 @@ defmodule MediaCentaur.Application do
 
     children
     |> Supervisor.start_link(opts)
-    |> post_supervisor_hooks()
+    |> post_supervisor_hooks(booted_at)
   end
 
   @doc """
@@ -145,10 +149,13 @@ defmodule MediaCentaur.Application do
   down. The Repo-lookup crash that results hides the original cause of
   the failure. Guarding here keeps the first crash the only crash.
   """
-  @spec post_supervisor_hooks({:ok, pid()} | {:error, term()}) ::
+  @spec post_supervisor_hooks({:ok, pid()} | {:error, term()}, DateTime.t()) ::
           {:ok, pid()} | {:error, term()}
-  def post_supervisor_hooks({:ok, _pid} = result) do
+  def post_supervisor_hooks({:ok, _pid} = result, booted_at) do
     Config.load_runtime_overrides()
+
+    # A job the last run left executing resumes now (ADR-077, rule 8).
+    MediaCentaur.Jobs.rescue_orphans(booted_at)
 
     # Hydrate the update-check cache from persisted state and, if the
     # last check is stale, enqueue a fresh one. Skipped in test mode so
@@ -160,7 +167,7 @@ defmodule MediaCentaur.Application do
     result
   end
 
-  def post_supervisor_hooks({:error, _reason} = error), do: error
+  def post_supervisor_hooks({:error, _reason} = error, _booted_at), do: error
 
   defp init_services do
     toml_entries = Application.get_env(:media_centaur, :__raw_toml_media_dirs, [])

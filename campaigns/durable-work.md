@@ -46,8 +46,7 @@ In progress on branch `durable-work` (worktree
 site classified (2026-09-29, below); fifteen findings, F1–F15; ADR-077
 (how a durable job is built) accepted. Shared layer: the suite runs Oban
 in `:manual` and F13 is fixed (`abf65eec`); F14 is fixed
-(`MediaCentaur.Jobs`). F15 (orphan rescue) is back with the owner — see
-*Next steps* 1.
+(`MediaCentaur.Jobs`); F15 is fixed (boot rescue).
 
 ## Method
 
@@ -84,7 +83,7 @@ Numbered by finding, not by order of work. File:line as of `38ec7959`.
 | F12 | Remount reset runs async | `library/absence_sweeper.ex:170` | The next TTL check can purge files ADR-045's remount rule protects | Run the `UPDATE` inline, before the TTL check (not a carrier move) |
 | F13 | Uniqueness drops new work | `PursueTarget` `unique: [period: 300, keys: [:target_id]]` and `RunPlan` `unique: [period: 60, keys: [:plan_id]]`, both in Oban's default `:successful` states (includes `completed`); `targets.ex:127` re-arms under the same id; `Plans.replan/2` re-runs under the same plan id | A re-arm within 5 min, or a replan within 60 s (excluding a release on a just-solved board), inserts nothing: `"seeking"` / `"planning"` with no job. Found by the `:manual` switch — inline mode skips uniqueness | Unique among jobs not yet started (ADR-077 rule 6, amended) |
 | F14 | Job failures are invisible | No `[:oban, :job, …]` handler in `lib/` | A raising job leaves its error in `oban_jobs.errors` only — no Console line, no incident | One telemetry handler (ADR-077 rule 7) |
-| F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Enable Lifeline; workers declare `timeout/1` (ADR-077 rule 8) |
+| F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Boot rescue, `MediaCentaur.Jobs.rescue_orphans/1` (ADR-077 rule 8, amended) |
 
 **Minor, not ADR-076 violations but the same shape** — take when
 touching the file:
@@ -188,25 +187,16 @@ pending state: `PursueTarget` (F4), `RunPlan` (F3). `ImageRefreshWorker`
 * `2026-09-29` — Before any site moves, one standard for building a
   durable job: ADR-077, from a `unify_design` pass. Oban is kept — it
   is the only option that commits the job in the decision's transaction
-  (Lite engine, same SQLite file). Orphan rescue by `Oban.Lifeline`
-  over a hand-built boot rescue (owner).
+  (Lite engine, same SQLite file). Orphans are rescued at boot, not by
+  `Oban.Lifeline`: Lifeline rescues by age, and a `RunPlan` legitimately
+  runs for tens of minutes (owner, after first choosing Lifeline).
 
 ## Next steps
 
-1. **Owner decision — F15, how orphans are rescued.** Lifeline was
-   chosen on the premise that every job is short. It is not: a Prowlarr
-   search may take 60 s (`@search_timeout_ms`), and a `RunPlan` over a
-   long show searches one term per uncovered episode, so a legitimate run
-   can take tens of minutes. Lifeline rescues by age alone — a short
-   `rescue_after` runs a live `RunPlan` twice, a long one delays every
-   orphan by that much. A boot rescue (reset jobs attempted before this
-   boot; exact on a single node) has no such limit. Keeping Lifeline means
-   bounding every job first (a `RunPlan` split into self-enqueuing
-   steps).
-2. Credo checks for what is static in ADR-077: a worker's `unique`
-   declares `states:`; a worker defines `timeout/1`. Rule 1 (insert in
-   the transaction) is probably not statically checkable — decide.
-3. Move sites, highest cost first: F4, F3, F1 (design first — the
+1. Credo checks for what is static in ADR-077: a worker's `unique`
+   declares `states:`. Rule 1 (insert in the transaction) is probably
+   not statically checkable — decide.
+2. Move sites, highest cost first: F4, F3, F1 (design first — the
    `Pipeline` → `Library.Inbound` boundary and one job per file vs.
    batching, measured), F8, F6, F7, F5, F2, F9, F10, F11, F12. One
    commit per site (Method step 4).

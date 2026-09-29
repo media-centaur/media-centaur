@@ -62,7 +62,7 @@ defmodule MediaCentaur.Social.Connections.Owner do
     Process.flag(:trap_exit, true)
     Social.subscribe()
     # The identity reaches `:persistent_term` only after the supervision
-    # tree is up (`Application.post_supervisor_hooks/1` overlays the
+    # tree is up (`Application.post_supervisor_hooks/2` overlays the
     # database settings), so the boot reconcile below usually sees none.
     # The overlay broadcasts each key it applies; the identity key is the
     # cue to reconcile again.
