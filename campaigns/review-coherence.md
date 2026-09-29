@@ -135,11 +135,8 @@ Each layer leaves the product working and is committed on its own.
    (`Show.Name.2025…`) confirmed as its series in Review is offered
    S01E22 in Episode mapping; confirming puts it in the library. Then
    retire this file.
-2. Open decision (owner): an import lost to a crash mid-flight shows as
-   importing until startup recovery. Making approval durable (an Oban
-   job per approval instead of a PubSub message to Import) would close
-   it; not built, because every known cause of a lost import is fixed at
-   its source and the remaining one is a process crash.
+2. The import lost to a crash mid-flight is decided by ADR-076 and moved
+   to campaign `durable-work` (known finding 1).
 
 ## Completion criteria
 
