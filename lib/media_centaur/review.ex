@@ -211,7 +211,8 @@ defmodule MediaCentaur.Review do
     {done, unlinked} = Enum.split_with(open, &MapSet.member?(linked, &1.file_path))
     unfinished_ids = for %{status: :approved, id: id} <- unlinked, do: id
 
-    {closed, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^Enum.map(done, & &1.id)))
+    done_ids = Enum.map(done, & &1.id)
+    {closed, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^done_ids))
 
     {reopened, _} =
       Repo.update_all(from(p in PendingFile, where: p.id in ^unfinished_ids),
@@ -221,6 +222,9 @@ defmodule MediaCentaur.Review do
           updated_at: DateTime.utc_now(:second)
         ]
       )
+
+    Enum.each(done_ids, &broadcast_reviewed/1)
+    Enum.each(unfinished_ids, &Events.broadcast(%FileAdded{pending_file_id: &1}))
 
     if closed + reopened > 0 do
       Log.info(
@@ -539,9 +543,10 @@ defmodule MediaCentaur.Review do
 
   Returns a list of group maps:
 
-      %{key: {media_dir, root}, files: [pending_files], representative: first_file}
+      %{key: {media_dir, root}, files: [pending_files], representative: file}
 
   Single-file groups (movies, flat downloads) are groups of 1 — same shape.
+  The representative is `representative/1` of the files.
   """
   def fetch_review_groups do
     Repo.all(
@@ -554,9 +559,18 @@ defmodule MediaCentaur.Review do
       {file.media_directory, series_root(file)}
     end)
     |> Enum.map(fn {key, files} ->
-      %{key: key, files: files, representative: hd(files)}
+      %{key: key, files: files, representative: representative(files)}
     end)
   end
+
+  @doc """
+  The file a group is shown and judged by: its first file still awaiting
+  a decision, or its first file when every one is importing. A file that
+  joins a group whose other files are importing is what the reviewer acts
+  on, not hidden behind them.
+  """
+  @spec representative([PendingFile.t(), ...]) :: PendingFile.t()
+  def representative([first | _] = files), do: Enum.find(files, first, &(&1.status == :pending))
 
   @doc """
   Extracts the series root — the first path component below the media directory.

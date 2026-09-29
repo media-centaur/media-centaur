@@ -351,7 +351,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               {acc, Map.delete(by_key, group.key)}
 
             true ->
-              updated = %{group | files: files, representative: List.first(files)}
+              updated = %{group | files: files, representative: Review.representative(files)}
               {[updated | acc], Map.put(by_key, group.key, updated)}
           end
         end
@@ -732,7 +732,6 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     ~H"""
     <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
-
       <div class="p-6 space-y-5">
         <%!-- Header: title + filepath + reason --%>
         <div class="flex items-start justify-between gap-4">

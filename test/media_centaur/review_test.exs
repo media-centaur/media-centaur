@@ -88,6 +88,30 @@ defmodule MediaCentaur.ReviewTest do
       assert Review.dismissed?(path)
     end
 
+    # 2026-09-29: the rows changed with no broadcast, so the Review badge
+    # kept its old count until the next review event.
+    test "tells review subscribers what it closed and reopened" do
+      linked = create_pending_file(%{file_path: "/media/test/linked.mkv"})
+      movie = create_movie(%{name: "Sample Movie"})
+
+      create_linked_file(%{
+        file_path: "/media/test/linked.mkv",
+        media_dir: "/media/test",
+        movie_id: movie.id
+      })
+
+      unfinished = create_pending_file(%{file_path: "/media/test/unfinished.mkv"})
+      {:ok, _} = Review.approve_pending_file(unfinished)
+
+      Review.subscribe()
+      Review.reconcile_with_library()
+
+      linked_id = linked.id
+      unfinished_id = unfinished.id
+      assert_receive {:file_reviewed, %Review.Events.FileReviewed{pending_file_id: ^linked_id}}
+      assert_receive {:file_added, %Review.Events.FileAdded{pending_file_id: ^unfinished_id}}
+    end
+
     test "reports zero on an empty table" do
       assert %{closed: 0, reopened: 0} = Review.reconcile_with_library()
     end
@@ -355,6 +379,24 @@ defmodule MediaCentaur.ReviewTest do
       ]
 
       assert {:error, :mixed_identities} = Review.group_identity(files)
+    end
+  end
+
+  describe "fetch_review_groups/0 — the representative" do
+    # 2026-09-29: the group's state was read from its first file. A file that
+    # joined a group still importing was hidden behind "Importing", with no
+    # action, until its siblings finished.
+    test "is a pending file when the group has one" do
+      importing =
+        create_pending_file(%{file_path: "/media/test/Sample Show/S01E01.mkv"})
+
+      {:ok, _} = Review.approve_pending_file(importing)
+
+      pending =
+        create_pending_file(%{file_path: "/media/test/Sample Show/S01E02.mkv"})
+
+      assert [%{representative: representative}] = Review.fetch_review_groups()
+      assert representative.id == pending.id
     end
   end
 
