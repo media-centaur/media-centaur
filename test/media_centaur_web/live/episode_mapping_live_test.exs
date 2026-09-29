@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     seed_show()
     divert_file()
     {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
 
     html = render_click(view, "dismiss_all", %{})
     assert html =~ "Click again to dismiss all"
@@ -79,6 +80,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     seed_show()
     divert_file()
     {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
 
     render_click(view, "dismiss_all", %{})
     render_click(view, "select_show", %{"tmdb" => "42"})
@@ -99,7 +101,9 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     seed_show()
     divert_file()
 
-    {:ok, _view, html} = live(conn, "/episode-mapping")
+    {:ok, view, _html} = live(conn, "/episode-mapping")
+    # The show resolves off the LiveView process (ADR-044, 2026-09-29).
+    html = render_async(view)
 
     assert html =~ "Sample Show"
     assert html =~ "1 file(s) waiting"
@@ -112,6 +116,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     divert_file()
 
     {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
 
     html = view |> element("button", "Confirm matches") |> render_click()
 
@@ -125,6 +130,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     file = divert_file()
 
     {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
 
     # The picker change (a form phx-change) re-targets the file from E3 to E4.
     view
@@ -142,6 +148,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     divert_file()
 
     {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
 
     view |> element("button", "Dismiss all") |> render_click()
     html = view |> element("button", "Click again to dismiss all") |> render_click()
@@ -158,11 +165,14 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
       {:ok, _} = EpisodeMapping.dismiss_awaiting(file)
 
       {:ok, view, _html} = live(conn, "/episode-mapping")
+      render_async(view)
+      render_async(view)
 
       view |> element("#episode-mapping-dismissed .disclosure-head") |> render_click()
       assert has_element?(view, "#episode-mapping-dismissed-#{file.id}")
 
       view |> element("#episode-mapping-dismissed-#{file.id} button", "Restore") |> render_click()
+      render_async(view)
 
       assert [%{id: restored_id}] = EpisodeMapping.list_awaiting()
       assert restored_id == file.id

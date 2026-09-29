@@ -106,6 +106,10 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
       {:ok, episode_mapping_view, _html} = live(conn, ~p"/episode-mapping")
 
       assert has_element?(episode_mapping_view, ~s{[data-nav-zone="zone-tabs"] a[href="/review"]}, "1")
+      # The page resolves its show off the LiveView process (ADR-044);
+      # the test drives that to completion before it ends (ADR-049).
+      render_async(episode_mapping_view)
+      render_async(review_view)
     end
   end
 end

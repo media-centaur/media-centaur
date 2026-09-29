@@ -296,6 +296,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert File.exists?(path), "the first click must only arm the confirmation, not delete"
 
       render_click(view, "delete_prompt", %{"key" => key})
+      # The delete runs off the LiveView process (ADR-044, 2026-09-29).
+      render_async(view)
 
       refute File.exists?(path)
       refute render(view) =~ "Broken Download"
@@ -369,6 +371,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert render_click(view, "delete_prompt", %{"key" => key}) =~ "Click again to delete file"
 
       render_click(view, "delete_prompt", %{"key" => key})
+      render_async(view)
 
       refute File.exists?(path)
       assert File.dir?(media_dir), "the media directory root itself must never be removed"
