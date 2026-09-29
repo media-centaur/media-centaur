@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   require MediaCentaur.Log, as: Log
 
+  import MediaCentaurWeb.Components.DismissedFiles
   import MediaCentaurWeb.Components.ReviewTabs
   import MediaCentaurWeb.ReviewHelpers
 
@@ -34,6 +35,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(loaded?: false)
      |> assign(groups: [])
      |> assign(groups_by_key: %{})
+     |> assign(dismissed: [])
      |> assign(tmdb_ready: false)
      |> assign(selected_key: nil)
      |> assign(search_open: nil)
@@ -77,6 +79,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     socket
     |> assign(groups: groups)
+    |> assign_dismissed()
     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
     |> apply_group_stats()
     |> ensure_selection()
@@ -87,9 +90,15 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     socket
     |> assign(groups: groups)
+    |> assign_dismissed()
     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
     |> apply_group_stats()
     |> ensure_selection()
+  end
+
+  defp assign_dismissed(socket) do
+    dismissed = for file <- Review.list_dismissed(), do: %{id: file.id, path: relative_file_path(file)}
+    assign(socket, dismissed: dismissed)
   end
 
   @impl true
@@ -140,10 +149,20 @@ defmodule MediaCentaurWeb.ReviewLive do
     with %{} = group <- socket.assigns.groups_by_key[group_key],
          {:fire, socket} <- ArmGesture.press(socket, "dismiss", group_key) do
       {_dismissed, errors} = Review.dismiss_group(group.files)
-      {:noreply, report_errors(socket, errors, "dismiss")}
+      {:noreply, socket |> report_errors(errors, "dismiss") |> refresh_groups()}
     else
       {:armed, socket} -> {:noreply, socket}
       nil -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore", %{"id" => id}, socket) do
+    case Review.restore(id) do
+      {:ok, _restored} ->
+        {:noreply, refresh_groups(socket)}
+
+      {:error, _reason} ->
+        {:noreply, socket |> put_flash(:error, "Could not restore the file") |> refresh_groups()}
     end
   end
 
@@ -329,6 +348,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      socket
      |> assign(groups: groups)
      |> assign(groups_by_key: groups_by_key)
+     |> assign_dismissed()
      |> apply_group_stats()
      |> advance_selection(socket.assigns.selected_key)}
   end
@@ -447,15 +467,18 @@ defmodule MediaCentaurWeb.ReviewLive do
         <%!-- Empty state. The copy explains what the queue is for rather than
               confirming it is empty — the screen already shows that, and a new
               user has never seen the queue populated. --%>
-        <.empty_state
-          :if={@groups == []}
-          icon="hero-check-circle"
-          headline="Files we could not place land here"
-          data-nav-zone="review-list"
-        >
-          When a file in your media directories cannot be matched to a title with confidence, it
-          waits here for you to pick the right one by hand.
-        </.empty_state>
+        <div :if={@groups == []} class="space-y-4" data-nav-zone="review-list">
+          <.empty_state icon="hero-check-circle" headline="Files we could not place land here">
+            When a file in your media directories cannot be matched to a title with confidence, it
+            waits here for you to pick the right one by hand.
+          </.empty_state>
+          <.dismissed_files
+            id="review-dismissed"
+            open={DisclosureState.open?(@disclosures, "review-dismissed")}
+            files={@dismissed}
+            hint={dismissed_hint()}
+          />
+        </div>
 
         <%!-- Master-detail layout --%>
         <div :if={@groups != []} class="flex gap-6 flex-1 min-h-0 overflow-x-auto">
@@ -468,6 +491,17 @@ defmodule MediaCentaurWeb.ReviewLive do
               groups={@sorted_groups}
               selected_key={@selected_key}
             />
+            <div
+              :if={@dismissed != []}
+              class="shrink-0 max-h-[40%] overflow-y-auto thin-scrollbar p-3 border-t border-base-content/6"
+            >
+              <.dismissed_files
+                id="review-dismissed"
+                open={DisclosureState.open?(@disclosures, "review-dismissed")}
+                files={@dismissed}
+                hint={dismissed_hint()}
+              />
+            </div>
           </div>
 
           <%!-- Right: detail panel --%>
@@ -1166,6 +1200,8 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   defp series_root_name(%{key: {_media_dir, root}}), do: root
+
+  defp dismissed_hint, do: "Dismissed files are skipped on every scan. Restore one to review it again."
 
   defp tmdb_url("tv", id), do: "https://www.themoviedb.org/tv/#{id}"
   defp tmdb_url(_, id), do: "https://www.themoviedb.org/movie/#{id}"

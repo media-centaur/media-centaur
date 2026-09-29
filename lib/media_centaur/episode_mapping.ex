@@ -182,6 +182,31 @@ defmodule MediaCentaur.EpisodeMapping do
     Repo.aggregate(awaiting(), :count)
   end
 
+  @doc "Dismissed files the library has not linked, most recently dismissed first."
+  @spec list_dismissed() :: [AwaitingFile.t()]
+  def list_dismissed do
+    Repo.all(
+      from f in AwaitingFile,
+        where:
+          f.status == :dismissed and
+            f.file_path not in subquery(Library.Files.linked_paths_subquery()),
+        order_by: [desc: f.updated_at]
+    )
+  end
+
+  @doc """
+  Undoes a dismissal: the file awaits a mapping decision again.
+  `{:error, changeset}` for a file that is not dismissed.
+  """
+  @spec restore_awaiting(Ecto.UUID.t()) ::
+          {:ok, AwaitingFile.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def restore_awaiting(id) do
+    case Repo.get(AwaitingFile, id) do
+      nil -> {:error, :not_found}
+      file -> file |> AwaitingFile.restore_changeset() |> Repo.update() |> broadcast()
+    end
+  end
+
   @doc "Files still awaiting a mapping decision for one show (by series TMDB id)."
   @spec awaiting_for_tmdb(integer()) :: [AwaitingFile.t()]
   def awaiting_for_tmdb(tmdb_id) do

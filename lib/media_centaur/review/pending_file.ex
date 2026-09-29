@@ -102,6 +102,14 @@ defmodule MediaCentaur.Review.PendingFile do
     |> put_change(:error_message, nil)
   end
 
+  @doc "Undoes a dismissal, keeping the match the file had."
+  def restore_changeset(pending_file) do
+    pending_file
+    |> change()
+    |> validate_status(:dismissed)
+    |> put_change(:status, :pending)
+  end
+
   def dismiss_changeset(pending_file) do
     pending_file
     |> change()

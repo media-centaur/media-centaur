@@ -560,6 +560,43 @@ defmodule MediaCentaur.ReviewTest do
     end
   end
 
+  # 2026-09-29: a dismissal could not be undone from the UI — the only way
+  # back was a rematch, and Discovery never searches a dismissed file again.
+  describe "list_dismissed/0 and restore/1" do
+    test "lists dismissed files the library has not linked" do
+      dismissed = create_pending_file(%{file_path: "/media/test/dismissed.mkv"})
+      {:ok, _} = Review.dismiss(dismissed)
+      create_pending_file(%{file_path: "/media/test/open.mkv"})
+
+      assert [%{id: id}] = Review.list_dismissed()
+      assert id == dismissed.id
+    end
+
+    test "restore returns a dismissed file to the queue, keeping its match" do
+      dismissed = create_pending_file(%{file_path: "/media/test/dismissed.mkv", tmdb_id: 550})
+      {:ok, _} = Review.dismiss(dismissed)
+      Review.subscribe()
+
+      assert {:ok, restored} = Review.restore(dismissed.id)
+
+      assert restored.status == :pending
+      assert restored.tmdb_id == 550
+      refute Review.dismissed?("/media/test/dismissed.mkv")
+      assert [%{id: listed}] = Review.list_pending_files_for_review()
+      assert listed == dismissed.id
+
+      restored_id = dismissed.id
+      assert_receive {:file_added, %Review.Events.FileAdded{pending_file_id: ^restored_id}}
+    end
+
+    test "restore refuses a file that is not dismissed" do
+      open = create_pending_file(%{file_path: "/media/test/open.mkv"})
+
+      assert {:error, %Ecto.Changeset{}} = Review.restore(open.id)
+      assert {:error, :not_found} = Review.restore(Ecto.UUID.generate())
+    end
+  end
+
   describe "dismissed?/1" do
     # Dismiss is a person deciding the file is not library content, and
     # `find_or_create_pending_file/1` keys on file_path regardless of

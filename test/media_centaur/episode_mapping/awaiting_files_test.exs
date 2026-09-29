@@ -108,6 +108,29 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
     end
   end
 
+  describe "list_dismissed/0 and restore_awaiting/1" do
+    test "lists dismissed files, and restore returns one to the queue" do
+      {:ok, file} = EpisodeMapping.divert(attrs())
+      {:ok, _} = EpisodeMapping.dismiss_awaiting(file)
+      EpisodeMapping.subscribe()
+
+      assert [%{id: id}] = EpisodeMapping.list_dismissed()
+      assert id == file.id
+
+      assert {:ok, restored} = EpisodeMapping.restore_awaiting(file.id)
+      assert restored.status == :pending
+      assert EpisodeMapping.list_dismissed() == []
+      assert [%{id: ^id}] = EpisodeMapping.list_awaiting()
+      assert_receive {:episode_mapping_updated}
+    end
+
+    test "restore refuses a file that is not dismissed" do
+      {:ok, file} = EpisodeMapping.divert(attrs())
+
+      assert {:error, %Ecto.Changeset{}} = EpisodeMapping.restore_awaiting(file.id)
+    end
+  end
+
   describe "dismiss_awaiting/1" do
     test "dismiss marks the record dismissed and drops it from the pending list" do
       {:ok, file} = EpisodeMapping.divert(attrs())

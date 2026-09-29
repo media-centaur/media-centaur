@@ -447,6 +447,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
 | `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
 | `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
+| `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Identity and Episode mapping | ✅ |
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
