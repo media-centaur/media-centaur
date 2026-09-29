@@ -36,6 +36,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(groups: [])
      |> assign(groups_by_key: %{})
      |> assign(dismissed: [])
+     |> assign(deleting: nil)
+     |> assign(delete_target: nil)
      |> assign(tmdb_ready: false)
      |> assign(selected_key: nil)
      |> assign(search_open: nil)
@@ -83,6 +85,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
     |> apply_group_stats()
     |> ensure_selection()
+    |> resolve_delete_target()
   end
 
   defp refresh_groups(socket) do
@@ -94,6 +97,24 @@ defmodule MediaCentaurWeb.ReviewLive do
     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
     |> apply_group_stats()
     |> ensure_selection()
+    |> resolve_delete_target()
+  end
+
+  # Whether the selected group's files sit in a folder safe to delete
+  # wholesale (`MediaCentaur.DeleteTargets`) — it reads the media
+  # directory, so it resolves off the LiveView process (ADR-044) and the
+  # Delete button waits for it. Kept as `{paths, target}`: an answer for
+  # other paths than the selected group's is stale.
+  defp resolve_delete_target(socket) do
+    with %{} = group <- socket.assigns.groups_by_key[socket.assigns.selected_key],
+         paths = Enum.map(group.files, & &1.file_path),
+         false <- match?({^paths, _target}, socket.assigns.delete_target) do
+      socket
+      |> assign(delete_target: {paths, :resolving})
+      |> start_async(:delete_target, fn -> {paths, DeleteTargets.resolve_folder_target(paths)} end)
+    else
+      _ -> socket
+    end
   end
 
   defp assign_dismissed(socket) do
@@ -121,7 +142,8 @@ defmodule MediaCentaurWeb.ReviewLive do
        |> assign(search_query: "")
        |> assign(search_results: [])
        |> assign(searching: false)
-       |> assign(searched: false)}
+       |> assign(searched: false)
+       |> resolve_delete_target()}
     end
   end
 
@@ -167,17 +189,24 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   # The button's label and "Deleting…" state come from the shared
-  # `LiveHelpers.delete_gesture_state/3`, as on the title detail.
+  # `LiveHelpers.delete_gesture_state/3`, as on the title detail. The
+  # delete touches the media directory, so it runs off the LiveView
+  # process (ADR-044) and lands in `handle_async({:delete, _}, ...)`.
   def handle_event("delete_prompt", %{"key" => key}, socket) do
     group_key = decode_key(key)
 
-    with %{} = group <- socket.assigns.groups_by_key[group_key],
+    with nil <- socket.assigns.deleting,
+         %{} = group <- socket.assigns.groups_by_key[group_key],
          {:fire, socket} <- ArmGesture.press(socket, "delete_prompt", group_key) do
-      {_deleted, errors} = execute_delete(group.files)
-      {:noreply, report_errors(socket, errors, "delete")}
+      files = group.files
+
+      {:noreply,
+       socket
+       |> assign(deleting: group_key)
+       |> start_async({:delete, group_key}, fn -> execute_delete(files) end)}
     else
       {:armed, socket} -> {:noreply, socket}
-      nil -> {:noreply, socket}
+      _in_flight_or_gone -> {:noreply, socket}
     end
   end
 
@@ -278,11 +307,6 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  # Resolves fresh (never cached — see `MediaCentaur.DeleteTargets`) whether
-  # this group's files sit in a folder safe to delete wholesale. When they
-  # do, the whole folder goes (nfo/txt/samples included) and Review only
-  # has to clean up its own `PendingFile` rows afterward; otherwise each
-  # file is deleted individually.
   # One disclosure per group; the key is a term, so the id hashes it.
   defp files_disclosure_id(group), do: "review-files-#{:erlang.phash2(group.key)}"
 
@@ -291,6 +315,11 @@ defmodule MediaCentaurWeb.ReviewLive do
   defp report_errors(socket, errors, verb),
     do: put_flash(socket, :error, "#{errors} file(s) failed to #{verb}")
 
+  # Resolves fresh (never cached — see `MediaCentaur.DeleteTargets`) whether
+  # this group's files sit in a folder safe to delete wholesale. When they
+  # do, the whole folder goes (nfo/txt/samples included) and Review only
+  # has to clean up its own `PendingFile` rows afterward; otherwise each
+  # file is deleted individually. Runs in the delete task.
   defp execute_delete(files) do
     paths = Enum.map(files, & &1.file_path)
 
@@ -350,7 +379,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(groups_by_key: groups_by_key)
      |> assign_dismissed()
      |> apply_group_stats()
-     |> advance_selection(socket.assigns.selected_key)}
+     |> advance_selection(socket.assigns.selected_key)
+     |> resolve_delete_target()}
   end
 
   # Another page (or tab) approved files; this one shows them importing.
@@ -387,6 +417,31 @@ defmodule MediaCentaurWeb.ReviewLive do
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_async(:delete_target, {:ok, {paths, target}}, socket) do
+    if match?({^paths, :resolving}, socket.assigns.delete_target),
+      do: {:noreply, assign(socket, delete_target: {paths, target})},
+      else: {:noreply, socket}
+  end
+
+  # Unresolved, the target falls back to the files alone — never a folder.
+  def handle_async(:delete_target, {:exit, reason}, socket) do
+    Log.warning(:review, "resolving the delete target failed — #{inspect(reason)}")
+
+    case socket.assigns.delete_target do
+      {paths, :resolving} -> {:noreply, assign(socket, delete_target: {paths, :file_only})}
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_async({:delete, _group_key}, {:ok, {_deleted, errors}}, socket) do
+    {:noreply, socket |> assign(deleting: nil) |> report_errors(errors, "delete") |> refresh_groups()}
+  end
+
+  def handle_async({:delete, _group_key}, {:exit, reason}, socket) do
+    Log.error(:review, "delete task crashed — #{inspect(reason)}")
+    {:noreply, socket |> assign(deleting: nil) |> put_flash(:error, "Delete failed") |> refresh_groups()}
   end
 
   # A crashed search must clear `searching`; leaving it true strands the
@@ -510,6 +565,8 @@ defmodule MediaCentaurWeb.ReviewLive do
               :if={@selected_key && @groups_by_key[@selected_key]}
               group={@groups_by_key[@selected_key]}
               armed_gesture={@armed_gesture}
+              delete_target={@delete_target}
+              deleting={@deleting}
               search_open={@search_open == @selected_key}
               search_query={@search_query}
               search_type={@search_type}
@@ -675,16 +732,18 @@ defmodule MediaCentaurWeb.ReviewLive do
     tied = tied_candidates?(file)
     reason = review_reason(file)
 
-    # Resolved fresh on every render (never cached — see
-    # `MediaCentaur.DeleteTargets`) so it always reflects the group's
-    # current file paths, not a snapshot that could go stale across a move.
+    paths = Enum.map(assigns.group.files, & &1.file_path)
+
     delete_target =
-      DeleteTargets.resolve_folder_target(Enum.map(assigns.group.files, & &1.file_path))
+      case assigns.delete_target do
+        {^paths, target} -> target
+        _stale_or_none -> :resolving
+      end
 
     gesture =
       LiveHelpers.delete_gesture_state(
         assigns.group.key,
-        nil,
+        assigns.deleting,
         ArmGesture.armed_target(assigns.armed_gesture, "delete_prompt")
       )
 
@@ -788,6 +847,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             size="sm"
             phx-click="delete_prompt"
             phx-value-key={@encoded_key}
+            disabled={@delete_target == :resolving or @delete_gesture == :deleting}
             data-nav-item
             tabindex="0"
             aria-label={delete_action_label(@delete_gesture, @delete_target, @file_count)}
@@ -1212,17 +1272,19 @@ defmodule MediaCentaurWeb.ReviewLive do
   @doc """
   Label for the delete button across its three-state gesture
   (`LiveHelpers.delete_gesture_state/3`) and the resolved delete target
-  (`MediaCentaur.DeleteTargets.resolve_folder_target/1`). Always names
-  what will actually be removed — a folder by name, or a file count —
-  rather than a generic "Delete", so confirming is never a guess.
+  (`MediaCentaur.DeleteTargets.resolve_folder_target/1`). Names what
+  will actually be removed — a folder by name, or a file count — so
+  confirming is never a guess; a plain "Delete", disabled, only while the
+  target is still resolving.
   """
   @spec delete_action_label(
           :idle | :confirm | :deleting,
-          {:folder, String.t()} | :file_only,
+          {:folder, String.t()} | :file_only | :resolving,
           pos_integer()
         ) ::
           String.t()
   def delete_action_label(:deleting, _delete_target, _file_count), do: "Deleting…"
+  def delete_action_label(_gesture, :resolving, _file_count), do: "Delete"
 
   def delete_action_label(:confirm, {:folder, dir}, _file_count) do
     "Click again to delete folder \"#{Path.basename(dir)}\""

@@ -11,11 +11,12 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
   canonical episodes — never fabricating a phantom season.
 
   View logic lives in `MediaCentaurWeb.EpisodeMappingView` ([ADR-030]); this
-  module is thin wiring. `resolve_show/1` is called synchronously on
-  selection — the awaiting queue is a small admin surface; if it grows,
-  move the TMDB-backed spine assembly to `assign_async`.
+  module is thin wiring. `EpisodeMapping.resolve_show/1` assembles the
+  spine from TMDB's episode list, so it runs in `start_async/3`.
   """
   use MediaCentaurWeb, :live_view
+
+  require MediaCentaur.Log, as: Log
 
   import MediaCentaurWeb.Components.DismissedFiles
   import MediaCentaurWeb.Components.ReviewTabs
@@ -28,7 +29,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, page_title: "Reconcile")
+    socket = assign(socket, page_title: "Review")
 
     # No EpisodeMapping.subscribe() here — MediaCentaurWeb.ShellBadges
     # (default live_session on_mount) already subscribes every LiveView to
@@ -74,14 +75,13 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
     assign(socket, selected_tmdb: nil, review: nil, targets: %{}, episode_options: [])
   end
 
+  # The spine is TMDB's episode list, read through the store (which may ask
+  # TMDB), so the show resolves off the LiveView process (ADR-044) and
+  # lands in `handle_async({:resolve_show, _}, ...)`.
   defp select(socket, tmdb_id) do
-    review = EpisodeMapping.resolve_show(tmdb_id)
-
     socket
     |> assign(selected_tmdb: tmdb_id)
-    |> assign(review: review)
-    |> assign(targets: EpisodeMappingView.initial_targets(review.resolution))
-    |> assign(episode_options: EpisodeMappingView.episode_options(review.spine))
+    |> start_async({:resolve_show, tmdb_id}, fn -> EpisodeMapping.resolve_show(tmdb_id) end)
   end
 
   @impl true
@@ -138,6 +138,24 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
       {:error, _reason} ->
         {:noreply, socket |> put_flash(:error, "Could not restore the file") |> load()}
     end
+  end
+
+  @impl true
+  def handle_async({:resolve_show, tmdb_id}, {:ok, review}, socket) do
+    if socket.assigns.selected_tmdb == tmdb_id do
+      {:noreply,
+       socket
+       |> assign(review: review)
+       |> assign(targets: EpisodeMappingView.initial_targets(review.resolution))
+       |> assign(episode_options: EpisodeMappingView.episode_options(review.spine))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_async({:resolve_show, tmdb_id}, {:exit, reason}, socket) do
+    Log.warning(:pipeline, "episode mapping — resolving tmdb:#{tmdb_id} failed: #{inspect(reason)}")
+    {:noreply, put_flash(socket, :error, "Couldn't load the show's episodes")}
   end
 
   @impl true
@@ -238,7 +256,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
             data-nav-zone="episode-mapping-detail"
           >
             <.detail
-              :if={@review}
+              :if={@review && @review.tmdb_id == @selected_tmdb}
               dismiss_all_armed={ArmGesture.armed?(@armed_gesture, "dismiss_all")}
               review={@review}
               targets={@targets}

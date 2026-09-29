@@ -80,6 +80,89 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     result
   end
 
+  # The two review pages with work in every state they draw: a series
+  # group with an importing file beside a pending one, a returned item with
+  # its reason, a dismissed file under each list, and a show waiting in
+  # episode mapping whose spine resolves off the LiveView process.
+  describe "the review pages with work waiting" do
+    setup do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_routes([
+        {"/tv/4242/season/1",
+         TmdbStubs.season_detail(%{
+           "season_number" => 1,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Sample Special 2025", "air_date" => "2025-12-26"}
+           ]
+         })},
+        {"/tv/4242", TmdbStubs.tv_detail(%{"id" => 4242, "seasons" => [%{"season_number" => 1}]})}
+      ])
+
+      importing =
+        create_pending_file(%{
+          file_path: "/media/test/Sample Show/S01E01.mkv",
+          parsed_type: "tv",
+          parsed_season: 1,
+          parsed_episode: 1
+        })
+
+      {:ok, _} = MediaCentaur.Review.approve_pending_file(importing)
+
+      create_pending_file(%{
+        file_path: "/media/test/Sample Show/S01E02.mkv",
+        parsed_type: "tv",
+        parsed_season: 1,
+        parsed_episode: 2
+      })
+
+      create_pending_file(%{
+        file_path: "/media/test/Movie.A.2010.mkv",
+        error_message: "Importing it failed. Approve it again to retry."
+      })
+
+      {:ok, _} =
+        MediaCentaur.Review.dismiss(create_pending_file(%{file_path: "/media/test/Home.Video.mkv"}))
+
+      {:ok, _} =
+        MediaCentaur.EpisodeMapping.divert(%{
+          file_path: "/media/test/Sample Show/Sample.Special.2025.mkv",
+          media_dir: "/media/test",
+          tmdb_id: 4242,
+          series_title: "Sample Show",
+          claimed_year: 2025
+        })
+
+      {:ok, dismissed} =
+        MediaCentaur.EpisodeMapping.divert(%{
+          file_path: "/media/test/Sample Show/Sample.Show.S03E01.mkv",
+          media_dir: "/media/test",
+          tmdb_id: 4242,
+          claimed_season: 3,
+          claimed_episode: 1
+        })
+
+      {:ok, _} = MediaCentaur.EpisodeMapping.dismiss_awaiting(dismissed)
+      :ok
+    end
+
+    test "/review renders groups, reasons and the dismissed list", %{conn: conn} do
+      assert {:ok, view, _html} = smoke!(conn, "/review")
+      html = render_async(view)
+
+      assert html =~ "Dismissed (1)"
+      assert html =~ "not added"
+    end
+
+    test "/episode-mapping renders the show's mapping and the dismissed list", %{conn: conn} do
+      assert {:ok, view, _html} = smoke!(conn, "/episode-mapping")
+      html = render_async(view)
+
+      assert html =~ "Dismissed (1)"
+      assert html =~ "Sample Special 2025"
+    end
+  end
+
   # Discovery with a roster: a friend's listing on a title the library
   # owns (so a band paints the entity's backdrop and the rail has You and
   # a friend), an own review, and the Friends grid with a card opened by
