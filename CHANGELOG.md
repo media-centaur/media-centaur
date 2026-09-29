@@ -4,6 +4,30 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.47.0 — 2026-09-29
+
+### New
+
+- **Choose the episode in Review.** When you match a file to a TV series and its name doesn't say which episode it is — a yearly special, a single-file release — Review now shows an **Episode** list with every episode of the series, grouped by season. If the year in the file's name identifies one episode, that episode is already selected. **Approve** appears once the file has an episode.
+
+### Improved
+
+- **A confirmed file stays in Review until it is in your library.** After you approve a match, the file stays listed as **Importing** and leaves once it has been added. If it can't be added, it comes back marked **Not added**, with the reason and the match you chose, instead of disappearing.
+- **Files that match on their own but can't be added now show up in Review** with the reason, instead of being searched for again on every restart.
+
+### Fixed
+
+- **Approved files no longer vanish.** Approving a TV match for a file whose name has no season and episode number removed it from Review, but it never appeared in your library and came back to Review after the next restart without your choice.
+- **Episodes named with the release group first are recognised.** Files inside a release folder that are named like `group-show.name.s01e05.mkv` were read with the group as part of the show's name, found no match, and all went to Review.
+- **Hyphenated titles keep their hyphen.** A file like `Show-Name.S01E02…` or `Movie-Title.2002…` was read as "Show" or "Movie" and matched the wrong title or nothing.
+- **Starting a download from a search clears the search**, so Incoming's activity is visible again instead of hidden behind the old results.
+- **What your friends did with a title shows in the app's own tooltip** on person cards and on the social glyphs.
+- **The silver and gold social glyphs are smooth**; the grainy texture is gone.
+
+### Migration safety
+
+- This release runs no migrations.
+
 ## v1.46.0 — 2026-09-28
 
 ### New
