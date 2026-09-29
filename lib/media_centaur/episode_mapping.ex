@@ -173,29 +173,34 @@ defmodule MediaCentaur.EpisodeMapping do
   @doc "All files still awaiting a mapping decision, oldest first."
   @spec list_awaiting() :: [AwaitingFile.t()]
   def list_awaiting do
-    Repo.all(from f in AwaitingFile, where: f.status == :pending, order_by: [asc: f.inserted_at])
+    Repo.all(from f in awaiting(), order_by: [asc: f.inserted_at])
   end
 
   @doc "Number of files still awaiting a mapping decision."
   @spec count_awaiting() :: non_neg_integer()
   def count_awaiting do
-    Repo.aggregate(from(f in AwaitingFile, where: f.status == :pending), :count)
+    Repo.aggregate(awaiting(), :count)
   end
 
-  @doc "Pending awaiting files for one show (by series TMDB id)."
+  @doc "Files still awaiting a mapping decision for one show (by series TMDB id)."
   @spec awaiting_for_tmdb(integer()) :: [AwaitingFile.t()]
   def awaiting_for_tmdb(tmdb_id) do
     Repo.all(
-      from f in AwaitingFile,
-        where: f.status == :pending and f.tmdb_id == ^tmdb_id,
+      from f in awaiting(),
+        where: f.tmdb_id == ^tmdb_id,
         order_by: [asc: f.claimed_season, asc: f.claimed_episode]
     )
   end
 
-  @doc "Marks an awaiting file resolved (its mapping was confirmed and linked)."
-  @spec resolve_awaiting(AwaitingFile.t() | Ecto.UUID.t()) ::
-          {:ok, AwaitingFile.t()} | {:error, Ecto.Changeset.t()}
-  def resolve_awaiting(file_or_id), do: set_status(file_or_id, :resolved)
+  # The queue's members: pending rows whose file the library has not
+  # linked. A linked file is placed, however it got there; confirm deletes
+  # the row of a file it links.
+  defp awaiting do
+    from f in AwaitingFile,
+      where:
+        f.status == :pending and
+          f.file_path not in subquery(Library.Files.linked_paths_subquery())
+  end
 
   @doc "Marks an awaiting file dismissed (the user opted not to map it)."
   @spec dismiss_awaiting(AwaitingFile.t() | Ecto.UUID.t()) ::
@@ -324,7 +329,7 @@ defmodule MediaCentaur.EpisodeMapping do
              media_dir: file.media_dir,
              playable_item_id: playable_item_id
            }),
-         {:ok, _resolved} <- resolve_awaiting(file) do
+         {:ok, _deleted} <- file |> Repo.delete() |> broadcast() do
       :ok
     else
       {:error, reason} ->

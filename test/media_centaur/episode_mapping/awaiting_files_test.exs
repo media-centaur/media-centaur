@@ -1,6 +1,8 @@
 defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory
+
   alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.EpisodeMapping.AwaitingFile
 
@@ -59,15 +61,24 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
     end
   end
 
+  # Changed 2026-09-29 (campaign `review-coherence`): these used a
+  # `:resolved` status that confirm set after linking. Being linked is the
+  # answer, read from the library, so the status is gone: a confirmed row is
+  # deleted, and one whose file is linked any other way is not listed.
+  defp link!(file_path) do
+    movie = create_movie(%{name: "Sample Movie"})
+    create_linked_file(%{file_path: file_path, media_dir: "/media", movie_id: movie.id})
+  end
+
   describe "count_awaiting/0" do
-    test "counts only records still awaiting a mapping decision" do
+    test "counts only files still awaiting a mapping decision" do
       assert EpisodeMapping.count_awaiting() == 0
 
       {:ok, _pending} = EpisodeMapping.divert(attrs())
-      {:ok, resolved} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
+      {:ok, _linked} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
       {:ok, dismissed} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E03.mkv"}))
 
-      {:ok, _} = EpisodeMapping.resolve_awaiting(resolved)
+      link!("/media/Sample Show/S02E02.mkv")
       {:ok, _} = EpisodeMapping.dismiss_awaiting(dismissed)
 
       assert EpisodeMapping.count_awaiting() == 1
@@ -75,19 +86,21 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
   end
 
   describe "listing" do
-    test "list_awaiting/0 returns only pending records" do
+    test "list_awaiting/0 returns only files still awaiting a decision" do
       {:ok, pending} = EpisodeMapping.divert(attrs())
-      {:ok, other} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
-      {:ok, _} = EpisodeMapping.resolve_awaiting(other)
+      {:ok, _other} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
+      link!("/media/Sample Show/S02E02.mkv")
 
       ids = Enum.map(EpisodeMapping.list_awaiting(), & &1.id)
 
       assert ids == [pending.id]
     end
 
-    test "awaiting_for_tmdb/1 scopes to one show" do
+    test "awaiting_for_tmdb/1 scopes to one show, and leaves out a linked file" do
       {:ok, mine} = EpisodeMapping.divert(attrs())
+      {:ok, _linked} = EpisodeMapping.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
       {:ok, _theirs} = EpisodeMapping.divert(attrs(%{file_path: "/media/Other/S02E01.mkv", tmdb_id: 99}))
+      link!("/media/Sample Show/S02E02.mkv")
 
       ids = Enum.map(EpisodeMapping.awaiting_for_tmdb(4242), & &1.id)
 
@@ -95,15 +108,7 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFilesTest do
     end
   end
 
-  describe "resolve_awaiting/1 and dismiss_awaiting/1" do
-    test "resolve marks the record resolved and drops it from the pending list" do
-      {:ok, file} = EpisodeMapping.divert(attrs())
-
-      assert {:ok, resolved} = EpisodeMapping.resolve_awaiting(file)
-      assert resolved.status == :resolved
-      assert EpisodeMapping.list_awaiting() == []
-    end
-
+  describe "dismiss_awaiting/1" do
     test "dismiss marks the record dismissed and drops it from the pending list" do
       {:ok, file} = EpisodeMapping.divert(attrs())
 

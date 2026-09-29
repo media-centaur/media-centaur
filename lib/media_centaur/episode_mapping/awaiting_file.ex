@@ -35,7 +35,9 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFile do
     field :claimed_title, :string
     field :claimed_year, :integer
 
-    field :status, Ecto.Enum, values: [:pending, :resolved, :dismissed], default: :pending
+    # A confirmed file is linked and its row deleted, so a row is either
+    # awaiting a decision or dismissed by a person.
+    field :status, Ecto.Enum, values: [:pending, :dismissed], default: :pending
 
     timestamps()
   end
