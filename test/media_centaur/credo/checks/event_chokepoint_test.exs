@@ -115,10 +115,12 @@ defmodule MediaCentaur.Credo.Checks.EventChokepointTest do
       |> assert_issue()
     end
 
-    test "the old positional group tuple is caught" do
+    # The group tags this once used (`:group_error`, `:group_approved`) left
+    # the message set on 2026-09-29; the positional shape is what matters.
+    test "a positional tuple under a review tag is caught" do
       ~S'''
       defmodule MediaCentaur.Review do
-        def go(key, message), do: Topics.publish(Topics.review_updates(), {:group_error, key, message})
+        def go(key, ids), do: Topics.publish(Topics.review_updates(), {:files_approved, key, ids})
       end
       '''
       |> to_source_file("lib/media_centaur/review.ex")
@@ -129,8 +131,8 @@ defmodule MediaCentaur.Credo.Checks.EventChokepointTest do
     test "each direct publication is reported separately" do
       ~S'''
       defmodule MediaCentaur.Review do
-        def go(key, count, id) do
-          Topics.publish(Topics.review_updates(), {:group_approved, key, count})
+        def go(ids, id) do
+          Topics.publish(Topics.review_updates(), {:files_approved, ids})
           Topics.publish(Topics.review_updates(), {:file_reviewed, id})
         end
       end

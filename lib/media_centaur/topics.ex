@@ -62,7 +62,7 @@ defmodule MediaCentaur.Topics do
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
   | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
-  | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
+  | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:files_approved, _}`, `{:file_reviewed, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
   | `pipeline:stats` | `Pipeline.Stats`, `Pipeline.Image.Stats` | `{:pipeline_stats_updated, :content \| :image}` — coalesced; read the snapshot with `get_snapshot/0` |
   | `console:logs` | `Console` | log stream for the in-app drawer |

@@ -9,6 +9,8 @@ defmodule MediaCentaur.Review.PendingFile do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
@@ -87,12 +89,14 @@ defmodule MediaCentaur.Review.PendingFile do
     |> validate_required([:file_path])
   end
 
-  # Approval is the retry of an item the library returned, so the reason it
-  # came back with no longer describes it. A series match without an episode
-  # cannot be approved: the library would have nothing to attach it to.
+  # Approval sends the match to Import, so it needs an identity. It is also
+  # the retry of an item the library returned, so the reason it came back
+  # with no longer describes it. A series match without an episode cannot be
+  # approved: the library would have nothing to attach it to.
   def approve_changeset(pending_file) do
     pending_file
     |> change()
+    |> validate_required([:tmdb_id, :tmdb_type])
     |> validate_status(:pending)
     |> validate_episode_chosen()
     |> put_change(:status, :approved)

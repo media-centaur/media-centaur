@@ -230,6 +230,134 @@ defmodule MediaCentaur.ReviewTest do
     end
   end
 
+  # 2026-09-29 regression: the approve button checked only the group's first
+  # file, and approval required no identity. A sibling without a match was
+  # published with `tmdb_type: nil`; the Import producer raised on it and lost
+  # every import queued behind it, leaving those items "Importing" until a
+  # restart. Approval also ran on an unmonitored task that reported back by
+  # broadcast; it is now one synchronous call.
+  describe "approve_group/1" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+      :ok
+    end
+
+    defp matched_file(path, overrides \\ %{}) do
+      create_pending_file(
+        Map.merge(
+          %{
+            file_path: path,
+            media_directory: "/media/test",
+            parsed_type: "tv",
+            season_number: 1,
+            episode_number: 1,
+            tmdb_id: 4242,
+            tmdb_type: "tv",
+            confidence: 0.6
+          },
+          overrides
+        )
+      )
+    end
+
+    test "approves the group's pending files and sends each match to Import" do
+      first = matched_file("/media/test/Sample Show/S01E01.mkv")
+      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{episode_number: 2})
+
+      assert {:ok, 2} = Review.approve_group([first.id, second.id])
+
+      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E01.mkv", tmdb_id: 4242}}
+      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E02.mkv", tmdb_id: 4242}}
+      assert Enum.all?(Review.list_pending_files(), &(&1.status == :approved))
+    end
+
+    test "refuses a group with a file that has no identity, and sends nothing" do
+      matched = matched_file("/media/test/Sample Show/S01E01.mkv")
+
+      unmatched =
+        matched_file("/media/test/Sample Show/S01E02.mkv", %{tmdb_id: nil, tmdb_type: nil})
+
+      assert {:error, :no_identity} = Review.approve_group([matched.id, unmatched.id])
+
+      refute_receive {:file_matched, _}
+      assert Enum.all?(Review.list_pending_files(), &(&1.status == :pending))
+    end
+
+    test "refuses a group whose files carry different identities" do
+      first = matched_file("/media/test/Sample Show/S01E01.mkv")
+      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{tmdb_id: 9999})
+
+      assert {:error, :mixed_identities} = Review.approve_group([first.id, second.id])
+      refute_receive {:file_matched, _}
+    end
+
+    test "approves only the files still pending — an importing sibling is left alone" do
+      importing = matched_file("/media/test/Sample Show/S01E01.mkv")
+      {:ok, _} = Review.approve_pending_file(importing)
+      pending = matched_file("/media/test/Sample Show/S01E02.mkv", %{episode_number: 2})
+
+      assert {:ok, 1} = Review.approve_group([importing.id, pending.id])
+
+      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E02.mkv"}}
+      refute_receive {:file_matched, _}
+    end
+
+    test "tells review subscribers which files were approved" do
+      file = matched_file("/media/test/Sample Show/S01E01.mkv")
+      Review.subscribe()
+
+      assert {:ok, 1} = Review.approve_group([file.id])
+
+      file_id = file.id
+
+      assert_receive {:files_approved,
+                      %MediaCentaur.Review.Events.FilesApproved{pending_file_ids: [^file_id]}}
+    end
+
+    test "a single file without an identity cannot be approved" do
+      unmatched =
+        create_pending_file(%{
+          file_path: "/media/test/Movie.A.mkv",
+          parsed_type: "movie",
+          tmdb_id: nil,
+          tmdb_type: nil
+        })
+
+      assert {:error, changeset} = Review.approve_pending_file(unmatched)
+      assert %{tmdb_id: _} = errors_on(changeset)
+    end
+  end
+
+  describe "group_identity/1" do
+    test "is the one identity the files share" do
+      files = [
+        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
+        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"})
+      ]
+
+      assert {:ok, {4242, "tv"}} = Review.group_identity(files)
+    end
+
+    test "reports a missing identity before a mixed one" do
+      files = [
+        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
+        build_pending_file(%{tmdb_id: nil, tmdb_type: nil}),
+        build_pending_file(%{tmdb_id: 9999, tmdb_type: "tv"})
+      ]
+
+      assert {:error, :no_identity} = Review.group_identity(files)
+    end
+
+    test "reports different identities" do
+      files = [
+        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
+        build_pending_file(%{tmdb_id: 4242, tmdb_type: "movie"})
+      ]
+
+      assert {:error, :mixed_identities} = Review.group_identity(files)
+    end
+  end
+
   describe "fetch_review_groups/0" do
     # An approved item waits in the queue for its file's link outcome, so
     # the review page lists it (as importing) alongside the open items.
