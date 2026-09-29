@@ -4,13 +4,13 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Reconciliation
+  alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
 
   @sidebar_review ~s{aside a[data-tip="Review"]}
 
-  # /reconcile assembles the show spine from TMDB; an empty show keeps
+  # /episode-mapping assembles the show spine from TMDB; an empty show keeps
   # these sidebar tests off the network and on the badge.
   setup do
     MediaCentaur.TmdbStubs.setup_tmdb_client()
@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
 
   defp divert_awaiting_file do
     {:ok, awaiting_file} =
-      Reconciliation.divert(%{
+      EpisodeMapping.divert(%{
         file_path: "/media/Sample Show/S02E01.mkv",
         media_dir: "/media",
         tmdb_id: 4242,
@@ -56,14 +56,14 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
 
       {:ok, view, _html} = live(conn, ~p"/history")
 
-      assert has_element?(view, @sidebar_review <> ~s{[href="/reconcile"]})
+      assert has_element?(view, @sidebar_review <> ~s{[href="/episode-mapping"]})
       assert has_element?(view, @sidebar_review, "1")
     end
 
     test "stays lit while on the mapping page", %{conn: conn} do
       divert_awaiting_file()
 
-      {:ok, view, _html} = live(conn, ~p"/reconcile")
+      {:ok, view, _html} = live(conn, ~p"/episode-mapping")
 
       assert has_element?(view, @sidebar_review <> ".sidebar-link-active")
     end
@@ -84,13 +84,13 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
       refute has_element?(view, @sidebar_review)
     end
 
-    test "live-updates on reconciliation changes", %{conn: conn} do
+    test "live-updates on episode-mapping changes", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/history")
 
       divert_awaiting_file()
-      send(view.pid, {:reconciliation_updated})
+      send(view.pid, {:episode_mapping_updated})
 
-      assert has_element?(view, @sidebar_review <> ~s{[href="/reconcile"]})
+      assert has_element?(view, @sidebar_review <> ~s{[href="/episode-mapping"]})
     end
   end
 
@@ -101,11 +101,11 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
 
       {:ok, review_view, _html} = live(conn, ~p"/review")
 
-      assert has_element?(review_view, ~s{[data-nav-zone="zone-tabs"] a[href="/reconcile"]}, "1")
+      assert has_element?(review_view, ~s{[data-nav-zone="zone-tabs"] a[href="/episode-mapping"]}, "1")
 
-      {:ok, reconcile_view, _html} = live(conn, ~p"/reconcile")
+      {:ok, episode_mapping_view, _html} = live(conn, ~p"/episode-mapping")
 
-      assert has_element?(reconcile_view, ~s{[data-nav-zone="zone-tabs"] a[href="/review"]}, "1")
+      assert has_element?(episode_mapping_view, ~s{[data-nav-zone="zone-tabs"] a[href="/review"]}, "1")
     end
   end
 end

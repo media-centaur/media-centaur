@@ -67,7 +67,7 @@ defmodule MediaCentaur.Watcher.Rescan do
   The on-disk check matters because presence-without-a-link isn't
   unique to a transient failure — a title the user removed and deleted
   from disk leaves the same shape (a presence row, no `WatchedFile`)
-  with nothing left to recover. Without it, a long-unrun reconciliation
+  with nothing left to recover. Without it, a long-unrun startup recovery
   (e.g. after the ADR-023 startup race went unnoticed for a while) can
   resurrect a whole backlog of already-deleted titles in one pass.
   Skipped rows are left for `Library.AbsenceSweeper` to eventually purge.
@@ -203,12 +203,12 @@ defmodule MediaCentaur.Watcher.Rescan do
   end
 
   @doc """
-  The startup reconciliation pass (ADR-023), in order: retract what the
+  The startup recovery pass (ADR-023), in order: retract what the
   ignore rules no longer admit, scan for untracked files, then re-emit
   what is still stranded.
 
   One named operation rather than a caller composing the three, so the
-  order and the meaning of "reconcile" live with the passes themselves.
+  order and the meaning of "recover" live with the passes themselves.
   Retraction goes first so the scan and the re-emit work against a
   table that already matches the rules; the ordering is advisory rather
   than load-bearing, since retraction's removal travels by broadcast
@@ -216,10 +216,10 @@ defmodule MediaCentaur.Watcher.Rescan do
 
   Returns `{:ok, %{retracted: n, scanned: n, reemitted: n}}`.
   """
-  @spec reconcile() ::
+  @spec recover() ::
           {:ok,
            %{retracted: non_neg_integer(), scanned: non_neg_integer(), reemitted: non_neg_integer()}}
-  def reconcile do
+  def recover do
     {:ok, retracted} = retract_ignored()
     {:ok, scanned} = scan()
     {:ok, reemitted} = rescan_unlinked()

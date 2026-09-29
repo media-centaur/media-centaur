@@ -37,7 +37,7 @@ defmodule MediaCentaur.Review do
       the file if it had no item (an automatic match that linked nothing).
 
   Nothing else closes an approved item, so an approval can no longer end
-  with the item gone and the title absent. `reconcile_with_library/0`
+  with the item gone and the title absent. `settle_with_library/0`
   settles at startup whatever a dropped message left behind.
   """
   import Ecto.Query
@@ -199,8 +199,8 @@ defmodule MediaCentaur.Review do
   73 approved rows orphaned that way, invisible in the queue. `:dismissed`
   rows are decisions and are left alone. Returns the counts.
   """
-  @spec reconcile_with_library() :: %{closed: non_neg_integer(), reopened: non_neg_integer()}
-  def reconcile_with_library do
+  @spec settle_with_library() :: %{closed: non_neg_integer(), reopened: non_neg_integer()}
+  def settle_with_library do
     open =
       PendingFile
       |> where([p], p.status in [:pending, :approved])
@@ -229,7 +229,7 @@ defmodule MediaCentaur.Review do
     if closed + reopened > 0 do
       Log.info(
         :review,
-        "startup reconciliation — closed #{closed} review item(s) whose file is linked, " <>
+        "startup recovery — closed #{closed} review item(s) whose file is linked, " <>
           "reopened #{reopened} whose import did not finish"
       )
     end
@@ -334,7 +334,7 @@ defmodule MediaCentaur.Review do
   def file_linked(file_path), do: close_review(file_path)
 
   @doc """
-  The pipeline parked `file_path` in the reconciliation queue, which owns
+  The pipeline parked `file_path` in the episode-mapping queue, which owns
   it from here: its review item is removed, as for `file_linked/1`.
   """
   @spec file_parked(String.t()) :: :ok

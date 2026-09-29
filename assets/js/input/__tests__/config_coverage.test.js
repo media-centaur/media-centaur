@@ -7,7 +7,7 @@
  * `{}` for an unknown layout key and the arrow keys silently do nothing —
  * there is no error, no warning, and every unit test still passes.
  *
- * That is exactly how `/reconcile` shipped: a full set of nav attributes, a
+ * That is exactly how `/episode-mapping` shipped: a full set of nav attributes, a
  * registered page behavior, and no `reconcile` entry in this config at all.
  *
  * So these tests do not enumerate pages by hand — a hand-written list is what

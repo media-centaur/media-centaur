@@ -348,11 +348,11 @@ defmodule MediaCentaur.Library.InboundTest do
       assert episode_image.owner_id == episode.id
     end
 
-    test "a season-nil event (reconciliation divert) creates the series but no phantom season" do
+    test "a season-nil event (episode-mapping divert) creates the series but no phantom season" do
       assert {:ok, tv_series, :new, _pending} = Inbound.ingest(tv_event(%{season: nil}))
 
       assert %Library.TVSeries{} = tv_series
-      # The headline reconciliation guarantee: no fabricated season node and
+      # The headline episode-mapping guarantee: no fabricated season node and
       # no file link — the diverted file is parked elsewhere (the queue).
       assert Library.Seasons.list_for_tv_series(tv_series.id) == []
       assert Library.ExternalIds.find_present_episode("1396", 2, 1) == :not_found
@@ -776,7 +776,7 @@ defmodule MediaCentaur.Library.InboundTest do
       refute Library.Files.linked?("/media/TV/Sample.Show.S01E01.mkv")
     end
 
-    test "a file parked for reconciliation is reported parked, not unlinked" do
+    test "a file parked for episode mapping is reported parked, not unlinked" do
       assert {:ok, _tv, :new, _images} = Inbound.ingest(tv_event(season: nil, parked: true))
 
       assert_receive {:file_parked, "/media/TV/Sample.Show.S01E01.mkv"}

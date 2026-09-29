@@ -8,7 +8,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Pipeline.Payload
-  alias MediaCentaur.Reconciliation
+  alias MediaCentaur.EpisodeMapping
 
   @behaviour MediaCentaur.Pipeline.Stage
 
@@ -51,13 +51,13 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
   # flagged by `FetchMetadata` (the `divert` payload). The published event
   # carries `season: nil`, so `Library.Inbound` creates the series but no
   # phantom season and links nothing; here we park the file in the
-  # reconciliation queue for show-scoped episode mapping.
+  # episode-mapping queue.
   defp maybe_divert(%Payload{metadata: %{divert: claims}} = payload) when is_map(claims) do
-    Reconciliation.divert(
+    EpisodeMapping.divert(
       Map.merge(claims, %{file_path: payload.file_path, media_dir: payload.media_directory})
     )
 
-    Log.info(:pipeline, "parked file for reconciliation — tmdb:#{payload.tmdb_id}")
+    Log.info(:pipeline, "parked file for episode mapping — tmdb:#{payload.tmdb_id}")
   end
 
   defp maybe_divert(_payload), do: :ok

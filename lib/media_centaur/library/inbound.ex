@@ -26,7 +26,7 @@ defmodule MediaCentaur.Library.Inbound do
     * `{:file_linked, file_path}` — the file is attached to its movie,
       episode, video or bonus feature (`Library.Files.linked?/1`).
     * `{:file_parked, file_path}` — the event asked for no link: the
-      pipeline parked the file in the reconciliation queue, which owns it
+      pipeline parked the file in the episode-mapping queue, which owns it
       from here.
     * `{:file_not_linked, %{file_path, media_dir, reason, match}}` —
       nothing is attached. `reason` is `:no_episode` (a series match for a
@@ -867,7 +867,7 @@ defmodule MediaCentaur.Library.Inbound do
       nil ->
         # No leaf to attach this WatchedFile to: a bonus feature (linked
         # as an ExtraFile by `create_or_link/1`), a file parked for
-        # reconciliation, or a series match with no season and episode.
+        # episode mapping, or a series match with no season and episode.
         # `report_link_outcome/1` says which.
         nil
 

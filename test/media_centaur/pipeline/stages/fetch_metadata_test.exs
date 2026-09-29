@@ -280,7 +280,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert season.episode.images == []
     end
 
-    test "diverts to reconciliation when the parsed season isn't in TMDB's season list" do
+    test "diverts to episode mapping when the parsed season isn't in TMDB's season list" do
       # TMDB lists seasons 0 and 1; a file labelled S02 is the cour /
       # absolute-numbering case — divert instead of minting a phantom.
       stub_routes([

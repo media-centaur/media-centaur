@@ -10,7 +10,7 @@ defmodule MediaCentaur.Pipeline do
       MediaCentaur.Library,
       MediaCentaur.Retention,
       MediaCentaur.Watcher,
-      MediaCentaur.Reconciliation,
+      MediaCentaur.EpisodeMapping,
       MediaCentaur.Review
     ],
     exports: [

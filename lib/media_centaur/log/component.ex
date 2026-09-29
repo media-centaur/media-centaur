@@ -72,7 +72,7 @@ defmodule MediaCentaur.Log.Component do
     # Ingest.
     "pipeline" => :pipeline,
     "discovery" => :pipeline,
-    "reconciliation" => :pipeline,
+    "episode_mapping" => :pipeline,
     "review" => :review,
     "watcher" => :watcher,
     # Metadata and artwork both come from TMDB.

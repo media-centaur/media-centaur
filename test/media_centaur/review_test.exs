@@ -14,7 +14,7 @@ defmodule MediaCentaur.ReviewTest do
     %{media_dir: media_dir}
   end
 
-  describe "reconcile_with_library/0" do
+  describe "settle_with_library/0" do
     # A queue row closes on the library's link outcome for its file
     # (`file_linked/1`, `file_not_linked/1`). PubSub has no replay, so a
     # listener that was not subscribed at that instant loses the message.
@@ -37,7 +37,7 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 1, reopened: 0} = Review.reconcile_with_library()
+      assert %{closed: 1, reopened: 0} = Review.settle_with_library()
       assert Review.list_pending_files() == []
     end
 
@@ -49,7 +49,7 @@ defmodule MediaCentaur.ReviewTest do
       pending = create_pending_file(%{file_path: "/media/test/in-flight.mkv"})
       {:ok, _} = Review.approve_pending_file(pending)
 
-      assert %{closed: 0, reopened: 1} = Review.reconcile_with_library()
+      assert %{closed: 0, reopened: 1} = Review.settle_with_library()
       assert [reopened] = Review.list_pending_files_for_review()
       assert reopened.id == pending.id
       assert reopened.error_message =~ "didn't finish"
@@ -65,14 +65,14 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 1, reopened: 0} = Review.reconcile_with_library()
+      assert %{closed: 1, reopened: 0} = Review.settle_with_library()
       assert Review.list_pending_files() == []
     end
 
     test "keeps a pending row whose file is not linked — it awaits a decision" do
       create_pending_file(%{file_path: "/media/test/awaiting.mkv"})
 
-      assert %{closed: 0, reopened: 0} = Review.reconcile_with_library()
+      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
       assert length(Review.list_pending_files_for_review()) == 1
     end
 
@@ -84,7 +84,7 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 0, reopened: 0} = Review.reconcile_with_library()
+      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
       assert Review.dismissed?(path)
     end
 
@@ -104,7 +104,7 @@ defmodule MediaCentaur.ReviewTest do
       {:ok, _} = Review.approve_pending_file(unfinished)
 
       Review.subscribe()
-      Review.reconcile_with_library()
+      Review.settle_with_library()
 
       linked_id = linked.id
       unfinished_id = unfinished.id
@@ -113,7 +113,7 @@ defmodule MediaCentaur.ReviewTest do
     end
 
     test "reports zero on an empty table" do
-      assert %{closed: 0, reopened: 0} = Review.reconcile_with_library()
+      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
     end
   end
 
@@ -448,7 +448,7 @@ defmodule MediaCentaur.ReviewTest do
   end
 
   describe "file_parked/1" do
-    # A parked file belongs to the reconciliation queue from here on.
+    # A parked file belongs to the episode-mapping queue from here on.
     test "removes the item" do
       pending = create_pending_file(%{file_path: "/media/test/parked.mkv"})
       {:ok, _} = Review.approve_pending_file(pending)

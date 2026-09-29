@@ -52,9 +52,9 @@ export const inputConfig = {
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
-    // Episode mapping (/reconcile) — the same master/detail shape as review
-    "reconcile-list": "[data-nav-zone='reconcile-list'] [data-nav-item]",
-    "reconcile-detail": "[data-nav-zone='reconcile-detail'] [data-nav-item]",
+    // Episode mapping (/episode-mapping) — the same master/detail shape as review
+    "episode-mapping-list": "[data-nav-zone='episode-mapping-list'] [data-nav-item]",
+    "episode-mapping-detail": "[data-nav-zone='episode-mapping-detail'] [data-nav-item]",
     // Status page subsystem drill-in (vertical rail: close, incidents, logs)
     "drill-in": "[data-nav-zone='drill-in'] [data-nav-item]",
     // Home page shelves (horizontal media rows stacked vertically)
@@ -84,8 +84,8 @@ export const inputConfig = {
     sections: Context.MENU,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
-    "reconcile-list": Context.MENU,
-    "reconcile-detail": Context.MENU,
+    "episode-mapping-list": Context.MENU,
+    "episode-mapping-detail": Context.MENU,
     "drill-in": Context.MENU,
     // Home shelves behave as horizontal lists with a vertical nav graph
     hero: Context.SHELF,
@@ -276,7 +276,7 @@ export const inputConfig = {
       sidebar:    { right: ["grid", "toolbar"] },
     },
     // The two review surfaces — identity (/review) and episode mapping
-    // (/reconcile) — share the ReviewTabs strip and the same master/detail
+    // (/episode-mapping) — share the ReviewTabs strip and the same master/detail
     // shape, so their layouts are deliberately identical apart from the zone
     // names. Up from either pane reaches the tab strip (MENU walls route
     // through the graph); the strip's own down edge returns to whichever pane
@@ -287,11 +287,11 @@ export const inputConfig = {
       "review-detail": { up: ["zone_tabs"], left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail", "zone_tabs"] },
     },
-    reconcile: {
-      zone_tabs:          { down: ["reconcile-list", "reconcile-detail"] },
-      "reconcile-list":   { up: ["zone_tabs"], right: ["reconcile-detail"] },
-      "reconcile-detail": { up: ["zone_tabs"], left: ["reconcile-list"] },
-      sidebar:            { right: ["reconcile-list", "reconcile-detail", "zone_tabs"] },
+    "episode-mapping": {
+      zone_tabs:          { down: ["episode-mapping-list", "episode-mapping-detail"] },
+      "episode-mapping-list":   { up: ["zone_tabs"], right: ["episode-mapping-detail"] },
+      "episode-mapping-detail": { up: ["zone_tabs"], left: ["episode-mapping-list"] },
+      sidebar:            { right: ["episode-mapping-list", "episode-mapping-detail", "zone_tabs"] },
     },
     // Incoming: omnibox on top, then the zone tabs (Coming up | Activity |
     // History) — one tab's content renders at a time, so the candidate
@@ -362,7 +362,7 @@ export const inputConfig = {
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
-    reconcile: ["reconcile-list", "reconcile-detail", "zone_tabs", "sidebar"],
+    "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
     discovery: ["title_rows", "people", "zone_tabs", "sidebar"],

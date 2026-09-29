@@ -1,0 +1,143 @@
+defmodule MediaCentaur.EpisodeMapping.ConfirmTest do
+  use MediaCentaur.DataCase, async: false
+
+  import MediaCentaur.TestFactory
+
+  alias MediaCentaur.Library
+  alias MediaCentaur.EpisodeMapping
+  alias MediaCentaur.TmdbStubs
+
+  setup do
+    TmdbStubs.setup_tmdb_client(self())
+    :ok
+  end
+
+  describe "confirm/2 failure paths" do
+    import ExUnit.CaptureLog
+
+    test "a target for an unknown awaiting file counts as failed and is logged" do
+      seed_show()
+      review = EpisodeMapping.resolve_show(42)
+
+      log =
+        capture_log(fn ->
+          assert {:ok, %{linked: 0, failed: 1}} =
+                   EpisodeMapping.confirm(review, %{Ecto.UUID.generate() => {1, 3}})
+        end)
+
+      assert log =~ "episode mapping"
+      assert log =~ "S01E03"
+    end
+  end
+
+  defp seed_show do
+    series = create_tv_series(%{name: "Sample Show", tmdb_id: "42"})
+    season = create_season(%{tv_series_id: series.id, season_number: 1, name: "Season 1"})
+
+    for episode_number <- [1, 2] do
+      episode = create_episode(%{season_id: season.id, episode_number: episode_number, name: "Ep"})
+      playable_item = create_playable_item_for_episode(episode)
+
+      create_linked_file(%{
+        playable_item_id: playable_item.id,
+        file_path: "/media/s/E#{episode_number}.mkv"
+      })
+    end
+
+    TmdbStubs.stub_routes([
+      {"/tv/42/season/1",
+       TmdbStubs.season_detail(%{
+         "season_number" => 1,
+         "episodes" => [
+           %{"episode_number" => 1, "name" => "Alpha"},
+           %{"episode_number" => 2, "name" => "Beta"},
+           %{"episode_number" => 3, "name" => "Gamma"}
+         ]
+       })},
+      {"/tv/42", TmdbStubs.tv_detail(%{"id" => 42, "seasons" => [%{"season_number" => 1}]})}
+    ])
+
+    series
+  end
+
+  test "confirming the recommendation links the file to the canonical episode, creating it from the spine" do
+    series = seed_show()
+
+    {:ok, awaiting} =
+      EpisodeMapping.divert(%{
+        file_path: "/media/s/S02E01.mkv",
+        media_dir: "/media/s",
+        tmdb_id: 42,
+        claimed_season: 2,
+        claimed_episode: 1,
+        claimed_title: "Gamma"
+      })
+
+    review = EpisodeMapping.resolve_show(42)
+
+    assert {:ok, summary} = EpisodeMapping.confirm_recommended(review)
+    assert summary.linked == 1
+    assert summary.failed == 0
+
+    # The previously-missing E3 now exists with its canonical title and a file.
+    episode = Library.Episodes.find_by_season_episode(series.id, 1, 3)
+    assert episode.name == "Gamma"
+    assert {:ok, "/media/s/S02E01.mkv"} = Library.ExternalIds.find_present_episode("42", 1, 3)
+
+    # The awaiting record is resolved and off the pending queue.
+    assert EpisodeMapping.list_awaiting() == []
+    refute awaiting.id in Enum.map(EpisodeMapping.list_awaiting(), & &1.id)
+  end
+
+  test "confirm/2 honors explicit per-file targets (override / partial-accept)" do
+    seed_show()
+
+    {:ok, a} =
+      EpisodeMapping.divert(%{
+        file_path: "/media/s/fileA.mkv",
+        media_dir: "/media/s",
+        tmdb_id: 42,
+        claimed_season: 2,
+        claimed_episode: 1,
+        claimed_title: nil
+      })
+
+    {:ok, _b} =
+      EpisodeMapping.divert(%{
+        file_path: "/media/s/fileB.mkv",
+        media_dir: "/media/s",
+        tmdb_id: 42,
+        claimed_season: 2,
+        claimed_episode: 2,
+        claimed_title: nil
+      })
+
+    review = EpisodeMapping.resolve_show(42)
+
+    # Confirm only file A, overriding it onto E3; leave B for later.
+    assert {:ok, summary} = EpisodeMapping.confirm(review, %{a.id => {1, 3}})
+    assert summary.linked == 1
+
+    assert {:ok, _} = Library.ExternalIds.find_present_episode("42", 1, 3)
+    # B remains pending.
+    assert Enum.map(EpisodeMapping.list_awaiting(), & &1.claimed_episode) == [2]
+  end
+
+  test "confirm refuses when the series is not in the library" do
+    # No library series for tmdb 555; spine fetch 404s.
+    TmdbStubs.stub_tmdb_error("/tv/555", 404)
+
+    {:ok, _} =
+      EpisodeMapping.divert(%{
+        file_path: "/media/x/f.mkv",
+        media_dir: "/media/x",
+        tmdb_id: 555,
+        claimed_season: 2,
+        claimed_episode: 1
+      })
+
+    review = EpisodeMapping.resolve_show(555)
+
+    assert {:error, :series_not_in_library} = EpisodeMapping.confirm_recommended(review)
+  end
+end

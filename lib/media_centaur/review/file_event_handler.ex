@@ -4,7 +4,7 @@ defmodule MediaCentaur.Review.FileEventHandler do
 
     * `{:files_removed, paths}` → drops those paths from the review queue;
     * `{:file_linked, path}` / `{:file_parked, path}` → the file is in the
-      library or the reconciliation queue, so its review item closes
+      library or the episode-mapping queue, so its review item closes
       (`Review.file_linked/1`, `Review.file_parked/1`);
     * `{:file_not_linked, outcome}` → the item returns to the queue with
       the reason (`Review.file_not_linked/1`).

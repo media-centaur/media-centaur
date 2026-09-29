@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
       assert ShellBadges.relevant?({:file_added, %FileAdded{pending_file_id: "id"}})
       assert ShellBadges.relevant?({:file_reviewed, %FileReviewed{pending_file_id: "id"}})
       assert ShellBadges.relevant?({:files_approved, %FilesApproved{pending_file_ids: ["id"]}})
-      assert ShellBadges.relevant?({:reconciliation_updated})
+      assert ShellBadges.relevant?({:episode_mapping_updated})
       assert ShellBadges.relevant?({:buckets_changed, []})
       assert ShellBadges.relevant?({:setting_changed, "diagnostics_seen_at", %{}})
       refute ShellBadges.relevant?({:setting_changed, "unrelated_key", %{}})

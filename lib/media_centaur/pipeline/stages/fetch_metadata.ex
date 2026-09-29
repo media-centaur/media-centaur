@@ -231,7 +231,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     end
   end
 
-  # Case (a) from the reconciliation campaign: the parsed season is **not**
+  # The episode-mapping case: the parsed season is **not**
   # in TMDB's canonical season list — the cour / absolute-numbering mismatch.
   # Diverting (rather than `build_minimal_season`) is what stops the phantom
   # season. Guarded on a non-empty season list so a trimmed `data` (or a TV
@@ -273,7 +273,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     {:ok, metadata}
   end
 
-  # No phantom season; the file is parked in the reconciliation queue by
+  # No phantom season; the file is parked in the episode-mapping queue by
   # `Pipeline.Stages.Ingest`, which reads this `divert` payload. The series
   # entity is still created (no season/episode, no file link).
   defp build_divert_metadata(tmdb_id, data, parsed, entity_attrs, images) do
@@ -296,7 +296,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
 
     Log.info(
       :pipeline,
-      "diverted TV file to reconciliation — tmdb:#{tmdb_id} S#{parsed.season} not in canonical seasons"
+      "diverted TV file to episode mapping — tmdb:#{tmdb_id} S#{parsed.season} not in canonical seasons"
     )
 
     {:ok, metadata}

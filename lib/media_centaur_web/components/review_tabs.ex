@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.ReviewTabs do
   @moduledoc """
   Tab strip joining the two review surfaces — identity review (`/review`,
-  "which show is this file?") and episode mapping (`/reconcile`, "which
+  "which show is this file?") and episode mapping (`/episode-mapping`, "which
   episode is this file?"). Both pages render it under a shared "Review"
   heading, so the sidebar's single Review entry fans out here.
 
@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.Components.ReviewTabs do
 
   attr :mapping_count, :integer,
     required: true,
-    doc: "files awaiting an episode-mapping decision (`Reconciliation.count_awaiting/0`)"
+    doc: "files awaiting an episode-mapping decision (`EpisodeMapping.count_awaiting/0`)"
 
   def review_tabs(assigns) do
     assigns =
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.ReviewTabs do
         %Tab{
           id: :mapping,
           label: "Episode mapping",
-          navigate: "/reconcile",
+          navigate: "/episode-mapping",
           count: assigns.mapping_count
         }
       ])

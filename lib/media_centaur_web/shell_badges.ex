@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.ShellBadges do
     * `:review_pending` — files awaiting identity review
       (`Review.count_pending/0`).
     * `:mapping_pending` — files awaiting an episode-mapping decision
-      (`Reconciliation.count_awaiting/0`).
+      (`EpisodeMapping.count_awaiting/0`).
     * `:status_errors` — live error/critical buckets, i.e. exactly the
       condition that turns a Status-page tile red
       (`HealthBoard.tile_state/1` over `ErrorReports.list_buckets/0`).
@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   themselves, so this hook must not.
 
   The hook also owns the session-wide subscription to `review:updates` /
-  `reconciliation:updates`. `ReviewLive` and `ReconcileLive` deliberately
+  `episode_mapping:updates`. `ReviewLive` and `EpisodeMappingLive` deliberately
   do NOT subscribe themselves — a second `subscribe` from the same
   process would double-deliver every message. Their `handle_info`
   clauses still fire because this hook always returns `{:cont, socket}`.
@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.ErrorReports
-  alias MediaCentaur.Reconciliation
+  alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.review_updates())
-    Topics.subscribe(Topics.reconciliation_updates())
+    Topics.subscribe(Topics.episode_mapping_updates())
     Topics.subscribe(Topics.error_reports())
     Topics.subscribe(Topics.settings_updates())
     Topics.subscribe(Topics.acquisition_updates())
@@ -117,7 +117,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   def relevant?({:file_added, %FileAdded{}}), do: true
   def relevant?({:file_reviewed, %FileReviewed{}}), do: true
   def relevant?({:files_approved, %FilesApproved{}}), do: true
-  def relevant?({:reconciliation_updated}), do: true
+  def relevant?({:episode_mapping_updated}), do: true
   def relevant?({:buckets_changed, _buckets}), do: true
   # `mark_seen/0` advances the seen-marker via a Settings write.
   def relevant?({:setting_changed, "diagnostics_seen_at", _value}), do: true
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.ShellBadges do
     %Counts{
       diagnostics_unseen: DiagnosticsBadge.count(),
       review_pending: Review.count_pending(),
-      mapping_pending: Reconciliation.count_awaiting(),
+      mapping_pending: EpisodeMapping.count_awaiting(),
       # HealthBoard.tile_state/1 is the canonical "tile turns red" rule —
       # reused here so the nav dot lights iff a Status-page tile is red.
       status_errors: HealthBoard.tile_state(ErrorReports.list_buckets()).error_count,
@@ -167,7 +167,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   def on_mount(:default, _params, _session, socket) do
     if connected?(socket) do
       Topics.subscribe(Topics.review_updates())
-      Topics.subscribe(Topics.reconciliation_updates())
+      Topics.subscribe(Topics.episode_mapping_updates())
       Topics.subscribe(Topics.shell_badges())
     end
 
@@ -187,7 +187,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   defp refresh({:file_added, %FileAdded{}}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:file_reviewed, %FileReviewed{}}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:files_approved, %FilesApproved{}}, socket), do: {:cont, assign_counts(socket)}
-  defp refresh({:reconciliation_updated}, socket), do: {:cont, assign_counts(socket)}
+  defp refresh({:episode_mapping_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:shell_badges_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh(_msg, socket), do: {:cont, socket}
 end
