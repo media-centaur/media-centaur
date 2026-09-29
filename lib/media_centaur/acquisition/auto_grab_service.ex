@@ -43,9 +43,9 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
 
   defp persist_flag(enabled?), do: Services.set(:start_acquisition, enabled?)
 
-  # Inline Oban testing mode doesn't run real queue processes, so
-  # `Oban.pause_queue/1` raises. Skip it there — `running?/0` is the
-  # source of truth for tests; production has both.
+  # Oban's testing modes run no queue processes, so `Oban.pause_queue/1`
+  # raises. Skip it there — `running?/0` is the source of truth for tests;
+  # production has both.
   defp pause_queue do
     if oban_queue_running?(), do: Oban.pause_queue(queue: :acquisition)
     :ok
@@ -57,6 +57,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
   end
 
   defp oban_queue_running? do
-    Application.get_env(:media_centaur, Oban)[:testing] != :inline
+    Keyword.get(Application.get_env(:media_centaur, Oban), :testing, :disabled) == :disabled
   end
 end

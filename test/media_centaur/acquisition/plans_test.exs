@@ -255,6 +255,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_same_tier_movie()
 
       {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert [unit] = Plans.units_for(created.id)
 
       # The run assigns the remux (fidelity default); the remaining
@@ -271,6 +272,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_below_floor_movie()
 
       {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(created.id)
       assert plan.status == "ready"
 
@@ -294,6 +296,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_below_floor_movie()
 
       {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert [unit] = Plans.units_for(created.id)
 
       {:ok, alternatives} = Plans.Alternatives.for_unit(unit.id)
@@ -322,12 +325,14 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     test "create → autonomous solve → steer → approve → one composite pursuit" do
       stub_ladder_results()
 
-      # ── Create: inline Oban runs the planning pass immediately. ──────
+      # ── Create, then run the planning pass it enqueued. ──────────────
       assert {:ok, plan} =
                Plans.create_series_plan(
                  %{selection() | origin_country: ["US"]},
                  [{1, 1}, {1, 2}, {1, 3}, {2, 1}]
                )
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
@@ -353,6 +358,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       [first_s1 | _] = s1_units
       assert {:ok, _plan} = Plans.exclude_release(first_s1.id, "pack-s1")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
@@ -428,6 +434,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # 2 of season 1's 3 aired episodes — fit 0.67 < 0.75, so the only
       # cover (the season pack) is set aside as an offer, not grabbed.
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(created.id)
       assert plan.status == "ready"
 
@@ -503,6 +510,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
@@ -568,6 +576,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       assert {:ok, _plan} = Plans.exclude_release(overlap.exclude_unit_id, overlap.exclude_guid)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, plan} = Plans.fetch(plan.id)
       assert Plans.Board.build(plan).overlaps == []
@@ -614,6 +623,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
 
       unit = Enum.find(Plans.units_for(plan.id), &(&1.assigned_guid == "e1-uhd"))
@@ -633,10 +643,12 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_ladder_results()
 
       {:ok, first_plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, first_plan} = Plans.fetch(first_plan.id)
       {:ok, _committed} = Plans.approve(first_plan)
 
       {:ok, second_plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, second_plan} = Plans.fetch(second_plan.id)
 
       assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(second_plan)
@@ -658,6 +670,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
         })
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
 
       assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(plan)
@@ -666,6 +679,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     test "a plan with nothing found cannot be approved; discard closes it out" do
       # Default stub returns no results anywhere.
       {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
@@ -698,6 +712,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2010})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
@@ -742,6 +757,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       })
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Sample Movie", year: 2000})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
@@ -759,6 +775,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       })
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "779", title: "Sample's Movie", year: 2010})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
@@ -780,9 +797,11 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     # load-order fragile in an isolated test.
     test "exclude_unit takes the unit out of what the plan wants" do
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       [first, second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
 
       assert {:ok, _plan} = Plans.exclude_unit(first.id)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       units = Plans.units_for(plan.id)
       assert Enum.find(units, &(&1.id == first.id)).status == "excluded"
@@ -791,10 +810,13 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "include_unit puts an excluded unit back in play" do
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       [first, _second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
 
       {:ok, _plan} = Plans.exclude_unit(first.id)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert {:ok, _plan} = Plans.include_unit(first.id)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       # Back in play, not necessarily back to `pending`: `include_unit/1`
       # re-plans, so the planner has already looked and — with nothing on
@@ -808,6 +830,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "toggle_unit_excluded flips whichever way the unit currently sits" do
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       [first, _second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
 
       assert {:ok, _plan} = Plans.toggle_unit_excluded(first.id)
@@ -827,6 +850,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_ladder_results()
 
       assert {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert plan.imdb_id == "tt0903747"
       assert plan.tvdb_id == "81189"
@@ -843,6 +867,8 @@ defmodule MediaCentaur.Acquisition.PlansTest do
                  imdb_id: "tt0137523"
                })
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       assert plan.imdb_id == "tt0137523"
     end
 
@@ -856,6 +882,8 @@ defmodule MediaCentaur.Acquisition.PlansTest do
                  original_title: "Beispielfilm"
                })
 
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       assert plan.original_title == "Beispielfilm"
     end
 
@@ -863,6 +891,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_ladder_results()
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
       {:ok, pursuit} = Plans.approve(plan)
 
@@ -875,7 +904,9 @@ defmodule MediaCentaur.Acquisition.PlansTest do
   describe "approval policy stamping" do
     test "picker plans default to review" do
       {:ok, series} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, movie} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert {:ok, %{approval_policy: "review"}} = Plans.fetch(series.id)
       assert {:ok, %{approval_policy: "review"}} = Plans.fetch(movie.id)
@@ -883,11 +914,14 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "creators can stamp automatic" do
       {:ok, series} = Plans.create_series_plan(selection(), [{1, 1}], approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, movie} =
         Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005},
           approval_policy: "automatic"
         )
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(series.id)
       assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(movie.id)
@@ -898,9 +932,11 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # Nothing found → the movie plan solves to ready with a gap.
       {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Plans.count_awaiting_review() == 1
 
       {:ok, ready} = Plans.create_movie_plan(%{tmdb_id: "246814", title: "Sample Movie B", year: 2006})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, ready} = Plans.fetch(ready.id)
       {:ok, _discarded} = Plans.discard(ready)
       assert Plans.count_awaiting_review() == 1
@@ -1015,6 +1051,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "a movie returns its plan, stamped with the policy" do
       assert {:ok, %Plan{} = plan} = Plans.create_title_plan(movie_title(), approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert plan.tmdb_type == "movie"
       assert plan.tmdb_id == "246813"
@@ -1026,6 +1063,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "the policy defaults to review" do
       assert {:ok, %Plan{approval_policy: "review"}} = Plans.create_title_plan(movie_title())
+      MediaCentaur.JobRuns.run_enqueued_jobs()
     end
 
     test "a series with :first_season plans season 1's pickable episodes" do
@@ -1033,6 +1071,8 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       assert {:ok, %Plan{} = plan} =
                Plans.create_title_plan(show_title(), scope: :first_season, approval_policy: "review")
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert plan.tmdb_type == "tv"
       assert plan.approval_policy == "review"
@@ -1045,6 +1085,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
       assert {:ok, %Plan{} = plan} = Plans.create_title_plan(show_title(), scope: :everything)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert length(Plans.units_for(plan.id)) == 3
     end
 
@@ -1055,6 +1096,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
         Title.new!(%{tmdb_id: 246_811, media_type: :tv_series, name: "Unaired Show", year: "2199"})
 
       assert {:error, :nothing_to_plan} = Plans.create_title_plan(unaired, scope: :first_season)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Plans.list_drafts() == []
     end
 
@@ -1062,6 +1104,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
       assert {:error, _reason} = Plans.create_title_plan(show_title(), scope: :first_season)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Plans.list_drafts() == []
     end
   end

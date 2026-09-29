@@ -85,6 +85,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
 
   defp create_gap_movie do
     {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1990})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
     {:ok, plan} = Plans.fetch(created.id)
     [unit] = Plans.units_for(plan.id)
     {plan, unit}
@@ -120,6 +121,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
       {plan, unit} = create_gap_movie()
 
       {:ok, _plan} = Plans.exclude_release(unit.id, "other-1")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(plan.id)
 
       evidence = Plans.Alternatives.gap_evidence(plan)
@@ -180,6 +182,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
       end)
 
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan} = Plans.fetch(created.id)
 
       evidence = Plans.Alternatives.gap_evidence(plan)
@@ -212,6 +215,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
 
     test "refuses TV units — the override is movie-only" do
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       [unit | _rest] = Plans.units_for(created.id)
 
       assert {:error, :movie_only} = Plans.Alternatives.choose_rejected(unit.id, "any-guid")

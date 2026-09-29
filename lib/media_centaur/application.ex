@@ -148,7 +148,7 @@ defmodule MediaCentaur.Application do
 
     # Hydrate the update-check cache from persisted state and, if the
     # last check is stale, enqueue a fresh one. Skipped in test mode so
-    # the suite doesn't reach out to GitHub or fire inline Oban jobs.
+    # the suite doesn't reach out to GitHub or enqueue Oban jobs.
     if MediaCentaur.SelfUpdate.enabled?() do
       MediaCentaur.SelfUpdate.boot!()
     end

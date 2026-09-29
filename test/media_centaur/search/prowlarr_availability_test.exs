@@ -1,17 +1,19 @@
 defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
-  # Sync: reports write :persistent_term; Oban runs the probe job inline.
+  # Sync: reports write :persistent_term.
   use MediaCentaur.DataCase, async: false
+  use Oban.Testing, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
+  alias MediaCentaur.Search.ProbeJob
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Search.ProwlarrAvailability
   alias MediaCentaur.Search.SearchResult
 
   @roster_ok [%{"id" => 1, "name" => "Sample Indexer", "enable" => true, "protocol" => "usenet"}]
 
-  # Answers every probe path so an inline probe run never trips the test.
+  # Answers every probe path so a probe run never trips the test.
   defp stub_prowlarr(answer) do
     Req.Test.stub(:prowlarr, fn conn ->
       case {conn.method, conn.request_path} do
@@ -162,8 +164,8 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
   end
 
   describe "a down transition enqueues the probe" do
-    # Oban runs inline in tests, so the job the transition inserts executes
-    # in this process — the probe's own request on the stub is the proof.
+    # The transition schedules the probe job; performing it here makes the
+    # probe's own request on the stub, which is the proof.
     setup do
       config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
@@ -198,6 +200,8 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       end)
 
       assert {:error, _reason} = Prowlarr.search("Sample Movie")
+      assert [probe] = all_enqueued(worker: ProbeJob, args: %{integration: "prowlarr"})
+      perform_job(ProbeJob, probe.args)
 
       assert_receive {:roster_probed, ^tag}, 1_000
       assert IntegrationAvailability.up?(:prowlarr)
@@ -221,6 +225,8 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       end)
 
       assert {:error, _reason} = Prowlarr.grab(usenet_release())
+      assert [probe] = all_enqueued(worker: ProbeJob)
+      perform_job(ProbeJob, probe.args)
 
       assert_receive {:handoff_probed, ^tag}, 1_000
       assert IntegrationAvailability.up?({:handoff, :usenet})

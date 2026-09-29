@@ -1062,6 +1062,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert render(view) =~ "Finding a release for Sample Movie 777"
       assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "automatic"
@@ -1811,6 +1812,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert render(view) =~ "Finding a release for Sample Movie"
       assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "automatic"
@@ -2119,6 +2121,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#watchlist-item-movie-777", "Needs review")
 
       {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       render_until(view, fn _html -> has_element?(view, "#watchlist-item-movie-777", "Needs review") end)
       await_supervised_tasks()

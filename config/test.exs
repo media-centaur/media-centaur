@@ -21,7 +21,6 @@ config :media_centaur, MediaCentaur.Repo,
       Path.dirname(__DIR__)
     ),
 
-  # Oban inline testing — jobs execute synchronously in tests
   # Test-only signing key. Not a secret — tests never run against real data.
   # Never read user TOML config (~/.config/media-centaur/media-centaur.toml) in tests.
   # Exercises the per-env compile-time default — `config/dev.exs` points
@@ -43,7 +42,10 @@ config :media_centaur, MediaCentaurWeb.Endpoint,
   # Disable file watchers and Broadway pipeline in tests.
   secret_key_base: "test_signing_key_not_a_secret_deterministic_value_for_test_runs_xxxx"
 
-config :media_centaur, Oban, testing: :inline
+# Oban manual testing — an insert stores the job and runs nothing, as in
+# production (ADR-077, rule 10). A test runs what it enqueued with
+# `MediaCentaur.JobRuns.run_enqueued_jobs/0`.
+config :media_centaur, Oban, testing: :manual
 
 # Bypass the BroadcastCoalescer in tests — concurrent tests would otherwise
 # mechanism end-to-end.

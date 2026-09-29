@@ -5,9 +5,8 @@ defmodule MediaCentaur.SelfUpdateTest do
   alias MediaCentaur.SelfUpdate.{Storage, UpdateChecker}
 
   setup do
-    # boot!/0 can enqueue a CheckerJob that runs inline in the test
-    # Oban config. Install a stub client so any such job uses the stub
-    # instead of the real GitHub API.
+    # A check a test runs asks GitHub; the stub answers instead of the
+    # real API.
     Req.Test.stub(:github, fn conn ->
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
@@ -46,13 +45,9 @@ defmodule MediaCentaur.SelfUpdateTest do
       :ok = Storage.put_latest_known(release, :update_available)
       UpdateChecker.clear_cache()
 
-      # Suspend Oban's inline test mode so the always-enqueued boot
-      # CheckerJob doesn't run synchronously and overwrite the hydrated
-      # cache. This test isolates `boot!/0`'s hydrate behaviour from
-      # the concurrent fresh-check it schedules.
-      Oban.Testing.with_testing_mode(:manual, fn ->
-        :ok = SelfUpdate.boot!()
-      end)
+      # The fresh check boot!/0 always enqueues is not run, so it cannot
+      # overwrite the hydrated cache: this isolates the hydrate behaviour.
+      :ok = SelfUpdate.boot!()
 
       assert {:fresh, {:ok, %{version: "0.7.1"}}} = UpdateChecker.cached_latest_release()
     end

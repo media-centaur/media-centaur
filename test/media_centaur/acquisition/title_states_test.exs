@@ -21,6 +21,7 @@ defmodule MediaCentaur.Acquisition.TitleStatesTest do
 
   test "a ready draft is needs_review, an in-flight pursuit is downloading, nothing is absent" do
     {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
     create_pursuit(%{tmdb_id: "778", tmdb_type: "movie", title: "Sample Movie B"})
 
     assert TitleStates.for_refs([{777, :movie}, {778, :movie}, {779, :movie}, {42, :tv_series}]) == %{
@@ -31,6 +32,7 @@ defmodule MediaCentaur.Acquisition.TitleStatesTest do
 
   test "a pursuit outranks a draft for the same title" do
     {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
     create_pursuit(%{tmdb_id: "777", tmdb_type: "movie", title: "Sample Movie"})
 
     assert TitleStates.for_refs([{777, :movie}]) == %{{777, :movie} => :downloading}
@@ -38,7 +40,8 @@ defmodule MediaCentaur.Acquisition.TitleStatesTest do
 
   test "a planning draft is planning" do
     {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
-    # Inline Oban solved it to ready already; re-read before forcing it back.
+    MediaCentaur.JobRuns.run_enqueued_jobs()
+    # The run solved it to ready; re-read before forcing it back.
     {:ok, plan} = Plans.fetch(plan.id)
     force_attrs(plan, status: "planning")
 

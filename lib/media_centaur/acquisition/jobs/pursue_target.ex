@@ -73,7 +73,13 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   This is how `Targets.cancel_target/2` cuts a snoozed job short
   — it flips the row, the next wake sees it.
   """
-  use Oban.Worker, queue: :acquisition, unique: [period: 300, keys: [:target_id]]
+  # Unique among runs that have not started (ADR-077, rule 6): a second
+  # request while one waits collapses into it, and the waiting run reads
+  # the latest state when it starts. A finished or running job never
+  # absorbs a new request — that would drop a decision made after it read.
+  use Oban.Worker,
+    queue: :acquisition,
+    unique: [period: :infinity, keys: [:target_id], states: [:available, :scheduled, :retryable]]
 
   import Ecto.Query
 

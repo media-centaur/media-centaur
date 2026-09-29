@@ -53,7 +53,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   not a stuck spinner.
   """
 
-  use Oban.Worker, queue: :acquisition, unique: [period: 60, keys: [:plan_id]]
+  # Unique among runs that have not started (ADR-077, rule 6): a second
+  # request while one waits collapses into it, and the waiting run reads
+  # the latest state when it starts. A finished or running job never
+  # absorbs a new request — that would drop a decision made after it read.
+  use Oban.Worker,
+    queue: :acquisition,
+    unique: [period: :infinity, keys: [:plan_id], states: [:available, :scheduled, :retryable]]
 
   # Matches `Jobs.PursueTarget`: an unconfigured Prowlarr fails every
   # request instantly and no probe watches it, so asking again soon is

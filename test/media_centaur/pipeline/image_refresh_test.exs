@@ -65,14 +65,16 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
       movie = TestFactory.create_movie(%{name: "Sample Movie"})
 
       assert {:error, :no_tmdb_id} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       refute_receive {:enqueue_images, _}, 100
     end
 
-    test "enqueues and (inline) refreshes an identified movie" do
+    test "enqueues a refresh that, run, refreshes an identified movie" do
       movie = identified_movie()
       stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg"}))
 
       assert {:ok, _job} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert_receive {:enqueue_images, %{entity_id: entity_id}}
       assert entity_id == movie.id
     end

@@ -35,7 +35,7 @@ A **durable job** is an Oban job that carries work ADR-076 assigns to its first 
    * Success: the job's last write moves the row to its terminal state, in the same transaction as the work's final write.
    * A known permanent failure: the job writes the failure state and returns `{:cancel, reason}`.
    * Any other failure on the last attempt: rule 7's discard hook takes the row out of the pending state.
-6. **Unique while incomplete, never after.** A durable job that deduplicates declares `unique: [keys: [...], period: :infinity, states: :incomplete]`. A double click collapses into the pending job. A new request after the last job finished always inserts.
+6. **Unique among jobs that have not started.** A durable job that deduplicates declares `unique: [keys: [...], period: :infinity, states: [:available, :scheduled, :retryable]]`. A double click collapses into the waiting job, which reads the latest state when it starts (rule 4). A request made while a job runs, or after it finished, always inserts: the running job may already have read the state the request changed.
 7. **Failure is visible.** One telemetry handler in `MediaCentaur.Jobs`, on `[:oban, :job, :exception]`, logs every failed attempt at `:error` through `MediaCentaur.Log`, so it reaches the Console, ErrorReports and Status. On a discard it calls the worker's `discarded/2` callback, when the worker defines one.
 8. **Orphans are rescued.** `Oban.Lifeline` is enabled. Every durable worker declares `timeout/1`, below Lifeline's `rescue_after`, so a job that is still genuinely running is never rescued a second time. A crash delays an orphaned job by at most `rescue_after` plus Lifeline's one-minute interval.
 9. **Queues follow the contended resource.** Each queue is named for the resource its jobs contend for: `acquisition` (Prowlarr), `images`, `maintenance`, `self_update`, and a new queue only for a new resource. Work on the library's media files is one such resource.
@@ -54,3 +54,7 @@ A **durable job** is an Oban job that carries work ADR-076 assigns to its first 
 * Bad, because a job that is scheduled or snoozed waits up to `stage_interval` (10 s) past its time. An immediately available job is not delayed: the queue is notified on insert, and its fetch waits for the write lock and then sees the committed row.
 * Bad, because every durable job must be idempotent (rule 4). That constraint is real work in the jobs that call Prowlarr or delete files.
 * Bad, because switching the suite to `:manual` breaks the tests that relied on a job having run by the time `Oban.insert/1` returned. Measured on 2026-09-29, the switch failed 107 tests in 13 files. Most were in the plan path (`run_plan_test`, `drop_planner_test`, `plans_test`, `incoming_live_test`, `reactor/handlers_test`), which campaign finding F3 rewrites anyway.
+
+## Amendments
+
+* **2026-09-29** — Rule 6 first said `states: :incomplete`. That group includes `executing`, so a decision made while a job runs (a release excluded while its plan is being solved) would collapse into a job that had already read the state, and be lost. Corrected to the states of jobs that have not started, before any worker implemented the rule.

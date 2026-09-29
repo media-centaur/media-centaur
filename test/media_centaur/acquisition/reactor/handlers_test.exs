@@ -121,6 +121,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     test "automatic + clean commits one pursuit" do
       stub_search(acceptable_movie())
       {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       committed = gate(plan)
 
@@ -131,6 +132,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     test "automatic + a gap stays ready" do
       stub_search([])
       {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert gate(plan).status == "ready"
       assert Repo.all(Pursuit) == []
@@ -139,6 +141,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     test "automatic + only below-preference candidates stays ready" do
       stub_search(below_floor_movie())
       {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert gate(plan).status == "ready"
       assert Repo.all(Pursuit) == []
@@ -147,6 +150,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     test "review never commits, even when clean" do
       stub_search(acceptable_movie())
       {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "review")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert gate(plan).status == "ready"
       assert Repo.all(Pursuit) == []
@@ -157,6 +161,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
       # An active pursuit already claims the movie → CommitPlan rejects with overlap.
       create_pursuit(%{tmdb_id: "246813", tmdb_type: "movie", title: "Sample Movie", origin: "manual"})
       {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "automatic")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert gate(plan).status == "ready"
       assert length(Repo.all(Pursuit)) == 1
@@ -170,7 +175,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     # one stays on the board whatever the policy (spec 2026-09-17
     # decision 7); before that it was deleted with the offer unseen.
 
-    # Oban runs the search inline here, so an empty indexer leaves the
+    # The helper runs the search it enqueues, so an empty indexer leaves the
     # draft `ready` with its unit unfound and nothing offered. The offer,
     # when a case needs one, is forced on: proving that a pack-only
     # indexer produces it is `drop_planner_test`'s job.
@@ -188,6 +193,8 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
           },
           [%{season_number: 1, episode_number: 13, label: "S01E13", position: 0}]
         )
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, ready} = Plans.fetch(plan.id)
       assert ready.status == "ready"
@@ -225,6 +232,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
     test "true only when every non-excluded unit is found" do
       stub_search(acceptable_movie())
       {:ok, found} = Plans.create_movie_plan(@movie)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, found} = Plans.fetch(found.id)
       assert Plans.clean?(found)
 
@@ -232,6 +240,7 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
       # would answer from the first search's recorded result.
       stub_search([])
       {:ok, gap} = Plans.create_movie_plan(%{tmdb_id: "246814", title: "Sample Movie B", year: 2006})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, gap} = Plans.fetch(gap.id)
       refute Plans.clean?(gap)
     end
