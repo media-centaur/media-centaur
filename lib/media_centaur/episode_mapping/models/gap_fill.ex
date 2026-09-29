@@ -34,7 +34,12 @@ defmodule MediaCentaur.EpisodeMapping.Models.GapFill do
       |> Enum.filter(&(not &1.present? and &1.season != 0))
       |> Enum.sort_by(&{&1.season, &1.episode})
 
-    ordered = Enum.sort_by(artifacts, &{&1.claimed_season, &1.claimed_episode})
+    # Order is gap-fill's only evidence; a file whose name numbers no
+    # episode has none, so it is left to the models that read other claims.
+    ordered =
+      artifacts
+      |> Enum.reject(&is_nil(&1.claimed_episode))
+      |> Enum.sort_by(&{&1.claimed_season, &1.claimed_episode})
 
     case {missing, ordered} do
       {[], _} -> []

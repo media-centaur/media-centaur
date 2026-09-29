@@ -86,6 +86,17 @@ defmodule MediaCentaurWeb.EpisodeMappingViewTest do
       assert row_b.target_value == "skip"
       assert row_b.target_label == nil
     end
+
+    test "a file whose name claims only a year shows the year" do
+      review = %ShowReview{
+        tmdb_id: 42,
+        awaiting_files: [%AwaitingFile{id: "s", file_path: "/m/Special.2025.mkv", claimed_year: 2025}],
+        spine: spine(),
+        resolution: %Resolution{recommended: nil, alternatives: []}
+      }
+
+      assert [%{claimed: "2025"}] = EpisodeMappingView.file_rows(review, %{})
+    end
   end
 
   describe "show_summaries/1" do
@@ -108,6 +119,8 @@ defmodule MediaCentaurWeb.EpisodeMappingViewTest do
       assert EpisodeMappingView.confidence_pct(nil) == nil
       assert EpisodeMappingView.humanize_model(:title_match) == "Episode titles"
       assert EpisodeMappingView.humanize_model(:gap_fill) == "Fills the gap, in order"
+      assert EpisodeMappingView.humanize_model(:year_in_title) == "Year in the episode title"
+      assert EpisodeMappingView.humanize_model(:air_date_year) == "Year it aired"
     end
   end
 end

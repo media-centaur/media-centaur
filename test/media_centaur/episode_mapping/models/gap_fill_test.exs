@@ -52,6 +52,22 @@ defmodule MediaCentaur.EpisodeMapping.Models.GapFillTest do
       assert overflow.confidence < partial.confidence
     end
 
+    # 2026-09-29: gap-fill's evidence is order, and a file whose name numbers
+    # no episode has none. A yearly special would otherwise be placed on the
+    # first missing episode of the series.
+    test "leaves a file that numbers no episode to the other models" do
+      unnumbered = %Artifact{
+        id: "special",
+        claimed_season: nil,
+        claimed_episode: nil,
+        claimed_year: 2025
+      }
+
+      assert [interpretation] = GapFill.propose(spine(38, 28), [unnumbered | cour_artifacts(2)])
+      refute Enum.any?(interpretation.placements, &(&1.artifact_id == "special"))
+      assert GapFill.propose(spine(38, 28), [unnumbered]) == []
+    end
+
     test "no missing spine nodes yields no interpretation" do
       assert GapFill.propose(spine(38, 38), cour_artifacts(2)) == []
     end

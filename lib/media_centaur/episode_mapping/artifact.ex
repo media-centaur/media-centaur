@@ -10,12 +10,13 @@ defmodule MediaCentaur.EpisodeMapping.Artifact do
   """
 
   @enforce_keys [:id]
-  defstruct [:id, :claimed_season, :claimed_episode, :claimed_title]
+  defstruct [:id, :claimed_season, :claimed_episode, :claimed_title, :claimed_year]
 
   @type t :: %__MODULE__{
           id: String.t(),
           claimed_season: integer() | nil,
           claimed_episode: integer() | nil,
-          claimed_title: String.t() | nil
+          claimed_title: String.t() | nil,
+          claimed_year: integer() | nil
         }
 end

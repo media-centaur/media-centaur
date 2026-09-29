@@ -33,6 +33,7 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFile do
     field :claimed_season, :integer
     field :claimed_episode, :integer
     field :claimed_title, :string
+    field :claimed_year, :integer
 
     field :status, Ecto.Enum, values: [:pending, :resolved, :dismissed], default: :pending
 
@@ -52,6 +53,7 @@ defmodule MediaCentaur.EpisodeMapping.AwaitingFile do
       :claimed_season,
       :claimed_episode,
       :claimed_title,
+      :claimed_year,
       :status
     ])
     |> validate_required([:file_path, :media_dir, :tmdb_id])

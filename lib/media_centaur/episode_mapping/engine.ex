@@ -27,9 +27,9 @@ defmodule MediaCentaur.EpisodeMapping.Engine do
   """
 
   alias MediaCentaur.EpisodeMapping.{Artifact, Interpretation, Resolution, SpineNode}
-  alias MediaCentaur.EpisodeMapping.Models.{GapFill, TitleMatch}
+  alias MediaCentaur.EpisodeMapping.Models.{GapFill, TitleMatch, YearMatch}
 
-  @default_models [TitleMatch, GapFill]
+  @default_models [TitleMatch, YearMatch, GapFill]
 
   @spec resolve([SpineNode.t()], [Artifact.t()], keyword()) :: Resolution.t()
   def resolve(spine, artifacts, opts \\ []) when is_list(spine) and is_list(artifacts) do

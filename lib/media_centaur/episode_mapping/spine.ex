@@ -65,6 +65,16 @@ defmodule MediaCentaur.EpisodeMapping.Spine do
     end
   end
 
+  # TMDB dates an undated episode as "" rather than omitting it.
+  defp air_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp air_date(nil), do: nil
+
   defp node(season_number, episode, present_keys) do
     number = episode["episode_number"]
 
@@ -72,6 +82,7 @@ defmodule MediaCentaur.EpisodeMapping.Spine do
       season: season_number,
       episode: number,
       title: episode["name"],
+      air_date: air_date(episode["air_date"]),
       present?: MapSet.member?(present_keys, {season_number, number})
     }
   end

@@ -65,6 +65,8 @@ defmodule MediaCentaurWeb.EpisodeMappingView do
 
   def humanize_model(:gap_fill), do: "Fills the gap, in order"
   def humanize_model(:title_match), do: "Episode titles"
+  def humanize_model(:year_in_title), do: "Year in the episode title"
+  def humanize_model(:air_date_year), do: "Year it aired"
   def humanize_model(:recommended), do: "Recommended"
   def humanize_model(other), do: other |> to_string() |> String.replace("_", " ")
 
@@ -84,6 +86,9 @@ defmodule MediaCentaurWeb.EpisodeMappingView do
       }
     end)
   end
+
+  defp claimed_label(%{claimed_season: nil, claimed_episode: nil, claimed_year: year})
+       when is_integer(year), do: Integer.to_string(year)
 
   defp claimed_label(%{claimed_season: nil, claimed_episode: nil}), do: "—"
   defp claimed_label(%{claimed_season: season, claimed_episode: episode}), do: "S#{season} · E#{episode}"
