@@ -452,7 +452,8 @@ defmodule MediaCentaur.Library.InboundTest do
             name: "Behind the Scenes",
             content_url: "/media/extras/bts.mkv",
             season_number: nil
-          }
+          },
+          file_path: "/media/extras/bts.mkv"
         )
 
       assert {:ok, movie, :new, _pending_images} = Inbound.ingest(event)
@@ -475,7 +476,8 @@ defmodule MediaCentaur.Library.InboundTest do
             name: "Behind the Scenes",
             content_url: "/media/extras/bts.mkv",
             season_number: nil
-          }
+          },
+          file_path: "/media/extras/bts.mkv"
         )
 
       assert {:ok, movie, :new, _pending_images} = Inbound.ingest(event)
@@ -491,7 +493,10 @@ defmodule MediaCentaur.Library.InboundTest do
 
     test "re-ingesting the same extra does not duplicate the ExtraFile row" do
       event =
-        movie_event(extra: %{name: "BTS", content_url: "/media/extras/bts2.mkv", season_number: nil})
+        movie_event(
+          extra: %{name: "BTS", content_url: "/media/extras/bts2.mkv", season_number: nil},
+          file_path: "/media/extras/bts2.mkv"
+        )
 
       assert {:ok, _movie, :new, _} = Inbound.ingest(event)
       assert {:ok, movie, _status, _} = Inbound.ingest(event)
@@ -514,7 +519,8 @@ defmodule MediaCentaur.Library.InboundTest do
             name: "Making Of",
             content_url: "/media/extras/making_of.mkv",
             season_number: 1
-          }
+          },
+          file_path: "/media/extras/making_of.mkv"
         )
 
       assert {:ok, tv_series, :new, _pending_images} = Inbound.ingest(event)
@@ -538,7 +544,8 @@ defmodule MediaCentaur.Library.InboundTest do
             name: "Deleted Scenes",
             content_url: "/media/extras/deleted.mkv",
             season_number: nil
-          }
+          },
+          file_path: "/media/extras/deleted.mkv"
         )
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
@@ -718,6 +725,70 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
   # Post-ingest side effects
   # ---------------------------------------------------------------------------
+
+  # Every ingest ends in one link outcome for its file, published by path on
+  # `library:file_events` — the only report of whether the file reached the
+  # library. Review closes or reopens its item on it; without it an approval
+  # that linked nothing left the review item deleted and the title absent.
+  describe "link outcome" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_file_events())
+      :ok
+    end
+
+    test "a linked movie file is reported linked" do
+      assert {:ok, _movie, :new, _images} = Inbound.ingest(movie_event())
+
+      assert_receive {:file_linked, "/media/Sample.Movie.1999.mkv"}
+    end
+
+    test "a linked episode file is reported linked" do
+      assert {:ok, _tv, :new, _images} = Inbound.ingest(tv_event())
+
+      assert_receive {:file_linked, "/media/TV/Sample.Show.S01E01.mkv"}
+    end
+
+    test "a bonus feature linked to its title is reported linked" do
+      event =
+        movie_event(
+          extra: %{name: "Behind the Scenes", content_url: "/media/Extras/bts.mkv", season_number: nil},
+          file_path: "/media/Extras/bts.mkv"
+        )
+
+      assert {:ok, _movie, _status, _images} = Inbound.ingest(event)
+
+      assert_receive {:file_linked, "/media/Extras/bts.mkv"}
+    end
+
+    test "a series match with no season and episode is reported not linked, with the reason" do
+      assert {:ok, _tv, :new, _images} = Inbound.ingest(tv_event(season: nil))
+
+      assert_receive {:file_not_linked,
+                      %{
+                        file_path: "/media/TV/Sample.Show.S01E01.mkv",
+                        media_dir: "/media/TV",
+                        reason: :no_episode
+                      }}
+
+      refute Library.Files.linked?("/media/TV/Sample.Show.S01E01.mkv")
+    end
+
+    test "a file parked for reconciliation is reported parked, not unlinked" do
+      assert {:ok, _tv, :new, _images} = Inbound.ingest(tv_event(season: nil, parked: true))
+
+      assert_receive {:file_parked, "/media/TV/Sample.Show.S01E01.mkv"}
+      refute_received {:file_not_linked, _}
+    end
+
+    test "an ingest that fails is reported not linked, with the reason" do
+      event = movie_event(entity_attrs: %{type: :movie, name: nil, tmdb_id: "550"})
+
+      assert {:error, _reason} = Inbound.ingest(event)
+
+      assert_receive {:file_not_linked,
+                      %{file_path: "/media/Sample.Movie.1999.mkv", reason: {:ingest_failed, _}}}
+    end
+  end
 
   describe "post-ingest side effects" do
     test "creates WatchedFile linking file to type record" do

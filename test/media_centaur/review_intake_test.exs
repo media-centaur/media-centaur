@@ -3,8 +3,6 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
   alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
-  alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.TestFactory
   alias MediaCentaur.Topics
 
   defp build_attrs(overrides \\ %{}) do
@@ -273,24 +271,6 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       [pending] = Review.list_pending_files_for_review()
       refute pending.parsed_type == "extra"
-    end
-  end
-
-  describe "complete_review/1" do
-    test "destroys PendingFile and broadcasts a FileReviewed event" do
-      pending_file = TestFactory.create_pending_file()
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
-
-      assert :ok = Review.complete_review(pending_file.id)
-
-      assert_receive {:file_reviewed, %FileReviewed{pending_file_id: id}}
-      assert id == pending_file.id
-
-      assert {:error, :not_found} = MediaCentaur.Review.fetch_pending_file(pending_file.id)
-    end
-
-    test "handles already-removed PendingFile gracefully" do
-      assert :ok = Review.complete_review(Ecto.UUID.generate())
     end
   end
 end

@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   # First-render data load — runs on BOTH the disconnected (static) and
   # connected renders so the first paint already lists the review backlog,
   # never an empty-state flash. Desktop first-paint correctness (see
-  # AGENTS.md → LiveView callbacks): `fetch_pending_groups/0` is a local
+  # AGENTS.md → LiveView callbacks): `fetch_review_groups/0` is a local
   # query, so there is no traffic-scaling reason to defer it. Do not re-add
   # a `connected?` gate.
   defp ensure_loaded(socket) do
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   # derived-assigns pipeline (`apply_group_stats`, `ensure_selection`) so
   # the master/detail panes settle into a consistent state.
   defp load_review(socket) do
-    groups = Review.fetch_pending_groups()
+    groups = Review.fetch_review_groups()
 
     socket
     |> assign(groups: groups)
@@ -235,7 +235,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
       if updated > 0 do
         # Reload groups to reflect updated match info
-        groups = Review.fetch_pending_groups()
+        groups = Review.fetch_review_groups()
 
         {:noreply,
          socket
@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   def handle_info(:reload_groups, socket) do
-    groups = Review.fetch_pending_groups()
+    groups = Review.fetch_review_groups()
 
     {:noreply,
      socket
@@ -343,16 +343,19 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> put_flash(:error, message)}
   end
 
+  # The group stays: its files are importing until the library reports
+  # each one linked (`file_reviewed` removes it) or returns it with the
+  # reason (`file_added` reloads it). Reloading picks up their new status.
   def handle_info({:group_approved, %GroupApproved{group_key: group_key}}, socket) do
-    groups = Enum.reject(socket.assigns.groups, &(&1.key == group_key))
+    groups = Review.fetch_review_groups()
 
     {:noreply,
      socket
      |> assign(groups: groups)
-     |> assign(groups_by_key: Map.delete(socket.assigns.groups_by_key, group_key))
+     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
      |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
      |> apply_group_stats()
-     |> advance_selection(group_key)}
+     |> ensure_selection()}
   end
 
   def handle_info(:capabilities_changed, socket) do
@@ -415,8 +418,11 @@ defmodule MediaCentaurWeb.ReviewLive do
         <%!-- Header with stats chips --%>
         <div class="flex items-center justify-between">
           <.page_header title="Review" />
-          <div :if={@total_files > 0} class="flex items-center gap-2">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning">
+          <div :if={@groups != []} class="flex items-center gap-2">
+            <span
+              :if={@total_files > 0}
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning"
+            >
               {@total_files} pending
             </span>
             <span
@@ -436,6 +442,18 @@ defmodule MediaCentaurWeb.ReviewLive do
               class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/12 text-warning"
             >
               {@reason_counts.low_confidence} low confidence
+            </span>
+            <span
+              :if={@reason_counts.not_added > 0}
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-error/12 text-error"
+            >
+              {@reason_counts.not_added} not added
+            </span>
+            <span
+              :if={@reason_counts.importing > 0}
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-base-content/8 text-base-content/60"
+            >
+              {@reason_counts.importing} importing
             </span>
           </div>
         </div>
@@ -611,6 +629,18 @@ defmodule MediaCentaurWeb.ReviewLive do
     """
   end
 
+  defp list_badge(%{reason: :importing} = assigns) do
+    ~H"""
+    <span class="text-xs text-base-content/60 shrink-0">Importing</span>
+    """
+  end
+
+  defp list_badge(%{reason: :not_added} = assigns) do
+    ~H"""
+    <span class="text-xs text-error shrink-0">Not added</span>
+    """
+  end
+
   defp list_badge(%{reason: :no_results} = assigns) do
     ~H"""
     <span class="text-xs text-error shrink-0">None</span>
@@ -693,6 +723,8 @@ defmodule MediaCentaurWeb.ReviewLive do
           </span>
         </div>
 
+        <p :if={@file.error_message} class="text-sm text-error">{@file.error_message}</p>
+
         <.parsed_info file={@file} />
 
         <.tmdb_match file={@file} tied={@tied} />
@@ -713,8 +745,12 @@ defmodule MediaCentaurWeb.ReviewLive do
           encoded_key={@encoded_key}
         />
 
-        <%!-- Action buttons --%>
-        <div class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6">
+        <%!-- Action buttons. An importing group has nothing to decide until the
+              library reports its files. --%>
+        <div
+          :if={@reason != :importing}
+          class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6"
+        >
           <.button
             :if={@file.tmdb_id && !@tied}
             variant="action"
@@ -1107,7 +1143,11 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   defp apply_group_stats(socket) do
     groups = socket.assigns.groups
-    total_files = Enum.reduce(groups, 0, fn group, acc -> acc + length(group.files) end)
+
+    total_files =
+      Enum.reduce(groups, 0, fn group, acc ->
+        acc + Enum.count(group.files, &(&1.status == :pending))
+      end)
 
     assign(socket,
       sorted_groups: sort_groups(groups),

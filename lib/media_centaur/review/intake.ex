@@ -5,7 +5,6 @@ defmodule MediaCentaur.Review.Intake do
   function:
 
   - `{:needs_review, attrs}` → `Review.add_pending_file/1`
-  - `{:review_completed, id}` → `Review.complete_review/1`
   - `{:files_for_review, files}` → `Review.add_files_for_review/1`
   """
   use GenServer
@@ -31,11 +30,6 @@ defmodule MediaCentaur.Review.Intake do
       {:error, reason} -> Log.warning(:review, "failed to create pending file — #{inspect(reason)}")
     end
 
-    {:noreply, state}
-  end
-
-  def handle_info({:review_completed, pending_file_id}, state) do
-    Review.complete_review(pending_file_id)
     {:noreply, state}
   end
 

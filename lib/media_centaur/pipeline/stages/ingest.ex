@@ -26,7 +26,10 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
       child_movie: payload.metadata.child_movie,
       extra: payload.metadata.extra,
       file_path: payload.file_path,
-      media_dir: payload.media_directory
+      media_dir: payload.media_directory,
+      # A parked file gets no link by design; the library reports it
+      # parked rather than unlinked (`Library.Inbound`, "Link outcome").
+      parked: parked?(payload)
     }
 
     MediaCentaur.Topics.publish(
@@ -55,4 +58,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
   end
 
   defp maybe_divert(_payload), do: :ok
+
+  defp parked?(%Payload{metadata: %{divert: claims}}), do: is_map(claims)
+  defp parked?(%Payload{}), do: false
 end

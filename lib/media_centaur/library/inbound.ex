@@ -8,7 +8,8 @@ defmodule MediaCentaur.Library.Inbound do
   - `{:entity_published, event}` — creates a type-specific record (TVSeries,
     MovieSeries, Movie, VideoObject), children, ExternalId, WatchedFile, queues
     images for download, and broadcasts `:entities_changed` — plus
-    `Library.Events.MoviesAdded` when the file is a movie's first
+    `Library.Events.MoviesAdded` when the file is a movie's first — then
+    reports the file's link outcome (below)
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
   - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
     then sends the file list to `"review:intake"` for re-review
@@ -16,6 +17,25 @@ defmodule MediaCentaur.Library.Inbound do
   Existing entities are resolved by joining through `library_external_ids` —
   `MediaCentaur.Library.ExternalIds` is the sole source of truth for
   TMDB / IMDB ids (Library Schema v2 Phase 1 Task 6).
+
+  ## Link outcome
+
+  Every `{:entity_published, event}` ends in exactly one report of what
+  became of its file, published by path on `Topics.library_file_events/0`:
+
+    * `{:file_linked, file_path}` — the file is attached to its movie,
+      episode, video or bonus feature (`Library.Files.linked?/1`).
+    * `{:file_parked, file_path}` — the event asked for no link: the
+      pipeline parked the file in the reconciliation queue, which owns it
+      from here.
+    * `{:file_not_linked, %{file_path, media_dir, reason}}` — nothing is
+      attached. `reason` is `:no_episode` (a series match for a file with
+      no season and episode), `{:ingest_failed, term}` or `:crashed`.
+
+  This is the only record of whether a file reached the library: the
+  series of an unlinked episode exists but is hidden, so without the
+  report an approval that linked nothing looked like one that worked.
+  `Review` closes and reopens its items on it.
 
   ## PlayableItem invariant
 
@@ -88,6 +108,7 @@ defmodule MediaCentaur.Library.Inbound do
     case create_or_link(event) do
       {:ok, entity, status, pending_images} ->
         link_file(entity, event)
+        report_link_outcome(event)
         queue_images(entity, pending_images, event)
         Helpers.broadcast_entities_changed([entity.id])
         announce_arrival(arriving)
@@ -106,8 +127,38 @@ defmodule MediaCentaur.Library.Inbound do
 
       {:error, reason} ->
         Log.warning(:library, "failed to ingest entity: #{inspect(reason)}")
+        publish_not_linked(event, {:ingest_failed, reason})
         {:error, reason}
     end
+  end
+
+  defp report_link_outcome(%{parked: true, file_path: file_path}) do
+    publish_link_outcome({:file_parked, file_path})
+  end
+
+  defp report_link_outcome(%{file_path: file_path} = event) do
+    if Library.Files.linked?(file_path) do
+      publish_link_outcome({:file_linked, file_path})
+    else
+      publish_not_linked(event, unlinked_reason(event))
+    end
+  end
+
+  # The one way a successful ingest links nothing: a series match whose
+  # file names no season and episode, so there is no episode to attach it
+  # to (`leaf_container_for/2`).
+  defp unlinked_reason(%{entity_type: :tv_series}), do: :no_episode
+
+  defp publish_not_linked(%{file_path: file_path, media_dir: media_dir}, reason) do
+    Log.warning(:library, "file not linked — #{inspect(reason)} (file=#{file_path})")
+
+    publish_link_outcome(
+      {:file_not_linked, %{file_path: file_path, media_dir: media_dir, reason: reason}}
+    )
+  end
+
+  defp publish_link_outcome(message) do
+    MediaCentaur.Topics.publish(MediaCentaur.Topics.library_file_events(), message)
   end
 
   defp reload_with_content_url(%Library.Movie{} = movie, :movie) do
@@ -236,7 +287,12 @@ defmodule MediaCentaur.Library.Inbound do
   # reintroducing unbounded concurrency (see the FAN-OUT discussion).
   @impl true
   def handle_info({:entity_published, event}, state) do
-    isolate("entity_published", fn -> ingest(event) end)
+    # A crash inside `ingest/1` skips its own outcome report, so the
+    # boundary reports it: every published event ends in exactly one.
+    with :crashed <- isolate("entity_published", fn -> ingest(event) end) do
+      publish_not_linked(event, :crashed)
+    end
+
     {:noreply, state}
   end
 
@@ -269,9 +325,12 @@ defmodule MediaCentaur.Library.Inbound do
         :library,
         "inbound #{label} failed: #{Exception.message(error)}"
       )
+
+      :crashed
   catch
     kind, reason ->
       Log.error(:library, "inbound #{label} crashed: #{inspect({kind, reason})}")
+      :crashed
   end
 
   # ---------------------------------------------------------------------------
@@ -802,17 +861,10 @@ defmodule MediaCentaur.Library.Inbound do
   defp link_file(entity, event) do
     case leaf_playable_item_id_for(entity, event) do
       nil ->
-        # No leaf to attach this WatchedFile to (e.g. a TV event with
-        # no Season/Episode). Under the old shape we created a
-        # WatchedFile at the TVSeries level; in the new shape every
-        # WatchedFile must point at a PlayableItem leaf. Skip the link
-        # — the Watcher will retry when the leaf appears.
-        Log.info(
-          :library,
-          "skipped file link — no leaf container for #{Format.short_id(entity.id)} " <>
-            "(file=#{event.file_path})"
-        )
-
+        # No leaf to attach this WatchedFile to: a bonus feature (linked
+        # as an ExtraFile by `create_or_link/1`), a file parked for
+        # reconciliation, or a series match with no season and episode.
+        # `report_link_outcome/1` says which.
         nil
 
       playable_item_id when is_binary(playable_item_id) ->

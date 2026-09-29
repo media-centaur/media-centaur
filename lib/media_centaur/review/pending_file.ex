@@ -87,11 +87,14 @@ defmodule MediaCentaur.Review.PendingFile do
     |> validate_required([:file_path])
   end
 
+  # Approval is the retry of an item the library returned, so the reason it
+  # came back with no longer describes it.
   def approve_changeset(pending_file) do
     pending_file
     |> change()
     |> validate_status(:pending)
     |> put_change(:status, :approved)
+    |> put_change(:error_message, nil)
   end
 
   def dismiss_changeset(pending_file) do
@@ -119,6 +122,15 @@ defmodule MediaCentaur.Review.PendingFile do
     |> put_change(:candidates, [])
     |> put_change(:error_message, nil)
     |> validate_required([:file_path])
+  end
+
+  @doc """
+  Returns an item to `:pending` because its file was not linked, with the
+  reason the reviewer reads. Unlike `reopen_changeset/2` it keeps the
+  match: the reviewer sees what they chose and why it did not work.
+  """
+  def unlinked_changeset(pending_file, message) do
+    change(pending_file, status: :pending, error_message: message)
   end
 
   def set_tmdb_match_changeset(pending_file, attrs) do

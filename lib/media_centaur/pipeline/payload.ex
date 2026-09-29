@@ -11,6 +11,11 @@ defmodule MediaCentaur.Pipeline.Payload do
   **Input (set by producer):**
   - `file_path` — absolute path to the video file
   - `media_directory` — the media directory it was detected in
+  - `match_season`, `match_episode` — Import only: the season and episode
+    the match places the file at (`nil` for a movie). They come with the
+    match, from the parse for a Discovery match and from the review item
+    for an approval, and Import uses them instead of reading the path
+    again — so a reviewer's choice reaches the library.
 
   **Parse stage:**
   - `parsed` — `%Parser.Result{}` with title, year, type, season, episode
@@ -38,9 +43,6 @@ defmodule MediaCentaur.Pipeline.Payload do
   - `entity_id` — UUID of the created/found entity
   - `ingest_status` — `:new`, `:new_child`, or `:existing`
   - `pending_images` — list of image maps to queue for download
-
-  **Import (set by Import Producer for review-resolved files):**
-  - `pending_file_id` — UUID of the PendingFile being resolved
   """
 
   @type t :: %__MODULE__{}
@@ -49,6 +51,8 @@ defmodule MediaCentaur.Pipeline.Payload do
     # Input
     :file_path,
     :media_directory,
+    :match_season,
+    :match_episode,
 
     # Parse stage
     :parsed,
@@ -71,9 +75,6 @@ defmodule MediaCentaur.Pipeline.Payload do
     # Ingest stage
     :entity_id,
     :ingest_status,
-    :pending_images,
-
-    # Import (review-resolved)
-    :pending_file_id
+    :pending_images
   ]
 end

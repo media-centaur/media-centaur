@@ -84,20 +84,20 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   #   missed while the pipeline was down, and re-emit files the watcher
   #   knows about but the pipeline never finished ingesting (stranded by
   #   a transient TMDB/network failure on a prior run).
-  # - `Review.sweep_completed_reviews/0` — delete queue rows whose
-  #   import already finished. `complete_review/1` destroys the row when
-  #   `{:review_completed, id}` arrives, and PubSub has no replay, so a
-  #   dropped message orphans one at `:approved` forever. Sweeping here
-  #   heals it on the next start instead of letting it accumulate into a
-  #   row the queue does not list and a re-match cannot get past.
+  # - `Review.reconcile_with_library/0` — settle the review queue first,
+  #   while nothing is in flight: close items whose file is linked and
+  #   reopen approved items whose import did not finish. Review closes
+  #   items on link outcomes delivered over PubSub, which has no replay;
+  #   this heals a dropped one. It runs before the rescan so a reopened
+  #   item is `:pending` when its file is re-run.
   def handle_info({:reconcile, attempt}, state) do
     case reconcile_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
         Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          MediaCentaur.Review.reconcile_with_library()
           MediaCentaur.Watcher.Rescan.reconcile()
-          MediaCentaur.Review.sweep_completed_reviews()
         end)
 
       {:retry, delay_ms} ->

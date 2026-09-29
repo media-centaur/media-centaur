@@ -16,6 +16,7 @@ defmodule MediaCentaur.PipelineTest do
   alias MediaCentaur.Pipeline.Import.Producer, as: ImportProducer
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Review
+  alias MediaCentaur.Review.FileEventHandler
 
   import MediaCentaur.TmdbStubs
 
@@ -25,6 +26,9 @@ defmodule MediaCentaur.PipelineTest do
     # {:needs_review, ...} and {:review_completed, ...} events, so each test
     # starts its own, stopped with the test.
     start_supervised!(MediaCentaur.Review.Intake)
+    # Review closes and reopens its items on the library's link outcomes
+    # (`library:file_events`), so the review-resolved tests run its handler.
+    start_supervised!(FileEventHandler)
     setup_tmdb_client()
 
     # Subscribe to receive entity_published events from the Import pipeline
@@ -85,7 +89,8 @@ defmodule MediaCentaur.PipelineTest do
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
-          pending_file_id: nil
+          season: discovered.parsed.season,
+          episode: discovered.parsed.episode
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -135,7 +140,8 @@ defmodule MediaCentaur.PipelineTest do
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
-          pending_file_id: nil
+          season: discovered.parsed.season,
+          episode: discovered.parsed.episode
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -179,7 +185,8 @@ defmodule MediaCentaur.PipelineTest do
           media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
-          pending_file_id: nil
+          season: discovered.parsed.season,
+          episode: discovered.parsed.episode
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -362,7 +369,8 @@ defmodule MediaCentaur.PipelineTest do
           media_dir: "/media/pipeline",
           tmdb_id: 550,
           tmdb_type: :movie,
-          pending_file_id: pending.id
+          season: nil,
+          episode: nil
         })
 
       assert {:ok, _result} = Import.process_payload(import_payload)
@@ -378,8 +386,131 @@ defmodule MediaCentaur.PipelineTest do
       assert length(files) == 1
       assert Library.Files.top_level_entity_id(hd(files)) == entity.id
 
-      # PendingFile destroyed by Import pipeline
+      # PendingFile destroyed once the library reports the file linked
+      FileEventHandler.__sync_for_test__()
       assert Review.list_pending_files() == []
+      refute Repo.get(Review.PendingFile, pending.id)
+    end
+
+    # The reported case: a yearly special parses as a movie with no season or
+    # episode, the reviewer picks its series, and the library has no episode
+    # to attach it to. Regression: the review item was deleted as soon as the
+    # entity was published, the series stayed hidden for want of a file, and
+    # the item came back only after a restart — without the reviewer's choice.
+    test "an approved series match for a file with no season and episode returns to review with the reason" do
+      stub_routes([
+        {"/tv/1396", tv_detail()}
+      ])
+
+      path = "/media/pipeline/TV/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4"
+
+      pending =
+        create_pending_file(%{
+          file_path: path,
+          media_directory: "/media/pipeline/TV",
+          parsed_title: "Sample Special",
+          parsed_type: "movie",
+          tmdb_id: 1396,
+          tmdb_type: "tv",
+          match_title: "Sample Show"
+        })
+
+      {:ok, approved} = Review.approve_pending_file(pending)
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: path,
+          media_dir: "/media/pipeline/TV",
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          season: approved.season_number,
+          episode: approved.episode_number
+        })
+
+      assert {:ok, _result} = Import.process_payload(import_payload)
+
+      assert_receive {:entity_published, event}
+      assert {:ok, _tv_series, :new, _images} = Inbound.ingest(event)
+
+      FileEventHandler.__sync_for_test__()
+
+      refute Library.Files.linked?(path)
+      reopened = Repo.get!(Review.PendingFile, pending.id)
+      assert reopened.status == :pending
+      assert reopened.error_message =~ "season and episode"
+      # The reviewer's choice is kept, so they can see what they picked.
+      assert reopened.tmdb_id == 1396
+      assert reopened.tmdb_type == "tv"
+    end
+
+    # The match decides which episode a file is, not the filename: a
+    # reviewer's episode choice has to reach the library.
+    test "the match's season and episode place the file, whatever its name says" do
+      stub_routes([
+        {"/tv/1396", tv_detail()},
+        {"/tv/1396/season/1", season_detail()}
+      ])
+
+      path = "/media/pipeline/TV/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4"
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: path,
+          media_dir: "/media/pipeline/TV",
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          season: 1,
+          episode: 1
+        })
+
+      assert {:ok, _result} = Import.process_payload(import_payload)
+
+      assert_receive {:entity_published, event}
+      assert {:ok, tv_series, :new, _images} = Inbound.ingest(event)
+
+      assert Library.Files.linked?(path)
+      tv_series = Repo.preload(tv_series, seasons: :episodes)
+      assert [%{season_number: 1, episodes: [%{episode_number: 1}]}] = tv_series.seasons
+    end
+
+    # An import that fails before the library never produces a link, so it
+    # reports the outcome itself. Regression: the review item stayed
+    # `:approved` — a status the queue does not list — with nothing retrying.
+    test "an import that fails returns its review item with the reason" do
+      path = "/media/pipeline/Review.Failed.mkv"
+
+      pending =
+        create_pending_file(%{
+          file_path: path,
+          media_directory: "/media/pipeline",
+          tmdb_id: 550,
+          tmdb_type: "movie"
+        })
+
+      {:ok, _approved} = Review.approve_pending_file(pending)
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: path,
+          media_dir: "/media/pipeline",
+          tmdb_id: 550,
+          tmdb_type: :movie,
+          season: nil,
+          episode: nil
+        })
+
+      failed =
+        Broadway.Message.failed(
+          %Broadway.Message{data: import_payload, acknowledger: Broadway.NoopAcknowledger.init()},
+          :insufficient_disk_space
+        )
+
+      Import.handle_failed([failed], nil)
+      FileEventHandler.__sync_for_test__()
+
+      reopened = Repo.get!(Review.PendingFile, pending.id)
+      assert reopened.status == :pending
+      assert reopened.error_message =~ "disk space"
     end
   end
 
@@ -455,11 +586,10 @@ defmodule MediaCentaur.PipelineTest do
     end
 
     # A file awaiting review is re-run by `rescan_unlinked/0`. When the new
-    # run matches with confidence, the match answers the open review, so the
-    # broadcast carries the row's id and Import completes it. Regression:
-    # the broadcast carried `pending_file_id: nil`, the file imported, and
-    # its row stayed in the review queue forever.
-    test "a matched file still awaiting review carries its review row to import" do
+    # run matches with confidence and the file is linked, its open review is
+    # answered. Regression: the file imported and its row stayed in the
+    # review queue forever.
+    test "a queued file that a re-run matches and links leaves the review queue" do
       path = "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
       pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
 
@@ -485,7 +615,14 @@ defmodule MediaCentaur.PipelineTest do
       Discovery.handle_batch(:default, [batch_message(result)], batch_info(), nil)
 
       assert_receive {:file_matched, matched}
-      assert matched.pending_file_id == pending.id
+      stub_routes([{"/movie/550", movie_detail()}])
+      assert {:ok, _result} = Import.process_payload(ImportProducer.build_payload(matched))
+
+      assert_receive {:entity_published, event}
+      assert {:ok, _movie, :new, _images} = Inbound.ingest(event)
+
+      FileEventHandler.__sync_for_test__()
+      refute Repo.get(Review.PendingFile, pending.id)
     end
   end
 
