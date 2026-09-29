@@ -41,7 +41,7 @@ A **durable job** is an Oban job that carries work ADR-076 assigns to its first 
    * A discarded job is an error.
 
    On a discard the handler calls the worker's `discarded/2` callback, when the worker defines one. The callback arrives with its first user.
-8. **Orphans are rescued.** `Oban.Lifeline` is enabled. Every durable worker declares `timeout/1`, below Lifeline's `rescue_after`, so a job that is still genuinely running is never rescued a second time. A crash delays an orphaned job by at most `rescue_after` plus Lifeline's one-minute interval.
+8. **Orphans are rescued at boot.** `MediaCentaur.Jobs.rescue_orphans/1` runs at startup. It makes every job attempted before this boot available again, or discards the job when that was its last attempt. The app runs one node per database, so such a job cannot still be running. The rescue is therefore exact and assumes nothing about how long a job takes, and an orphaned job resumes within one stage interval of boot.
 9. **Queues follow the contended resource.** Each queue is named for the resource its jobs contend for: `acquisition` (Prowlarr), `images`, `maintenance`, `self_update`, and a new queue only for a new resource. Work on the library's media files is one such resource.
 10. **Tests run jobs as production does.** The test suite uses `testing: :manual`. A durable command's tests assert four things:
     * the row and the job commit together, and neither commits on failure;
@@ -63,3 +63,4 @@ A **durable job** is an Oban job that carries work ADR-076 assigns to its first 
 
 * **2026-09-29** — Rule 6 first said `states: :incomplete`. That group includes `executing`, so a decision made while a job runs (a release excluded while its plan is being solved) would collapse into a job that had already read the state, and be lost. Corrected to the states of jobs that have not started, before any worker implemented the rule.
 * **2026-09-29** — Rule 7 first logged every failed attempt at `:error`. That makes an incident of every transient upstream error a worker returns expecting a retry. It is now split into warning and error by outcome and cause.
+* **2026-09-29** — Rule 8 first enabled `Oban.Lifeline` and required every worker to declare a `timeout/1` below its `rescue_after`. Lifeline rescues by age alone. A Prowlarr search can take 60 s, and a `RunPlan` over a long show searches one term per uncovered episode, so a legitimate run takes tens of minutes. A short window would run a live plan twice; a long one would delay every orphan by that much. The boot rescue replaces it (owner).
