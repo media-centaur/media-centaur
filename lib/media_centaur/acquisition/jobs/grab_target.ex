@@ -18,8 +18,9 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
     * **Accepted** — the infohash is resolved and the target moves to
       `acquired`, exactly as `PursueTarget` lands its own grab.
     * **Refused** — the release is the problem: the target fails
-      (`grab_refused`), each unit it covered records the release as tried,
-      and each gets a new seeking target (`Targets.seek_again/2`).
+      (`grab_refused`) and each unit it covered — which recorded the
+      release as tried when it was chosen — gets a new seeking target
+      (`Targets.seek_again/2`).
 
   A crash after Prowlarr accepted the grab and before the target is
   written re-grabs on retry. The grab is at-least-once; nothing here
@@ -35,7 +36,7 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{CancelReasons, InfoHash, Target, TargetEvents, Targets}
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit, Units}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.IntegrationAvailability
@@ -107,16 +108,9 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
     {:ok, failed} =
       Repo.transaction(fn ->
         {:ok, failed} = Repo.update(Target.failed_changeset(target, CancelReasons.grab_refused()))
-
-        # The refused release counts as an attempt and is not tried again
-        # by the search that follows.
-        units =
-          Enum.map(Units.covered_by(target.id), fn unit ->
-            {:ok, attempted} = Repo.update(Unit.record_attempt_changeset(unit, target.prowlarr_guid))
-            attempted
-          end)
-
-        :ok = Targets.seek_again(pursuit, units)
+        # Choosing the release already recorded it as tried on each unit
+        # (`Targets.start_grabbing/4`), so the search that follows skips it.
+        :ok = Targets.seek_again(pursuit, Units.covered_by(target.id))
         failed
       end)
 

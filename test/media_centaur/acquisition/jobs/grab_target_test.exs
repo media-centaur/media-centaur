@@ -72,6 +72,13 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTargetTest do
 
       assert Enum.all?(units, &(Repo.reload!(&1).current_target_id == target.id))
 
+      # Choosing the release is each unit's attempt, and marks it tried.
+      for unit <- units do
+        reloaded = Repo.reload!(unit)
+        assert reloaded.attempt_count == 1
+        assert reloaded.tried_release_guids == ["chosen-1"]
+      end
+
       assert [%{in_transaction?: true, args: %{"target_id" => target_id}}] =
                Enum.filter(inserts, &(&1.worker == inspect(GrabTarget)))
 
