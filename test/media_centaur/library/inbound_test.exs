@@ -923,76 +923,6 @@ defmodule MediaCentaur.Library.InboundTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Image ready (from image pipeline)
-  # ---------------------------------------------------------------------------
-
-  describe "image_ready" do
-    test "creates image record for movie owner" do
-      movie = create_entity(%{type: :movie, name: "Test Movie"})
-
-      send_image_ready(%{
-        owner_id: movie.id,
-        owner_type: "movie",
-        role: "poster",
-        content_url: "images/#{movie.id}/poster.jpg",
-        extension: "jpg",
-        entity_id: movie.id
-      })
-
-      movie = MediaCentaur.Repo.preload(movie, :images)
-      assert [image] = movie.images
-      assert image.role == "poster"
-      assert image.content_url == "images/#{movie.id}/poster.jpg"
-      assert image.owner_type == :movie
-      assert image.owner_id == movie.id
-    end
-
-    test "creates image record for child movie owner" do
-      series = create_entity(%{type: :movie_series, name: "Collection"})
-
-      {:ok, movie} =
-        Library.Containers.find_or_create_movie_for_series(%{
-          movie_series_id: series.id,
-          tmdb_id: "155",
-          name: "Movie",
-          position: 1
-        })
-
-      send_image_ready(%{
-        owner_id: movie.id,
-        owner_type: "movie",
-        role: "poster",
-        content_url: "images/#{series.id}/movie_poster.jpg",
-        extension: "jpg",
-        entity_id: series.id
-      })
-
-      movie = MediaCentaur.Repo.preload(movie, :images)
-      assert [image] = movie.images
-      assert image.role == "poster"
-      assert image.owner_type == :movie
-      assert image.owner_id == movie.id
-    end
-
-    test "broadcasts entities_changed after image creation" do
-      movie = create_entity(%{type: :movie, name: "Test Movie"})
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
-
-      send_image_ready(%{
-        owner_id: movie.id,
-        owner_type: "movie",
-        role: "backdrop",
-        content_url: "images/#{movie.id}/backdrop.jpg",
-        extension: "jpg",
-        entity_id: movie.id
-      })
-
-      assert_receive {:entities_changed, %{entity_ids: entity_ids}}, 500
-      assert movie.id in entity_ids
-    end
-  end
-
-  # ---------------------------------------------------------------------------
   # Error handling
   # ---------------------------------------------------------------------------
 
@@ -1008,10 +938,6 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
-
-  defp send_image_ready(attrs) do
-    Inbound.process_image_ready(attrs)
-  end
 
   # The ingest event's season carries TMDB's episode list; these stand in
   # for it at the two sizes the fixtures use.

@@ -3,8 +3,8 @@ defmodule MediaCentaur.Pipeline.ImageTest do
   Integration tests for the Pipeline.Image Broadway.
 
   Verifies that the producer queries pending queue entries, the processor
-  downloads and resizes them, and the batcher updates queue status and
-  broadcasts {:image_ready, ...} events.
+  downloads and resizes them, and the batcher marks each entry complete
+  and records its `Library.Image`, together.
   """
   use MediaCentaur.DataCase, async: false
 
@@ -30,6 +30,46 @@ defmodule MediaCentaur.Pipeline.ImageTest do
     on_exit(fn -> File.rm_rf!(images_dir) end)
 
     %{images_dir: images_dir}
+  end
+
+  # Regression (campaign durable-work, F11): the batcher marked an entry
+  # complete and published `{:image_ready, ...}` for `Library.Inbound` to
+  # write the image row; a lost message left the file downloaded, the entry
+  # complete, and no row — nothing ever wrote it.
+  describe "handle_batch/4 — the downloaded image is recorded with its entry" do
+    test "marks the entry complete and writes the Library.Image row, with no message between" do
+      movie = MediaCentaur.TestFactory.create_entity(%{type: :movie, name: "Sample Movie"})
+
+      {:ok, entry} =
+        ImageQueue.create(%{
+          owner_id: movie.id,
+          owner_type: "movie",
+          role: "poster",
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: movie.id,
+          media_dir: @media_directory
+        })
+
+      message = %Broadway.Message{
+        data: %{
+          queue_entry: entry,
+          relative_path: "images/#{movie.id}/poster.jpg",
+          extension: "jpg",
+          owner_id: movie.id,
+          entity_id: movie.id
+        },
+        acknowledger: Broadway.NoopAcknowledger.init()
+      }
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+      Image.handle_batch(:default, [message], %{}, %{})
+
+      assert MediaCentaur.Repo.reload!(entry).status == "complete"
+      assert [poster] = MediaCentaur.Library.Images.list_for_owner(:movie, movie.id)
+      assert poster.content_url == "images/#{movie.id}/poster.jpg"
+      assert_receive {:entities_changed, %{entity_ids: entity_ids}}, 500
+      assert movie.id in entity_ids
+    end
   end
 
   describe "producer work item building" do

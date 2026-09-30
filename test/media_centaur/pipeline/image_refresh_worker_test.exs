@@ -22,8 +22,8 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorkerTest do
     job = %Oban.Job{args: %{"entity_id" => movie.id, "entity_type" => "movie"}}
     assert :ok = ImageRefreshWorker.perform(job)
 
-    assert_receive {:enqueue_images, %{entity_id: entity_id}}
-    assert entity_id == movie.id
+    # The job's work is stored before it completes: the queue rows exist.
+    assert [_poster | _] = MediaCentaur.Pipeline.ImageQueue.list_pending(movie.id)
   end
 
   test "perform/1 cancels (no retry) when the entity is unidentified" do

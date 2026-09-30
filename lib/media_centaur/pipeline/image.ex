@@ -4,9 +4,9 @@ defmodule MediaCentaur.Pipeline.Image do
 
   Listens for `{:images_pending, %{entity_id, media_dir}}` events on the
   `"pipeline:images"` PubSub topic, queries pending queue entries,
-  downloads from TMDB CDN, resizes to spec, writes to disk, marks queue
-  entries complete, and broadcasts `{:image_ready, ...}` on the
-  `"pipeline:publish"` topic for `Library.Inbound` to create Image records.
+  downloads from TMDB CDN, resizes to spec, writes to disk, and — in one
+  transaction — marks queue entries complete and records each image
+  (`Library.Images.ready/1`).
 
   Broadway config: 1 producer (PubSub subscriber), 8 processors (image
   work is I/O-bound — TMDB CDN fetch + libvips resize + disk write — so
@@ -20,7 +20,7 @@ defmodule MediaCentaur.Pipeline.Image do
 
   alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Pipeline.{ImageQueue, ImageProcessor}
-  alias MediaCentaur.Topics
+  alias MediaCentaur.Repo
 
   @processor_concurrency 8
 
@@ -94,30 +94,14 @@ defmodule MediaCentaur.Pipeline.Image do
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
     entries = Enum.map(messages, & &1.data.queue_entry)
-    ImageQueue.update_statuses(entries, :complete)
 
-    Enum.each(messages, fn message ->
-      %{
-        queue_entry: entry,
-        relative_path: relative_path,
-        extension: extension,
-        owner_id: owner_id,
-        entity_id: entity_id
-      } = message.data
-
-      Topics.publish(
-        Topics.pipeline_publish(),
-        {:image_ready,
-         %{
-           owner_id: owner_id,
-           owner_type: entry.owner_type,
-           role: entry.role,
-           content_url: relative_path,
-           extension: extension,
-           entity_id: entity_id
-         }}
-      )
-    end)
+    # The entries turn complete and their images are recorded together: a
+    # finished download always has its `Library.Image` row.
+    {:ok, :ok} =
+      Repo.transaction(fn ->
+        ImageQueue.update_statuses(entries, :complete)
+        Enum.each(messages, &record_image/1)
+      end)
 
     entity_ids =
       messages
@@ -135,6 +119,18 @@ defmodule MediaCentaur.Pipeline.Image do
     end
 
     messages
+  end
+
+  defp record_image(%Broadway.Message{data: data}) do
+    %{queue_entry: entry, relative_path: relative_path, extension: extension, owner_id: owner_id} = data
+
+    Library.Images.ready(%{
+      owner_id: owner_id,
+      owner_type: entry.owner_type,
+      role: entry.role,
+      content_url: relative_path,
+      extension: extension
+    })
   end
 
   @impl true

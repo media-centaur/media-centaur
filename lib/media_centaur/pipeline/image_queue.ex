@@ -9,6 +9,7 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Pipeline.ImageQueueEntry
+  alias MediaCentaur.Topics
 
   @doc """
   Creates a queue entry. Uses upsert on (owner_id, role) — if the same
@@ -19,6 +20,32 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
     Repo.insert(ImageQueueEntry.create_changeset(attrs),
       on_conflict: {:replace, [:source_url, :status, :retry_count, :updated_at]},
       conflict_target: [:owner_id, :role]
+    )
+  end
+
+  @doc """
+  Queues `images` for `entity_id` — one pending entry each (`create/1`) —
+  then nudges the image pipeline with `{:images_pending, ...}`. The entries
+  are the durable record: a lost nudge costs a `RetryScheduler` tick, never
+  the images (campaign durable-work, F11). `images` are maps with
+  `owner_id`, `owner_type`, `role` and `source_url`.
+  """
+  @spec enqueue(Ecto.UUID.t(), String.t(), [map()]) :: :ok
+  def enqueue(entity_id, media_dir, images) do
+    Enum.each(images, fn image ->
+      create(%{
+        owner_id: image.owner_id,
+        owner_type: image.owner_type,
+        role: image.role,
+        source_url: image.source_url,
+        entity_id: entity_id,
+        media_dir: media_dir
+      })
+    end)
+
+    Topics.publish(
+      Topics.pipeline_images(),
+      {:images_pending, %{entity_id: entity_id, media_dir: media_dir}}
     )
   end
 

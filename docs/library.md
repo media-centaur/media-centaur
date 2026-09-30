@@ -192,7 +192,7 @@ Per-playable-item progress, keyed by `playable_item_id`. Written by `Library.Pro
 
 ## Inbound API
 
-`MediaCentaur.Library.Inbound` is the pipeline's entry point into the library. It is a PubSub-listener GenServer (subscribed to `pipeline:publish`) that handles `{:entity_published, event}` and `{:image_ready, attrs}` messages and:
+`MediaCentaur.Library.Inbound` is the pipeline's entry point into the library. It is a PubSub-listener GenServer (subscribed to `pipeline:publish`) that handles `{:entity_published, event}` messages and:
 
 1. **Resolves** existing type records by TMDB id via `Library.ExternalIds.find_by_external_id/2`
 2. **Creates** new records (and their children) if not found, with race-loss recovery on the unique `(source, external_id)` constraint
