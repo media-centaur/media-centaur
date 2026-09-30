@@ -103,7 +103,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F10 | Library → release-tracking listeners | done — dangling containers reconciled; `movies_added` declined |
 | F11 | Person-run image and Maintenance work | done — refresh and image rows fixed; Maintenance declined |
 | F12 | Remount reset runs async | done |
-| M1–M7 | The minor items below the findings table | open |
+| M1–M7 | The minor items below the findings table | done — M6, M7 fixed; M1–M5 declined or deferred, with reasons |
 
 ## Findings (non-compliant)
 
@@ -571,6 +571,30 @@ Four parts, judged separately:
   declined on F2's precedent — an interruption is visible (a half-cleared
   library, missing artwork) and the person repeats it; no stored state
   claims work that is not happening.
+
+### M1–M7 — the minor items (analysed 2026-09-30)
+
+* **M1, manual update check** — declined. The Settings page runs the check
+  in its own task on purpose: its comment records that a
+  worker-to-view PubSub gap once left the card stuck on "Checking…", and
+  the check's `:manual` source must keep AutoApply from installing on a
+  button press — the job path carries neither guarantee. A killed check
+  leaves Status reading "Checking" for at most one scheduled tick.
+* **M2, Scan buttons** — declined. A scan is re-derived (auto-scan, boot);
+  a closed page skips the rest until then, and the page-owned task is what
+  gives the button its "scanning" state.
+* **M3, integration verifier** — declined. In-memory only (ETS), cleared by
+  a retest or a restart; no stored state.
+* **M4, TMDB projection messages** — declined for this campaign. No stored
+  state claims work; a lost `tmdb_title_changed` leaves descriptive data
+  stale until the title changes again. A repair needs a per-title
+  "projected at" to compare against the store — its own piece of work if
+  it is ever wanted.
+* **M5, possible duplicate image downloads** — deferred to a performance
+  audit: an efficiency question, not a durability one; a repeated download
+  overwrites the same path and `Images.ready/1` upserts.
+* **M6, `Runner` outcome logging** and **M7, `RunPlan` crash retries** —
+  fixed (`e61bba83`).
 
 ## Classification (compliant)
 
