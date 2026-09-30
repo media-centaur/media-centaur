@@ -4,7 +4,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   cadence tick, per tracked title, batches the wants that are **open ∧
   unclaimed ∧ search-due** into one tracking plan and lets the regular
   plan machinery (RunPlan → the approval gate,
-  `Reactor.Handlers.plan_changed/1`, reading the stamped
+  `Plans.Gate`, run by `Jobs.GatePlan`, reading the stamped
   `approval_policy` → CommitPlan) take it from there.
 
   Batch is **state, not delta** — every tick re-derives from current

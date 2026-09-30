@@ -78,7 +78,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans
   }
 
-  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
+  alias MediaCentaur.Acquisition.Jobs.GatePlan
+  alias MediaCentaur.Acquisition.Plans.{Gate, MatchCriteria, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
@@ -124,7 +125,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       "movie" -> run_movie(plan, units, force?)
     end
 
-    case Repo.update(Plan.transition_changeset(Repo.reload!(plan), "ready", ["planning"])) do
+    plan
+    |> Repo.reload!()
+    |> Plan.transition_changeset("ready", ["planning"])
+    |> become_ready()
+    |> case do
       {:ok, ready} ->
         Plans.broadcast_changed(ready)
         Log.info(:acquisition, "plan ready — #{plan.title}")
@@ -154,17 +159,38 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         "plan run crashed — #{plan.title} — #{Exception.message(exception)}"
       )
 
-      case Repo.update(
-             Plan.failed_changeset(
-               Repo.reload!(plan),
-               "planning crashed: #{Exception.message(exception)}"
-             )
-           ) do
+      plan
+      |> Repo.reload!()
+      |> Plan.failed_changeset("planning crashed: #{Exception.message(exception)}")
+      |> become_ready()
+      |> case do
         {:ok, failed} -> Plans.broadcast_changed(failed)
         {:error, _already_left_planning} -> :ok
       end
 
       {:error, exception}
+  end
+
+  # The plan turns `ready` — solved, or failed with its error — and a gated
+  # plan's gate is owed from that moment, so `GatePlan` commits with the
+  # transition (ADR-077, rule 1).
+  defp become_ready(changeset) do
+    Repo.transaction(fn ->
+      with {:ok, ready} <- Repo.update(changeset),
+           :ok <- owe_gate(ready) do
+        ready
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp owe_gate(plan) do
+    if Gate.needed?(plan) do
+      with {:ok, _job} <- Oban.insert(GatePlan.new(%{"plan_id" => plan.id})), do: :ok
+    else
+      :ok
+    end
   end
 
   # ---------------------------------------------------------------------------
