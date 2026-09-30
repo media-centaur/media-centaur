@@ -168,7 +168,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         {:error, _already_left_planning} -> :ok
       end
 
-      {:error, exception}
+      # Reported above and recorded on the plan; a retry could only find the
+      # plan no longer planning, so the job ends here.
+      {:cancel, :crashed}
   end
 
   # The plan turns `ready` — solved, or failed with its error — and a gated
