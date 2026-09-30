@@ -32,7 +32,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
   release-name fallback.
   """
 
-  use Oban.Worker, queue: :acquisition, unique: [period: 60, keys: [:pursuit_id, :file_path]]
+  # One verification per file event: repeat events for the same file
+  # within a minute — a finished verification included — are dropped.
+  use Oban.Worker,
+    queue: :acquisition,
+    unique: [period: 60, keys: [:pursuit_id, :file_path], states: :successful]
 
   require MediaCentaur.Log, as: Log
 
