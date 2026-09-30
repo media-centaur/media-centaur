@@ -98,7 +98,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | done |
 | F5 | Removed title keeps its seeking targets | done — tracking pursuits reconciled |
-| F2 | Deletes run in `start_async` | analysed — owner decision |
+| F2 | Deletes run in `start_async` | declined (owner) |
 | F9 | Rematch rides two PubSub hops | open |
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
@@ -515,6 +515,8 @@ happening; the loss is visible and repeatable.
 2. **Decline.** The cost of loss is a partial delete a person sees and
    repeats, and the records heal on their own; ADR-076 row 1 by the
    letter, but no stored state lies, and the move is mostly UI plumbing.
+
+**Chosen** (owner, 2026-09-30): option 2, decline. ADR-076 amended.
 
 ## Classification (compliant)
 
