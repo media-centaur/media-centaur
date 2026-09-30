@@ -132,10 +132,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     doc:
       "%{unit_id, items: [PlanBoard.Alternative.t()], searching?: boolean} | nil — the open swap picker (board stage)."
 
-  attr :approving, :boolean,
-    default: false,
-    doc: "Approval grabs in flight — the footer button shows progress and ignores clicks."
-
   attr :search_health, :any,
     default: nil,
     doc:
@@ -256,7 +252,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :if={@stage == :board && @board}
           board={@board}
           alternatives={@alternatives}
-          approving={@approving}
           last_activity={@last_activity}
           search_progress={@search_progress}
           disclosures={@disclosures}
@@ -591,7 +586,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     doc:
       "%{unit_id, items: [PlanBoard.Alternative.t()], searching?: boolean} | nil — the open swap picker (board stage)."
 
-  attr :approving, :boolean, required: true
   attr :last_activity, :string, required: true
 
   attr :search_progress, :any,
@@ -968,15 +962,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               variant="primary"
               size="sm"
               phx-click="plan_approve"
-              aria-disabled={to_string(@approving)}
-              class={@approving && "opacity-70"}
               data-nav-item
               tabindex="0"
             >
               <%!-- The release count and total size sit in the footer summary
                   to the left; the button names the act, not the tally. --%>
-              <span :if={@approving} class="loading loading-spinner loading-xs"></span>
-              {if @approving, do: "Approving…", else: "Approve plan"}
+              Approve plan
             </.button>
             <.watchlist_slot
               :if={@subject && PlanBoard.empty?(@board)}

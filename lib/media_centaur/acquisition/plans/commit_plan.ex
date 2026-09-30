@@ -19,13 +19,19 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   Only **found** units become pursuit units — unfound units are search
   results, never pursuit leaves (the campaign's hard boundary), and
   excluded units were opted out. Assignments grouped by release become
-  the leaves: per group, the candidate is rehydrated from the corpus
-  and grabbed at Prowlarr; a successful grab lands as an `acquired`
-  target covering every unit of its group, a failed grab degrades that
-  group to `seeking` targets per unit so the regular `PursueTarget`
-  machinery takes over (the plan's promise survives an indexer
-  hiccup). The plan is stamped `committed` with the pursuit id as
+  the leaves: per group, the candidate is rehydrated from the corpus and
+  written as one **grabbing** target covering every unit of its group
+  (`Targets.start_grabbing/4`), whose `Jobs.GrabTarget` hands it to
+  Prowlarr. The plan is stamped `committed` with the pursuit id as
   provenance.
+
+  All of it — the checks, the pursuit, the grabbing targets with their
+  jobs, the stamp — is one transaction (campaign durable-work, G1): the
+  approval is recorded before anything is grabbed, a crash leaves either
+  nothing or the whole commitment, and no HTTP request runs here, so a
+  person's approve is a plain write. A grab Prowlarr refuses searches
+  again per unit (`GrabTarget`), the fallback the plan used to take
+  inline.
   """
 
   require MediaCentaur.Log, as: Log
@@ -36,10 +42,10 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.ReleasePicked
-  alias MediaCentaur.Acquisition.Pursuits.{TargetUnit, Unit, Units}
-  alias MediaCentaur.Acquisition.{InfoHash, Target, Targets}
+  alias MediaCentaur.Acquisition.Pursuits.Units
+  alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Prowlarr, SearchResult}
+  alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Topics
 
   import Ecto.Query
@@ -51,14 +57,22 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       |> plan_units()
       |> Enum.filter(&(&1.status == "found"))
 
-    with :ok <- ensure_grabbable(found_units),
-         :ok <- ensure_no_overlap(plan, found_units),
-         {:ok, pursuit} <- create_pursuit(plan, found_units) do
-      grab_assignments(plan, pursuit, found_units)
+    result =
+      Repo.transaction(fn ->
+        with :ok <- ensure_grabbable(found_units),
+             :ok <- ensure_no_overlap(plan, found_units),
+             {:ok, pursuit} <- create_pursuit(plan, found_units),
+             :ok <- choose_releases(plan, pursuit, found_units),
+             {:ok, committed} <- Repo.update(Plan.committed_changeset(plan, pursuit.id)) do
+          committed
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
 
-      {:ok, committed} = Repo.update(Plan.committed_changeset(plan, pursuit.id))
+    with {:ok, committed} <- result do
       broadcast(committed)
-      Log.info(:acquisition, "plan committed — #{plan.title} → pursuit #{pursuit.id}")
+      Log.info(:acquisition, "plan committed — #{plan.title} → pursuit #{committed.pursuit_id}")
       {:ok, committed}
     end
   end
@@ -122,37 +136,42 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   defp pursuit_origin(%Plan{origin: "tracking"}), do: "auto"
   defp pursuit_origin(%Plan{}), do: "manual"
 
-  defp grab_assignments(%Plan{} = plan, pursuit, found_units) do
+  # One grabbing target per release group, covering the group's units, and
+  # the pick recorded on the pursuit's timeline.
+  defp choose_releases(%Plan{} = plan, pursuit, found_units) do
     pursuit_units = Units.for_pursuit(pursuit.id)
-
-    units_by_key =
-      Map.new(pursuit_units, fn unit -> {{unit.season_number, unit.episode_number}, unit} end)
+    units_by_key = Map.new(pursuit_units, &{{&1.season_number, &1.episode_number}, &1})
 
     found_units
     |> Enum.group_by(& &1.assigned_guid)
-    |> Enum.each(fn {guid, group} ->
+    |> Enum.reduce_while(:ok, fn {_guid, group}, :ok ->
       covered_units =
         group
         |> Enum.map(&Map.get(units_by_key, {&1.season_number, &1.episode_number}))
         |> Enum.reject(&is_nil/1)
 
-      result = rehydrate(plan, hd(group))
-
-      case Prowlarr.grab(result) do
-        :ok ->
-          land_acquired(pursuit, result, covered_units)
-
-        {:error, reason} ->
-          Log.warning(
-            :acquisition,
-            "plan grab failed — #{result.title} — #{inspect(reason)}; degrading to seeking"
-          )
-
-          degrade_to_seeking(pursuit, covered_units)
+      case choose(pursuit, rehydrate(plan, hd(group)), covered_units) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
-
-      guid
     end)
+  end
+
+  defp choose(pursuit, release, covered_units) do
+    with {:ok, _target} <- Targets.start_grabbing(pursuit, release, covered_units),
+         {:ok, _event} <-
+           Events.record(%ReleasePicked{
+             pursuit_id: pursuit.id,
+             pursuit_title: pursuit.title,
+             occurred_at: DateTime.utc_now(:second),
+             release_title: release.title,
+             guid: release.guid,
+             indexer: release.indexer_name,
+             quality: MediaCentaur.Search.Quality.label(release.quality),
+             size_bytes: release.size_bytes
+           }) do
+      :ok
+    end
   end
 
   # The corpus row the assignment came from (`assigned_term` is its key)
@@ -178,72 +197,6 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
         indexer_id: unit.assigned_indexer_id,
         seeders: unit.assigned_seeders
       }
-  end
-
-  # The target, its coverage rows, the unit attempts and the event are one
-  # fact: a grab landed. They commit together or not at all (audit P6);
-  # the `Prowlarr.grab` HTTP call that precedes this stays outside.
-  defp land_acquired(pursuit, result, covered_units) do
-    now = DateTime.utc_now(:second)
-    torrent_hash = InfoHash.resolve(result)
-
-    {:ok, _} =
-      Repo.transaction(fn ->
-        {:ok, target} =
-          result
-          |> Target.acquired_changeset(
-            pursuit_id: pursuit.id,
-            origin: pursuit.origin,
-            torrent_hash: torrent_hash
-          )
-          |> Repo.insert()
-
-        Enum.each(covered_units, fn unit ->
-          {:ok, _coverage} =
-            Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
-
-          {:ok, attempted} = Repo.update(Unit.record_attempt_changeset(unit, result.guid))
-          {:ok, _} = Repo.update(Unit.set_current_target_changeset(attempted, target.id))
-        end)
-
-        {:ok, _event} =
-          Events.record(%ReleasePicked{
-            pursuit_id: pursuit.id,
-            pursuit_title: pursuit.title,
-            occurred_at: now,
-            release_title: result.title,
-            guid: result.guid,
-            indexer: result.indexer_name,
-            quality: MediaCentaur.Search.Quality.label(result.quality),
-            size_bytes: result.size_bytes
-          })
-
-        target
-      end)
-
-    :ok
-  end
-
-  # Same shape for the fallback: a seeking target per unit with its
-  # PursueTarget job (`Targets.start_seeking/1`), its coverage row and the
-  # unit pointer commit together.
-  defp degrade_to_seeking(pursuit, covered_units) do
-    {:ok, _} =
-      Repo.transaction(fn ->
-        Enum.each(covered_units, fn unit ->
-          {:ok, target} =
-            %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
-            |> Target.create_changeset()
-            |> Targets.start_seeking()
-
-          {:ok, _coverage} =
-            Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
-
-          {:ok, _} = Repo.update(Unit.set_current_target_changeset(unit, target.id))
-        end)
-      end)
-
-    :ok
   end
 
   defp plan_units(plan_id) do

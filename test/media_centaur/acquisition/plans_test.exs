@@ -376,6 +376,8 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:ok, committed} = Plans.approve(plan)
       assert committed.status == "committed"
       assert committed.pursuit_id
+      # The grab each release is owed runs in its own job.
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       pursuit = Repo.get!(Pursuit, committed.pursuit_id)
       assert pursuit.recipe_type == "tmdb"
@@ -634,6 +636,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       Repo.delete_all(MediaCentaur.Acquisition.Corpus.Candidate)
 
       assert {:ok, _committed} = Plans.approve(plan)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert_received {:grabbed, payload}
       assert payload["indexerId"] == 7
