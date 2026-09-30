@@ -25,7 +25,7 @@ defmodule MediaCentaur.Review.Events do
   defmodule FileAdded do
     @moduledoc """
     A file entered the review queue, or returned to it as `:pending` (the
-    library did not link it, or startup recovery reopened it). Subscribers
+    library did not link it). Subscribers
     holding a count re-read it; the review page debounces a reload.
     """
     @enforce_keys [:pending_file_id]

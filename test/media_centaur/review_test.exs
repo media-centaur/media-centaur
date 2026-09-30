@@ -1,5 +1,6 @@
 defmodule MediaCentaur.ReviewTest do
   use MediaCentaur.DataCase, async: false
+  use Oban.Testing, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite
 
   import MediaCentaur.TestFactory
 
@@ -14,7 +15,7 @@ defmodule MediaCentaur.ReviewTest do
     %{media_dir: media_dir}
   end
 
-  describe "settle_with_library/0" do
+  describe "settle_with_library/1" do
     # A queue row closes on the library's link outcome for its file
     # (`file_linked/1`, `file_not_linked/1`). PubSub has no replay, so a
     # listener that was not subscribed at that instant loses the message.
@@ -26,9 +27,10 @@ defmodule MediaCentaur.ReviewTest do
     # so a re-match landing on one gets a row the queue does not list —
     # the file leaves the library and cannot be re-reviewed.
     #
-    # Run at startup, before anything is in flight: a linked file's row is
-    # done, and an approved row whose file is not linked is an import that
-    # did not finish.
+    # A linked file's row is done, and an approved row whose file is not
+    # linked is an import that did not finish — re-sent to Import (campaign
+    # durable-work, F1). At startup nothing is in flight; the periodic pass
+    # (`Review.SettleJob`) leaves approvals younger than its cutoff alone.
     test "deletes an approved row whose file is linked" do
       path = "/media/test/imported.mkv"
       pending = create_pending_file(%{file_path: path})
@@ -37,22 +39,37 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 1, reopened: 0} = Review.settle_with_library()
+      assert %{closed: 1, resent: 0} = Review.settle_with_library()
       assert Review.list_pending_files() == []
     end
 
-    # Changed 2026-09-29 (campaign `review-closes-on-link`): nothing is in
-    # flight at startup, so an approved row with no link is an import that
-    # did not finish. It used to be kept as "outstanding" — at `:approved`,
-    # a status the queue does not list — which is how an approval vanished.
-    test "returns an approved row whose file is not linked to the queue, with the reason" do
+    # Changed 2026-09-30 (campaign `durable-work`, F1): an approval is a
+    # person's decision, stored. An import lost on the way used to be undone
+    # here — the row went back to the queue as "didn't finish" and the person
+    # had to approve again. It is now carried out: the file is re-sent to
+    # Import and the row stays approved until its link outcome closes it.
+    test "re-sends an approved row whose file is not linked to Import; it stays approved" do
+      pending =
+        create_pending_file(%{file_path: "/media/test/in-flight.mkv"})
+
+      {:ok, _} = Review.approve_pending_file(pending)
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
+
+      assert %{closed: 0, resent: 1} = Review.settle_with_library()
+
+      assert_receive {:file_matched, %{file_path: "/media/test/in-flight.mkv"}}
+      assert Repo.reload!(pending).status == :approved
+    end
+
+    test "an approval younger than the cutoff may still be in flight and is left alone" do
       pending = create_pending_file(%{file_path: "/media/test/in-flight.mkv"})
       {:ok, _} = Review.approve_pending_file(pending)
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
 
-      assert %{closed: 0, reopened: 1} = Review.settle_with_library()
-      assert [reopened] = Review.list_pending_files_for_review()
-      assert reopened.id == pending.id
-      assert reopened.error_message =~ "didn't finish"
+      cutoff = DateTime.add(DateTime.utc_now(), -15 * 60, :second)
+
+      assert %{closed: 0, resent: 0} = Review.settle_with_library(approved_before: cutoff)
+      refute_received {:file_matched, _}
     end
 
     # Changed 2026-09-29 (campaign `review-closes-on-link`): a linked file is
@@ -65,14 +82,14 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 1, reopened: 0} = Review.settle_with_library()
+      assert %{closed: 1, resent: 0} = Review.settle_with_library()
       assert Review.list_pending_files() == []
     end
 
     test "keeps a pending row whose file is not linked — it awaits a decision" do
       create_pending_file(%{file_path: "/media/test/awaiting.mkv"})
 
-      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
+      assert %{closed: 0, resent: 0} = Review.settle_with_library()
       assert length(Review.list_pending_files_for_review()) == 1
     end
 
@@ -84,13 +101,13 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
+      assert %{closed: 0, resent: 0} = Review.settle_with_library()
       assert Review.dismissed?(path)
     end
 
     # 2026-09-29: the rows changed with no broadcast, so the Review badge
     # kept its old count until the next review event.
-    test "tells review subscribers what it closed and reopened" do
+    test "tells review subscribers what it closed, and Import what it re-sent" do
       linked = create_pending_file(%{file_path: "/media/test/linked.mkv"})
       movie = create_movie(%{name: "Sample Movie"})
 
@@ -104,16 +121,34 @@ defmodule MediaCentaur.ReviewTest do
       {:ok, _} = Review.approve_pending_file(unfinished)
 
       Review.subscribe()
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
       Review.settle_with_library()
 
       linked_id = linked.id
-      unfinished_id = unfinished.id
       assert_receive {:file_reviewed, %Review.Events.FileReviewed{pending_file_id: ^linked_id}}
-      assert_receive {:file_added, %Review.Events.FileAdded{pending_file_id: ^unfinished_id}}
+      assert_receive {:file_matched, %{file_path: "/media/test/unfinished.mkv"}}
     end
 
     test "reports zero on an empty table" do
-      assert %{closed: 0, reopened: 0} = Review.settle_with_library()
+      assert %{closed: 0, resent: 0} = Review.settle_with_library()
+    end
+  end
+
+  describe "Review.SettleJob — the periodic pass" do
+    test "re-sends an approval older than its cutoff, and not a fresh one" do
+      old = create_pending_file(%{file_path: "/media/test/old.mkv"})
+      {:ok, old} = Review.approve_pending_file(old)
+      backdate(old, :updated_at, DateTime.add(DateTime.utc_now(:second), -30 * 60, :second))
+
+      fresh = create_pending_file(%{file_path: "/media/test/fresh.mkv"})
+      {:ok, _fresh} = Review.approve_pending_file(fresh)
+
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
+
+      assert :ok = perform_job(Review.SettleJob, %{})
+
+      assert_receive {:file_matched, %{file_path: "/media/test/old.mkv"}}
+      refute_received {:file_matched, %{file_path: "/media/test/fresh.mkv"}}
     end
   end
 

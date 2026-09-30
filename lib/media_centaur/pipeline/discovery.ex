@@ -220,6 +220,9 @@ defmodule MediaCentaur.Pipeline.Discovery do
   #   lives in `Library.Files` so this check and
   #   `Watcher.Rescan.rescan_unlinked/0` cannot disagree about it; they
   #   did until 2026-09-15.
+  # - **approved** — a person confirmed its match in Review, and Review
+  #   carries its import (`Review.settle_with_library/1` re-sends a lost
+  #   one). Running it again here would race that and import it twice.
   # - **dismissed** — a person decided it is not library content.
   #   `Review.add_pending_file/1` keys on file_path regardless of
   #   status, so a match computed for a dismissed path is thrown away.
@@ -236,6 +239,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   defp settled_reason(file_path) do
     cond do
       Library.Files.linked?(file_path) -> "already linked"
+      Review.approved?(file_path) -> "approved in review"
       Review.dismissed?(file_path) -> "dismissed in review"
       EpisodeMapping.awaiting?(file_path) -> "in episode mapping"
       true -> nil

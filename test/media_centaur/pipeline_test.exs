@@ -307,6 +307,21 @@ defmodule MediaCentaur.PipelineTest do
       assert Review.count_pending() == 0
     end
 
+    test "discovery skips a file approved in review — Review carries its import" do
+      # An approval is a person's decision, stored; `Review.settle_with_library/1`
+      # re-sends its import if the first trip was lost (campaign durable-work,
+      # F1). Discovery re-running the file would race that and import it twice.
+      #
+      # No TMDB stub: `:skipped` is proof the search never ran.
+      path = "/media/pipeline/Sample.Movie.2010.mkv"
+      pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
+      {:ok, _approved} = Review.approve_pending_file(pending)
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
+
+      assert :skipped = Discovery.process(payload)
+    end
+
     test "discovery does not skip a file still awaiting review" do
       # The counterpart: a pending row is an open question, not a
       # decision. `rescan_unlinked/0` exists to re-run these once a

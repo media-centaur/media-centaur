@@ -84,12 +84,12 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   #   missed while the pipeline was down, and re-emit files the watcher
   #   knows about but the pipeline never finished ingesting (stranded by
   #   a transient TMDB/network failure on a prior run).
-  # - `Review.settle_with_library/0` — settle the review queue first,
+  # - `Review.settle_with_library/1` — settle the review queue first,
   #   while nothing is in flight: close items whose file is linked and
-  #   reopen approved items whose import did not finish. Review closes
+  #   re-send approved items whose import did not finish. Review closes
   #   items on link outcomes delivered over PubSub, which has no replay;
-  #   this heals a dropped one. It runs before the rescan so a reopened
-  #   item is `:pending` when its file is re-run.
+  #   this heals a dropped one. The rescan that follows skips an approved
+  #   file (Discovery's `settled_reason/1`), so it is imported once.
   def handle_info({:recover, attempt}, state) do
     case recover_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
