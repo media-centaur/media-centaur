@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.DropPlannerTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition.{DropPlanner, PlanEvents, Plans}
+  alias MediaCentaur.Acquisition.{DropPlanner, Plans}
   alias MediaCentaur.Acquisition.Pursuits.Commands.{AutoCancel, Cancel}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Reactor.Handlers
@@ -108,17 +108,11 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     end)
   end
 
-  # Drives the production flow a DataCase test can't get from PubSub:
-  # the tick creates plans (running the enqueued RunPlan jobs solves
-  # them), then the mode gate fires for each ready tracking plan the
-  # way the Reactor would on PlanEvents.Changed.
+  # The tick creates plans; running what it enqueued solves each one and
+  # then runs the gate each solve owed (`Jobs.GatePlan`).
   defp tick_and_gate do
     DropPlanner.run_tick()
     MediaCentaur.JobRuns.run_enqueued_jobs()
-
-    Enum.each(Plans.list_drafts(), fn plan ->
-      Handlers.plan_changed(%PlanEvents.Changed{plan_id: plan.id, status: plan.status})
-    end)
   end
 
   defp sole_pursuit do
@@ -272,8 +266,9 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       create_aired_release(item, 1, 13, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
+      # Read at creation: the solve and the gate are not run, since the
+      # gate deletes a tracking draft that found nothing.
       DropPlanner.run_tick()
-      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Repo.all(Plans.Plan)
       assert plan.span_sizes == %{"1" => 22}
@@ -328,11 +323,9 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert unit.offered_guid == "pack-s1"
 
       # An offer needs a person (spec 2026-09-17 decision 7): the gate
-      # keeps the draft on the board instead of deleting it, grabs
+      # kept the draft on the board instead of deleting it, grabbed
       # nothing, and the want stays open behind the one-active-draft
       # rule until someone acts.
-      Handlers.plan_changed(%PlanEvents.Changed{plan_id: plan.id, status: plan.status})
-
       assert Repo.all(Pursuit) == []
       assert {:ok, %Plans.Plan{status: "ready"}} = Plans.fetch(plan.id)
       assert [%{offered_guid: "pack-s1"}] = Plans.units_for(plan.id)

@@ -20,7 +20,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   ## Approval policy
 
   `approval_policy` names who commits the plan once it is `ready`:
-  `automatic` — the Reactor gate (`Reactor.Handlers.plan_changed/1`)
+  `automatic` — the approval gate (`Plans.Gate`, run by `Jobs.GatePlan`)
   commits it when the result qualifies (a clean plan for a manual plan,
   any found unit for a tracking plan); `review` — the plan parks as a
   draft on Downloads until a person approves it. Stamped at creation by

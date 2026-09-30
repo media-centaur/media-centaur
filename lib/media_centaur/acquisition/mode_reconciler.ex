@@ -14,7 +14,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
 
   * **Parked tracking drafts** (`origin: "tracking"`, status `ready` —
     ask-mode plans awaiting approval) → discarded. Solving drafts are
-    not touched here; the mode gate (`Reactor.Handlers.plan_changed/1`)
+    not touched here; the mode gate (`Plans.Gate`, run by `Jobs.GatePlan`)
     already discards those when they finish solving.
   * **Still-seeking tracking pursuits** → system-cancelled with reason
     `auto_grab_disabled`. "Still seeking" means no acquired/succeeded

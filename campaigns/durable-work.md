@@ -85,7 +85,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | C2 | Credo: a durable job is inserted in the decision's transaction | declined (analysis) |
 | F4 | `"seeking"` writers insert after commit | done |
 | F3a | Plan solve: `RunPlan` inserted after commit | done |
-| F3b | Automatic plan gate rides PubSub | analysed (outline) |
+| F3b | Automatic plan gate rides PubSub | done |
 | F3c | Approval (`CommitPlan`) not resumable, runs in its caller | analysed (outline) |
 | F3d | Auto-select door runs in a task | analysed (outline) |
 | F1 | Review approval rides PubSub to Import | open |
@@ -98,7 +98,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
 | F12 | Remount reset runs async | open |
-| M1–M6 | The minor items below the findings table | open |
+| M1–M7 | The minor items below the findings table | open |
 
 ## Findings (non-compliant)
 
@@ -122,7 +122,7 @@ Numbered by finding, not by order of work. File:line as of `38ec7959`.
 | F14 | Job failures are invisible | No `[:oban, :job, …]` handler in `lib/` | A raising job leaves its error in `oban_jobs.errors` only — no Console line, no incident | One telemetry handler (ADR-077 rule 7) |
 | F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Boot rescue, `MediaCentaur.Jobs.rescue_orphans/1` (ADR-077 rule 8, amended) |
 
-**Minor (M1–M6), not ADR-076 violations but the same shape** — take
+**Minor (M1–M7), not ADR-076 violations but the same shape** — take
 when touching the file:
 
 * **M1** `settings_live.ex:547` manual update check: a killed check never
@@ -144,6 +144,10 @@ when touching the file:
   a `Pursuit`, but it returns the work function's value; `log_outcome/2`
   matches only a `Pursuit`, so `ChangeTarget`'s and `AutoCancel`'s
   success lines are never logged.
+* **M7** `Jobs.RunPlan`: after the crash rescue writes the plan's error
+  it returns `{:error, exception}`, so Oban retries a run that can only
+  no-op, and the retry logs a failure warning. Return `:ok` (the crash is
+  already reported) or `{:cancel, …}`.
 
 ## Analyses
 
@@ -252,9 +256,7 @@ shape, so F3 is taken as four areas:
   `PlanEvents.Changed` PubSub message to the Reactor GenServer carries
   it; a lost message leaves an automatic plan waiting on the board and a
   tracking draft blocking its want forever. A stored state owed work:
-  ADR-077 fits. Shape: `RunPlan`'s transition to `ready` inserts a gate
-  job in the same transaction when the plan is gated; the Reactor stops
-  gating. Analysed in full when reached.
+  ADR-077 fits. Full analysis below.
 * **F3c — approval.** `CommitPlan.execute/1` creates the pursuit, grabs
   each release group at Prowlarr (one HTTP call and one transaction per
   group), then stamps `committed`. It runs in its caller — a person's
@@ -276,6 +278,47 @@ shape, so F3 is taken as four areas:
   the plan exists, and closing the modal abandons it by design — that is
   a view-owned wait, `start_async`'s own row. Once the plan exists, F3a
   makes the rest durable.
+
+#### F3b — the automatic gate, in full (2026-09-30)
+
+`RunPlan` is the only writer of `"ready"`, on two paths: the normal
+finish (`run_plan.ex:127`) and the crash rescue (`failed_changeset`,
+which lands in `ready` with an error). Both broadcast
+`PlanEvents.Changed`; the Reactor GenServer receives it and runs
+`Handlers.gate/1`, which acts only on gated plans — tracking drafts
+(delete an empty one, discard when the title stopped grabbing, approve
+when something was found and the policy is automatic) and automatic
+manual plans (approve only a clean one). A review plan is not gated.
+
+Shape:
+
+* `Plans.Gate` (new module) takes the gate logic out of
+  `Reactor.Handlers` unchanged, with `needed?/1` saying whether a plan is
+  gated.
+* `Jobs.GatePlan` (new worker, `:acquisition`, unique on `plan_id` among
+  jobs not yet started) fetches the plan and runs the gate when it is
+  still `ready`.
+* Both of `RunPlan`'s transitions to `ready` insert `GatePlan` in the
+  same transaction when `Gate.needed?/1`.
+* The Reactor stops handling `PlanEvents.Changed` and drops its
+  `acquisition_updates` subscription, which it held only for this. The
+  broadcast stays: views still refresh on it (ADR-076 row 3).
+
+Until F3c, an automatic approval inside `GatePlan` runs `CommitPlan`
+there — in a job, so it outlives any page; F3c makes it resumable.
+
+Test: `RunPlan` finishing a gated plan inserts `GatePlan` inside its
+transaction, on both paths; a review plan inserts none. The gate's
+existing cases (`reactor/handlers_test.exs`) move with it and run
+through the job; `drop_planner_test`'s `tick_and_gate` stops calling the
+Reactor's handler by hand.
+
+**Done** 2026-09-30, as analysed. Two things surfaced: one drop-planner
+test read a plan the gate would have deleted — it passed only because
+tests never ran the gate — and now reads it at creation. And `RunPlan`
+returns `{:error, exception}` after its crash rescue has already marked
+the plan, so Oban retries a run that can only no-op (the plan left
+`planning`) — M7.
 
 ## Classification (compliant)
 
