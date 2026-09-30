@@ -91,8 +91,8 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F4 | `"seeking"` writers insert after commit | done |
 | F3a | Plan solve: `RunPlan` inserted after commit | done |
 | F3b | Automatic plan gate rides PubSub | done |
-| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | layers 1–4 done (F3c, F6, manual pick closed) — layer 5 (`PursueTarget`) next |
-| F3d | Auto-select door runs in a task | analysed (outline) |
+| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | done — layers 1–4; layer 5 declined |
+| F3d | Auto-select door runs in a task | analysed (outline) — next |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
@@ -506,8 +506,16 @@ before the record re-grabs on retry: at-least-once, stated, not solved.
    person's approve and the gate call it synchronously.
 3. A person's pick of an alternative (F6).
 4. The manual-search pick (`pick_targets/2`).
-5. `PursueTarget` records its chosen release before grabbing — analysed
-   when reached.
+5. `PursueTarget` records its chosen release before grabbing —
+   **declined** (analysed 2026-09-30). `PursueTarget` keeps its attempt
+   budget, backoff ladder and exhaustion on the target row; routing its
+   grab through `GrabTarget` would send a refusal down the pick/plan
+   fallback (a new seeking target per unit), resetting that budget on
+   every refusal so the pursuit never exhausts. The gap it would close is
+   two consecutive statements in a job that is already durable: a crash
+   between them re-searches on retry and may grab the same release again,
+   which qBittorrent refuses as a duplicate. Splitting the accounting to
+   close that window costs more than the window.
 
 ## Next steps
 
