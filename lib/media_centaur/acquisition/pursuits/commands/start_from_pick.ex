@@ -1,12 +1,13 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
   @moduledoc """
   Atomic "first-pick" command — creates a pursuit, one unit per picked
-  release, and the `acquired` targets covering them, in one
-  transaction, recording `pursuit_started` and per-pick
-  `release_picked` events.
+  release, and the `grabbing` targets covering them (each with its
+  `Jobs.GrabTarget`), in one transaction, recording `pursuit_started` and
+  per-pick `release_picked` events. Nothing here asks Prowlarr: the picks
+  are recorded before anything is grabbed (campaign durable-work, G1).
 
   Used by `Acquisition.pick_targets/2` (manual search → user picks
-  releases → Prowlarr.grab succeeds per release → this command). A
+  releases → this command). A
   brace-expanded batch (`Sample Show S01E{01-03}` with three picks)
   collapses into **one composite pursuit with three units** (ADR-055)
   — each unit carries the expanded term that produced its result as
@@ -22,22 +23,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
      multi-pick batch is named for the braced query — the user's
      intent.
   2. Per pick, in selection order: insert a unit carrying the expanded
-     term, insert a target in `acquired` covering it, point
-     `unit.current_target_id` at it, bump `unit.attempt_count`, append
-     the picked guid to `unit.tried_release_guids`, and record a
-     `release_picked` event.
-
-  The caller is responsible for `Prowlarr.grab/1` per release *before*
-  invoking this command — only successfully-grabbed picks belong in
-  `:picks`. Atomicity is bounded to the pursuit + unit + target rows +
-  events.
+     term, write the release as a `grabbing` target covering it
+     (`Targets.start_grabbing/4`, which points the unit at it and records
+     the pick as its attempt), and record a `release_picked` event.
   """
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, TargetUnit, Unit, UnitOrder}
+  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Unit, UnitOrder}
   alias MediaCentaur.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
-  alias MediaCentaur.Acquisition.{InfoHash, Target}
+  alias MediaCentaur.Acquisition.{Target, Targets}
   alias MediaCentaur.Parser
   alias MediaCentaur.Search.{Quality, SearchResult}
   alias MediaCentaur.Repo
@@ -154,8 +149,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
   end
 
   defp insert_picked_unit(pursuit, %{term: term, result: result}, position, origin, now) do
-    torrent_hash = InfoHash.resolve(result)
-
     with {:ok, unit} <-
            Repo.insert(
              Unit.create_changeset(%{
@@ -165,19 +158,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
                position: position
              })
            ),
-         {:ok, target} <-
-           result
-           |> Target.acquired_changeset(
-             pursuit_id: pursuit.id,
-             origin: origin,
-             torrent_hash: torrent_hash
-           )
-           |> Repo.insert(),
-         {:ok, _coverage} <-
-           Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
-         {:ok, attempted} <- Repo.update(Unit.record_attempt_changeset(unit, result.guid)),
-         {:ok, _with_target} <-
-           Repo.update(Unit.set_current_target_changeset(attempted, target.id)),
+         {:ok, target} <- Targets.start_grabbing(pursuit, result, [unit], origin: origin),
          {:ok, _picked} <-
            Events.record(%ReleasePicked{
              pursuit_id: pursuit.id,
