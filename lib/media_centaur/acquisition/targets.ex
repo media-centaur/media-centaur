@@ -91,8 +91,10 @@ defmodule MediaCentaur.Acquisition.Targets do
   Writes a target in `"grabbing"` for `release`, chosen for `units` of
   `pursuit`: the target, a coverage row and the pointer for each unit, and
   the `Jobs.GrabTarget` job that hands the release to Prowlarr — in one
-  transaction, joining the caller's (ADR-077, rule 1). The caller has
-  already closed each unit's previous target and recorded its own events.
+  transaction, joining the caller's (ADR-077, rule 1). Choosing the
+  release is the unit's attempt: each unit records it and the release's
+  guid as tried. The caller has already closed each unit's previous target
+  and records its own events.
   Option `origin:` defaults to the pursuit's.
   """
   @spec start_grabbing(Pursuit.t(), SearchResult.t(), [Unit.t()], keyword()) ::
@@ -107,7 +109,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
     Repo.transaction(fn ->
       with {:ok, target} <- Repo.insert(changeset),
-           :ok <- cover(target, units),
+           :ok <- cover(target, units, release.guid),
            {:ok, _job} <- Oban.insert(GrabTarget.new(%{"target_id" => target.id})) do
         target
       else
@@ -131,7 +133,7 @@ defmodule MediaCentaur.Acquisition.Targets do
             |> Target.create_changeset()
             |> start_seeking()
 
-          :ok = cover(target, [unit])
+          :ok = cover(target, [unit], nil)
         end)
       end)
 
@@ -157,11 +159,17 @@ defmodule MediaCentaur.Acquisition.Targets do
     {:ok, scheduled}
   end
 
-  defp cover(%Target{} = target, units) do
+  # Coverage and the unit's pointer; with a chosen release's guid, the
+  # unit's attempt too.
+  defp record_choice(unit, nil), do: {:ok, unit}
+  defp record_choice(unit, guid), do: Repo.update(Unit.record_attempt_changeset(unit, guid))
+
+  defp cover(%Target{} = target, units, chosen_guid) do
     Enum.reduce_while(units, :ok, fn unit, :ok ->
       with {:ok, _coverage} <-
              Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
-           {:ok, _unit} <- Repo.update(Unit.set_current_target_changeset(unit, target.id)) do
+           {:ok, attempted} <- record_choice(unit, chosen_guid),
+           {:ok, _unit} <- Repo.update(Unit.set_current_target_changeset(attempted, target.id)) do
         {:cont, :ok}
       else
         {:error, reason} -> {:halt, {:error, reason}}
