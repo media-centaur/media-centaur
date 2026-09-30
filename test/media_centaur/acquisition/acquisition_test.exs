@@ -767,7 +767,11 @@ defmodule MediaCentaur.AcquisitionTest do
                Alternative.from(%{pack | title: "Sample.Show.S01E03.1080p.WEB-DL"})
     end
 
-    test "picking the pack by guid resolves it through the same search", %{pursuit: pursuit} do
+    test "picking the pack by guid resolves the release the card was shown", %{pursuit: pursuit} do
+      # The card's search recorded the release in the corpus; the pick reads
+      # it from there rather than searching again.
+      Acquisition.list_alternatives_for(pursuit)
+
       assert {:ok, %Pursuit{} = picked} =
                Acquisition.pick_alternative(pursuit.id, "pack-s01", "Season 1 pack")
 
@@ -816,8 +820,19 @@ defmodule MediaCentaur.AcquisitionTest do
         end
       end)
 
+      # The card surfaces the guid through the brace-expanded search, which
+      # records it in the corpus the pick reads.
+      assert Enum.any?(Acquisition.list_alternatives_for(pursuit), &(&1.guid == target_guid))
+
       assert {:ok, %Pursuit{}} =
                Acquisition.pick_alternative(pursuit.id, target_guid, "S01E02 1080p")
+    end
+
+    test "a guid the corpus does not know is no longer available" do
+      pursuit = create_pursuit(%{tmdb_id: "9996", tmdb_type: "movie", title: "Sample Movie", year: 2010})
+
+      assert {:error, :alternative_unavailable} =
+               Acquisition.pick_alternative(pursuit.id, "unknown-guid", "1080p WEB-DL")
     end
 
     test "pick_alternative broadcasts %TargetEvents.Picked{} on the unified dialect" do
@@ -856,11 +871,10 @@ defmodule MediaCentaur.AcquisitionTest do
       refute_received {:target_picked, _}
     end
 
-    test "pick_alternative accepts a cached %SearchResult{} and skips the Prowlarr round-trip" do
-      # When the LV already has the SearchResult cached from the most
-      # recent decision-card render, it should pass the struct directly
-      # — no extra GET to Prowlarr. We assert this by stubbing only the
-      # POST (grab) and recording every request the stub sees.
+    test "picking records the choice without asking Prowlarr; the grab follows in its job" do
+      # Regression: the pick grabbed at Prowlarr before recording anything,
+      # on a task the page started — a crash between the two left a
+      # download no pursuit knew about, and a lost task lost the pick.
       pursuit =
         create_pursuit(%{
           tmdb_id: "9997",
@@ -890,13 +904,38 @@ defmodule MediaCentaur.AcquisitionTest do
         end
       end)
 
-      assert {:ok, %Pursuit{}} =
-               Acquisition.pick_alternative(pursuit.id, cached_result, "1080p WEB-DL")
+      {{:ok, %Pursuit{} = picked}, inserts} =
+        MediaCentaur.JobRuns.capture_inserts(fn ->
+          Acquisition.pick_alternative(pursuit.id, cached_result, "1080p WEB-DL")
+        end)
 
-      # The grab POST happened — that's the only Prowlarr request we
-      # should have seen on this path.
+      refute_received {:prowlarr_request, _method, _path}
+
+      assert %Target{status: "grabbing", prowlarr_guid: "cached-guid-1"} =
+               Pursuits.current_target(picked)
+
+      assert [%{in_transaction?: true}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.GrabTarget"))
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
       assert_received {:prowlarr_request, "POST", _}
       refute_received {:prowlarr_request, "GET", _}
+    end
+
+    test "the pick closes the unit's previous search as replaced" do
+      {pursuit, previous} = create_pursuit_with_target(%{status: "seeking"})
+
+      picked_result = %SearchResult{
+        title: "Sample.Movie.1080p",
+        guid: "new-guid",
+        indexer_id: 1,
+        quality: :hd_1080p
+      }
+
+      assert {:ok, _picked} = Acquisition.pick_alternative(pursuit.id, picked_result, "1080p")
+
+      assert %Target{status: "failed", cancelled_reason: "replaced_by_pick"} = Repo.reload!(previous)
     end
   end
 end

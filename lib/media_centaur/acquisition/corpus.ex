@@ -197,6 +197,21 @@ defmodule MediaCentaur.Acquisition.Corpus do
   end
 
   @doc """
+  The release recorded under `guid`, as last seen by any search, or `nil`.
+  How a pick made from a card resolves the release the card showed, without
+  searching again.
+  """
+  @spec find(String.t()) :: SearchResult.t() | nil
+  def find(guid) when is_binary(guid) do
+    Candidate
+    |> where([c], c.guid == ^guid)
+    |> order_by([c], desc: c.last_seen_at)
+    |> limit(1)
+    |> Repo.one()
+    |> then(&(&1 && to_search_result(&1)))
+  end
+
+  @doc """
   The known candidates for a key, rehydrated as `SearchResult` structs
   (grab-ready), most-seeded first.
   """

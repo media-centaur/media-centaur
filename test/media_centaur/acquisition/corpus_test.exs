@@ -27,6 +27,21 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
     )
   end
 
+  describe "find/1 — a release by guid" do
+    test "returns the release the corpus recorded under that guid" do
+      Corpus.record!("Sample Movie", [], [
+        %SearchResult{title: "Sample.Movie.2005.1080p", guid: "g-find", indexer_id: 4}
+      ])
+
+      assert %SearchResult{guid: "g-find", indexer_id: 4, title: "Sample.Movie.2005.1080p"} =
+               Corpus.find("g-find")
+    end
+
+    test "is nil for a guid the corpus never recorded" do
+      assert Corpus.find("never-seen") == nil
+    end
+  end
+
   describe "record!/3 + candidates_for/2" do
     test "round-trips search results through the durable corpus" do
       results = [result("guid-1"), result("guid-2", %{quality: :uhd_4k, seeders: 99})]

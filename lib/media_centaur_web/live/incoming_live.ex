@@ -1703,18 +1703,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Submitting a pick involves `Prowlarr.grab/1` (POST + indexer wait) and
-  # the `PickTarget` write. Running that inline blocks the LiveView past
-  # the heartbeat window — same pattern that previously disconnected
-  # `refresh_alternatives`. So we spawn a Task.Supervisor child and
-  # message the outcome back via `{:alternative_picked, pursuit_id, outcome}`.
+  # A pick is a write — the release recorded as a grabbing target, the grab
+  # in its own job (campaign durable-work, G1) — so it runs here.
   #
-  # Fast path: when the SearchResult for this guid is still in the
-  # `decision_results_by_guid` cache from the last render, pass it
-  # straight to `Acquisition.pick_alternative/3` — no second Prowlarr
-  # search to translate guid → result. Cache miss (rare — modal lost
-  # its assigns) falls back to the guid string, which re-runs the
-  # pursuit's search internally.
+  # The card's cached `SearchResult` is passed when present; otherwise the
+  # guid, which `Acquisition.pick_alternative/3` reads back from the corpus
+  # the card's search recorded it in.
   def handle_event(
         "pick_alternative",
         %{"pursuit-id" => pursuit_id, "guid" => guid, "label" => label},
@@ -1726,8 +1720,14 @@ defmodule MediaCentaurWeb.IncomingLive do
         result -> result
       end
 
-    Acquisition.pick_alternative_async(pursuit_id, arg, label, self())
-    {:noreply, put_flash(socket, :info, "Trying alternative…")}
+    case Acquisition.pick_alternative(pursuit_id, arg, label) do
+      {:ok, _pursuit} ->
+        {:noreply, load_pursuit_detail(socket)}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "pick alternative failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("pick that release", reason))}
+    end
   end
 
   # Re-fetch decision-card alternatives. The Prowlarr round-trip can take
@@ -1971,26 +1971,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_info(:reload_forecast, socket) do
     {:noreply, build_view(socket)}
-  end
-
-  # Result of the background pick task. Like the alternatives fetches,
-  # only applies the outcome when the modal is still on the same pursuit
-  # — a closed or pivoted modal drops the stale result. Success is
-  # silent on the LV side (the PubSub `:target_picked` reload re-renders
-  # the modal); failures surface as flashes.
-  def handle_info({:alternative_picked, pursuit_id, outcome}, socket) do
-    if socket.assigns.selected_pursuit_id == pursuit_id do
-      case outcome do
-        {:ok, _pursuit} ->
-          {:noreply, load_pursuit_detail(socket)}
-
-        {:error, reason} ->
-          Log.warning(:acquisition, "pick alternative failed — #{inspect(reason)}")
-          {:noreply, put_flash(socket, :error, Logic.failure_flash("pick that release", reason))}
-      end
-    else
-      {:noreply, socket}
-    end
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
