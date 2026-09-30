@@ -102,7 +102,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F9 | Rematch rides two PubSub hops | done |
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
-| F12 | Remount reset runs async | open |
+| F12 | Remount reset runs async | done |
 | M1–M7 | The minor items below the findings table | open |
 
 ## Findings (non-compliant)

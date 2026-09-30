@@ -97,6 +97,22 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
     end)
   end
 
+  test "a remount published on dir_state resets the drive's presence clock" do
+    movie = create_standalone_movie(%{name: "Remounted Movie"})
+    watched_file = create_linked_file(%{movie_id: movie.id, media_dir: "/mnt/remounted"})
+    backdate_last_seen(watched_file.file_path, days_ago: 90)
+
+    MediaCentaur.Topics.publish(
+      MediaCentaur.Topics.dir_state(),
+      {:dir_state_changed, "/mnt/remounted", :media_dir, :available}
+    )
+
+    eventually(fn ->
+      presence = Repo.get_by(FilePresence, file_path: watched_file.file_path)
+      DateTime.diff(DateTime.utc_now(), presence.last_seen_at, :day) < 1
+    end)
+  end
+
   # --- helpers ---
 
   defp put_ttl_days(days) do
