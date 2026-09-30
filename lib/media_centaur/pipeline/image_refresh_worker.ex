@@ -3,12 +3,15 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorker do
   Oban worker that runs a per-entity artwork refresh
   (`ImageRefresh.refresh_entity/2`) off the LiveView lifecycle.
 
-  Unique per `entity_id` for a short window so rapid double-clicks
-  coalesce. `:no_tmdb_id` cancels (the entity needs a Rematch first, not
+  Unique per `entity_id` among refreshes that have not started, so rapid
+  double-clicks coalesce while a refresh asked for after the last one
+  started or finished still runs (ADR-077, rule 6). `:no_tmdb_id` cancels (the entity needs a Rematch first, not
   a retry); transient TMDB errors return `{:error, _}` so Oban retries
   with backoff.
   """
-  use Oban.Worker, queue: :images, unique: [period: 60, keys: [:entity_id]]
+  use Oban.Worker,
+    queue: :images,
+    unique: [period: :infinity, keys: [:entity_id], states: [:available, :scheduled, :retryable]]
 
   alias MediaCentaur.Pipeline.ImageRefresh
 

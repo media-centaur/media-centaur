@@ -68,6 +68,35 @@ in `:manual` and F13 is fixed (`abf65eec`); F14 is fixed
    state (F10), and volume may argue against one job per item (F1). A
    misfit is reported to the owner as a finding, never bent to the rule.
 
+## Work list
+
+The areas, in the order they are taken. Each is analysed when it is
+reached — what the case needs, whether ADR-077's shape serves it, the
+shape chosen, the test — and the analysis goes under *Analyses* before
+any code. Status: **open**, **analysed**, **done**, **declined**.
+
+| # | Area | Status |
+|---|---|---|
+| S1 | Suite runs Oban in `:manual` (ADR-077 rule 10) | done `abf65eec` |
+| F13 | Uniqueness drops new work | done `abf65eec` |
+| F14 | Job failures are invisible | done `f323baa0` |
+| F15 | No orphan rescue | done `36688ce5` |
+| C1 | Credo: a worker's `unique` names its `states:` | done |
+| C2 | Credo: a durable job is inserted in the decision's transaction | declined (analysis) |
+| F4 | `"seeking"` writers insert after commit | open |
+| F3 | Plan lifecycle outside jobs | open |
+| F1 | Review approval rides PubSub to Import | open |
+| F8 | Watch completion → history → share on PubSub | open |
+| F6 | Picking a release runs in a task, grab before record | open |
+| F7 | Setting a rung runs in a task | open |
+| F5 | Removed title keeps its seeking targets | open |
+| F2 | Deletes run in `start_async` | open |
+| F9 | Rematch rides two PubSub hops | open |
+| F10 | Library → release-tracking listeners | open |
+| F11 | Person-run image and Maintenance work | open |
+| F12 | Remount reset runs async | open |
+| M1–M5 | The minor items below the findings table | open |
+
 ## Findings (non-compliant)
 
 Numbered by finding, not by order of work. File:line as of `38ec7959`.
@@ -90,24 +119,69 @@ Numbered by finding, not by order of work. File:line as of `38ec7959`.
 | F14 | Job failures are invisible | No `[:oban, :job, …]` handler in `lib/` | A raising job leaves its error in `oban_jobs.errors` only — no Console line, no incident | One telemetry handler (ADR-077 rule 7) |
 | F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Boot rescue, `MediaCentaur.Jobs.rescue_orphans/1` (ADR-077 rule 8, amended) |
 
-**Minor, not ADR-076 violations but the same shape** — take when
-touching the file:
+**Minor (M1–M5), not ADR-076 violations but the same shape** — take
+when touching the file:
 
-* `settings_live.ex:547` manual update check: a killed check never
+* **M1** `settings_live.ex:547` manual update check: a killed check never
   sends `check_complete`; Status stays on `:checking` until the next
   scheduled check. Guarantee the broadcast or run it as `CheckerJob`.
-* `home_live.ex:368`, `library_live.ex:190`, `settings_live.ex:826`
+* **M2** `home_live.ex:368`, `library_live.ex:190`, `settings_live.ex:826`
   Scan: runs `Rescan.scan/0` in `start_async`; a closed page skips the
   remaining watchers. Use `Rescan.scan_async/0` as `console_page_live`
   does.
-* `integration_health.ex:237`: a crashed verifier leaves ETS
+* **M3** `integration_health.ex:237`: a crashed verifier leaves ETS
   `:pending` until retest; `async_nolink` + `:DOWN` would report it.
-* `tmdb_title_changed` (`tmdb/store.ex:508`) and `entities_changed`
+* **M4** `tmdb_title_changed` (`tmdb/store.ex:508`) and `entities_changed`
   (`library/events.ex:82`) carry projection updates with no named pass
   — stale until the next event for that title.
-* Suspected, unverified: `RetryScheduler` resets `"pending"` image
+* **M5** Suspected, unverified: `RetryScheduler` resets `"pending"` image
   rows older than 30 s while they may still be queued in the producer —
   a long backlog could download twice. Needs a test.
+
+## Analyses
+
+One section per area, written when the area is reached.
+
+### C1 — a worker's `unique` names its `states:` (analysed 2026-09-30)
+
+**The case.** Oban's default unique states (`:successful`) include
+`completed`, so a unique worker that names no states silently drops a new
+job while a finished one is inside the period. That default caused F13
+twice (`RunPlan`, `PursueTarget`) and no test saw it: inline mode skips
+uniqueness. Three workers still rely on the default, each deliberately —
+`IdentityVerifier` (60 s, one verification per file event),
+`ImageRefreshWorker` (60 s, repeat refreshes of one entity),
+`CheckerJob` (120 s, a boot check racing a cron tick).
+
+**Does a check fit?** Yes. The mistake is invisible at the call site and
+costs a stored state with no job; the rule is purely syntactic (`use
+Oban.Worker` with `unique:` and no `states:`), so a static check holds it
+exactly with no false positives. It prescribes no value — only that the
+choice is written down.
+
+**Shape.** MC0041 `ObanUniqueStatesDeclared`: flag `use Oban.Worker`
+whose `unique:` keyword list lacks `states:`. Test: the check's own
+`Credo.Test.Case` cases. Each of the three workers was judged on its own:
+`IdentityVerifier` and `CheckerJob` keep `:successful`, now written down
+with the reason. `ImageRefreshWorker` did not fit its own stated intent
+("rapid double-clicks coalesce") — counting completed jobs also dropped a
+deliberate second refresh a person asked for after the first finished —
+so it moved to the not-yet-started states, with a regression test.
+
+**Done** 2026-09-30.
+
+### C2 — a durable job is inserted in the decision's transaction (analysed 2026-09-30)
+
+**The case.** ADR-077 rule 1. A violation is an `Oban.insert` after the
+`Repo.transaction` that wrote the pending state.
+
+**Does a check fit?** No — declined. The transaction and the insert are
+often in different functions (`Plans.create_plan/2` →
+`insert_units/2`; command → `Helpers.enqueue_pursue/1`), and whether a
+row is a *pending state* is semantic. A lexical check would be both
+noisy and blind. The rule is held by Method step 4's test instead: every
+moved site has a test that stops after the commit and asserts the job
+row exists.
 
 ## Classification (compliant)
 
@@ -198,13 +272,8 @@ pending state: `PursueTarget` (F4), `RunPlan` (F3). `ImageRefreshWorker`
 
 ## Next steps
 
-1. Credo checks for what is static in ADR-077: a worker's `unique`
-   declares `states:`. Rule 1 (insert in the transaction) is probably
-   not statically checkable — decide.
-2. Move sites, highest cost first: F4, F3, F1 (design first — the
-   `Pipeline` → `Library.Inbound` boundary and one job per file vs.
-   batching, measured), F8, F6, F7, F5, F2, F9, F10, F11, F12. One
-   commit per site (Method step 4).
+Take the next **open** row of the *Work list*: analyse it under
+*Analyses*, then build it (Method steps 3–5).
 
 ## Completion criteria
 

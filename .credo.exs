@@ -197,6 +197,9 @@
           {MediaCentaur.Credo.Checks.RawButtonClass, []},
           {MediaCentaur.Credo.Checks.NoPhxValueValue, []},
           {MediaCentaur.Credo.Checks.TextInputDebounced, []},
+          # MC0041: an Oban worker's `unique:` names its `states:` — the
+          # default counts completed jobs and silently drops a new one.
+          {MediaCentaur.Credo.Checks.ObanUniqueStatesDeclared, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
           # MC0027 bans `data-confirm` — the native browser dialog is unthemed
           # and not d-pad reachable, which is disqualifying for a couch app.

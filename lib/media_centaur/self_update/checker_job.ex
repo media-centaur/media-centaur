@@ -23,7 +23,8 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
     # user's check interval to its own period — the bug that made a
     # 15-minute setting behave as roughly hourly. 2 minutes only guards a
     # boot enqueue racing a cron tick; the real interval lives in the gate.
-    unique: [period: 120]
+    # A check that just finished counts, so the tick after it is dropped.
+    unique: [period: 120, states: :successful]
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate

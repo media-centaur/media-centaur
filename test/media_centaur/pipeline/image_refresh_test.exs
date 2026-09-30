@@ -69,6 +69,27 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
       refute_receive {:enqueue_images, _}, 100
     end
 
+    # Regression: unique on entity_id for 60 s counted completed jobs, so a
+    # second refresh a person asked for soon after the first finished was
+    # silently not enqueued (ADR-077, rule 6).
+    test "a refresh asked for after the last one finished is enqueued" do
+      movie = identified_movie()
+      stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg"}))
+
+      assert {:ok, _job} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      assert_receive {:enqueue_images, %{entity_id: _}}
+
+      assert {:ok, %Oban.Job{conflict?: false}} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+    end
+
+    test "a second refresh while one waits collapses into it" do
+      movie = identified_movie()
+
+      assert {:ok, %Oban.Job{conflict?: false}} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+      assert {:ok, %Oban.Job{conflict?: true}} = ImageRefresh.enqueue_refresh(movie.id, :movie)
+    end
+
     test "enqueues a refresh that, run, refreshes an identified movie" do
       movie = identified_movie()
       stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg"}))
