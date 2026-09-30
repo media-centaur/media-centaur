@@ -339,6 +339,23 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
+            id: :grabbing,
+            description:
+              "A release is chosen — by a person, a plan or the search — and the job that hands it to Prowlarr has not yet done so.",
+            attributes: %{
+              vm:
+                row(:active, "Movie C",
+                  release_title: "Movie.C.1080p",
+                  target_status: :grabbing,
+                  status: %CurrentAction{
+                    verb: "Grabbing",
+                    description: "Sending the chosen release to your download client.",
+                    severity: :info
+                  }
+                )
+            }
+          },
+          %Variation{
             id: :handed_off,
             description:
               "Just grabbed. Prowlarr accepted the release and the download client has not shown it yet — the seconds-to-a-minute window that used to read as \"Finished downloading\".",

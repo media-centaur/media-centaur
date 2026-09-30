@@ -3,6 +3,46 @@ defmodule MediaCentaur.Search.SearchResultTest do
 
   alias MediaCentaur.Search.SearchResult
 
+  describe "to_map/1 and from_map/1 — a result stored and read back" do
+    @result %SearchResult{
+      title: "Sample.Movie.2005.1080p.WEB-DL",
+      guid: "g1",
+      indexer_id: 3,
+      quality: :hd_1080p,
+      size_bytes: 4_000_000_000,
+      seeders: 12,
+      leechers: 2,
+      grabs: 40,
+      indexer_name: "Sample Indexer",
+      publish_date: "2026-09-01T00:00:00Z",
+      info_hash: "0123456789ABCDEF0123456789ABCDEF01234567",
+      magnet_url: "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+      imdb_id: "tt0000001",
+      tmdb_id: "246813",
+      tvdb_id: nil,
+      protocol: :torrent,
+      download_url: "http://prowlarr.test/download/1"
+    }
+
+    test "quality and protocol are stored as strings" do
+      stored = SearchResult.to_map(@result)
+
+      assert stored.quality == "hd_1080p"
+      assert stored.protocol == "torrent"
+    end
+
+    test "a stored result reads back unchanged" do
+      assert @result |> SearchResult.to_map() |> SearchResult.from_map() == @result
+    end
+
+    test "a result read back from JSON storage (string keys) is the same result" do
+      string_keyed =
+        @result |> SearchResult.to_map() |> Map.new(fn {key, value} -> {to_string(key), value} end)
+
+      assert SearchResult.from_map(string_keyed) == @result
+    end
+  end
+
   describe "from_prowlarr/1" do
     test "keeps info_hash and magnet_url from the raw result" do
       raw = %{

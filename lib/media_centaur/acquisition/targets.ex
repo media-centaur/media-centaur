@@ -32,10 +32,11 @@ defmodule MediaCentaur.Acquisition.Targets do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Acquisition.Jobs.PursueTarget
+  alias MediaCentaur.Acquisition.Jobs.{GrabTarget, PursueTarget}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
   alias MediaCentaur.Acquisition.{Target, TargetEvents, TargetStatus}
   alias MediaCentaur.Repo
+  alias MediaCentaur.Search.SearchResult
 
   @doc """
   Lists `acquisition_targets` filtered by lifecycle stage.
@@ -85,6 +86,88 @@ defmodule MediaCentaur.Acquisition.Targets do
   defp auto_targets_filter(query, :active), do: where(query, [t], t.status in ^TargetStatus.in_flight())
 
   defp auto_targets_filter(query, status), do: where(query, [t], t.status == ^to_string(status))
+
+  @doc """
+  Writes a target in `"grabbing"` for `release`, chosen for `units` of
+  `pursuit`: the target, a coverage row and the pointer for each unit, and
+  the `Jobs.GrabTarget` job that hands the release to Prowlarr — in one
+  transaction, joining the caller's (ADR-077, rule 1). The caller has
+  already closed each unit's previous target and recorded its own events.
+  Option `origin:` defaults to the pursuit's.
+  """
+  @spec start_grabbing(Pursuit.t(), SearchResult.t(), [Unit.t()], keyword()) ::
+          {:ok, Target.t()} | {:error, term()}
+  def start_grabbing(%Pursuit{} = pursuit, %SearchResult{} = release, [_ | _] = units, opts \\ []) do
+    changeset =
+      Target.grabbing_changeset(release,
+        pursuit_id: pursuit.id,
+        title: pursuit.title,
+        origin: Keyword.get(opts, :origin, pursuit.origin)
+      )
+
+    Repo.transaction(fn ->
+      with {:ok, target} <- Repo.insert(changeset),
+           :ok <- cover(target, units),
+           {:ok, _job} <- Oban.insert(GrabTarget.new(%{"target_id" => target.id})) do
+        target
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @doc """
+  Gives each of `units` a new seeking target of its own, with its search
+  (`start_seeking/1`), coverage and pointer, in one transaction — the
+  fallback when a chosen release could not be grabbed.
+  """
+  @spec seek_again(Pursuit.t(), [Unit.t()]) :: :ok | {:error, term()}
+  def seek_again(%Pursuit{} = pursuit, units) do
+    result =
+      Repo.transaction(fn ->
+        Enum.each(units, fn unit ->
+          {:ok, target} =
+            %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
+            |> Target.create_changeset()
+            |> start_seeking()
+
+          :ok = cover(target, [unit])
+        end)
+      end)
+
+    with {:ok, _} <- result, do: :ok
+  end
+
+  @doc """
+  Records that `target`'s work is held by an outage — `outcome` without
+  charging an attempt, and when it will be tried again — and broadcasts
+  the snooze. The caller returns `{:snooze, seconds}`.
+  """
+  @spec record_hold(Target.t(), String.t(), pos_integer()) :: {:ok, Target.t()}
+  def record_hold(%Target{} = target, outcome, seconds) do
+    next_at = DateTime.add(DateTime.utc_now(:second), seconds, :second)
+
+    {:ok, scheduled} =
+      target
+      |> Target.outcome_changeset(outcome)
+      |> Ecto.Changeset.put_change(:next_attempt_at, next_at)
+      |> Repo.update()
+
+    Acquisition.broadcast_update(%TargetEvents.Snoozed{target: scheduled})
+    {:ok, scheduled}
+  end
+
+  defp cover(%Target{} = target, units) do
+    Enum.reduce_while(units, :ok, fn unit, :ok ->
+      with {:ok, _coverage} <-
+             Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
+           {:ok, _unit} <- Repo.update(Unit.set_current_target_changeset(unit, target.id)) do
+        {:cont, :ok}
+      else
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
 
   @doc """
   Writes a target into `"seeking"` — a new target's insert changeset or an

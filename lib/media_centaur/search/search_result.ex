@@ -75,6 +75,71 @@ defmodule MediaCentaur.Search.SearchResult do
           download_url: String.t() | nil
         }
 
+  @stored_fields [
+    :title,
+    :guid,
+    :indexer_id,
+    :quality,
+    :size_bytes,
+    :seeders,
+    :leechers,
+    :grabs,
+    :indexer_name,
+    :publish_date,
+    :info_hash,
+    :magnet_url,
+    :imdb_id,
+    :tmdb_id,
+    :tvdb_id,
+    :protocol,
+    :download_url
+  ]
+
+  @doc """
+  The result as a plain map for storage, `quality` and `protocol` as
+  strings. The corpus stores it as columns; a grabbing target stores it as
+  a JSON map (`Acquisition.Target.release`). `from_map/1` reads either back.
+  """
+  @spec to_map(t()) :: %{atom() => term()}
+  def to_map(%__MODULE__{} = result) do
+    result
+    |> Map.take(@stored_fields)
+    |> Map.update!(:quality, &quality_to_string/1)
+    |> Map.update!(:protocol, &protocol_to_string/1)
+  end
+
+  @doc """
+  Reads a stored result back — from `to_map/1`'s atom keys, from a
+  database row, or from JSON storage's string keys.
+  """
+  @spec from_map(map()) :: t()
+  def from_map(stored) when is_map(stored) do
+    fields =
+      Map.new(@stored_fields, fn field ->
+        {field, Map.get(stored, field, Map.get(stored, Atom.to_string(field)))}
+      end)
+
+    struct!(__MODULE__, %{
+      fields
+      | quality: quality_from_string(fields.quality),
+        protocol: parse_protocol(fields.protocol)
+    })
+  end
+
+  # Quality atoms are a closed two-value set (`Search.Quality.t()`) —
+  # explicit clauses both ways so a bad row can never mint an atom.
+  defp quality_to_string(:uhd_4k), do: "uhd_4k"
+  defp quality_to_string(:hd_1080p), do: "hd_1080p"
+  defp quality_to_string(_quality), do: nil
+
+  defp quality_from_string("uhd_4k"), do: :uhd_4k
+  defp quality_from_string("hd_1080p"), do: :hd_1080p
+  defp quality_from_string(_quality), do: nil
+
+  defp protocol_to_string(:torrent), do: "torrent"
+  defp protocol_to_string(:usenet), do: "usenet"
+  defp protocol_to_string(_protocol), do: nil
+
   @doc "Builds a SearchResult from a raw Prowlarr API result map."
   @spec from_prowlarr(map()) :: t()
   def from_prowlarr(raw) do

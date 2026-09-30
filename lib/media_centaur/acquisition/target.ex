@@ -11,6 +11,11 @@ defmodule MediaCentaur.Acquisition.Target do
 
   ## Status lifecycle
 
+      grabbing ─┬─► acquired  (Prowlarr accepted the chosen release)
+                ├─► failed    (Prowlarr refused it; each covered unit
+                │              gets a new seeking target)
+                └─► cancelled
+
       seeking ─┬─► acquired  (Prowlarr accepted the release)
                ├─► failed    (max attempts reached without success,
                │              or the file never materialised at the
@@ -95,6 +100,9 @@ defmodule MediaCentaur.Acquisition.Target do
     field :cancelled_reason, :string
     field :origin, :string, default: "auto"
     field :prowlarr_guid, :string
+    # The release chosen for a `grabbing` target (`SearchResult.to_map/1`),
+    # stored so its grab never depends on the corpus keeping the candidate.
+    field :release, :map
     field :release_title, :string
     # Durable link to the download's file, captured on first observation of
     # the torrent in the queue. `torrent_hash` is qBittorrent's infohash;
@@ -218,6 +226,29 @@ defmodule MediaCentaur.Acquisition.Target do
       if Map.get(changeset.data, field) == value, do: delete_change(acc, field), else: acc
     end)
   end
+
+  @doc """
+  Builds a new target in `grabbing` for a chosen release: the release is
+  stored and its grab is owed (`Jobs.GrabTarget`). Options: `pursuit_id:`,
+  `title:`, `origin:`.
+  """
+  @spec grabbing_changeset(SearchResult.t(), keyword()) :: Ecto.Changeset.t()
+  def grabbing_changeset(%SearchResult{} = result, opts) do
+    change(%__MODULE__{},
+      pursuit_id: Keyword.fetch!(opts, :pursuit_id),
+      title: Keyword.fetch!(opts, :title),
+      origin: Keyword.fetch!(opts, :origin),
+      status: "grabbing",
+      prowlarr_guid: result.guid,
+      release_title: result.title,
+      release: SearchResult.to_map(result)
+    )
+  end
+
+  @doc "The release a `grabbing` target was written for."
+  @spec chosen_release(t()) :: SearchResult.t()
+  def chosen_release(%__MODULE__{release: release}) when is_map(release),
+    do: SearchResult.from_map(release)
 
   @doc "Builds a new target in `seeking` status for a pursuit."
   def create_changeset(attrs) do

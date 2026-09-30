@@ -280,6 +280,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   defp badge_for_status(:acquired), do: %{label: "Acquired", variant: :success}
   defp badge_for_status(:downloading), do: %{label: "Downloading", variant: :info}
   defp badge_for_status(:seeking), do: %{label: "Seeking", variant: :info}
+  defp badge_for_status(:grabbing), do: %{label: "Grabbing", variant: :info}
   # Scheduled is the implicit baseline of every Coming Up tile — render no
   # badge for it. Reserve the badge for differentiating action states.
   defp badge_for_status(_), do: nil

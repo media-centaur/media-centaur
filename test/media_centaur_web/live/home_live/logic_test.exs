@@ -322,6 +322,15 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       assert secondary.badge.variant == :info
     end
 
+    test "a release whose chosen release is being grabbed reads Grabbing" do
+      today = ~D[2026-04-27]
+
+      marquee = Logic.coming_up_marquee([release("Sample Show B", today, status: :grabbing)], today)
+
+      assert marquee.hero.badge.label == "Grabbing"
+      assert marquee.hero.badge.variant == :info
+    end
+
     test "release with no logo_url → item logo_url is nil (component falls back to typography)" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", today, logo_url: nil)]

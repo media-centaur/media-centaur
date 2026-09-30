@@ -99,6 +99,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     InfoHash,
     Target,
     TargetEvents,
+    Targets,
     TargetStatus
   }
 
@@ -576,13 +577,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # the status line and snoozed without charging an attempt: the release
   # is fine, and the next attempt re-picks it from the corpus.
   defp handle_infrastructure_failure(target, outcome, snooze_seconds) do
-    {:ok, updated} =
-      target
-      |> Target.outcome_changeset(outcome)
-      |> Repo.update()
-
-    {:ok, scheduled} = persist_next_attempt(updated, snooze_seconds)
-    broadcast(%TargetEvents.Snoozed{target: scheduled})
+    {:ok, _held} = Targets.record_hold(target, outcome, snooze_seconds)
     {:snooze, snooze_seconds}
   end
 
