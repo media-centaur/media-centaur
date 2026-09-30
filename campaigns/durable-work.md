@@ -94,7 +94,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | done — layers 1–4; layer 5 declined |
 | F3d | Auto-select door runs in a task | done |
 | F1 | Review approval rides PubSub to Import | done — row + re-send pass (owner) |
-| F8 | Watch completion → history → share on PubSub | open |
+| F8 | Watch completion → history → share on PubSub | analysed — owner decision |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | open |
 | F5 | Removed title keeps its seeking targets | open |
@@ -418,6 +418,40 @@ fifteen-minute in-flight cutoff); Discovery treats an approved file as
 settled, so the boot rescan cannot import it twice; ADR-076 amended; the
 wiki's Review Queue page on the unpushed `durable-work` branch of the wiki
 repo.
+
+### F8 — completion → watch history → share (analysed 2026-09-30): with the owner
+
+**The case.** `ProgressRecords.mark_completed/1` (Library) flips
+`WatchProgress.completed` and publishes `entity_watch_completed`;
+`WatchHistory.Recorder` records a `WatchEvent` on a task and publishes
+`watch_event_created`; `Activities.Publisher` shares a *watched* activity
+on a task. Separately, a rung change (`Discovery`) publishes
+`title_intent_changed`, and the Publisher shares a *listing* when a title
+crosses onto List, or *withdraws* it when the title drops below.
+
+**What constrains the shape.** `WatchHistory` depends on `Library`, so a
+completion cannot insert a WatchHistory job; the durable row it leaves
+is `completed: true`, with no completion time — `last_watched_at` moves
+on every save, and a rewatch reuses the row. `Activities` depends on
+`Discovery` and `Library`, so an Activities pass can read intents.
+
+**Three parts, three answers.**
+
+1. **Watch event and the watched share — decline.** Lost only when the
+   Recorder or its task dies in the moment after a completion. A pass
+   would need a completion time on `WatchProgress` (a migration) and a
+   rule for telling a lost completion from a rewatch; the result is one
+   history row and one share, rarely. Cost well above the loss.
+2. **The listing share — decline.** The toggle is temporal: it governs
+   what is said at the moment of listing. A pass that listed every title
+   standing at List would publish, when the toggle is next on, titles
+   listed while it was off — a change of meaning, not a repair.
+3. **The withdrawal — a reconcile pass.** A lost withdrawal leaves a false
+   statement on friends' feeds indefinitely, and the fix is state-based
+   and safe: every own listing still standing whose title no longer
+   stands at List is withdrawn. `Activities` runs it on a schedule (and at
+   boot); the PubSub path stays for latency. Outward-facing: a wrong
+   answer withdraws a true listing, so the test covers both sides.
 
 ## Classification (compliant)
 
