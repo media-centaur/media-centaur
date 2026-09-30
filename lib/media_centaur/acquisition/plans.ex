@@ -312,10 +312,13 @@ defmodule MediaCentaur.Acquisition.Plans do
     if unit_specs == [] do
       {:error, :no_units}
     else
+      # The plan, its units and the run that solves it commit together
+      # (ADR-077, rule 1): a planning plan always has its RunPlan.
       result =
         Repo.transaction(fn ->
           with {:ok, plan} <- Repo.insert(Plan.create_changeset(resolve_title_bounds(plan_attrs))),
-               :ok <- insert_units(plan, unit_specs) do
+               :ok <- insert_units(plan, unit_specs),
+               {:ok, _job} <- Oban.insert(RunPlan.new(%{"plan_id" => plan.id})) do
             plan
           else
             {:error, reason} -> Repo.rollback(reason)
@@ -323,7 +326,6 @@ defmodule MediaCentaur.Acquisition.Plans do
         end)
 
       with {:ok, plan} <- result do
-        Oban.insert(RunPlan.new(%{"plan_id" => plan.id}))
         broadcast_changed(plan)
         {:ok, plan}
       end
@@ -491,12 +493,21 @@ defmodule MediaCentaur.Acquisition.Plans do
   """
   @spec replan(Plan.t(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
   def replan(%Plan{} = plan, opts \\ []) do
-    with {:ok, planning} <-
-           Repo.update(Plan.transition_changeset(plan, "planning", ["planning", "ready"])) do
-      Oban.insert(
-        RunPlan.new(%{"plan_id" => planning.id, "force" => Keyword.get(opts, :force_search, false)})
-      )
+    run = RunPlan.new(%{"plan_id" => plan.id, "force" => Keyword.get(opts, :force_search, false)})
 
+    # The transition and its run commit together (ADR-077, rule 1).
+    result =
+      Repo.transaction(fn ->
+        with {:ok, planning} <-
+               Repo.update(Plan.transition_changeset(plan, "planning", ["planning", "ready"])),
+             {:ok, _job} <- Oban.insert(run) do
+          planning
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+    with {:ok, planning} <- result do
       broadcast_changed(planning)
       {:ok, planning}
     end

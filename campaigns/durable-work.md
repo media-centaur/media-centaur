@@ -84,7 +84,10 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | C1 | Credo: a worker's `unique` names its `states:` | done |
 | C2 | Credo: a durable job is inserted in the decision's transaction | declined (analysis) |
 | F4 | `"seeking"` writers insert after commit | done |
-| F3 | Plan lifecycle outside jobs | open |
+| F3a | Plan solve: `RunPlan` inserted after commit | done |
+| F3b | Automatic plan gate rides PubSub | analysed (outline) |
+| F3c | Approval (`CommitPlan`) not resumable, runs in its caller | analysed (outline) |
+| F3d | Auto-select door runs in a task | analysed (outline) |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
 | F6 | Picking a release runs in a task, grab before record | open |
@@ -231,6 +234,48 @@ cannot be made to fail from a test without a seam, and the rollback on
 `Pursuit`; it returns the work function's value, so `log_outcome/2`
 never logs for `ChangeTarget` or `AutoCancel` (they return a tuple) —
 M6.
+
+### F3 — plan lifecycle (analysed 2026-09-30)
+
+A plan moves `planning` → `ready` → `committed` | `discarded`. Four
+different pieces of work hang off it, and they do not all want the same
+shape, so F3 is taken as four areas:
+
+* **F3a — the solve.** `"planning"` is owed a `RunPlan`. `create_plan/2`
+  inserts it after the plan's transaction commits (`plans.ex:325`);
+  `replan/2` updates then inserts with no transaction (`:496`). Same case
+  as F4: insert in the transaction, failure rolls back. Test:
+  `capture_inserts` on create and replan.
+* **F3b — the automatic gate.** A `"ready"` plan whose policy is
+  `automatic` (or any tracking draft) is owed a gate decision — commit,
+  park, discard or delete (`Reactor.Handlers.gate/1`). Today a
+  `PlanEvents.Changed` PubSub message to the Reactor GenServer carries
+  it; a lost message leaves an automatic plan waiting on the board and a
+  tracking draft blocking its want forever. A stored state owed work:
+  ADR-077 fits. Shape: `RunPlan`'s transition to `ready` inserts a gate
+  job in the same transaction when the plan is gated; the Reactor stops
+  gating. Analysed in full when reached.
+* **F3c — approval.** `CommitPlan.execute/1` creates the pursuit, grabs
+  each release group at Prowlarr (one HTTP call and one transaction per
+  group), then stamps `committed`. It runs in its caller — a person's
+  approve in `start_async`, or the gate. A crash midway leaves a pursuit
+  and some grabs with the plan still `ready`, and a retry is rejected by
+  its own overlap check. Not a carrier swap: the grabs must first become
+  resumable (grab only groups whose units hold no target yet), and what
+  the pursuit watcher does with a unit that has no target yet must be
+  known before the pursuit can exist ahead of its grabs. A grab that
+  reached Prowlarr before a crash cannot be known to have landed, so a
+  retry may grab it again — at-least-once, like `PursueTarget`'s own grab
+  (F6 shares this). Analysed in full when reached.
+* **F3d — the doors.** The auto-select door, `plan_title/2`, runs the
+  targeting fetch and the plan's creation in a fire-and-forget task: a
+  person's click with nothing stored until the plan exists, lost with the
+  task. It becomes a job the click inserts. The choose-releases door
+  (`title_detail_host/acquisition.ex:111,157`) is **not** moved: the
+  view waits for the plan id to open its board, nothing is stored until
+  the plan exists, and closing the modal abandons it by design — that is
+  a view-owned wait, `start_async`'s own row. Once the plan exists, F3a
+  makes the rest durable.
 
 ## Classification (compliant)
 

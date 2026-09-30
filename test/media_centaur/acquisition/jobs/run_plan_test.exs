@@ -146,6 +146,29 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   # include `completed`, so a replan soon after the plan solved — a person
   # excluding a release on the board — inserted nothing and left the plan
   # planning with no job behind it (ADR-077, rule 6).
+  # Regression: create inserted RunPlan after the plan's transaction
+  # committed, and replan updated then inserted with no transaction — a
+  # crash in between left the plan planning with no run behind it.
+  describe "the solve commits with the plan (ADR-077, rule 1)" do
+    test "creating a plan inserts its RunPlan inside the plan's transaction" do
+      {{:ok, _plan}, inserts} =
+        MediaCentaur.JobRuns.capture_inserts(fn -> Plans.create_series_plan(selection(), [{1, 1}]) end)
+
+      assert [%{in_transaction?: true}] = Enum.filter(inserts, &(&1.worker == inspect(RunPlan)))
+    end
+
+    test "a replan inserts its RunPlan inside the replan's transaction" do
+      stub_recording_searches(%{})
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      {:ok, ready} = Plans.fetch(plan.id)
+
+      {{:ok, _planning}, inserts} = MediaCentaur.JobRuns.capture_inserts(fn -> Plans.replan(ready) end)
+
+      assert [%{in_transaction?: true}] = Enum.filter(inserts, &(&1.worker == inspect(RunPlan)))
+    end
+  end
+
   describe "one waiting run per plan" do
     test "a replan right after a finished run enqueues a new run" do
       stub_recording_searches(%{})
