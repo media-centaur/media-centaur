@@ -59,7 +59,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
           | :cancelled
 
   @type target_status ::
-          :seeking | :acquired | :succeeded | :failed | :cancelled
+          :seeking | :grabbing | :acquired | :succeeded | :failed | :cancelled
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),

@@ -27,6 +27,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   | `exhausted`              | `Jobs.PursueTarget` — attempt budget spent       |
   | `download_failed`        | `Commands.AutoCancel` — `Policy` rule 3          |
   | `zero_seeders`           | `Commands.AutoCancel` — `Policy` rule 4          |
+  | `grab_refused`           | `Jobs.GrabTarget` — Prowlarr refused the release |
 
   **Historical values.** Rows written before 2026-09-17 may carry reasons no
   longer declared here — `superseded_by_plans` (legacy seeker, system-cancelled
@@ -46,6 +47,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   @exhausted "exhausted"
   @download_failed "download_failed"
   @zero_seeders "zero_seeders"
+  @grab_refused "grab_refused"
 
   @all [
     @user_request,
@@ -58,7 +60,8 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
     @orphan_target,
     @exhausted,
     @download_failed,
-    @zero_seeders
+    @zero_seeders,
+    @grab_refused
   ]
 
   @type t :: String.t()
@@ -89,6 +92,9 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
 
   @spec exhausted() :: t()
   def exhausted, do: @exhausted
+
+  @spec grab_refused() :: t()
+  def grab_refused, do: @grab_refused
 
   @spec download_failed() :: t()
   def download_failed, do: @download_failed

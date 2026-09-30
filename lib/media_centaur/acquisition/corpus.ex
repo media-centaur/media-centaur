@@ -99,33 +99,18 @@ defmodule MediaCentaur.Acquisition.Corpus do
   @insert_chunk 500
 
   defp candidate_row(%SearchResult{} = result, key, now) do
-    %{
+    result
+    |> SearchResult.to_map()
+    |> Map.merge(%{
       # `insert_all` skips the schema's `autogenerate: true`; without this
       # the rows land with a null id.
       id: Ecto.UUID.generate(),
       search_key: key,
-      guid: result.guid,
-      title: result.title,
-      indexer_id: result.indexer_id,
-      indexer_name: result.indexer_name,
-      quality: quality_to_string(result.quality),
-      size_bytes: result.size_bytes,
-      seeders: result.seeders,
-      leechers: result.leechers,
-      grabs: result.grabs,
-      publish_date: result.publish_date,
-      protocol: protocol_to_string(result.protocol),
-      imdb_id: result.imdb_id,
-      tmdb_id: result.tmdb_id,
-      tvdb_id: result.tvdb_id,
-      info_hash: result.info_hash,
-      magnet_url: result.magnet_url,
-      download_url: result.download_url,
       first_seen_at: now,
       last_seen_at: now,
       inserted_at: now,
       updated_at: now
-    }
+    })
   end
 
   defp record_rows!(key, term, now, results) do
@@ -268,43 +253,5 @@ defmodule MediaCentaur.Acquisition.Corpus do
   @spec retention_days() :: pos_integer()
   def retention_days, do: @retention_days
 
-  # Quality atoms are a closed two-value set (`Search.Quality.t()`) —
-  # explicit clauses both ways so a bad row can never mint an atom.
-  defp quality_to_string(:uhd_4k), do: "uhd_4k"
-  defp quality_to_string(:hd_1080p), do: "hd_1080p"
-  defp quality_to_string(_quality), do: nil
-
-  defp quality_from_string("uhd_4k"), do: :uhd_4k
-  defp quality_from_string("hd_1080p"), do: :hd_1080p
-  defp quality_from_string(_quality), do: nil
-
-  defp protocol_to_string(:torrent), do: "torrent"
-  defp protocol_to_string(:usenet), do: "usenet"
-  defp protocol_to_string(_protocol), do: nil
-
-  defp protocol_from_string("torrent"), do: :torrent
-  defp protocol_from_string("usenet"), do: :usenet
-  defp protocol_from_string(_protocol), do: nil
-
-  defp to_search_result(%Candidate{} = candidate) do
-    %SearchResult{
-      title: candidate.title,
-      guid: candidate.guid,
-      indexer_id: candidate.indexer_id,
-      indexer_name: candidate.indexer_name,
-      quality: quality_from_string(candidate.quality),
-      size_bytes: candidate.size_bytes,
-      seeders: candidate.seeders,
-      leechers: candidate.leechers,
-      grabs: candidate.grabs,
-      publish_date: candidate.publish_date,
-      protocol: protocol_from_string(candidate.protocol),
-      imdb_id: candidate.imdb_id,
-      tmdb_id: candidate.tmdb_id,
-      tvdb_id: candidate.tvdb_id,
-      info_hash: candidate.info_hash,
-      magnet_url: candidate.magnet_url,
-      download_url: candidate.download_url
-    }
-  end
+  defp to_search_result(%Candidate{} = candidate), do: SearchResult.from_map(candidate)
 end

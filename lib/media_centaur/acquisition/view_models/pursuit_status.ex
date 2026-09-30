@@ -184,10 +184,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   defp awaiting_decision?(%Unit{awaiting_decision_at: %DateTime{}}), do: true
   defp awaiting_decision?(_unit), do: false
 
-  # The hold is global and only bites before the work starts: once a release is
-  # grabbed, Prowlarr being down changes nothing about the download in flight.
-  defp held_before_the_search?(:seeking, %StatusContext{held_integration: integration}),
-    do: not is_nil(integration)
+  # The hold is global and only bites before the grab: once Prowlarr has
+  # accepted a release, Prowlarr being down changes nothing about the download
+  # in flight.
+  defp held_before_the_search?(stage, %StatusContext{held_integration: integration})
+       when stage in [:seeking, :grabbing], do: not is_nil(integration)
 
   defp held_before_the_search?(_stage, _context), do: false
 
@@ -195,7 +196,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   # outage, not a bad release. The worker snoozed briefly without charging an
   # attempt; say so, or the user reaches for an alternative release that cannot
   # help.
-  defp handoff_outage?(:seeking, %Target{last_attempt_outcome: "download_client_unavailable"}), do: true
+  defp handoff_outage?(stage, %Target{last_attempt_outcome: "download_client_unavailable"})
+       when stage in [:seeking, :grabbing], do: true
 
   defp handoff_outage?(_stage, _target), do: false
 
@@ -261,6 +263,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
       },
       %NextStep{description: "Trying expanded queries — will pick the best match or snooze."},
       [:cancel, :request_decision]
+    }
+  end
+
+  # A release is chosen — by a person, a plan or the search — and the job that
+  # hands it to Prowlarr has not yet done so.
+  defp stage_action(:grabbing, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Grabbing",
+        description: "Sending the chosen release to your download client.",
+        severity: :info
+      },
+      %NextStep{description: "If it's refused, we'll search for another release."},
+      [:cancel]
     }
   end
 

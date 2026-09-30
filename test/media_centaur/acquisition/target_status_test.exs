@@ -13,6 +13,7 @@ defmodule MediaCentaur.Acquisition.TargetStatusTest do
   # miscategorisation shows up as a failure rather than a wrong toast.
   @bucket_table [
     %{status: "seeking", bucket: :in_flight, rearmable?: false, cancellable?: true},
+    %{status: "grabbing", bucket: :in_flight, rearmable?: false, cancellable?: true},
     %{status: "acquired", bucket: :terminal_success, rearmable?: true, cancellable?: true},
     %{status: "succeeded", bucket: :terminal_success, rearmable?: false, cancellable?: false},
     %{status: "failed", bucket: :terminal_failure, rearmable?: true, cancellable?: false},
@@ -35,7 +36,7 @@ defmodule MediaCentaur.Acquisition.TargetStatusTest do
   end
 
   describe "bucket membership lists" do
-    test "all/0 is exactly the five documented statuses" do
+    test "all/0 is exactly the documented statuses" do
       assert Enum.sort(TargetStatus.all()) ==
                Enum.sort(Enum.map(@bucket_table, & &1.status))
     end

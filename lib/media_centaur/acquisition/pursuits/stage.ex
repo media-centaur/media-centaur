@@ -23,6 +23,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Stage do
   |---|---|
   | `:no_target` | the unit has no current target at all |
   | `:seeking` | no release picked yet |
+  | `:grabbing` | a release is chosen and its grab is owed; Prowlarr has not accepted it yet |
   | `:handed_off` | Prowlarr accepted the grab (or the user picked); the client has not shown it yet |
   | `:missing` | handed off, never seen at the client, and the hand-off window has elapsed |
   | `:at_client` | visible in the client's queue right now |
@@ -58,6 +59,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Stage do
   @type t ::
           :no_target
           | :seeking
+          | :grabbing
           | :handed_off
           | :missing
           | :at_client
@@ -89,6 +91,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Stage do
   def of(nil, _queue_item, _location, _context), do: :no_target
 
   def of(%Target{status: "seeking"}, _queue_item, _location, _context), do: :seeking
+  def of(%Target{status: "grabbing"}, _queue_item, _location, _context), do: :grabbing
   def of(%Target{status: "succeeded"}, _queue_item, _location, _context), do: :done
   def of(%Target{status: "failed"}, _queue_item, _location, _context), do: :failed
   def of(%Target{status: "cancelled"}, _queue_item, _location, _context), do: :cancelled

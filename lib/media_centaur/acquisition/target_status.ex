@@ -29,6 +29,7 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   | atom          | string        | bucket             | rearmable? |
   |---------------|---------------|--------------------|------------|
   | `:seeking`    | `"seeking"`   | `:in_flight`       | no         |
+  | `:grabbing`   | `"grabbing"`  | `:in_flight`       | no         |
   | `:acquired`   | `"acquired"`  | `:terminal_success`| yes        |
   | `:succeeded`  | `"succeeded"` | `:terminal_success`| no         |
   | `:failed`     | `"failed"`    | `:terminal_failure`| yes        |
@@ -48,21 +49,21 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   (typed code shape). Callers should not need to convert.
   """
 
-  @in_flight_strings ~w(seeking)
+  @in_flight_strings ~w(seeking grabbing)
   @terminal_success_strings ~w(acquired succeeded)
   @terminal_failure_strings ~w(failed cancelled)
   @rearmable_strings ~w(acquired failed cancelled)
-  # "Cancel command can still flip this row" — `seeking` (worker
-  # alive) and `acquired` (Prowlarr accepted, download in progress).
+  # "Cancel command can still flip this row" — `seeking` and `grabbing`
+  # (worker alive) and `acquired` (Prowlarr accepted, download in progress).
   # Excludes `succeeded` (file landed; nothing to cancel) and the
   # `:terminal_failure` rows (already gone). Wider than `in_flight`
   # because zero-seeders fires on `acquired` torrents.
-  @cancellable_strings ~w(seeking acquired)
+  @cancellable_strings ~w(seeking grabbing acquired)
   @terminal_strings @terminal_success_strings ++ @terminal_failure_strings
   @all_strings @in_flight_strings ++ @terminal_strings
 
   @type bucket :: :in_flight | :terminal_success | :terminal_failure
-  @type t :: :seeking | :acquired | :succeeded | :failed | :cancelled
+  @type t :: :seeking | :grabbing | :acquired | :succeeded | :failed | :cancelled
 
   @doc "Every valid status, as DB strings."
   @spec all() :: [String.t()]

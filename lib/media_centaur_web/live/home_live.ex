@@ -485,6 +485,7 @@ defmodule MediaCentaurWeb.HomeLive do
   defp target_status_atom("acquired"), do: :acquired
   defp target_status_atom("succeeded"), do: :acquired
   defp target_status_atom("seeking"), do: :seeking
+  defp target_status_atom("grabbing"), do: :grabbing
   defp target_status_atom(_), do: :scheduled
 
   defp load_recently_added, do: Views.recently_added(limit: 30)

@@ -150,6 +150,32 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
+  describe "derive/6 — active + grabbing" do
+    test "Grabbing, and what happens if the release is refused" do
+      {action, next, actions} = derive(pursuit(:active), unit(), target(:grabbing), nil)
+
+      assert action.verb == "Grabbing"
+      assert action.severity == :info
+      assert action.description == "Sending the chosen release to your download client."
+      assert next.description == "If it's refused, we'll search for another release."
+      assert actions == [:cancel]
+    end
+
+    test "Prowlarr down holds the grab like a search" do
+      {action, _next, _actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:grabbing),
+          nil,
+          :none,
+          context(%{held_integration: :prowlarr})
+        )
+
+      assert action.verb == "Waiting"
+    end
+  end
+
   describe "derive/6 — held on a down integration" do
     test "Prowlarr down reads as waiting on Prowlarr, with no attempt clock" do
       {action, next_step, actions} =

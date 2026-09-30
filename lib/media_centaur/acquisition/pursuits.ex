@@ -747,6 +747,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   defp status_to_atom(nil), do: nil
   defp status_to_atom("seeking"), do: :seeking
+  defp status_to_atom("grabbing"), do: :grabbing
   defp status_to_atom("acquired"), do: :acquired
   defp status_to_atom("succeeded"), do: :succeeded
   defp status_to_atom("failed"), do: :failed

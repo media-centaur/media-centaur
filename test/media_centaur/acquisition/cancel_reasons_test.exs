@@ -25,7 +25,8 @@ defmodule MediaCentaur.Acquisition.CancelReasonsTest do
     :orphan_target,
     :exhausted,
     :download_failed,
-    :zero_seeders
+    :zero_seeders,
+    :grab_refused
   ]
 
   describe "all/0" do

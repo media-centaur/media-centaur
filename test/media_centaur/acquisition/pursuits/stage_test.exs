@@ -44,6 +44,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.StageTest do
       assert stage(nil) == :no_target
     end
 
+    test "grabbing: a release is chosen and its grab is owed" do
+      assert Stage.of(target(:grabbing), nil, :none, context()) == :grabbing
+    end
+
     test "seeking, succeeded, failed and cancelled ignore every download input" do
       item = %QueueItem{id: "qi-1", title: "Sample.Movie.1080p.WEB-DL.mkv", state: :downloading}
 
