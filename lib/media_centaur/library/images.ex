@@ -14,6 +14,8 @@ defmodule MediaCentaur.Library.Images do
 
   import Ecto.Query
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.ImageCache
@@ -78,6 +80,50 @@ defmodule MediaCentaur.Library.Images do
   end
 
   defp container_id(_owner_type, owner_id), do: owner_id
+
+  @doc """
+  Records a downloaded image: upserts its `Library.Image` row with
+  `content_url` set. The image pipeline
+  calls it in the transaction that marks the queue entry complete, so a
+  finished download always has its row (campaign durable-work, F11) — it
+  used to arrive over a PubSub message a lost delivery would skip.
+  """
+  @spec ready(map()) :: :ok
+  def ready(attrs) do
+    %{
+      owner_id: owner_id,
+      owner_type: owner_type,
+      role: role,
+      content_url: content_url,
+      extension: extension
+    } = attrs
+
+    image_attrs = %{
+      role: role,
+      content_url: content_url,
+      extension: extension,
+      owner_type: cast_owner_type(owner_type),
+      owner_id: owner_id
+    }
+
+    case upsert(image_attrs, [:owner_type, :owner_id, :role]) do
+      {:ok, _image} ->
+        Log.info(:library, "image ready — #{role} for #{owner_id}")
+
+      {:error, reason} ->
+        Log.warning(:library, "failed to create image — #{role} for #{owner_id}: #{inspect(reason)}")
+    end
+
+    :ok
+  end
+
+  # The queue entry stores the owner type as a string.
+  defp cast_owner_type(type) when is_atom(type), do: type
+  defp cast_owner_type("movie"), do: :movie
+  defp cast_owner_type("episode"), do: :episode
+  defp cast_owner_type("tv_series"), do: :tv_series
+  defp cast_owner_type("movie_series"), do: :movie_series
+  defp cast_owner_type("video_object"), do: :video_object
 
   @doc "Inserts an `Image` for an `(owner_type, owner_id)` owner."
   @spec create(map()) :: {:ok, Image.t()} | {:error, Ecto.Changeset.t()}

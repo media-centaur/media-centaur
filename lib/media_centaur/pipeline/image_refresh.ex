@@ -6,10 +6,10 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   records whose files are missing), this reuses the **import** enqueue
   path: it derives the full artwork list from the TMDB store's copy of
   the title — first contact when the store lacks it (ADR-071) — and
-  broadcasts `{:enqueue_images, …}`. The image Producer
-  creates/upserts queue rows and downloads; `Library.Images.upsert/2`
-  then replaces `content_url` on completion — so a refresh both fills a
-  gap (no artwork at all) and replaces existing art.
+  queues it (`ImageQueue.enqueue/3`: the rows, then a nudge to the image
+  pipeline), which downloads; `Library.Images.ready/1` then replaces
+  `content_url` on completion — so a refresh both fills a gap (no artwork
+  at all) and replaces existing art.
 
   `enqueue_refresh/2` is the web entry point: it cheaply pre-checks that
   the entity is TMDB-identified, then schedules `ImageRefreshWorker`
@@ -25,7 +25,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   alias MediaCentaur.Pipeline.ImageRefreshWorker
   alias MediaCentaur.TMDB
   alias MediaCentaur.TMDB.Mapper
-  alias MediaCentaur.Topics
+  alias MediaCentaur.Pipeline.ImageQueue
 
   @type entity_type :: :movie | :tv_series | :movie_series | :video_object
 
@@ -49,8 +49,8 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   end
 
   @doc """
-  Reads one entity's artwork paths from the TMDB store and broadcasts
-  `{:enqueue_images, …}`. Returns `{:ok, count}` (artwork roles
+  Reads one entity's artwork paths from the TMDB store and queues them
+  (`ImageQueue.enqueue/3`). Returns `{:ok, count}` (artwork roles
   enqueued) or `{:error, reason}`.
   """
   @spec refresh_entity(String.t(), entity_type()) :: {:ok, non_neg_integer()} | {:error, term()}
@@ -82,10 +82,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
         }
       end)
 
-    Topics.publish(
-      Topics.pipeline_images(),
-      {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: pending}}
-    )
+    :ok = ImageQueue.enqueue(entity_id, media_dir, pending)
 
     Log.info(:pipeline, "image_refresh: enqueued #{length(pending)} images for #{type}:#{entity_id}")
     {:ok, length(pending)}

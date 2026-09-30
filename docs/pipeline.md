@@ -32,8 +32,8 @@ inotify + scan               high confidence → matched       → publish entit
 |-------|----------|----------|---------|
 | `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, media_dir}}` |
 | `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type}}` — the match's identity; Import reads the season and episode the name claims from its own parse |
-| `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
-| `pipeline:images` | Library.Inbound (and ImageRefresh / ImageRepair) | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` — the producer creates the queue rows, then sends itself `{:images_pending, %{entity_id, media_dir}}` |
+| `pipeline:publish` | Import (Ingest stage) | Library.Inbound | `{:entity_published, event}` |
+| `pipeline:images` | Library.Inbound; `ImageQueue.enqueue/3` (ImageRefresh); ImageRepair; RetryScheduler | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` from Library.Inbound, which cannot call the pipeline — the producer queues them through `ImageQueue.enqueue/3`; `{:images_pending, %{entity_id, media_dir}}` — a nudge for rows already stored |
 | `tmdb:titles` | TMDB.Store | Pipeline.TmdbProjection (and ReleaseTracking.TmdbListener) | `{:tmdb_title_changed, {tmdb_id, media_type}}` — an owned title's TMDB fields, season episode lists and episode details are re-applied from the store (ADR-071) |
 | `review:intake` | Discovery | Review.Intake | `{:needs_review, attrs}` |
 | `review:updates` | `Review.Events` | LiveViews, ShellBadges | `{:file_added, _}` (entered or returned to the queue), `{:files_approved, _}`, `{:file_reviewed, _}` (left the queue) |
@@ -133,11 +133,11 @@ Downloads and processes artwork asynchronously after entity creation.
 1. Producer pulls pending entries from `pipeline_image_queue` on `{:images_pending, ...}` events
 2. Processor downloads and resizes in one step via `Pipeline.ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb). The download itself is delegated to `MediaCentaur.ImageFiles`, the shared download+resize facade — see [`specs/IMAGE-CACHING.md`](../specs/IMAGE-CACHING.md).
 3. Writes the resized image to disk under the entity's image directory
-4. Batcher marks queue entries `:complete`, broadcasts `{:image_ready, attrs}` to `"pipeline:publish"` (→ `Library.Inbound` creates/updates `Library.Image` records), and calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
+4. Batcher, in one transaction, marks queue entries `:complete` and records each image (`Library.Images.ready/1` creates/updates its `Library.Image` row), then calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
 
 **Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `Pipeline.Image.RetryScheduler` picks up on its next tick).
 
-**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Rows are created by `Pipeline.Image.Producer` when it receives `{:enqueue_images, …}` (broadcast by `Library.Inbound` after entity creation, and by the artwork refresh / repair paths).
+**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Rows are created by `ImageQueue.enqueue/3` — called by the artwork refresh directly, and by `Pipeline.Image.Producer` for the `{:enqueue_images, …}` `Library.Inbound` broadcasts after entity creation. A stored row is what `RetryScheduler` re-sends, so a lost nudge costs a tick, not the image.
 
 ---
 

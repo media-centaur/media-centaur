@@ -3,6 +3,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
   import MediaCentaur.TmdbStubs
 
+  alias MediaCentaur.Pipeline.ImageQueue
   alias MediaCentaur.Pipeline.ImageRefresh
   alias MediaCentaur.TestFactory
   alias MediaCentaur.Topics
@@ -34,24 +35,32 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
       assert {:ok, count} = ImageRefresh.refresh_entity(movie.id, :movie)
       assert count >= 1
-      assert_receive {:enqueue_images, %{images: images}}
-      assert Enum.any?(images, &String.ends_with?(&1.source_url, "/stored.jpg"))
+
+      assert Enum.any?(
+               ImageQueue.list_pending(movie.id),
+               &String.ends_with?(&1.source_url, "/stored.jpg")
+             )
     end
 
-    test "broadcasts enqueue_images with the TMDB artwork for a movie" do
+    # Changed 2026-09-30 (campaign durable-work, F11): the refresh writes the
+    # queue rows itself and nudges the image pipeline; it used to hand them
+    # over in an `enqueue_images` message the producer turned into rows, so a
+    # lost message left the refresh reported done with nothing queued.
+    test "queues the TMDB artwork for a movie as stored rows, and nudges the image pipeline" do
       movie = identified_movie()
       stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg", "backdrop_path" => "/b.jpg"}))
 
       assert {:ok, count} = ImageRefresh.refresh_entity(movie.id, :movie)
       assert count >= 2
 
-      assert_receive {:enqueue_images,
-                      %{entity_id: entity_id, media_dir: "/media/movies", images: images}}
-
-      assert entity_id == movie.id
-      roles = Enum.map(images, & &1.role)
+      queued = ImageQueue.list_pending(movie.id)
+      roles = Enum.map(queued, & &1.role)
       assert "poster" in roles and "backdrop" in roles
-      assert Enum.all?(images, &(&1.owner_id == movie.id and &1.owner_type == "movie"))
+      assert Enum.all?(queued, &(&1.owner_id == movie.id and &1.owner_type == "movie"))
+      assert Enum.all?(queued, &(&1.media_dir == "/media/movies"))
+
+      movie_id = movie.id
+      assert_receive {:images_pending, %{entity_id: ^movie_id, media_dir: "/media/movies"}}
     end
 
     test "errors with :no_tmdb_id for an unidentified entity" do
@@ -66,7 +75,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
       assert {:error, :no_tmdb_id} = ImageRefresh.enqueue_refresh(movie.id, :movie)
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      refute_receive {:enqueue_images, _}, 100
+      assert ImageQueue.list_pending(movie.id) == []
     end
 
     # Regression: unique on entity_id for 60 s counted completed jobs, so a
@@ -78,7 +87,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
       assert {:ok, _job} = ImageRefresh.enqueue_refresh(movie.id, :movie)
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      assert_receive {:enqueue_images, %{entity_id: _}}
+      assert ImageQueue.list_pending(movie.id) != []
 
       assert {:ok, %Oban.Job{conflict?: false}} = ImageRefresh.enqueue_refresh(movie.id, :movie)
     end
@@ -96,8 +105,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
       assert {:ok, _job} = ImageRefresh.enqueue_refresh(movie.id, :movie)
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      assert_receive {:enqueue_images, %{entity_id: entity_id}}
-      assert entity_id == movie.id
+      assert [_poster | _] = ImageQueue.list_pending(movie.id)
     end
   end
 end

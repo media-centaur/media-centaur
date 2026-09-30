@@ -50,18 +50,10 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
         {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: images}},
         state
       ) do
-    Enum.each(images, fn image ->
-      ImageQueue.create(%{
-        owner_id: image.owner_id,
-        owner_type: image.owner_type,
-        role: image.role,
-        source_url: image.source_url,
-        entity_id: entity_id,
-        media_dir: media_dir
-      })
-    end)
-
-    send(self(), {:images_pending, %{entity_id: entity_id, media_dir: media_dir}})
+    # `Library.Inbound` hands a new entity's artwork over here — it cannot
+    # call into the pipeline. The queue writes the rows and nudges this
+    # producer, as the refresh does directly.
+    :ok = ImageQueue.enqueue(entity_id, media_dir, images)
     {:noreply, [], state}
   end
 

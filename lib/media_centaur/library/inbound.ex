@@ -3,14 +3,13 @@ defmodule MediaCentaur.Library.Inbound do
   Subscribes to `"pipeline:publish"` and handles inbound events for the
   Library context.
 
-  Handles two event types:
+  Handles one event type:
 
   - `{:entity_published, event}` — creates a type-specific record (TVSeries,
     MovieSeries, Movie, VideoObject), children, ExternalId, WatchedFile, queues
     images for download, and broadcasts `:entities_changed` — plus
     `Library.Events.MoviesAdded` when the file is a movie's first — then
     reports the file's link outcome (below)
-  - `{:image_ready, attrs}` — upserts a Library.Image after successful download
 
   Existing entities are resolved by joining through `library_external_ids` —
   `MediaCentaur.Library.ExternalIds` is the sole source of truth for
@@ -173,53 +172,11 @@ defmodule MediaCentaur.Library.Inbound do
 
   defp reload_with_content_url(entity, _type), do: entity
 
-  @doc """
-  Processes an image download completion event.
-
-  Creates or updates a `Library.Image` record with `content_url` already
-  set, then broadcasts `:entities_changed`.
-
-  Returns `:ok`.
-  """
-  def process_image_ready(attrs) do
-    %{
-      owner_id: owner_id,
-      owner_type: owner_type,
-      role: role,
-      content_url: content_url,
-      extension: extension,
-      entity_id: entity_id
-    } = attrs
-
-    image_attrs = %{
-      role: role,
-      content_url: content_url,
-      extension: extension,
-      owner_type: cast_owner_type(owner_type),
-      owner_id: owner_id
-    }
-
-    case Library.Images.upsert(image_attrs, [:owner_type, :owner_id, :role]) do
-      {:ok, _image} ->
-        Log.info(:library, "image ready — #{role} for #{owner_id}")
-
-      {:error, reason} ->
-        Log.warning(
-          :library,
-          "failed to create image — #{role} for #{owner_id}: #{inspect(reason)}"
-        )
-    end
-
-    Helpers.broadcast_entities_changed([entity_id])
-
-    :ok
-  end
-
   # ---------------------------------------------------------------------------
   # Callbacks
   # ---------------------------------------------------------------------------
 
-  # `ingest/1` and `process_image_ready/1` both end in a
+  # `ingest/1` ends in a
   # SQLite write. They run **inline** in the GenServer, which serializes them
   # to exactly one writer at a time — which is precisely what SQLite's
   # single-writer model wants. The mailbox is the queue: under burst ingest
@@ -251,13 +208,6 @@ defmodule MediaCentaur.Library.Inbound do
     {:noreply, state}
   end
 
-  @impl true
-  def handle_info({:image_ready, attrs}, state) do
-    isolate("image_ready", fn -> process_image_ready(attrs) end)
-    {:noreply, state}
-  end
-
-  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   # Per-event fault boundary for the inline write path. Inbound processes a
@@ -930,16 +880,4 @@ defmodule MediaCentaur.Library.Inbound do
   defp maybe_put(map, key, value, true), do: Map.put(map, key, value)
 
   # ---------------------------------------------------------------------------
-  # Owner-type helpers (for :image_ready)
-  # ---------------------------------------------------------------------------
-
-  # `:image_ready` events carry owner_type as a string ("movie", "episode",
-  # …) — see `Pipeline.PrepareImage`. Schema-side it's `Ecto.Enum` keyed
-  # by atom, so coerce here.
-  defp cast_owner_type(type) when is_atom(type), do: type
-  defp cast_owner_type("movie"), do: :movie
-  defp cast_owner_type("episode"), do: :episode
-  defp cast_owner_type("tv_series"), do: :tv_series
-  defp cast_owner_type("movie_series"), do: :movie_series
-  defp cast_owner_type("video_object"), do: :video_object
 end

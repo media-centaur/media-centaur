@@ -101,7 +101,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F2 | Deletes run in `start_async` | declined (owner) |
 | F9 | Rematch rides two PubSub hops | done |
 | F10 | Library → release-tracking listeners | done — dangling containers reconciled; `movies_added` declined |
-| F11 | Person-run image and Maintenance work | open |
+| F11 | Person-run image and Maintenance work | done — refresh and image rows fixed; Maintenance declined |
 | F12 | Remount reset runs async | done |
 | M1–M7 | The minor items below the findings table | open |
 
@@ -550,6 +550,27 @@ both reactions ride `LibraryListener`'s PubSub subscriptions.
   they already own keeps it listed — so a pass would change what it means.
   A lost message leaves the movie on the watchlist, which the person sees
   and can remove.
+
+### F11 — image and Maintenance work (analysed and done 2026-09-30)
+
+Four parts, judged separately:
+
+* **`ImageRefreshWorker`** completed as soon as it published
+  `{:enqueue_images}`; the producer turned that into queue rows. A lost
+  message: the refresh reported done, nothing queued. Now the refresh
+  writes the rows itself (`ImageQueue.enqueue/3`, the producer's handler
+  for `Library.Inbound`'s message uses the same function) and nudges with
+  `images_pending`; a stored pending row is what `RetryScheduler` re-sends.
+* **`image_ready`** — the batcher marked entries complete and published the
+  image for `Library.Inbound` to record; a lost message left the file on
+  disk and no `Library.Image` row, which nothing repairs. `Pipeline` depends
+  on `Library`, so the batcher now marks the entries complete and records
+  each image (`Library.Images.ready/1`, moved from `Inbound`) in one
+  transaction.
+* **Clear database** and **Refresh image cache** (Maintenance, on a task):
+  declined on F2's precedent — an interruption is visible (a half-cleared
+  library, missing artwork) and the person repeats it; no stored state
+  claims work that is not happening.
 
 ## Classification (compliant)
 
