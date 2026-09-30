@@ -21,18 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`durable-work.md`](durable-work.md) —
-  **done on branch `durable-work`, awaiting merge.** Every background
-  carrier matched to what losing the work costs (ADR-076), with one way to
-  build a durable job (ADR-077): tests run Oban as production does, job
-  failures reach Status, orphaned jobs resume at boot, and uniqueness no
-  longer drops new work (MC0041). A chosen release is a *grabbing* target
-  whose grab is a job (plan approval, picks, manual search); plans, their
-  gate, rung derivation, rematch and the auto-select door are jobs; Review
-  approvals, stale listings and dangling containers are repaired by
-  scheduled passes. Deletes, the watch-event share and five minor items
-  declined with reasons.
-
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
@@ -170,6 +158,23 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **Durable work** —
+  **shipped v1.48.1 2026-09-30; file retired (git history holds it: `campaigns/durable-work.md` at `79617075`).**
+  Every background carrier matched to what losing the work costs
+  ([ADR-076](../decisions/architecture/2026-09-29-076-durability-follows-the-cost-of-losing-the-work.md)),
+  with one way to build a durable job
+  ([ADR-077](../decisions/architecture/2026-09-29-077-a-durable-job-is-recorded-with-the-decision-that-owes-it.md)):
+  tests run Oban as production does, job failures reach Status
+  (`MediaCentaur.Jobs`), orphaned jobs resume at boot, uniqueness never
+  drops new work (MC0041). A chosen release is a *grabbing* target whose
+  grab is `GrabTarget`; plans, their gate, rung derivation, rematch and the
+  auto-select door are jobs; Review approvals, stale listings and dangling
+  containers are repaired by scheduled passes where a boundary rules a job
+  out. Declined with reasons (both ADRs amended): the deletes, the
+  watch-event and listing shares, Maintenance's clear/refresh, and five
+  minor items — M4 (TMDB projection messages) is the one left worth its own
+  work if ever wanted. No other leftovers.
 
 * **Profiles** —
   **complete 2026-09-28; file retired (git history holds it: `campaigns/profiles.md` at `d0850575`).**
