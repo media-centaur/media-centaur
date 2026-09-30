@@ -165,14 +165,17 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
     {:noreply, state}
   end
 
+  # The reset runs inline, not on a task: this process also runs the TTL
+  # check, so the mailbox orders the reset before any check that follows
+  # the remount. On a task, a check could run first and purge files the
+  # remount rule exists to protect (ADR-045; campaign durable-work, F12).
+  # It is one UPDATE.
   @impl true
   def handle_info({:dir_state_changed, dir, :media_dir, :available}, state) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case FilePresence.reset_last_seen_for_dir(dir) do
-        0 -> :ok
-        n -> Log.info(:library, "presence clock reset — #{n} files in #{dir}")
-      end
-    end)
+    case FilePresence.reset_last_seen_for_dir(dir) do
+      0 -> :ok
+      n -> Log.info(:library, "presence clock reset — #{n} files in #{dir}")
+    end
 
     {:noreply, state}
   end
