@@ -45,6 +45,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Repo
 
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Library.Containers
   alias MediaCentaur.Library.ExternalIds
 
   alias MediaCentaur.ReleaseTracking.DeriveJob
@@ -136,6 +137,27 @@ defmodule MediaCentaur.ReleaseTracking do
         reconcile_refs(refs)
         count
     end
+  end
+
+  @doc """
+  Detaches every item whose library container no longer exists, then
+  reconciles it — `detach_library_containers/1` found by state rather than
+  by the `containers_deleted` message, which a lost PubSub delivery would
+  skip (campaign durable-work, F10). Run by `SweepJob` every tick. Returns
+  the number detached.
+  """
+  @spec detach_dangling_containers() :: non_neg_integer()
+  def detach_dangling_containers do
+    Item
+    |> where([i], not is_nil(i.library_container_id))
+    |> select([i], {i.library_container_type, i.library_container_id})
+    |> Repo.all()
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.flat_map(fn {type, ids} ->
+      existing = Containers.existing_ids(type, ids)
+      Enum.reject(ids, &MapSet.member?(existing, &1))
+    end)
+    |> detach_library_containers()
   end
 
   def get_item_by_tmdb(tmdb_id, media_type) do

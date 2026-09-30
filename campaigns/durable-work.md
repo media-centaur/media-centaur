@@ -100,7 +100,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F5 | Removed title keeps its seeking targets | done — tracking pursuits reconciled |
 | F2 | Deletes run in `start_async` | declined (owner) |
 | F9 | Rematch rides two PubSub hops | done |
-| F10 | Library → release-tracking listeners | open |
+| F10 | Library → release-tracking listeners | done — dangling containers reconciled; `movies_added` declined |
 | F11 | Person-run image and Maintenance work | open |
 | F12 | Remount reset runs async | done |
 | M1–M7 | The minor items below the findings table | open |
@@ -534,6 +534,22 @@ inserts `Review.RematchJob`, which in one transaction releases the entity
 (`Library.Rematch.release/1`, moved out of `Inbound`) and adds its files
 to the queue. `library:commands` is gone — rematch was its only message —
 and `Review.Intake` no longer takes `files_for_review`.
+
+### F10 — library → release tracking (analysed and done 2026-09-30)
+
+`ReleaseTracking` depends on `Library`, so a library write cannot call it;
+both reactions ride `LibraryListener`'s PubSub subscriptions.
+
+* **`containers_deleted`** → `detach_library_containers/1`. A lost message
+  leaves an item pointing at a container that no longer exists — a fact
+  in state, so a pass repairs it: `detach_dangling_containers/0` finds such
+  items (`Library.Containers.existing_ids/2`) and runs the same detach and
+  reconcile. `SweepJob` calls it every quarter hour.
+* **`movies_added`** → the watchlist auto-remove. Declined: it reacts to
+  the arrival, never to the state, by design — a person who lists a movie
+  they already own keeps it listed — so a pass would change what it means.
+  A lost message leaves the movie on the watchlist, which the person sees
+  and can remove.
 
 ## Classification (compliant)
 

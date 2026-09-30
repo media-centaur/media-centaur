@@ -1058,6 +1058,42 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
+  describe "detach_dangling_containers/0 — a lost containers_deleted is repaired" do
+    # `detach_library_containers/1` runs on a `containers_deleted` PubSub
+    # message; a lost one left an item pointing at a deleted container — for
+    # a title nobody follows, still tracked and still grabbing. The sweep
+    # now finds such items by state (campaign durable-work, F10).
+    test "an item pointing at a container that no longer exists is detached and reconciled" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 6171,
+          media_type: :tv_series,
+          library_container_type: :tv_series,
+          library_container_id: Ecto.UUID.generate(),
+          rung: nil
+        })
+
+      assert ReleaseTracking.detach_dangling_containers() == 1
+      refute ReleaseTracking.get_item(item.id)
+    end
+
+    test "an item pointing at a container that exists is left alone" do
+      series = create_entity(%{type: :tv_series, name: "Sample Show"})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 6172,
+          media_type: :tv_series,
+          library_container_type: :tv_series,
+          library_container_id: series.id,
+          rung: nil
+        })
+
+      assert ReleaseTracking.detach_dangling_containers() == 0
+      assert ReleaseTracking.get_item(item.id).library_container_id == series.id
+    end
+  end
+
   describe "detach_library_containers/1" do
     # Deleting a series from the library unlinks it and reconciles. The
     # rung decides what survives: a title nobody follows goes, and a title
