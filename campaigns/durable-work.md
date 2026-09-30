@@ -93,7 +93,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F3b | Automatic plan gate rides PubSub | done |
 | G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | done — layers 1–4; layer 5 declined |
 | F3d | Auto-select door runs in a task | done |
-| F1 | Review approval rides PubSub to Import | open |
+| F1 | Review approval rides PubSub to Import | analysed — owner decision |
 | F8 | Watch completion → history → share on PubSub | open |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | open |
@@ -370,6 +370,47 @@ tests never ran the gate — and now reads it at creation. And `RunPlan`
 returns `{:error, exception}` after its crash rescue has already marked
 the plan, so Oban retries a run that can only no-op (the plan left
 `planning`) — M7.
+
+### F1 — Review approval → Import (analysed 2026-09-30): with the owner
+
+**The case.** An approval stores `PendingFile :approved` ("Importing")
+and publishes `{:file_matched, …}` on `pipeline:matched`. The Import
+Broadway pipeline fetches metadata and publishes `entity_published`;
+`Library.Inbound` ingests and reports the link outcome, which closes the
+item. Two PubSub hops; losing either leaves the item "Importing" until the
+next boot, when `Review.settle_with_library/0` sets it back to `:pending`
+— the approval is undone, not done. Automatic matches take the same two
+hops, and boot's `rescan_unlinked` re-derives them (ADR-076 row 2).
+
+**What constrains the shape.** `Pipeline` depends on `Review` (Discovery
+consults dismissals; boot recovery settles the queue), so `Review`
+cannot insert a Pipeline-owned job without a cycle. And the second hop
+into `Library.Inbound` is a PubSub message a job would also have to cross.
+
+**Options**
+
+1. **The approval row is the durable record; a named pass carries it
+   out.** `:approved` already stores the decision. Recovery stops undoing
+   it: boot re-sends approved-but-unlinked files to Import instead of
+   resetting them, and a periodic pass (Oban cron in `Pipeline`) re-sends
+   any approved longer than a few minutes ago, so a lost hop costs minutes,
+   not a restart. The PubSub nudge stays for latency. Covers both hops
+   (an unlinked approval is re-sent whichever one was lost). No boundary
+   change, no new job type, Broadway stays for volume. It is ADR-076's
+   row 2 for a case the ADR puts in row 1 — the ADR is amended to say a
+   stored decision re-sent by a scheduled pass meets the invariant.
+2. **An import job for approvals through a port.** `Review` inserts a job
+   whose worker `Pipeline` supplies by configuration (the way
+   ErrorReports resolves its contributors); the job imports and calls
+   ingest directly. Durable to the letter of ADR-077, but approvals and
+   automatic matches then take two carriers for one piece of work, and
+   ingest gains a second entrance.
+3. **One import path through Oban for everything** (the ADR's last rule
+   read literally). Replaces the Import Broadway pipeline with a queue,
+   Discovery inserts a job per match, approvals need option 2's port, and
+   ingest becomes a function the job calls. The largest change; the
+   volume cost (thousands of jobs on a first scan, SQLite's one writer)
+   is unmeasured, and it rebuilds the part of the pipeline that works.
 
 ## Classification (compliant)
 
