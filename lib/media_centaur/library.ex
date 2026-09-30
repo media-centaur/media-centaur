@@ -27,6 +27,7 @@ defmodule MediaCentaur.Library do
       FileEventHandler,
       FilePresence,
       Files,
+      Rematch,
       Image,
       ImageCache,
       ImageHealth,

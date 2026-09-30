@@ -121,8 +121,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     do:
       update_state(socket, :cast_limit, &((&1 || CastSelection.page_size()) + CastSelection.page_size()))
 
-  # Just a PubSub broadcast — instant; the rematch work runs in the
-  # command handler. Synchronous (ADR-049).
+  # Records the rematch as a job — a write, instant; the release and the
+  # queueing run in the job (`Review.RematchJob`).
   def handle("rematch", %{"id" => entity_id}, socket) do
     case ArmGesture.press(socket, "rematch") do
       {:fire, socket} ->
