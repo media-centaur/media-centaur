@@ -97,7 +97,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F8 | Watch completion → history → share on PubSub | done — withdrawals reconciled; watch event and listing share declined (owner) |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | done |
-| F5 | Removed title keeps its seeking targets | open |
+| F5 | Removed title keeps its seeking targets | done — tracking pursuits reconciled |
 | F2 | Deletes run in `start_async` | open |
 | F9 | Rematch rides two PubSub hops | open |
 | F10 | Library → release-tracking listeners | open |
@@ -466,6 +466,25 @@ when it runs (`derive_from_rung/3`), so the latest of quick changes wins.
 Setting a rung asks TMDB nothing, which also takes the calendar fetch out
 of `DiscoveryLive`'s handlers (its Undo could raise onto Follow).
 `set_rung_async/3` is gone.
+
+### F5 — a removed title's searches (analysed and done 2026-09-30)
+
+Removing a tracked item (`ReleaseTracking.delete_item/1`) publishes
+`item_removed`; the Reactor cancels in-flight targets on every pursuit of
+that title. `Acquisition` depends on `ReleaseTracking`, so the removal
+cannot cancel in its own transaction. Two effects, two answers:
+
+* **Tracking pursuits and drafts** (started by release tracking): state
+  says it all — a tracking pursuit whose item no longer exists is
+  orphaned. `ModeReconciler`, the sweep's existing state-based pass, now
+  treats a gone item as withdrawn and cancels with reason `item_removed`
+  (a switched-off one keeps `auto_grab_disabled`). A lost message costs
+  at most one sweep.
+* **Manual pursuits of the same title**: the Reactor cancels these too,
+  but only as the removal happens — afterwards "no tracked item" is also
+  the normal state of a title never tracked, so no pass can tell a lost
+  cancel from a manual download that should run. This effect stays
+  best-effort on PubSub.
 
 ## Classification (compliant)
 

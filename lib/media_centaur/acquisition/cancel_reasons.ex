@@ -17,7 +17,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   | constant                 | written by                                      |
   |--------------------------|-------------------------------------------------|
   | `user_request`           | `IncomingLive` — user cancelled the pursuit      |
-  | `item_removed`           | `Reactor` — item untracked from release tracking |
+  | `item_removed`           | `Reactor`, `ModeReconciler` — item untracked      |
   | `auto_grab_disabled`     | `ModeReconciler` — auto-grab switched off        |
   | `pursuit_cancelled`      | `Commands.Cancel` — in-flight targets closed     |
   | `pursuit_satisfied`      | `Commands.Satisfy` — losing targets closed       |
