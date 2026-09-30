@@ -60,6 +60,8 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Activities.Events
   alias MediaCentaur.Activities.Translation
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Title
@@ -164,6 +166,32 @@ defmodule MediaCentaur.Activities do
           %Activity{deleted_at: nil} = activity -> delete_own(activity)
           _none_or_tombstone -> :ok
         end
+    end
+  end
+
+  @doc """
+  Withdraws every own listing still standing whose title no longer stands
+  at List (`TitleIntent.rung_at_least?/2`) — the repair for a withdrawal
+  the Publisher's PubSub path lost, which would otherwise leave a false
+  statement on friends' feeds (campaign durable-work, F8). A title with no
+  intent at all stands nowhere. Run by `Activities.StaleListingsJob`.
+  Returns how many it withdrew.
+  """
+  @spec withdraw_stale_listings() :: non_neg_integer()
+  def withdraw_stale_listings do
+    case Identity.pubkey() do
+      nil ->
+        0
+
+      me ->
+        rungs = Discovery.rungs()
+
+        Activity
+        |> where([a], a.kind == :listing and a.author_pubkey == ^me)
+        |> live()
+        |> Repo.all()
+        |> Enum.reject(&TitleIntent.rung_at_least?(Map.get(rungs, {&1.tmdb_id, &1.media_type}), :list))
+        |> Enum.count(&match?({:ok, _tombstone}, delete_own(&1)))
     end
   end
 

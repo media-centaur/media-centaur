@@ -110,6 +110,10 @@ config :media_centaur, Oban,
        # any approved file older than 15 minutes that is still not linked
        # (campaign durable-work, F1).
        {"3-59/5 * * * *", MediaCentaur.Review.SettleJob},
+       # Withdraws own listings whose title left the watchlist, in case the
+       # withdrawal's PubSub path lost one (campaign durable-work, F8).
+       {"@reboot", MediaCentaur.Activities.StaleListingsJob},
+       {"23 * * * *", MediaCentaur.Activities.StaleListingsJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset

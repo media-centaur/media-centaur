@@ -2,7 +2,7 @@ defmodule MediaCentaur.ActivitiesTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
-  import MediaCentaur.TestFactory, only: [force_attrs: 2]
+  import MediaCentaur.TestFactory, only: [create_title_intent: 1, force_attrs: 2]
 
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
@@ -442,6 +442,39 @@ defmodule MediaCentaur.ActivitiesTest do
   # keeps what it holds (a deletion beating a review). An own event
   # stamped no later than the row it supersedes would be discarded there
   # while replacing the row here, and republished on every connect.
+  describe "withdraw_stale_listings/0 — a lost withdrawal is repaired" do
+    # A listing is withdrawn when its title drops below List (the
+    # Publisher, on a PubSub message). If that message or its task is
+    # lost, the listing stands on friends' feeds as a false statement.
+    # This pass compares what stands with the rungs (campaign durable-work,
+    # F8) and withdraws only what is no longer true.
+    test "withdraws an own listing whose title no longer stands at List" do
+      create_title_intent(%{tmdb_id: 603, media_type: :movie, rung: :ignored})
+      {:ok, listing} = Activities.listing(title(603))
+
+      assert 1 = Activities.withdraw_stale_listings()
+      assert %Activity{deleted_at: %DateTime{}} = Activities.get(listing.id)
+    end
+
+    test "keeps a listing whose title stands at List or above" do
+      create_title_intent(%{tmdb_id: 604, media_type: :movie, rung: :list})
+      create_title_intent(%{tmdb_id: 605, media_type: :movie, rung: :grab})
+      {:ok, listed} = Activities.listing(title(604))
+      {:ok, grabbed} = Activities.listing(title(605))
+
+      assert 0 = Activities.withdraw_stale_listings()
+      assert %Activity{deleted_at: nil} = Activities.get(listed.id)
+      assert %Activity{deleted_at: nil} = Activities.get(grabbed.id)
+    end
+
+    test "a title with no intent at all is not listed" do
+      {:ok, listing} = Activities.listing(title(606))
+
+      assert 1 = Activities.withdraw_stale_listings()
+      assert %Activity{deleted_at: %DateTime{}} = Activities.get(listing.id)
+    end
+  end
+
   describe "withdraw/3" do
     test "withdraws the own live row of a kind at an address: tombstone, deletion, broadcast" do
       Activities.subscribe()

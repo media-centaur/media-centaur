@@ -94,7 +94,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | done — layers 1–4; layer 5 declined |
 | F3d | Auto-select door runs in a task | done |
 | F1 | Review approval rides PubSub to Import | done — row + re-send pass (owner) |
-| F8 | Watch completion → history → share on PubSub | analysed — owner decision |
+| F8 | Watch completion → history → share on PubSub | done — withdrawals reconciled; watch event and listing share declined (owner) |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | open |
 | F5 | Removed title keeps its seeking targets | open |
