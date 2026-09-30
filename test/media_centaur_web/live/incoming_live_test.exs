@@ -1924,7 +1924,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       refute has_element?(view, "#detail-modal[data-state='open']")
       assert render(view) =~ "Finding a release for Sample Show"
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
     end
 

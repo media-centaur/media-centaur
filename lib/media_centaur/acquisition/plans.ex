@@ -16,10 +16,8 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   import Ecto.Query
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.Acquisition.DownloadParams
-  alias MediaCentaur.Acquisition.Jobs.RunPlan
+  alias MediaCentaur.Acquisition.Jobs.{PlanTitle, RunPlan}
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, DownloadScope, Plan, PlanUnit}
@@ -141,34 +139,16 @@ defmodule MediaCentaur.Acquisition.Plans do
   @doc """
   Plans a TMDB title from its snapshot alone, in the background (spec
   2026-09-05 §17): the door the auto-select download action uses, where
-  nobody waits for the plan. Runs `create_title_plan/2` on the context
-  task supervisor — the work must outlive the calling LiveView
-  (ADR-049) — and returns as soon as it is queued; the plan row
-  broadcasts on `acquisition:updates` when it exists. Movies take the
-  same path so the contract is one shape.
+  nobody waits for the plan. Inserts `Jobs.PlanTitle`, which runs
+  `create_title_plan/2` — the click is recorded as owed work before
+  anything slow runs, so it survives the page and a restart (ADR-077).
+  Movies take the same path so the contract is one shape.
 
-  Options are `create_title_plan/2`'s. A failure inside the task is
-  logged at warning on `:acquisition` and leaves no plan.
+  Options are `create_title_plan/2`'s.
   """
-  @spec plan_title(Title.t(), keyword()) :: :ok
+  @spec plan_title(Title.t(), keyword()) :: :ok | {:error, Ecto.Changeset.t()}
   def plan_title(%Title{} = title, opts \\ []) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case create_title_plan(title, opts) do
-        {:ok, _plan} ->
-          :ok
-
-        {:error, :nothing_to_plan} ->
-          Log.warning(:acquisition, "nothing to plan — #{title.name} tmdb:#{title.tmdb_id}")
-
-        {:error, reason} ->
-          Log.warning(
-            :acquisition,
-            "could not plan — #{title.name} tmdb:#{title.tmdb_id} — #{inspect(reason)}"
-          )
-      end
-    end)
-
-    :ok
+    with {:ok, _job} <- Oban.insert(PlanTitle.for_title(title, opts)), do: :ok
   end
 
   @doc """

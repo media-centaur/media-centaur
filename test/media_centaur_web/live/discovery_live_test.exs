@@ -1837,6 +1837,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert_patch(view, "/discovery/watchlist")
       await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
     end
 

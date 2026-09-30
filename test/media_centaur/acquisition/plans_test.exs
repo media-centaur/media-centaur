@@ -947,8 +947,6 @@ defmodule MediaCentaur.Acquisition.PlansTest do
   end
 
   describe "plan_title/2" do
-    import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
-
     alias MediaCentaur.ReleaseTracking
     alias MediaCentaur.TMDB.Title
 
@@ -957,9 +955,27 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       :ok
     end
 
+    # Regression: the click planned the title on a fire-and-forget task —
+    # the targeting fetch and the plan's creation — so a crash or restart
+    # lost the person's Download.
+    test "the click records the owed plan as a job and asks TMDB nothing" do
+      Req.Test.stub(:tmdb, fn _conn -> flunk("the click must not ask TMDB") end)
+
+      {:ok, inserts} =
+        MediaCentaur.JobRuns.capture_inserts(fn ->
+          Plans.plan_title(movie_title(), approval_policy: "automatic")
+        end)
+
+      assert [%{args: args}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.PlanTitle"))
+
+      assert %{"tmdb_id" => 246_813, "media_type" => "movie", "approval_policy" => "automatic"} = args
+      assert Plans.list_drafts() == []
+    end
+
     test "a movie plans with the given policy" do
       assert :ok = Plans.plan_title(movie_title(), approval_policy: "automatic")
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
       assert plan.tmdb_type == "movie"
@@ -976,14 +992,14 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       })
 
       assert :ok = Plans.plan_title(movie_title())
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert [%{imdb_id: "tt0137523"}] = Plans.list_drafts()
     end
 
     test "the policy defaults to review" do
       assert :ok = Plans.plan_title(movie_title())
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert [%{approval_policy: "review"}] = Plans.list_drafts()
     end
@@ -992,7 +1008,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
       assert :ok = Plans.plan_title(show_title(), scope: :first_season, approval_policy: "automatic")
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "automatic"
@@ -1007,7 +1023,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
       assert :ok = Plans.plan_title(show_title(), scope: :everything)
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
       assert length(Plans.units_for(plan.id)) == 3
@@ -1017,11 +1033,11 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
-    test "a TMDB failure leaves no plan" do
+    test "a TMDB failure leaves no plan, and the job will ask again" do
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
       assert :ok = Plans.plan_title(show_title(), scope: :first_season)
-      await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Plans.list_drafts() == []
     end
@@ -1035,7 +1051,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       log =
         ExUnit.CaptureLog.capture_log(fn ->
           assert :ok = Plans.plan_title(unaired, scope: :first_season)
-          await_supervised_tasks()
+          MediaCentaur.JobRuns.run_enqueued_jobs()
         end)
 
       assert log =~ "nothing to plan — Unaired Show tmdb:246811"
