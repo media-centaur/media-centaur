@@ -29,6 +29,11 @@ last_updated: 2026-09-29
   under ADR-077, inserts its durable job in the same transaction.
 * **Orphaned job.** A job left `executing` because the node stopped
   while it ran.
+* **Grab.** Handing one chosen release to Prowlarr, which passes it to a
+  download client (`Prowlarr.grab/1`).
+* **Grabbing target.** A target in status `grabbing`: a release has been
+  chosen for it and the grab is owed. It stores the release, and its
+  `Jobs.GrabTarget` job performs the grab.
 
 ## Goal
 
@@ -86,11 +91,11 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F4 | `"seeking"` writers insert after commit | done |
 | F3a | Plan solve: `RunPlan` inserted after commit | done |
 | F3b | Automatic plan gate rides PubSub | done |
-| F3c | Approval (`CommitPlan`) not resumable, runs in its caller | analysed (outline) |
+| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | designed — layer 1 next |
 | F3d | Auto-select door runs in a task | analysed (outline) |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
-| F6 | Picking a release runs in a task, grab before record | open |
+| F6 | Picking a release runs in a task, grab before record | → G1 layer 3 |
 | F7 | Setting a rung runs in a task | open |
 | F5 | Removed title keeps its seeking targets | open |
 | F2 | Deletes run in `start_async` | open |
@@ -279,6 +284,52 @@ shape, so F3 is taken as four areas:
   a view-owned wait, `start_async`'s own row. Once the plan exists, F3a
   makes the rest durable.
 
+#### F3c — approval, in full (2026-09-30): a misfit, with the owner
+
+The outline's shape — commit the pursuit and the plan in one
+transaction, then grab the release groups in a resumable job — does not
+fit. Between the two, the pursuit's units have no target, and the UI
+reads a unit with no target as a fault: *"Unknown — Pursuit has no
+target — change target to begin"*, with *Change target* offered
+(`PursuitStatus.stage_action(:no_target, …)`). With Prowlarr down the job
+holds, so the fault would stand for the whole outage, and *Change
+target* would race the job.
+
+The case is wider than F3c. "A chosen release is owed a grab" happens in
+four places, each as *grab at Prowlarr, then record*:
+
+| Site | Chooser | Today |
+|---|---|---|
+| `CommitPlan.grab_assignments` | a plan (person or gate) | F3c |
+| `Acquisition.pick_alternative_async` → `PickTarget` | a person, in a task | F6 |
+| `Acquisition.pick_targets/2` → `StartFromPick` | a person, manual search | not in the audit |
+| `PursueTarget` after its own search | the system | a job, but grabs before it records |
+
+All four share the gap: a crash after the grab and before the record
+leaves a download no pursuit knows about, and a retry grabs again.
+
+**Options**
+
+1. **A target that is owed a grab.** A target status (`"grabbing"`)
+   carrying the chosen release, covering the units it lands for, written
+   with a `GrabTarget` job in one transaction (`Targets.start_seeking/1`'s
+   sibling). The job grabs and moves it to `acquired`, or on a failed
+   grab degrades it to `seeking` per unit (today's fallback). All four
+   sites write the target first and grab in the job; approval and a
+   person's pick become synchronous writes. The UI gains one stage
+   ("Sending to the download client"). Costs a status (`TargetStatus`,
+   `Stage`, `PursuitStatus`, MC's target-status contract check) and
+   touches the pursuit model; closes F3c, F6 and the manual-search pick in
+   one shape, and `PursueTarget` records before it grabs. A crash after a
+   grab still re-grabs on retry — at-least-once, stated, not solved.
+2. **F3c alone.** A `GrabPlan` job over the committed pursuit, plus a UI
+   rule that a unit with no target under a committing plan reads as
+   "Starting". Smaller; leaves three sites with the same gap and a second
+   representation of "grab owed" (units without targets).
+3. **Move `CommitPlan` into a job as it is.** It outlives the page, but a
+   crash midway still half-commits and blocks re-approval. Smallest;
+   leaves the defect.
+
 #### F3b — the automatic gate, in full (2026-09-30)
 
 `RunPlan` is the only writer of `"ready"`, on two paths: the normal
@@ -406,6 +457,57 @@ pending state: `PursueTarget` (F4), `RunPlan` (F3). `ImageRefreshWorker`
   (Lite engine, same SQLite file). Orphans are rescued at boot, not by
   `Oban.Lifeline`: Lifeline rescues by age, and a `RunPlan` legitimately
   runs for tens of minutes (owner, after first choosing Lifeline).
+
+## Design — G1: a chosen release is owed a grab (2026-09-30)
+
+Chosen by the owner over F3c's narrower options (see F3c, in full).
+Covers F3c, F6, the manual-search pick, and `PursueTarget`'s own grab.
+
+**Lifecycle.** A new target status, `grabbing`:
+
+    grabbing ─┬─► acquired   Prowlarr accepted the grab
+              ├─► failed     Prowlarr refused the release; each unit it
+              │              covered gets a new seeking target (today's
+              │              plan fallback, `Targets.start_seeking/1`)
+              └─► cancelled  the person or the system cancelled it
+
+`TargetStatus`: `grabbing` is in flight (a job is alive) and cancellable,
+not rearmable. An outage — Prowlarr unreachable, or the download client
+refusing the hand-off — does not fail the target: the job holds (snoozes
+at the probe cadence), as `RunPlan` and `PursueTarget` do.
+
+**Storage.** The target stores the chosen release (`release`, a map of
+the `SearchResult` fields `Prowlarr.grab/1` and `InfoHash.resolve/2`
+read), so the grab never depends on the corpus's retention. It covers its
+units through `TargetUnit` rows and is each unit's `current_target`, as
+an acquired target is today.
+
+**Write.** `Targets.start_grabbing/2` writes the target, its coverage
+and the unit pointers, and inserts `Jobs.GrabTarget`, in one transaction
+(joining the caller's). Each site keeps its own events and attempt
+accounting at the write, where the decision is made.
+
+**Job.** `Jobs.GrabTarget` (`:acquisition`, unique on `target_id` among
+jobs not yet started): re-reads the target; acts only while it is
+`grabbing`; holds on an outage; grabs; on success resolves the infohash
+and moves the target to `acquired` in one transaction; on a refusal
+fails it and starts seeking per covered unit. A crash after the grab and
+before the record re-grabs on retry: at-least-once, stated, not solved.
+
+**UI.** One stage, `:grabbing`, in `Pursuits.Stage` and
+`PursuitStatus` — copy written with the `writing-copy` skill.
+
+**Layers**, each leaving the product working:
+
+1. The mechanism alone — status, column, `start_grabbing/2`,
+   `GrabTarget`, the stage. No site uses it.
+2. Plan approval (F3c): `CommitPlan` writes the pursuit, one grabbing
+   target per release group and `committed` in one transaction; the
+   person's approve and the gate call it synchronously.
+3. A person's pick of an alternative (F6).
+4. The manual-search pick (`pick_targets/2`).
+5. `PursueTarget` records its chosen release before grabbing — analysed
+   when reached.
 
 ## Next steps
 
