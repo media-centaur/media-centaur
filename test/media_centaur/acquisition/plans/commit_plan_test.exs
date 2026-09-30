@@ -49,6 +49,29 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlanTest do
     :ok
   end
 
+  # Regression: approval grabbed each release at Prowlarr before it
+  # recorded anything and stamped the plan last, in whatever process called
+  # it — a crash midway left a pursuit and some grabs behind a plan still
+  # `ready`, which its own overlap check then refused to approve again.
+  test "approval records the pursuit, a grabbing target per release and the commit; the grab is owed" do
+    {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2010})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
+    {:ok, plan} = Plans.fetch(plan.id)
+
+    {{:ok, committed}, inserts} = MediaCentaur.JobRuns.capture_inserts(fn -> Plans.approve(plan) end)
+
+    assert committed.status == "committed"
+    assert [unit] = Units.for_pursuit(committed.pursuit_id)
+    target = Repo.get!(Target, unit.current_target_id)
+    assert target.status == "grabbing"
+    assert target.prowlarr_guid == "movie-hd"
+
+    assert [%{in_transaction?: true, args: %{"target_id" => target_id}}] =
+             Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.GrabTarget"))
+
+    assert target_id == target.id
+  end
+
   test "a movie approve lands the target with the release's infohash and quality" do
     {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2010})
     MediaCentaur.JobRuns.run_enqueued_jobs()
@@ -56,6 +79,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlanTest do
     assert plan.status == "ready"
 
     assert {:ok, committed} = Plans.approve(plan)
+    MediaCentaur.JobRuns.run_enqueued_jobs()
 
     assert [unit] = Units.for_pursuit(committed.pursuit_id)
     target = Repo.get!(Target, unit.current_target_id)

@@ -244,7 +244,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_last_activity: nil,
          plan_search_progress: nil,
          plan_alternatives: nil,
-         plan_approving?: false,
          plan_identity: nil,
          plan_artwork: nil,
          plan_title: nil,
@@ -799,7 +798,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           search_progress={@plan_search_progress}
           disclosures={@disclosures}
           alternatives={@plan_alternatives}
-          approving={@plan_approving?}
           discard_armed={ArmGesture.armed?(@armed_gesture, "plan_discard")}
           search_health={@search_health}
           gap_verdict={@plan_gap_verdict}
@@ -1399,17 +1397,17 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # Approval is a write — the pursuit, a grabbing target per release and the
+  # commit, one transaction; the grabs run in jobs (campaign durable-work,
+  # G1) — so it runs here rather than in a task the page could lose.
   def handle_event("plan_approve", _params, socket) do
-    with false <- socket.assigns.plan_approving?,
-         %{plan_id: plan_id} <- socket.assigns.plan_board do
-      {:noreply,
-       socket
-       |> assign(plan_approving?: true)
-       |> start_async(:plan_approve, fn ->
-         with {:ok, plan} <- Plans.fetch(plan_id), do: Plans.approve(plan)
-       end)}
-    else
-      _ -> {:noreply, socket}
+    case socket.assigns.plan_board do
+      %{plan_id: plan_id} ->
+        outcome = with {:ok, plan} <- Plans.fetch(plan_id), do: Plans.approve(plan)
+        {:noreply, plan_approved(socket, outcome)}
+
+      _no_board ->
+        {:noreply, socket}
     end
   end
 
@@ -2072,44 +2070,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
-  def handle_async(:plan_approve, {:ok, outcome}, socket) do
-    socket = assign(socket, plan_approving?: false)
-
-    case outcome do
-      {:ok, _committed} ->
-        {:noreply,
-         socket
-         |> assign(plan_drafts: load_drafts())
-         |> build_view()
-         |> put_flash(:info, "Pursuit started.")
-         |> download_started()}
-
-      {:error, {:overlap, units}} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Already being pursued: #{Logic.overlap_labels(units)}. Remove the overlap first."
-         )}
-
-      {:error, :nothing_to_grab} ->
-        {:noreply, put_flash(socket, :error, "Nothing in this plan is grabbable yet.")}
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, Logic.failure_flash("commit the plan", reason))}
-    end
-  end
-
-  def handle_async(:plan_approve, {:exit, reason}, socket) do
-    Log.warning(:acquisition, "plan approve crashed — #{inspect(reason)}")
-
-    {:noreply,
-     socket
-     |> assign(plan_approving?: false)
-     |> put_flash(:error, "Could not commit the plan.")}
-  end
-
   def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
     # Stale guard: only the newest query's results land.
     if query == socket.assigns.omnibox_query do
@@ -2274,6 +2234,30 @@ defmodule MediaCentaurWeb.IncomingLive do
         Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
         put_flash(socket, :error, Logic.failure_flash("cancel “#{title}”", reason))
     end
+  end
+
+  defp plan_approved(socket, {:ok, _committed}) do
+    socket
+    |> assign(plan_drafts: load_drafts())
+    |> build_view()
+    |> put_flash(:info, "Pursuit started.")
+    |> download_started()
+  end
+
+  defp plan_approved(socket, {:error, {:overlap, units}}) do
+    put_flash(
+      socket,
+      :error,
+      "Already being pursued: #{Logic.overlap_labels(units)}. Remove the overlap first."
+    )
+  end
+
+  defp plan_approved(socket, {:error, :nothing_to_grab}),
+    do: put_flash(socket, :error, "Nothing in this plan is grabbable yet.")
+
+  defp plan_approved(socket, {:error, reason}) do
+    Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
+    put_flash(socket, :error, Logic.failure_flash("commit the plan", reason))
   end
 
   defp discard_plan(socket) do

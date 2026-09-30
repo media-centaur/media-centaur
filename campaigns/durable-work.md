@@ -91,7 +91,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F4 | `"seeking"` writers insert after commit | done |
 | F3a | Plan solve: `RunPlan` inserted after commit | done |
 | F3b | Automatic plan gate rides PubSub | done |
-| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | layer 1 done — layer 2 (plan approval) next |
+| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | layers 1–2 done (F3c closed) — layer 3 (F6) next |
 | F3d | Auto-select door runs in a task | analysed (outline) |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
