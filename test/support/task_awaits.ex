@@ -5,8 +5,8 @@ defmodule MediaCentaur.TaskAwaits do
   Awaits context-layer background tasks so tests exit cleanly.
 
   Context functions like `ReleaseTracking.set_rung/3` (artwork ensure, via
-  `Discovery.put_rung/3`) and `ReleaseTracking.set_rung_async/3` fire
-  supervised tasks under the global `MediaCentaur.TaskSupervisor`. Their
+  `Discovery.put_rung/3`) fire supervised tasks under the global
+  `MediaCentaur.TaskSupervisor`. Their
   Req.Test stubs die with the owning test process, so a test that triggers
   one drives it to completion before exiting (ADR-049) — otherwise a task
   losing the race logs a "cannot find mock/stub" crash into another test's
