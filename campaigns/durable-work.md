@@ -98,7 +98,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | done |
 | F5 | Removed title keeps its seeking targets | done — tracking pursuits reconciled |
-| F2 | Deletes run in `start_async` | open |
+| F2 | Deletes run in `start_async` | analysed — owner decision |
 | F9 | Rematch rides two PubSub hops | open |
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
@@ -485,6 +485,36 @@ cannot cancel in its own transaction. Two effects, two answers:
   the normal state of a title never tracked, so no pass can tell a lost
   cancel from a manual download that should run. This effect stays
   best-effort on PubSub.
+
+### F2 — deletes in `start_async` (analysed 2026-09-30): with the owner
+
+**The case.** Review's delete (`ReviewLive.execute_delete/1`) and the
+title detail's (`LibraryEvents.run_delete/1`) resolve the target, `rm`
+files or `rm -rf` a folder, then clean up records — in the page's
+`start_async`, so closing the page mid-delete stops partway. The logic
+itself lives in the web layer (the delete-all payload is
+`ManagePanel.build_delete_all_payload/2`), and the page shows the result
+from memory: "Deleting…", then close the modal, reload the file list, or
+flash the failure.
+
+**What losing it costs.** Files already removed: their records heal —
+the watcher reports the removal (`files_removed` → the file-event
+handlers; `AbsenceSweeper` as the TTL backstop) and Review's rows for them
+go the same way. Files not yet removed: still there, still listed, and
+deleting again finishes the job. No stored state claims work that isn't
+happening; the loss is visible and repeatable.
+
+**Options**
+
+1. **A delete job per surface, the logic moved into its context.**
+   `Library` (and `Review`) gain a delete command that inserts a job; the
+   job resolves, removes and cleans up, and broadcasts its outcome, which
+   the page — if still open — turns into "close / reload / flash". Durable,
+   and it moves domain logic out of the web layer, but it touches both
+   surfaces' UI flow and `ManagePanel`.
+2. **Decline.** The cost of loss is a partial delete a person sees and
+   repeats, and the records heal on their own; ADR-076 row 1 by the
+   letter, but no stored state lies, and the move is mostly UI plumbing.
 
 ## Classification (compliant)
 
