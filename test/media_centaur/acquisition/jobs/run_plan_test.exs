@@ -829,6 +829,21 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert reloaded.error =~ "planning crashed"
     end
 
+    # Regression (campaign durable-work, M7): after recording the crash the
+    # job returned `{:error, exception}`, so Oban retried a run that could
+    # only find the plan no longer planning — and logged a failure for each.
+    test "a crashed run is recorded once and not retried" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [%{"title" => 123, "guid" => "garbage", "indexerId" => 1}])
+      end)
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1962})
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:cancel, :crashed} = run_plan_job(plan.id)
+      end)
+    end
+
     test "a plan discarded mid-run finishes quietly — not a recorded crash" do
       # Simulate a concurrent discard (user walks away) landing while the run
       # is mid-flight: the prowlarr stub discards the planning plan, so the
