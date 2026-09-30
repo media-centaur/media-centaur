@@ -99,7 +99,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F7 | Setting a rung runs in a task | done |
 | F5 | Removed title keeps its seeking targets | done — tracking pursuits reconciled |
 | F2 | Deletes run in `start_async` | declined (owner) |
-| F9 | Rematch rides two PubSub hops | open |
+| F9 | Rematch rides two PubSub hops | done |
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
 | F12 | Remount reset runs async | open |
@@ -517,6 +517,23 @@ happening; the loss is visible and repeatable.
    letter, but no stored state lies, and the move is mostly UI plumbing.
 
 **Chosen** (owner, 2026-09-30): option 2, decline. ADR-076 amended.
+
+### F9 — rematch (analysed and done 2026-09-30)
+
+A rematch rode two hops: `Review.Rematch` → `library:commands` →
+`Library.Inbound` (teardown) → `review:intake` → `Review.Intake` (queue
+rows). A lost first hop costs nothing lasting — the title is still there,
+and the person can ask again. A lost second hop was the defect: the
+entity gone, its files unlinked and in no queue, until a restart
+re-discovered them and could re-import the very match being fixed.
+
+`Review` depends on `Library`, so there is no boundary in the way.
+Releasing removes cached artwork from disk (possibly under a media
+directory), so it runs in a job rather than the handler: the click
+inserts `Review.RematchJob`, which in one transaction releases the entity
+(`Library.Rematch.release/1`, moved out of `Inbound`) and adds its files
+to the queue. `library:commands` is gone — rematch was its only message —
+and `Review.Intake` no longer takes `files_for_review`.
 
 ## Classification (compliant)
 

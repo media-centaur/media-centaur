@@ -1,11 +1,9 @@
 defmodule MediaCentaur.Review.Intake do
   @moduledoc """
-  Reacts to the `"review:intake"` topic — the pipeline and the rematch
-  flow handing files to Review — by calling the matching `Review`
-  function:
+  Reacts to the `"review:intake"` topic — the pipeline handing a file to
+  Review — by calling the matching `Review` function:
 
   - `{:needs_review, attrs}` → `Review.add_pending_file/1`
-  - `{:files_for_review, files}` → `Review.add_files_for_review/1`
   """
   use GenServer
   require MediaCentaur.Log, as: Log
@@ -30,11 +28,6 @@ defmodule MediaCentaur.Review.Intake do
       {:error, reason} -> Log.warning(:review, "failed to create pending file — #{inspect(reason)}")
     end
 
-    {:noreply, state}
-  end
-
-  def handle_info({:files_for_review, files}, state) do
-    Review.add_files_for_review(files)
     {:noreply, state}
   end
 

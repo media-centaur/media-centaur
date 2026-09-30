@@ -153,7 +153,6 @@ defmodule MediaCentaur.Topics do
   def library_updates, do: "library:updates"
   def library_deletions, do: "library:deletions"
   def library_additions, do: "library:additions"
-  def library_commands, do: "library:commands"
   def library_file_events, do: "library:file_events"
   def library_watch_completed, do: "library:watch_completed"
   def library_availability, do: "library:availability"

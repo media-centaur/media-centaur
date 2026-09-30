@@ -35,11 +35,10 @@ inotify + scan               high confidence → matched       → publish entit
 | `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
 | `pipeline:images` | Library.Inbound (and ImageRefresh / ImageRepair) | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` — the producer creates the queue rows, then sends itself `{:images_pending, %{entity_id, media_dir}}` |
 | `tmdb:titles` | TMDB.Store | Pipeline.TmdbProjection (and ReleaseTracking.TmdbListener) | `{:tmdb_title_changed, {tmdb_id, media_type}}` — an owned title's TMDB fields, season episode lists and episode details are re-applied from the store (ADR-071) |
-| `review:intake` | Discovery, Library.Inbound | Review.Intake | `{:needs_review, attrs}`, `{:files_for_review, files}` |
+| `review:intake` | Discovery | Review.Intake | `{:needs_review, attrs}` |
 | `review:updates` | `Review.Events` | LiveViews, ShellBadges | `{:file_added, _}` (entered or returned to the queue), `{:files_approved, _}`, `{:file_reviewed, _}` (left the queue) |
 | `episode_mapping:updates` | `EpisodeMapping` | LiveViews, ShellBadges | `{:episode_mapping_updated}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
-| `library:commands` | Review.Rematch | Library.Inbound | `{:rematch_requested, entity_id}` |
 | `library:file_events` | Library.Inbound, Import, Watcher, AbsenceSweeper, Rescan | Review.FileEventHandler, EpisodeMapping.FileEventHandler, Library.FileEventHandler | `{:file_linked, path}`, `{:file_parked, path}`, `{:file_not_linked, %{file_path, media_dir, reason, match}}` — the link outcome, one per published match (see *Review Flow*); `{:files_removed, paths}` |
 
 ---
@@ -223,7 +222,7 @@ The `/review` UI groups PendingFiles by series root. A group is judged by `Revie
 
 ### One row per path
 
-`file_path` carries a unique index, so a path has at most one queue row. `find_or_create_pending_file/1` returns an existing row unchanged whatever its status — `:pending` (repeated detection is idempotent), `:approved` (an import outstanding) or `:dismissed` (a decision that keeps blocking). `Review.reopen_for_review/1` is the override the re-match path uses (`Library.Inbound` handing an entity's files back on `{:files_for_review, …}`): a re-match is an explicit act on files the user owns, so it supersedes any earlier decision.
+`file_path` carries a unique index, so a path has at most one queue row. `find_or_create_pending_file/1` returns an existing row unchanged whatever its status — `:pending` (repeated detection is idempotent), `:approved` (an import outstanding) or `:dismissed` (a decision that keeps blocking). `Review.reopen_for_review/1` is the override the re-match path uses (`Review.RematchJob` putting an entity's files back in the queue): a re-match is an explicit act on files the user owns, so it supersedes any earlier decision.
 
 ### Membership follows the library
 
@@ -239,6 +238,6 @@ Every read of the queue leaves out files the library has linked (`Library.Files.
 
 PubSub has no replay, so a listener not subscribed at that instant loses a message. `Review.settle_with_library/0` runs first in startup recovery (composed in `Discovery.Producer`, the boundary that can see both contexts), while nothing is in flight: rows whose file is linked are deleted (broadcasting `FileReviewed`, so the badge follows), and an `:approved` item whose file is not linked is re-sent to Import — the stored approval is the durable record, and this pass carries it out. `Review.SettleJob` runs the same pass every five minutes, leaving approvals younger than fifteen minutes alone as possibly in flight, so an import lost to a crash mid-flight resumes within minutes rather than at the next restart. Discovery treats an approved file as settled, so `Watcher.Rescan.recover/0` does not import it a second time.
 
-**Rematch:** From the Library UI, a user can rematch an entity. `Review.Rematch` broadcasts `{:rematch_requested, entity_id}` to `"library:commands"`. `Library.Inbound` destroys the entity and sends `{:files_for_review, files}` to `"review:intake"` → Intake creates PendingFiles for re-review.
+**Rematch:** From the Library UI, a user can rematch an entity. `Review.Rematch` records it as a `Review.RematchJob`, which in one transaction releases the entity (`Library.Rematch.release/1` — its watched files and cascade destroyed, its files returned) and puts those files back in the review queue. The files are never left unlinked and in no queue.
 
 All Pipeline ↔ Review ↔ Library communication uses PubSub — no direct cross-context function calls.

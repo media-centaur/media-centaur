@@ -188,7 +188,7 @@ defmodule MediaCentaur.Library.Files do
   @doc """
   Watched files belonging to a top-level entity, whichever container type
   owns them. Used when you hold an entity UUID but don't know its type
-  table (e.g. `Inbound.handle_rematch/1`).
+  table (e.g. `Library.Rematch.release/1`).
 
   Resolution walks through PlayableItem: Movie / VideoObject directly,
   Episode through its season's TVSeries, MovieSeries through its child

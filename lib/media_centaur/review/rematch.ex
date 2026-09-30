@@ -1,20 +1,17 @@
 defmodule MediaCentaur.Review.Rematch do
   @moduledoc """
-  Requests a rematch for an entity — broadcasts to Library, which handles
-  the teardown and sends files back to Review for re-matching.
-
-  The rematch is async: this module broadcasts the request and returns
-  immediately. Library.Inbound handles the entity destruction and
-  Review.Intake receives the files for re-review.
+  Rematches an entity: its files go back to Review for a person to match
+  again. The request is recorded as a `Review.RematchJob`, which releases
+  the entity (`Library.Rematch.release/1`) and adds its files to the queue
+  in one transaction — so the files are never left unlinked and in no
+  queue (campaign durable-work, F9). Releasing removes cached artwork from
+  disk, which is why it is not done in the caller's handler.
   """
 
-  alias MediaCentaur.Topics
+  alias MediaCentaur.Review.RematchJob
 
-  @spec rematch_entity(String.t()) :: :ok
+  @spec rematch_entity(String.t()) :: :ok | {:error, Ecto.Changeset.t()}
   def rematch_entity(entity_id) do
-    Topics.publish(
-      Topics.library_commands(),
-      {:rematch_requested, entity_id}
-    )
+    with {:ok, _job} <- Oban.insert(RematchJob.new(%{"entity_id" => entity_id})), do: :ok
   end
 end

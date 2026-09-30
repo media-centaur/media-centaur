@@ -194,7 +194,6 @@ Three roles in the taxonomy (see `MediaCentaur.Cache` for how they compose):
   tiles are projected; its other tiles are cold reads that re-run on the
   owning subsystem's source topic, because none of them is hot enough
   to earn a projection.
-* **Command topics** (`library:commands`) carry external write requests.
 
 A LiveView process subscribes to any of these through one door,
 `MediaCentaurWeb.Live.Subscriptions.subscribe/2`, which subscribes a

@@ -1,9 +1,9 @@
 defmodule MediaCentaur.Library.Inbound do
   @moduledoc """
-  Subscribes to `"pipeline:publish"` and `"library:commands"` and handles
-  inbound events for the Library context.
+  Subscribes to `"pipeline:publish"` and handles inbound events for the
+  Library context.
 
-  Handles three event types:
+  Handles two event types:
 
   - `{:entity_published, event}` — creates a type-specific record (TVSeries,
     MovieSeries, Movie, VideoObject), children, ExternalId, WatchedFile, queues
@@ -11,8 +11,6 @@ defmodule MediaCentaur.Library.Inbound do
     `Library.Events.MoviesAdded` when the file is a movie's first — then
     reports the file's link outcome (below)
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
-  - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
-    then sends the file list to `"review:intake"` for re-review
 
   Existing entities are resolved by joining through `library_external_ids` —
   `MediaCentaur.Library.ExternalIds` is the sole source of truth for
@@ -70,7 +68,6 @@ defmodule MediaCentaur.Library.Inbound do
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{ChangeLog, EntityCascade, ExternalIds, Helpers}
-  alias MediaCentaur.Library.WatchedFile
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -79,7 +76,6 @@ defmodule MediaCentaur.Library.Inbound do
   @impl true
   def init(_) do
     MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_publish())
-    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_commands())
     {:ok, %{}}
   end
 
@@ -219,52 +215,11 @@ defmodule MediaCentaur.Library.Inbound do
     :ok
   end
 
-  @doc """
-  Handles a rematch request for an entity.
-
-  Loads the entity and its WatchedFiles, collects file info, destroys
-  the WatchedFiles and entity cascade, then broadcasts the file list
-  to `"review:intake"` for re-review.
-
-  Logs a warning and returns `:ok` if the entity doesn't exist or has
-  no watched files — the caller (GenServer callback) doesn't act on errors.
-  """
-  @spec handle_rematch(String.t()) :: :ok
-  def handle_rematch(entity_id) do
-    files = Library.Files.list_by_entity_id(entity_id)
-
-    if files == [] do
-      Log.warning(
-        :library,
-        "rematch — entity #{Format.short_id(entity_id)} has no watched files or not found"
-      )
-    else
-      file_list = Enum.map(files, &%{file_path: &1.file_path, media_dir: &1.media_dir})
-
-      EntityCascade.bulk_destroy(files, WatchedFile)
-      EntityCascade.destroy!(entity_id)
-
-      Helpers.broadcast_entities_changed([entity_id])
-
-      MediaCentaur.Topics.publish(
-        MediaCentaur.Topics.review_intake(),
-        {:files_for_review, file_list}
-      )
-
-      Log.info(
-        :library,
-        "rematch — destroyed #{Format.short_id(entity_id)}, sent #{length(file_list)} files to review"
-      )
-    end
-
-    :ok
-  end
-
   # ---------------------------------------------------------------------------
   # Callbacks
   # ---------------------------------------------------------------------------
 
-  # `ingest/1`, `process_image_ready/1`, and `handle_rematch/1` all end in a
+  # `ingest/1` and `process_image_ready/1` both end in a
   # SQLite write. They run **inline** in the GenServer, which serializes them
   # to exactly one writer at a time — which is precisely what SQLite's
   # single-writer model wants. The mailbox is the queue: under burst ingest
@@ -303,11 +258,6 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   @impl true
-  def handle_info({:rematch_requested, entity_id}, state) do
-    isolate("rematch_requested", fn -> handle_rematch(entity_id) end)
-    {:noreply, state}
-  end
-
   def handle_info(_msg, state), do: {:noreply, state}
 
   # Per-event fault boundary for the inline write path. Inbound processes a
