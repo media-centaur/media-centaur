@@ -22,13 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`durable-work.md`](durable-work.md) —
-  **planning.** Bring every background carrier in line with ADR-076:
-  the mechanism matches what losing the work costs, and no stored
-  pending state lacks a stored job behind it. Audit done 2026-09-29:
-  twelve findings, among them the Review approval → Import path, plan
-  and target jobs inserted after their state commits (a crash leaves a
-  `"planning"` plan or `"seeking"` target nothing picks up), and the
-  watch-history → share chain on PubSub. No code yet.
+  **done on branch `durable-work`, awaiting merge.** Every background
+  carrier matched to what losing the work costs (ADR-076), with one way to
+  build a durable job (ADR-077): tests run Oban as production does, job
+  failures reach Status, orphaned jobs resume at boot, and uniqueness no
+  longer drops new work (MC0041). A chosen release is a *grabbing* target
+  whose grab is a job (plan approval, picks, manual search); plans, their
+  gate, rung derivation, rematch and the auto-select door are jobs; Review
+  approvals, stale listings and dangling containers are repaired by
+  scheduled passes. Deletes, the watch-event share and five minor items
+  declined with reasons.
 
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:

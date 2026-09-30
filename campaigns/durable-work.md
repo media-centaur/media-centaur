@@ -46,12 +46,13 @@ message a crash could lose.
 
 ## Status
 
-In progress on branch `durable-work` (worktree
-`../media-centaur-app-durable-work`). Inventory reconciled and every
-site classified (2026-09-29, below); fifteen findings, F1–F15; ADR-077
-(how a durable job is built) accepted. Shared layer: the suite runs Oban
-in `:manual` and F13 is fixed (`abf65eec`); F14 is fixed
-(`MediaCentaur.Jobs`); F15 is fixed (boot rescue).
+Done on branch `durable-work`, awaiting the owner's merge (worktree
+`../media-centaur-app-durable-work`). Every area of the *Work list* has a
+disposition: the shared layer (tests in `:manual`, failure logging, boot
+rescue, MC0041), F1, F3, F4, F5, F7, F9, F10, F11, F12, G1 (F3c, F6, the
+manual pick) and M6–M7 built; F2, F8's watch event and listing share, and
+M1–M5 declined or deferred with the owner's calls and reasons recorded.
+ADR-076 and ADR-077 carry the amendments.
 
 ## Method
 
@@ -744,8 +745,17 @@ before the record re-grabs on retry: at-least-once, stated, not solved.
 
 ## Next steps
 
-Take the next **open** row of the *Work list*: analyse it under
-*Analyses*, then build it (Method steps 3–5).
+Every row of the *Work list* has a disposition. What remains:
+
+1. **Owner:** review and merge branch `durable-work` (worktree
+   `../media-centaur-app-durable-work`) and the wiki's `durable-work`
+   branch; neither is pushed.
+2. Ship: the CHANGELOG entry is drafted at `/ship`. User-visible: a
+   manual-search pick no longer reports a refused grab at once — the
+   pursuit shows it and searches again; the **Grabbing** stage; an import
+   interrupted by a restart resumes by itself; the Approve button has no
+   "Approving…" state (approval is instant now).
+3. Retire this file once shipped (ADR-042).
 
 ## Completion criteria
 
