@@ -7,36 +7,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Helpers do
   seeking a new one).
   """
 
-  require MediaCentaur.Log, as: Log
-
-  alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
-  alias MediaCentaur.Acquisition.{Target, TargetStatus}
+  alias MediaCentaur.Acquisition.{Target, Targets, TargetStatus}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
   alias MediaCentaur.Repo
 
-  @doc "Inserts a fresh `:seeking` target for the pursuit."
-  @spec insert_seeking_target(Pursuit.t()) :: {:ok, Target.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Inserts a fresh `:seeking` target for the pursuit, with the
+  `PursueTarget` job that searches for it, inside the command's
+  transaction (`Targets.start_seeking/1`).
+  """
+  @spec insert_seeking_target(Pursuit.t()) :: {:ok, Target.t()} | {:error, term()}
   def insert_seeking_target(%Pursuit{} = pursuit) do
     %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
     |> Target.create_changeset()
-    |> Repo.insert()
-  end
-
-  @doc """
-  Enqueues the PursueTarget worker for `target`. Always returns `:ok` — an
-  enqueue failure is logged, not propagated, so it can't roll back the
-  surrounding command transaction.
-  """
-  @spec enqueue_pursue(Target.t()) :: :ok
-  def enqueue_pursue(%Target{} = target) do
-    case Oban.insert(PursueTargetWorker.new(%{"target_id" => target.id})) do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "PursueTarget enqueue failed — #{inspect(reason)}")
-        :ok
-    end
+    |> Targets.start_seeking()
   end
 
   @doc """

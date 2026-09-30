@@ -223,6 +223,20 @@ defmodule MediaCentaur.AcquisitionTest do
       assert {:error, :not_found} = Targets.rearm_target(Ecto.UUID.generate())
     end
 
+    # Regression: the re-arm wrote `seeking` and inserted its job as two
+    # statements with no transaction, ignoring the insert's result.
+    test "re-arming inserts the target's PursueTarget inside the re-arm's transaction" do
+      target = create_target(%{tmdb_id: "rearm-3", title: "Comeback"})
+      force_attrs(target, status: "cancelled", cancelled_reason: CancelReasons.user_request())
+
+      {result, inserts} = MediaCentaur.JobRuns.capture_inserts(fn -> Targets.rearm_target(target.id) end)
+
+      assert {:ok, %Target{status: "seeking"}} = result
+
+      assert [%{in_transaction?: true}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.PursueTarget"))
+    end
+
     # Regression: PursueTarget was unique on target_id for 300 s in states
     # that include `completed`, and a re-arm reuses the target's id — so
     # re-arming soon after its last job finished inserted nothing and left

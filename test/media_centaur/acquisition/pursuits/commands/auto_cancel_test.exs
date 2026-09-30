@@ -13,8 +13,24 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
     Repo.all(from j in Oban.Job, where: j.worker == "MediaCentaur.Acquisition.Jobs.PursueTarget")
   end
 
-  defp run(args) do
-    Oban.Testing.with_testing_mode(:manual, fn -> AutoCancel.execute(args) end)
+  defp run(args), do: AutoCancel.execute(args)
+
+  describe "execute/1 — the replacement target's search (ADR-077, rule 1)" do
+    # Regression: the job was inserted after the pivot committed, and an
+    # insert failure was logged and ignored.
+    test "PursueTarget for the replacement is inserted inside the pivot's transaction" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "acquired"})
+
+      {result, inserts} =
+        MediaCentaur.JobRuns.capture_inserts(fn ->
+          run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+        end)
+
+      assert {:ok, _pivoted} = result
+
+      assert [%{in_transaction?: true}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.PursueTarget"))
+    end
   end
 
   describe "execute/1 — stopping the dead release's download" do

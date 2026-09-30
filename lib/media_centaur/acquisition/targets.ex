@@ -87,6 +87,26 @@ defmodule MediaCentaur.Acquisition.Targets do
   defp auto_targets_filter(query, status), do: where(query, [t], t.status == ^to_string(status))
 
   @doc """
+  Writes a target into `"seeking"` — a new target's insert changeset or an
+  existing target's update — and inserts the `PursueTarget` job that
+  searches for it, in one transaction (joining the caller's, when there
+  is one). A seeking target is owed a search and nothing else searches,
+  so the two commit together or not at all (ADR-077, rule 1): an insert
+  failure rolls the write back and returns `{:error, _}`.
+  """
+  @spec start_seeking(Ecto.Changeset.t()) :: {:ok, Target.t()} | {:error, term()}
+  def start_seeking(%Ecto.Changeset{} = changeset) do
+    Repo.transaction(fn ->
+      with {:ok, target} <- Repo.insert_or_update(changeset),
+           {:ok, _job} <- Oban.insert(PursueTarget.new(%{"target_id" => target.id})) do
+        target
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @doc """
   Re-arms a terminal target back to `seeking` and re-enqueues a
   `PursueTarget` Oban job. Resets `attempt_count` to 0 so the snooze
   schedule starts fresh. Broadcasts `%TargetEvents.Armed{}`.
@@ -122,9 +142,8 @@ defmodule MediaCentaur.Acquisition.Targets do
         cancelled_reason: nil,
         last_attempt_outcome: nil
       )
-      |> Repo.update()
+      |> start_seeking()
 
-    Oban.insert(PursueTarget.new(%{"target_id" => restarted.id}))
     Acquisition.broadcast_update(%TargetEvents.Armed{target: restarted})
     Log.info(:acquisition, "#{log_label} — #{restarted.title}")
     restarted

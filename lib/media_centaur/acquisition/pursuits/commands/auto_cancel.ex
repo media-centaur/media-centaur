@@ -31,11 +31,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
      filters it out).
   3. Record `auto_cancelled` event.
   4. If a target was cancelled, insert a fresh `seeking` target covering
-     the unit, update `unit.current_target_id`, and record a
-     `target_changed` event.
+     the unit — with its `Jobs.PursueTarget`, in the same transaction
+     (`Targets.start_seeking/1`, ADR-077 rule 1) — update
+     `unit.current_target_id`, and record a `target_changed` event.
 
-  After the transaction commits, enqueue `Jobs.PursueTarget` for the
-  new target. Unit and pursuit states remain `active` throughout — the
+  Unit and pursuit states remain `active` throughout — the
   goal is still chasing, just chasing a different release.
 
   When the unit has no current target (idle edge case), the command
@@ -89,12 +89,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
       end)
 
     case result do
-      {:ok, {pivoted, %Target{} = new_target, abandoned_hashes}} ->
-        Helpers.enqueue_pursue(new_target)
-        ClientCleanup.stop_downloads(pivoted.title, abandoned_hashes)
-        {:ok, pivoted}
-
-      {:ok, {pivoted, nil, abandoned_hashes}} ->
+      {:ok, {pivoted, _new_target_or_nil, abandoned_hashes}} ->
         ClientCleanup.stop_downloads(pivoted.title, abandoned_hashes)
         {:ok, pivoted}
 

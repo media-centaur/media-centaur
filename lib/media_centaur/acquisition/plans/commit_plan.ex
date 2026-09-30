@@ -31,14 +31,13 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Corpus
-  alias MediaCentaur.Acquisition.Jobs.PursueTarget
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans.{Claims, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.ReleasePicked
   alias MediaCentaur.Acquisition.Pursuits.{TargetUnit, Unit, Units}
-  alias MediaCentaur.Acquisition.{InfoHash, Target}
+  alias MediaCentaur.Acquisition.{InfoHash, Target, Targets}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Topics
@@ -225,9 +224,9 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
     :ok
   end
 
-  # Same shape for the fallback: a seeking target per unit, its coverage
-  # row, the unit pointer and the PursueTarget job (an `oban_jobs` row in
-  # the same database) commit together.
+  # Same shape for the fallback: a seeking target per unit with its
+  # PursueTarget job (`Targets.start_seeking/1`), its coverage row and the
+  # unit pointer commit together.
   defp degrade_to_seeking(pursuit, covered_units) do
     {:ok, _} =
       Repo.transaction(fn ->
@@ -235,13 +234,12 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
           {:ok, target} =
             %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
             |> Target.create_changeset()
-            |> Repo.insert()
+            |> Targets.start_seeking()
 
           {:ok, _coverage} =
             Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
 
           {:ok, _} = Repo.update(Unit.set_current_target_changeset(unit, target.id))
-          {:ok, _job} = Oban.insert(PursueTarget.new(%{"target_id" => target.id}))
         end)
       end)
 
