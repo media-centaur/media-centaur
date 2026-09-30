@@ -4,6 +4,37 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.48.1 — 2026-09-30
+
+### New
+
+- **A new pursuit stage, Grabbing.** When a release is chosen — by you, by an approved plan, or by a manual search — the pursuit reads **Grabbing** while it is sent to Prowlarr. It waits there while Prowlarr or your download client is unreachable and continues on its own when they return. If Prowlarr refuses the release, the pursuit searches for another one.
+
+### Improved
+
+- **Your choices survive a restart.** Approving a plan, picking a release, choosing a download from a manual search, the auto-select **Download** button, setting a title's watchlist level, and **Rematch** are now recorded the moment you act, and the work behind them finishes even if you close the page or Media Centaur restarts partway.
+- **An interrupted import resumes by itself.** A file you confirmed in Review that was still importing when Media Centaur stopped is imported again within a few minutes or when the app starts, instead of coming back with "didn't finish — approve it again".
+- **Approving a plan is instant.** The button no longer shows **Approving…**; the pursuit appears right away and its releases are sent to your download client in the background.
+- **A refused manual pick stays on the page.** When Prowlarr refuses a release you picked from a manual search, the pursuit keeps your pick and searches for another release, instead of the pick disappearing with an error.
+- **Background errors show on Status.** Background work that fails is now logged to the Console, and a failure that keeps happening appears on the Status page.
+
+### Fixed
+
+- **Excluding a release on a freshly solved plan now re-searches it.** A change made within a minute of the plan finishing was silently ignored and the plan stayed on *Planning*.
+- **Re-arming a download soon after its last attempt now starts searching again.**
+- **An automatic plan no longer waits on the board forever** when the message that would approve it was lost.
+- **A title you remove from tracking stops being searched for,** even if the removal message was lost.
+- **A deleted series stops being tracked** when nobody follows it, even if the deletion message was lost.
+- **A listing that is no longer true is withdrawn from your friends' feeds,** even if the withdrawal was missed.
+- **A Rematch can no longer leave files in no queue.** The title is released and its files return to Review together.
+- **Refreshing a title's artwork always queues the new images,** and a downloaded image is always shown.
+- **A drive that comes back online keeps its files,** even if the daily cleanup ran at the same moment.
+- **Artwork refresh can be run again right after the last one finished.**
+
+### Migration safety
+
+- This release runs one migration: download targets gain a column that stores the release chosen for them. No existing rows or files are changed.
+
 ## v1.48.0 — 2026-09-29
 
 ### New
