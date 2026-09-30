@@ -7,9 +7,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   with the manual-grab target-creation that previously lived inline
   in `Acquisition.grab/2`.
 
-  Caller is responsible for the Prowlarr HTTP submit (`Prowlarr.grab/1`)
-  *before* invoking this command — atomicity is bounded to the unit
-  + target rows + events.
+  The pick is recorded before anything is grabbed: the release becomes a
+  `grabbing` target (`Targets.start_grabbing/4`) whose `Jobs.GrabTarget`
+  hands it to Prowlarr (campaign durable-work, G1). Nothing here makes an
+  HTTP request.
 
   ## Side effects
 
@@ -20,14 +21,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   the pursuit's other episodes of that season too, so their own targets
   stop searching for what is already on its way):
 
-  1. Insert a new target in `acquired` carrying the picked release's
-     guid / title / quality.
-  2. For each covered unit: mark its previous `current_target` as
+  1. For each covered unit: mark its previous `current_target` as
      `failed` (reason `"replaced_by_pick"`) if it isn't already terminal,
-     record the coverage row, point `unit.current_target_id` at the new
-     target, bump `unit.attempt_count` and append the picked guid to
-     `unit.tried_release_guids` (so a subsequent `ChangeTarget` won't
-     re-suggest the same release), and clear `unit.awaiting_decision_at`.
+     and clear `unit.awaiting_decision_at`.
+  2. Write the picked release as a `grabbing` target covering those
+     units, with its grab job (`Targets.start_grabbing/4`, which also
+     points each unit at it and records the pick as the unit's attempt,
+     so a later `ChangeTarget` won't re-suggest the release).
   3. Record `user_decision_recorded` + `fallback_initiated` events.
   """
 
@@ -36,10 +36,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units, UnitState}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit, Units, UnitState}
   alias MediaCentaur.Search.{ReleaseCoverage, SearchResult}
-  alias MediaCentaur.Acquisition.{InfoHash, Target}
-  alias MediaCentaur.Downloads.QueueMonitor
+  alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Repo
 
   @doc """
@@ -53,14 +52,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   def execute(%{pursuit_id: id, result: %SearchResult{} = result, choice_label: label} = args)
       when is_binary(label) do
     origin = Map.get(args, :origin, "manual")
-    torrent_hash = InfoHash.resolve(result)
 
     log_label = fn pursuit ->
       "pursuit target picked — #{pursuit.title} — #{label}"
     end
 
-    id
-    |> Runner.run(log_label, fn pursuit ->
+    Runner.run(id, log_label, fn pursuit ->
       # Awaiting-or-lead: a pick from the decision card lands on the
       # unit that asked for it (Units.lead_of/1 prefers the awaiting
       # unit); per-unit drill-down lands with Phase 1c.
@@ -68,8 +65,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       previous_guid = List.last(unit.tried_release_guids || [])
       now = DateTime.utc_now(:second)
 
-      with {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
-           :ok <- cover(covered_units(pursuit, unit, result), new_target, result),
+      with {:ok, units} <- release_units(covered_units(pursuit, unit, result)),
+           {:ok, _grabbing} <- Targets.start_grabbing(pursuit, result, units, origin: origin),
            {:ok, _decision_event} <-
              Events.record(%UserDecisionRecorded{
                pursuit_id: pursuit.id,
@@ -88,15 +85,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
         {:ok, pursuit}
       end
     end)
-    |> tap(&hurry_the_queue_along/1)
   end
-
-  # Prowlarr has just pushed this release to the download client, so the cached
-  # queue snapshot is known-stale at exactly the moment the user is watching
-  # the pursuit for a sign of life. Ask for a fresh one instead of waiting out
-  # the 10-30 s cadence.
-  defp hurry_the_queue_along({:ok, %Pursuit{}}), do: QueueMonitor.poll_now()
-  defp hurry_the_queue_along(_error), do: :ok
 
   # The lead unit always; on a TV pursuit, every other live unit whose
   # episode the picked release's scope contains as well.
@@ -117,25 +106,17 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
 
   defp covered_units(%Pursuit{}, %Unit{} = lead, _result), do: [lead]
 
-  defp cover(units, %Target{} = target, %SearchResult{} = result) do
-    Enum.reduce_while(units, :ok, fn unit, :ok ->
+  # Frees each covered unit for the pick: its previous target closed as
+  # replaced, its pending decision answered.
+  defp release_units(units) do
+    Enum.reduce_while(units, {:ok, []}, fn unit, {:ok, released} ->
       with {:ok, _previous_target} <-
              Helpers.fail_current_target(unit, CancelReasons.replaced_by_pick()),
-           {:ok, _coverage} <-
-             Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
-           {:ok, attempted} <- Repo.update(Unit.record_attempt_changeset(unit, result.guid)),
-           {:ok, with_target} <- Repo.update(Unit.set_current_target_changeset(attempted, target.id)),
-           {:ok, _resumed} <- Repo.update(Unit.clear_awaiting_decision_changeset(with_target)) do
-        {:cont, :ok}
+           {:ok, resumed} <- Repo.update(Unit.clear_awaiting_decision_changeset(unit)) do
+        {:cont, {:ok, released ++ [resumed]}}
       else
         {:error, _reason} = error -> {:halt, error}
       end
     end)
-  end
-
-  defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin, torrent_hash) do
-    result
-    |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin, torrent_hash: torrent_hash)
-    |> Repo.insert()
   end
 end

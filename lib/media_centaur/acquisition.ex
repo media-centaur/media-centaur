@@ -444,21 +444,18 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Picks an alternative release on an existing pursuit — used by the
-  decision card.
+  Picks an alternative release on an existing pursuit — the decision
+  card. The pick is recorded at once — a grabbing target on the units it
+  covers, with its `Jobs.GrabTarget` (`Commands.PickTarget`) — and the grab
+  follows in the job, so nothing here asks Prowlarr and a page may call it
+  from its handler.
 
-  Accepts either:
-
-  - **`%SearchResult{}`** (fast path) — the LiveView passes the cached
-    result that the user just clicked. Skips the Prowlarr search
-    round-trip entirely; only `Prowlarr.grab/1` is called.
-  - **`guid` string** (fallback) — when the cache was lost (modal
-    re-mounted, session expired, race against `refresh_alternatives`).
-    Re-runs the pursuit's search and locates the result by guid.
+  Accepts either the `%SearchResult{}` the card showed, or its `guid`, read
+  back from the corpus the card's search recorded it in (`Corpus.find/1`).
 
   Returns `{:error, :not_found}` when the pursuit is gone, or
-  `{:error, :alternative_unavailable}` when a guid lookup no longer
-  finds the result in fresh search results.
+  `{:error, :alternative_unavailable}` when the corpus no longer knows the
+  guid.
   """
   @spec pick_alternative(Ecto.UUID.t(), SearchResult.t() | String.t(), String.t()) ::
           {:ok, Pursuit.t()} | {:error, term()}
@@ -470,30 +467,13 @@ defmodule MediaCentaur.Acquisition do
 
   def pick_alternative(pursuit_id, guid, label) when is_binary(guid) and is_binary(label) do
     with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.fetch(pursuit_id),
-         {:ok, result} <- find_alternative(pursuit, guid) do
+         {:ok, result} <- find_alternative(guid) do
       do_pick_alternative(pursuit, result, label)
     end
   end
 
-  @doc """
-  Fire-and-forget `pick_alternative/3`. Runs the grab on a supervised
-  context-layer task — the grab must complete regardless of the triggering
-  LiveView's lifecycle (ADR-049: must-outlive background work lives in the
-  context, not a web-layer `start_child`). The outcome is sent to `reply_to`
-  as `{:alternative_picked, pursuit_id, outcome}` for an optional UI flash.
-  """
-  def pick_alternative_async(pursuit_id, arg, label, reply_to) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      outcome = pick_alternative(pursuit_id, arg, label)
-      send(reply_to, {:alternative_picked, pursuit_id, outcome})
-    end)
-
-    :ok
-  end
-
   defp do_pick_alternative(%Pursuit{} = pursuit, %SearchResult{} = result, label) do
-    with :ok <- Prowlarr.grab(result),
-         {:ok, updated} <-
+    with {:ok, updated} <-
            PickTarget.execute(%{
              pursuit_id: pursuit.id,
              result: result,
@@ -599,16 +579,10 @@ defmodule MediaCentaur.Acquisition do
 
   # Resolves a picked guid with the unit-aware search the card listed it
   # from, so a pick can never miss what the card showed.
-  defp find_alternative(%Pursuit{} = pursuit, guid) do
-    case search_for_pursuit(pursuit, Units.lead(pursuit.id), []) do
-      {:ok, results} ->
-        case Enum.find(results, &(&1.guid == guid)) do
-          nil -> {:error, :alternative_unavailable}
-          result -> {:ok, result}
-        end
-
-      {:error, _} = error ->
-        error
+  defp find_alternative(guid) do
+    case Corpus.find(guid) do
+      nil -> {:error, :alternative_unavailable}
+      result -> {:ok, result}
     end
   end
 

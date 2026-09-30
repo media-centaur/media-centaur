@@ -91,11 +91,11 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F4 | `"seeking"` writers insert after commit | done |
 | F3a | Plan solve: `RunPlan` inserted after commit | done |
 | F3b | Automatic plan gate rides PubSub | done |
-| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | layers 1–2 done (F3c closed) — layer 3 (F6) next |
+| G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | layers 1–3 done (F3c, F6 closed) — layer 4 (manual-search pick) next |
 | F3d | Auto-select door runs in a task | analysed (outline) |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
-| F6 | Picking a release runs in a task, grab before record | → G1 layer 3 |
+| F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | open |
 | F5 | Removed title keeps its seeking targets | open |
 | F2 | Deletes run in `start_async` | open |

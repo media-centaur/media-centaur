@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   Renders the alternatives picker shown on a pursuit detail page when
   the pursuit's `awaiting_decision_at` flag is set. Each alternative
   carries a "Try this one" button that the LiveView wires to
-  `Acquisition.pick_alternative/3` (which submits to Prowlarr and
-  routes through `Commands.PickTarget`).
+  `Acquisition.pick_alternative/3`, which records the pick through
+  `Commands.PickTarget`; the grab follows in its own job.
   """
 
   use Phoenix.Component
