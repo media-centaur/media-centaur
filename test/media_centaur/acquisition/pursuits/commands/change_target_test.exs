@@ -7,8 +7,22 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTargetTest do
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Target
 
-  defp run(args) do
-    Oban.Testing.with_testing_mode(:manual, fn -> ChangeTarget.execute(args) end)
+  defp run(args), do: ChangeTarget.execute(args)
+
+  describe "execute/1 — the new target's search (ADR-077, rule 1)" do
+    # Regression: the job was inserted after the pivot committed, and an
+    # insert failure was logged and ignored — a crash between the two left
+    # the new target seeking with nothing to search for it.
+    test "PursueTarget for the new target is inserted inside the pivot's transaction" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "acquired"})
+
+      {result, inserts} = MediaCentaur.JobRuns.capture_inserts(fn -> run(%{pursuit_id: pursuit.id}) end)
+
+      assert {:ok, %Pursuit{}} = result
+
+      assert [%{in_transaction?: true}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.PursueTarget"))
+    end
   end
 
   describe "execute/1 — stopping the replaced release's download" do

@@ -25,10 +25,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   3. Update `unit.current_target_id` to the new target.
   4. Record a `target_changed` event.
 
-  After the transaction commits, enqueue `Jobs.PursueTarget` for the
-  new target. The Oban insert is intentionally outside the transaction
-  because Oban writes go through `Repo.insert` and we don't want a
-  partial enqueue if the inner transaction rolls back.
+  Step 2 inserts `Jobs.PursueTarget` for the new target in the same
+  transaction (`Targets.start_seeking/1`, ADR-077 rule 1): Oban writes
+  through the app's `Repo`, so the job commits with the pivot or not at
+  all, and a seeking target never lacks its search.
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
@@ -90,8 +90,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
       end)
 
     case result do
-      {:ok, {updated_pursuit, new_target, abandoned_hashes}} ->
-        Helpers.enqueue_pursue(new_target)
+      {:ok, {updated_pursuit, _new_target, abandoned_hashes}} ->
         ClientCleanup.stop_downloads(updated_pursuit.title, abandoned_hashes)
         {:ok, updated_pursuit}
 

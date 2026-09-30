@@ -83,7 +83,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F15 | No orphan rescue | done `36688ce5` |
 | C1 | Credo: a worker's `unique` names its `states:` | done |
 | C2 | Credo: a durable job is inserted in the decision's transaction | declined (analysis) |
-| F4 | `"seeking"` writers insert after commit | open |
+| F4 | `"seeking"` writers insert after commit | done |
 | F3 | Plan lifecycle outside jobs | open |
 | F1 | Review approval rides PubSub to Import | open |
 | F8 | Watch completion → history → share on PubSub | open |
@@ -95,7 +95,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F10 | Library → release-tracking listeners | open |
 | F11 | Person-run image and Maintenance work | open |
 | F12 | Remount reset runs async | open |
-| M1–M5 | The minor items below the findings table | open |
+| M1–M6 | The minor items below the findings table | open |
 
 ## Findings (non-compliant)
 
@@ -119,7 +119,7 @@ Numbered by finding, not by order of work. File:line as of `38ec7959`.
 | F14 | Job failures are invisible | No `[:oban, :job, …]` handler in `lib/` | A raising job leaves its error in `oban_jobs.errors` only — no Console line, no incident | One telemetry handler (ADR-077 rule 7) |
 | F15 | No orphan rescue | `Oban.Lifeline` is off unless configured (Oban 2.24 `Config.normalize_services/1`); not configured | A job running when the node dies stays `executing` for good | Boot rescue, `MediaCentaur.Jobs.rescue_orphans/1` (ADR-077 rule 8, amended) |
 
-**Minor (M1–M5), not ADR-076 violations but the same shape** — take
+**Minor (M1–M6), not ADR-076 violations but the same shape** — take
 when touching the file:
 
 * **M1** `settings_live.ex:547` manual update check: a killed check never
@@ -137,6 +137,10 @@ when touching the file:
 * **M5** Suspected, unverified: `RetryScheduler` resets `"pending"` image
   rows older than 30 s while they may still be queued in the producer —
   a long backlog could download twice. Needs a test.
+* **M6** `Pursuits.Commands.Runner.run/3`: its `@spec` says it returns
+  a `Pursuit`, but it returns the work function's value; `log_outcome/2`
+  matches only a `Pursuit`, so `ChangeTarget`'s and `AutoCancel`'s
+  success lines are never logged.
 
 ## Analyses
 
@@ -182,6 +186,51 @@ row is a *pending state* is semantic. A lexical check would be both
 noisy and blind. The rule is held by Method step 4's test instead: every
 moved site has a test that stops after the commit and asserts the job
 row exists.
+
+### F4 — `"seeking"` writers insert after commit (analysed 2026-09-30)
+
+**The case.** A target in `"seeking"` is owed a search, and
+`PursueTarget` is the only thing that searches: policy never acts on a
+seeking target, and no pass re-enqueues one. Four writers put a target in
+`"seeking"`:
+
+* `ChangeTarget` and `AutoCancel` — `Helpers.insert_seeking_target/1`
+  inside `Runner.run`'s transaction, then `Helpers.enqueue_pursue/1`
+  after it commits, which logs and swallows an insert failure. The
+  `ChangeTarget` moduledoc keeps the insert out "so a rollback cannot
+  leave a partial enqueue" — the reverse of what happens: in the
+  transaction, a rollback takes the job with it.
+* `Targets.rearm_target/1` → `restart_target/2` — the update and the
+  insert are two statements with no transaction; the insert's result is
+  ignored.
+* `CommitPlan.degrade_to_seeking` — compliant (insert in the
+  transaction, matched `{:ok, _}`).
+
+**Does ADR-077 fit?** Yes, directly: a stored pending state with an
+existing worker. Nothing here argues for another shape.
+
+**Shape.** One function owns "a target enters seeking":
+`Targets.start_seeking/1` takes the target changeset, writes it and
+inserts `PursueTarget` in one transaction (joining the caller's when
+there is one), and returns `{:error, _}` if either fails. All four
+writers call it; `Helpers.enqueue_pursue/1` goes, and with it the
+swallowed failure; the `ChangeTarget` moduledoc is corrected.
+
+**Test.** `JobRuns.capture_inserts/1` (new) records each Oban insert a
+function makes and whether it ran inside a transaction
+(`Repo.in_transaction?/0` from a telemetry handler on the insert). Each
+writer: the `PursueTarget` insert happened inside the transaction. Red
+on the current code for all three non-compliant writers. This is the
+Method step 4 test for every later site.
+
+**Done** 2026-09-30, as analysed. No insert-failure test: Oban's insert
+cannot be made to fail from a test without a seam, and the rollback on
+`{:error, _}` is `Repo.transaction/1`'s own contract.
+
+**Also seen, not F4.** `Runner.run/3`'s `@spec` says it returns a
+`Pursuit`; it returns the work function's value, so `log_outcome/2`
+never logs for `ChangeTarget` or `AutoCancel` (they return a tuple) —
+M6.
 
 ## Classification (compliant)
 
