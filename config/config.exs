@@ -106,6 +106,10 @@ config :media_centaur, Oban,
        # The want-ledger sweep: an aired release becomes wanted, and the
        # drop planner's clock ticks. No TMDB request (ADR-071).
        {"*/15 * * * *", MediaCentaur.ReleaseTracking.SweepJob},
+       # Carries out Review approvals whose trip to Import was lost: re-sends
+       # any approved file older than 15 minutes that is still not linked
+       # (campaign durable-work, F1).
+       {"3-59/5 * * * *", MediaCentaur.Review.SettleJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset

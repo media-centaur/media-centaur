@@ -180,53 +180,57 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  Settles the queue against the library at startup, when nothing is in
-  flight: an item whose file is linked is done and removed, and an
-  `:approved` item whose file is not linked is an import that did not
-  finish — it returns to `:pending` with that reason.
+  Settles the queue against the library: an item whose file is linked is
+  done and removed, and an `:approved` item whose file is not linked is an
+  approval whose import did not finish — its file is re-sent to Import
+  (`send_to_import/1`) and the item stays approved until its link outcome
+  closes it (campaign durable-work, F1). The stored approval is the
+  durable record of the decision; this pass is what carries it out when a
+  PubSub hop to Import or into the library was lost.
 
-  The link outcomes that close and reopen items (`file_linked/1`,
-  `file_not_linked/1`) travel over PubSub, which has no replay; a listener
-  not subscribed at that instant loses one. A live instance once carried
-  73 approved rows orphaned that way, invisible in the queue. `:dismissed`
-  rows are decisions and are left alone. Returns the counts.
+  It runs at startup (Discovery's recovery), when nothing is in flight, and
+  every few minutes (`Review.SettleJob`) with `approved_before:` — an
+  approval younger than that may still be importing and is left alone.
+
+  The link outcomes that close items (`file_linked/1`, `file_not_linked/1`)
+  travel over PubSub, which has no replay; a listener not subscribed at
+  that instant loses one. A live instance once carried 73 approved rows
+  orphaned that way, invisible in the queue. `:dismissed` rows are
+  decisions and are left alone. Returns the counts.
   """
-  @spec settle_with_library() :: %{closed: non_neg_integer(), reopened: non_neg_integer()}
-  def settle_with_library do
+  @spec settle_with_library(keyword()) :: %{closed: non_neg_integer(), resent: non_neg_integer()}
+  def settle_with_library(opts \\ []) do
+    approved_before = Keyword.get(opts, :approved_before, DateTime.utc_now())
+
     open =
       PendingFile
       |> where([p], p.status in [:pending, :approved])
-      |> select([p], %{id: p.id, file_path: p.file_path, status: p.status})
       |> Repo.all()
 
     linked = Library.Files.linked_paths(Enum.map(open, & &1.file_path))
     {done, unlinked} = Enum.split_with(open, &MapSet.member?(linked, &1.file_path))
-    unfinished_ids = for %{status: :approved, id: id} <- unlinked, do: id
+
+    unfinished =
+      Enum.filter(
+        unlinked,
+        &(&1.status == :approved and DateTime.before?(&1.updated_at, approved_before))
+      )
 
     done_ids = Enum.map(done, & &1.id)
     {closed, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^done_ids))
 
-    {reopened, _} =
-      Repo.update_all(from(p in PendingFile, where: p.id in ^unfinished_ids),
-        set: [
-          status: :pending,
-          error_message: unlinked_message(:unfinished),
-          updated_at: DateTime.utc_now(:second)
-        ]
-      )
-
     Enum.each(done_ids, &broadcast_reviewed/1)
-    Enum.each(unfinished_ids, &Events.broadcast(%FileAdded{pending_file_id: &1}))
+    Enum.each(unfinished, &send_to_import/1)
 
-    if closed + reopened > 0 do
+    if closed + length(unfinished) > 0 do
       Log.info(
         :review,
-        "startup recovery — closed #{closed} review item(s) whose file is linked, " <>
-          "reopened #{reopened} whose import did not finish"
+        "settled with the library — closed #{closed} review item(s) whose file is linked, " <>
+          "re-sent #{length(unfinished)} approval(s) whose import did not finish"
       )
     end
 
-    %{closed: closed, reopened: reopened}
+    %{closed: closed, resent: length(unfinished)}
   end
 
   def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
@@ -285,6 +289,19 @@ defmodule MediaCentaur.Review do
   def dismissed?(file_path) when is_binary(file_path) do
     Repo.exists?(
       from(p in PendingFile, where: p.file_path == ^file_path and p.status == :dismissed, limit: 1)
+    )
+  end
+
+  @doc """
+  Whether `file_path` has an approval Review has not yet seen linked. The
+  approval owns the file's import — `settle_with_library/1` re-sends it if
+  the first trip was lost — so Discovery leaves such a file alone rather
+  than import it a second time.
+  """
+  @spec approved?(String.t()) :: boolean()
+  def approved?(file_path) when is_binary(file_path) do
+    Repo.exists?(
+      from(p in PendingFile, where: p.file_path == ^file_path and p.status == :approved, limit: 1)
     )
   end
 
@@ -412,9 +429,6 @@ defmodule MediaCentaur.Review do
     do: "There isn't enough disk space to import it. Free some space and approve it again."
 
   defp unlinked_message({:import_failed, _reason}), do: "Importing it failed. Approve it again to retry."
-
-  defp unlinked_message(:unfinished),
-    do: "Importing it didn't finish before the app stopped. Approve it again to retry."
 
   # Parses the same path discovery and import parse, so it reads the same
   # extras setting. It used to fall through to `Parser`'s own literal
@@ -616,19 +630,25 @@ defmodule MediaCentaur.Review do
     )
 
     with {:ok, pending_file} <- approve_pending_file(pending_file) do
-      Topics.publish(
-        MediaCentaur.Topics.pipeline_matched(),
-        {:file_matched,
-         %{
-           file_path: pending_file.file_path,
-           media_dir: pending_file.media_directory,
-           tmdb_id: pending_file.tmdb_id,
-           tmdb_type: pending_file.tmdb_type
-         }}
-      )
-
+      send_to_import(pending_file)
       {:ok, pending_file}
     end
+  end
+
+  # Sends an approved file's match to Import. The message is a nudge for
+  # latency: if it is lost, the approval is still stored and
+  # `settle_with_library/1` sends it again.
+  defp send_to_import(%PendingFile{} = pending_file) do
+    Topics.publish(
+      MediaCentaur.Topics.pipeline_matched(),
+      {:file_matched,
+       %{
+         file_path: pending_file.file_path,
+         media_dir: pending_file.media_directory,
+         tmdb_id: pending_file.tmdb_id,
+         tmdb_type: pending_file.tmdb_type
+       }}
+    )
   end
 
   @doc "Dismissed files the library has not linked, most recently dismissed first."

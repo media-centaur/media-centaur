@@ -31,3 +31,8 @@ When a durable and a re-derivable caller do the same work, the work has one path
 * Good, because a pending state always has work behind it, and a crash or restart delays that work instead of losing it.
 * Good, because retries and failure reporting come from Oban rather than per-context recovery code.
 * Bad, because existing sites must be audited and moved: Review approvals (and with them every import, which shares the path), and the Review and title-detail deletes, which run in `start_async` and stop partway when the page closes.
+
+## Amendments
+
+* **2026-09-30** — The invariant is met by a stored row a scheduled pass carries out, not only by a job. A Review approval is the case: `PendingFile :approved` stores the decision, and `Review.settle_with_library/1` — at startup and every five minutes (`Review.SettleJob`) — re-sends an approval whose import was lost. A job was the first-row answer, but `Pipeline` depends on `Review`, so an approval could not insert a Pipeline job without a cycle (campaign `durable-work`, F1). What the invariant asks is that stored pending work always has something stored that will carry it out; a row plus a pass on a schedule does that, with a delay bounded by the schedule.
+

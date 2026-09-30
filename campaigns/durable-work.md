@@ -93,7 +93,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F3b | Automatic plan gate rides PubSub | done |
 | G1 | A chosen release is owed a grab (F3c, F6, manual pick, `PursueTarget`) | done — layers 1–4; layer 5 declined |
 | F3d | Auto-select door runs in a task | done |
-| F1 | Review approval rides PubSub to Import | analysed — owner decision |
+| F1 | Review approval rides PubSub to Import | done — row + re-send pass (owner) |
 | F8 | Watch completion → history → share on PubSub | open |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
 | F7 | Setting a rung runs in a task | open |
@@ -411,6 +411,13 @@ into `Library.Inbound` is a PubSub message a job would also have to cross.
    ingest becomes a function the job calls. The largest change; the
    volume cost (thousands of jobs on a first scan, SQLite's one writer)
    is unmeasured, and it rebuilds the part of the pipeline that works.
+
+**Chosen** (owner, 2026-09-30): option 1. **Done**: `settle_with_library/1`
+re-sends instead of reopening; `Review.SettleJob` (cron, five minutes,
+fifteen-minute in-flight cutoff); Discovery treats an approved file as
+settled, so the boot rescan cannot import it twice; ADR-076 amended; the
+wiki's Review Queue page on the unpushed `durable-work` branch of the wiki
+repo.
 
 ## Classification (compliant)
 
