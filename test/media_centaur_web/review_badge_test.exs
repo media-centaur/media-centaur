@@ -64,6 +64,9 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
       divert_awaiting_file()
 
       {:ok, view, _html} = live(conn, ~p"/episode-mapping")
+      # The page assembles the show's spine from TMDB in `start_async`; the
+      # test drives it to completion so the request never outlives its stub.
+      render_async(view)
 
       assert has_element?(view, @sidebar_review <> ".sidebar-link-active")
     end
