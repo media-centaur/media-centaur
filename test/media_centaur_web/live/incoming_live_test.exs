@@ -2196,6 +2196,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
       view |> element("#detail-tracking-controls-track") |> render_click()
       await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Discovery.rung(888, :movie) == :follow
       assert ReleaseTracking.get_item_by_tmdb(888, :movie)
       assert Discovery.listed?(888, :movie)

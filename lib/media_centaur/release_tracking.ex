@@ -47,6 +47,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library.ExternalIds
 
+  alias MediaCentaur.ReleaseTracking.DeriveJob
   alias MediaCentaur.ReleaseTracking.LibraryLinks
 
   alias MediaCentaur.Discovery.TitleIntent
@@ -434,11 +435,14 @@ defmodule MediaCentaur.ReleaseTracking do
   piece of machinery derived from it. There is nothing to keep, because
   nothing but a person can put a title back on the ladder.
 
-  Any other rung writes the record, then derives: at `:follow` and above
-  the title needs a tracked title — its calendar, its wants, its artwork
-  — and below `:follow` it does not, so the machinery is removed. A film
-  already in the library is complete whatever the rung says; see
-  `derive/2`.
+  Any other rung writes the record and, in the same transaction, owes the
+  derivation (`ReleaseTracking.DeriveJob`, ADR-077): at `:follow` and
+  above the title needs a tracked title — its calendar, its wants, its
+  artwork — and below `:follow` it does not, so the machinery is removed.
+  A film already in the library is complete whatever the rung says; see
+  `derive/3`. Setting a rung asks TMDB nothing, so a page may call this
+  from its handler; the job reads the rung when it runs, so the latest
+  of several quick changes is the one derived.
 
   It lives here rather than in `Discovery` only because deriving needs to
   see both sides and the dependency runs this way — `Discovery` must stay
@@ -459,22 +463,36 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   def set_rung(%Title{} = title, rung, attrs) do
-    with {:ok, intent} <- Discovery.put_rung(title, rung, attrs),
-         :ok <- derive(title, rung, attrs) do
-      {:ok, intent}
-    end
+    derivation =
+      DeriveJob.new(%{
+        "tmdb_id" => title.tmdb_id,
+        "media_type" => Atom.to_string(title.media_type),
+        "start_season" => Map.get(attrs, :start_season, 0),
+        "start_episode" => Map.get(attrs, :start_episode, 0)
+      })
+
+    Repo.transaction(fn ->
+      with {:ok, intent} <- Discovery.put_rung(title, rung, attrs),
+           {:ok, _job} <- Oban.insert(derivation) do
+        intent
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc """
-  Fire-and-forget `set_rung/3`. Raising onto `:follow` or above fetches
-  the calendar from TMDB, so it runs on a supervised context-layer task —
-  it must complete regardless of the triggering LiveView's lifecycle
-  (ADR-049). Subscribers catch up on `:releases_updated`.
+  Derives the machinery for a title from the rung it stands at now —
+  `DeriveJob`'s work. A title with no intent stands nowhere and keeps
+  nothing. `attrs` carries `:start_season` / `:start_episode` for a first
+  calendar fetch.
   """
-  @spec set_rung_async(Title.t(), TitleIntent.rung() | :off, map()) :: :ok
-  def set_rung_async(%Title{} = title, rung, attrs \\ %{}) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> set_rung(title, rung, attrs) end)
-    :ok
+  @spec derive_from_rung(integer(), Title.media_type(), map()) :: :ok | {:error, term()}
+  def derive_from_rung(tmdb_id, media_type, attrs) do
+    case Discovery.rung(tmdb_id, media_type) do
+      nil -> drop_machinery(tmdb_id, media_type)
+      rung -> derive(%Title{tmdb_id: tmdb_id, media_type: media_type}, rung, attrs)
+    end
   end
 
   # The derivation rule, in one place. A tracked title exists exactly

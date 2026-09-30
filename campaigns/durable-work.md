@@ -96,7 +96,7 @@ any code. Status: **open**, **analysed**, **done**, **declined**.
 | F1 | Review approval rides PubSub to Import | done — row + re-send pass (owner) |
 | F8 | Watch completion → history → share on PubSub | done — withdrawals reconciled; watch event and listing share declined (owner) |
 | F6 | Picking a release runs in a task, grab before record | done (G1 layer 3) |
-| F7 | Setting a rung runs in a task | open |
+| F7 | Setting a rung runs in a task | done |
 | F5 | Removed title keeps its seeking targets | open |
 | F2 | Deletes run in `start_async` | open |
 | F9 | Rematch rides two PubSub hops | open |
@@ -452,6 +452,20 @@ on every save, and a rewatch reuses the row. `Activities` depends on
    stands at List is withdrawn. `Activities` runs it on a schedule (and at
    boot); the PubSub path stays for latency. Outward-facing: a wrong
    answer withdraws a true listing, so the test covers both sides.
+
+### F7 — setting a rung (analysed and done 2026-09-30)
+
+`ReleaseTracking.set_rung/3` wrote the rung (`Discovery.put_rung/3`) and
+derived the tracking machinery — a TMDB calendar fetch at Follow and above
+— and the title detail ran it on a fire-and-forget task when a calendar
+was needed; a crash lost the choice or stored Follow with no tracked
+title, for good. ADR-077 fits without a boundary problem: `ReleaseTracking`
+owns both halves. `set_rung/3` now writes the rung and inserts
+`ReleaseTracking.DeriveJob` in one transaction; the job reads the rung
+when it runs (`derive_from_rung/3`), so the latest of quick changes wins.
+Setting a rung asks TMDB nothing, which also takes the calendar fetch out
+of `DiscoveryLive`'s handlers (its Undo could raise onto Follow).
+`set_rung_async/3` is gone.
 
 ## Classification (compliant)
 

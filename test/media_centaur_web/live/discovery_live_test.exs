@@ -2006,6 +2006,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert render(view) =~ "Tracking Sample Show"
 
       await_supervised_tasks()
+      MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Discovery.rung(246_810, :tv_series) == :grab
       assert ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 

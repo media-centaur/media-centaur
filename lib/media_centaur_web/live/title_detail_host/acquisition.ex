@@ -5,12 +5,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   plan for one missing episode of an owned series.
 
   `apply_rung/4` is the one write behind the bookmark and the tracking
-  switches (`set_rung`). Raising onto a rung that follows releases needs
-  the calendar, which is a TMDB fetch — so a title that has none yet is
-  set asynchronously (`ReleaseTracking.set_rung_async/3`) and the modal
-  catches up on the `:releases_updated` broadcast; every other move is
-  local and lands before the reply. `attrs` is the provenance a
-  feed-born listing carries onto the record it creates.
+  switches (`ReleaseTracking.set_rung/3`): the rung lands before the
+  reply, and the tracking it implies — the calendar, a TMDB fetch — is
+  derived in a job the write owes, which the modal catches up with on the
+  `:releases_updated` broadcast. `attrs` is the provenance a feed-born
+  listing carries onto the record it creates.
 
   `start_download/5` performs a planning mode on a title (spec
   2026-09-12 §5–7) and owns the ending: auto-select hands the plan to the
@@ -62,13 +61,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
       TitleIntent.follows_releases?(rung) and
         is_nil(ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type))
 
-    if needs_calendar? do
-      ReleaseTracking.set_rung_async(title, rung, attrs)
-      put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up.")
-    else
-      {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
-      socket
-    end
+    {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
+
+    if needs_calendar?,
+      do: put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up."),
+      else: socket
   end
 
   # --- Download ---
