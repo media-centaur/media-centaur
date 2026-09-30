@@ -113,8 +113,8 @@ defmodule MediaCentaur.Acquisition do
   ## Manual search
 
   Call `search/2` with a query string. Pass the chosen `%SearchResult{}`
-  to `pick_target/2` to submit it to Prowlarr and start (or pivot) the
-  pursuit.
+  to `pick_target/2` to start a pursuit with it; the release is recorded
+  as a `grabbing` target and `Jobs.GrabTarget` hands it to Prowlarr.
 
   ## PubSub broadcasts
 
@@ -124,7 +124,8 @@ defmodule MediaCentaur.Acquisition do
   - `%TargetEvents.Picked{}` — user picked a release
   - `%TargetEvents.Armed{}` — target re-armed into seeking
   - `%TargetEvents.Snoozed{}` — search ran, no acceptable result, will retry
-  - `%TargetEvents.Failed{}` — max attempts reached, no longer retrying
+  - `%TargetEvents.Failed{}` — max attempts reached, or Prowlarr refused a
+    chosen release; no longer retrying that target
   - `%TargetEvents.Cancelled{}` — target cancelled
   - `Pursuits.Events.*` typed structs — persisted timeline events
 
@@ -352,17 +353,15 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Submits a manual pick — Prowlarr.grab + pursuit/target creation —
-  and records it on the activity timeline.
+  Submits a manual pick: a pursuit with `recipe_type = "prowlarr_query"`
+  and the user's typed query, and the release as a `grabbing` target
+  (`StartFromPick`); `Jobs.GrabTarget` performs the grab. Broadcasts
+  `%TargetEvents.Picked{}`. The Prowlarr GUID is recorded on the target so
+  the duplicate-guid check in `ChangeTarget` works.
 
-  Creates a pursuit with `recipe_type = "prowlarr_query"` and the
-  user's typed query, then a target in `acquired`, atomically via
-  `StartFromPick`. Broadcasts `%TargetEvents.Picked{}` on success.
-  The Prowlarr GUID is recorded on the target so the duplicate-guid
-  check in `ChangeTarget` works.
-
-  Returns `{:error, :not_configured}` when Prowlarr is not configured,
-  or `{:error, reason}` when Prowlarr rejects the grab.
+  Returns `{:error, :not_configured}` when Prowlarr is not configured. A
+  release Prowlarr then refuses is reported on the pursuit, which searches
+  its query again.
   """
   @spec pick_target(SearchResult.t(), String.t()) :: {:ok, Target.t()} | {:error, term()}
   def pick_target(%SearchResult{} = result, query) when is_binary(query) do
@@ -380,11 +379,11 @@ defmodule MediaCentaur.Acquisition do
   lands as a single pursuit with three units instead of three
   pursuits.
 
-  Each release is submitted to Prowlarr first; only successful grabs
-  become units. Returns `{:ok, pairs}` where `pairs` aligns with the
-  input picks as `{pick, {:ok, target} | {:error, reason}}`. When
-  every grab fails, no pursuit is created (the pairs still report the
-  per-pick errors). Broadcasts `%TargetEvents.Picked{}` per landed pick.
+  Every pick is recorded as a `grabbing` target in one transaction, and
+  each grab runs in its own `Jobs.GrabTarget` — nothing here asks
+  Prowlarr, so a page may call it from its handler. Returns `{:ok, pairs}`
+  where `pairs` aligns with the input picks as `{pick, {:ok, target}}`.
+  Broadcasts `%TargetEvents.Picked{}` per pick.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured.
   """
@@ -392,15 +391,8 @@ defmodule MediaCentaur.Acquisition do
           {:ok, [{map(), {:ok, Target.t()} | {:error, term()}}]} | {:error, :not_configured}
   def pick_targets(picks, query) when is_list(picks) and is_binary(query) do
     if available?() do
-      grabbed = Enum.map(picks, fn pick -> {pick, Prowlarr.grab(pick.result)} end)
-      successful = for {pick, :ok} <- grabbed, do: pick
-
-      case start_from_picks(successful, query) do
-        {:ok, targets_by_guid} ->
-          {:ok, Enum.map(grabbed, &pair_outcome(&1, targets_by_guid))}
-
-        {:error, reason} ->
-          {:error, reason}
+      with {:ok, targets_by_guid} <- start_from_picks(picks, query) do
+        {:ok, Enum.map(picks, &pair_outcome(&1, targets_by_guid))}
       end
     else
       {:error, :not_configured}
@@ -420,21 +412,19 @@ defmodule MediaCentaur.Acquisition do
 
       Log.info(
         :acquisition,
-        "manual pick submitted — #{pursuit.title} (#{length(targets)} release(s))"
+        "manual pick recorded — #{pursuit.title} (#{length(targets)} release(s))"
       )
 
       {:ok, Map.new(targets, &{&1.prowlarr_guid, &1})}
     end
   end
 
-  defp pair_outcome({pick, :ok}, targets_by_guid) do
+  defp pair_outcome(pick, targets_by_guid) do
     case Map.get(targets_by_guid, pick.result.guid) do
       %Target{} = target -> {pick, {:ok, target}}
       nil -> {pick, {:error, :not_persisted}}
     end
   end
-
-  defp pair_outcome({pick, {:error, reason}}, _targets_by_guid), do: {pick, {:error, reason}}
 
   defp trim_query(query) do
     case String.trim(query) do

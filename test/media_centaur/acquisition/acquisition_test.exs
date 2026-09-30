@@ -67,7 +67,7 @@ defmodule MediaCentaur.AcquisitionTest do
       :ok
     end
 
-    test "submits to Prowlarr and inserts a manual-origin target in acquired state" do
+    test "records a manual-origin target owed its grab; the grab lands it as acquired" do
       result = %SearchResult{
         title: "Sample.Movie.2010.2160p.UHD.BluRay.REMUX-FGT",
         guid: "manual-guid-1",
@@ -81,8 +81,13 @@ defmodule MediaCentaur.AcquisitionTest do
 
       assert target.origin == "manual"
       assert target.prowlarr_guid == "manual-guid-1"
-      assert target.status == "acquired"
-      assert target.quality == "4K"
+      assert target.status == "grabbing"
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      acquired = Repo.reload!(target)
+      assert acquired.status == "acquired"
+      assert acquired.quality == "4K"
 
       pursuit = Repo.get!(Pursuit, target.pursuit_id)
       assert pursuit.recipe_type == "prowlarr_query"
@@ -91,13 +96,23 @@ defmodule MediaCentaur.AcquisitionTest do
       assert_received %TargetEvents.Picked{target: %Target{origin: "manual"}}
     end
 
-    test "does NOT insert a row when Prowlarr rejects the grab" do
+    test "a release Prowlarr refuses: the pick stays recorded and its pursuit searches again" do
       result = %SearchResult{title: "Bad", guid: "fail-1", indexer_id: 1, quality: :hd_1080p}
 
-      Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "POST" -> Plug.Conn.send_resp(conn, 400, "refused")
+          _search -> Req.Test.json(conn, [])
+        end
+      end)
 
-      assert {:error, _} = Acquisition.pick_target(result, "bad")
-      assert Repo.aggregate(Target, :count) == 0
+      assert {:ok, %Target{} = picked} = Acquisition.pick_target(result, "bad")
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert %Target{status: "failed", cancelled_reason: "grab_refused"} = Repo.reload!(picked)
+      [unit] = Units.for_pursuit(picked.pursuit_id)
+      refute unit.current_target_id == picked.id
+      assert "fail-1" in unit.tried_release_guids
     end
 
     test "returns :not_configured when Prowlarr is not configured" do
@@ -416,7 +431,7 @@ defmodule MediaCentaur.AcquisitionTest do
       }
     end
 
-    test "three picks land as one pursuit with three units, each covered by its acquired target" do
+    test "three picks land as one pursuit with three units, each covered by its grabbing target" do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
 
       picks = [
@@ -443,11 +458,11 @@ defmodule MediaCentaur.AcquisitionTest do
                "Sample Show S01E03"
              ]
 
-      # Each unit's current target is acquired, covers exactly that unit,
-      # and the unit's thread recorded the pick.
+      # Each unit's current target is owed its grab, covers exactly that
+      # unit, and the unit's thread recorded the pick.
       for {unit, guid} <- Enum.zip(units, ~w(guid-e1 guid-e2 guid-e3)) do
         target = Repo.get!(Target, unit.current_target_id)
-        assert target.status == "acquired"
+        assert target.status == "grabbing"
         assert target.prowlarr_guid == guid
         assert [covered] = Units.covered_by(target.id)
         assert covered.id == unit.id
@@ -466,7 +481,7 @@ defmodule MediaCentaur.AcquisitionTest do
       assert_received %TargetEvents.Picked{}
     end
 
-    test "a failed grab drops only that unit — the pursuit holds the successes" do
+    test "a grab Prowlarr refuses searches again for that unit — the others land" do
       Req.Test.stub(:prowlarr, fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
 
@@ -480,22 +495,15 @@ defmodule MediaCentaur.AcquisitionTest do
       picks = [pick("Sample Show S01E01", "guid-ok"), pick("Sample Show S01E02", "guid-bad")]
 
       assert {:ok, pairs} = Acquisition.pick_targets(picks, "Sample Show S01E{01-02}")
+      assert [{_, {:ok, %Target{}}}, {_, {:ok, %Target{}}}] = pairs
 
-      assert [{_, {:ok, %Target{}}}, {_, {:error, _}}] = pairs
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [pursuit] = Repo.all(Pursuit)
-      units = Units.for_pursuit(pursuit.id)
-      assert Enum.map(units, & &1.query) == ["Sample Show S01E01"]
-    end
-
-    test "all grabs failing creates no pursuit at all" do
-      Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
-
-      picks = [pick("Sample Show S01E01", "g1")]
-
-      assert {:ok, [{_, {:error, _}}]} = Acquisition.pick_targets(picks, "Sample Show S01E01")
-      assert Repo.aggregate(Pursuit, :count) == 0
-      assert Repo.aggregate(Target, :count) == 0
+      [landed, refused] = Units.for_pursuit(pursuit.id)
+      assert Repo.get!(Target, landed.current_target_id).status == "acquired"
+      assert Repo.get!(Target, refused.current_target_id).status == "seeking"
+      assert "guid-bad" in refused.tried_release_guids
     end
 
     test "a single pick keeps the release title as the pursuit title (legacy naming)" do

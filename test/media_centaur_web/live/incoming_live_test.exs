@@ -2977,6 +2977,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       render_until(view, "2 grab(s) submitted")
+      # Each pick is recorded as a grabbing target; its grab runs in a job.
+      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       # One composite pursuit holding both expanded terms as units, each
       # with its own acquired target.

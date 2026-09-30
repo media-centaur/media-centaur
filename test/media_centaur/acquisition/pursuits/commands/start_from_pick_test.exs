@@ -21,15 +21,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPickTest do
   end
 
   describe "execute/1" do
-    test "atomically creates a prowlarr_query pursuit + acquired target in one transaction" do
+    test "atomically creates a prowlarr_query pursuit + grabbing target, with its grab owed" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_updates())
 
-      assert {:ok, %Pursuit{} = pursuit} =
-               StartFromPick.execute(%{
-                 result: result(),
-                 manual_query: "Sample Show S01E01",
-                 origin: "manual"
-               })
+      {{:ok, %Pursuit{} = pursuit}, inserts} =
+        MediaCentaur.JobRuns.capture_inserts(fn ->
+          StartFromPick.execute(%{
+            result: result(),
+            manual_query: "Sample Show S01E01",
+            origin: "manual"
+          })
+        end)
+
+      assert [%{in_transaction?: true}] =
+               Enum.filter(inserts, &(&1.worker == "MediaCentaur.Acquisition.Jobs.GrabTarget"))
 
       assert pursuit.recipe_type == "prowlarr_query"
       assert pursuit.manual_query == "Sample Show S01E01"
@@ -41,7 +46,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPickTest do
       assert unit.tried_release_guids == ["abc-123"]
 
       target = Repo.get!(Target, unit.current_target_id)
-      assert target.status == "acquired"
+      assert target.status == "grabbing"
       assert target.prowlarr_guid == "abc-123"
       assert target.release_title == "Sample.Show.S01E01.1080p.WEB-DL.x264"
       assert target.origin == "manual"
