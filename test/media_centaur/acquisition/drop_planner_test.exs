@@ -506,6 +506,31 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert want.season_number == 1
     end
 
+    # Regression (campaign durable-work, F5): removing a tracked item
+    # cancelled its searches only through an `item_removed` message to the
+    # Reactor; a lost message left the app searching for, and grabbing, a
+    # title the person had removed. The sweep's reconciliation now treats a
+    # tracking pursuit whose item is gone as one to cancel.
+    test "a still-seeking tracking pursuit whose tracked item is gone is cancelled on the tick" do
+      episode_stub()
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+      pursuit = sole_pursuit()
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+      {:ok, _pivoted} = AutoCancel.execute(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+
+      # The item goes; nothing hears its `item_removed` (no Reactor here).
+      {:ok, _deleted} = ReleaseTracking.delete_item(item)
+      Handlers.tracking_sweep_completed()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "cancelled"
+    end
+
     test "a tracking pursuit with a live download is left alone" do
       episode_stub()
 

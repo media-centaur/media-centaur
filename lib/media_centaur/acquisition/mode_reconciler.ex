@@ -23,10 +23,14 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     (the user can cancel it on Downloads). Mixed pursuits with any
     landed/landing unit are conservatively left whole.
 
-  What it never touches: wants
-  (mode off ≠ stop wanting — media search remains the expected path,
-  Q3, so system cancels leave the ledger open), and items that no
-  longer exist (the `item_removed` Reactor path owns deletion).
+  A tracking draft or pursuit whose tracked item no longer exists is
+  withdrawn the same way, with reason `item_removed` — the repair for the
+  Reactor's `item_removed` message, which cancels on the removal itself but
+  rides PubSub (campaign durable-work, F5).
+
+  What it never touches: wants (mode off ≠ stop wanting — media search
+  remains the expected path, Q3, so system cancels leave the ledger
+  open).
   """
 
   import Ecto.Query
@@ -58,12 +62,12 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     |> where([p], not is_nil(p.tracking_item_id))
     |> Repo.all()
     |> Enum.reduce(off_items, fn plan, cache ->
-      {off?, cache} = off?(plan.tracking_item_id, cache)
+      {standing, cache} = standing(plan.tracking_item_id, cache)
 
-      if off? do
+      if standing != :grabs do
         case Plans.discard(plan) do
           {:ok, _discarded} ->
-            Log.info(:acquisition, "tracking draft discarded (auto-grab off) — #{plan.title}")
+            Log.info(:acquisition, "tracking draft discarded (#{why(standing)}) — #{plan.title}")
 
           {:error, _reason} ->
             :ok
@@ -83,16 +87,16 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     |> select([p, pursuit], {p.tracking_item_id, pursuit})
     |> Repo.all()
     |> Enum.reduce(off_items, fn {item_id, pursuit}, cache ->
-      {off?, cache} = off?(item_id, cache)
+      {standing, cache} = standing(item_id, cache)
 
-      if off? and still_seeking?(pursuit) do
+      if standing != :grabs and still_seeking?(pursuit) do
         case Cancel.execute(%{
                pursuit_id: pursuit.id,
                cancelled_by: :system,
-               reason: CancelReasons.auto_grab_disabled()
+               reason: cancel_reason(standing)
              }) do
           {:ok, _cancelled} ->
-            Log.info(:acquisition, "tracking pursuit cancelled (auto-grab off) — #{pursuit.title}")
+            Log.info(:acquisition, "tracking pursuit cancelled (#{why(standing)}) — #{pursuit.title}")
 
           {:error, _reason} ->
             :ok
@@ -115,19 +119,27 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
          |> Repo.exists?())
   end
 
-  defp off?(item_id, cache) do
+  # Where a tracking item stands: still grabbing, switched off (its rung
+  # dropped below Grab), or gone (the item was removed).
+  defp standing(item_id, cache) do
     case cache do
-      %{^item_id => off?} ->
-        {off?, cache}
+      %{^item_id => standing} ->
+        {standing, cache}
 
       _miss ->
-        off? =
+        standing =
           case ReleaseTracking.get_item(item_id) do
-            nil -> false
-            item -> not Discovery.grabs?(item.tmdb_id, item.media_type)
+            nil -> :gone
+            item -> if Discovery.grabs?(item.tmdb_id, item.media_type), do: :grabs, else: :off
           end
 
-        {off?, Map.put(cache, item_id, off?)}
+        {standing, Map.put(cache, item_id, standing)}
     end
   end
+
+  defp why(:gone), do: "title no longer tracked"
+  defp why(:off), do: "auto-grab off"
+
+  defp cancel_reason(:gone), do: CancelReasons.item_removed()
+  defp cancel_reason(:off), do: CancelReasons.auto_grab_disabled()
 end
