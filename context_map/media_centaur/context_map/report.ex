@@ -5,7 +5,11 @@ defmodule MediaCentaur.ContextMap.Report do
   Verdicts live in `docs/context-map/verdicts.json` as a list of
   `{"key", "verdict", "reason"}`; `verdict` is `leak` or `allowed`. A
   *rule wrong* verdict is never stored — it changes the rule (spec § 7).
-  `check/2` fails on a finding without a verdict or a verdict without a
+
+  A key is either a finding's exact verdict key or a concept key, whose
+  last (consumer) segment is `*`: it covers every consumer of that concept
+  (`Finding.concept_key/1`). An exact key overrides the concept key.
+  `check/2` fails on a finding covered by neither, or on a key matching no
   finding, so every new crossing lands with its line in the same change.
   """
 
@@ -13,12 +17,27 @@ defmodule MediaCentaur.ContextMap.Report do
 
   @verdicts ["leak", "allowed"]
 
-  @doc "Each finding as a JSON-ready map: its verdict and concept keys, names as strings, its excerpt, and its verdict and reason (nil when unverdicted)."
+  @doc """
+  The verdict covering `finding` and the key that supplied it: the exact
+  verdict key first, then the concept key; nil when neither has a verdict.
+  """
+  @spec verdict_for(Finding.t(), %{String.t() => map()}) :: {String.t(), map()} | nil
+  def verdict_for(finding, verdicts) do
+    Enum.find_value([Finding.key(finding), Finding.concept_key(finding)], fn key ->
+      if verdict = verdicts[key], do: {key, verdict}
+    end)
+  end
+
+  @doc """
+  Each finding as a JSON-ready map: its verdict and concept keys, names as
+  strings, its excerpt, and its verdict, reason and `verdict_key` (the key
+  that supplied them; all nil when unverdicted).
+  """
   @spec encode_findings([Finding.t()], %{String.t() => map()}) :: [map()]
   def encode_findings(findings, verdicts) do
     for finding <- findings do
       key = Finding.key(finding)
-      verdict = Map.get(verdicts, key, %{})
+      {verdict_key, verdict} = verdict_for(finding, verdicts) || {nil, %{}}
 
       %{
         key: key,
@@ -37,19 +56,28 @@ defmodule MediaCentaur.ContextMap.Report do
         concept_key: Finding.concept_key(finding),
         detail: finding.detail && Map.new(finding.detail, fn {name, value} -> {name, name(value)} end),
         verdict: verdict["verdict"],
-        reason: verdict["reason"]
+        reason: verdict["reason"],
+        verdict_key: verdict_key
       }
     end
   end
 
-  @doc "`:ok` when every finding has a verdict and every verdict has a finding; otherwise the sorted keys on each side."
+  @doc """
+  `:ok` when every finding is covered by an exact or concept key and every
+  verdict key matches a finding; otherwise the sorted unverdicted finding
+  keys and stale verdict keys.
+  """
   @spec check([Finding.t()], %{String.t() => map()}) ::
           :ok | {:error, %{unverdicted: [String.t()], stale: [String.t()]}}
   def check(findings, verdicts) do
-    keys = MapSet.new(findings, &Finding.key/1)
-    verdict_keys = MapSet.new(Map.keys(verdicts))
-    unverdicted = keys |> MapSet.difference(verdict_keys) |> Enum.sort()
-    stale = verdict_keys |> MapSet.difference(keys) |> Enum.sort()
+    matched = MapSet.new(Enum.flat_map(findings, &[Finding.key(&1), Finding.concept_key(&1)]))
+
+    unverdicted =
+      for(finding <- findings, verdict_for(finding, verdicts) == nil, do: Finding.key(finding))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    stale = verdicts |> Map.keys() |> Enum.reject(&MapSet.member?(matched, &1)) |> Enum.sort()
 
     if unverdicted == [] and stale == [],
       do: :ok,
@@ -73,7 +101,7 @@ defmodule MediaCentaur.ContextMap.Report do
   defp sorted_objects(list) when is_list(list), do: Enum.map(list, &sorted_objects/1)
   defp sorted_objects(scalar), do: scalar
 
-  @doc ~s(Parses the verdicts JSON into `%{key => %{"verdict", "reason"}}`; raises `ArgumentError` on an entry missing `key`, `verdict` or `reason`, or on a verdict other than `leak` or `allowed`.)
+  @doc ~s(Parses the verdicts JSON into `%{key => %{"verdict", "reason"}}`; raises `ArgumentError` on an entry missing `key`, `verdict` or `reason`, on a verdict other than `leak` or `allowed`, or on a key with a `*` anywhere but as its whole last segment.)
   @spec parse_verdicts(String.t()) :: %{String.t() => map()}
   def parse_verdicts(json) do
     json
@@ -87,12 +115,22 @@ defmodule MediaCentaur.ContextMap.Report do
             "verdict #{inspect(verdict)} for #{key}: only #{inspect(@verdicts)} are stored; \"rule wrong\" changes the rule instead"
     end
 
+    if wildcard_misplaced?(key) do
+      raise ArgumentError,
+            "verdict key #{key}: a * may only be the whole last (consumer) segment of a concept key"
+    end
+
     {key, %{"verdict" => verdict, "reason" => reason}}
   end
 
   defp parse_verdict(entry) do
     raise ArgumentError,
           "verdict entry #{inspect(entry)} must have \"key\", \"verdict\" and \"reason\""
+  end
+
+  defp wildcard_misplaced?(key) do
+    {leading, [last]} = key |> String.split("|") |> Enum.split(-1)
+    Enum.any?(leading, &String.contains?(&1, "*")) or (last != "*" and String.contains?(last, "*"))
   end
 
   @doc "Reads and parses the verdicts file at `path`; a missing file is no verdicts, any other read error raises `File.Error`."

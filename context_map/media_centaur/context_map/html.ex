@@ -17,6 +17,11 @@ defmodule MediaCentaur.ContextMap.Html do
   concept key), then by consumer (the verdict key), then by site, each site
   with its excerpt. Concepts with an unverdicted finding come first. Filters
   act on sites; a consumer or concept with no visible site is hidden.
+
+  A verdict supplied by the concept key (`verdict_key` equal to the
+  concept key) shows once on the concept as its concept verdict; a consumer
+  with its own exact verdict shows it, marked as overriding the concept
+  verdict when the concept has one.
   """
 
   require EEx
@@ -82,7 +87,8 @@ defmodule MediaCentaur.ContextMap.Html do
   defp plural(count, noun), do: "#{count} #{noun}s"
 
   # concept key → consumers (by verdict key) → sites (by file, line). Each
-  # group keeps one `representative` finding for the facts its members share.
+  # group keeps one `representative` finding for the facts its members share;
+  # a concept's `verdict` is a member whose verdict came from the concept key.
   defp concepts(findings) do
     findings
     |> Enum.group_by(& &1.concept_key)
@@ -99,6 +105,7 @@ defmodule MediaCentaur.ContextMap.Html do
         key: concept_key,
         representative: hd(members),
         consumers: consumers,
+        verdict: Enum.find(members, &(&1.verdict_key == concept_key)),
         site_count: length(members),
         unverdicted?: Enum.any?(members, &is_nil(&1.verdict))
       }

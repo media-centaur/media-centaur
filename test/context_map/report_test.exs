@@ -44,8 +44,69 @@ defmodule MediaCentaur.ContextMap.ReportTest do
              concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
              detail: nil,
              verdict: "leak",
-             reason: "search marker"
+             reason: "search marker",
+             verdict_key:
+               "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
            }
+  end
+
+  describe "concept verdicts" do
+    @concept_key "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*"
+    @concept_verdict %{"verdict" => "leak", "reason" => "every consumer"}
+    @exact_verdict %{"verdict" => "allowed", "reason" => "this one"}
+
+    test "verdict_for prefers the exact key, then the concept key, else nil" do
+      exact_key = Finding.key(@finding)
+
+      assert Report.verdict_for(@finding, %{@concept_key => @concept_verdict}) ==
+               {@concept_key, @concept_verdict}
+
+      assert Report.verdict_for(@finding, %{
+               @concept_key => @concept_verdict,
+               exact_key => @exact_verdict
+             }) == {exact_key, @exact_verdict}
+
+      assert Report.verdict_for(@finding, %{"R9|gone" => @exact_verdict}) == nil
+    end
+
+    test "an encoded finding carries the verdict of the key that supplied it" do
+      [encoded] = Report.encode_findings([@finding], %{@concept_key => @concept_verdict})
+      assert %{verdict: "leak", reason: "every consumer", verdict_key: @concept_key} = encoded
+
+      [unverdicted] = Report.encode_findings([@finding], %{})
+      assert %{verdict: nil, reason: nil, verdict_key: nil} = unverdicted
+    end
+
+    test "check counts a finding covered by a concept key; a concept key matching nothing is stale" do
+      assert :ok = Report.check([@finding], %{@concept_key => @concept_verdict})
+
+      assert :ok =
+               Report.check([@finding], %{
+                 @concept_key => @concept_verdict,
+                 Finding.key(@finding) => @exact_verdict
+               })
+
+      stale_concept = "R3|MediaCentaur.Discovery.TitleIntent|rung|list|*"
+
+      assert {:error, %{unverdicted: [], stale: [^stale_concept]}} =
+               Report.check([@finding], %{
+                 @concept_key => @concept_verdict,
+                 stale_concept => @concept_verdict
+               })
+    end
+
+    test "parse_verdicts accepts a * as the whole last segment and rejects it anywhere else" do
+      assert %{@concept_key => @concept_verdict} =
+               Report.parse_verdicts(
+                 ~s([{"key": "#{@concept_key}", "verdict": "leak", "reason": "every consumer"}])
+               )
+
+      for key <- ["R3|*|rung|ignored|Consumer", "R3|Schema|rung|ignored|Consumer*"] do
+        assert_raise ArgumentError, ~r/\*/, fn ->
+          Report.parse_verdicts(~s([{"key": "#{key}", "verdict": "leak", "reason": "r"}]))
+        end
+      end
+    end
   end
 
   test "check reports unverdicted findings and stale verdicts" do

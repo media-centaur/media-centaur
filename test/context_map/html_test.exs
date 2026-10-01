@@ -82,7 +82,8 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
         concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
         detail: nil,
         verdict: nil,
-        reason: nil
+        reason: nil,
+        verdict_key: nil
       }
     ]
   }
@@ -122,7 +123,8 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
   end
 
   test "escapes reasons" do
-    finding = Map.merge(hd(@document.findings), %{verdict: "leak", reason: "<b>x</b>"})
+    first = hd(@document.findings)
+    finding = Map.merge(first, %{verdict: "leak", reason: "<b>x</b>", verdict_key: first.key})
     html = Html.render(%{@document | findings: [finding]})
     assert html =~ "&lt;b&gt;x&lt;/b&gt;"
     refute html =~ "<b>x</b>"
@@ -206,6 +208,35 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
            ]
 
     assert concept |> LazyHTML.query(".concept-head") |> LazyHTML.text() =~ "2 consumers · 3 sites"
+  end
+
+  test "a verdict from the concept key shows on the concept; a consumer's exact verdict is marked as overriding it" do
+    first = hd(@document.findings)
+
+    covered =
+      Map.merge(first, %{
+        verdict: "leak",
+        reason: "<every> consumer",
+        verdict_key: first.concept_key
+      })
+
+    overriding =
+      Map.merge(first, %{
+        key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
+        consumer: "MediaCentaurWeb.Sample",
+        verdict: "allowed",
+        reason: "display only",
+        verdict_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample"
+      })
+
+    html = Html.render(%{@document | findings: [covered, overriding]})
+
+    concept_verdict = html |> query(".concept .concept-verdict") |> LazyHTML.text()
+    assert concept_verdict =~ "concept verdict"
+    assert concept_verdict =~ "<every> consumer"
+
+    assert html |> query(~s(.consumer[data-key="#{overriding.key}"] .overrides)) |> Enum.count() == 1
+    assert html |> query(~s(.consumer[data-key="#{covered.key}"] .overrides)) |> Enum.empty?()
   end
 
   test "escapes excerpts" do
