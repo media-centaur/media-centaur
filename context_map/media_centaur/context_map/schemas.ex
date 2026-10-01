@@ -10,6 +10,9 @@ defmodule MediaCentaur.ContextMap.Schemas do
   Associations carry `name` (the association name), `kind`, `target` (the
   related schema) and `foreign_key`: the owner-side key column for
   `belongs_to`, nil for every other kind.
+
+  `file` is the schema's source path relative to the repository root the
+  task runs from (Mix runs from the root, as `Sources` assumes).
   """
 
   alias MediaCentaur.ContextMap.Contexts
@@ -55,6 +58,7 @@ defmodule MediaCentaur.ContextMap.Schemas do
     %Schema{
       module: module,
       context: Contexts.context_of(module),
+      file: module.module_info(:compile)[:source] |> to_string() |> Path.relative_to_cwd(),
       table: module.__schema__(:source),
       fields: for(name <- module.__schema__(:fields), name not in drop, do: field(module, name)),
       associations:

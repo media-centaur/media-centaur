@@ -7,7 +7,11 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   test "TitleIntent: context, table, enum values, no virtual or timestamp fields" do
     intent = Schemas.from_module(MediaCentaur.Discovery.TitleIntent)
 
-    assert %Schema{context: MediaCentaur.Discovery, table: "title_intents"} = intent
+    assert %Schema{
+             context: MediaCentaur.Discovery,
+             table: "title_intents",
+             file: "lib/media_centaur/discovery/title_intent.ex"
+           } = intent
 
     assert %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list, :follow, :grab]} =
              field(intent, :rung)

@@ -21,6 +21,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
 
   @activity %Schema{
     module: MediaCentaur.Activities.Activity,
+    file: "lib/media_centaur/activities/activity.ex",
     context: MediaCentaur.Activities,
     table: "activities",
     fields: [],
@@ -28,6 +29,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @movie %Schema{
     module: MediaCentaur.Library.Movie,
+    file: "lib/media_centaur/library/movie.ex",
     context: MediaCentaur.Library,
     table: "movies",
     fields: [],
@@ -35,6 +37,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @episode %Schema{
     module: MediaCentaur.Library.Episode,
+    file: "lib/media_centaur/library/episode.ex",
     context: MediaCentaur.Library,
     table: "episodes",
     fields: [],
@@ -42,6 +45,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @intent %Schema{
     module: MediaCentaur.Discovery.TitleIntent,
+    file: "lib/media_centaur/discovery/title_intent.ex",
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
@@ -52,6 +56,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @event %Schema{
     module: MediaCentaur.WatchHistory.Event,
+    file: "lib/media_centaur/watch_history/event.ex",
     context: MediaCentaur.WatchHistory,
     table: "watch_history_events",
     fields: [%{name: :movie_id, type: "Ecto.UUID", values: nil}],
@@ -61,6 +66,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @item %Schema{
     module: MediaCentaur.ReleaseTracking.Item,
+    file: "lib/media_centaur/release_tracking/item.ex",
     context: MediaCentaur.ReleaseTracking,
     table: "release_tracking_items",
     fields: [%{name: :library_container_id, type: "Ecto.UUID", values: nil}],
@@ -68,6 +74,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   }
   @override %Schema{
     module: MediaCentaur.Library.MediaTrackOverride,
+    file: "lib/media_centaur/library/media_track_override.ex",
     context: MediaCentaur.Library,
     table: "media_track_overrides",
     fields: [
@@ -125,6 +132,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   test "a polymorphic key with several unresolvable discriminator values yields one unresolved finding" do
     ghost = %Schema{
       module: MediaCentaur.Pipeline.ImageQueueEntry,
+      file: "lib/media_centaur/pipeline/image_queue_entry.ex",
       context: MediaCentaur.Pipeline,
       table: "image_queue_entries",
       fields: [
@@ -138,5 +146,19 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
 
     assert [%Finding{field: :owner_id, detail: %{unresolved: true}}] =
              Enum.filter(findings, &(&1.field == :owner_id))
+  end
+
+  test "an embedded schema sharing a stem does not block resolution" do
+    embedded = %Schema{
+      module: MediaCentaur.Activities.Activity.Episode,
+      context: MediaCentaur.Activities,
+      file: "lib/media_centaur/activities/activity.ex",
+      table: nil,
+      fields: [],
+      associations: []
+    }
+
+    {findings, _kernel_reads} = CrossContextKey.findings([embedded | @schemas], @contexts)
+    refute Enum.find(findings, &(&1.field == :owner_id))
   end
 end

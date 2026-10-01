@@ -13,4 +13,8 @@ defmodule MediaCentaur.ContextMap.Source do
           ast: Macro.t(),
           lines: [String.t()]
         }
+
+  @doc "The text of 1-based `line`, empty when the file has no such line."
+  @spec line(t(), pos_integer()) :: String.t()
+  def line(%__MODULE__{lines: lines}, line), do: Enum.at(lines, line - 1, "")
 end
