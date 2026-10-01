@@ -67,7 +67,33 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     end
   end
 
-  test "the full document is deterministic" do
-    assert MediaCentaur.ContextMap.build(%{}) == MediaCentaur.ContextMap.build(%{})
+  test "a verdict entry missing key, verdict or reason raises naming the entry" do
+    assert_raise ArgumentError, ~r/"verdict" => "leak"/, fn ->
+      Report.parse_verdicts(~s([{"verdict": "leak", "reason": "r"}]))
+    end
+
+    assert_raise ArgumentError, ~r/R3\|a/, fn ->
+      Report.parse_verdicts(~s([{"key": "R3|a", "verdict": "leak"}]))
+    end
+  end
+
+  @tag :tmp_dir
+  test "a missing verdicts file is no verdicts; any other read error raises", %{tmp_dir: tmp_dir} do
+    assert Report.read_verdicts(Path.join(tmp_dir, "absent.json")) == %{}
+    assert_raise File.Error, fn -> Report.read_verdicts(tmp_dir) end
+  end
+
+  test "the analysis and the full document are deterministic" do
+    analysis = MediaCentaur.ContextMap.analyse()
+    assert analysis == MediaCentaur.ContextMap.analyse()
+
+    assert MediaCentaur.ContextMap.document(analysis, %{}) ==
+             MediaCentaur.ContextMap.document(analysis, %{})
+  end
+
+  test "the analysis findings carry their surfaces and are sorted by key then line" do
+    %{findings: findings} = MediaCentaur.ContextMap.analyse()
+    assert findings == Enum.sort_by(findings, &{Finding.key(&1), &1.line})
+    assert Enum.any?(findings, &(&1.surfaces != []))
   end
 end

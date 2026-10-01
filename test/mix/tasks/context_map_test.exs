@@ -12,4 +12,10 @@ defmodule Mix.Tasks.ContextMapTest do
     assert {:ok, %{"contexts" => _, "findings" => _, "kernel_reads" => _}} =
              json_path |> File.read!() |> Jason.decode()
   end
+
+  test "unexpected arguments raise a Mix error naming them" do
+    assert_raise Mix.Error, ~r/unexpected arguments: \["stray"\]/, fn ->
+      Mix.Tasks.ContextMap.run(["stray"])
+    end
+  end
 end

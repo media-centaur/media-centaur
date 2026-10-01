@@ -26,7 +26,7 @@ defmodule MediaCentaur.ContextMap.Surfaces do
         module
         |> reachers(reverse)
         |> Enum.filter(&MapSet.member?(live_views, &1))
-        |> Enum.sort_by(&inspect/1)
+        |> Enum.sort()
 
       {module, surfaces}
     end

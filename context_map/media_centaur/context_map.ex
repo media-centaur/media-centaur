@@ -20,12 +20,19 @@ defmodule MediaCentaur.ContextMap do
   alias MediaCentaur.ContextMap.Surfaces
 
   @doc """
-  Builds the whole document as a map ready for `Jason.encode!/2`, joining
-  findings with `verdicts` (see `Report.read_verdicts/1`). Every list is
-  sorted; nothing in it depends on time or machine.
+  Runs every reader and rule once: the contexts, schemas, sources, field
+  usage, kernel reads, and the findings with their surfaces joined, sorted
+  by verdict key then line. Nothing in it depends on time or machine.
   """
-  @spec build(%{String.t() => map()}) :: map()
-  def build(verdicts) do
+  @spec analyse() :: %{
+          contexts: [MediaCentaur.ContextMap.Context.t()],
+          schemas: [MediaCentaur.ContextMap.Schema.t()],
+          sources: [MediaCentaur.ContextMap.Source.t()],
+          usage: map(),
+          kernel_reads: [map()],
+          findings: [Finding.t()]
+        }
+  def analyse do
     contexts = Contexts.all()
     schemas = Schemas.all()
     sources = Sources.all()
@@ -41,22 +48,27 @@ defmodule MediaCentaur.ContextMap do
       |> Enum.sort_by(&{Finding.key(&1), &1.line})
 
     %{
-      contexts: Enum.map(contexts, &encode_context(&1, schemas, usage)),
-      kernel_reads: Enum.map(kernel_reads, &encode_kernel_read/1),
-      findings: Report.encode_findings(findings, verdicts)
+      contexts: contexts,
+      schemas: schemas,
+      sources: sources,
+      usage: usage,
+      kernel_reads: kernel_reads,
+      findings: findings
     }
   end
 
-  @doc "The findings alone, for `--check`."
-  @spec findings() :: [Finding.t()]
-  def findings do
-    schemas = Schemas.all()
-    sources = Sources.all()
-    usage = Rules.ForeignField.usage(schemas, sources)
-    {key_findings, _kernel_reads} = Rules.CrossContextKey.findings(schemas, Contexts.all())
-
-    Rules.Reinterpretation.findings(schemas, sources) ++
-      key_findings ++ Rules.ForeignField.findings(schemas, usage)
+  @doc """
+  Encodes an `analyse/0` result as the document map ready for
+  `Jason.encode!/2`, joining findings with `verdicts` (see
+  `Report.read_verdicts/1`).
+  """
+  @spec document(map(), %{String.t() => map()}) :: map()
+  def document(analysis, verdicts) do
+    %{
+      contexts: Enum.map(analysis.contexts, &encode_context(&1, analysis.schemas, analysis.usage)),
+      kernel_reads: Enum.map(analysis.kernel_reads, &encode_kernel_read/1),
+      findings: Report.encode_findings(analysis.findings, verdicts)
+    }
   end
 
   defp encode_kernel_read(read) do
