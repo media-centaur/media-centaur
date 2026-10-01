@@ -80,18 +80,29 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     test "check counts a finding covered by a concept key; a concept key matching nothing is stale" do
       assert :ok = Report.check([@finding], %{@concept_key => @concept_verdict})
 
-      assert :ok =
-               Report.check([@finding], %{
-                 @concept_key => @concept_verdict,
-                 Finding.key(@finding) => @exact_verdict
-               })
-
       stale_concept = "R3|MediaCentaur.Discovery.TitleIntent|rung|list|*"
 
       assert {:error, %{unverdicted: [], stale: [^stale_concept]}} =
                Report.check([@finding], %{
                  @concept_key => @concept_verdict,
                  stale_concept => @concept_verdict
+               })
+    end
+
+    test "a concept key every consumer overrides with an exact key is stale" do
+      other = %{@finding | consumer: MediaCentaurWeb.OtherLive}
+
+      assert {:error, %{unverdicted: [], stale: [@concept_key]}} =
+               Report.check([@finding, other], %{
+                 @concept_key => @concept_verdict,
+                 Finding.key(@finding) => @exact_verdict,
+                 Finding.key(other) => @exact_verdict
+               })
+
+      assert :ok =
+               Report.check([@finding, other], %{
+                 @concept_key => @concept_verdict,
+                 Finding.key(@finding) => @exact_verdict
                })
     end
 

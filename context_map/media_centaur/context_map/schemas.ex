@@ -21,7 +21,9 @@ defmodule MediaCentaur.ContextMap.Schemas do
   not modules nested in it, so two schemas in one file keep apart. A
   `belongs_to` foreign-key field takes its association's declaration. A
   field with no declaration of its own (injected by a macro) has `line: 1`
-  and `declaration: ""`.
+  and `declaration: ""`. An inline embed (`embeds_one :name, Module do …
+  end`) is located, but its block is not searched, so the generated
+  embedded schema's own fields are not located.
   """
 
   alias MediaCentaur.ContextMap.Contexts
@@ -159,10 +161,11 @@ defmodule MediaCentaur.ContextMap.Schemas do
         {:defmodule, _, _}, acc ->
           {nil, acc}
 
-        {call, meta, [{:__block__, _, [name]} | _]} = node, acc
+        {call, meta, [{:__block__, _, [name]} | arguments]} = node, acc
         when call in @declaration_calls and is_atom(name) ->
           line = meta[:line]
-          {node, Map.put_new(acc, name, {line, lines |> Enum.at(line - 1, "") |> String.trim()})}
+          acc = Map.put_new(acc, name, {line, lines |> Enum.at(line - 1, "") |> String.trim()})
+          if inline_embed?(call, arguments), do: {nil, acc}, else: {node, acc}
 
         node, acc ->
           {node, acc}
@@ -170,6 +173,16 @@ defmodule MediaCentaur.ContextMap.Schemas do
 
     found
   end
+
+  defp inline_embed?(call, arguments) when call in [:embeds_one, :embeds_many],
+    do: Enum.any?(arguments, &do_block?/1)
+
+  defp inline_embed?(_call, _arguments), do: false
+
+  defp do_block?(keyword) when is_list(keyword),
+    do: Enum.any?(keyword, &match?({{:__block__, _, [:do]}, _}, &1))
+
+  defp do_block?(_argument), do: false
 
   defp declared(entry, {line, declaration}),
     do: Map.merge(entry, %{line: line, declaration: declaration})

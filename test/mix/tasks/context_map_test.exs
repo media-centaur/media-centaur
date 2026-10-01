@@ -3,6 +3,7 @@ defmodule Mix.Tasks.ContextMapTest do
 
   import ExUnit.CaptureIO
 
+  alias MediaCentaur.ContextMap.Report
   alias Mix.Tasks.ContextMap
 
   @moduletag :tmp_dir
@@ -80,20 +81,20 @@ defmodule Mix.Tasks.ContextMapTest do
   end
 
   test "--diff PATH prints the keys added and removed against the map at PATH", %{tmp_dir: tmp_dir} do
-    %{"findings" => [%{"key" => dropped} | _]} =
-      document = "docs/context-map/context-map.json" |> File.read!() |> Jason.decode!()
+    %{findings: [%{key: dropped} | _] = findings} =
+      document = MediaCentaur.ContextMap.document(MediaCentaur.ContextMap.analyse(), %{})
 
     fabricated =
-      Map.merge(hd(document["findings"]), %{
-        "key" => "R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader",
-        "rule" => "R3",
-        "file" => "lib/sample.ex",
-        "line" => 7
+      Map.merge(hd(findings), %{
+        key: "R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader",
+        rule: "R3",
+        file: "lib/sample.ex",
+        line: 7
       })
 
-    findings = [fabricated | Enum.reject(document["findings"], &(&1["key"] == dropped))]
     previous = Path.join(tmp_dir, "previous.json")
-    File.write!(previous, Jason.encode!(%{document | "findings" => findings}))
+    kept = Enum.reject(findings, &(&1.key == dropped))
+    File.write!(previous, Report.to_json(%{document | findings: [fabricated | kept]}))
 
     output = capture_io(fn -> ContextMap.run(["--diff", previous]) end)
     [added, removed] = String.split(output, "removed (")
@@ -103,5 +104,13 @@ defmodule Mix.Tasks.ContextMapTest do
 
     assert removed =~
              "  R3 R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader · 1 site · first lib/sample.ex:7"
+  end
+
+  test "--diff with a missing PATH fails naming the file before the analysis", %{tmp_dir: tmp_dir} do
+    missing = Path.join(tmp_dir, "absent.json")
+    {microseconds, error} = :timer.tc(fn -> catch_error(ContextMap.run(["--diff", missing])) end)
+
+    assert Exception.message(error) =~ "absent.json"
+    assert microseconds < 1_000_000
   end
 end
