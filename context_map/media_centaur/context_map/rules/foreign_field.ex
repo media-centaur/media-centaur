@@ -8,9 +8,13 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   of a map or struct literal in an expression (an attrs map; a keyword
   argument is not a write), or the field atom on a line that calls
   `cast(`, `put_change(` or `force_change(` (a bare call or
-  `Changeset.cast(`; `broadcast(`, `GenServer.cast(` and the like are not). The schema's own file does
-  not count. A field name declared by more than one schema counts only
-  files that reference the owning schema module.
+  `Changeset.cast(`; `broadcast(`, `GenServer.cast(` and the like are
+  not). The schema's own file does not count.
+
+  A field name is distinctive when exactly one schema declares it and no
+  `defstruct` outside that schema's file declares it. A field name that is
+  not distinctive counts only files that reference the owning schema
+  module.
 
   Findings: `:owner_never_reads` (non-kernel schemas only) and one
   `:foreign_write` per non-owner context that writes the field.
@@ -39,14 +43,20 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
         acc -> Map.update(acc, field.name, [schema.module], &[schema.module | &1])
       end
 
+    struct_declared_in =
+      for source <- sources, key <- source.struct_keys, reduce: %{} do
+        acc -> Map.update(acc, key, [source.path], &[source.path | &1])
+      end
+
     parsed = for source <- sources, source.context != nil, do: {source, Walk.mentions(source)}
 
     for schema <- schemas, field <- schema.fields, into: %{} do
+      distinctive? = distinctive?(declared_by, struct_declared_in, schema, field.name)
+
       sites =
         for {source, mentions} <- parsed,
             source.path != schema.file,
-            distinctive?(declared_by, field.name) or
-              MapSet.member?(source.references, schema.module),
+            distinctive? or MapSet.member?(source.references, schema.module),
             mention <- mentions,
             mention.atom == field.name,
             access <- [access(mention, source)],
@@ -117,7 +127,12 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
     if Regex.match?(@write_call, Source.line(source, line)), do: :write
   end
 
-  defp distinctive?(declared_by, name), do: length(Map.get(declared_by, name, [])) == 1
+  # Declared by exactly one schema and by no `defstruct` outside that
+  # schema's own file.
+  defp distinctive?(declared_by, struct_declared_in, schema, name) do
+    length(Map.get(declared_by, name, [])) == 1 and
+      Enum.all?(Map.get(struct_declared_in, name, []), &(&1 == schema.file))
+  end
 
   defp finding(schema, field, context, module, path, line, detail) do
     %Finding{

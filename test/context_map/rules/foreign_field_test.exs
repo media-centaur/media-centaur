@@ -115,4 +115,29 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
     assert writes.(keyword) == %{}
     assert writes.(map) == %{MediaCentaur.Activities => 1}
   end
+
+  test "a field name also declared by a defstruct elsewhere counts only files referencing the schema" do
+    candidate = %Schema{
+      module: MediaCentaur.Acquisition.Corpus.Candidate,
+      context: MediaCentaur.Acquisition,
+      file: "lib/media_centaur/acquisition/corpus/candidate.ex",
+      table: "acquisition_corpus_candidates",
+      fields: [%{name: :info_hash, type: ":string", values: nil}],
+      associations: []
+    }
+
+    plain =
+      "defmodule MediaCentaur.Search.SearchResult do\n  defstruct [:info_hash]\n  def new(x), do: %{info_hash: x}\nend\n"
+
+    aliased =
+      "defmodule MediaCentaur.Search.SearchResult do\n  alias MediaCentaur.Acquisition.Corpus.Candidate\n  defstruct [:info_hash]\n  def new(x), do: %{info_hash: x}\nend\n"
+
+    writes = fn code ->
+      sources = parse([{"lib/media_centaur/search/search_result.ex", code}])
+      ForeignField.usage([candidate], sources)[{candidate.module, :info_hash}].writes
+    end
+
+    assert writes.(plain) == %{}
+    assert writes.(aliased) == %{MediaCentaur.Search => 1}
+  end
 end

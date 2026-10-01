@@ -37,6 +37,7 @@ defmodule MediaCentaur.ContextMap.Sources do
       modules: modules,
       context: context(modules),
       references: references(expanded, aliases(expanded)),
+      struct_keys: struct_keys(ast),
       live_view?: live_view?(ast),
       ast: ast,
       lines: String.split(code, "\n")
@@ -108,6 +109,32 @@ defmodule MediaCentaur.ContextMap.Sources do
 
     found
   end
+
+  # Keys of every `defstruct`: `[:a, :b]`, `a: 1, b: 2` and `[:a, b: 1]`.
+  defp struct_keys(ast) do
+    {_, found} =
+      Macro.prewalk(ast, MapSet.new(), fn
+        {:defstruct, _, [fields]} = node, acc ->
+          {node, Enum.reduce(struct_fields(fields), acc, &MapSet.put(&2, &1))}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    found
+  end
+
+  defp struct_fields({:__block__, _, [fields]}) when is_list(fields), do: struct_fields(fields)
+
+  defp struct_fields(fields) when is_list(fields) do
+    Enum.flat_map(fields, fn
+      {:__block__, _, [key]} when is_atom(key) -> [key]
+      {{:__block__, _, [key]}, _default} when is_atom(key) -> [key]
+      _ -> []
+    end)
+  end
+
+  defp struct_fields(_), do: []
 
   defp live_view?(ast) do
     {_, found} =

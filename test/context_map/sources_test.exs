@@ -73,4 +73,37 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
     assert Source.line(source, 2) == "  def f, do: :ok"
     assert Source.line(source, 99) == ""
   end
+
+  describe "struct_keys" do
+    test "a list of atoms and a keyword defstruct both yield their keys" do
+      list =
+        Sources.parse(
+          "lib/media_centaur/a.ex",
+          "defmodule MediaCentaur.A do\n  defstruct [:a, :b]\nend\n"
+        )
+
+      keyword =
+        Sources.parse(
+          "lib/media_centaur/b.ex",
+          "defmodule MediaCentaur.B do\n  defstruct c: 1, d: nil\nend\n"
+        )
+
+      mixed =
+        Sources.parse(
+          "lib/media_centaur/c.ex",
+          "defmodule MediaCentaur.C do\n  defstruct [:e, f: 1]\nend\n"
+        )
+
+      assert list.struct_keys == MapSet.new([:a, :b])
+      assert keyword.struct_keys == MapSet.new([:c, :d])
+      assert mixed.struct_keys == MapSet.new([:e, :f])
+    end
+
+    test "a file without defstruct has no struct keys" do
+      source =
+        Sources.parse("lib/media_centaur/d.ex", "defmodule MediaCentaur.D do\n  def f, do: :ok\nend\n")
+
+      assert source.struct_keys == MapSet.new()
+    end
+  end
 end
