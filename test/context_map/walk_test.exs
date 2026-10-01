@@ -62,6 +62,50 @@ defmodule MediaCentaur.ContextMap.WalkTest do
     refute find(mentions, :value, :rung, 5)
   end
 
+  describe "precision" do
+    test "template dot chains yield every field and no Alias.fun call" do
+      mentions = template_mentions("{@entity.meta.status} Format.runtime(@x)")
+
+      assert %{template?: true} = find(mentions, :dot, :meta, 3)
+      assert %{template?: true} = find(mentions, :dot, :status, 3)
+      refute find(mentions, :dot, :runtime, 3)
+    end
+
+    test "a Tailwind arbitrary variant is not an atom value" do
+      mentions = template_mentions(~s(<span class="[&_svg]:size-4"></span>))
+      refute find(mentions, :value, :size, 3)
+    end
+
+    test "with/for generator patterns are patterns" do
+      mentions = mentions_of("def f do\n  with {:ok, %{w: :v}} <- f(), do: :v\nend\n")
+      assert %{pattern?: true} = find(mentions, :key, :w, 2)
+    end
+
+    test "a guard is not a pattern; the guarded head's arguments are" do
+      mentions = mentions_of("def f(x) when x == :g, do: x\ndef f(%{k: 1}) when true, do: 1\n")
+
+      assert %{pattern?: false} = find(mentions, :value, :g, 1)
+      assert %{pattern?: true} = find(mentions, :key, :k, 2)
+    end
+
+    test "defmacrop, defguard and defguardp heads are patterns" do
+      mentions =
+        mentions_of("""
+        defmacrop m(%{a: 1}), do: 1
+        defguard g(%{b: 1}) when true
+        defguardp h(%{c: 1}) when true
+        """)
+
+      assert %{pattern?: true} = find(mentions, :key, :a, 1)
+      assert %{pattern?: true} = find(mentions, :key, :b, 2)
+      assert %{pattern?: true} = find(mentions, :key, :c, 3)
+    end
+  end
+
+  defp mentions_of(code), do: Walk.mentions(Sources.parse("lib/media_centaur/sample.ex", code))
+
+  defp template_mentions(line), do: mentions_of(~s|def t(assigns) do\n  ~H"""\n  #{line}\n  """\nend\n|)
+
   defp find(mentions, kind, atom, line),
     do: Enum.find(mentions, &(&1.kind == kind and &1.atom == atom and &1.line == line))
 end

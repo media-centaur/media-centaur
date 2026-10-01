@@ -43,6 +43,18 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
     assert %Source{context: MediaCentaur.Discovery, live_view?: false} = source
   end
 
+  test "alias __MODULE__.Child resolves against the file's first module" do
+    code = """
+    defmodule MediaCentaur.Sample do
+      alias __MODULE__.Child
+      def x, do: Child.y()
+    end
+    """
+
+    source = Sources.parse("lib/media_centaur/sample.ex", code)
+    assert MediaCentaur.Sample.Child in source.references
+  end
+
   test "all/0 reads every .ex under lib/media_centaur and lib/media_centaur_web, nothing under lib/mix" do
     paths = Enum.map(Sources.all(), & &1.path)
     assert "lib/media_centaur/discovery.ex" in paths

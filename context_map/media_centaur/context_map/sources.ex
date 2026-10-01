@@ -6,7 +6,9 @@ defmodule MediaCentaur.ContextMap.Sources do
   literals are legitimately written.
 
   Aliases are resolved per file (`alias A.B`, `alias A.{B, C}`,
-  `alias A.B, as: C`), not per scope — a stated limit of the map.
+  `alias A.B, as: C`), not per scope — a stated limit of the map. In the
+  same per-file way, `__MODULE__.X` resolves against the file's first
+  `defmodule`.
   """
 
   alias MediaCentaur.ContextMap.Contexts
@@ -28,12 +30,13 @@ defmodule MediaCentaur.ContextMap.Sources do
   def parse(path, code) do
     ast = Sourceror.parse_string!(code)
     modules = defined_modules(ast)
+    expanded = expand_module_references(ast, path, modules)
 
     %Source{
       path: path,
       modules: modules,
       context: context(modules),
-      references: references(ast, aliases(ast)),
+      references: references(expanded, aliases(expanded)),
       live_view?: live_view?(ast),
       ast: ast,
       lines: String.split(code, "\n")
@@ -51,6 +54,19 @@ defmodule MediaCentaur.ContextMap.Sources do
       end)
 
     Enum.reverse(found)
+  end
+
+  defp expand_module_references(ast, path, modules) do
+    Macro.prewalk(ast, fn
+      {:__aliases__, meta, [{:__MODULE__, _, _} | rest]} ->
+        case modules do
+          [current | _] -> {:__aliases__, meta, [current | rest]}
+          [] -> raise ArgumentError, "#{path}: __MODULE__ alias outside any defmodule"
+        end
+
+      node ->
+        node
+    end)
   end
 
   defp aliases(ast) do
