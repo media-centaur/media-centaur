@@ -80,7 +80,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
         [{schema, name, :external}]
 
       values = discriminator_values(schema, stem) ->
-        for value <- values, do: {schema, name, resolve(Atom.to_string(value), by_stem)}
+        Enum.uniq(for value <- values, do: {schema, name, resolve(Atom.to_string(value), by_stem)})
 
       true ->
         [{schema, name, resolve(stem, by_stem)}]
