@@ -50,6 +50,24 @@ defmodule MediaCentaur.ContextMap.Schemas do
       match?(["MediaCentaur" | _], Module.split(module))
   end
 
+  @doc """
+  The source path of `module` relative to `root`. Raises `ArgumentError`
+  when the module was compiled from outside `root`, rather than storing an
+  absolute path.
+  """
+  @spec source_file(module(), String.t()) :: String.t()
+  def source_file(module, root) do
+    path = module.module_info(:compile)[:source] |> to_string() |> Path.relative_to(root)
+
+    if Path.type(path) == :absolute do
+      raise ArgumentError,
+            "#{inspect(module)} was compiled from #{path}, outside the project root #{root}; " <>
+              "run mix context_map from the repository root against a build compiled there"
+    end
+
+    path
+  end
+
   @doc "Reflects one Ecto schema module into a `Schema`."
   @spec from_module(module()) :: Schema.t()
   def from_module(module) do
@@ -58,7 +76,7 @@ defmodule MediaCentaur.ContextMap.Schemas do
     %Schema{
       module: module,
       context: Contexts.context_of(module),
-      file: module.module_info(:compile)[:source] |> to_string() |> Path.relative_to_cwd(),
+      file: source_file(module, File.cwd!()),
       table: module.__schema__(:source),
       fields: for(name <- module.__schema__(:fields), name not in drop, do: field(module, name)),
       associations:

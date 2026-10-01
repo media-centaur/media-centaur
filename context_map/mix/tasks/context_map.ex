@@ -43,7 +43,7 @@ defmodule Mix.Tasks.ContextMap do
 
     analysis = ContextMap.analyse()
     document = ContextMap.document(analysis, verdicts)
-    write(json_path, Jason.encode!(document, pretty: true) <> "\n")
+    write(json_path, Report.to_json(document) <> "\n")
     Mix.shell().info("context map: #{length(document.findings)} findings → #{json_path}")
 
     case html_path(opts) do

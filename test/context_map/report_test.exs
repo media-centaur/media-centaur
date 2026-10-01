@@ -96,4 +96,25 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     assert findings == Enum.sort_by(findings, &{Finding.key(&1), &1.line})
     assert Enum.any?(findings, &(&1.surfaces != []))
   end
+
+  describe "to_json/1" do
+    test "object keys are sorted by their string form, recursively" do
+      json = Report.to_json(%{b: 1, a: %{d: 1, c: 2}})
+      assert Regex.match?(~r/"a".*"c".*"d".*"b"/s, json)
+    end
+
+    test "every object in the document has sorted keys" do
+      document = MediaCentaur.ContextMap.document(MediaCentaur.ContextMap.analyse(), %{})
+      decoded = document |> Report.to_json() |> Jason.decode!(objects: :ordered_objects)
+      assert sorted_keys?(decoded)
+    end
+  end
+
+  defp sorted_keys?(%Jason.OrderedObject{values: values}) do
+    keys = Enum.map(values, &elem(&1, 0))
+    keys == Enum.sort(keys) and Enum.all?(values, &sorted_keys?(elem(&1, 1)))
+  end
+
+  defp sorted_keys?(list) when is_list(list), do: Enum.all?(list, &sorted_keys?/1)
+  defp sorted_keys?(_scalar), do: true
 end

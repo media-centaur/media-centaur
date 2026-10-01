@@ -4,9 +4,11 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   to another context's table for its own need.
 
   Every mention of a field name is attributed to the mentioning file's
-  context. A read is a dot access or a key in a pattern; a write is a key
-  of a map or struct literal in an expression (an attrs map; a keyword
-  argument is not a write), or the field atom on a line that calls
+  context. A read is a dot access, a key in a pattern, a keyword key in an
+  expression (`where: [rung: ^x]`, `get_by(S, rung: x)`), or the field
+  atom on a line that calls `Map.` / `Keyword.` `get`, `fetch`, `fetch!`,
+  `has_key?`, `take` or `pop`. A write is a key of a map or struct literal
+  in an expression (an attrs map), or the field atom on a line that calls
   `cast(`, `put_change(` or `force_change(` (a bare call or
   `Changeset.cast(`; `broadcast(`, `GenServer.cast(` and the like are
   not). The schema's own file does not count.
@@ -27,6 +29,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   alias MediaCentaur.ContextMap.Walk
 
   @write_call ~r/(?<![\w.])(cast|put_change|force_change)\(|Changeset\.cast\(/
+  @read_call ~r/\b(Map|Keyword)\.(get|fetch|fetch!|has_key\?|take|pop)\(/
 
   @type site :: {module() | :web, module() | nil, String.t(), pos_integer(), :read | :write}
   @type usage :: %{
@@ -121,10 +124,16 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   defp access(%{kind: :dot}, _source), do: :read
   defp access(%{kind: :key, pattern?: true}, _source), do: :read
   defp access(%{kind: :key, map?: true}, _source), do: :write
-  defp access(%{kind: :key}, _source), do: nil
+  defp access(%{kind: :key}, _source), do: :read
 
   defp access(%{kind: :value, line: line}, source) do
-    if Regex.match?(@write_call, Source.line(source, line)), do: :write
+    text = Source.line(source, line)
+
+    cond do
+      Regex.match?(@write_call, text) -> :write
+      Regex.match?(@read_call, text) -> :read
+      true -> nil
+    end
   end
 
   # Declared by exactly one schema and by no `defstruct` outside that
