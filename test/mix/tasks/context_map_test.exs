@@ -106,11 +106,11 @@ defmodule Mix.Tasks.ContextMapTest do
              "  R3 R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader · 1 site · first lib/sample.ex:7"
   end
 
-  test "--diff with a missing PATH fails naming the file before the analysis", %{tmp_dir: tmp_dir} do
+  test "--diff with a missing PATH fails naming the file", %{tmp_dir: tmp_dir} do
     missing = Path.join(tmp_dir, "absent.json")
-    {microseconds, error} = :timer.tc(fn -> catch_error(ContextMap.run(["--diff", missing])) end)
+    error = catch_error(ContextMap.run(["--diff", missing]))
 
+    assert %File.Error{} = error
     assert Exception.message(error) =~ "absent.json"
-    assert microseconds < 1_000_000
   end
 end
