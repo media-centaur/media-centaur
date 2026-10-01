@@ -119,6 +119,33 @@ defmodule MediaCentaur.ContextMap.Report do
   defp summary(%{rule: "R4", detail: %{target: target}}), do: "keys into #{target}"
 
   @doc """
+  The verdict keys in `current` but not `previous` (`added`) and in
+  `previous` but not `current` (`removed`), both lists of encoded findings.
+  Each entry carries the key, rule, site count and first site by path then
+  line, sorted by key. A line move or excerpt change within a key present
+  in both is not reported.
+  """
+  @spec diff([map()], [map()]) :: %{added: [map()], removed: [map()]}
+  def diff(previous, current) do
+    previous_by_key = Enum.group_by(previous, & &1.key)
+    current_by_key = Enum.group_by(current, & &1.key)
+    %{added: only_in(current_by_key, previous_by_key), removed: only_in(previous_by_key, current_by_key)}
+  end
+
+  defp only_in(by_key, other) do
+    for {key, [finding | _] = sites} <- Enum.sort(by_key), not Map.has_key?(other, key) do
+      first = Enum.min_by(sites, &{&1.file, &1.line})
+
+      %{
+        key: key,
+        rule: finding.rule,
+        sites: length(sites),
+        first: %{file: first.file, line: first.line, excerpt: first.excerpt}
+      }
+    end
+  end
+
+  @doc """
   Pretty JSON of `term` with every object's keys sorted by their string
   form, recursively, so the output does not depend on atom creation order.
   """

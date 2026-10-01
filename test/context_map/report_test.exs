@@ -207,6 +207,41 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     end
   end
 
+  describe "diff/2" do
+    test "lists verdict keys added and removed with site count and first site; line moves are not reported" do
+      previous = [
+        encoded(%{key: "R3|S|f|a|Kept", file: "lib/kept.ex", line: 4, excerpt: "old"}),
+        encoded(%{key: "R3|S|f|a|Kept", file: "lib/kept.ex", line: 9, excerpt: "old"}),
+        encoded(%{key: "R1|S|g||gone", rule: "R1", file: "lib/gone.ex", line: 2, excerpt: "gone"})
+      ]
+
+      current = [
+        encoded(%{key: "R3|S|f|a|Kept", file: "lib/kept.ex", line: 40, excerpt: "moved"}),
+        encoded(%{key: "R3|S|f|b|New", file: "lib/z.ex", line: 5, excerpt: "z"}),
+        encoded(%{key: "R3|S|f|b|New", file: "lib/m.ex", line: 9, excerpt: "m"})
+      ]
+
+      assert Report.diff(previous, current) == %{
+               added: [
+                 %{
+                   key: "R3|S|f|b|New",
+                   rule: "R3",
+                   sites: 2,
+                   first: %{file: "lib/m.ex", line: 9, excerpt: "m"}
+                 }
+               ],
+               removed: [
+                 %{
+                   key: "R1|S|g||gone",
+                   rule: "R1",
+                   sites: 1,
+                   first: %{file: "lib/gone.ex", line: 2, excerpt: "gone"}
+                 }
+               ]
+             }
+    end
+  end
+
   describe "to_json/1" do
     test "object keys are sorted by their string form, recursively" do
       json = Report.to_json(%{b: 1, a: %{d: 1, c: 2}})

@@ -13,6 +13,8 @@ defmodule Mix.Tasks.ContextMap do
       mix context_map --html path/to/context-map.html
       mix context_map --check
       mix context_map --list
+      mix context_map --diff
+      mix context_map --diff path/to/previous-map.json
 
   `--page` also writes the self-contained page to `tmp/context-map.html`
   (gitignored); `--html PATH` writes it to PATH instead. Without either,
@@ -24,6 +26,11 @@ defmodule Mix.Tasks.ContextMap do
 
     * `--check` fails when a finding has no verdict or a verdict has no
       finding.
+    * `--diff [PATH]` prints the verdict keys added and removed between
+      the fresh analysis and the map at PATH (default
+      `docs/context-map/context-map.json`), each with its rule, site count
+      and first `file:line`; line moves within a key are not reported. It
+      is informational and always exits 0.
     * `--list` prints one `path:line: RULE schema.field[ = value] — summary`
       line per site, sorted by path then line, for an editor's jump list.
   """
@@ -38,7 +45,7 @@ defmodule Mix.Tasks.ContextMap do
   @default_verdicts "docs/context-map/verdicts.json"
   @page_path "tmp/context-map.html"
 
-  @query_modes [:list, :check]
+  @query_modes [:list, :diff, :check]
 
   @impl Mix.Task
   def run(args) do
@@ -50,11 +57,12 @@ defmodule Mix.Tasks.ContextMap do
           page: :boolean,
           check: :boolean,
           list: :boolean,
+          diff: :boolean,
           verdicts: :string
         ]
       )
 
-    if rest != [], do: Mix.raise("unexpected arguments: #{inspect(rest)}")
+    diff_path = diff_path(opts, rest)
     verdicts = Report.read_verdicts(Keyword.get(opts, :verdicts, @default_verdicts))
 
     analysis = ContextMap.analyse()
@@ -62,7 +70,17 @@ defmodule Mix.Tasks.ContextMap do
     write_json(document, json_path(opts))
     write_html(document, html_path(opts))
     if opts[:list], do: list(document.findings)
+    if diff_path, do: diff(diff_path, document.findings)
     if opts[:check], do: check(analysis.findings, verdicts)
+  end
+
+  # `--diff` takes an optional PATH as the one positional argument.
+  defp diff_path(opts, rest) do
+    case {opts[:diff], rest} do
+      {_diff, []} -> opts[:diff] && @default_json
+      {true, [path]} -> path
+      _other -> Mix.raise("unexpected arguments: #{inspect(rest)}")
+    end
   end
 
   defp json_path(opts) do
@@ -96,6 +114,22 @@ defmodule Mix.Tasks.ContextMap do
   end
 
   defp list(findings), do: for(line <- Report.list_lines(findings), do: Mix.shell().info(line))
+
+  defp diff(path, findings) do
+    %{findings: previous} = path |> File.read!() |> Jason.decode!(keys: :atoms)
+    %{added: added, removed: removed} = Report.diff(previous, findings)
+    diff_section("added", added)
+    diff_section("removed", removed)
+  end
+
+  defp diff_section(title, entries) do
+    Mix.shell().info("#{title} (#{length(entries)})")
+
+    for %{key: key, rule: rule, sites: sites, first: first} <- entries do
+      noun = if sites == 1, do: "site", else: "sites"
+      Mix.shell().info("  #{rule} #{key} · #{sites} #{noun} · first #{first.file}:#{first.line}")
+    end
+  end
 
   defp write(path, contents) do
     File.mkdir_p!(Path.dirname(path))
