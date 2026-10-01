@@ -8,7 +8,7 @@
 
 **Tech Stack:** Elixir 1.20, Sourceror 1.12 (already a dev/test dep), Ecto 3.14 schema reflection, Boundary's persisted module attribute, Jason, EEx. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-30-context-map-design.md`. Three signal details settled here and recorded back into the spec in Task 14: R3 reports an *unanchored* value only when that value belongs to exactly one schema field in the whole app (so `:movie` does not flood Discovery with findings); R2's "kernel" test applies to the *referenced* side of a crossing (the schema whose value is interpreted, or the key's target); `Item.library_container_id` resolves to no schema and is reported as an unresolved key rather than a kernel read.
+**Spec:** `docs/superpowers/specs/2026-09-30-context-map-design.md`. Three signal details settled here and recorded back into the spec in Task 14: R3 reports an *unanchored* value only when that value belongs to exactly one schema field in the whole app (so `:movie` does not flood Discovery with findings); R2's "kernel" test applies to the *referenced* side of a crossing (the schema whose value is interpreted, or the key's target). (Corrected 2026-10-01: `Item.library_container_id` resolves polymorphically through `library_container_type` to Library schemas and lands in `kernel_reads`, as the spec § 4 says; the fixture rows for `activity_id`/`source` are `owner_never_reads`, not foreign writes — the spec § 4 amendment explains why.)
 
 **Every `mix` invocation below goes through `~/scripts/agents/agent-mix`** (CLAUDE.md: never run `mix` directly in an agent shell). Written as `agent-mix …`.
 
@@ -2191,21 +2191,20 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
     assert MediaCentaurWeb.IncomingLive in Map.get(ContextMap.Surfaces.index(ContextMap.Sources.all()), logic.consumer)
   end
 
-  test "R1: TitleIntent.activity_id is never read by Discovery and is written from Activities", %{findings: findings} do
+  test "R1: TitleIntent.activity_id is never read by Discovery", %{findings: findings} do
     assert Enum.any?(findings, &match?(%Finding{rule: "R1", schema: MediaCentaur.Discovery.TitleIntent, field: :activity_id, detail: %{kind: :owner_never_reads}}, &1))
-    assert Enum.any?(findings, &match?(%Finding{rule: "R1", schema: MediaCentaur.Discovery.TitleIntent, field: :activity_id, detail: %{kind: :foreign_write}, consumer_context: MediaCentaur.Activities}, &1))
   end
 
-  test "R1: TitleIntent.source is written from Activities", %{findings: findings} do
-    assert Enum.any?(findings, &match?(%Finding{rule: "R1", schema: MediaCentaur.Discovery.TitleIntent, field: :source, detail: %{kind: :foreign_write}, consumer_context: MediaCentaur.Activities}, &1))
+  test "R1: TitleIntent.source is never read by Discovery", %{findings: findings} do
+    assert Enum.any?(findings, &match?(%Finding{rule: "R1", schema: MediaCentaur.Discovery.TitleIntent, field: :source, detail: %{kind: :owner_never_reads}}, &1))
   end
 
   test "R4: TitleIntent.activity_id keys into Activities, which Discovery does not depend on", %{findings: findings} do
     assert Enum.any?(findings, &match?(%Finding{rule: "R4", schema: MediaCentaur.Discovery.TitleIntent, field: :activity_id, detail: %{target: MediaCentaur.Activities.Activity, in_deps: false}}, &1))
   end
 
-  test "R4: ReleaseTracking.Item.library_container_id is reported unresolved", %{findings: findings} do
-    assert Enum.any?(findings, &match?(%Finding{rule: "R4", schema: MediaCentaur.ReleaseTracking.Item, field: :library_container_id, detail: %{unresolved: true}}, &1))
+  test "R2: ReleaseTracking.Item.library_container_id resolves through its type column into the kernel", %{document: document} do
+    assert Enum.any?(document.kernel_reads, &(&1.schema == "MediaCentaur.ReleaseTracking.Item" and &1.field == "library_container_id" and &1.target == "MediaCentaur.Library.Movie"))
   end
 
   test "R2: WatchHistory.Event.movie_id is a kernel read", %{document: document} do
@@ -2228,7 +2227,7 @@ echo '[]' > docs/context-map/verdicts.json
 
 Open `tmp/context-map.html` with `subl` for the user. Commit `docs/context-map/context-map.json` and the empty verdicts file.
 
-- [ ] **Step 4: Amend the spec** — append under § 3 R3 *Limits*: "2026-10-01: an unanchored value is reported only when exactly one schema field in the application declares it (`Schemas.value_owners/1`); a vocabulary shared by several schemas (`:movie`) is reported only when anchored." Under § 3 R2 *Signal*: "2026-10-01: 'owner' here means the referenced side — the schema whose value is interpreted (R3) or the key's target (R4)." In § 4 replace the R2 row with `WatchHistory.Event.movie_id → Library.Movie | expected in kernel_reads` and add `R4 | Release Tracking | Item.library_container_id | reported unresolved; expected verdict allowed, reason "kernel container id"`. Section 5's example output stands.
+- [ ] **Step 4: Amend the spec** — append under § 3 R3 *Limits*: "2026-10-01: an unanchored value is reported only when exactly one schema field in the application declares it (`Schemas.value_owners/1`); a vocabulary shared by several schemas (`:movie`) is reported only when anchored." Under § 3 R2 *Signal*: "2026-10-01: 'owner' here means the referenced side — the schema whose value is interpreted (R3) or the key's target (R4)." In § 4 add the row `R2 | Watch History | Event.movie_id → Library.Movie | expected in kernel_reads` (the `activity_id`/`source` rows and the `library_container_id` row were already corrected on 2026-10-01). Section 5's example output stands.
 
 - [ ] **Step 5: Contributor doc and docs map**
 

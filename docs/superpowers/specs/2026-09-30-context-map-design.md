@@ -80,7 +80,13 @@ is reported when the owning context, excluding the schema module itself,
 migrations and tests, never reads or writes it, or when another context
 writes it.
 
-*Limits.* Reads are anchored on the field name (`.field`, `field:` in a
+*Limits.* A write made through a helper the owning schema provides
+(`TitleIntent.friend_provenance/2` called from the web layer) is a
+function call to the signal, not a key literal, and is attributed to the
+owner. A field name declared by exactly one schema may still be shared
+with non-schema structs (`FeedEntry.activity_id`), which the signal
+counts as uses of the schema field until struct keys are included in the
+distinctiveness test. Reads are anchored on the field name (`.field`, `field:` in a
 pattern or keyword, `x.field` in a query, `Map.get(_, :field)`, `cast/3`
 lists). For a field name that is not distinctive (`name`, `status`, `id`,
 `inserted_at`), the count is restricted to files that reference the owning
@@ -161,13 +167,21 @@ that loses one is rejected.
 | R3 | Discovery | `TitleIntent.rung` (`:ignored`) | `MediaCentaurWeb.Components.Title.WatchlistToggle` |
 | R3 | Discovery | `TitleIntent.rung` (`:ignored`) | `MediaCentaurWeb.Components.Title.TrackingControls` |
 | R3 | Discovery | `TitleIntent.rung` (`:ignored`) | `MediaCentaurWeb.DiscoveryLive.FeedEntries` (the one documented consumer; expected verdict *allowed*) |
-| R1 | Discovery | `TitleIntent.activity_id` | written from Activities, never read in Discovery |
-| R1 | Discovery | `TitleIntent.source` (`:friend`) | written from Activities |
+| R1 | Discovery | `TitleIntent.activity_id` | never read in Discovery (`owner_never_reads`) |
+| R1 | Discovery | `TitleIntent.source` (`:friend`) | never read in Discovery (`owner_never_reads`) |
 | R4 | Discovery | `TitleIntent.activity_id` → Activities | target context not in Discovery's `deps` |
-| R2 | Release Tracking | `Item.library_container_id` → Library | expected in `kernel_reads`, not in `findings` |
+| R2 | Release Tracking | `Item.library_container_id` → Library | resolves through `library_container_type`; expected in `kernel_reads`, not in `findings` |
 
 The fixture list grows with every leak found by other means; it is
 append-only (ADR-027 applies to the test that encodes it).
+
+*Amendment 2026-10-01.* The first draft listed `activity_id` and `source`
+as "written from Activities". By the time the extractor ran, the friend
+provenance was built by the owner's own helper
+(`TitleIntent.friend_provenance/2`) and called from the web layer, so no
+non-owner file holds the key literal. R1 attributes a write through an
+owner-provided helper to the owner — a stated limit (§ 3 R1) — and the
+bolt-on is caught by `owner_never_reads` instead. The rows above say so.
 
 ## 5. The extractor
 
