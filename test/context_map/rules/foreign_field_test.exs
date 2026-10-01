@@ -8,6 +8,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
 
   @intent %Schema{
     module: MediaCentaur.Discovery.TitleIntent,
+    file: "lib/media_centaur/discovery/title_intent.ex",
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
@@ -19,6 +20,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
   }
   @activity %Schema{
     module: MediaCentaur.Activities.Activity,
+    file: "lib/media_centaur/activities/activity.ex",
     context: MediaCentaur.Activities,
     table: "activities",
     fields: [%{name: :note, type: ":string", values: nil}],
@@ -34,7 +36,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
                "defmodule MediaCentaur.Activities do\n  alias MediaCentaur.Discovery.TitleIntent\n  def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})\n  def own(%Activity{note: note}), do: note\nend\n"}
 
   defp parse(files), do: Enum.map(files, fn {path, code} -> Sources.parse(path, code) end)
-  defp run(files), do: ForeignField.findings(@schemas, parse(files))
+  defp run(files), do: ForeignField.findings(@schemas, ForeignField.usage(@schemas, parse(files)))
 
   test "a field the owner never reads, written from another context, yields both findings" do
     findings =
@@ -83,5 +85,18 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
              usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}]
 
     assert reads == %{}
+  end
+
+  test "a call named like cast is not a write; a Changeset.cast permitted list is" do
+    code =
+      "defmodule MediaCentaur.Activities do\n  def a, do: broadcast(:activity_id)\n  def b(c, attrs), do: Changeset.cast(c, attrs, [:activity_id])\nend\n"
+
+    usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))
+
+    assert [
+             {MediaCentaur.Activities, MediaCentaur.Activities, "lib/media_centaur/activities.ex", 3,
+              :write}
+           ] =
+             usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].sites
   end
 end

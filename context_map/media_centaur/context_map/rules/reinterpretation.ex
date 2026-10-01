@@ -29,7 +29,7 @@ defmodule MediaCentaur.ContextMap.Rules.Reinterpretation do
           %{values: values} = field when is_list(values) <- schema.fields,
           do: {schema, field}
 
-    Enum.uniq_by(
+    findings =
       for %Source{context: context} = source when not is_nil(context) <- sources,
           mention <- Walk.mentions(source),
           mention.kind == :value,
@@ -50,13 +50,15 @@ defmodule MediaCentaur.ContextMap.Rules.Reinterpretation do
           file: source.path,
           line: mention.line
         }
-      end,
-      &{Finding.key(&1), &1.line}
-    )
+      end
+
+    findings
+    |> Enum.uniq_by(&{Finding.key(&1), &1.line})
+    |> Enum.sort_by(&{Finding.key(&1), &1.line})
   end
 
   defp anchored?(source, mention, schema, field) do
-    line_text = Enum.at(source.lines, mention.line - 1, "")
+    line_text = Source.line(source, mention.line)
 
     String.contains?(line_text, Atom.to_string(field.name)) or
       MapSet.member?(source.references, schema.module)

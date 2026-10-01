@@ -62,4 +62,15 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
     refute Enum.any?(paths, &String.starts_with?(&1, "lib/mix/"))
     assert paths == Enum.sort(paths)
   end
+
+  test "line/2 is the text of a 1-based line, empty past the end" do
+    source =
+      Sources.parse(
+        "lib/media_centaur/sample.ex",
+        "defmodule MediaCentaur.Sample do\n  def f, do: :ok\nend\n"
+      )
+
+    assert Source.line(source, 2) == "  def f, do: :ok"
+    assert Source.line(source, 99) == ""
+  end
 end

@@ -5,10 +5,10 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
 
   Associations resolve to their target schema; an association's key field
   is its foreign key for `belongs_to`, its name otherwise. A `<stem>_id` /
-  `<stem>_ids` field without an association resolves to the schema whose
-  module's last segment (underscored) or whose table (minus a trailing
-  `s`) equals the stem; a `<stem>_type` enum beside it resolves each value
-  the same way. `tmdb_id`, `imdb_id`, `tvdb_id` and `tmdb_person_id` are
+  `<stem>_ids` field without an association resolves to the table-backed
+  schema whose module's last segment (underscored) equals the stem;
+  embedded schemas are not key targets. A `<stem>_type` enum beside it
+  resolves each value the same way. `tmdb_id`, `imdb_id`, `tvdb_id` and `tmdb_person_id` are
   external identity. A key the resolver cannot place is reported
   unresolved rather than guessed.
   """
@@ -109,18 +109,13 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
   end
 
   defp stems(schemas) do
-    for schema <- schemas,
-        stem <- [module_stem(schema.module), table_stem(schema.table)],
-        stem != nil,
-        reduce: %{} do
-      acc -> Map.update(acc, stem, [schema.module], &Enum.uniq([schema.module | &1]))
+    for schema <- schemas, schema.table != nil, reduce: %{} do
+      acc ->
+        Map.update(acc, module_stem(schema.module), [schema.module], &[schema.module | &1])
     end
   end
 
   defp module_stem(module), do: module |> Module.split() |> List.last() |> Macro.underscore()
-
-  defp table_stem(nil), do: nil
-  defp table_stem(table), do: String.replace_suffix(table, "s", "")
 
   defp resolve(stem, by_stem) do
     case Map.get(by_stem, stem, []) do
@@ -166,7 +161,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
       field: field,
       consumer: nil,
       consumer_context: Map.get(detail, :target_context),
-      file: schema.module.module_info(:compile)[:source] |> to_string() |> Path.relative_to_cwd(),
+      file: schema.file,
       line: 1,
       detail: detail
     }

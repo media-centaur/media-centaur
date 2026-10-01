@@ -8,6 +8,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
 
   @intent %Schema{
     module: MediaCentaur.Discovery.TitleIntent,
+    file: "lib/media_centaur/discovery/title_intent.ex",
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
@@ -18,6 +19,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
   }
   @item %Schema{
     module: MediaCentaur.ReleaseTracking.Item,
+    file: "lib/media_centaur/release_tracking/item.ex",
     context: MediaCentaur.ReleaseTracking,
     table: "release_tracking_items",
     fields: [%{name: :media_type, type: "Ecto.Enum", values: [:movie, :tv_series]}],
@@ -25,6 +27,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
   }
   @movie %Schema{
     module: MediaCentaur.Library.Movie,
+    file: "lib/media_centaur/library/movie.ex",
     context: MediaCentaur.Library,
     table: "movies",
     fields: [%{name: :kind, type: "Ecto.Enum", values: [:feature, :short]}],
@@ -85,5 +88,13 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
 
     assert [%Finding{value: :ignored, anchored?: false}] =
              run("lib/media_centaur_web/components/title/tracking_controls.ex", code)
+  end
+
+  test "findings are sorted by verdict key, then line" do
+    code =
+      "defmodule MediaCentaurWeb.Sample do\n  def a(rung), do: rung == :list\n  def b(rung), do: rung == :ignored\nend\n"
+
+    assert [%Finding{value: :ignored, line: 3}, %Finding{value: :list, line: 2}] =
+             run("lib/media_centaur_web/sample.ex", code)
   end
 end

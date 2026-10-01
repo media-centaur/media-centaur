@@ -6,7 +6,8 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   Every mention of a field name is attributed to the mentioning file's
   context. A read is a dot access or a key in a pattern; a write is a key
   in an expression (an attrs map), or the field atom on a line that calls
-  `cast(`, `put_change(` or `force_change(`. The schema's own file does
+  `cast(`, `put_change(` or `force_change(` (a bare call or
+  `Changeset.cast(`; `broadcast(`, `GenServer.cast(` and the like are not). The schema's own file does
   not count. A field name declared by more than one schema counts only
   files that reference the owning schema module.
 
@@ -20,7 +21,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   alias MediaCentaur.ContextMap.Source
   alias MediaCentaur.ContextMap.Walk
 
-  @write_calls ["cast(", "put_change(", "force_change("]
+  @write_call ~r/(?<![\w.])(cast|put_change|force_change)\(|Changeset\.cast\(/
 
   @type site :: {module() | :web, module() | nil, String.t(), pos_integer(), :read | :write}
   @type usage :: %{
@@ -40,11 +41,9 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
     parsed = for source <- sources, source.context != nil, do: {source, Walk.mentions(source)}
 
     for schema <- schemas, field <- schema.fields, into: %{} do
-      schema_file = schema_file(schema)
-
       sites =
         for {source, mentions} <- parsed,
-            source.path != schema_file,
+            source.path != schema.file,
             distinctive?(declared_by, field.name) or
               MapSet.member?(source.references, schema.module),
             mention <- mentions,
@@ -63,11 +62,12 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
     end
   end
 
-  @doc "Every R1 finding: `:owner_never_reads` and `:foreign_write`, sorted by verdict key."
-  @spec findings([Schema.t()], [Source.t()]) :: [Finding.t()]
-  def findings(schemas, sources) do
-    usage = usage(schemas, sources)
-
+  @doc """
+  Every R1 finding — `:owner_never_reads` and `:foreign_write` — from the
+  `usage/2` table of `schemas`, sorted by verdict key.
+  """
+  @spec findings([Schema.t()], %{{module(), atom()} => usage()}) :: [Finding.t()]
+  def findings(schemas, usage) do
     Enum.sort_by(
       for schema <- schemas,
           field <- schema.fields,
@@ -82,7 +82,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
     never_read =
       if not Contexts.kernel?(schema.context) and Map.get(field_usage.reads, schema.context, 0) == 0 do
         [
-          finding(schema, field, schema.context, nil, schema_file(schema), 1, %{
+          finding(schema, field, schema.context, nil, schema.file, 1, %{
             kind: :owner_never_reads
           })
         ]
@@ -92,8 +92,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
 
     foreign_writes =
       for {context, module, path, line, :write} <- field_usage.sites,
-          context != schema.context,
-          uniq: true do
+          context != schema.context do
         {context, module, path, line}
       end
       |> Enum.uniq_by(&elem(&1, 0))
@@ -113,14 +112,10 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   defp access(%{kind: :key, pattern?: false}, _source), do: :write
 
   defp access(%{kind: :value, line: line}, source) do
-    text = Enum.at(source.lines, line - 1, "")
-    if Enum.any?(@write_calls, &String.contains?(text, &1)), do: :write
+    if Regex.match?(@write_call, Source.line(source, line)), do: :write
   end
 
   defp distinctive?(declared_by, name), do: length(Map.get(declared_by, name, [])) == 1
-
-  defp schema_file(%Schema{module: module}),
-    do: module.module_info(:compile)[:source] |> to_string() |> Path.relative_to_cwd()
 
   defp finding(schema, field, context, module, path, line, detail) do
     %Finding{
