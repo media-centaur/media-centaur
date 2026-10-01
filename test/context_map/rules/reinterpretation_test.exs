@@ -97,4 +97,36 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
     assert [%Finding{value: :ignored, line: 3}, %Finding{value: :list, line: 2}] =
              run("lib/media_centaur_web/sample.ex", code)
   end
+
+  test "a value declared by schemas in two contexts is shared vocabulary, not reported even when anchored" do
+    code =
+      "defmodule MediaCentaur.Activities do\n  def kind(media_type), do: media_type == :movie\nend\n"
+
+    assert [] = run("lib/media_centaur/activities.ex", code)
+  end
+
+  test "a value declared by two schemas of one context is still reported outside it" do
+    plan = %Schema{
+      module: MediaCentaur.Acquisition.Plans.Plan,
+      context: MediaCentaur.Acquisition,
+      file: "lib/media_centaur/acquisition/plans/plan.ex",
+      table: "acquisition_plans",
+      fields: [%{name: :state, type: "Ecto.Enum", values: [:sample_state]}],
+      associations: []
+    }
+
+    unit = %{
+      plan
+      | module: MediaCentaur.Acquisition.Pursuits.Unit,
+        file: "lib/media_centaur/acquisition/pursuits/unit.ex"
+    }
+
+    code = "defmodule MediaCentaurWeb.Sample do\n  def f(state), do: state == :sample_state\nend\n"
+
+    findings =
+      Reinterpretation.findings([plan, unit], [Sources.parse("lib/media_centaur_web/sample.ex", code)])
+
+    assert [MediaCentaur.Acquisition.Plans.Plan, MediaCentaur.Acquisition.Pursuits.Unit] =
+             findings |> Enum.map(& &1.schema) |> Enum.sort()
+  end
 end

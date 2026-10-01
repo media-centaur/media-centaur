@@ -102,6 +102,42 @@ defmodule MediaCentaur.ContextMap.WalkTest do
     end
   end
 
+  describe "map?" do
+    test "a key in a map literal is a map key" do
+      mentions = mentions_of("def f(id), do: %{activity_id: id}\n")
+      assert %{map?: true, pattern?: false} = find(mentions, :key, :activity_id, 1)
+    end
+
+    test "a keyword argument and a keyword list are not map keys" do
+      mentions = mentions_of("def f(id), do: g(activity_id: id)\ndef h(id), do: [activity_id: id]\n")
+      assert %{map?: false} = find(mentions, :key, :activity_id, 1)
+      assert %{map?: false} = find(mentions, :key, :activity_id, 2)
+    end
+
+    test "a key in a struct literal is a map key" do
+      mentions = mentions_of("def f, do: %TitleIntent{rung: :list}\n")
+      assert %{map?: true} = find(mentions, :key, :rung, 1)
+      refute find(mentions, :value, :rung, 1)
+    end
+
+    test "a map key in a def head is a pattern map key" do
+      mentions = mentions_of("def f(%{rung: r}), do: r\n")
+      assert %{map?: true, pattern?: true} = find(mentions, :key, :rung, 1)
+    end
+
+    test "a key in a map update is a map key" do
+      mentions = mentions_of("def f(m), do: %{m | rung: :list}\n")
+      assert %{map?: true} = find(mentions, :key, :rung, 1)
+    end
+
+    test "dot, value and template mentions are not map keys" do
+      mentions = template_mentions("{@x.rung} :list")
+      assert %{map?: false} = find(mentions, :dot, :rung, 3)
+      assert %{map?: false} = find(mentions, :value, :list, 3)
+      assert %{map?: false} = find(mentions_of("def f(x), do: {x.rung, :list}\n"), :dot, :rung, 1)
+    end
+  end
+
   defp mentions_of(code), do: Walk.mentions(Sources.parse("lib/media_centaur/sample.ex", code))
 
   defp template_mentions(line), do: mentions_of(~s|def t(assigns) do\n  ~H"""\n  #{line}\n  """\nend\n|)
