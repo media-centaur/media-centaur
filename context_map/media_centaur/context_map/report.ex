@@ -9,8 +9,8 @@ defmodule MediaCentaur.ContextMap.Report do
   A key is either a finding's exact verdict key or a concept key, whose
   last (consumer) segment is `*`: it covers every consumer of that concept
   (`Finding.concept_key/1`). An exact key overrides the concept key.
-  `check/2` fails on a finding covered by neither, or on a key matching no
-  finding, so every new crossing lands with its line in the same change.
+  `check/2` fails on a finding covered by neither, or on a key that supplies
+  no finding's verdict, so every new crossing lands with its line in the same change.
   """
 
   alias MediaCentaur.ContextMap.Finding
@@ -64,20 +64,23 @@ defmodule MediaCentaur.ContextMap.Report do
 
   @doc """
   `:ok` when every finding is covered by an exact or concept key and every
-  verdict key matches a finding; otherwise the sorted unverdicted finding
-  keys and stale verdict keys.
+  verdict key is live — `verdict_for/2` returns it for at least one
+  finding; otherwise the sorted unverdicted finding keys and stale verdict
+  keys. A concept key whose every consumer has its own exact key decides
+  nothing and is stale.
   """
   @spec check([Finding.t()], %{String.t() => map()}) ::
           :ok | {:error, %{unverdicted: [String.t()], stale: [String.t()]}}
   def check(findings, verdicts) do
-    matched = MapSet.new(Enum.flat_map(findings, &[Finding.key(&1), Finding.concept_key(&1)]))
+    supplied = Map.new(findings, &{&1, verdict_for(&1, verdicts)})
+    live = for {_finding, {key, _verdict}} <- supplied, into: MapSet.new(), do: key
 
     unverdicted =
-      for(finding <- findings, verdict_for(finding, verdicts) == nil, do: Finding.key(finding))
+      for({finding, nil} <- supplied, do: Finding.key(finding))
       |> Enum.uniq()
       |> Enum.sort()
 
-    stale = verdicts |> Map.keys() |> Enum.reject(&MapSet.member?(matched, &1)) |> Enum.sort()
+    stale = verdicts |> Map.keys() |> Enum.reject(&MapSet.member?(live, &1)) |> Enum.sort()
 
     if unverdicted == [] and stale == [],
       do: :ok,

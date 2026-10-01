@@ -85,6 +85,25 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
       assert Schemas.declarations(Sample.Parent.Child, @nested) == %{name: {4, "field :name, :string"}}
     end
 
+    test "an inline embed's own fields are not collected into the parent" do
+      code = """
+      defmodule Sample.Parent do
+        schema "parents" do
+          field :name, :string
+
+          embeds_one :settings, Settings do
+            field :theme, :string
+          end
+        end
+      end
+      """
+
+      assert Schemas.declarations(Sample.Parent, code) == %{
+               name: {3, "field :name, :string"},
+               settings: {5, "embeds_one :settings, Settings do"}
+             }
+    end
+
     test "a module absent from the code has no declarations" do
       assert Schemas.declarations(Sample.Absent, @nested) == %{}
     end

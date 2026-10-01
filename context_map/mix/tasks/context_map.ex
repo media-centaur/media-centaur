@@ -63,6 +63,7 @@ defmodule Mix.Tasks.ContextMap do
       )
 
     diff_path = diff_path(opts, rest)
+    previous = diff_path && read_previous(diff_path)
     verdicts = Report.read_verdicts(Keyword.get(opts, :verdicts, @default_verdicts))
 
     analysis = ContextMap.analyse()
@@ -70,7 +71,7 @@ defmodule Mix.Tasks.ContextMap do
     write_json(document, json_path(opts))
     write_html(document, html_path(opts))
     if opts[:list], do: list(document.findings)
-    if diff_path, do: diff(diff_path, document.findings)
+    if previous, do: diff(previous, document.findings)
     if opts[:check], do: check(analysis.findings, verdicts)
   end
 
@@ -115,8 +116,13 @@ defmodule Mix.Tasks.ContextMap do
 
   defp list(findings), do: for(line <- Report.list_lines(findings), do: Mix.shell().info(line))
 
-  defp diff(path, findings) do
-    %{findings: previous} = path |> File.read!() |> Jason.decode!(keys: :atoms)
+  # Read before the analysis so a missing or malformed map fails at once.
+  defp read_previous(path) do
+    %{findings: findings} = path |> File.read!() |> Jason.decode!(keys: :atoms)
+    findings
+  end
+
+  defp diff(previous, findings) do
     %{added: added, removed: removed} = Report.diff(previous, findings)
     diff_section("added", added)
     diff_section("removed", removed)
