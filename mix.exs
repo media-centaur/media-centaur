@@ -58,8 +58,8 @@ defmodule MediaCentaur.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support", "credo_checks"]
-  defp elixirc_paths(:dev), do: ["lib", "credo_checks"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "credo_checks", "context_map"]
+  defp elixirc_paths(:dev), do: ["lib", "credo_checks", "context_map"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Per-platform release overlays. `mix release` runs natively on each target

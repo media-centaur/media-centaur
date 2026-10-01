@@ -6,6 +6,7 @@
     "*.{heex,ex,exs}",
     "{config,lib,test}/**/*.{heex,ex,exs}",
     "storybook/**/*.exs",
+    "context_map/**/*.{ex,exs}",
     "priv/*/seeds.exs"
   ],
   # `:module_directives` excluded because Quokka's alias-lifting can shadow
