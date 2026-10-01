@@ -20,10 +20,12 @@ defmodule Mix.Tasks.ContextMap do
 
   @impl Mix.Task
   def run(args) do
-    {opts, []} = OptionParser.parse!(args, strict: [json: :string])
+    {opts, rest} = OptionParser.parse!(args, strict: [json: :string])
+    if rest != [], do: Mix.raise("unexpected arguments: #{inspect(rest)}")
     json_path = Keyword.get(opts, :json, @default_json)
 
-    document = MediaCentaur.ContextMap.build(Report.read_verdicts(@verdicts_path))
+    analysis = MediaCentaur.ContextMap.analyse()
+    document = MediaCentaur.ContextMap.document(analysis, Report.read_verdicts(@verdicts_path))
     File.mkdir_p!(Path.dirname(json_path))
     File.write!(json_path, Jason.encode!(document, pretty: true) <> "\n")
     Mix.shell().info("context map: #{length(document.findings)} findings → #{json_path}")

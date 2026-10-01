@@ -33,7 +33,7 @@ defmodule MediaCentaur.ContextMap.Report do
         anchored: finding.anchored?,
         file: finding.file,
         line: finding.line,
-        detail: finding.detail && Map.new(finding.detail, fn {key, value} -> {key, name(value)} end),
+        detail: finding.detail && Map.new(finding.detail, fn {name, value} -> {name, name(value)} end),
         verdict: verdict["verdict"],
         reason: verdict["reason"]
       }
@@ -54,27 +54,35 @@ defmodule MediaCentaur.ContextMap.Report do
       else: {:error, %{unverdicted: unverdicted, stale: stale}}
   end
 
-  @doc ~s(Parses the verdicts JSON into `%{key => %{"verdict", "reason"}}`; raises `ArgumentError` on a verdict other than `leak` or `allowed`.)
+  @doc ~s(Parses the verdicts JSON into `%{key => %{"verdict", "reason"}}`; raises `ArgumentError` on an entry missing `key`, `verdict` or `reason`, or on a verdict other than `leak` or `allowed`.)
   @spec parse_verdicts(String.t()) :: %{String.t() => map()}
   def parse_verdicts(json) do
     json
     |> Jason.decode!()
-    |> Map.new(fn %{"key" => key, "verdict" => verdict, "reason" => reason} ->
-      if verdict not in @verdicts do
-        raise ArgumentError,
-              "verdict #{inspect(verdict)} for #{key}: only #{inspect(@verdicts)} are stored; \"rule wrong\" changes the rule instead"
-      end
-
-      {key, %{"verdict" => verdict, "reason" => reason}}
-    end)
+    |> Map.new(&parse_verdict/1)
   end
 
-  @doc "Reads and parses the verdicts file at `path`; a missing file is no verdicts."
+  defp parse_verdict(%{"key" => key, "verdict" => verdict, "reason" => reason}) do
+    if verdict not in @verdicts do
+      raise ArgumentError,
+            "verdict #{inspect(verdict)} for #{key}: only #{inspect(@verdicts)} are stored; \"rule wrong\" changes the rule instead"
+    end
+
+    {key, %{"verdict" => verdict, "reason" => reason}}
+  end
+
+  defp parse_verdict(entry) do
+    raise ArgumentError,
+          "verdict entry #{inspect(entry)} must have \"key\", \"verdict\" and \"reason\""
+  end
+
+  @doc "Reads and parses the verdicts file at `path`; a missing file is no verdicts, any other read error raises `File.Error`."
   @spec read_verdicts(String.t()) :: %{String.t() => map()}
   def read_verdicts(path) do
     case File.read(path) do
       {:ok, json} -> parse_verdicts(json)
       {:error, :enoent} -> %{}
+      {:error, reason} -> raise File.Error, reason: reason, action: "read file", path: path
     end
   end
 
