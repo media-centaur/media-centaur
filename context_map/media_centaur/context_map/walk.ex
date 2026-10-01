@@ -8,7 +8,10 @@ defmodule MediaCentaur.ContextMap.Walk do
 
   A key is the left side of a keyword pair (`rung:`, including `do`/`end`
   blocks) or of a map `=>` pair; the first element of a two-element tuple
-  literal (`{:ok, value}`) is a value, not a key.
+  literal (`{:ok, value}`) is a value, not a key. A key carries
+  `map?: true` when its pair sits in a `%{}` map literal, a map update or a
+  `%Struct{}` literal, `map?: false` in a keyword list (including keyword
+  arguments to a call). Dot, value and template mentions are `map?: false`.
 
   A pattern is a definition head (`def`, `defp`, `defmacro`, `defmacrop`,
   `defguard`, `defguardp`; a `when` guard is not part of the pattern), the
@@ -28,7 +31,8 @@ defmodule MediaCentaur.ContextMap.Walk do
           atom: atom(),
           line: pos_integer(),
           pattern?: boolean(),
-          template?: boolean()
+          template?: boolean(),
+          map?: boolean()
         }
 
   @doc "Every mention in `source`, sorted by line, kind and atom."
@@ -59,6 +63,18 @@ defmodule MediaCentaur.ContextMap.Walk do
        when is_binary(template),
        do: {node, {template_mentions(template, template_start_line(meta)) ++ mentions, depth}}
 
+  # a map or struct literal (a struct's map is a `%{}` child of its `%` node):
+  # its pairs become marker nodes so the pair clause can tell them from
+  # keyword pairs
+  defp pre({:%{}, meta, [{:|, update_meta, [map, pairs]}]}, acc) when is_list(pairs),
+    do: {{:%{}, meta, [{:|, update_meta, [map, Enum.map(pairs, &map_pair/1)]}]}, acc}
+
+  defp pre({:%{}, meta, pairs}, acc) when is_list(pairs),
+    do: {{:%{}, meta, Enum.map(pairs, &map_pair/1)}, acc}
+
+  defp pre({:__map_pair__, _, [{:__block__, meta, [key]}, value]}, {mentions, depth}) when is_atom(key),
+    do: {{:__map_pair__, [], [value]}, {[mention(:key, key, meta, depth, true) | mentions], depth}}
+
   # a two-element tuple literal: Sourceror wraps it in __block__; its
   # elements are values, so it is re-shaped as a `{:{}, ...}` tuple node
   defp pre({:__block__, meta, [{left, right}]}, acc), do: {{:{}, meta, [left, right]}, acc}
@@ -67,7 +83,7 @@ defmodule MediaCentaur.ContextMap.Walk do
   # remaining 2-tuple is a pair): the key is a key mention, and must not be
   # re-walked as a value
   defp pre({{:__block__, meta, [key]}, value}, {mentions, depth}) when is_atom(key),
-    do: {{nil, value}, {[mention(:key, key, meta, depth) | mentions], depth}}
+    do: {{nil, value}, {[mention(:key, key, meta, depth, false) | mentions], depth}}
 
   # dot access: x.field / i.field / @assigns.field
   defp pre({{:., meta, [_subject, field]}, _, []} = node, {mentions, depth}) when is_atom(field),
@@ -85,13 +101,17 @@ defmodule MediaCentaur.ContextMap.Walk do
 
   defp wrap(inner), do: {:__pattern__, [], [inner]}
 
-  defp mention(kind, atom, meta, depth),
+  defp map_pair({key, value}), do: {:__map_pair__, [], [key, value]}
+  defp map_pair(other), do: other
+
+  defp mention(kind, atom, meta, depth, map? \\ false),
     do: %{
       kind: kind,
       atom: atom,
       line: Keyword.get(meta, :line, 1),
       pattern?: depth > 0,
-      template?: false
+      template?: false,
+      map?: map?
     }
 
   # --- templates ---
@@ -126,7 +146,14 @@ defmodule MediaCentaur.ContextMap.Walk do
 
   # Template names come from this repo's source files, a bounded set.
   defp template_mention(kind, name, line) do
-    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-    %{kind: kind, atom: String.to_atom(name), line: line, pattern?: false, template?: true}
+    %{
+      kind: kind,
+      # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+      atom: String.to_atom(name),
+      line: line,
+      pattern?: false,
+      template?: true,
+      map?: false
+    }
   end
 end

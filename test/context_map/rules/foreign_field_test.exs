@@ -99,4 +99,20 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
            ] =
              usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].sites
   end
+
+  test "a keyword argument is not a write; a map literal argument is" do
+    keyword =
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Discovery.put_rung(title, :list, activity_id: id)\nend\n"
+
+    map =
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})\nend\n"
+
+    writes = fn code ->
+      usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))
+      usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].writes
+    end
+
+    assert writes.(keyword) == %{}
+    assert writes.(map) == %{MediaCentaur.Activities => 1}
+  end
 end

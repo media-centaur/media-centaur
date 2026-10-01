@@ -5,7 +5,8 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
 
   Every mention of a field name is attributed to the mentioning file's
   context. A read is a dot access or a key in a pattern; a write is a key
-  in an expression (an attrs map), or the field atom on a line that calls
+  of a map or struct literal in an expression (an attrs map; a keyword
+  argument is not a write), or the field atom on a line that calls
   `cast(`, `put_change(` or `force_change(` (a bare call or
   `Changeset.cast(`; `broadcast(`, `GenServer.cast(` and the like are not). The schema's own file does
   not count. A field name declared by more than one schema counts only
@@ -109,7 +110,8 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
 
   defp access(%{kind: :dot}, _source), do: :read
   defp access(%{kind: :key, pattern?: true}, _source), do: :read
-  defp access(%{kind: :key, pattern?: false}, _source), do: :write
+  defp access(%{kind: :key, map?: true}, _source), do: :write
+  defp access(%{kind: :key}, _source), do: nil
 
   defp access(%{kind: :value, line: line}, source) do
     if Regex.match?(@write_call, Source.line(source, line)), do: :write
