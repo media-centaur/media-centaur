@@ -6,6 +6,10 @@ defmodule MediaCentaur.ContextMap.Schemas do
   `values: nil`. `has_many/has_one ... through:` associations are skipped:
   they are composed from direct associations already listed and have no
   target schema of their own.
+
+  Associations carry `name` (the association name), `kind`, `target` (the
+  related schema) and `foreign_key`: the owner-side key column for
+  `belongs_to`, nil for every other kind.
   """
 
   alias MediaCentaur.ContextMap.Contexts
@@ -13,6 +17,7 @@ defmodule MediaCentaur.ContextMap.Schemas do
 
   @timestamps [:inserted_at, :updated_at]
 
+  @doc "Every Ecto schema under `MediaCentaur`, sorted by module."
   @spec all() :: [Schema.t()]
   def all do
     {:ok, modules} = :application.get_key(:media_centaur, :modules)
@@ -22,9 +27,6 @@ defmodule MediaCentaur.ContextMap.Schemas do
     |> Enum.map(&from_module/1)
     |> Enum.sort_by(&inspect(&1.module))
   end
-
-  @spec fetch!(module()) :: Schema.t()
-  def fetch!(module), do: from_module(module)
 
   @doc "Every enum value → the `{schema_module, field}` pairs declaring it, across all schemas."
   @spec value_owners([Schema.t()]) :: %{atom() => [{module(), atom()}]}
@@ -42,10 +44,12 @@ defmodule MediaCentaur.ContextMap.Schemas do
 
   defp schema_module?(module) do
     Code.ensure_loaded?(module) and function_exported?(module, :__schema__, 1) and
-      String.starts_with?(inspect(module), "MediaCentaur")
+      match?(["MediaCentaur" | _], Module.split(module))
   end
 
-  defp from_module(module) do
+  @doc "Reflects one Ecto schema module into a `Schema`."
+  @spec from_module(module()) :: Schema.t()
+  def from_module(module) do
     drop = module.__schema__(:primary_key) ++ module.__schema__(:virtual_fields) ++ @timestamps
 
     %Schema{
@@ -74,14 +78,14 @@ defmodule MediaCentaur.ContextMap.Schemas do
   end
 
   defp association(%Ecto.Association.BelongsTo{field: field, owner_key: key, related: target}),
-    do: %{field: key, kind: :belongs_to, target: target, name: field}
+    do: %{name: field, kind: :belongs_to, target: target, foreign_key: key}
 
   defp association(%Ecto.Association.Has{field: field, cardinality: :one, related: target}),
-    do: %{field: field, kind: :has_one, target: target, name: field}
+    do: %{name: field, kind: :has_one, target: target, foreign_key: nil}
 
   defp association(%Ecto.Association.Has{field: field, cardinality: :many, related: target}),
-    do: %{field: field, kind: :has_many, target: target, name: field}
+    do: %{name: field, kind: :has_many, target: target, foreign_key: nil}
 
   defp association(%Ecto.Association.ManyToMany{field: field, related: target}),
-    do: %{field: field, kind: :many_to_many, target: target, name: field}
+    do: %{name: field, kind: :many_to_many, target: target, foreign_key: nil}
 end
