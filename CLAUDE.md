@@ -57,6 +57,7 @@ Map of contributor docs:
 | Component catalog (Phoenix Storybook, dev-only) | [`docs/storybook.md`](docs/storybook.md) |
 | Configuration keys and precedence | [`docs/configuration.md`](docs/configuration.md) |
 | Strip charts (time-series store, Connections drill-in, adding a tenant, browser verification) | [`docs/strip-charts.md`](docs/strip-charts.md) |
+| Context map (schemas by context, boundary crossings, verdicts) | [`docs/context-map.md`](docs/context-map.md) |
 | Prowlarr / acquisition setup | [`docs/acquisition/`](docs/acquisition/) |
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
 | Decision records (ADR-NNN + UIDR-NNN, indexed) | [`decisions/README.md`](decisions/README.md) |
