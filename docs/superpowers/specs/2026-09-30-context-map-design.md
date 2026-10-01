@@ -80,6 +80,11 @@ is reported when the owning context, excluding the schema module itself,
 migrations and tests, never reads or writes it, or when another context
 writes it.
 
+*Amendment 2026-10-01.* A write is a key in a map or struct literal in
+expression position, or a `cast`/`put_change`/`force_change` call on the
+line; keyword arguments are not writes. The distinctiveness test counts the
+keys of every `defstruct` under `lib/`, not only schema fields.
+
 *Limits.* A write made through a helper the owning schema provides
 (`TitleIntent.friend_provenance/2` called from the web layer) is a
 function call to the signal, not a key literal, and is attributed to the
@@ -105,6 +110,9 @@ and whose crossing is a read are suppressed and counted separately as
 kernel reads, so the map shows the fan-out without listing it as findings.
 Writes are reported under R1.
 
+*Amendment 2026-10-01.* "Owner" here means the referenced side: the schema
+whose value is interpreted (R3) or the key's target (R4).
+
 *Limits.* Kernel membership is declared, not detected (§ 10).
 
 ### R3 — No reinterpretation
@@ -126,6 +134,12 @@ module; it is *unanchored* otherwise. Both are reported; unanchored
 findings are labelled as candidates and expected to carry more rule-wrong
 verdicts. Meaning derived inside the owner and returned as a boolean or a
 label is invisible to this signal by design: that is the correct shape.
+
+*Amendment 2026-10-01.* An unanchored value is reported only when exactly
+one schema field in the application declares it (`Schemas.value_owners/1`);
+a vocabulary shared by several schemas (`:movie`) is reported only when
+anchored. A value declared by schema fields in two or more contexts is
+shared vocabulary with no owner and is never reported.
 
 ### R4 — Keys follow ownership and the dependency direction
 
@@ -171,6 +185,7 @@ that loses one is rejected.
 | R1 | Discovery | `TitleIntent.source` (`:friend`) | never read in Discovery (`owner_never_reads`) |
 | R4 | Discovery | `TitleIntent.activity_id` → Activities | target context not in Discovery's `deps` |
 | R2 | Release Tracking | `Item.library_container_id` → Library | resolves through `library_container_type`; expected in `kernel_reads`, not in `findings` |
+| R2 | Watch History | `Event.movie_id` → `Library.Movie` | expected in `kernel_reads` (row added 2026-10-01) |
 
 The fixture list grows with every leak found by other means; it is
 append-only (ADR-027 applies to the test that encodes it).
@@ -259,6 +274,10 @@ rule signal (`Rules.ForeignField`, `Rules.Reinterpretation`,
 `Rules.CrossContextKey`), a `Report` that joins findings with verdicts, and
 the Mix task as the only entry point. No runtime process, no application
 dependency on it.
+
+*Amendment 2026-10-01.* `kernel_reads` entries are `{owner, schema, field,
+target}`, and each schema in the document also carries its `file`. Fields
+are listed in declaration order, which is deterministic.
 
 ## 6. The map (HTML)
 
