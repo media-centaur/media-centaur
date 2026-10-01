@@ -54,7 +54,8 @@ defmodule MediaCentaur.ContextMap.Rules.Reinterpretation do
           consumer_context: context,
           anchored?: anchored?,
           file: source.path,
-          line: mention.line
+          line: mention.line,
+          excerpt: source |> Source.line(mention.line) |> String.trim()
         }
       end
 

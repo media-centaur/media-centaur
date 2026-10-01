@@ -78,6 +78,8 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
         anchored: true,
         file: "lib/x.ex",
         line: 189,
+        excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|,
+        concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
         detail: nil,
         verdict: nil,
         reason: nil
@@ -96,7 +98,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     assert html |> query(~s(.panel[data-context="MediaCentaur.Discovery"])) |> LazyHTML.text() =~
              "title_intents"
 
-    assert html |> query(".finding") |> LazyHTML.text() =~ "MediaCentaurWeb.IncomingLive"
+    assert html |> query(".consumer") |> LazyHTML.text() =~ "MediaCentaurWeb.IncomingLive"
 
     assert html
            |> LazyHTML.from_document()
@@ -169,6 +171,48 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
 
   test "an exported schema carries the exported chip" do
     assert @document |> Html.render() |> query(".chip.exported") |> LazyHTML.text() == "exported"
+  end
+
+  test "findings sharing rule, schema, field and value render in one concept block, each consumer with its sites" do
+    first = hd(@document.findings)
+
+    second =
+      Map.merge(first, %{
+        key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
+        consumer: "MediaCentaurWeb.Sample",
+        file: "lib/sample.ex",
+        line: 7,
+        excerpt: "def sample(:ignored), do: :hidden"
+      })
+
+    second_site = %{second | line: 9, excerpt: "def other(:ignored), do: :shown"}
+    html = Html.render(%{@document | findings: [first, second, second_site]})
+
+    assert [concept] = html |> query(".concept") |> Enum.to_list()
+    assert LazyHTML.attribute(concept, "data-concept") == [first.concept_key]
+
+    consumers = LazyHTML.query(concept, ".consumer")
+    assert Enum.count(consumers) == 2
+
+    sample = Enum.to_list(LazyHTML.query(concept, ~s(.consumer[data-key="#{second.key}"] .finding)))
+
+    assert length(sample) == 2
+    excerpts = concept |> LazyHTML.query(".excerpt") |> Enum.map(&LazyHTML.text/1)
+
+    assert excerpts == [
+             first.excerpt,
+             "def sample(:ignored), do: :hidden",
+             "def other(:ignored), do: :shown"
+           ]
+
+    assert concept |> LazyHTML.query(".concept-head") |> LazyHTML.text() =~ "2 consumers · 3 sites"
+  end
+
+  test "escapes excerpts" do
+    finding = Map.put(hd(@document.findings), :excerpt, "<script>x</script>")
+    html = Html.render(%{@document | findings: [finding]})
+    assert html =~ "&lt;script&gt;x&lt;/script&gt;"
+    refute html =~ "<script>x</script>"
   end
 
   test "escapes rule, line and anchored" do

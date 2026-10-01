@@ -12,8 +12,14 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
-      %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list, :follow, :grab]},
-      %{name: :media_type, type: "Ecto.Enum", values: [:movie, :tv_series]}
+      %{
+        name: :rung,
+        type: "Ecto.Enum",
+        values: [:ignored, :list, :follow, :grab],
+        line: 1,
+        declaration: ""
+      },
+      %{name: :media_type, type: "Ecto.Enum", values: [:movie, :tv_series], line: 1, declaration: ""}
     ],
     associations: []
   }
@@ -22,7 +28,9 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
     file: "lib/media_centaur/release_tracking/item.ex",
     context: MediaCentaur.ReleaseTracking,
     table: "release_tracking_items",
-    fields: [%{name: :media_type, type: "Ecto.Enum", values: [:movie, :tv_series]}],
+    fields: [
+      %{name: :media_type, type: "Ecto.Enum", values: [:movie, :tv_series], line: 1, declaration: ""}
+    ],
     associations: []
   }
   @movie %Schema{
@@ -30,7 +38,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
     file: "lib/media_centaur/library/movie.ex",
     context: MediaCentaur.Library,
     table: "movies",
-    fields: [%{name: :kind, type: "Ecto.Enum", values: [:feature, :short]}],
+    fields: [%{name: :kind, type: "Ecto.Enum", values: [:feature, :short], line: 1, declaration: ""}],
     associations: []
   }
   @schemas [@intent, @item, @movie]
@@ -51,7 +59,8 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
                consumer: MediaCentaurWeb.Components.Title.Logic,
                consumer_context: :web,
                anchored?: true,
-               line: 2
+               line: 2,
+               excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|
              }
            ] = run("lib/media_centaur_web/components/title/logic.ex", code)
   end
@@ -111,7 +120,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
       context: MediaCentaur.Acquisition,
       file: "lib/media_centaur/acquisition/plans/plan.ex",
       table: "acquisition_plans",
-      fields: [%{name: :state, type: "Ecto.Enum", values: [:sample_state]}],
+      fields: [%{name: :state, type: "Ecto.Enum", values: [:sample_state], line: 1, declaration: ""}],
       associations: []
     }
 

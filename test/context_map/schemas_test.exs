@@ -40,6 +40,56 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
 
   defp field(schema, name), do: Enum.find(schema.fields, &(&1.name == name))
 
+  test "fields and associations carry their declaration line and trimmed declaration" do
+    intent = Schemas.from_module(MediaCentaur.Discovery.TitleIntent)
+    rung = field(intent, :rung)
+    lines = "lib/media_centaur/discovery/title_intent.ex" |> File.read!() |> String.split("\n")
+
+    assert rung.declaration =~ "field :rung"
+    assert rung.declaration == String.trim(rung.declaration)
+    assert lines |> Enum.at(rung.line - 1) |> String.trim() == rung.declaration
+
+    event = Schemas.from_module(MediaCentaur.WatchHistory.Event)
+    movie = Enum.find(event.associations, &(&1.name == :movie))
+    assert movie.declaration =~ "belongs_to :movie"
+    assert movie.line > 1
+  end
+
+  test "a belongs_to foreign key field takes its association's declaration" do
+    event = Schemas.from_module(MediaCentaur.WatchHistory.Event)
+    movie = Enum.find(event.associations, &(&1.name == :movie))
+    assert %{line: line, declaration: declaration} = field(event, :movie_id)
+    assert {line, declaration} == {movie.line, movie.declaration}
+  end
+
+  describe "declarations/2" do
+    @nested """
+    defmodule Sample.Parent do
+      defmodule Child do
+        embedded_schema do
+          field :name, :string
+        end
+      end
+
+      schema "parents" do
+        field :name, :string
+        belongs_to :owner, Sample.Owner
+      end
+    end
+    """
+
+    test "a declaration is found in the module's own body, not in a nested module" do
+      assert %{name: {9, "field :name, :string"}, owner: {10, "belongs_to :owner, Sample.Owner"}} =
+               Schemas.declarations(Sample.Parent, @nested)
+
+      assert Schemas.declarations(Sample.Parent.Child, @nested) == %{name: {4, "field :name, :string"}}
+    end
+
+    test "a module absent from the code has no declarations" do
+      assert Schemas.declarations(Sample.Absent, @nested) == %{}
+    end
+  end
+
   test "a schema source outside the project root raises naming the module" do
     assert_raise ArgumentError, ~r/MediaCentaur.Discovery.TitleIntent.*outside/, fn ->
       Schemas.source_file(MediaCentaur.Discovery.TitleIntent, "/nonexistent-root")

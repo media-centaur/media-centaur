@@ -13,7 +13,7 @@ defmodule MediaCentaur.ContextMap.Report do
 
   @verdicts ["leak", "allowed"]
 
-  @doc "Each finding as a JSON-ready map: its verdict key, names as strings, and its verdict and reason (nil when unverdicted)."
+  @doc "Each finding as a JSON-ready map: its verdict and concept keys, names as strings, its excerpt, and its verdict and reason (nil when unverdicted)."
   @spec encode_findings([Finding.t()], %{String.t() => map()}) :: [map()]
   def encode_findings(findings, verdicts) do
     for finding <- findings do
@@ -33,6 +33,8 @@ defmodule MediaCentaur.ContextMap.Report do
         anchored: finding.anchored?,
         file: finding.file,
         line: finding.line,
+        excerpt: finding.excerpt,
+        concept_key: Finding.concept_key(finding),
         detail: finding.detail && Map.new(finding.detail, fn {name, value} -> {name, name(value)} end),
         verdict: verdict["verdict"],
         reason: verdict["reason"]

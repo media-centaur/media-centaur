@@ -12,9 +12,15 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
-      %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list]},
-      %{name: :activity_id, type: "Ecto.UUID", values: nil},
-      %{name: :note, type: ":string", values: nil}
+      %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list], line: 1, declaration: ""},
+      %{
+        name: :activity_id,
+        type: "Ecto.UUID",
+        values: nil,
+        line: 12,
+        declaration: "field :activity_id, Ecto.UUID"
+      },
+      %{name: :note, type: ":string", values: nil, line: 1, declaration: ""}
     ],
     associations: []
   }
@@ -23,7 +29,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
     file: "lib/media_centaur/activities/activity.ex",
     context: MediaCentaur.Activities,
     table: "activities",
-    fields: [%{name: :note, type: ":string", values: nil}],
+    fields: [%{name: :note, type: ":string", values: nil, line: 1, declaration: ""}],
     associations: []
   }
   @schemas [@intent, @activity]
@@ -54,8 +60,15 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
              detail: %{kind: :foreign_write},
              consumer_context: MediaCentaur.Activities,
              consumer: MediaCentaur.Activities,
-             line: 3
+             line: 3,
+             excerpt: "def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})"
            } = Enum.find(findings, &match?(%{detail: %{kind: :foreign_write}}, &1))
+
+    assert %Finding{
+             file: "lib/media_centaur/discovery/title_intent.ex",
+             line: 12,
+             excerpt: "field :activity_id, Ecto.UUID"
+           } = Enum.find(findings, &match?(%{detail: %{kind: :owner_never_reads}}, &1))
   end
 
   test "a field the owner reads and nobody else writes is clean" do
@@ -95,7 +108,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
 
     assert [
              {MediaCentaur.Activities, MediaCentaur.Activities, "lib/media_centaur/activities.ex", 3,
-              :write}
+              :write, "def b(c, attrs), do: Changeset.cast(c, attrs, [:activity_id])"}
            ] =
              usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].sites
   end
@@ -122,7 +135,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
       context: MediaCentaur.Acquisition,
       file: "lib/media_centaur/acquisition/corpus/candidate.ex",
       table: "acquisition_corpus_candidates",
-      fields: [%{name: :info_hash, type: ":string", values: nil}],
+      fields: [%{name: :info_hash, type: ":string", values: nil, line: 1, declaration: ""}],
       associations: []
     }
 

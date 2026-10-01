@@ -16,6 +16,7 @@ defmodule MediaCentaur.ContextMap.FindingTest do
       anchored?: true,
       file: "lib/media_centaur_web/components/title/logic.ex",
       line: 189,
+      excerpt: "defp rung_marker(:ignored), do: \"Ignored\"",
       detail: nil
     }
 
@@ -23,5 +24,22 @@ defmodule MediaCentaur.ContextMap.FindingTest do
              "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
 
     assert Finding.key(%{finding | line: 500}) == Finding.key(finding)
+  end
+
+  test "concept key is the verdict key with the consumer segment replaced by *" do
+    finding = %Finding{
+      rule: "R1",
+      owner: MediaCentaur.Discovery,
+      schema: MediaCentaur.Discovery.TitleIntent,
+      field: :activity_id,
+      consumer: MediaCentaur.Activities,
+      consumer_context: MediaCentaur.Activities,
+      file: "lib/media_centaur/activities.ex",
+      line: 3,
+      excerpt: "",
+      detail: %{kind: :foreign_write}
+    }
+
+    assert Finding.concept_key(finding) == "R1|MediaCentaur.Discovery.TitleIntent|activity_id||*"
   end
 end

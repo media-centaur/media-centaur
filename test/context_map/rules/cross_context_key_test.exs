@@ -49,8 +49,14 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     context: MediaCentaur.Discovery,
     table: "title_intents",
     fields: [
-      %{name: :tmdb_id, type: ":integer", values: nil},
-      %{name: :activity_id, type: "Ecto.UUID", values: nil}
+      %{name: :tmdb_id, type: ":integer", values: nil, line: 1, declaration: ""},
+      %{
+        name: :activity_id,
+        type: "Ecto.UUID",
+        values: nil,
+        line: 12,
+        declaration: "field :activity_id, Ecto.UUID"
+      }
     ],
     associations: []
   }
@@ -59,9 +65,16 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     file: "lib/media_centaur/watch_history/event.ex",
     context: MediaCentaur.WatchHistory,
     table: "watch_history_events",
-    fields: [%{name: :movie_id, type: "Ecto.UUID", values: nil}],
+    fields: [%{name: :movie_id, type: "Ecto.UUID", values: nil, line: 1, declaration: ""}],
     associations: [
-      %{name: :movie, kind: :belongs_to, target: MediaCentaur.Library.Movie, foreign_key: :movie_id}
+      %{
+        name: :movie,
+        kind: :belongs_to,
+        target: MediaCentaur.Library.Movie,
+        foreign_key: :movie_id,
+        line: 1,
+        declaration: ""
+      }
     ]
   }
   @item %Schema{
@@ -69,7 +82,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     file: "lib/media_centaur/release_tracking/item.ex",
     context: MediaCentaur.ReleaseTracking,
     table: "release_tracking_items",
-    fields: [%{name: :library_container_id, type: "Ecto.UUID", values: nil}],
+    fields: [%{name: :library_container_id, type: "Ecto.UUID", values: nil, line: 1, declaration: ""}],
     associations: []
   }
   @override %Schema{
@@ -78,8 +91,8 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     context: MediaCentaur.Library,
     table: "media_track_overrides",
     fields: [
-      %{name: :owner_type, type: "Ecto.Enum", values: [:movie, :episode]},
-      %{name: :owner_id, type: "Ecto.UUID", values: nil}
+      %{name: :owner_type, type: "Ecto.Enum", values: [:movie, :episode], line: 1, declaration: ""},
+      %{name: :owner_id, type: "Ecto.UUID", values: nil, line: 1, declaration: ""}
     ],
     associations: []
   }
@@ -96,6 +109,16 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
              owner: MediaCentaur.Discovery,
              field: :activity_id,
              detail: %{target: MediaCentaur.Activities.Activity, in_deps: false}
+           } = Enum.find(findings, &(&1.field == :activity_id))
+  end
+
+  test "a key finding points at the key's declaration and carries it as the excerpt", %{
+    findings: findings
+  } do
+    assert %Finding{
+             file: "lib/media_centaur/discovery/title_intent.ex",
+             line: 12,
+             excerpt: "field :activity_id, Ecto.UUID"
            } = Enum.find(findings, &(&1.field == :activity_id))
   end
 
@@ -136,8 +159,8 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
       context: MediaCentaur.Pipeline,
       table: "image_queue_entries",
       fields: [
-        %{name: :owner_type, type: "Ecto.Enum", values: [:ghost_a, :ghost_b]},
-        %{name: :owner_id, type: "Ecto.UUID", values: nil}
+        %{name: :owner_type, type: "Ecto.Enum", values: [:ghost_a, :ghost_b], line: 1, declaration: ""},
+        %{name: :owner_id, type: "Ecto.UUID", values: nil, line: 1, declaration: ""}
       ],
       associations: []
     }

@@ -11,6 +11,9 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
   resolves each value the same way. `tmdb_id`, `imdb_id`, `tvdb_id` and `tmdb_person_id` are
   external identity. A key the resolver cannot place is reported
   unresolved rather than guessed.
+
+  A finding points at the key's declaration in the schema file — the
+  association's for an association key — and carries it as the excerpt.
   """
 
   alias MediaCentaur.ContextMap.Context
@@ -53,37 +56,38 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
      Enum.sort_by(reads, &{inspect(&1.schema), &1.field, inspect(&1.target)})}
   end
 
-  # --- enumerate every key on a schema: {schema, field, target | :external | :unresolved} ---
+  # --- enumerate every key on a schema:
+  #     {schema, field, target | :external | :unresolved, declaring field or association} ---
 
   defp keys(%Schema{} = schema, by_stem) do
     assoc_fields = MapSet.new(schema.associations, &association_field/1)
 
     from_assocs =
-      for assoc <- schema.associations, do: {schema, association_field(assoc), assoc.target}
+      for assoc <- schema.associations, do: {schema, association_field(assoc), assoc.target, assoc}
 
     from_fields =
-      for %{name: name} <- schema.fields,
+      for %{name: name} = field <- schema.fields,
           not MapSet.member?(assoc_fields, name),
           stem <- [stem(name)],
           stem != nil,
-          key <- field_keys(schema, name, stem, by_stem),
-          do: key
+          target <- key_targets(schema, name, stem, by_stem),
+          do: {schema, name, target, field}
 
     from_assocs ++ from_fields
   end
 
   defp association_field(assoc), do: assoc.foreign_key || assoc.name
 
-  defp field_keys(schema, name, stem, by_stem) do
+  defp key_targets(schema, name, stem, by_stem) do
     cond do
       name in @external ->
-        [{schema, name, :external}]
+        [:external]
 
       values = discriminator_values(schema, stem) ->
-        Enum.uniq(for value <- values, do: {schema, name, resolve(Atom.to_string(value), by_stem)})
+        Enum.uniq(for value <- values, do: resolve(Atom.to_string(value), by_stem))
 
       true ->
-        [{schema, name, resolve(stem, by_stem)}]
+        [resolve(stem, by_stem)]
     end
   end
 
@@ -126,13 +130,13 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
 
   # --- classify a key by where it points ---
 
-  defp classify({schema, field, :external}, _deps),
+  defp classify({schema, field, :external, _declaring}, _deps),
     do: {:kernel_read, kernel_read(schema, field, :external)}
 
-  defp classify({schema, field, :unresolved}, _deps),
-    do: {:finding, finding(schema, field, %{unresolved: true})}
+  defp classify({schema, field, :unresolved, declaring}, _deps),
+    do: {:finding, finding(schema, field, declaring, %{unresolved: true})}
 
-  defp classify({schema, field, target}, deps) do
+  defp classify({schema, field, target, declaring}, deps) do
     target_context = Contexts.context_of(target)
 
     cond do
@@ -146,14 +150,18 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
         in_deps? = target_context in Map.get(deps, schema.context, [])
 
         {:finding,
-         finding(schema, field, %{target: target, target_context: target_context, in_deps: in_deps?})}
+         finding(schema, field, declaring, %{
+           target: target,
+           target_context: target_context,
+           in_deps: in_deps?
+         })}
     end
   end
 
   defp kernel_read(schema, field, target),
     do: %{schema: schema.module, field: field, target: target, owner: schema.context}
 
-  defp finding(schema, field, detail) do
+  defp finding(schema, field, declaring, detail) do
     %Finding{
       rule: "R4",
       owner: schema.context,
@@ -162,7 +170,8 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKey do
       consumer: nil,
       consumer_context: Map.get(detail, :target_context),
       file: schema.file,
-      line: 1,
+      line: declaring.line,
+      excerpt: declaring.declaration,
       detail: detail
     }
   end
