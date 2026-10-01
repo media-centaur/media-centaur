@@ -58,7 +58,13 @@ defmodule Mix.Tasks.ContextMap do
     if opts[:check], do: check(analysis.findings, verdicts)
   end
 
-  defp html_path(opts), do: opts[:html] || (opts[:page] && @page_path) || nil
+  defp html_path(opts) do
+    cond do
+      opts[:html] -> opts[:html]
+      opts[:page] -> @page_path
+      true -> nil
+    end
+  end
 
   defp write(path, contents) do
     File.mkdir_p!(Path.dirname(path))

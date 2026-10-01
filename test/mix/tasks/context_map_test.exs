@@ -53,7 +53,6 @@ defmodule Mix.Tasks.ContextMapTest do
   # changing directory; `tmp/` is gitignored.
   test "--page writes tmp/context-map.html", %{tmp_dir: tmp_dir} do
     page_path = "tmp/context-map.html"
-    File.rm(page_path)
     capture_io(fn -> ContextMap.run(["--json", Path.join(tmp_dir, "m.json"), "--page"]) end)
 
     assert page_path |> File.read!() |> String.contains?("<title>Context map</title>")

@@ -24,18 +24,26 @@ defmodule MediaCentaur.ContextMap.Html do
   @doc "The document (as built by `MediaCentaur.ContextMap.document/2`) as a complete HTML page."
   @spec render(map()) :: String.t()
   def render(document) do
-    {contexts, empty_contexts} = Enum.split_with(document.contexts, &shown?(&1, document.findings))
-    consumers = consumers(contexts, document.findings)
+    findings = document.findings
+    matrix = matrix(findings)
+    involved = matrix |> Map.keys() |> Enum.flat_map(&Tuple.to_list/1) |> MapSet.new()
+
+    {contexts, empty_contexts} =
+      Enum.split_with(document.contexts, &(&1.schemas != [] or &1.name in involved))
+
+    pairs = Map.keys(matrix)
 
     page(%{
       document: document,
       contexts: contexts,
       empty_contexts: Enum.map(empty_contexts, & &1.name),
-      consumers: consumers,
-      matrix: matrix(contexts, document.findings, consumers),
+      consumers: sorted_unique(Enum.map(contexts, & &1.name) ++ Enum.map(pairs, &elem(&1, 1))),
+      matrix: matrix,
       kernel_cells: kernel_cells(document.kernel_reads),
-      owners: document.findings |> Enum.map(& &1.owner) |> Enum.uniq() |> Enum.sort(),
-      finding_consumers: document.findings |> Enum.map(&consumer_column/1) |> Enum.uniq() |> Enum.sort()
+      findings_by_field: Enum.group_by(findings, &{&1.schema, &1.field}),
+      sorted_findings: Enum.sort_by(findings, &{not is_nil(&1.verdict), &1.key}),
+      owners: sorted_unique(Enum.map(pairs, &elem(&1, 0))),
+      finding_consumers: sorted_unique(Enum.map(pairs, &elem(&1, 1)))
     })
   end
 
@@ -44,36 +52,31 @@ defmodule MediaCentaur.ContextMap.Html do
   # Matrix labels drop the prefix every context shares; data attributes keep full names.
   defp label(name), do: name |> String.replace_prefix("MediaCentaur.", "") |> h()
 
+  # The matrix column a finding counts in.
   defp consumer_column(finding), do: finding.consumer_context || "unresolved"
 
-  defp shown?(context, findings) do
-    context.schemas != [] or
-      Enum.any?(findings, &(&1.owner == context.name or &1.consumer_context == context.name))
+  # A field chip names the consuming module when there is one, else its column.
+  defp consumer_label(finding), do: finding.consumer || consumer_column(finding)
+
+  defp cell_class(owner, consumer, kernel_count) do
+    Enum.join(
+      for({class, true} <- [{"diag", owner == consumer}, {"kernel", kernel_count != nil}], do: class),
+      " "
+    )
   end
 
-  defp consumers(contexts, findings) do
-    (Enum.map(contexts, & &1.name) ++ Enum.map(findings, &consumer_column/1))
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
+  # A field's reads or writes, `%{context => count}`, as "context count, …".
+  defp counts(by_context),
+    do:
+      Enum.map_join(Enum.sort(by_context), ", ", fn {context, count} -> "#{h(context)} #{h(count)}" end)
 
-  # owner → consumer → %{rule => count}
-  defp matrix(contexts, findings, consumers) do
-    for context <- contexts, into: %{} do
-      owned = Enum.filter(findings, &(&1.owner == context.name))
+  defp sorted_unique(list), do: list |> Enum.uniq() |> Enum.sort()
 
-      row =
-        for consumer <- consumers, into: %{} do
-          counts =
-            owned
-            |> Enum.filter(&(consumer_column(&1) == consumer))
-            |> Enum.frequencies_by(& &1.rule)
-
-          {consumer, counts}
-        end
-
-      {context.name, row}
-    end
+  # {owner, consumer column} → %{rule => count}
+  defp matrix(findings) do
+    findings
+    |> Enum.group_by(&{&1.owner, consumer_column(&1)}, & &1.rule)
+    |> Map.new(fn {pair, rules} -> {pair, Enum.frequencies(rules)} end)
   end
 
   # {owner, target context} → kernel read count
