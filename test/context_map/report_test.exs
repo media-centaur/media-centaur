@@ -161,6 +161,52 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     assert Enum.any?(findings, &(&1.surfaces != []))
   end
 
+  describe "list_lines/1" do
+    test "one line per site with each rule's summary, sorted by path then line" do
+      findings = [
+        encoded(%{
+          rule: "R3",
+          value: "ignored",
+          consumer: "MediaCentaurWeb.Reader",
+          file: "lib/b.ex",
+          line: 20
+        }),
+        encoded(%{
+          rule: "R1",
+          consumer_context: "web",
+          detail: %{kind: "foreign_write"},
+          file: "lib/b.ex",
+          line: 3
+        }),
+        encoded(%{rule: "R1", detail: %{kind: "owner_never_reads"}, file: "lib/a.ex", line: 9}),
+        encoded(%{
+          rule: "R4",
+          field: "other_id",
+          detail: %{target: "MediaCentaur.Other.Thing", in_deps: false},
+          file: "lib/a.ex",
+          line: 12
+        }),
+        encoded(%{
+          rule: "R4",
+          field: "kept_id",
+          detail: %{target: "MediaCentaur.Other.Thing", in_deps: true},
+          file: "lib/c.ex",
+          line: 4
+        }),
+        encoded(%{rule: "R4", field: "loose_id", detail: %{unresolved: true}, file: "lib/c.ex", line: 2})
+      ]
+
+      assert Report.list_lines(findings) == [
+               "lib/a.ex:9: R1 MediaCentaur.Owner.Item.state — never read by MediaCentaur.Owner",
+               "lib/a.ex:12: R4 MediaCentaur.Owner.Item.other_id — keys into MediaCentaur.Other.Thing (not in deps)",
+               "lib/b.ex:3: R1 MediaCentaur.Owner.Item.state — written from web",
+               "lib/b.ex:20: R3 MediaCentaur.Owner.Item.state = ignored — reinterpreted in MediaCentaurWeb.Reader",
+               "lib/c.ex:2: R4 MediaCentaur.Owner.Item.loose_id — unresolved key",
+               "lib/c.ex:4: R4 MediaCentaur.Owner.Item.kept_id — keys into MediaCentaur.Other.Thing"
+             ]
+    end
+  end
+
   describe "to_json/1" do
     test "object keys are sorted by their string form, recursively" do
       json = Report.to_json(%{b: 1, a: %{d: 1, c: 2}})
@@ -172,6 +218,24 @@ defmodule MediaCentaur.ContextMap.ReportTest do
       decoded = document |> Report.to_json() |> Jason.decode!(objects: :ordered_objects)
       assert sorted_keys?(decoded)
     end
+  end
+
+  defp encoded(overrides) do
+    Map.merge(
+      %{
+        rule: "R3",
+        owner: "MediaCentaur.Owner",
+        schema: "MediaCentaur.Owner.Item",
+        field: "state",
+        value: nil,
+        consumer: nil,
+        consumer_context: nil,
+        file: "lib/a.ex",
+        line: 1,
+        detail: nil
+      },
+      overrides
+    )
   end
 
   defp sorted_keys?(%Jason.OrderedObject{values: values}) do

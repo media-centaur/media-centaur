@@ -25,3 +25,27 @@ reports a concept key that matches no finding as stale.
     mix context_map --html tmp/context-map.html   # regenerate and view
     mix context_map --page                        # regenerate, page at tmp/context-map.html
     mix context_map --check                       # every finding has a verdict?
+    mix context_map --list                        # jump list: path:line: message per site
+
+Query modes — `--check`, `--list` — answer a question and write nothing
+unless an output is named explicitly with `--json`, `--html` or `--page`.
+A plain `mix context_map` still writes the JSON.
+
+`--list` prints one line per site, sorted by path then line:
+`path:line: RULE schema.field[ = value] — summary`, where the summary is
+`reinterpreted in Consumer` (R3), `written from Context` or
+`never read by Owner` (R1), and `keys into Target (not in deps)`,
+`keys into Target` or `unresolved key` (R4). An editor that reads
+`file:line:` locations jumps from line to line. A Sublime Text build
+system, saved as `Context map.sublime-build`:
+
+```json
+{
+  "shell_cmd": "mix context_map --list",
+  "file_regex": "^([^:]+):(\\d+): (.*)$",
+  "working_dir": "${project_path}"
+}
+```
+
+In an agent shell, run `~/scripts/agents/agent-mix context_map --list`
+instead of `mix` (see `CLAUDE.md`).

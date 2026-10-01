@@ -12,12 +12,20 @@ defmodule Mix.Tasks.ContextMap do
       mix context_map --page
       mix context_map --html path/to/context-map.html
       mix context_map --check
+      mix context_map --list
 
   `--page` also writes the self-contained page to `tmp/context-map.html`
   (gitignored); `--html PATH` writes it to PATH instead. Without either,
-  no page is written. `--check` fails when a
-  finding has no verdict or a verdict has no finding. `--verdicts PATH`
-  reads verdicts from PATH instead of `docs/context-map/verdicts.json`.
+  no page is written. `--verdicts PATH` reads verdicts from PATH instead
+  of `docs/context-map/verdicts.json`.
+
+  Query modes answer a question and write nothing unless an output is
+  named explicitly with `--json`, `--html` or `--page`:
+
+    * `--check` fails when a finding has no verdict or a verdict has no
+      finding.
+    * `--list` prints one `path:line: RULE schema.field[ = value] — summary`
+      line per site, sorted by path then line, for an editor's jump list.
   """
 
   alias MediaCentaur.ContextMap
@@ -30,32 +38,39 @@ defmodule Mix.Tasks.ContextMap do
   @default_verdicts "docs/context-map/verdicts.json"
   @page_path "tmp/context-map.html"
 
+  @query_modes [:list, :check]
+
   @impl Mix.Task
   def run(args) do
     {opts, rest} =
       OptionParser.parse!(args,
-        strict: [json: :string, html: :string, page: :boolean, check: :boolean, verdicts: :string]
+        strict: [
+          json: :string,
+          html: :string,
+          page: :boolean,
+          check: :boolean,
+          list: :boolean,
+          verdicts: :string
+        ]
       )
 
     if rest != [], do: Mix.raise("unexpected arguments: #{inspect(rest)}")
-    json_path = Keyword.get(opts, :json, @default_json)
     verdicts = Report.read_verdicts(Keyword.get(opts, :verdicts, @default_verdicts))
 
     analysis = ContextMap.analyse()
     document = ContextMap.document(analysis, verdicts)
-    write(json_path, Report.to_json(document) <> "\n")
-    Mix.shell().info("context map: #{length(document.findings)} findings → #{json_path}")
-
-    case html_path(opts) do
-      nil ->
-        :ok
-
-      html_path ->
-        write(html_path, Html.render(document))
-        Mix.shell().info("context map: html → #{html_path}")
-    end
-
+    write_json(document, json_path(opts))
+    write_html(document, html_path(opts))
+    if opts[:list], do: list(document.findings)
     if opts[:check], do: check(analysis.findings, verdicts)
+  end
+
+  defp json_path(opts) do
+    cond do
+      opts[:json] -> opts[:json]
+      Enum.any?(@query_modes, &opts[&1]) -> nil
+      true -> @default_json
+    end
   end
 
   defp html_path(opts) do
@@ -65,6 +80,22 @@ defmodule Mix.Tasks.ContextMap do
       true -> nil
     end
   end
+
+  defp write_json(_document, nil), do: :ok
+
+  defp write_json(document, path) do
+    write(path, Report.to_json(document) <> "\n")
+    Mix.shell().info("context map: #{length(document.findings)} findings → #{path}")
+  end
+
+  defp write_html(_document, nil), do: :ok
+
+  defp write_html(document, path) do
+    write(path, Html.render(document))
+    Mix.shell().info("context map: html → #{path}")
+  end
+
+  defp list(findings), do: for(line <- Report.list_lines(findings), do: Mix.shell().info(line))
 
   defp write(path, contents) do
     File.mkdir_p!(Path.dirname(path))
