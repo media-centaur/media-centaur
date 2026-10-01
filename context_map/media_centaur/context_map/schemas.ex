@@ -13,12 +13,22 @@ defmodule MediaCentaur.ContextMap.Schemas do
 
   `file` is the schema's source path relative to the repository root the
   task runs from (Mix runs from the root, as `Sources` assumes).
+
+  Fields and associations carry `line` and `declaration`: the line of
+  their `field` / `belongs_to` / `has_one` / `has_many` / `many_to_many` /
+  `embeds_one` / `embeds_many` call in `file`, and that line trimmed. The
+  file is parsed once and the search covers the schema module's own body,
+  not modules nested in it, so two schemas in one file keep apart. A
+  `belongs_to` foreign-key field takes its association's declaration. A
+  field with no declaration of its own (injected by a macro) has `line: 1`
+  and `declaration: ""`.
   """
 
   alias MediaCentaur.ContextMap.Contexts
   alias MediaCentaur.ContextMap.Schema
 
   @timestamps [:inserted_at, :updated_at]
+  @declaration_calls [:field, :belongs_to, :has_one, :has_many, :many_to_many, :embeds_one, :embeds_many]
 
   @doc "Every Ecto schema under `MediaCentaur`, sorted by module."
   @spec all() :: [Schema.t()]
@@ -68,26 +78,103 @@ defmodule MediaCentaur.ContextMap.Schemas do
     path
   end
 
-  @doc "Reflects one Ecto schema module into a `Schema`."
+  @doc "Reflects one Ecto schema module into a `Schema`, reading its source file once for declarations."
   @spec from_module(module()) :: Schema.t()
   def from_module(module) do
     drop = module.__schema__(:primary_key) ++ module.__schema__(:virtual_fields) ++ @timestamps
+    file = source_file(module, File.cwd!())
+    declarations = declarations(module, File.read!(file))
+
+    associations =
+      for name <- module.__schema__(:associations),
+          assoc = module.__schema__(:association, name),
+          not match?(%Ecto.Association.HasThrough{}, assoc) do
+        assoc |> association() |> declared(declarations[assoc.field])
+      end
+
+    foreign_key_owners =
+      for %{kind: :belongs_to, foreign_key: key, name: name} <- associations,
+          into: %{},
+          do: {key, name}
 
     %Schema{
       module: module,
       context: Contexts.context_of(module),
-      file: source_file(module, File.cwd!()),
+      file: file,
       table: module.__schema__(:source),
-      fields: for(name <- module.__schema__(:fields), name not in drop, do: field(module, name)),
-      associations:
-        for(
-          name <- module.__schema__(:associations),
-          assoc = module.__schema__(:association, name),
-          not match?(%Ecto.Association.HasThrough{}, assoc),
-          do: association(assoc)
-        )
+      fields:
+        for name <- module.__schema__(:fields), name not in drop do
+          declaration = declarations[name] || declarations[foreign_key_owners[name]]
+          module |> field(name) |> declared(declaration)
+        end,
+      associations: associations
     }
   end
+
+  @doc """
+  The declarations in `code` of `module`'s own body, by declared name:
+  `{line, trimmed line}` for each `field`, `belongs_to`, `has_one`,
+  `has_many`, `many_to_many`, `embeds_one` and `embeds_many` call. Modules
+  nested in `module` are not searched; a module `code` does not define
+  has none.
+  """
+  @spec declarations(module(), String.t()) :: %{atom() => {pos_integer(), String.t()}}
+  def declarations(module, code) do
+    lines = String.split(code, "\n")
+
+    code
+    |> Sourceror.parse_string!()
+    |> module_body([], Module.split(module))
+    |> case do
+      nil -> %{}
+      body -> body_declarations(body, lines)
+    end
+  end
+
+  # The body of the `defmodule` whose full name, nesting included, is `target`.
+  defp module_body({:defmodule, _, [{:__aliases__, _, parts}, [{_do, body}]]}, prefix, target) do
+    name = prefix ++ Enum.map(parts, &Atom.to_string/1)
+
+    cond do
+      name == target -> body
+      List.starts_with?(target, name) -> module_body(body, name, target)
+      true -> nil
+    end
+  end
+
+  defp module_body({_call, _meta, arguments}, prefix, target) when is_list(arguments),
+    do: module_body(arguments, prefix, target)
+
+  defp module_body(list, prefix, target) when is_list(list),
+    do: Enum.find_value(list, &module_body(&1, prefix, target))
+
+  defp module_body({left, right}, prefix, target),
+    do: module_body(left, prefix, target) || module_body(right, prefix, target)
+
+  defp module_body(_node, _prefix, _target), do: nil
+
+  defp body_declarations(body, lines) do
+    {_, found} =
+      Macro.prewalk(body, %{}, fn
+        {:defmodule, _, _}, acc ->
+          {nil, acc}
+
+        {call, meta, [{:__block__, _, [name]} | _]} = node, acc
+        when call in @declaration_calls and is_atom(name) ->
+          line = meta[:line]
+          {node, Map.put_new(acc, name, {line, lines |> Enum.at(line - 1, "") |> String.trim()})}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    found
+  end
+
+  defp declared(entry, {line, declaration}),
+    do: Map.merge(entry, %{line: line, declaration: declaration})
+
+  defp declared(entry, nil), do: Map.merge(entry, %{line: 1, declaration: ""})
 
   defp field(module, name) do
     case module.__schema__(:type, name) do

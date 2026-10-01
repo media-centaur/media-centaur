@@ -11,7 +11,12 @@ defmodule MediaCentaur.ContextMap.Html do
   kernel read shades the cell from its owner to the context of its target
   schema (`MediaCentaur.<Name>`, the target's first two segments); reads
   of external identifiers have no column. Clicking a cell filters the
-  findings list to that owner → consumer pair.
+  findings to that owner → consumer pair.
+
+  Findings are grouped by concept (`{rule, schema, field, value}`, the
+  concept key), then by consumer (the verdict key), then by site, each site
+  with its excerpt. Concepts with an unverdicted finding come first. Filters
+  act on sites; a consumer or concept with no visible site is hidden.
   """
 
   require EEx
@@ -41,7 +46,7 @@ defmodule MediaCentaur.ContextMap.Html do
       matrix: matrix,
       kernel_cells: kernel_cells(document.kernel_reads),
       findings_by_field: Enum.group_by(findings, &{&1.schema, &1.field}),
-      sorted_findings: Enum.sort_by(findings, &{not is_nil(&1.verdict), &1.key}),
+      concepts: concepts(findings),
       owners: sorted_unique(Enum.map(pairs, &elem(&1, 0))),
       finding_consumers: sorted_unique(Enum.map(pairs, &elem(&1, 1)))
     })
@@ -57,6 +62,49 @@ defmodule MediaCentaur.ContextMap.Html do
 
   # A field chip names the consuming module when there is one, else its column.
   defp consumer_label(finding), do: finding.consumer || consumer_column(finding)
+
+  # What a consumer group is, in words: the consuming module, or for R1 and
+  # R4 the kind of crossing.
+  defp consumer_heading(%{rule: "R4", detail: %{unresolved: true}}), do: "unresolved key"
+
+  defp consumer_heading(%{rule: "R4", detail: %{target: target} = detail}),
+    do: "keys into #{target}#{if detail[:in_deps] == false, do: " (not in deps)"}"
+
+  defp consumer_heading(%{rule: "R1", detail: %{kind: "owner_never_reads"}}),
+    do: "never read by its owner"
+
+  defp consumer_heading(%{rule: "R1", detail: %{kind: "foreign_write"}} = finding),
+    do: "written from #{consumer_label(finding)}"
+
+  defp consumer_heading(finding), do: consumer_label(finding)
+
+  defp plural(1, noun), do: "1 #{noun}"
+  defp plural(count, noun), do: "#{count} #{noun}s"
+
+  # concept key → consumers (by verdict key) → sites (by file, line). Each
+  # group keeps one `representative` finding for the facts its members share.
+  defp concepts(findings) do
+    findings
+    |> Enum.group_by(& &1.concept_key)
+    |> Enum.map(fn {concept_key, members} ->
+      consumers =
+        members
+        |> Enum.group_by(& &1.key)
+        |> Enum.map(fn {key, sites} ->
+          %{key: key, representative: hd(sites), sites: Enum.sort_by(sites, &{&1.file, &1.line})}
+        end)
+        |> Enum.sort_by(& &1.key)
+
+      %{
+        key: concept_key,
+        representative: hd(members),
+        consumers: consumers,
+        site_count: length(members),
+        unverdicted?: Enum.any?(members, &is_nil(&1.verdict))
+      }
+    end)
+    |> Enum.sort_by(&{not &1.unverdicted?, &1.key})
+  end
 
   defp cell_class(owner, consumer, kernel_count) do
     Enum.join(

@@ -18,8 +18,9 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   not distinctive counts only files that reference the owning schema
   module.
 
-  Findings: `:owner_never_reads` (non-kernel schemas only) and one
-  `:foreign_write` per non-owner context that writes the field.
+  Findings: `:owner_never_reads` (non-kernel schemas only), pointing at the
+  field's declaration, and one `:foreign_write` per non-owner context that
+  writes the field, at its first write site with that line as the excerpt.
   """
 
   alias MediaCentaur.ContextMap.Contexts
@@ -31,14 +32,15 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   @write_call ~r/(?<![\w.])(cast|put_change|force_change)\(|Changeset\.cast\(/
   @read_call ~r/\b(Map|Keyword)\.(get|fetch|fetch!|has_key\?|take|pop)\(/
 
-  @type site :: {module() | :web, module() | nil, String.t(), pos_integer(), :read | :write}
+  @type site ::
+          {module() | :web, module() | nil, String.t(), pos_integer(), :read | :write, String.t()}
   @type usage :: %{
           reads: %{(module() | :web) => non_neg_integer()},
           writes: %{(module() | :web) => non_neg_integer()},
           sites: [site()]
         }
 
-  @doc "Per `{schema_module, field}`: read and write counts by context, and every site."
+  @doc "Per `{schema_module, field}`: read and write counts by context, and every site with its trimmed line."
   @spec usage([Schema.t()], [Source.t()]) :: %{{module(), atom()} => usage()}
   def usage(schemas, sources) do
     declared_by =
@@ -64,7 +66,8 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
             mention.atom == field.name,
             access <- [access(mention, source)],
             access != nil do
-          {source.context, List.first(source.modules), source.path, mention.line, access}
+          {source.context, List.first(source.modules), source.path, mention.line, access,
+           source |> Source.line(mention.line) |> String.trim()}
         end
 
       {{schema.module, field.name},
@@ -95,24 +98,26 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
   defp field_findings(schema, field, field_usage) do
     never_read =
       if not Contexts.kernel?(schema.context) and Map.get(field_usage.reads, schema.context, 0) == 0 do
-        [
-          finding(schema, field, schema.context, nil, schema.file, 1, %{
-            kind: :owner_never_reads
-          })
-        ]
+        declaration = %{
+          context: schema.context,
+          module: nil,
+          file: schema.file,
+          line: field.line,
+          excerpt: field.declaration
+        }
+
+        [finding(schema, field, declaration, %{kind: :owner_never_reads})]
       else
         []
       end
 
     foreign_writes =
-      for {context, module, path, line, :write} <- field_usage.sites,
+      for {context, module, path, line, :write, excerpt} <- field_usage.sites,
           context != schema.context do
-        {context, module, path, line}
+        %{context: context, module: module, file: path, line: line, excerpt: excerpt}
       end
-      |> Enum.uniq_by(&elem(&1, 0))
-      |> Enum.map(fn {context, module, path, line} ->
-        finding(schema, field, context, module, path, line, %{kind: :foreign_write})
-      end)
+      |> Enum.uniq_by(& &1.context)
+      |> Enum.map(&finding(schema, field, &1, %{kind: :foreign_write}))
 
     never_read ++ foreign_writes
   end
@@ -143,16 +148,17 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignField do
       Enum.all?(Map.get(struct_declared_in, name, []), &(&1 == schema.file))
   end
 
-  defp finding(schema, field, context, module, path, line, detail) do
+  defp finding(schema, field, site, detail) do
     %Finding{
       rule: "R1",
       owner: schema.context,
       schema: schema.module,
       field: field.name,
-      consumer: module,
-      consumer_context: context,
-      file: path,
-      line: line,
+      consumer: site.module,
+      consumer_context: site.context,
+      file: site.file,
+      line: site.line,
+      excerpt: site.excerpt,
       detail: detail
     }
   end

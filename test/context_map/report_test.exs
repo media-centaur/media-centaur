@@ -16,6 +16,7 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     anchored?: true,
     file: "lib/media_centaur_web/components/title/logic.ex",
     line: 189,
+    excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|,
     detail: nil
   }
 
@@ -39,6 +40,8 @@ defmodule MediaCentaur.ContextMap.ReportTest do
              anchored: true,
              file: "lib/media_centaur_web/components/title/logic.ex",
              line: 189,
+             excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|,
+             concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
              detail: nil,
              verdict: "leak",
              reason: "search marker"
