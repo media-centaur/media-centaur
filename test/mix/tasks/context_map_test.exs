@@ -68,4 +68,14 @@ defmodule Mix.Tasks.ContextMapTest do
     keys = Enum.map(values, &elem(&1, 0))
     assert keys == Enum.sort(keys)
   end
+
+  test "--list prints a jump list and writes no JSON" do
+    before = File.stat!("docs/context-map/context-map.json", time: :posix).mtime
+    output = capture_io(fn -> ContextMap.run(["--list"]) end)
+    lines = String.split(output, "\n", trim: true)
+
+    assert lines != []
+    assert Enum.all?(lines, &Regex.match?(~r/^[^:]+:\d+: R\d \S+( = \S+)? — \S/, &1))
+    assert File.stat!("docs/context-map/context-map.json", time: :posix).mtime == before
+  end
 end

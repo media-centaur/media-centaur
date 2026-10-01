@@ -85,6 +85,40 @@ defmodule MediaCentaur.ContextMap.Report do
   end
 
   @doc """
+  One `path:line: RULE schema.field[ = value] — summary` line per site of
+  the encoded findings, sorted by path then line, for an editor's jump list.
+  """
+  @spec list_lines([map()]) :: [String.t()]
+  def list_lines(findings) do
+    findings
+    |> Enum.sort_by(&{&1.file, &1.line, list_line(&1)})
+    |> Enum.map(&list_line/1)
+    |> Enum.dedup()
+  end
+
+  defp list_line(finding) do
+    value = if finding.value, do: " = #{finding.value}", else: ""
+
+    "#{finding.file}:#{finding.line}: #{finding.rule} #{finding.schema}.#{finding.field}#{value} — " <>
+      summary(finding)
+  end
+
+  defp summary(%{rule: "R3", consumer: consumer}), do: "reinterpreted in #{consumer}"
+
+  defp summary(%{rule: "R1", detail: %{kind: "foreign_write"}, consumer_context: context}),
+    do: "written from #{context}"
+
+  defp summary(%{rule: "R1", detail: %{kind: "owner_never_reads"}, owner: owner}),
+    do: "never read by #{owner}"
+
+  defp summary(%{rule: "R4", detail: %{unresolved: true}}), do: "unresolved key"
+
+  defp summary(%{rule: "R4", detail: %{target: target, in_deps: false}}),
+    do: "keys into #{target} (not in deps)"
+
+  defp summary(%{rule: "R4", detail: %{target: target}}), do: "keys into #{target}"
+
+  @doc """
   Pretty JSON of `term` with every object's keys sorted by their string
   form, recursively, so the output does not depend on atom creation order.
   """
