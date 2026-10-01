@@ -121,4 +121,22 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     refute Enum.find(findings, &(&1.field == :owner_id))
     refute Enum.find(kernel_reads, &(&1.field == :owner_id))
   end
+
+  test "a polymorphic key with several unresolvable discriminator values yields one unresolved finding" do
+    ghost = %Schema{
+      module: MediaCentaur.Pipeline.ImageQueueEntry,
+      context: MediaCentaur.Pipeline,
+      table: "image_queue_entries",
+      fields: [
+        %{name: :owner_type, type: "Ecto.Enum", values: [:ghost_a, :ghost_b]},
+        %{name: :owner_id, type: "Ecto.UUID", values: nil}
+      ],
+      associations: []
+    }
+
+    {findings, _kernel_reads} = CrossContextKey.findings([ghost], @contexts)
+
+    assert [%Finding{field: :owner_id, detail: %{unresolved: true}}] =
+             Enum.filter(findings, &(&1.field == :owner_id))
+  end
 end
