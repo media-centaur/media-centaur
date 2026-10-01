@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Context map</title>
+<style>
+  :root { --bg: #f7f7f5; --fg: #1a1a1a; --muted: #6b6b66; --line: #d9d9d4; --panel: #ffffff; --accent: #2a5db0; --r1: #b35c00; --r3: #a0203a; --r4: #3c6e2f; --kernel: #e9eef6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #15161a; --fg: #e8e8e4; --muted: #9a9a94; --line: #2c2d33; --panel: #1d1e24; --accent: #7aa2e8; --r1: #e6a15c; --r3: #ef7f98; --r4: #8cc77a; --kernel: #1f2a3a; } }
+  body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  h1, h2, h3 { font-weight: 600; margin: 0 0 8px; } h1 { font-size: 22px; } h2 { font-size: 17px; margin-top: 32px; } h3 { font-size: 15px; }
+  table { border-collapse: collapse; } th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; } td.diag { background: var(--line); color: var(--muted); } td.kernel { background: var(--kernel); }
+  .matrix-wrap { overflow-x: auto; } .matrix th, .matrix td { padding: 2px 3px; } .matrix tr > th:first-child { white-space: nowrap; padding-right: 8px; }
+  .matrix th.rot { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; vertical-align: bottom; padding: 6px 3px; } .matrix td { text-align: center; } .matrix .count { display: block; margin: 1px 0; }
+  .count { display: inline-block; min-width: 1.4em; padding: 0 4px; border-radius: 3px; color: #fff; font-size: 12px; margin-right: 2px; }
+  .R1 { background: var(--r1); } .R3 { background: var(--r3); } .R4 { background: var(--r4); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .panel.kernel { border-color: var(--accent); } .schema { margin: 8px 0 16px; } .mono { font-family: ui-monospace, monospace; font-size: 12.5px; }
+  .muted { color: var(--muted); } .chip { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 12px; color: #fff; margin-left: 4px; }
+  .finding { border-top: 1px solid var(--line); padding: 8px 0; } .finding.unverdicted { border-left: 3px solid var(--accent); padding-left: 8px; }
+  .filters { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 16px; } .filters label { display: flex; gap: 4px; align-items: center; }
+  td.type { max-width: 16em; overflow-wrap: anywhere; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>Context map</h1>
+<p class="muted">Schemas by bounded context and every crossing of a boundary at the data level. R1 foreign field · R3 reinterpretation · R4 cross-context key. Shaded cells are shared-kernel reads. Spec: <span class="mono">docs/superpowers/specs/2026-09-30-context-map-design.md</span>.</p>
+
+<h2>Context matrix</h2>
+<p class="muted">Rows own the representation; columns interpret, key into, or write it. Context names drop the <span class="mono">MediaCentaur.</span> prefix.</p>
+<div class="matrix-wrap"><table class="matrix">
+<tr><th>owner ↓ / consumer →</th><%= for consumer <- @consumers do %><th class="rot" title="<%= h(consumer) %>"><%= label(consumer) %></th><% end %></tr>
+<%= for context <- @document.contexts do %>
+<tr><th title="<%= h(context.name) %>"><%= label(context.name) %><%= if context.kernel do %> <span class="muted">(kernel)</span><% end %></th>
+<%= for consumer <- @consumers do %>
+<% counts = @matrix[context.name][consumer] %>
+<td class="<%= if consumer == context.name, do: "diag" %>" data-cell="<%= h(context.name) %>→<%= h(consumer) %>">
+<%= for {rule, count} <- Enum.sort(counts) do %><span class="count <%= rule %>" title="<%= rule %>"><%= count %></span><% end %>
+</td>
+<% end %>
+</tr>
+<% end %>
+</table></div>
+
+<h2>Entities</h2>
+<%= for context <- @document.contexts do %>
+<div class="panel <%= if context.kernel, do: "kernel" %>">
+<h3><%= h(context.name) %><%= if context.kernel do %> <span class="muted">shared kernel</span><% end %></h3>
+<p class="muted mono">deps: <%= Enum.map_join(context.deps, ", ", &h/1) %></p>
+<%= if context.schemas == [] do %><p class="muted">no schemas</p><% end %>
+<%= for schema <- context.schemas do %>
+<div class="schema">
+<div><span class="mono"><%= h(schema.module) %></span> <span class="muted mono"><%= h(schema.table) %></span>
+<%= if schema.module in context.exports do %><span class="chip" style="background: var(--accent)">exported</span><% end %></div>
+<table>
+<tr><th>field</th><th>type</th><th>reads</th><th>writes</th><th>findings</th></tr>
+<%= for field <- schema.fields do %>
+<% field_findings = Enum.filter(@document.findings, &(&1.schema == schema.module and &1.field == field.name)) %>
+<tr>
+<td class="mono"><%= h(field.name) %><%= if field.values do %><br><span class="muted"><%= Enum.map_join(field.values, " · ", &h/1) %></span><% end %></td>
+<td class="mono muted type"><%= h(field.type) %></td>
+<td class="mono"><%= Enum.map_join(Enum.sort(field.reads), ", ", fn {consumer, count} -> "#{h(consumer)} #{count}" end) %></td>
+<td class="mono"><%= Enum.map_join(Enum.sort(field.writes), ", ", fn {consumer, count} -> "#{h(consumer)} #{count}" end) %></td>
+<td><%= for finding <- field_findings do %><span class="chip <%= finding.rule %>" title="<%= h(finding.key) %>"><%= finding.rule %><%= if finding.value do %> <%= h(finding.value) %><% end %> ← <%= h(finding.consumer || finding.consumer_context || "unresolved") %></span><% end %></td>
+</tr>
+<% end %>
+<%= for association <- schema.associations do %>
+<tr><td class="mono"><%= h(association.name) %></td><td class="mono muted"><%= h(association.kind) %></td><td colspan="3" class="mono">→ <%= h(association.target) %><%= if association.foreign_key do %> <span class="muted">via <%= h(association.foreign_key) %></span><% end %></td></tr>
+<% end %>
+</table>
+</div>
+<% end %>
+</div>
+<% end %>
+
+<h2>Findings <span class="muted">(<%= length(@document.findings) %>)</span></h2>
+<div class="filters">
+<%= for rule <- ["R1", "R3", "R4"] do %><label><input type="checkbox" data-filter-rule="<%= rule %>" checked> <%= rule %></label><% end %>
+<label><input type="checkbox" data-filter="unverdicted"> unverdicted only</label>
+<label><input type="checkbox" data-filter="anchored"> anchored only</label>
+</div>
+<%= for finding <- Enum.sort_by(@document.findings, &{not is_nil(&1.verdict), &1.key}) do %>
+<div class="finding <%= if is_nil(finding.verdict), do: "unverdicted" %>" data-rule="<%= finding.rule %>" data-verdict="<%= h(finding.verdict || "") %>" data-anchored="<%= finding.anchored %>">
+<div><span class="chip <%= finding.rule %>"><%= finding.rule %></span> <span class="mono"><%= h(finding.schema) %>.<%= h(finding.field) %><%= if finding.value do %> = <%= h(finding.value) %><% end %></span>
+<%= if finding.consumer do %> ← <span class="mono"><%= h(finding.consumer) %></span><% end %>
+<%= if finding.detail do %><span class="muted mono"> <%= h(inspect(finding.detail)) %></span><% end %>
+<%= unless finding.anchored do %><span class="muted"> candidate</span><% end %></div>
+<div class="muted mono"><%= h(finding.file) %>:<%= finding.line %><%= if finding.surfaces != [] do %> · surfaces: <%= Enum.map_join(finding.surfaces, ", ", &h/1) %><% end %></div>
+<div class="mono muted"><%= h(finding.key) %></div>
+<%= if finding.verdict do %><div><strong><%= h(finding.verdict) %></strong> — <%= h(finding.reason) %></div><% end %>
+</div>
+<% end %>
+
+<h2>Kernel reads <span class="muted">(<%= length(@document.kernel_reads) %>)</span></h2>
+<table><tr><th>schema</th><th>field</th><th>target</th></tr>
+<%= for read <- @document.kernel_reads do %><tr><td class="mono"><%= h(read.schema) %></td><td class="mono"><%= h(read.field) %></td><td class="mono"><%= h(read.target) %></td></tr><% end %>
+</table>
+
+<script>
+  const boxes = document.querySelectorAll('.filters input');
+  function apply() {
+    const rules = new Set([...document.querySelectorAll('[data-filter-rule]:checked')].map(b => b.dataset.filterRule));
+    const onlyUnverdicted = document.querySelector('[data-filter="unverdicted"]').checked;
+    const onlyAnchored = document.querySelector('[data-filter="anchored"]').checked;
+    document.querySelectorAll('.finding').forEach(el => {
+      const show = rules.has(el.dataset.rule) && (!onlyUnverdicted || el.dataset.verdict === '') && (!onlyAnchored || el.dataset.anchored === 'true');
+      el.classList.toggle('hidden', !show);
+    });
+  }
+  boxes.forEach(b => b.addEventListener('change', apply));
+</script>
+</body>
+</html>
