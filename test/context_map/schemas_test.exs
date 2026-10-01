@@ -5,7 +5,7 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   alias MediaCentaur.ContextMap.Schemas
 
   test "TitleIntent: context, table, enum values, no virtual or timestamp fields" do
-    intent = Schemas.fetch!(MediaCentaur.Discovery.TitleIntent)
+    intent = Schemas.from_module(MediaCentaur.Discovery.TitleIntent)
 
     assert %Schema{context: MediaCentaur.Discovery, table: "title_intents"} = intent
 
@@ -19,9 +19,9 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   end
 
   test "WatchHistory.Event carries belongs_to associations with their targets" do
-    event = Schemas.fetch!(MediaCentaur.WatchHistory.Event)
+    event = Schemas.from_module(MediaCentaur.WatchHistory.Event)
     movie = Enum.find(event.associations, &(&1.target == MediaCentaur.Library.Movie))
-    assert %{kind: :belongs_to, field: :movie_id} = movie
+    assert %{kind: :belongs_to, foreign_key: :movie_id, name: :movie} = movie
   end
 
   test "every schema has an owning context" do

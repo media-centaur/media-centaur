@@ -13,13 +13,18 @@ defmodule MediaCentaur.ContextMap.Contexts do
 
   @kernel [MediaCentaur.Library, MediaCentaur.TMDB]
 
+  @doc "Every bounded context in the application, sorted by name."
   @spec all() :: [Context.t()]
   def all do
     {:ok, modules} = :application.get_key(:media_centaur, :modules)
 
     modules
-    |> Enum.filter(&context_module?/1)
-    |> Enum.map(&to_context/1)
+    |> Enum.flat_map(fn module ->
+      case context_opts(module) do
+        {:ok, opts} -> [to_context(module, opts)]
+        :error -> []
+      end
+    end)
     |> Enum.sort_by(&inspect(&1.name))
   end
 
@@ -32,31 +37,44 @@ defmodule MediaCentaur.ContextMap.Contexts do
 
       ["MediaCentaur", name | _] ->
         candidate = existing_module([MediaCentaur, name])
-        if candidate && context_module?(candidate), do: candidate
+        if candidate && context_opts(candidate) != :error, do: candidate
 
       _ ->
         nil
     end
   end
 
+  @doc "Whether `context` belongs to the shared kernel (declared, not detected)."
   @spec kernel?(module()) :: boolean()
   def kernel?(context), do: context in @kernel
 
-  defp context_module?(module) do
+  # The Boundary options of `module` when it is a context, `:error` otherwise.
+  defp context_opts(module) do
     with ["MediaCentaur", _name] <- Module.split(module),
-         true <- Code.ensure_loaded?(module),
-         [%{opts: opts}] <- Keyword.get(module.__info__(:attributes), Boundary) do
-      not Keyword.has_key?(opts, :classify_to) and not tooling?(opts)
+         {:ok, opts} <- boundary_opts(module),
+         false <- Keyword.has_key?(opts, :classify_to),
+         false <- tooling?(opts) do
+      {:ok, opts}
     else
-      _ -> false
+      _ -> :error
     end
   end
 
-  defp tooling?(opts), do: Keyword.get(opts, :check, []) == [in: false, out: false]
+  defp boundary_opts(module) do
+    with true <- Code.ensure_loaded?(module),
+         [%{opts: opts}] <- Keyword.get(module.__info__(:attributes), Boundary) do
+      {:ok, opts}
+    else
+      _ -> :error
+    end
+  end
 
-  defp to_context(module) do
-    [%{opts: opts}] = Keyword.get(module.__info__(:attributes), Boundary)
+  defp tooling?(opts) do
+    check = Keyword.get(opts, :check, [])
+    check[:in] == false and check[:out] == false
+  end
 
+  defp to_context(module, opts) do
     %Context{
       name: module,
       kernel?: kernel?(module),

@@ -4,20 +4,20 @@ defmodule Mix.Tasks.ContextMap do
   use Mix.Task
 
   @moduledoc """
-  Generates `docs/context-map/context-map.json` and, with `--html PATH`, a
-  self-contained HTML rendering. `--check` fails when a finding has no
-  verdict or a verdict has no finding (see `MediaCentaur.ContextMap.Report`).
+  Generates `docs/context-map/context-map.json`, or the path given with
+  `--json PATH`.
 
       mix context_map
-      mix context_map --html tmp/context-map.html
-      mix context_map --check
+      mix context_map --json tmp/context-map.json
   """
+
+  @requirements ["app.config"]
 
   @default_json "docs/context-map/context-map.json"
 
   @impl Mix.Task
   def run(args) do
-    {opts, _rest} = OptionParser.parse!(args, strict: [json: :string, html: :string, check: :boolean])
+    {opts, []} = OptionParser.parse!(args, strict: [json: :string])
     json_path = Keyword.get(opts, :json, @default_json)
 
     document = MediaCentaur.ContextMap.build()
