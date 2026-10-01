@@ -22,6 +22,7 @@
   .filters { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 16px; } .filters label { display: flex; gap: 4px; align-items: center; }
   td.type { max-width: 16em; overflow-wrap: anywhere; }
   .matrix td[data-cell] { cursor: pointer; } .matrix td.active { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chip.exported { background: var(--accent); }
   .count.kernel-count { background: transparent; color: var(--muted); border: 1px solid var(--muted); }
   .filters select { font: inherit; }
   .hidden { display: none; }
@@ -38,9 +39,9 @@
 <%= for context <- @contexts do %>
 <tr><th title="<%= h(context.name) %>"><%= label(context.name) %><%= if context.kernel do %> <span class="muted">(kernel)</span><% end %></th>
 <%= for consumer <- @consumers do %>
-<% counts = @matrix[context.name][consumer] %>
+<% counts = Map.get(@matrix, {context.name, consumer}, %{}) %>
 <% kernel_count = @kernel_cells[{context.name, consumer}] %>
-<td class="<%= if consumer == context.name, do: "diag" %><%= if kernel_count, do: " kernel" %>"<%= if kernel_count do %> title="<%= h(kernel_count) %> shared-kernel reads"<% end %> data-cell="<%= h(context.name) %>→<%= h(consumer) %>" data-owner="<%= h(context.name) %>" data-consumer="<%= h(consumer) %>">
+<td class="<%= cell_class(context.name, consumer, kernel_count) %>"<%= if kernel_count do %> title="<%= h(kernel_count) %> shared-kernel reads"<% end %> data-cell="<%= h(context.name) %>→<%= h(consumer) %>" data-owner="<%= h(context.name) %>" data-consumer="<%= h(consumer) %>">
 <%= for {rule, count} <- Enum.sort(counts) do %><span class="count <%= h(rule) %>" title="<%= h(rule) %>"><%= h(count) %></span><% end %>
 <%= if kernel_count do %><span class="count kernel-count"><%= h(kernel_count) %></span><% end %>
 </td>
@@ -58,17 +59,16 @@
 <%= for schema <- context.schemas do %>
 <div class="schema">
 <div><span class="mono"><%= h(schema.module) %></span> <span class="muted mono"><%= h(schema.table) %></span>
-<%= if schema.module in context.exports do %><span class="chip" style="background: var(--accent)">exported</span><% end %></div>
+<%= if schema.module in context.exports do %><span class="chip exported">exported</span><% end %></div>
 <table>
 <tr><th>field</th><th>type</th><th>reads</th><th>writes</th><th>findings</th></tr>
 <%= for field <- schema.fields do %>
-<% field_findings = Enum.filter(@document.findings, &(&1.schema == schema.module and &1.field == field.name)) %>
 <tr>
 <td class="mono"><%= h(field.name) %><%= if field.values do %><br><span class="muted"><%= Enum.map_join(field.values, " · ", &h/1) %></span><% end %></td>
 <td class="mono muted type"><%= h(field.type) %></td>
-<td class="mono"><%= Enum.map_join(Enum.sort(field.reads), ", ", fn {consumer, count} -> "#{h(consumer)} #{count}" end) %></td>
-<td class="mono"><%= Enum.map_join(Enum.sort(field.writes), ", ", fn {consumer, count} -> "#{h(consumer)} #{count}" end) %></td>
-<td><%= for finding <- field_findings do %><span class="chip <%= h(finding.rule) %>" title="<%= h(finding.key) %>"><%= h(finding.rule) %><%= if finding.value do %> <%= h(finding.value) %><% end %> ← <%= h(finding.consumer || finding.consumer_context || "unresolved") %></span><% end %></td>
+<td class="mono"><%= counts(field.reads) %></td>
+<td class="mono"><%= counts(field.writes) %></td>
+<td><%= for finding <- Map.get(@findings_by_field, {schema.module, field.name}, []) do %><span class="chip <%= h(finding.rule) %>" title="<%= h(finding.key) %>"><%= h(finding.rule) %><%= if finding.value do %> <%= h(finding.value) %><% end %> ← <%= h(consumer_label(finding)) %></span><% end %></td>
 </tr>
 <% end %>
 <%= for association <- schema.associations do %>
@@ -89,8 +89,8 @@
 <label>consumer <select data-filter="consumer"><option value="">all</option><%= for consumer <- @finding_consumers do %><option value="<%= h(consumer) %>"><%= h(consumer) %></option><% end %></select></label>
 <span class="muted" data-pair></span>
 </div>
-<%= for finding <- Enum.sort_by(@document.findings, &{not is_nil(&1.verdict), &1.key}) do %>
-<div class="finding <%= if is_nil(finding.verdict), do: "unverdicted" %>" data-rule="<%= h(finding.rule) %>" data-verdict="<%= h(finding.verdict || "") %>" data-anchored="<%= h(finding.anchored) %>" data-owner="<%= h(finding.owner) %>" data-consumer="<%= h(finding.consumer_context || "unresolved") %>">
+<%= for finding <- @sorted_findings do %>
+<div class="finding <%= if is_nil(finding.verdict), do: "unverdicted" %>" data-rule="<%= h(finding.rule) %>" data-verdict="<%= h(finding.verdict || "") %>" data-anchored="<%= h(finding.anchored) %>" data-owner="<%= h(finding.owner) %>" data-consumer="<%= h(consumer_column(finding)) %>">
 <div><span class="chip <%= h(finding.rule) %>"><%= h(finding.rule) %></span> <span class="mono"><%= h(finding.schema) %>.<%= h(finding.field) %><%= if finding.value do %> = <%= h(finding.value) %><% end %></span>
 <%= if finding.consumer do %> ← <span class="mono"><%= h(finding.consumer) %></span><% end %>
 <%= if finding.detail do %><span class="muted mono"> <%= h(inspect(finding.detail)) %></span><% end %>
@@ -107,14 +107,15 @@
 </table>
 
 <script>
+{
   let pair = null;
-  const value = name => document.querySelector(`[data-filter="${name}"]`);
-  function apply() {
+  const filter = name => document.querySelector(`[data-filter="${name}"]`);
+  const apply = () => {
     const rules = new Set([...document.querySelectorAll('[data-filter-rule]:checked')].map(b => b.dataset.filterRule));
-    const onlyUnverdicted = value('unverdicted').checked;
-    const onlyAnchored = value('anchored').checked;
-    const owner = value('owner').value;
-    const consumer = value('consumer').value;
+    const onlyUnverdicted = filter('unverdicted').checked;
+    const onlyAnchored = filter('anchored').checked;
+    const owner = filter('owner').value;
+    const consumer = filter('consumer').value;
     document.querySelectorAll('.finding').forEach(el => {
       const show = rules.has(el.dataset.rule)
         && (!onlyUnverdicted || el.dataset.verdict === '')
@@ -125,24 +126,27 @@
       el.classList.toggle('hidden', !show);
     });
     document.querySelectorAll('.matrix td.active').forEach(td => td.classList.remove('active'));
-    const label = document.querySelector('[data-pair]');
+    const status = document.querySelector('[data-pair]');
     if (pair) {
       pair.cell.classList.add('active');
-      label.textContent = `cell: ${pair.owner} → ${pair.consumer} (click it again to clear)`;
+      status.textContent = `cell: ${pair.owner} → ${pair.consumer} (click it again to clear)`;
     } else {
-      label.textContent = '';
+      status.textContent = '';
     }
-  }
+  };
   document.querySelectorAll('.filters input, .filters select').forEach(input => input.addEventListener('change', apply));
   document.querySelectorAll('.matrix td[data-cell]').forEach(cell => cell.addEventListener('click', () => {
     if (pair && pair.cell === cell) {
       pair = null;
     } else {
       pair = {cell, owner: cell.dataset.owner, consumer: cell.dataset.consumer};
+      filter('owner').value = '';
+      filter('consumer').value = '';
       document.getElementById('findings').scrollIntoView({behavior: 'smooth'});
     }
     apply();
   }));
+}
 </script>
 </body>
 </html>

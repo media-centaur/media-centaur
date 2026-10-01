@@ -93,8 +93,10 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     assert html =~
              "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
 
-    assert html =~ "title_intents"
-    assert html =~ "MediaCentaurWeb.IncomingLive"
+    assert html |> query(~s(.panel[data-context="MediaCentaur.Discovery"])) |> LazyHTML.text() =~
+             "title_intents"
+
+    assert html |> query(".finding") |> LazyHTML.text() =~ "MediaCentaurWeb.IncomingLive"
 
     assert html
            |> LazyHTML.from_document()
@@ -133,7 +135,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
       |> query(~s([data-cell="MediaCentaur.Discovery→MediaCentaur.Library"]))
       |> Enum.to_list()
 
-    assert cell |> LazyHTML.attribute("class") |> hd() |> String.split() |> Enum.member?("kernel")
+    assert LazyHTML.attribute(cell, "class") == ["kernel"]
     assert LazyHTML.attribute(cell, "title") == ["1 shared-kernel reads"]
     assert LazyHTML.text(cell) =~ "1"
   end
@@ -163,6 +165,10 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
            |> Enum.count() == 1
 
     assert html |> query(~s(select[data-filter="consumer"] option[value="web"])) |> Enum.count() == 1
+  end
+
+  test "an exported schema carries the exported chip" do
+    assert @document |> Html.render() |> query(".chip.exported") |> LazyHTML.text() == "exported"
   end
 
   test "escapes rule, line and anchored" do
