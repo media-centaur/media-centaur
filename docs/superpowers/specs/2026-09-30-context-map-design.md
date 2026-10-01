@@ -77,8 +77,8 @@ adds a field to another context's table for its own need.
 *Signal — foreign field.* For every field of every schema, the extractor
 attributes each read and write to a context (or to the web layer). A field
 is reported when the owning context, excluding the schema module itself,
-migrations and tests, never reads or writes it, or when another context
-writes it.
+migrations and tests, never reads it (a field the owner writes but never
+reads is still reported), or when another context writes it.
 
 *Amendment 2026-10-01.* A write is a key in a map or struct literal in
 expression position, or a `cast`/`put_change`/`force_change` call on the
@@ -88,10 +88,7 @@ keys of every `defstruct` under `lib/`, not only schema fields.
 *Limits.* A write made through a helper the owning schema provides
 (`TitleIntent.friend_provenance/2` called from the web layer) is a
 function call to the signal, not a key literal, and is attributed to the
-owner. A field name declared by exactly one schema may still be shared
-with non-schema structs (`FeedEntry.activity_id`), which the signal
-counts as uses of the schema field until struct keys are included in the
-distinctiveness test. Reads are anchored on the field name (`.field`, `field:` in a
+owner. Reads are anchored on the field name (`.field`, `field:` in a
 pattern or keyword, `x.field` in a query, `Map.get(_, :field)`, `cast/3`
 lists). For a field name that is not distinctive (`name`, `status`, `id`,
 `inserted_at`), the count is restricted to files that reference the owning
@@ -106,8 +103,10 @@ entities from another context is not a crossing. Writing them from another
 context is.
 
 *Signal.* Findings under R3 and R4 whose owner is a shared-kernel context
-and whose crossing is a read are suppressed and counted separately as
-kernel reads, so the map shows the fan-out without listing it as findings.
+and whose crossing is a read are suppressed. Keys into the kernel are
+listed as kernel reads, so the map shows that fan-out without findings;
+interpretations of a kernel enum value are skipped and not counted
+(amended 2026-10-01 to match the extractor).
 Writes are reported under R1.
 
 *Amendment 2026-10-01.* "Owner" here means the referenced side: the schema
@@ -121,7 +120,9 @@ whose value is interpreted (R3) or the key's target (R4).
 the owner's facade a question and acts on the answer.
 
 *Signal — reinterpretation.* For every `Ecto.Enum` field and every field
-with a declared value set (`@type` union of atoms on the schema module),
+with a declared value set (`@type` union of atoms on the schema module —
+not implemented as of 2026-10-01: every value set in the application is an
+`Ecto.Enum`, so the `@type` form is a stated limit until a schema needs it),
 the extractor reports each occurrence outside the owning context of a
 literal value of that field in a function-clause pattern, a struct or map
 pattern with the field name, a query filter on the field, an `in` list, or
@@ -361,7 +362,9 @@ Each migration is its own change with its own tests.
 Test-first throughout (`automated-testing` skill).
 
 * **Signals**: unit tests per rule module against source strings and a
-  small set of schema modules under `test/support/context_map/`,
+  small set of schema modules (as built, inline source strings and real
+  application schema modules, since the schema file is located from the
+  compiled module; no `test/support/context_map/` directory exists),
   covering each anchor form named in § 3 and each stated limit (a limit
   is asserted as *not* reported, so a later improvement is a deliberate
   change).
