@@ -138,6 +138,28 @@ defmodule MediaCentaur.ContextMap.WalkTest do
     end
   end
 
+  describe "type arguments" do
+    test "the type argument of attr, slot, field and embeds is not a value" do
+      mentions =
+        mentions_of("""
+        attr :items, :list
+        slot :inner, :list
+        field :x, :list
+        embeds_one :y, :list
+        embeds_many :z, :list
+        """)
+
+      refute Enum.find(mentions, &(&1.kind == :value and &1.atom == :list))
+      assert find(mentions, :value, :items, 1)
+    end
+
+    test "a values list after the type is still walked" do
+      mentions = mentions_of("attr :rung, :atom, values: [:ignored]\n")
+      assert find(mentions, :value, :ignored, 1)
+      refute find(mentions, :value, :atom, 1)
+    end
+  end
+
   defp mentions_of(code), do: Walk.mentions(Sources.parse("lib/media_centaur/sample.ex", code))
 
   defp template_mentions(line), do: mentions_of(~s|def t(assigns) do\n  ~H"""\n  #{line}\n  """\nend\n|)

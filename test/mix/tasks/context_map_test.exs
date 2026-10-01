@@ -57,4 +57,15 @@ defmodule Mix.Tasks.ContextMapTest do
 
     assert page_path |> File.read!() |> String.contains?("<title>Context map</title>")
   end
+
+  test "the JSON document's object keys are sorted", %{tmp_dir: tmp_dir} do
+    json_path = Path.join(tmp_dir, "context-map.json")
+    capture_io(fn -> ContextMap.run(["--json", json_path]) end)
+
+    %Jason.OrderedObject{values: values} =
+      json_path |> File.read!() |> Jason.decode!(objects: :ordered_objects)
+
+    keys = Enum.map(values, &elem(&1, 0))
+    assert keys == Enum.sort(keys)
+  end
 end

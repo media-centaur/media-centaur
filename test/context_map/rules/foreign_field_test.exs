@@ -140,4 +140,28 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
     assert writes.(plain) == %{}
     assert writes.(aliased) == %{MediaCentaur.Search => 1}
   end
+
+  test "a keyword key in an expression is a read, not a write" do
+    code =
+      "defmodule MediaCentaur.Discovery do\n  def find(tmdb_id), do: Repo.get_by(TitleIntent, rung: :list, tmdb_id: tmdb_id)\nend\n"
+
+    usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/discovery.ex", code}]))
+
+    assert %{reads: %{MediaCentaur.Discovery => 1}, writes: writes} =
+             usage[{MediaCentaur.Discovery.TitleIntent, :rung}]
+
+    assert writes == %{}
+  end
+
+  test "a Map or Keyword access by atom is a read" do
+    code =
+      "defmodule MediaCentaur.Activities do\n  def id(intent), do: Map.get(intent, :activity_id)\nend\n"
+
+    usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))
+
+    assert %{reads: %{MediaCentaur.Activities => 1}, writes: writes} =
+             usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}]
+
+    assert writes == %{}
+  end
 end

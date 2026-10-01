@@ -54,6 +54,23 @@ defmodule MediaCentaur.ContextMap.Report do
       else: {:error, %{unverdicted: unverdicted, stale: stale}}
   end
 
+  @doc """
+  Pretty JSON of `term` with every object's keys sorted by their string
+  form, recursively, so the output does not depend on atom creation order.
+  """
+  @spec to_json(term()) :: String.t()
+  def to_json(term), do: term |> sorted_objects() |> Jason.encode!(pretty: true)
+
+  defp sorted_objects(map) when is_map(map) and not is_struct(map) do
+    map
+    |> Enum.map(fn {key, value} -> {key, sorted_objects(value)} end)
+    |> Enum.sort_by(fn {key, _value} -> to_string(key) end)
+    |> Jason.OrderedObject.new()
+  end
+
+  defp sorted_objects(list) when is_list(list), do: Enum.map(list, &sorted_objects/1)
+  defp sorted_objects(scalar), do: scalar
+
   @doc ~s(Parses the verdicts JSON into `%{key => %{"verdict", "reason"}}`; raises `ArgumentError` on an entry missing `key`, `verdict` or `reason`, or on a verdict other than `leak` or `allowed`.)
   @spec parse_verdicts(String.t()) :: %{String.t() => map()}
   def parse_verdicts(json) do

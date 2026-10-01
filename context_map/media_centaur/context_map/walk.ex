@@ -18,6 +18,11 @@ defmodule MediaCentaur.ContextMap.Walk do
   left of `=` or `<-`, or the head of a `->` clause. `cond` conditions are
   `->` heads and so count as patterns.
 
+  The type argument of a declaration (`attr :items, :list`, `slot`,
+  `field`, `embeds_one`, `embeds_many` with a literal name) is not a
+  value: it names a type, not a member of an enum. The arguments after it
+  (`values: [...]`) are still walked.
+
   `~H` templates are strings to the parser; they are scanned by regex for
   `:atom` values and `.field` accesses and marked `template?: true`.
   """
@@ -25,6 +30,7 @@ defmodule MediaCentaur.ContextMap.Walk do
   alias MediaCentaur.ContextMap.Source
 
   @definitions [:def, :defp, :defmacro, :defmacrop, :defguard, :defguardp]
+  @declarations [:attr, :slot, :field, :embeds_one, :embeds_many]
 
   @type mention :: %{
           kind: :key | :value | :dot,
@@ -52,6 +58,11 @@ defmodule MediaCentaur.ContextMap.Walk do
   defp pre({definition, meta, [{name, head_meta, args} | body]}, acc)
        when definition in @definitions and is_list(args),
        do: {{definition, meta, [{name, head_meta, [wrap(args)]} | body]}, acc}
+
+  # a declaration's type argument is dropped before descending
+  defp pre({declaration, meta, [{:__block__, _, [name]} = first, _type | rest]}, acc)
+       when declaration in @declarations and is_atom(name),
+       do: {{declaration, meta, [first, nil | rest]}, acc}
 
   defp pre({:=, meta, [left, right]}, acc), do: {{:=, meta, [wrap(left), right]}, acc}
   defp pre({:<-, meta, [left, right]}, acc), do: {{:<-, meta, [wrap(left), right]}, acc}

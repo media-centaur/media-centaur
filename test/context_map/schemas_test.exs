@@ -39,4 +39,15 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   end
 
   defp field(schema, name), do: Enum.find(schema.fields, &(&1.name == name))
+
+  test "a schema source outside the project root raises naming the module" do
+    assert_raise ArgumentError, ~r/MediaCentaur.Discovery.TitleIntent.*outside/, fn ->
+      Schemas.source_file(MediaCentaur.Discovery.TitleIntent, "/nonexistent-root")
+    end
+  end
+
+  test "a schema source inside the project root is relative to it" do
+    assert Schemas.source_file(MediaCentaur.Discovery.TitleIntent, File.cwd!()) ==
+             "lib/media_centaur/discovery/title_intent.ex"
+  end
 end
