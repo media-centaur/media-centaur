@@ -2278,3 +2278,56 @@ Not code. After Task 14 the loop in spec § 7 starts: the user reads `tmp/contex
 **Placeholders.** None; every code step has its code. Task 12's `--html` test is red until Task 13 by design and they commit together.
 
 **Type consistency.** `Finding` fields: `rule, owner, schema, field, value, consumer, consumer_context, surfaces, anchored?, file, line, detail` — used identically in Tasks 6–14. `Schema.fields` entries: `%{name, type, values}`; associations `%{field, kind, target, name}` — Task 3 produces, Tasks 8–9 consume. `Walk.mentions/1` → `%{kind, atom, line, pattern?, template?}` — Tasks 5, 7, 9. `ContextMap.build/1` takes the verdicts map after Task 12; `findings/0` is separate. `Report.name/1` is the one module-to-string function.
+
+---
+
+## Addendum 2026-10-01 — reading aids
+
+Decided after the first full run (416 findings, ~300 verdict keys). Four
+additions, in build order. Spec: § 11 of the design document, added the
+same day. Same rules as the main plan: test-first, `agent-mix` only,
+one commit per task with the message given.
+
+### Task 16: Declaration lines, excerpts, concept grouping
+
+**Files:** modify `schema.ex`, `schemas.ex`, `finding.ex`, `rules/{foreign_field,cross_context_key,reinterpretation}.ex`, `report.ex`, `html.ex`, the template; tests alongside.
+
+- `Schema` fields and associations gain `line :: pos_integer()` and `declaration :: String.t()`: `Schemas.from_module/1` reads `schema.file` once and locates each declaration with `~r/^\s*(field|belongs_to|has_one|has_many|many_to_many|embeds_one|embeds_many)\s+:#{name}\b/`; a field with no match (a field injected by a macro) gets `line: 1` and `declaration: ""`. Test on `TitleIntent`: `rung`'s declaration contains `field :rung`.
+- `Finding` gains `excerpt :: String.t()` (the trimmed source line). R3 and R1 `foreign_write` take it from `Source.line/2`; R1 `owner_never_reads` and R4 point `line` at the field's declaration line and use its `declaration` as the excerpt. `Finding.concept_key/1` is `key/1` with the last segment replaced by `*`.
+- `Report.encode_findings/2` emits `excerpt` and `concept_key`.
+- `Html`: the findings section groups by concept (`{rule, schema, field, value}`), then by consumer. A concept block shows the rule chip, `schema.field = value`, consumer and site counts, and the concept verdict if any; each consumer shows module, context, surfaces, verdict; each site shows `file:line` and the excerpt in monospace. Filters work at the site level and hide a consumer or concept with no visible site. The matrix cell click still filters. Test: a concept block contains both of two fixture findings sharing `{schema, field, value}`.
+
+Commit: `feat(context_map): declaration lines, excerpts, concept grouping`.
+
+### Task 17: Concept verdicts
+
+**Files:** `report.ex`, `finding.ex`, `html.ex`, tests, `docs/context-map.md`.
+
+- A verdict key may end in `*` (the consumer segment). `Report.verdict_for(finding, verdicts)` returns `{key_used, verdict_map} | nil`: exact key first, then the concept key.
+- `encode_findings/2` emits `verdict`, `reason` and `verdict_key` (the key that supplied them).
+- `check/2`: unverdicted = findings with neither; stale = verdict keys (exact or wildcard) matching no finding.
+- `parse_verdicts/1` accepts both forms; a wildcard anywhere but the last segment raises `ArgumentError`.
+- Page: a concept block shows "concept verdict" when the verdict came from the wildcard key; a consumer whose exact verdict overrides it is marked "overrides".
+- Doc: one paragraph with an example of each key form.
+
+Commit: `feat(context_map): concept verdicts`.
+
+### Task 18: Jump list
+
+**Files:** Mix task, `report.ex`, tests, `docs/context-map.md`.
+
+- `mix context_map --list` prints one line per site, sorted by path then line: `path:line: RULE schema.field[ = value] — <summary>` where the summary is `reinterpreted in Consumer` (R3), `written from Context` / `never read by Owner` (R1), `keys into Target (not in deps)` / `unresolved key` (R4). `Report.list_lines/1` builds the lines from the encoded findings; the task prints them.
+- Query modes: `--list`, `--diff`, `--check` do not write the JSON or the page unless `--json`/`--html`/`--page` is given explicitly. Document in the moduledoc and `docs/context-map.md`.
+- Doc: a Sublime build system snippet (`"shell_cmd": "mix context_map --list"`, `"file_regex": "^([^:]+):(\\d+): (.*)$"`, `"working_dir": "${project_path}"`), with the note that the agent shell uses `agent-mix` instead.
+
+Commit: `feat(context_map): --list jump list for the editor`.
+
+### Task 19: Semantic diff
+
+**Files:** Mix task, `report.ex`, tests, `docs/context-map.md`.
+
+- `Report.diff(previous_findings, current_findings)` on encoded findings: `%{added: [...], removed: [...]}` by verdict key, each entry `%{key, rule, sites: n, first: %{file, line, excerpt}}`, sorted by key. Line moves and excerpt changes within an existing key are not reported.
+- `mix context_map --diff [PATH]` compares the fresh analysis against `docs/context-map/context-map.json` (or PATH) and prints `added (n)` and `removed (n)` sections, one line per key with rule, key, site count and the first `file:line`. Exit code 0 either way; it is informational. Test with a JSON fixture lacking one key and containing one extra.
+- Doc: the review-time workflow — run `--diff` on a branch to read what crossings a change adds, before reading the code.
+
+Commit: `feat(context_map): --diff against the committed map`.

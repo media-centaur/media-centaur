@@ -388,3 +388,31 @@ Test-first throughout (`automated-testing` skill).
   chosen names, after Evans; *crossing*, *finding*, *verdict* and
   *fixture instance* are the new terms and are elevated to
   `docs/GLOSSARY.md` when the rule is stable.
+
+## 11. Reading aids (added 2026-10-01)
+
+Decided after the first full run produced 416 findings under about 300
+verdict keys. Each aid serves the calibration pass or the review-time use
+of the map; none changes a rule.
+
+* **Excerpts.** Every finding carries the trimmed source line. R1
+  `owner_never_reads` and R4 findings point at the field's declaration
+  line in the schema file and carry that declaration. Schema fields and
+  associations record their declaration line.
+* **Concept grouping.** The page groups findings by concept —
+  `{rule, schema, field, value}` — then by consumer, then by site, so one
+  reinterpreted value is read once with all its sites under it.
+* **Concept verdicts.** A verdict key may end in `*` in the consumer
+  segment and then covers every consumer of that concept; an exact key
+  overrides it. The check still requires every finding to be covered, and
+  reports wildcard keys that match nothing as stale.
+* **Jump list.** `mix context_map --list` prints `path:line: message` per
+  site for editor navigation.
+* **Semantic diff.** `mix context_map --diff [PATH]` lists verdict keys
+  added and removed between the fresh analysis and the committed map; line
+  moves are ignored. This is the review-time reading of a change.
+* **Query modes write nothing** unless an output path is given explicitly.
+
+In-app verdicting (a dev-only LiveView writing the verdicts file) is
+deferred until the rules are stable and the verdict shape has stopped
+moving.
