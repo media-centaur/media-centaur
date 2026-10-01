@@ -26,8 +26,9 @@ reports a concept key that matches no finding as stale.
     mix context_map --page                        # regenerate, page at tmp/context-map.html
     mix context_map --check                       # every finding has a verdict?
     mix context_map --list                        # jump list: path:line: message per site
+    mix context_map --diff                        # verdict keys added/removed vs the committed map
 
-Query modes — `--check`, `--list` — answer a question and write nothing
+Query modes — `--check`, `--list`, `--diff` — answer a question and write nothing
 unless an output is named explicitly with `--json`, `--html` or `--page`.
 A plain `mix context_map` still writes the JSON.
 
@@ -49,3 +50,21 @@ system, saved as `Context map.sublime-build`:
 
 In an agent shell, run `~/scripts/agents/agent-mix context_map --list`
 instead of `mix` (see `CLAUDE.md`).
+
+`--diff [PATH]` compares the fresh analysis with the map at PATH (default
+`docs/context-map/context-map.json`, the committed map) and prints an
+`added (n)` and a `removed (n)` section, one line per verdict key:
+`RULE key · n sites · first file:line`. A line move or excerpt change
+within a key present in both is not reported. It always exits 0. PATH is
+the one positional argument and is accepted only with `--diff`.
+
+At review time, run `--diff` on the branch before reading its code. While
+the branch has not regenerated the map, the committed map is the baseline
+it started from, and `mix context_map --diff` is enough. Once it has, diff
+against the base branch's map:
+
+    git show main:docs/context-map/context-map.json > tmp/base-map.json
+    mix context_map --diff tmp/base-map.json
+
+The `added` section is the boundary crossings the change introduces;
+`removed` is the ones it retires.

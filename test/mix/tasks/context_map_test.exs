@@ -78,4 +78,30 @@ defmodule Mix.Tasks.ContextMapTest do
     assert Enum.all?(lines, &Regex.match?(~r/^[^:]+:\d+: R\d \S+( = \S+)? — \S/, &1))
     assert File.stat!("docs/context-map/context-map.json", time: :posix).mtime == before
   end
+
+  test "--diff PATH prints the keys added and removed against the map at PATH", %{tmp_dir: tmp_dir} do
+    %{"findings" => [%{"key" => dropped} | _]} =
+      document = "docs/context-map/context-map.json" |> File.read!() |> Jason.decode!()
+
+    fabricated =
+      Map.merge(hd(document["findings"]), %{
+        "key" => "R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader",
+        "rule" => "R3",
+        "file" => "lib/sample.ex",
+        "line" => 7
+      })
+
+    findings = [fabricated | Enum.reject(document["findings"], &(&1["key"] == dropped))]
+    previous = Path.join(tmp_dir, "previous.json")
+    File.write!(previous, Jason.encode!(%{document | "findings" => findings}))
+
+    output = capture_io(fn -> ContextMap.run(["--diff", previous]) end)
+    [added, removed] = String.split(output, "removed (")
+
+    assert added =~ ~r/^added \(\d+\)/
+    assert added =~ ~r/^  R\d #{Regex.escape(dropped)} · \d+ sites? · first \S+:\d+$/m
+
+    assert removed =~
+             "  R3 R3|MediaCentaur.Sample.Item|state|gone|MediaCentaur.Sample.Reader · 1 site · first lib/sample.ex:7"
+  end
 end
