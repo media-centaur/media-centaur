@@ -3,7 +3,13 @@
     %{
       name: "default",
       files: %{
-        included: ["lib/", "test/", "priv/repo/migrations/", "priv/repo/data_migrations/"],
+        included: [
+          "lib/",
+          "test/",
+          "context_map/",
+          "priv/repo/migrations/",
+          "priv/repo/data_migrations/"
+        ],
         excluded: [
           ~r"/_build/",
           ~r"/deps/",
