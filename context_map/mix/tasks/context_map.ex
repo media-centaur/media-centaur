@@ -117,9 +117,14 @@ defmodule Mix.Tasks.ContextMap do
   defp list(findings), do: for(line <- Report.list_lines(findings), do: Mix.shell().info(line))
 
   # Read before the analysis so a missing or malformed map fails at once.
+  # Only the fields `Report.diff/2` reads are lifted to atom keys; the rest
+  # of the document (context names as map keys, for one) stays as strings.
   defp read_previous(path) do
-    %{findings: findings} = path |> File.read!() |> Jason.decode!(keys: :atoms)
-    findings
+    %{"findings" => findings} = path |> File.read!() |> Jason.decode!()
+
+    for %{"key" => key, "rule" => rule, "file" => file, "line" => line, "excerpt" => excerpt} <- findings do
+      %{key: key, rule: rule, file: file, line: line, excerpt: excerpt}
+    end
   end
 
   defp diff(previous, findings) do
