@@ -7,14 +7,21 @@ defmodule MediaCentaur.ContextMap.Walk do
   the AST.
 
   A key is the left side of a keyword pair (`rung:`, including `do`/`end`
-  blocks) or of a map `=>` pair; the first element of a two-element tuple literal (`{:ok, value}`)
-  is a value, not a key.
+  blocks) or of a map `=>` pair; the first element of a two-element tuple
+  literal (`{:ok, value}`) is a value, not a key.
+
+  A pattern is a definition head (`def`, `defp`, `defmacro`, `defmacrop`,
+  `defguard`, `defguardp`; a `when` guard is not part of the pattern), the
+  left of `=` or `<-`, or the head of a `->` clause. `cond` conditions are
+  `->` heads and so count as patterns.
 
   `~H` templates are strings to the parser; they are scanned by regex for
   `:atom` values and `.field` accesses and marked `template?: true`.
   """
 
   alias MediaCentaur.ContextMap.Source
+
+  @definitions [:def, :defp, :defmacro, :defmacrop, :defguard, :defguardp]
 
   @type mention :: %{
           kind: :key | :value | :dot,
@@ -33,11 +40,17 @@ defmodule MediaCentaur.ContextMap.Walk do
 
   # --- pattern tracking: wrap pattern positions so entering them bumps the depth ---
 
+  defp pre({definition, meta, [{:when, when_meta, [{name, head_meta, args}, guard]} | body]}, acc)
+       when definition in @definitions and is_list(args),
+       do:
+         {{definition, meta, [{:when, when_meta, [{name, head_meta, [wrap(args)]}, guard]} | body]}, acc}
+
   defp pre({definition, meta, [{name, head_meta, args} | body]}, acc)
-       when definition in [:def, :defp, :defmacro] and is_list(args),
+       when definition in @definitions and is_list(args),
        do: {{definition, meta, [{name, head_meta, [wrap(args)]} | body]}, acc}
 
   defp pre({:=, meta, [left, right]}, acc), do: {{:=, meta, [wrap(left), right]}, acc}
+  defp pre({:<-, meta, [left, right]}, acc), do: {{:<-, meta, [wrap(left), right]}, acc}
   defp pre({:->, meta, [args, body]}, acc), do: {{:->, meta, [wrap(args), body]}, acc}
   defp pre({:__pattern__, _, [_]} = node, {mentions, depth}), do: {node, {mentions, depth + 1}}
 
@@ -96,11 +109,15 @@ defmodule MediaCentaur.ContextMap.Walk do
     |> Enum.with_index(start_line)
     |> Enum.flat_map(fn {text, line} ->
       values =
-        for [_, atom] <- Regex.scan(~r/(?<![\w@:])\:([a-z_][a-z0-9_?!]*)/, text),
+        for [_, atom] <- Regex.scan(~r/(?<![\w@:\]])\:([a-z_][a-z0-9_?!]*)/, text),
             do: template_mention(:value, atom, line)
 
+      # a dot chain (`@entity.meta.status`, `f(x).field`) is matched whole and
+      # split, so every field is found; the anchor is a lowercase identifier
+      # or a closing bracket, so `Alias.fun` is not a dot access
       dots =
-        for [_, field] <- Regex.scan(~r/[\w\)\]]\.([a-z_][a-z0-9_?!]*)/, text),
+        for [_, chain] <- Regex.scan(~r/(?:(?<=[\)\]])|\b[a-z_]\w*)((?:\.[a-z_][a-z0-9_?!]*)+)/, text),
+            field <- String.split(chain, ".", trim: true),
             do: template_mention(:dot, field, line)
 
       values ++ dots
