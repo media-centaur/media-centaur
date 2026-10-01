@@ -9,10 +9,13 @@ defmodule Mix.Tasks.ContextMap do
 
       mix context_map
       mix context_map --json tmp/context-map.json
-      mix context_map --html tmp/context-map.html
+      mix context_map --page
+      mix context_map --html path/to/context-map.html
       mix context_map --check
 
-  `--html PATH` also writes the self-contained page. `--check` fails when a
+  `--page` also writes the self-contained page to `tmp/context-map.html`
+  (gitignored); `--html PATH` writes it to PATH instead. Without either,
+  no page is written. `--check` fails when a
   finding has no verdict or a verdict has no finding. `--verdicts PATH`
   reads verdicts from PATH instead of `docs/context-map/verdicts.json`.
   """
@@ -25,12 +28,13 @@ defmodule Mix.Tasks.ContextMap do
 
   @default_json "docs/context-map/context-map.json"
   @default_verdicts "docs/context-map/verdicts.json"
+  @page_path "tmp/context-map.html"
 
   @impl Mix.Task
   def run(args) do
     {opts, rest} =
       OptionParser.parse!(args,
-        strict: [json: :string, html: :string, check: :boolean, verdicts: :string]
+        strict: [json: :string, html: :string, page: :boolean, check: :boolean, verdicts: :string]
       )
 
     if rest != [], do: Mix.raise("unexpected arguments: #{inspect(rest)}")
@@ -42,13 +46,19 @@ defmodule Mix.Tasks.ContextMap do
     write(json_path, Jason.encode!(document, pretty: true) <> "\n")
     Mix.shell().info("context map: #{length(document.findings)} findings → #{json_path}")
 
-    if html_path = opts[:html] do
-      write(html_path, Html.render(document))
-      Mix.shell().info("context map: html → #{html_path}")
+    case html_path(opts) do
+      nil ->
+        :ok
+
+      html_path ->
+        write(html_path, Html.render(document))
+        Mix.shell().info("context map: html → #{html_path}")
     end
 
     if opts[:check], do: check(analysis.findings, verdicts)
   end
+
+  defp html_path(opts), do: opts[:html] || (opts[:page] && @page_path) || nil
 
   defp write(path, contents) do
     File.mkdir_p!(Path.dirname(path))

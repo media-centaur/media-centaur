@@ -47,4 +47,15 @@ defmodule Mix.Tasks.ContextMapTest do
     html = File.read!(html_path)
     assert Enum.all?(findings, &String.contains?(html, &1["key"]))
   end
+
+  # The analysis reads `lib/` relative to the working directory, and the
+  # working directory is VM-wide, so this runs in the checkout rather than
+  # changing directory; `tmp/` is gitignored.
+  test "--page writes tmp/context-map.html", %{tmp_dir: tmp_dir} do
+    page_path = "tmp/context-map.html"
+    File.rm(page_path)
+    capture_io(fn -> ContextMap.run(["--json", Path.join(tmp_dir, "m.json"), "--page"]) end)
+
+    assert page_path |> File.read!() |> String.contains?("<title>Context map</title>")
+  end
 end

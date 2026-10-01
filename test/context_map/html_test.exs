@@ -34,7 +34,21 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
           }
         ]
       },
-      %{name: "MediaCentaur.Library", kernel: true, deps: [], exports: [], schemas: []}
+      %{
+        name: "MediaCentaur.Library",
+        kernel: true,
+        deps: [],
+        exports: [],
+        schemas: [
+          %{
+            module: "MediaCentaur.Library.Movie",
+            table: "library_movies",
+            fields: [],
+            associations: []
+          }
+        ]
+      },
+      %{name: "MediaCentaur.Quiet", kernel: false, deps: [], exports: [], schemas: []}
     ],
     kernel_reads: [
       %{
@@ -42,6 +56,12 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
         schema: "MediaCentaur.Discovery.TitleIntent",
         field: "tmdb_id",
         target: "external"
+      },
+      %{
+        owner: "MediaCentaur.Discovery",
+        schema: "MediaCentaur.Discovery.TitleIntent",
+        field: "movie_id",
+        target: "MediaCentaur.Library.Movie"
       }
     ],
     findings: [
@@ -102,5 +122,54 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     html = Html.render(%{@document | findings: [finding]})
     assert html =~ "&lt;b&gt;x&lt;/b&gt;"
     refute html =~ "<b>x</b>"
+  end
+
+  defp query(html, selector), do: html |> LazyHTML.from_document() |> LazyHTML.query(selector)
+
+  test "a kernel read shades its owner→target-context cell with its count" do
+    [cell] =
+      @document
+      |> Html.render()
+      |> query(~s([data-cell="MediaCentaur.Discovery→MediaCentaur.Library"]))
+      |> Enum.to_list()
+
+    assert cell |> LazyHTML.attribute("class") |> hd() |> String.split() |> Enum.member?("kernel")
+    assert LazyHTML.attribute(cell, "title") == ["1 shared-kernel reads"]
+    assert LazyHTML.text(cell) =~ "1"
+  end
+
+  test "a context without schemas or findings is listed under the matrix, not given a row, column or panel" do
+    html = Html.render(@document)
+
+    assert html |> query(~s(.matrix [title="MediaCentaur.Quiet"])) |> Enum.empty?()
+    assert html |> query(~s([data-cell^="MediaCentaur.Quiet"])) |> Enum.empty?()
+    assert html |> query(~s(.panel[data-context="MediaCentaur.Quiet"])) |> Enum.empty?()
+    assert html |> query(".empty-contexts") |> LazyHTML.text() =~ "Quiet"
+  end
+
+  test "findings carry their owner and consumer, cells carry their pair, and both filters list them" do
+    html = Html.render(@document)
+
+    assert html
+           |> query(~s(.finding[data-owner="MediaCentaur.Discovery"][data-consumer="web"]))
+           |> Enum.count() == 1
+
+    assert html
+           |> query(~s(td[data-owner="MediaCentaur.Discovery"][data-consumer="web"]))
+           |> Enum.count() == 1
+
+    assert html
+           |> query(~s(select[data-filter="owner"] option[value="MediaCentaur.Discovery"]))
+           |> Enum.count() == 1
+
+    assert html |> query(~s(select[data-filter="consumer"] option[value="web"])) |> Enum.count() == 1
+  end
+
+  test "escapes rule, line and anchored" do
+    finding = Map.merge(hd(@document.findings), %{rule: "R<9>", line: "<1>", anchored: "<a>"})
+    html = Html.render(%{@document | findings: [finding]})
+    refute html =~ "R<9>"
+    refute html =~ "<1>"
+    refute html =~ "<a>"
   end
 end
