@@ -970,7 +970,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             <.empty_state
               :if={@watchlist_rows == []}
               id="watchlist-empty"
-              headline="Titles you save land here"
+              headline="Nothing on your watchlist yet"
             >
               Search above, open a title and add it to your watchlist. A title you
               track shows its next release here.

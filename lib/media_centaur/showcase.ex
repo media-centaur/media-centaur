@@ -43,8 +43,8 @@ defmodule MediaCentaur.Showcase do
       tracked items render "metadata only" (title + poster + date), the
       title string itself ships in screenshots, so an IMDb-style fair-use
       bridge does **not** apply here. Use PD/CC titles only.
-    * Acquisition grab titles in `seed_acquisition_activity!` — visible in
-      the `/download` Activity tab; subject to the same rule.
+    * Acquisition grab titles in `seed_acquisition_activity!` — visible on
+      `/incoming?zone=activity`; subject to the same rule.
     * Pending review fixtures in `pending_file_data` — visible in the
       Review queue screenshots.
     * Console log lines in `seed_console_entries!` — visible in the
@@ -717,17 +717,17 @@ defmodule MediaCentaur.Showcase do
   end
 
   # ---------------------------------------------------------------------------
-  # Acquisition activity — Coming Up grab badges + Activity filter variety
+  # Acquisition activity — next-release pills + Activity filter variety
   # ---------------------------------------------------------------------------
 
   # Drives:
   #
   #   - HomeLive "Coming Up This Week" + the next-release pills on Incoming's
   #     Watchlist tab — four releases scheduled within the next seven days, each tied to
-  #     a grab in a *different* status so all four badge variants render
+  #     a grab in a *different* status so all four pill variants render
   #     side-by-side: Grabbed, Searching, Pending (snoozed), Scheduled
   #     (no grab row).
-  #   - /download Activity tab — at least one grab per status filter chip
+  #   - `/incoming?zone=activity` — at least one grab per status filter chip
   #     (`searching`, `grabbed`, `snoozed`, `abandoned`, `cancelled`),
   #     mixing `auto` and `manual` origin.
   #
@@ -738,7 +738,7 @@ defmodule MediaCentaur.Showcase do
     Repo.aggregate(Target, :count)
   end
 
-  # Coming-Up badge states. Order matters only insofar as each tracked TV
+  # Next-release pill states. Order matters only insofar as each tracked TV
   # item gets one slot: an Acquired badge today+1, Seeking today+2,
   # Failed today+4, Scheduled today+6. The Scheduled slot deliberately
   # has *no* pursuit row — its "Scheduled" variant comes from the absence
@@ -800,8 +800,8 @@ defmodule MediaCentaur.Showcase do
     end
   end
 
-  # The Activity tab needs every status chip populated. Coming-Up
-  # already covers seeking / acquired / failed; here we add cancelled,
+  # `/incoming?zone=activity` needs every status chip populated. The
+  # next-release slots already cover seeking / acquired / failed; here we add cancelled,
   # plus one manual-origin pursuit so the activity feed shows a mix of
   # auto vs user-initiated work.
   defp seed_extra_activity_pursuits! do
@@ -899,7 +899,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"
-  # test result so `/download` renders instead of redirecting to `/`.
+  # test result so `/incoming` renders its acquisition zones.
   # Real integrations would still fail at runtime (the URLs don't point
   # anywhere), but the UI renders the search form + empty queue card
   # which is what the screenshot needs.

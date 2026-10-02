@@ -29,10 +29,10 @@ something isn't the same as having watched it.
 
 One row per title: poster, name and year, with quiet markers for its state — **In library**,
 **Planning**, **Downloading** or **Needs review**, and **Tracking** or **Auto-grab** when a
-switch is on — your note when you wrote one, and a glyph at the right for each thing a friend
-did with it. A tracked title's row carries its next release at the far right: the date
-(**Tonight**, **Fri Oct 9**, **5 days ago**), the release (**S02E04**; a season dropping on
-one day as **S2 · all 8 episodes at once**) and a status pill — see
+switch is on — its note — yours, or the friend's words it came with — and a glyph at the
+right for each thing a friend did with it. A tracked title's row carries its next release at
+the far right: the date (**Tonight**, **Fri Oct 9**, **5 days ago**), the release (**S02E04**;
+a season dropping on one day as **S2 · all 8 episodes at once**) and a status pill — see
 [release tracking](/guide/release-tracking-and-upcoming) for the pills. The next release is the
 next one still to come: a release the app is still searching for counts; a release you already
 have shows as **Landed** only while nothing later is scheduled.

@@ -549,7 +549,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   describe "/incoming forecast-only (Prowlarr NOT configured) with tracked-item fixtures" do
     # The honest-degradation acceptance criterion (UIDR-015): without
     # Prowlarr the merged page must MOUNT and render the forecast —
-    # hero omnibox reframed to tracking plus the shelf — with no
+    # hero omnibox reframed to tracking plus the watchlist rows — with no
     # acquisition sections. The fixture covers the release shapes the
     # forecast renders (TV episodes, streaming / theatrical / home-release
     # movies) so a render-time crash in any branch trips the smoke. Not
@@ -699,22 +699,22 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # asked, so it must answer.
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
-      # Seed a tracked upcoming release so the shelf renders an actual
-      # card (poster tile, date badge, status pill) rather than only the
-      # horizon terminus.
-      shelf_item =
+      # Seed a tracked upcoming release so the Watchlist tab renders a row
+      # carrying a next release (date, release, status pill) rather than
+      # the empty state.
+      watchlist_item =
         create_tracking_item(%{
           tmdb_id: 9_101,
           media_type: :tv_series,
-          name: "Smoke Shelf Show"
+          name: "Smoke Watchlist Show"
         })
 
       create_tracking_release(%{
-        item_id: shelf_item.id,
+        item_id: watchlist_item.id,
         air_date: Date.add(Date.utc_today(), 4),
         season_number: 1,
         episode_number: 1,
-        title: "Smoke Shelf Episode",
+        title: "Smoke Watchlist Episode",
         released: false
       })
 
@@ -770,7 +770,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
       MediaCentaur.TestFactory.force_state(grouped_pursuit, "exhausted")
 
-      %{shelf_item: shelf_item}
+      %{watchlist_item: watchlist_item}
     end
 
     test "renders without crashing (smart default — seeded activity wins)", %{conn: conn} do
@@ -796,18 +796,18 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # The explicit zone beats the smart default: the tab bar plus the
       # seeded tracked title's Watchlist row with its next release.
       assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
-      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke Shelf Show")
+      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke Watchlist Show")
     end
 
     test "renders without crashing (?title= opens the title modal)", %{
       conn: conn,
-      shelf_item: shelf_item
+      watchlist_item: watchlist_item
     } do
       assert {:ok, view, _html} =
-               smoke!(conn, "/incoming?title=tv_series-#{shelf_item.tmdb_id}")
+               smoke!(conn, "/incoming?title=tv_series-#{watchlist_item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
-      assert has_element?(view, "#detail-modal", "Smoke Shelf Show")
+      assert has_element?(view, "#detail-modal", "Smoke Watchlist Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do

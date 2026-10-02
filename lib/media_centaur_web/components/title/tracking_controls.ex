@@ -166,10 +166,10 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   def track_description(:movie, _rung),
     do:
-      "Its theatrical, digital and disc dates, as TMDB posts them; the next one shows on your watchlist."
+      "Its theatrical, digital and disc dates, as TMDB posts them. The next one shows on your watchlist."
 
   def track_description(:tv_series, _rung),
-    do: "Its new episodes, as TMDB posts their air dates; the next one shows on your watchlist."
+    do: "Its new episodes' air dates, as TMDB posts them. The next one shows on your watchlist."
 
   @doc "The Auto-grab switch's line: what a drop does under the approval policy."
   @spec grab_description(Title.media_type(), String.t()) :: String.t()
