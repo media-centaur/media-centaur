@@ -73,7 +73,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
-| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted |
+| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted, amended 2026-10-03 |
 | 011 | 2026-05-12 | [Text and logos over imagery use shared `.text-on-image*` utilities](user-interface/2026-05-12-011-text-on-imagery.md) | accepted |
 | 012 | 2026-05-20 | [Desktop-app rendering defaults — eager, sync, stable, immutable](user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) | accepted, amended 2026-08-07 |
 | 013 | 2026-06-08 | [Modals declare an ephemeral or persistent dismissal mode through one seam](user-interface/2026-06-08-013-modal-dismissal-modes.md) | accepted |
@@ -82,7 +82,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted, amended 2026-08-02 |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
 | 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-09-14 |
-| 020 | 2026-08-10 | [Cursor treatment tiers — ring by default, soft fill where the ring collides](user-interface/2026-08-10-020-cursor-treatment-tiers.md) | accepted |
+| 020 | 2026-08-10 | [Cursor treatment tiers — ring by default, soft fill where the ring collides](user-interface/2026-08-10-020-cursor-treatment-tiers.md) | accepted, amended 2026-10-03 |
 | 021 | 2026-08-11 | [Cinematic modal frame for TMDB-grounded modals; artwork promotion ladder](user-interface/2026-08-11-021-cinematic-frame-artwork-ladder.md) | accepted |
 | 022 | 2026-08-11 | [Gap banner states the diagnosed world, with its evidence — never a bare "not available"](user-interface/2026-08-11-022-gap-banner-adaptive-verdict.md) | accepted, amended 2026-09-14 |
 | 023 | 2026-08-13 | [Movie-first collection modal with a poster-rail picker](user-interface/2026-08-13-023-movie-first-collection-modal.md) | accepted, amended 2026-09-14 |
@@ -94,21 +94,22 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted, amended 2026-09-07 |
-| 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted, amended 2026-09-27 |
+| 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted, amended 2026-10-03 |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty, and the one action that changes it](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | accepted, amended 2026-10-02 |
 | 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted, amended 2026-09-14 |
 | 037 | 2026-09-08 | [Friend provenance is the pennant, on every title surface](user-interface/2026-09-08-037-friend-provenance-is-the-pennant.md) | superseded, amended 2026-09-27 |
-| 038 | 2026-09-11 | [The Feed is friends' actions, one entry each](user-interface/2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md) | accepted, amended 2026-09-27 |
+| 038 | 2026-09-11 | [The Feed is friends' actions, one entry each](user-interface/2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md) | accepted, amended 2026-10-03 |
 | 039 | 2026-09-11 | [Add to watchlist first, then the tracking controls](user-interface/2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md) | accepted, amended 2026-09-12 |
 | 040 | 2026-09-12 | [A review is an opinion of any valence: the sentiment shows when given, nothing when none](user-interface/2026-09-12-040-a-review-is-an-opinion-of-any-valence.md) | accepted, amended 2026-09-28 |
 | 041 | 2026-09-13 | [Settings cards are readouts with actions, from one kit](user-interface/2026-09-13-041-settings-cards-are-readouts-with-actions.md) | accepted |
 | 042 | 2026-09-14 | [Tracking is the bookmark and two switches over one record](user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md) | accepted, amended 2026-10-02 |
-| 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted |
+| 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted, amended 2026-10-03 |
 | 044 | 2026-09-20 | [One control to ask TMDB again: Refresh from TMDB](user-interface/2026-09-20-044-refresh-from-tmdb.md) | accepted |
-| 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-09-27 |
-| 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted, amended 2026-09-28 |
+| 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-10-03 |
+| 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted, amended 2026-10-03 |
 | 047 | 2026-09-27 | [What a reader sees of a person: their published name under your override, or Unnamed](user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md) | accepted |
 | 048 | 2026-09-28 | [A person's colour is a hue on the app's ring](user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md) | accepted |
 | 049 | 2026-09-28 | [What people did with a title is the social capsule](user-interface/2026-09-28-049-what-people-did-with-a-title-is-the-social-capsule.md) | accepted |
-| 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted |
+| 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted, amended 2026-10-03 |
+| 051 | 2026-10-03 | [The Discovery page is the Social page](user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md) | accepted |

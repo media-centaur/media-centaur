@@ -93,7 +93,7 @@ asserts it renders — the cheapest net for render-path crashes (`KeyError`,
 `FunctionClauseError`) that pure-helper tests can't catch.
 
 - Every new route — and every URL-driven section of a LiveView
-  (`/settings?section=…`, `/status?subsystem=…`, `/discovery/*`) — gets an entry
+  (`/settings?section=…`, `/status?subsystem=…`, `/social/*`) — gets an entry
   in the same change. The Status drill-ins are generated from
   `HealthBoard.board_subsystems/0`, so a new subsystem is covered automatically.
 - Seed enough fixture data to exercise non-trivial render branches. A new template

@@ -344,8 +344,8 @@ disagree with the owner about what a message meant.
 
 ## Web layer
 
-`MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:friends` at `/discovery/friends`). The watchlist
+`MediaCentaurWeb.SocialLive` is the Social page (UIDR-051): one LiveView with a
+`live_action` per tab (`:feed` at `/social`, `:friends` at `/social/friends`). The watchlist
 is Incoming's first tab (UIDR-050).
 
 A person is drawn from one read model everywhere, `Social.Person`
@@ -363,7 +363,7 @@ published no avatar, the file is missing, or the reader switched the friend's
 picture off: `Friend.show_avatar` is applied at the one seam, `Social`'s
 private `person_for/2`, so no surface checks it.
 `MediaCentaur.Format.person_name/1` gives the words: "You", the resolved
-name, or "Unnamed". `Components.Discovery.IdentityTile` draws one of three
+name, or "Unnamed". `Components.Social.IdentityTile` draws one of three
 marks (UIDR-047): the avatar, the letter of those words,
 or the person glyph for a friend with no name at all, so no letter is
 invented from Unnamed. A `ProfileUpdated` reaches the page as
@@ -374,9 +374,9 @@ Both social tabs
 project one enriched list — every live activity with its actor
 (`Activities.list_activities/0`) — two ways (UIDR-038):
 
-- **Feed** — `DiscoveryLive.FeedEntries`: every author's reviews and
+- **Feed** — `SocialLive.FeedEntries`: every author's reviews and
   listings, friends' and this identity's own, one
-  `Components.Discovery.FeedEntry` per action, newest first, flat, a
+  `Components.Social.FeedEntry` per action, newest first, flat, a
   window of twenty to a cap of sixty (*Show older*) with a queued head
   ("N new" while scrolled; the `FeedHead` hook reports the column's
   head leaving the viewport), filtered by the `?scope=` param
@@ -385,7 +385,7 @@ project one enriched list — every live activity with its actor
   `ActivityArtwork` resolves each row's poster down
   `MediaCentaur.TitleArtwork`'s ladder (`Library.Artwork` is the
   library tier); the Feed carries no backdrop (UIDR-046).
-  `Components.Discovery.FeedRow` renders one row — the identity tile,
+  `Components.Social.FeedRow` renders one row — the identity tile,
   the poster, the words, the time at the edge — in a hairlined column,
   with its hover toolbar — `feed_list` (the bottom rung as a toggle;
   Following as plain state), `feed_download` (the modal's plain
@@ -394,13 +394,13 @@ project one enriched list — every live activity with its actor
   Delete — it opens the modal for its action, where Delete lives.
   Friend provenance for a listing or an ignore is
   `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
-- **Friends** — `DiscoveryLive.People` folds the list into one
+- **Friends** — `SocialLive.People` folds the list into one
   `People.Card` (a `Social.Person` and their acts) per known person,
   the reader first when an identity exists: the person's **acts**, one per title acted on,
   newest first, each carrying its flags (`Components.Title.Flag`, in
   order) and each one's grade (`Components.Title.Grade`: plain, silver or
   gold as one, two, or three or more people did that act on that title,
-  the reader counted). `Components.Discovery.PersonCard`
+  the reader counted). `Components.Social.PersonCard`
   renders a person and their acts at two widths — the Feed's rail (`People.rail/1`: You
   first, then by latest act, eight at most) and the Friends grid — as
   the tile, the name and the acts strip of posters under their centred
@@ -415,12 +415,12 @@ project one enriched list — every live activity with its actor
   override: the published name, else Unnamed), the **Show their picture**
   switch (`Social.set_show_avatar/2`, the `set_show_avatar` event;
   `Friend.show_avatar`, on by default), the **Colour** row
-  (`Components.Discovery.HueSwatches`: Theirs, the friend's published hue,
+  (`Components.Social.HueSwatches`: Theirs, the friend's published hue,
   then the palette and the ring slider; `Social.set_hue_override/2`, the
   `set_hue_override` event with the key and the hue, empty for Theirs;
   `Friend.hue_override`), the key, the added date and Remove
-  friend. `DiscoveryLive.AddFriendBlock`, the add-friend form
-  (still an iteration-phase component under `live/discovery_live/`),
+  friend. `SocialLive.AddFriendBlock`, the add-friend form
+  (still an iteration-phase component under `live/social_live/`),
   takes an npub and an optional name (`Social.add_friend/2`; placeholder
   "Name (optional)"); re-adding a key changes nothing. A rename
   broadcasts `Social.Events.FriendChanged`, and the page rebuilds its
@@ -444,7 +444,7 @@ The joins the contexts may not make happen here:
 
 - **Activity rows** — `Activities.list_activities/0` returns the record plus
   its `author`, a `Social.Person`, for authors the reader knows; a former
-  friend's rows are left out. `DiscoveryLive` adds `poster_url`, `library_owner_id`
+  friend's rows are left out. `SocialLive` adds `poster_url`, `library_owner_id`
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
   (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
   projections read from that one list.
@@ -457,7 +457,7 @@ profile** comes first: two columns of the kit's stacked fields (UIDR-041) —
 Picture on the left, Name and Colour on the right, Save in the form's
 footer — one form saved by `Social.save_profile/3`; before an identity
 exists its button is **Create profile**, and saving mints the identity.
-The Colour field is `Components.Discovery.HueSwatches` over the form's
+The Colour field is `Components.Social.HueSwatches` over the form's
 pending hue (`profile_hue`): a swatch pushes `set_profile_hue`, the ring
 slider is a field of the form and reaches `validate_profile`; a form with
 no saved hue starts on `Social.Hue.random/0`, a palette member, and the
@@ -495,7 +495,7 @@ every `EntityModal` host for the library detail page and every
 `TitleDetailHost` host for a title without files — the only places a
 review is made. The sharing toggles live in
 `SettingsLive.SocialSection`. The Review control is gated
-on the `show_discovery` preference (`Settings.Preferences.DiscoveryVisibility`),
+on the `show_social` preference (`Settings.Preferences.SocialVisibility`),
 the same preference that gates the sidebar entry.
 
 ## Health
@@ -551,7 +551,7 @@ the recipes.
 
 | Recipe | Does |
 |---|---|
-| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
+| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Social → Friends. The relay goes under Settings → Social. Re-run to restart. |
 | `just social-review movie 603 --name "Sample Movie" --sentiment love --text "try it"` | The friend publishes a kind 32164 event (`--sentiment` and `--text` both optional); it shows up on the Feed and on the friend's card. |
 | `just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5` | The friend finished an episode (kind 32161). |
 | `just social-listing movie 603 --name "Sample Movie"` | The friend wants to watch a title (kind 32163). |
@@ -596,3 +596,5 @@ the columns being gone. Nothing is scheduled now.
 
 The `show_watchlist` → `show_discovery` Settings rename is a data migration
 (`priv/repo/data_migrations/20260902150000_rename_show_watchlist_settings_key.exs`).
+The `show_discovery` → `show_social` rename (UIDR-051) is not: the preference
+reset to its default.

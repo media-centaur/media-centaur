@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-10-02
+amended: 2026-10-03
 ---
 # The watchlist is Incoming's first tab, and the schedule is on its rows
+
+> **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`.
 
 Amends UIDR-015 (the Coming up tab), UIDR-035 rule 5 (three lists) and UIDR-042 rule 2 (the Follow switch's label). Campaign: `campaigns/social-and-watchlist.md`, Phase 1; plan: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
 

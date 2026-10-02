@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-27
-amended: 2026-09-28
+amended: 2026-10-03
 ---
 # The Feed is the app's list, beside a rail of people
+
+> **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`; `DiscoveryLive`, `Components.Discovery` and `.discovery-*` are `SocialLive`, `Components.Social` and `.social-*`.
 
 Amends UIDR-045 (rules 3 and 5), UIDR-038 (rules 7–10, *wall of watching*, *social-network chrome*), UIDR-037 (the pennant as a form) and UIDR-033 (Discovery carries the scrim; a person card's posters are its subject). Design: `docs/superpowers/specs/2026-09-24-feed-appearance-design.md` and the mockup rounds under `docs/superpowers/specs/2026-09-24-feed-appearance-mockups/` (rounds 4–9 settled the cinematic band; rounds 10–13 replaced it). Campaign: *Feed appearance*, complete 2026-09-27 (`campaigns/README.md` § Complete; the file is in git history at `6c362a6c`).
 

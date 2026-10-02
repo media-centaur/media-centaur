@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Navigation.TabStrip do
   @moduledoc """
   The generic tab strip joining sibling pages under one sidebar entry.
   Tabs are page links with an optional pending count; the active tab is
-  the page rendering the strip. Review and Discovery both render this.
+  the page rendering the strip. Review and the Social page both render this.
   """
 
   use PhoenixStorybook.Story, :component

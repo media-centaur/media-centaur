@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
 
   Three surfaces start downloads and none hosts another. The title detail
   modal (`MediaCentaurWeb.Live.TitleDetailHost`, on Home, Library,
-  Discovery and Incoming) downloads a whole title by scope, and one
+  Social and Incoming) downloads a whole title by scope, and one
   missing episode of an owned series from its gap row. The picker on
   Incoming (`MediaCentaurWeb.IncomingLive`, the plan modal's targeting
   stage and movie confirm) downloads what the person chose there. A plan

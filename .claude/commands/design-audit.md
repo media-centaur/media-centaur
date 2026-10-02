@@ -45,8 +45,8 @@ There is no `DESIGN.md`. Authority, in order:
    keyboard/gamepad behaviour.
 
 Build the page inventory from `lib/media_centaur_web/router.ex` (`live "/…"`
-routes: home, apps, console, discovery and its tabs, guide, history, incoming,
-library, reconcile, review, settings, setup, status) and the sidebar in
+routes: home, apps, console, guide, history, incoming, library, reconcile,
+review, settings, setup, social and its tabs, status) and the sidebar in
 `lib/media_centaur_web/components/layouts.ex`. Do not work from a memorised list.
 
 ---

@@ -180,7 +180,7 @@ defmodule MediaCentaur.TmdbStubs do
   The series targeting universe `Acquisition.Targeting.series_selection("246810")`
   reads: Sample Show with season 1 (two aired episodes), season 2 (one
   aired, one far-future) and a specials season the tv payload lists but
-  no route serves. Shared by the targeting, plan-title and Discovery
+  no route serves. Shared by the targeting, plan-title and Social page
   tests so one fixture describes the show.
   """
   def stub_series_universe_for_targeting do

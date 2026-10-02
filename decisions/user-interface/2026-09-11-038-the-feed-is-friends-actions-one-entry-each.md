@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-11
-amended: 2026-09-27
+amended: 2026-10-03
 ---
 # The Feed is friends' actions, one entry each
+
+> **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page: `/discovery` is `/social`, `/discovery/friends` is `/social/friends`, and `Components.Discovery` is `Components.Social`.
 
 Supersedes UIDR-031 (retired); its Friends card and You card rules are carried here. Amends UIDR-036 (Ignore and the bookmark move into the entry's toolbar) and UIDR-037 (the feed has no mast). UIDR-040 (2026-09-12) is folded in.
 

@@ -463,16 +463,16 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Home's Coming up shelf, over `ReleaseTracking.Views.ComingUp`; the only surface the words name (UIDR-050 §5) |
-| `identity_tile/1` | `discovery/identity_tile.ex` | The app's one drawing of a person at 32, 40 or 48: monogram, photo, the filled own tile (UIDR-046) | ✅ |
-| `feed_row/1` | `discovery/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
-| `person_card/1` | `discovery/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
+| `identity_tile/1` | `social/identity_tile.ex` | The app's one drawing of a person at 32, 40 or 48: monogram, photo, the filled own tile (UIDR-046) | ✅ |
+| `feed_row/1` | `social/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
+| `person_card/1` | `social/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
 | `social_glyph/1`, `social_glyphs/1` | `title/social_glyph.ex` | One flag at its grade; a title's group (UIDR-049) | ✅ |
 | `social_capsule/1`, `social_panel/1` | `title/social.ex` | The title detail's social capsule and the panel it opens (UIDR-049) | ✅ |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |
 | `action_footer/1` | `console_components.ex` | Console controls |
 
-Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `discovery/`, `incoming/`, `release_tracking/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).
+Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `incoming/`, `release_tracking/`, `social/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).
 
 ## Page Structure
 
@@ -484,7 +484,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
 | **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050) |
 | **History** | `/history` | Watch history |
-| **Discovery** | `/discovery`, `/discovery/friends` | Feed, friends |
+| **Social** | `/social`, `/social/friends` | Feed, friends |
 | **Apps** | `/apps` | App launcher |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
@@ -494,7 +494,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 | **Guide** | `/guide`, `/guide/:slug` | In-app guide book |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Discovery and Incoming `use` for it (UIDR-043).
+`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Social and Incoming `use` for it (UIDR-043).
 
 ## Anti-Patterns
 

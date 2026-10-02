@@ -120,7 +120,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       label: "Social",
       group: :media,
       description:
-        "Your profile and identity, the relays your activity travels over, and what you share. Friends are managed on the Discovery page."
+        "Your profile and identity, the relays your activity travels over, and what you share. Friends are managed on the Social page."
     },
     %{
       id: "acquisition",
