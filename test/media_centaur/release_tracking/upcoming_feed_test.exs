@@ -631,24 +631,24 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "shelf_date_label/2 — graduated explicitness" do
+  describe "date_label/2 — graduated explicitness" do
     # 2026-06-14 is a Sunday; days(2) = Tue Jun 16, days(10) = Wed Jun 24,
     # days(40) = Fri Jul 24.
-    defp shelf_event(feed), do: feed |> UpcomingFeed.next_per_title() |> hd()
+    defp next_event(feed), do: feed |> UpcomingFeed.next_per_title() |> hd()
 
     test "an episode airing today reads Tonight" do
       item = tv_item()
       episode = release(item, %{title: "t", air_date: days(0), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
+      event = next_event(UpcomingFeed.build([episode], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Tonight"
+      assert UpcomingFeed.date_label(event, @today) == "Tonight"
     end
 
     test "a movie landing today reads Today" do
       movie = release(movie_item(), %{title: "m", air_date: days(0), release_type: "digital"})
-      event = shelf_event(UpcomingFeed.build([movie], armed_context()))
+      event = next_event(UpcomingFeed.build([movie], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Today"
+      assert UpcomingFeed.date_label(event, @today) == "Today"
     end
 
     test "a release that already came out reads as how long ago, never Tonight" do
@@ -664,8 +664,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
             episode_number: 1
           })
 
-        event = shelf_event(UpcomingFeed.build([episode], armed_context()))
-        UpcomingFeed.shelf_date_label(event, @today)
+        event = next_event(UpcomingFeed.build([episode], armed_context()))
+        UpcomingFeed.date_label(event, @today)
       end
 
       assert label.(days(-1)) == "Yesterday"
@@ -676,33 +676,33 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
     test "a theatrical date that has arrived reads Now" do
       movie = release(movie_item(), %{title: "m", air_date: days(0), release_type: "theatrical"})
-      event = shelf_event(UpcomingFeed.build([movie], armed_context()))
+      event = next_event(UpcomingFeed.build([movie], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Now"
+      assert UpcomingFeed.date_label(event, @today) == "Now"
     end
 
     test "within a week reads as a bare weekday" do
       item = tv_item()
       episode = release(item, %{title: "t", air_date: days(2), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
+      event = next_event(UpcomingFeed.build([episode], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Tue"
+      assert UpcomingFeed.date_label(event, @today) == "Tue"
     end
 
     test "within a month reads as weekday plus date" do
       item = tv_item()
       episode = release(item, %{title: "t", air_date: days(10), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
+      event = next_event(UpcomingFeed.build([episode], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Wed Jun 24"
+      assert UpcomingFeed.date_label(event, @today) == "Wed Jun 24"
     end
 
     test "beyond a month drops the weekday" do
       item = tv_item()
       episode = release(item, %{title: "t", air_date: days(40), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
+      event = next_event(UpcomingFeed.build([episode], armed_context()))
 
-      assert UpcomingFeed.shelf_date_label(event, @today) == "Jul 24"
+      assert UpcomingFeed.date_label(event, @today) == "Jul 24"
     end
   end
 end

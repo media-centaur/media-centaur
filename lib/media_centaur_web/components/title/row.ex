@@ -9,9 +9,12 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   followed title carries (`NextRelease`: its date, the release and its
   `StatusPill` status) and the title's social glyphs: the flags a friend
   flew (`SocialWords.drawn_flags/1`), each at its grade with its
-  sentence on hover. State is shown, never acted on
-  here: every verb lives in the modal. (The Feed's rows are
-  `Discovery.FeedRow`, which carries its own toolbar.)
+  sentence on hover. State is shown, never acted on here: every verb
+  lives in the modal. The one exception is deliberate: an in-pursuit
+  pill is an `<a>` inside the `role="button"` row — it stops
+  propagation and jumps to the pursuit row, navigation to the same
+  object's other zoom level, not a verb on the title. (The Feed's rows
+  are `Discovery.FeedRow`, which carries its own toolbar.)
 
   Pure rendering; `open_title` bubbles to the host with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity
@@ -33,7 +36,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   defmodule NextRelease do
     @moduledoc """
     A followed title's next release, as the row draws it: the date label
-    (`UpcomingFeed.shelf_date_label/2`), the release (an episode, a
+    (`UpcomingFeed.date_label/2`), the release (an episode, a
     season drop, a film's date type), the `StatusPill` status, and the
     percent and pursuit id an in-pursuit release carries.
     """
@@ -44,7 +47,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
             air_date: Date.t(),
             date_label: String.t(),
             subtitle: String.t() | nil,
-            status: :armed | :in_pursuit | :in_theaters | :tracked | :searching | :landed | nil,
+            status: :armed | :in_pursuit | :in_theaters | :tracked | :searching | :landed,
             percent: integer() | nil,
             pursuit_id: Ecto.UUID.t() | nil
           }
@@ -114,7 +117,6 @@ defmodule MediaCentaurWeb.Components.Title.Row do
             {@next_release.subtitle}
           </span>
           <.status_pill
-            :if={@next_release.status}
             status={@next_release.status}
             percent={@next_release.percent}
             anchor={pursuit_anchor(@next_release)}

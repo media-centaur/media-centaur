@@ -906,22 +906,26 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
 
   describe "parse_zone/1" do
     test "recognizes all three explicit zones" do
-      assert Logic.parse_zone("coming_up") == :coming_up
+      assert Logic.parse_zone("watchlist") == :watchlist
       assert Logic.parse_zone("activity") == :activity
       assert Logic.parse_zone("history") == :history
     end
 
-    test "everything else — absent, junk — is Coming up" do
-      assert Logic.parse_zone(nil) == :coming_up
-      assert Logic.parse_zone("") == :coming_up
-      assert Logic.parse_zone("garbage") == :coming_up
+    test "everything else — absent, junk — is the Watchlist" do
+      assert Logic.parse_zone(nil) == :watchlist
+      assert Logic.parse_zone("") == :watchlist
+      assert Logic.parse_zone("garbage") == :watchlist
+    end
+
+    test "the retired zone name is unrecognised and falls back to the watchlist" do
+      assert Logic.parse_zone("coming_up") == :watchlist
     end
   end
 
   describe "zone_path/1" do
     test "the default zone is the page's bare path; the others name themselves" do
       assert Logic.path() == "/incoming"
-      assert Logic.zone_path(:coming_up) == "/incoming"
+      assert Logic.zone_path(:watchlist) == "/incoming"
       assert Logic.zone_path(:activity) == "/incoming?zone=activity"
       assert Logic.zone_path(:history) == "/incoming?zone=history"
     end
@@ -930,19 +934,19 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   describe "initial_zone/3" do
     test "an explicit param always wins" do
       assert Logic.initial_zone("history", true, true) == :history
-      assert Logic.initial_zone("coming_up", true, true) == :coming_up
+      assert Logic.initial_zone("watchlist", true, true) == :watchlist
     end
 
     test "a fresh mount with live activity lands on Activity" do
       assert Logic.initial_zone(nil, true, true) == :activity
     end
 
-    test "a quiet fresh mount lands on Coming up" do
-      assert Logic.initial_zone(nil, true, false) == :coming_up
+    test "a quiet fresh mount lands on the Watchlist" do
+      assert Logic.initial_zone(nil, true, false) == :watchlist
     end
 
-    test "after first load a bare path is Coming up — tab clicks never re-trigger the smart default" do
-      assert Logic.initial_zone(nil, false, true) == :coming_up
+    test "after first load a bare path is the Watchlist — tab clicks never re-trigger the smart default" do
+      assert Logic.initial_zone(nil, false, true) == :watchlist
     end
   end
 

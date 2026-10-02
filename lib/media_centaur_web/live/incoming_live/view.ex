@@ -3,112 +3,93 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   The Incoming page's one composition point (ADR-030 applied at page scale).
 
   Every section of the page is a projection of the same story — a wanted
-  title moving from forecast (shelf) through pursuit (in flight) to outcome
-  (ledger) — so the sections are built together, from one set of injected
-  facts, by one pure function. The LiveView holds a single `%View{}` assign
-  instead of two pages' worth of loose section state.
+  title moving from the watchlist (its next release) through pursuit (in
+  flight) to outcome (ledger) — so the sections are built together, from
+  one set of injected facts, by one pure function. The LiveView holds a
+  single `%View{}` assign instead of two pages' worth of loose section
+  state.
 
   Honest degradation is enforced here and only here, on two distinct gates:
   `prowlarr_ready?` (no indexer ⇒ the operational sections come back empty)
-  and `acquisition_ready?` (indexer + download client ⇒ only then may the
-  shelf claim `:armed`/`:in_pursuit`), regardless of what the caller passes.
-  Templates never re-check capabilities per section.
+  and `acquisition_ready?` (indexer + download client ⇒ only then may a
+  row's next release claim `:armed`/`:in_pursuit`), regardless of what the
+  caller passes. Templates never re-check capabilities per section.
 
   Deliberately NOT composed here: live queue pairing. `QueueMatcher.match/2`
   runs at render time (see the render-time pairing note in the page module)
   so DB-backed sections don't rebuild on every queue snapshot;
   `with_progress/2` is the pure bridge that stamps paired percentages onto
-  in-pursuit shelf cards during that same render pass.
+  in-pursuit watchlist rows during that same render pass.
+
+  The page's `build_view/1` is its single rebuild path and, by decision,
+  carries the watchlist reads (the intents, their social activity,
+  acquisition states and posters) on every rebuild alongside the forecast
+  — ADR-030 at page scale: one composition point over one set of fresh
+  facts, with that read cost accepted rather than a second, partial path.
   """
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
-  alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaurWeb.Components.Incoming.Shelf.Card
+  alias MediaCentaurWeb.Components.Title.Row.NextRelease
   alias MediaCentaurWeb.IncomingLive.View
+  alias MediaCentaurWeb.IncomingLive.WatchlistRows
 
-  @shelf_cap 6
-
-  defstruct shelf: nil, in_flight: [], drafts: [], feed: %UpcomingFeed{}
-
-  defmodule ShelfSection do
-    @moduledoc """
-    The Coming up shelf: capped dated cards and what the cap hides. The
-    schedule of dated releases, nothing else — a tracked title with no
-    announced date shows its mode where it lives, in the library or on the
-    watchlist (UIDR-035).
-    """
-    defstruct cards: [], overflow_count: 0
-
-    @type t :: %__MODULE__{
-            cards: [Card.t()],
-            overflow_count: non_neg_integer()
-          }
-  end
+  defstruct watchlist: [], in_flight: [], drafts: []
 
   @type t :: %View{
-          shelf: ShelfSection.t(),
+          watchlist: [WatchlistRows.row()],
           in_flight: [PursuitRow.t()],
-          drafts: [map()],
-          feed: UpcomingFeed.t()
+          drafts: [map()]
         }
 
   @doc """
   Build the page view from already-read facts:
 
     * `:releases` — the `ReleaseTracking` read (items preloaded)
+    * `:watchlist` — the `Discovery.list_watchlist/0` read
+    * `:social_activity` — `Activities.activity_for/1` for the watchlist's refs
+    * `:acquisition_states` — `TitleStates.for_refs/1` for the same refs
+    * `:posters` — `ref => poster url` for the same refs
     * `:pursuit_rows` / `:drafts` — acquisition reads (the History
       archive reads separately via `compute_history_rows`)
     * `:today`, `:acquisition_ready?`, `:approval_policy`,
       `:grab_status_by_key` — the `UpcomingFeed` context facts
-    * `:shelf_expanded?` — the shelf's "Show all" disclosure state
-
-  The full `feed` rides along for per-title detail building.
   """
   @spec build(map()) :: t()
   def build(inputs) do
     feed = UpcomingFeed.build(inputs.releases, feed_context(inputs))
-    shelf_cap = if Map.get(inputs, :shelf_expanded?, false), do: :all, else: @shelf_cap
 
     %View{
-      shelf: shelf_section(feed, shelf_cap, inputs.today),
+      watchlist:
+        WatchlistRows.build(%{
+          watchlist: inputs.watchlist,
+          feed: feed,
+          social_activity: inputs.social_activity,
+          acquisition_states: inputs.acquisition_states,
+          posters: inputs.posters,
+          today: inputs.today
+        }),
       in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
-      drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
-      feed: feed
+      drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: [])
     }
   end
 
   @doc """
-  The same view with the shelf's cap lifted ("Show all"): the shelf is
-  re-cut from the feed the view already holds, with no new read.
+  Stamp live download percentages onto in-pursuit rows —
+  `%{pursuit_id => percent}` comes from the render-time queue pairing. A
+  row whose pursuit has no paired torrent yet (still searching the
+  indexers) stays percentless.
   """
-  @spec expand_shelf(t(), Date.t()) :: t()
-  def expand_shelf(%View{feed: feed} = view, today),
-    do: %{view | shelf: shelf_section(feed, :all, today)}
+  @spec with_progress([WatchlistRows.row()], %{optional(Ecto.UUID.t()) => non_neg_integer()}) ::
+          [WatchlistRows.row()]
+  def with_progress(rows, progress_by_pursuit) do
+    Enum.map(rows, fn
+      %{next_release: %NextRelease{status: :in_pursuit, pursuit_id: id} = next} = row
+      when is_binary(id) ->
+        %{row | next_release: %{next | percent: Map.get(progress_by_pursuit, id)}}
 
-  defp shelf_section(feed, cap, today) do
-    {events, overflow_count} = UpcomingFeed.shelf_items(feed, cap)
-
-    %ShelfSection{
-      cards: Enum.map(events, &card_from_event(&1, today)),
-      overflow_count: overflow_count
-    }
-  end
-
-  @doc """
-  Stamp live download percentages onto in-pursuit cards —
-  `%{pursuit_id => percent}` comes from the render-time queue pairing. Cards
-  whose pursuit has no paired torrent yet (still searching the indexers)
-  stay percentless; the hairline simply doesn't render.
-  """
-  @spec with_progress([Card.t()], %{optional(Ecto.UUID.t()) => non_neg_integer()}) :: [Card.t()]
-  def with_progress(cards, progress_by_pursuit) do
-    Enum.map(cards, fn
-      %Card{status: :in_pursuit, pursuit_id: pursuit_id} = card when not is_nil(pursuit_id) ->
-        %{card | percent: Map.get(progress_by_pursuit, pursuit_id)}
-
-      card ->
-        card
+      row ->
+        row
     end)
   end
 
@@ -121,62 +102,4 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       grab_status_by_key: if(inputs.acquisition_ready?, do: inputs.grab_status_by_key, else: %{})
     }
   end
-
-  defp card_from_event(%Event{} = event, today) do
-    %Card{
-      key: event.id,
-      item_id: event.item_id,
-      pursuit_id: event.pursuit_id,
-      title: event.item_name,
-      subtitle: subtitle_for(event),
-      date_label: UpcomingFeed.shelf_date_label(event, today),
-      status: pill_status(event, today),
-      art_url: art_url(event),
-      kind: event.kind,
-      episode_count: event.episode_count
-    }
-  end
-
-  # The Upcoming statuses and the pill union are distinct vocabularies on
-  # purpose (forecast ≠ pursuit lifecycle); this is the one mapping between
-  # them. `:unscheduled` never reaches the shelf (the title detail's timeline
-  # carries those). An armed release that already came out is one the want
-  # ledger is searching for now — "Will grab" is a promise about a drop that
-  # has already happened, so it reads Searching.
-  defp pill_status(%Event{status: :armed, air_date: date}, today) do
-    if Date.before?(date, today), do: :searching, else: :armed
-  end
-
-  defp pill_status(%Event{status: status}, _today), do: pill_status(status)
-
-  defp pill_status(:under_pursuit), do: :in_pursuit
-  # A fallback date can't lead a title's shelf card (the earlier armed date
-  # always sorts first and past armed dates are kept), but map it defensively.
-  defp pill_status(:armed_fallback), do: :tracked
-  defp pill_status(:theatrical_info), do: :in_theaters
-  defp pill_status(:in_library), do: :landed
-  defp pill_status(:upcoming), do: :tracked
-
-  defp subtitle_for(%Event{kind: :season_drop} = event), do: "S#{event.season_number}"
-
-  defp subtitle_for(%Event{kind: :episode} = event) do
-    code = episode_code(event)
-    if event.title, do: "#{code} · “#{event.title}”", else: code
-  end
-
-  # A movie release's title is usually just the movie's name again — only a
-  # genuinely distinct edition title ("Restored edition") earns the caption.
-  defp subtitle_for(%Event{kind: :movie, title: title, item_name: title}), do: nil
-  defp subtitle_for(%Event{kind: :movie} = event), do: event.title
-
-  defp episode_code(%Event{season_number: season, episode_number: episode}) do
-    "S#{pad(season)}E#{pad(episode)}"
-  end
-
-  defp pad(number), do: number |> to_string() |> String.pad_leading(2, "0")
-
-  # The bare artwork URL — `Shelf` declares the width it paints at, next to
-  # the box that decides it. A display width set here drifts from the markup
-  # it is meant to match: this one said 342 for a `w-8` thumbnail.
-  defp art_url(%Event{backdrop_url: url}), do: url
 end

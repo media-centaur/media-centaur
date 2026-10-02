@@ -4,7 +4,9 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
   markers, the notes or the overview — as a whole-card click target.
   Every verb lives in the title detail modal, so the row never grows or
   loses a control depending on where the title stands; only its markers
-  change. `poster_url: nil` shows the icon fallback.
+  change. `poster_url: nil` shows the icon fallback. At the right, a
+  followed title's next-release block (date, release, status pill) and
+  the social glyphs for what friends did with the title.
   """
 
   use PhoenixStorybook.Story, :component

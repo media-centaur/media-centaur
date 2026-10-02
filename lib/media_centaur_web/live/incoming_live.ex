@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   The Incoming page at `/incoming` (UIDR-015) — Upcoming and Downloads
   merged into one collection-growth destination. The hero omnibox is
   the standing front door; below it, zone tabs (UIDR-015, `?zone=`)
-  split the content into three calm views — **Coming up** (default),
+  split the content into three calm views — **Watchlist** (default),
   **Activity**, and **History**. While a search owns the page
   (`Logic.search_owns_page?/3`) the tabs and their content recede
   behind the flat results; forecast-only installs (no indexer) get no
@@ -13,10 +13,11 @@ defmodule MediaCentaurWeb.IncomingLive do
   TMDB media search answering flat in `MediaResults`, or Prowlarr
   release search answering in the search zone (`"grid"`).
 
-  **Coming up** — the agenda (`data-nav-zone="coming_up_list"`): one
-  compact date-led row per tracked title, nearness-ordered, statuses
-  via the shared `StatusPill` vocabulary; overflow grows in place
-  ("Show all N").
+  **Watchlist** — every title at List or above, once (`"title_rows"`):
+  `Title.Row` per title with its markers, social glyphs and, for a
+  followed title, its next release and status (`WatchlistRows`), dated
+  nearest first. The watchlist is read in `build_view/1` with the
+  forecast, so one rebuild path serves both.
 
   **Activity** — draft plans (`"drafts"`, resumable into the plan
   modal); **In flight** (`"pursuits"`): every live pursuit paired at
@@ -87,7 +88,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
+  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher, TitleStates}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
 
@@ -125,17 +126,19 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaur.TMDB.ReleaseWindow
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleSearch
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
-  alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
+  alias MediaCentaurWeb.Components.Incoming.Ledger
+  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
@@ -182,7 +185,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     # The rows' rungs (the omnibox results, the plan board's bookmark)
     # come from the ladder; `discovery:updates` keeps them live.
     socket =
-      [MediaCentaur.Library, Activities, Discovery, IntegrationAvailability]
+      [MediaCentaur.Library, Activities, Discovery, Store, IntegrationAvailability]
       |> Enum.reduce(socket, &Subscriptions.subscribe(&2, &1))
       |> then(&if(prowlarr?, do: subscribe_acquisition(&1), else: &1))
 
@@ -195,8 +198,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          subscribed_acquisition?: prowlarr? and connected?(socket),
          title_rungs: Discovery.rungs(),
          today: today,
-         shelf_expanded?: false,
-         view: %View{shelf: %View.ShelfSection{}},
+         view: %View{},
          grab_status_by_key: %{},
          approval_policy: PlanningMode.approval_policy(PlanningMode.value()),
          loaded_history_params: nil,
@@ -377,10 +379,19 @@ defmodule MediaCentaurWeb.IncomingLive do
     acquisition? = Capabilities.acquisition_ready?()
     approval_policy = PlanningMode.approval_policy(PlanningMode.value())
     grab = grab_status_by_key(releases, acquisition?)
+    watchlist = Discovery.list_watchlist()
+    refs = Enum.map(watchlist, &{&1.intent.tmdb_id, &1.intent.media_type})
 
     view =
       View.build(%{
         releases: releases,
+        watchlist: watchlist,
+        social_activity: Activities.activity_for(refs),
+        acquisition_states: TitleStates.for_refs(refs),
+        posters:
+          Map.new(Enum.zip(refs, watchlist), fn {ref, row} ->
+            {ref, title_poster_url(row.intent.title)}
+          end),
         pursuit_rows: socket.assigns.pursuit_rows,
         drafts: socket.assigns.plan_drafts,
         today: socket.assigns.today,
@@ -388,8 +399,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         acquisition_ready?: acquisition?,
         approval_policy: approval_policy,
         rungs: socket.assigns.title_rungs,
-        grab_status_by_key: grab,
-        shelf_expanded?: socket.assigns.shelf_expanded?
+        grab_status_by_key: grab
       })
 
     assign(socket,
@@ -405,8 +415,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # `%{release_key => %{pursuit_id}}` for releases under an ACTIVE pursuit —
-  # the input the feed needs to mark `:under_pursuit` and the shelf needs to
-  # anchor a card to its torrent row.
+  # the input the feed needs to mark `:under_pursuit` and a watchlist row
+  # needs to anchor its pill to its torrent row.
   defp grab_status_by_key(_releases, false), do: %{}
 
   defp grab_status_by_key(releases, true) do
@@ -551,13 +561,13 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
-  # The zone tabs (Coming up | Activity | History) are URL state
+  # The zone tabs (Watchlist | Activity | History) are URL state
   # (UIDR-015). Runs after `ensure_loaded/1` so the first bare-path load
   # can smart-default to Activity when something is actually going on
   # (live pursuits or draft plans) — the reads are already in assigns,
   # so the decision costs nothing. Forecast-only installs have nothing
-  # to tab between; the param is ignored and everything renders as
-  # Coming up.
+  # to tab between; the param is ignored and everything renders as the
+  # Watchlist.
   defp assign_zone(socket, params, was_loaded?) do
     zone =
       if socket.assigns.prowlarr_ready do
@@ -567,7 +577,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           socket.assigns.pursuit_rows != [] or socket.assigns.plan_drafts != []
         )
       else
-        :coming_up
+        :watchlist
       end
 
     assign(socket, zone: zone)
@@ -619,7 +629,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # a modal never dumps the user on a different tab.
   defp incoming_path(socket, params \\ %{}) do
     params =
-      if socket.assigns.zone == :coming_up,
+      if socket.assigns.zone == :watchlist,
         do: params,
         else: Map.put(params, "zone", to_string(socket.assigns.zone))
 
@@ -636,7 +646,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     base = %{
       "search" => socket.assigns.history_search,
       "filter" => to_string(socket.assigns.history_filter),
-      "zone" => if(socket.assigns.zone != :coming_up, do: to_string(socket.assigns.zone))
+      "zone" => if(socket.assigns.zone != :watchlist, do: to_string(socket.assigns.zone))
     }
 
     merged =
@@ -679,7 +689,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_trigger_prowlarr_search(socket, _), do: socket
 
-  defp shelf_progress(download_cards) do
+  defp progress_by_pursuit(download_cards) do
     for %PursuitWithDownload{row: row, download: download} <- download_cards,
         download && download.progress_pct,
         into: %{} do
@@ -754,11 +764,11 @@ defmodule MediaCentaurWeb.IncomingLive do
           orphan_queue == [] and assigns.download_client_ready
       )
       # Live percentages ride the same render-time pairing: the paired
-      # downloads stamp their progress onto in-pursuit shelf cards, so the
-      # shelf hairline tracks the torrent without rebuilding the View.
+      # downloads stamp their progress onto in-pursuit watchlist rows, so
+      # the pill tracks the torrent without rebuilding the View.
       |> Phoenix.Component.assign(
-        :shelf_cards,
-        View.with_progress(assigns.view.shelf.cards, shelf_progress(download_cards))
+        :watchlist_rows,
+        View.with_progress(assigns.view.watchlist, progress_by_pursuit(download_cards))
       )
       # The plan modal's cinematic shell — one identity following the
       # request through every stage (UIDR-014).
@@ -858,7 +868,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
               Width model: the page is full-bleed (like home/library); the
               content column runs max-w-6xl — one axis, density thinning
-              downward: hero search, the Coming-up agenda list, operational
+              downward: hero search, the Watchlist rows, operational
               in-flight band, then the bookkeeping (ledger, History
               disclosure, other downloads) at the bottom. --%>
         <%!-- Centered, not left-anchored: on media-center-wide screens a
@@ -926,7 +936,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             data-nav-zone="zone-tabs"
             class="flex items-center justify-center gap-8 pt-16"
           >
-            <.zone_tab zone={:coming_up} active_zone={@zone} label="Coming up" />
+            <.zone_tab zone={:watchlist} active_zone={@zone} label="Watchlist" />
             <.zone_tab
               zone={:activity}
               active_zone={@zone}
@@ -949,11 +959,35 @@ defmodule MediaCentaurWeb.IncomingLive do
             />
           </div>
 
-          <Shelf.shelf
-            :if={!@search_owns? && @zone == :coming_up}
-            cards={@shelf_cards}
-            overflow_count={@view.shelf.overflow_count}
-          />
+          <%!-- The Watchlist (UIDR-050): every listed title once, a followed
+                title's next release at its right. Centered at the omnibox's
+                measure. The empty tab says what fills it (UIDR-034). --%>
+          <section
+            :if={!@search_owns? && @zone == :watchlist}
+            id="incoming-watchlist"
+            class="mx-auto w-full max-w-3xl"
+          >
+            <.empty_state
+              :if={@watchlist_rows == []}
+              id="watchlist-empty"
+              headline="Titles you save land here"
+            >
+              Search above, open a title and add it to your watchlist. A title you
+              track shows its next release here.
+            </.empty_state>
+            <div :if={@watchlist_rows != []} data-nav-zone="title_rows" class="space-y-2">
+              <TitleRow.title_row
+                :for={row <- @watchlist_rows}
+                id={"watchlist-item-#{TitleRef.param(row.ref)}"}
+                title={row.title}
+                poster_url={row.poster_url}
+                markers={row.markers}
+                notes={row.notes}
+                social_activity={row.social_activity}
+                next_release={row.next_release}
+              />
+            </div>
+          </section>
 
           <section
             :if={@view.drafts != [] && !@search_owns? && @zone == :activity}
@@ -1096,7 +1130,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     """
   end
 
-  attr :zone, :atom, required: true, values: [:coming_up, :activity, :history]
+  attr :zone, :atom, required: true, values: [:watchlist, :activity, :history]
   attr :active_zone, :atom, required: true, doc: "The page's current zone — styles the active tab."
   attr :label, :string, required: true
 
@@ -1485,7 +1519,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Zone-tab switching is a URL patch (UIDR-015) — the default zone
   # keeps a clean URL so data-nav-remember doesn't pin a stale param.
   def handle_event("switch_zone", %{"zone" => zone}, socket)
-      when zone in ~w(coming_up activity history) do
+      when zone in ~w(watchlist activity history) do
     {:noreply, push_patch(socket, to: Logic.zone_path(Logic.parse_zone(zone)))}
   end
 
@@ -1629,33 +1663,6 @@ defmodule MediaCentaurWeb.IncomingLive do
        history_week_only?: false
      )
      |> load_history()}
-  end
-
-  # --- Shelf disclosure ---
-
-  def handle_event("expand_shelf", _params, socket) do
-    # Re-cut from the held feed: lifting a display cap reads nothing.
-    {:noreply,
-     socket
-     |> assign(shelf_expanded?: true)
-     |> update(:view, &View.expand_shelf(&1, socket.assigns.today))}
-  end
-
-  # --- Forecast detail / tracking events ---
-
-  # A Coming up row names its tracked item; the title detail is keyed by
-  # the title ref (UIDR-035), so the click resolves one into the other.
-  def handle_event("select_event", %{"item-id" => item_id}, socket) do
-    case ReleaseTracking.get_item(item_id) do
-      %Item{tmdb_id: tmdb_id, media_type: media_type} ->
-        {:noreply,
-         push_patch(socket,
-           to: incoming_path(socket, %{"title" => TitleRef.param({tmdb_id, media_type})})
-         )}
-
-      nil ->
-        {:noreply, socket}
-    end
   end
 
   # Pursuit detail modal — open / close via URL.
@@ -1825,16 +1832,19 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_info({:title_intent_changed, _event}, socket),
     do: {:noreply, socket |> assign(:title_rungs, Discovery.rungs()) |> build_view()}
 
-  # A review arriving or withdrawn while results are up re-reads
-  # the social glyphs for exactly those results.
+  # A review arriving or withdrawn re-reads the social glyphs: the
+  # omnibox results' own at once, and the watchlist rows' through the
+  # debounced view rebuild — `Activities.ingest/1` broadcasts one per
+  # activity, and a relay sync is a burst.
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
     {:noreply,
-     assign(
-       socket,
+     socket
+     |> assign(
        :social_activity_by_ref,
        social_activity_for_results(socket.assigns.omnibox_results)
-     )}
+     )
+     |> debounce(:forecast_reload_timer, :reload_forecast, 500)}
   end
 
   def handle_info({:run_search_one, query}, socket) do
@@ -1959,9 +1969,18 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket |> load_pursuit_rows() |> build_view()}
   end
 
-  # --- Forecast (shelf / detail / calendar / track modal) ---
+  # --- Forecast and watchlist (rows / detail / calendar / track modal) ---
 
   def handle_info({:releases_updated, _item_ids}, socket) do
+    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
+  end
+
+  # A stored title changed (its name, its artwork, its dates): the
+  # watchlist rows paint from the store, so they read it again. Same
+  # debounce as the forecast — for a followed title `TmdbListener` turns
+  # this very message into `:releases_updated`, so the two collapse into
+  # one rebuild.
+  def handle_info({:tmdb_title_changed, _ref}, socket) do
     {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
   end
 
