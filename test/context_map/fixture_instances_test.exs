@@ -15,7 +15,7 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
     MediaCentaurWeb.Components.Title.Logic,
     MediaCentaurWeb.Components.Title.WatchlistToggle,
     MediaCentaurWeb.Components.Title.TrackingControls,
-    MediaCentaurWeb.DiscoveryLive.FeedEntries
+    MediaCentaurWeb.SocialLive.FeedEntries
   ]
 
   for consumer <- @ignored_consumers do
