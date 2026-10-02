@@ -10,7 +10,7 @@ describe("social behavior", () => {
     expect(behavior.onEscape).toBeUndefined()
   })
 
-  test("activateOnFocus is empty — watchlist cards should not click on focus", () => {
+  test("activateOnFocus is empty — person cards should not click on focus", () => {
     const behavior = createSocialBehavior()
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
