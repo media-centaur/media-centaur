@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.StatusPill do
   @moduledoc """
   The Incoming page's shared status vocabulary — one pill rendered by
-  both the Coming-up shelf card and the in-flight torrent row, so the
-  two zoom levels of one object read as the same object. Color is
+  both the Watchlist row's next release and the in-flight torrent row,
+  so the two zoom levels of one object read as the same object. Color is
   state/health only.
   """
 
@@ -37,18 +37,6 @@ defmodule MediaCentaurWeb.Storybook.Incoming.StatusPill do
         id: :in_pursuit_with_percent,
         description: "In pursuit carrying its download progress.",
         attributes: %{status: :in_pursuit, percent: 62}
-      },
-      %Variation{
-        id: :in_pursuit_anchored,
-        description:
-          "With an anchor the pill is a link — the shelf card jumps down to its own " <>
-            "torrent row (`#pursuit-<id>`). Hover shows the brighter info border.",
-        attributes: %{status: :in_pursuit, percent: 62, anchor: "#pursuit-sample-show"}
-      },
-      %Variation{
-        id: :anchored_without_percent,
-        description: "Anchored but percent unknown yet — label stays bare.",
-        attributes: %{status: :in_pursuit, anchor: "#pursuit-sample-show"}
       }
     ]
   end

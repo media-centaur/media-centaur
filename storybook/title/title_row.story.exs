@@ -104,9 +104,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       },
       %Variation{
         id: :in_pursuit,
-        description:
-          "Its release dropped and a pursuit is grabbing it: the pill carries the percent " <>
-            "and anchors to the pursuit row.",
+        description: "Its release dropped and a pursuit is grabbing it: the pill carries the percent.",
         attributes: %{
           id: "row-in-pursuit",
           title: title(%{media_type: :tv_series, name: "Sample Show"}),

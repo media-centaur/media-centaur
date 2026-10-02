@@ -24,23 +24,23 @@ downloading one.
 
 ## The next release on the row
 
-A tracked title's watchlist row carries its next release at the right: a date that gets more
-explicit with distance (Tonight → Tue → Fri Jul 17 → Aug 6), the release (S02E04; a whole
-season dropping on one day collapses into one "all N episodes at once" line; a film's digital
-or disc date) and a status pill. Rows are ordered nearest first.
+A tracked title's watchlist row carries its next release still to come at the right: a date
+that gets more explicit with distance (Tonight → Tue → Fri Jul 17 → Aug 6), the release
+(S02E04; a whole season dropping on one day collapses into one "all N episodes at once" line;
+a film's digital or disc date) and a status pill. Rows are ordered nearest first.
 
 Titles TMDB hasn't dated yet have no next release. Their rows follow the dated ones, with
 **Tracking** or **Auto-grab** as the marker.
 
 A release that has already come out and is still missing stays on the row for as long as the
 app is searching for it — the date reads as how long ago it came out ("5 days ago",
-"May 1998") and the pill reads **Searching**. A release that landed reads **Landed** for a
-week, then it is the History tab's.
+"May 1998") and the pill reads **Searching**. A release you have reads **Landed** for a week
+when nothing later is scheduled; otherwise the row moves on to the next one.
 
 | Status | Meaning |
 |---|---|
 | Landed | You already have it |
-| In pursuit | Released and being grabbed now — click the pill to jump to the live download |
+| In pursuit | Released and being grabbed now — the download is on the Activity tab |
 | Will grab | A future release that *will* be grabbed when it drops — shown only when a grab will genuinely fire |
 | Searching | A release whose date has passed that you still don't have — indexers are being re-checked for it |
 | Tracked | Dated, but won't auto-grab |

@@ -10,11 +10,9 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   `StatusPill` status) and the title's social glyphs: the flags a friend
   flew (`SocialWords.drawn_flags/1`), each at its grade with its
   sentence on hover. State is shown, never acted on here: every verb
-  lives in the modal. The one exception is deliberate: an in-pursuit
-  pill is an `<a>` inside the `role="button"` row — it stops
-  propagation and jumps to the pursuit row, navigation to the same
-  object's other zoom level, not a verb on the title. (The Feed's rows
-  are `Discovery.FeedRow`, which carries its own toolbar.)
+  lives in the modal, and the pursuit row an in-pursuit pill names is on
+  the Activity tab. (The Feed's rows are `Discovery.FeedRow`, which
+  carries its own toolbar.)
 
   Pure rendering; `open_title` bubbles to the host with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity
@@ -116,11 +114,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
           <span :if={@next_release.subtitle} class="text-xs text-base-content/55">
             {@next_release.subtitle}
           </span>
-          <.status_pill
-            status={@next_release.status}
-            percent={@next_release.percent}
-            anchor={pursuit_anchor(@next_release)}
-          />
+          <.status_pill status={@next_release.status} percent={@next_release.percent} />
         </div>
         <SocialGlyph.social_glyphs
           :if={@flags != []}
@@ -133,11 +127,4 @@ defmodule MediaCentaurWeb.Components.Title.Row do
     </div>
     """
   end
-
-  # The in-pursuit pill jumps to the pursuit row — the same object's other
-  # zoom level (UIDR-015 §6).
-  defp pursuit_anchor(%NextRelease{status: :in_pursuit, pursuit_id: id}) when is_binary(id),
-    do: "#pursuit-#{id}"
-
-  defp pursuit_anchor(%NextRelease{}), do: nil
 end

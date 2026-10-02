@@ -14,10 +14,9 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   "Will grab" — the internal atom keeps its name, the user never
   sees it.
 
-  An `:in_pursuit` pill can carry a `percent` ("In pursuit · 62%") and
-  an `anchor` — when set, the pill renders as a link to that fragment
-  (the pursuit row's DOM id) so the watchlist row jumps to its own
-  torrent row.
+  An `:in_pursuit` pill can carry a `percent` ("In pursuit · 62%"). The
+  pill is a `<span>`, never a link: the two zoom levels are on different
+  tabs, so there is no fragment to jump to.
   """
 
   use Phoenix.Component
@@ -32,27 +31,11 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
     default: nil,
     doc: "Download progress — rendered only for `:in_pursuit` (\"In pursuit · 62%\")."
 
-  attr :anchor, :string,
-    default: nil,
-    doc: "Fragment href (e.g. `#pursuit-<id>`) — when set, the pill is a link to that anchor."
-
   def status_pill(assigns) do
     assigns = assign(assigns, :label, label(assigns.status, assigns.percent))
 
     ~H"""
-    <%!-- stopPropagation: the pill sits inside a phx-click row — jumping to
-          the torrent row must not also open the row's title detail. --%>
-    <a
-      :if={@anchor}
-      href={@anchor}
-      class={[base_class(), tone_class(@status), anchor_hover_class(@status)]}
-      data-component="status-pill"
-      data-tip="Jump to the live download"
-      onclick="event.stopPropagation()"
-    >
-      <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}
-    </a>
-    <span :if={!@anchor} class={[base_class(), tone_class(@status)]} data-component="status-pill">
+    <span class={[base_class(), tone_class(@status)]} data-component="status-pill">
       <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}
     </span>
     """
@@ -87,7 +70,4 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   defp tone_class(:failed), do: "text-error border-error/40"
   defp tone_class(:cancelled), do: "text-base-content/55 border-base-content/15"
   defp tone_class(_neutral), do: "text-base-content/65 border-base-content/15"
-
-  defp anchor_hover_class(:in_pursuit), do: "transition-colors hover:border-info/60 hover:text-info"
-  defp anchor_hover_class(_status), do: "transition-colors hover:border-base-content/30"
 end

@@ -629,6 +629,72 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert Enum.map(events, & &1.title) == ["dated"]
       refute Enum.any?(events, &is_nil(&1.air_date))
     end
+
+    test "a landed episode gives way to the next one still to come" do
+      show = tv_item()
+
+      releases = [
+        release(show, %{
+          title: "landed-ep",
+          air_date: days(-3),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 3
+        }),
+        release(show, %{title: "next-ep", air_date: days(4), season_number: 1, episode_number: 4})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert [%UpcomingFeed.Event{title: "next-ep"}] = UpcomingFeed.next_per_title(feed)
+    end
+
+    test "a title with only a landed release keeps it" do
+      show = tv_item()
+
+      landed =
+        release(show, %{
+          title: "landed-ep",
+          air_date: days(-3),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 3
+        })
+
+      feed = UpcomingFeed.build([landed], armed_context())
+
+      assert [%UpcomingFeed.Event{title: "landed-ep", status: :in_library}] =
+               UpcomingFeed.next_per_title(feed)
+    end
+
+    test "a past armed release the app is still searching for is still to come" do
+      show = tv_item()
+
+      releases = [
+        release(show, %{
+          title: "landed-ep",
+          air_date: days(-3),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 3
+        }),
+        release(show, %{
+          title: "missing-ep",
+          air_date: days(-1),
+          released: true,
+          season_number: 1,
+          episode_number: 4
+        })
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert [%UpcomingFeed.Event{title: "missing-ep", status: :armed}] =
+               UpcomingFeed.next_per_title(feed)
+    end
   end
 
   describe "date_label/2 — graduated explicitness" do

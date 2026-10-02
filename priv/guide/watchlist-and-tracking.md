@@ -33,7 +33,9 @@ switch is on — your note when you wrote one, and a glyph at the right for each
 did with it. A tracked title's row carries its next release at the far right: the date
 (**Tonight**, **Fri Oct 9**, **5 days ago**), the release (**S02E04**; a season dropping on
 one day as **S2 · all 8 episodes at once**) and a status pill — see
-[release tracking](/guide/release-tracking-and-upcoming) for the pills.
+[release tracking](/guide/release-tracking-and-upcoming) for the pills. The next release is the
+next one still to come: a release the app is still searching for counts; a release you already
+have shows as **Landed** only while nothing later is scheduled.
 
 Rows are ordered by next release, nearest first; tracked titles TMDB has not dated follow;
 titles you only listed come last, newest first. The list has no cap. Click a row to open the

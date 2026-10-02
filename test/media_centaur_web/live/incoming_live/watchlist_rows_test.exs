@@ -127,6 +127,22 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRowsTest do
     assert by_id[6].status == :tracked
   end
 
+  test "landed E03 + upcoming E04 → the row carries E04" do
+    rows =
+      WatchlistRows.build(
+        inputs(%{
+          watchlist: [watchlist_row(intent(1, :tv_series, :follow, ~N[2026-09-01 00:00:00]))],
+          feed:
+            feed([
+              event(1, :tv_series, ~D[2026-09-29], %{status: :in_library, episode_number: 3}),
+              event(1, :tv_series, ~D[2026-10-06], %{episode_number: 4})
+            ])
+        })
+      )
+
+    assert [%{next_release: %NextRelease{subtitle: "S02E04", status: :tracked}}] = rows
+  end
+
   test "a listed-only title not in the library carries no markers and no next release" do
     rows =
       WatchlistRows.build(
