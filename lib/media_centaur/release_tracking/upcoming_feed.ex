@@ -133,13 +133,32 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   @doc """
-  One event per tracked title — its soonest scheduled release — nearest
-  first. The watchlist row's next release. A title with nothing scheduled
-  has no event here (`unscheduled` holds it).
+  One event per tracked title — its next release still to come — nearest
+  first. The watchlist row's next release. "Still to come" is any
+  scheduled event not yet in the library: a future date, or a past one
+  the app is still searching for (`:armed`, `:under_pursuit`). A landed
+  (`:in_library`) event leads a title only when nothing else is
+  scheduled for it — otherwise a weekly series whose episodes arrive on
+  air day would read Landed forever and never show the next date. A
+  title with nothing scheduled has no event here (`unscheduled` holds it).
   """
   @spec next_per_title(t()) :: [Event.t()]
   def next_per_title(%UpcomingFeed{} = feed) do
-    feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id)
+    scheduled = scheduled_events(feed)
+
+    still_to_come =
+      scheduled
+      |> Enum.reject(&(&1.status == :in_library))
+      |> Enum.uniq_by(& &1.item_id)
+
+    led = MapSet.new(still_to_come, & &1.item_id)
+
+    landed_only =
+      scheduled
+      |> Enum.filter(&(&1.status == :in_library and not MapSet.member?(led, &1.item_id)))
+      |> Enum.uniq_by(& &1.item_id)
+
+    Enum.sort_by(still_to_come ++ landed_only, & &1.air_date, Date)
   end
 
   @doc """

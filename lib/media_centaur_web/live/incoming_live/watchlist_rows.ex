@@ -8,6 +8,11 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
   release nearest first, then followed titles TMDB has not dated, then
   listed-only titles newest first (the watchlist read's own order).
 
+  The next release is the title's next one still to come
+  (`UpcomingFeed.next_per_title/1`): a release the app is still
+  searching for counts as still to come; one already in the library
+  leads the row, as Landed, only while nothing else is scheduled.
+
   Pure: every fact is injected (ADR-030). The status vocabulary is the
   `StatusPill`'s; this is the one mapping from the feed's statuses onto
   it — an armed release that already came out is one the app is
