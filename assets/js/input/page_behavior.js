@@ -22,7 +22,7 @@ import { createEpisodeMappingBehavior } from "./episode_mapping_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
-import { createDiscoveryBehavior } from "./discovery_behavior"
+import { createSocialBehavior } from "./social_behavior"
 import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createGuideBehavior } from "./guide_behavior"
@@ -40,7 +40,7 @@ const BEHAVIOR_REGISTRY = {
   settings: () => createSettingsBehavior(),
   incoming: () => createIncomingBehavior(incomingDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
-  discovery: () => createDiscoveryBehavior(),
+  social: () => createSocialBehavior(),
   apps: () => createAppsBehavior(),
   setup: () => createSetupBehavior(),
   guide: () => createGuideBehavior(),

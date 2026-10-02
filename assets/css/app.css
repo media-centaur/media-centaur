@@ -3363,34 +3363,34 @@ body:has(.modal-backdrop[data-state="open"]) {
   opacity: 1;
 }
 
-/* ── Discovery's columns (UIDR-046) ── the feed column beside the rail
+/* ── Social's columns (UIDR-046) ── the feed column beside the rail
    above 1100px of content; one column below. The width is the
    container's, never an assign's: the Feed and the Watchlist sit in the
    layout's 1280px container (the feed at 776 beside the 480 rail), the
    Friends grid takes the full width and folds at 1700. */
-.discovery-page {
-  container: discovery / inline-size;
+.social-page {
+  container: social / inline-size;
 }
 
-.discovery-columns {
+.social-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   column-gap: 24px;
   align-items: start;
 }
 
-.discovery-rail {
+.social-rail {
   display: none;
 }
 
 /* The head row: the strip and the scope pill in the feed column's cell,
    one hairline under both columns. The pill sits 8px above the hairline,
    the tabs' underline on it. */
-.discovery-head {
+.social-head {
   border-bottom: 1px solid oklch(from var(--color-base-content) l c h / 0.1);
 }
 
-.discovery-head > .discovery-head-cell {
+.social-head > .social-head-cell {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -3400,16 +3400,16 @@ body:has(.modal-backdrop[data-state="open"]) {
   padding-left: 4px;
 }
 
-.discovery-head .segmented-control {
+.social-head .segmented-control {
   margin-bottom: 8px;
 }
 
-@container discovery (min-width: 1100px) {
-  .discovery-columns {
+@container social (min-width: 1100px) {
+  .social-columns {
     grid-template-columns: minmax(0, 1fr) 480px;
   }
 
-  .discovery-rail {
+  .social-rail {
     display: block;
   }
 }
@@ -3421,7 +3421,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   align-items: start;
 }
 
-@container discovery (min-width: 1700px) {
+@container social (min-width: 1700px) {
   .friends-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

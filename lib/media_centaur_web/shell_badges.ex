@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   Plan changes reach the sidebar through the derived broadcast only —
   the Worker refreshes on `PlanEvents.Changed` and the hook re-reads on
   `{:shell_badges_updated}`; pages that need the source event
-  (`IncomingLive`, `DiscoveryLive`) subscribe to `acquisition:updates`
+  (`IncomingLive`, `SocialLive`) subscribe to `acquisition:updates`
   themselves, so this hook must not.
 
   The hook also owns the session-wide subscription to `review:updates` /

@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   The host of the title detail modal (UIDR-043) — one trait for every
   LiveView that opens a title: it owns the URL, the open `Title.Detail`
   and `Title.ModalState`, every event of the modal, the owned asyncs,
-  and the subscriptions that keep an open detail honest. `DiscoveryLive`
+  and the subscriptions that keep an open detail honest. `SocialLive`
   and `IncomingLive` `use` it; Home and Library follow.
 
   ## Host contract
@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.ModalState
-  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
+  alias MediaCentaurWeb.SocialLive.ActivityWords
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow

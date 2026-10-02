@@ -450,7 +450,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "1 friends"
       assert html =~ "0 sent"
       assert html =~ "0 received"
-      assert html =~ "/discovery/friends"
+      assert html =~ "/social/friends"
     end
 
     test "a relay fault colours the Social tile and names itself in the drill-in", %{conn: conn} do

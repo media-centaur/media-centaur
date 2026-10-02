@@ -106,7 +106,7 @@ defmodule MediaCentaur.Social.Connections do
 
   @doc """
   Folds one `Nostr.Connection` owner message into a status entry. Shared
-  by the owner (which keeps the authoritative map) and `DiscoveryLive`
+  by the owner (which keeps the authoritative map) and `SocialLive`
   (which folds the same messages off `social:connections`), so the two
   can never disagree about what a message means.
   """

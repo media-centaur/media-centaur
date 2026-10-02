@@ -45,8 +45,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   import MediaCentaurWeb.Components.Settings.ConnectionRow
 
   alias MediaCentaur.Social.Person
-  alias MediaCentaurWeb.Components.Discovery.HueSwatches
-  alias MediaCentaurWeb.Components.Discovery.IdentityTile
+  alias MediaCentaurWeb.Components.Social.HueSwatches
+  alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.RelayStatusRow
 
   attr :npub, :string,

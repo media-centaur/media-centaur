@@ -71,7 +71,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
 
         <div class="mt-3 flex gap-4">
           <.link
-            navigate={~p"/discovery/friends"}
+            navigate={~p"/social/friends"}
             class="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
           >
             Open Friends
