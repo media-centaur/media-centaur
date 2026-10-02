@@ -36,14 +36,14 @@ export const inputConfig = {
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     // The picker's Download split menu — a GlassMenu list nested in `plan_body`, present only while open.
     plan_menu: "[data-nav-zone='plan_menu'] [data-nav-item]",
-    // The Discovery title detail modal's action row (spec 2026-09-05).
+    // The Social page's title detail modal's action row (spec 2026-09-05).
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
     library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
-    // Discovery's Friends tab: person cards, each a poster strip over text
+    // Social's Friends tab: person cards, each a poster strip over text
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
@@ -315,10 +315,10 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    // Discovery: the zone-tabs strip above one body zone — the person cards
+    // Social: the zone-tabs strip above one body zone — the person cards
     // on Friends; the Feed's rows and rail are not nav items until the
     // hardening pass.
-    discovery: {
+    social: {
       zone_tabs:  { down: ["people"] },
       people:     { up: ["zone_tabs"] },
       sidebar:    { right: ["people", "zone_tabs"] },
@@ -357,7 +357,7 @@ export const inputConfig = {
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     incoming:  ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
-    discovery: ["people", "zone_tabs", "sidebar"],
+    social: ["people", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

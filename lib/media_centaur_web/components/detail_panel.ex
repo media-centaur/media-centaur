@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.ViewControls
-  alias MediaCentaurWeb.Components.Discovery.IdentityTile
+  alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Title.Social
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.TrackingControls
-  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
+  alias MediaCentaurWeb.SocialLive.ActivityWords
   alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail

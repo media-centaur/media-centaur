@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Layouts do
     preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default off
     while the feature is an opt-in preview). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
-    entry is gated — `/discovery` stays reachable by URL.
+    entry is gated — `/social` stays reachable by URL.
     """
 
   attr :show_apps, :boolean,
@@ -135,15 +135,15 @@ defmodule MediaCentaurWeb.Layouts do
           </.link>
           <.link
             :if={@show_social}
-            navigate="/discovery"
-            class={sidebar_link_class(@current_path, ["/discovery", "/discovery/friends"])}
-            data-tip="Discovery"
+            navigate="/social"
+            class={sidebar_link_class(@current_path, ["/social", "/social/friends"])}
+            data-tip="Social"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
-            <.icon name="hero-sparkles" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Discovery</span>
+            <.icon name="hero-users" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Social</span>
           </.link>
           <%!-- One entry for the whole collection-growth story (UIDR-015) —
                 unconditional: without acquisition the page degrades to an

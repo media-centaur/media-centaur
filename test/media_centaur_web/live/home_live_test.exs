@@ -16,15 +16,15 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching" or html =~ "Point it at your media"
   end
 
-  describe "discovery sidebar entry" do
+  describe "social sidebar entry" do
     test "is hidden by default", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/")
-      refute has_element?(view, "#sidebar a[href='/discovery']")
+      refute has_element?(view, "#sidebar a[href='/social']")
     end
 
     test "shows when the preference is on, and live-updates on toggle", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/")
-      refute has_element?(view, "#sidebar a[href='/discovery']")
+      refute has_element?(view, "#sidebar a[href='/social']")
 
       # The Settings write broadcasts {:setting_changed, "show_social", _};
       # the session-wide SettingAware hook re-assigns without a remount.
@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
         value: %{"enabled" => true}
       })
 
-      render_until(view, fn _html -> has_element?(view, "#sidebar a[href='/discovery']") end)
+      render_until(view, fn _html -> has_element?(view, "#sidebar a[href='/social']") end)
     end
   end
 

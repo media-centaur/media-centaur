@@ -163,11 +163,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  # Discovery with a roster: a friend's listing on a title the library
+  # Social with a roster: a friend's listing on a title the library
   # owns (so a band paints the entity's backdrop and the rail has You and
   # a friend), an own review, and the Friends grid with a card opened by
   # the address.
-  describe "/discovery with a roster" do
+  describe "/social with a roster" do
     @smoke_friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @smoke_friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
@@ -223,11 +223,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     for {path, label} <- [
-          {"/discovery", "discovery feed"},
-          {"/discovery?scope=friends", "discovery feed, friends scope"},
-          {"/discovery?scope=you", "discovery feed, you scope"},
-          {"/discovery/friends", "discovery friends"},
-          {"/discovery/friends?person=person-you", "discovery friends, a card opened"}
+          {"/social", "social feed"},
+          {"/social?scope=friends", "social feed, friends scope"},
+          {"/social?scope=you", "social feed, you scope"},
+          {"/social/friends", "social friends"},
+          {"/social/friends?person=person-you", "social friends, a card opened"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
         assert {:ok, _view, html} = smoke!(conn, unquote(path))
@@ -236,9 +236,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  # The Discovery title detail modal is URL-driven (`?title=`); a listed
+  # The Social title detail modal is URL-driven (`?title=`); a listed
   # title for the ref makes the modal render on the Feed.
-  describe "/discovery with the title modal open" do
+  describe "/social with the title modal open" do
     setup do
       # The modal warms the title's artwork through the TMDB client.
       TmdbStubs.setup_tmdb_client()
@@ -259,7 +259,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     for {path, label} <- [
-          {"/discovery?title=movie-777", "discovery feed with the title modal"}
+          {"/social?title=movie-777", "social feed with the title modal"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
         assert {:ok, view, html} = smoke!(conn, unquote(path))

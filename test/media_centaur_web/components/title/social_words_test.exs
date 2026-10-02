@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Title.SocialWordsTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.DiscoveryRows, only: [person: 1, own_person: 0]
+  import MediaCentaur.SocialRows, only: [person: 1, own_person: 0]
   import MediaCentaur.TestFactory, only: [build_activity: 1]
 
   alias MediaCentaur.Format

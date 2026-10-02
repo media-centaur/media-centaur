@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.Components.Title.Social do
   alias MediaCentaur.Activities
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
-  alias MediaCentaurWeb.Components.Discovery.IdentityTile
+  alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.Title.SocialGlyph

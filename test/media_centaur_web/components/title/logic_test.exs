@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.DiscoveryRows, only: [person: 1]
+  import MediaCentaur.SocialRows, only: [person: 1]
   import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1]
 
   alias MediaCentaur.TMDB.ReleaseWindow
