@@ -15,16 +15,15 @@ describe("discovery behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the title rows are a TREE under the zone tabs — RIGHT steps onto a row's Ignore sub-item", () => {
+  test("the person cards are the one body zone under the zone tabs; the title rows TREE belongs to Incoming", () => {
     expect(inputConfig.contextSelectors.title_rows).toBe("[data-nav-zone='title_rows'] [data-nav-item]")
     expect(inputConfig.instanceTypes.title_rows).toBe(Context.TREE)
     expect(inputConfig.layouts.discovery).toEqual({
-      zone_tabs: { down: ["title_rows", "people"] },
-      title_rows: { up: ["zone_tabs"] },
+      zone_tabs: { down: ["people"] },
       people: { up: ["zone_tabs"] },
-      sidebar: { right: ["title_rows", "people", "zone_tabs"] },
+      sidebar: { right: ["people", "zone_tabs"] },
     })
-    expect(inputConfig.cursorStartPriority.discovery).toEqual(["title_rows", "people", "zone_tabs", "sidebar"])
+    expect(inputConfig.cursorStartPriority.discovery).toEqual(["people", "zone_tabs", "sidebar"])
   })
 
   test("a title opened on Discovery navigates as the one detail overlay: the action row over an open menu over the tracking card (UIDR-043)", () => {

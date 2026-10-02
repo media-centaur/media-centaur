@@ -47,8 +47,8 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
-    // Discovery's Feed and watchlist rows: a vertical list whose
-    // rows carry a control (Ignore) — a TREE, so RIGHT steps into it.
+    // Incoming's Watchlist rows: a vertical list whose rows nest their
+    // own controls — a TREE, so RIGHT steps into a row.
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
@@ -62,12 +62,9 @@ export const inputConfig = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
-    // Incoming page (single column: omnibox → shelf → drafts → pursuits →
-    // ledger). `coming_up_list` is the incoming page's own vertical take on
-    // the forecast (the home pages keep the horizontal `coming_up` shelf
-    // above); the ledger hosts both the glimpse rows and the expanded
-    // archive (chips + search).
-    coming_up_list: "[data-nav-zone='coming_up_list'] [data-nav-item]",
+    // Incoming page (single column: omnibox → the Watchlist's title_rows →
+    // drafts → pursuits → ledger); the ledger hosts both the glimpse rows
+    // and the expanded archive (chips + search).
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
@@ -92,10 +89,8 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
-    // Incoming zones are vertical item lists — including the forecast,
-    // which is an agenda list here (the home pages keep their horizontal
-    // `coming_up` SHELF instance above).
-    coming_up_list: Context.MENU,
+    // Incoming zones are vertical item lists (the home pages keep their
+    // horizontal `coming_up` SHELF instance above).
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
@@ -293,9 +288,9 @@ export const inputConfig = {
       "episode-mapping-detail": { up: ["zone_tabs"], left: ["episode-mapping-list"] },
       sidebar:            { right: ["episode-mapping-list", "episode-mapping-detail", "zone_tabs"] },
     },
-    // Incoming: omnibox on top, then the zone tabs (Coming up | Activity |
+    // Incoming: omnibox on top, then the zone tabs (Watchlist | Activity |
     // History) — one tab's content renders at a time, so the candidate
-    // lists do the routing: Coming up shows coming_up_list; Activity shows
+    // lists do the routing: Watchlist shows title_rows; Activity shows
     // drafts → pursuits → other_downloads; History shows the ledger
     // (glimpse AND expanded archive, one zone). While a search owns the
     // page the tabs recede: media search renders "toolbar" (scope chips +
@@ -305,31 +300,29 @@ export const inputConfig = {
     // carries its "View all" toggle as a nav item once any history exists,
     // so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"] },
+      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "title_rows", "drafts", "pursuits", "ledger"] },
       toolbar:         { up: ["omnibox"], down: ["grid"] },
       grid:            { up: ["toolbar", "omnibox"] },
-      zone_tabs:       { up: ["omnibox"], down: ["coming_up_list", "drafts", "pursuits", "ledger", "other_downloads"] },
-      coming_up_list:  { up: ["zone_tabs", "omnibox"] },
+      zone_tabs:       { up: ["omnibox"], down: ["title_rows", "drafts", "pursuits", "ledger", "other_downloads"] },
+      title_rows:      { up: ["zone_tabs", "omnibox"] },
       drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"] },
       pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"] },
       ledger:          { up: ["zone_tabs", "omnibox"] },
       other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
-      sidebar:         { right: ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox"] },
+      sidebar:         { right: ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"] },
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    // Discovery: the zone-tabs strip above one body zone — the title rows on
-    // The Feed and the watchlist, the person cards on Friends. Only
-    // one body zone is in the DOM at a time, so `down` routes to whichever
-    // is populated.
+    // Discovery: the zone-tabs strip above one body zone — the person cards
+    // on Friends; the Feed's rows and rail are not nav items until the
+    // hardening pass.
     discovery: {
-      zone_tabs:  { down: ["title_rows", "people"] },
-      title_rows: { up: ["zone_tabs"] },
+      zone_tabs:  { down: ["people"] },
       people:     { up: ["zone_tabs"] },
-      sidebar:    { right: ["title_rows", "people", "zone_tabs"] },
+      sidebar:    { right: ["people", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -363,9 +356,9 @@ export const inputConfig = {
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
-    incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
+    incoming:  ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
-    discovery: ["title_rows", "people", "zone_tabs", "sidebar"],
+    discovery: ["people", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

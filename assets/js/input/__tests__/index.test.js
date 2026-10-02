@@ -109,15 +109,15 @@ describe("App config", () => {
 describe("Incoming page nav (real config)", () => {
   // One tab's content renders at a time: the zone tabs route down into
   // whichever content zone the active tab populated.
-  const comingUpView = { omnibox: 1, zone_tabs: 3, coming_up_list: 6, sidebar: 4 }
+  const watchlistView = { omnibox: 1, zone_tabs: 3, title_rows: 6, sidebar: 4 }
 
-  test("Coming up view: tabs sit between the omnibox and the agenda", () => {
-    const graph = buildNavGraph("incoming", comingUpView, inputConfig)
+  test("Watchlist view: tabs sit between the omnibox and the watchlist", () => {
+    const graph = buildNavGraph("incoming", watchlistView, inputConfig)
     expect(graph.omnibox.down).toBe("zone_tabs")
     expect(graph.zone_tabs.up).toBe("omnibox")
-    expect(graph.zone_tabs.down).toBe("coming_up_list")
-    expect(graph.coming_up_list.up).toBe("zone_tabs")
-    expect(resolveCursorStart("incoming", comingUpView, inputConfig)).toBe("coming_up_list")
+    expect(graph.zone_tabs.down).toBe("title_rows")
+    expect(graph.title_rows.up).toBe("zone_tabs")
+    expect(resolveCursorStart("incoming", watchlistView, inputConfig)).toBe("title_rows")
   })
 
   test("Activity view: tabs route into drafts → pursuits → other downloads", () => {
@@ -154,28 +154,36 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.grid.up).toBe("toolbar")
   })
 
-  test("forecast-only (no tabs in the DOM): the agenda leans on the candidate fallback", () => {
-    const counts = { omnibox: 1, coming_up_list: 6, sidebar: 4 }
+  test("watchlist-only (no tabs in the DOM): the watchlist leans on the candidate fallback", () => {
+    const counts = { omnibox: 1, title_rows: 6, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
-    expect(graph.coming_up_list.up).toBe("omnibox")
-    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up_list")
+    expect(graph.title_rows.up).toBe("omnibox")
+    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("title_rows")
   })
 
-  test("sidebar enters the agenda first; cursor starts there too", () => {
-    const graph = buildNavGraph("incoming", comingUpView, inputConfig)
-    expect(graph.sidebar.right).toBe("coming_up_list")
+  test("sidebar enters the watchlist first; cursor starts there too", () => {
+    const graph = buildNavGraph("incoming", watchlistView, inputConfig)
+    expect(graph.sidebar.right).toBe("title_rows")
+  })
+
+  test("Discovery has no title_rows zone any more — the watchlist lives on Incoming", () => {
+    expect(inputConfig.layouts.discovery.title_rows).toBeUndefined()
+    expect(inputConfig.cursorStartPriority.discovery).not.toContain("title_rows")
+    const graph = buildNavGraph("discovery", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
+    expect(graph.zone_tabs.down).toBe("people")
+    expect(graph.sidebar.right).toBe("people")
   })
 
   test("no incoming context has a left edge — the sidebar is BACK's job", () => {
     const counts = {
-      omnibox: 1, zone_tabs: 3, grid: 2, coming_up_list: 6,
+      omnibox: 1, zone_tabs: 3, grid: 2, title_rows: 6,
       drafts: 1, pursuits: 3, ledger: 5, other_downloads: 1, sidebar: 4,
     }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     for (const context of [
       "omnibox",
       "zone_tabs",
-      "coming_up_list",
+      "title_rows",
       "grid",
       "drafts",
       "pursuits",

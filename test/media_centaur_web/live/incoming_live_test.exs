@@ -3953,6 +3953,18 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
     end
 
+    test "acquisition events refresh a row's state without a reload", %{conn: conn} do
+      {:ok, _} = list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      refute has_element?(view, "#watchlist-item-movie-777", "Needs review")
+
+      {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      render_until(view, fn _html -> has_element?(view, "#watchlist-item-movie-777", "Needs review") end)
+      await_supervised_tasks()
+    end
+
     test "a row opens the title detail; the modal's bookmark removes the row and stays open", %{
       conn: conn
     } do
