@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Components.TabStrip do
   @moduledoc """
   Tab strip joining sibling pages that share one sidebar entry — Review's
-  identity and episode-mapping pages, Discovery's watchlist (and, later,
-  feed and friends). Each tab is a navigation link to a page, not in-page
-  state, and may carry a pending count.
+  identity and episode-mapping pages, the Social page's Feed and Friends.
+  Each tab is a navigation link to a page, not in-page state, and may
+  carry a pending count.
 
   One `zone-tabs` nav zone; the host page declares where the strip sits
   in its layout in `assets/js/input/config.js` (see the `review` entry).

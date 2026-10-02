@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.SocialLive do
   @moduledoc """
-  The Discovery page — the surface every candidate source lands on. Two
+  The Social page — the surface every candidate source lands on. Two
   tabs, one LiveView with a `live_action` per tab. Every title on every
   tab is a click target opening the title detail modal
   (`DetailPanel`, hosted through `TitleDetailHost` and driven by

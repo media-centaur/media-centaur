@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   facets, top cast) the owned detail panel shows, built live from a full
   TMDB payload so a confirmation surface never drifts from what
   ingestion would record. Worn by the plan modal's movie confirm stage
-  and the Discovery title detail modal.
+  and the Social page's title detail modal.
 
   Built by `movie/3` and `tv/3` from raw TMDB payloads via `TMDB.Mapper`
   — the same derivation the import pipeline uses. Absent TMDB fields

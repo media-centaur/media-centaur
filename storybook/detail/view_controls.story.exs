@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
       Letterboxd link and the cog — a quiet outline off the list, solid
       with `aria-pressed` on it (`:movie_on_watchlist`). The residue
       (`:root_view`'s series carries no identity) renders neither.
-    * **Review rides on the Discovery preview** (`:movie_review`).
+    * **Review rides on the Social preview** (`:movie_review`).
     * **An unowned title has no views and no files** — only the
       Letterboxd link, the bookmark and Review (`:unowned_movie`).
   """
@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
       %Variation{
         id: :movie_review,
         description:
-          "The same movie with the Discovery preview on (`review?`) — the " <>
+          "The same movie with the Social preview on (`review?`) — the " <>
             "pencil joins the row between the bookmark and the cog.",
         attributes: %{detail: movie_with_id(), view: :main, review?: true}
       },

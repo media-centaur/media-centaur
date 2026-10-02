@@ -362,7 +362,7 @@ layer out.
 | `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `apps`, `discovery`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `status` (Home and History run the default behaviour) |
+| `data-page-behavior` | Page behavior to activate | `apps`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status` (Home and History run the default behaviour) |
 | `data-nav-default-zone` | Default zone for pages without zone tabs | a zone name from `config.js` (e.g. `home`, `library`, `settings`, `status`, `review`) |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |

@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-04-27
+amended: 2026-10-03
 ---
 # Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History
+
+> **Amendment 2026-10-03 (UIDR-051).** The Watch group's Discovery entry (rule 2) is **Social**, the Social page at `/social`.
 
 ## Context and Problem Statement
 

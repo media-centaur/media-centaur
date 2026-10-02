@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Components.Detail.PreviewBody do
   the same facet strip the owned detail panel shows, and a top-cast
   strip. Identity (logo, title, tagline) and the hero imagery are the
   frame's, fed by the host; this is what sits under them. Shared by the
-  plan modal's movie confirm stage and the Discovery title detail
+  plan modal's movie confirm stage and the Social page's title detail
   modal, so a title reads the same on both.
 
   `library_state` adds the "in your library" line beside the metadata

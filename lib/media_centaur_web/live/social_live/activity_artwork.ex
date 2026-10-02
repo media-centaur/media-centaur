@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.SocialLive.ActivityArtwork do
   **referenced** tier, then the **hotlink**, dead in practice since the
   snapshot carries no paths. The Feed's row and the person card's strip
   paint the poster at 80 to 96 CSS px, so the hotlink would ask `:w185`.
-  Nothing on Discovery paints a backdrop.
+  Nothing on the Social page paints a backdrop.
 
   `missing/1` names the identities that reached the bottom of the
   ladder with nothing, for the page to warm asynchronously — without it

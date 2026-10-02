@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-08-10
+amended: 2026-10-03
 ---
 # Cursor treatment tiers — ring by default, soft fill where the ring collides
 
@@ -14,7 +15,7 @@ The keyboard/gamepad cursor is one visual idea everywhere: a 2 px primary outlin
 2. **Soft fill is the secondary cursor type**, used only where the ring would visually collide with an element of the surface itself, such as a stroke-based active marker in its path: a flat low-opacity neutral fill behind the content (`base-content` at ~11 %, negative-inset pseudo, no layout shift) with the focused text brightened. Fill = where the cursor is; primary colour = what is active.
 3. **Minimise tier 2.** A new tier-2 surface must name the concrete collision the ring cannot escape. "The ring looks heavy here" and "it's just text" are not sufficient.
 
-Current tier-2 surfaces: the zone tab strips (`.zone-tab`) on Incoming, Review and Discovery.
+Current tier-2 surfaces: the zone tab strips (`.zone-tab`) on Incoming, Review and Discovery (the Social page since UIDR-051, 2026-10-03).
 
 Rejected: tuned rings (each rebuilt the collision elsewhere), corner brackets (a third cursor shape), a second underline (not couch-visible), spotlight glow (least calm, invites over-application).
 

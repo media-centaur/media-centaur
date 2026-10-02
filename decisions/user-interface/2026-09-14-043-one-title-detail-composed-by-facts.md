@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-09-14
+amended: 2026-10-03
 ---
 # One title detail, composed by facts
+
+> **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`.
 
 Supersedes UIDR-035 rules 1 and 2 (two surfaces split by whether the title has files) and the page-membership clause of its 2026-09-14 amendment; keeps its rules 3–6. Amends UIDR-019 (one overlay) and UIDR-023 (the member is the subject). Design: `docs/superpowers/specs/2026-09-14-title-detail-unification-design.md`.
 

@@ -1,7 +1,7 @@
 ---
 status: active
 started: 2026-10-02
-last_updated: 2026-10-02
+last_updated: 2026-10-03
 ---
 # Social and Watchlist
 
@@ -50,12 +50,14 @@ tab shows the followed ones by date. One list on Incoming replaces both.
 
 ## Status
 
-Phase 1 done on branch `social-and-watchlist`, awaiting merge (commits
-a04bef5c, 5c254c47, 54052d63, 9707fb89, 05158152, 39f9c9f7 and the
-final-review docs commit). Plan:
-`docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`. The
+Phases 1–2 done on branch `social-and-watchlist`, awaiting merge; Phase 3
+next. Phase 1: commits a04bef5c, 5c254c47, 54052d63, 9707fb89, 05158152,
+39f9c9f7 and the final-review docs commit; plan
+`docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`. Phase 2:
+commits 464cdef4, 1314a8b5, b7b108ae and the UIDR-051 docs commit; plan
+`docs/superpowers/plans/2026-10-03-discovery-page-becomes-social.md`. The
 retired `watchlist-single-entry-point` campaign's owner check is carried
-here, open. Phase 2 (the Discovery page becomes Social) is next.
+here, open.
 
 ## Decisions made
 
@@ -104,7 +106,8 @@ commits. Each phase is test-first and ends green on `mix precommit`.
    Wiki: `Watchlist.md`, `Release-Tracking.md`,
    `Searching-and-Downloading.md`, `Social.md`; the guide pages
    `watchlist-and-tracking.md` and `release-tracking-and-upcoming.md`.
-2. **Rename the Discovery page to Social.** Routes `/social`,
+2. **Rename the Discovery page to Social** — done 2026-10-03 (UIDR-051;
+   commits 464cdef4, 1314a8b5, b7b108ae and the docs commit). Routes `/social`,
    `/social/friends`; `SocialLive` and `live/social_live/`;
    `components/social/`; stories; `show_social` /
    `Preferences.SocialVisibility` (and the Settings row's copy — the
@@ -165,8 +168,8 @@ commits. Each phase is test-first and ends green on `mix precommit`.
   — Incoming's tabs; amended by Phase 1.
 * [UIDR-042](../decisions/user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md)
   — the tracking controls Phase 4 extends.
-* `lib/media_centaur_web/live/discovery_live.ex` (the watchlist tab's
-  current render, ~l.830), `lib/media_centaur_web/live/incoming_live/view.ex`
+* `lib/media_centaur_web/live/social_live.ex` (the Social page),
+  `lib/media_centaur_web/live/incoming_live/view.ex`
   (the page's single composition point),
   `lib/media_centaur/release_tracking/upcoming_feed.ex` (next release and
   status), `lib/media_centaur_web/components/title/logic.ex`

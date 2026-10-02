@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-24
-amended: 2026-09-27
+amended: 2026-10-03
 ---
 # Own actions join the Feed under an author scope
+
+> **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`; rule 5's Discovery column is the Social page's.
 
 Amends UIDR-038 (rules 1, 3, 4, 6 and 10). Design: `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`.
 

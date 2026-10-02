@@ -1,11 +1,11 @@
 defmodule MediaCentaurWeb.Components.Title.Logic do
   @moduledoc """
-  Pure decisions for the title surfaces (ADR-030) — the ones Discovery
-  and Incoming share: the title detail view-model, the acquisition-state
-  words the rows and the modal show, and the row markers. The
-  planning-mode and scope words live here too, so the Download menu and
-  the Settings select say the same thing.
-  Discovery's own two tab projections live beside its LiveView:
+  Pure decisions for the title surfaces (ADR-030) — the ones the Social
+  page and Incoming share: the title detail view-model, the
+  acquisition-state words the rows and the modal show, and the row
+  markers. The planning-mode and scope words live here too, so the
+  Download menu and the Settings select say the same thing.
+  The Social page's own two tab projections live beside its LiveView:
   `FeedEntries` and `People`.
   """
 

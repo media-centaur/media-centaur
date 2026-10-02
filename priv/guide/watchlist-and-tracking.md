@@ -16,7 +16,7 @@ a second, deliberate act.
 ## Adding a title
 
 Open the title — from a search result on [Incoming](/guide/search-and-download), from the
-Feed or a friend's card on Discovery, or from its page in the library — and press the
+Feed or a friend's card on Social, or from its page in the library — and press the
 bookmark next to **Download**. It fills when the title is on your list. That is the only
 thing a title not on your list offers; the tracking controls appear once it is on the list.
 A title that came from a friend keeps who it came from.

@@ -118,7 +118,7 @@ All config changes go in `config.js`:
 | `data-nav-zone` | Navigation zone container (`grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`) |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) |
 | `data-nav-grid` | CSS grid container (column count detection) |
-| `data-page-behavior` | Page behavior to activate — one per page root: `apps`, `discovery`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `status` |
+| `data-page-behavior` | Page behavior to activate — one per page root: `apps`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status` |
 | `data-nav-default-zone` | Default zone for pages without zone tabs |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation |
 | `data-nav-transient-params` | On a page root: params stripped from the remembered URL (modal state, one-shot triggers) |

@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   handlers: `validate_profile`, `set_profile_hue`, `remove_avatar`,
   `cancel_avatar`, `save_profile`, `reveal_nsec`, `hide_nsec`,
   `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
-  `toggle_share_watchlist`. The friend roster stays on the Discovery
+  `toggle_share_watchlist`. The friend roster stays on the Social
   page's Friends tab.
 
   The import textarea renders `import_draft`, so the arming click keeps

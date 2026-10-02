@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`social-and-watchlist.md`](social-and-watchlist.md) —
-  **Phase 1 shipped 2026-10-02; Phase 2 next.** Two sidebar groups by purpose: **Social** (the
+  **Phases 1–2 done 2026-10-03, awaiting merge; Phase 3 next.** Two sidebar groups by purpose: **Social** (the
   Feed and Friends — the Discovery page renamed, with its route, LiveView,
   components and `show_discovery` → `show_social`) and **Incoming** (the
   watchlist, search, downloads, history). Watchlist and Coming up become
@@ -30,8 +30,9 @@ Use [`template.md`](template.md) as a starter.
   carrying its next release and status; the Coming up tab and marquee go,
   Home's shelf stays. The `Discovery` context is renamed `Watchlist`
   (ADR-075 rule 3). `:ignored` stays on the ladder; its search-result
-  marker goes and the detail modal gains un-ignore. Phase 1 (the
-  watchlist on Incoming, UIDR-050) is on branch `social-and-watchlist`.
+  marker goes and the detail modal gains un-ignore. Phases 1–2 (the
+  watchlist on Incoming, UIDR-050; the Social page, UIDR-051) are on
+  branch `social-and-watchlist`.
 
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:

@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   `Components.Title.Row` — identity, quiet markers, the whole card
   opening the title detail modal, where every verb lives (spec
   2026-09-05 §14). Media search was the last surface still carrying its
-  own verb; it no longer does, so a search result and a Discovery row
+  own verb; it no longer does, so a search result and a Feed row
   are the same row.
 
   Pure rendering; events bubble to the parent LiveView (`open_title`

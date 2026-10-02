@@ -526,7 +526,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       end
     end
 
-    test "the Review control is absent while Discovery is off", %{conn: conn} do
+    test "the Review control is absent while Social is off", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
