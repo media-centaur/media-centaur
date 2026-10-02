@@ -280,7 +280,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # CardPlayButtonAware (UIDR-027 toggle) adds one more key = +2.
       # AutoPlayNextEpisode (ADR-062 toggle) adds one more key = +2.
       # LetterboxdLinks (detail-modal Letterboxd link) adds one more = +2.
-      # DiscoveryVisibility (sidebar entry, session-wide on_mount) adds
+      # SocialVisibility (sidebar entry, session-wide on_mount) adds
       # one more key on every page = +2.
       # AppsVisibility (Apps sidebar entry, session-wide on_mount) adds
       # one more key on every page = +2.
@@ -295,7 +295,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     test "GET /setup mounts within budget", %{conn: conn} do
       # ReviewBadge (session-wide on_mount) adds two bounded counts on
       # each mount phase = +4 aggregates on every page.
-      # DiscoveryVisibility (session-wide on_mount) adds one settings key
+      # SocialVisibility (session-wide on_mount) adds one settings key
       # on each mount phase = +2 cache-miss reads.
       # AppsVisibility (session-wide on_mount) adds one more = +2.
       # ShellBadges' Incoming follow-up pill (UIDR-030) adds one bounded

@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
-  alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
+  alias MediaCentaur.Settings.Preferences.SocialVisibility
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaur.TmdbStubs
@@ -77,7 +77,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "the sidebar marks Discovery active", %{conn: conn} do
     Settings.find_or_create_entry!(%{
-      key: DiscoveryVisibility.setting_key(),
+      key: SocialVisibility.setting_key(),
       value: %{"enabled" => true}
     })
 
@@ -1298,7 +1298,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
       refute render(view) =~ "Share a review"
-      # `show_discovery` is off here, so the modal's Review control is
+      # `show_social` is off here, so the modal's Review control is
       # never rendered and nothing can open the flow.
       refute has_element?(view, "#detail-review")
       # The container itself mounts unconditionally, same as every other
@@ -1639,12 +1639,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, ~p"/discovery?title=movie-777")
 
-      # `show_discovery` is default-off: Discovery is a preview, and
+      # `show_social` is default-off: Discovery is a preview, and
       # Review is the one control on this modal that belongs to it.
       refute has_element?(view, "#detail-review")
 
       Settings.find_or_create_entry!(%{
-        key: DiscoveryVisibility.setting_key(),
+        key: SocialVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 

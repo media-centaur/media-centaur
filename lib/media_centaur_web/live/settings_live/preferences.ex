@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :show_play_button, :boolean, required: true
   attr :auto_play_next_episode, :boolean, required: true
   attr :letterboxd_links, :boolean, required: true
-  attr :show_discovery, :boolean, required: true
+  attr :show_social, :boolean, required: true
   attr :show_apps, :boolean, required: true
 
   def render(assigns) do
@@ -60,10 +60,10 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
         />
 
         <.settings_row
-          label="Discovery"
-          description="Show the Discovery page in the sidebar. Early preview — it may still change shape"
-          checked={@show_discovery}
-          event="toggle_show_discovery"
+          label="Social"
+          description="Show the Social page in the sidebar. Early preview — it may still change shape"
+          checked={@show_social}
+          event="toggle_show_social"
         />
 
         <.settings_row
