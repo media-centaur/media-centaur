@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`social-and-watchlist.md`](social-and-watchlist.md) —
+  **planning 2026-10-02.** Two sidebar groups by purpose: **Social** (the
+  Feed and Friends — the Discovery page renamed, with its route, LiveView,
+  components and `show_discovery` → `show_social`) and **Incoming** (the
+  watchlist, search, downloads, history). Watchlist and Coming up become
+  one list on Incoming — every listed title once, a followed title's row
+  carrying its next release and status; the Coming up tab and marquee go,
+  Home's shelf stays. The `Discovery` context is renamed `Watchlist`
+  (ADR-075 rule 3). `:ignored` stays on the ladder; its search-result
+  marker goes and the detail modal gains un-ignore. No code yet.
+
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
