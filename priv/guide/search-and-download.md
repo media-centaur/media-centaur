@@ -5,21 +5,21 @@ slug: search-and-download
 order: 14
 ---
 Acquisition is optional. With an indexer manager (Prowlarr) and a download client configured,
-Media Centaur can search for releases and grab them; until then the Incoming page shows only
-its [tracking side](/guide/release-tracking-and-upcoming). Prowlarr searches across your
+Media Centaur can search for releases and grab them; until then the Incoming page shows the
+search box and the [watchlist](/guide/watchlist-and-tracking) only. Prowlarr searches across your
 indexers; the download client downloads (qBittorrent has the fullest support). Everything
 happens on the Incoming page (`/incoming`).
 
 ## The page
 
-| Zone | What's there |
+The search box at the top has two modes: media (search TMDB for a title) and release (type
+release names, with `Show S0{1,2}` brace expansion). Below it, three tabs:
+
+| Tab | What's there |
 |---|---|
-| Search | Media mode (search TMDB for a title) or release mode (type release names, with `Show S0{1,2}` brace expansion) |
-| Coming up | Tracked releases as a shelf — see [release tracking](/guide/release-tracking-and-upcoming) |
-| Draft plans | Proposed plans awaiting your approval; durable across reloads |
-| In flight | Live downloads, with progress |
-| Recently landed | The newest outcomes; **View all** expands it into the full archive with failed/cancelled/succeeded filters and a title search |
-| Other downloads | Client torrents that match no tracked pursuit (orphans) |
+| Watchlist | Every title you listed, one row each; a tracked one carries its next release and a status pill — see [the watchlist](/guide/watchlist-and-tracking) and [release tracking](/guide/release-tracking-and-upcoming) |
+| Activity | Draft plans awaiting your approval (durable across reloads), live downloads with progress, and client torrents that match no tracked pursuit |
+| History | The archive of finished downloads, with Failed / Cancelled / Succeeded filters and a title search; **Show older** walks further back |
 
 ## The flow
 
@@ -27,7 +27,7 @@ happens on the Incoming page (`/incoming`).
 2. The app builds a **plan** — which releases to grab to cover what you asked for.
 3. Review it: swap any unit for an alternative, remove a release and re-solve, heed the
    overlap warning if a swap would download something twice.
-4. Approve. Each grab becomes a [pursuit](/guide/pursuits) in Active pursuits.
+4. Approve. Each grab becomes a [pursuit](/guide/pursuits) under In flight on the Activity tab.
 
 ## How the plan is built
 
@@ -39,6 +39,6 @@ set, never fragmenting an acceptable pack just to upgrade one episode.
 
 > [!TIP]
 > Plans are durable — start one, walk away, finish it later. A plan never changes a title's
-> tracking: episodes it can't find stay missing until you search again, unless the show is set
-> to **Ask** or higher on your [watchlist](/guide/watchlist-and-tracking), in which case
+> tracking: episodes it can't find stay missing until you search again, unless the show has
+> **Auto-grab** on in your [watchlist](/guide/watchlist-and-tracking), in which case
 > [release tracking](/guide/release-tracking-and-upcoming) already wants them and keeps looking.

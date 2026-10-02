@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
     {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
 
     if needs_calendar?,
-      do: put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up."),
+      do: put_flash(socket, :info, "Tracking #{title.name} — its next release shows on your watchlist."),
       else: socket
   end
 

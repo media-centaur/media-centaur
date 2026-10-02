@@ -1,11 +1,13 @@
 ---
 status: accepted
 date: 2026-09-07
-amended: 2026-09-14
+amended: 2026-10-02
 ---
 # Two title surfaces, split by whether the title has files
 
 Supersedes UIDR-017 (retired). UIDR-036 superseded its `Remove from watchlist` clause.
+
+> **Amendment 2026-10-02 (UIDR-050).** Rule 5's three lists are two: the watchlist carries the schedule on its rows; Coming up is Home's shelf alone.
 
 > **Amendment 2026-09-14 (later) — superseded in part by UIDR-043.** Rules 1 and 2 (two surfaces split by whether the title has files) and the page-membership clause of the amendment below no longer hold: one title detail modal, composed by facts, opens on every page for every TMDB identity; files are one fact among the others. Rules 3–6 stand.
 

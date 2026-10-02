@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
   end
 
   describe "the rows' lines" do
-    test "Notify says which dates Coming up will carry, or that auto-grab holds it on" do
+    test "Track release dates says which dates the watchlist carries, or that auto-grab holds it on" do
       assert TrackingControls.track_description(:movie, :list) =~ "theatrical, digital and disc dates"
       assert TrackingControls.track_description(:tv_series, :follow) =~ "new episodes"
       assert TrackingControls.track_description(:movie, :grab) == "Stays on while auto-grab is on."

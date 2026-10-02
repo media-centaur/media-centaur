@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-07-11
-amended: 2026-08-02
+amended: 2026-10-02
 ---
 # Merge Upcoming and Downloads into one "Incoming" page
+
+> **Amendment 2026-10-02 — superseded in part by UIDR-050.** The Coming up tab (rule 3, and the 2026-08-02 amendment's tab list) is the Watchlist tab: every listed title once, the schedule on the followed rows. Rules 2, 4–7 stand.
 
 ## Context and Problem Statement
 

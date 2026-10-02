@@ -345,7 +345,8 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:friends`).
+(`:feed` at `/discovery`, `:friends` at `/discovery/friends`). The watchlist
+is Incoming's first tab (UIDR-050).
 
 A person is drawn from one read model everywhere, `Social.Person`
 (ADR-074): the reader's name for a friend (`name_override`, optional),
@@ -447,9 +448,9 @@ The joins the contexts may not make happen here:
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
   (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
   projections read from that one list.
-- **Watchlist rows** — the row stores only `activity_id`; the page resolves
-  it through `Activities.get_row/1`, whose `author` may be nil for a
-  removed friend.
+- **Watchlist rows** — on Incoming (`IncomingLive.WatchlistRows`); the
+  row's note is the intent's own, and the glyphs come from
+  `Activities.activity_for/1` like every title row's.
 
 Settings → Social (`SettingsLive.SocialSection`) is four cards. **Your
 profile** comes first: two columns of the kit's stacked fields (UIDR-041) —

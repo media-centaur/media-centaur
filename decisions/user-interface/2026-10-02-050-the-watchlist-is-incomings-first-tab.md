@@ -1,0 +1,25 @@
+---
+status: accepted
+date: 2026-10-02
+---
+# The watchlist is Incoming's first tab, and the schedule is on its rows
+
+Amends UIDR-015 (the Coming up tab), UIDR-035 rule 5 (three lists) and UIDR-042 rule 2 (the Follow switch's label). Campaign: `campaigns/social-and-watchlist.md`, Phase 1; plan: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
+
+## Context and Problem Statement
+
+The watchlist was a tab of the Discovery page and Coming up a tab of Incoming. Both listed title intents: the watchlist every one at List or above, Coming up the followed ones by date. One record, two lists on two pages — and the watchlist was reachable only while the social preference was on.
+
+## Decision Outcome
+
+1. **Incoming's tabs are Watchlist (default), Activity, History.** `/discovery/watchlist` is gone; the Discovery page keeps the Feed and Friends.
+2. **One row per title at List or above**, the `Title.Row`: poster, markers, social glyphs. A followed title's row carries its **next release** at the right — date label, the release, and its status in the `StatusPill` vocabulary; an in-pursuit pill carries the percent and anchors to the pursuit row (UIDR-015 §6 stands).
+3. **Order:** titles with a dated next release nearest first, then followed titles TMDB has not dated, then listed-only titles newest first.
+4. **No cap.** The list is the list.
+5. **Home's Coming up shelf is unchanged.** The words *Coming up* name that shelf only.
+6. **The Follow switch reads *Track release dates*.** It no longer names a tab.
+
+### Consequences
+
+* Good, because the watchlist is always reachable and one record is listed once.
+* Bad, because a long watchlist puts listed-only titles below the fold; the omnibox above is the way to a specific title.

@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Switch do
           "Held: no event, so no click and aria-disabled; dimmed, and the description says why",
         attributes: %{
           id: "switch-held",
-          label: "Notify you via Coming up",
+          label: "Track release dates",
           description: "Stays on while auto-grab is on.",
           checked: true,
           class: @in_block
