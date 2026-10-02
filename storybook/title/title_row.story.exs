@@ -85,6 +85,41 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         attributes: %{id: "row-needs-review", title: title(), markers: ["Needs review"]}
       },
       %Variation{
+        id: :next_release,
+        description:
+          "A followed show with a dated next release: the date, the episode and its status at the right.",
+        attributes: %{
+          id: "row-next-release",
+          title: title(%{media_type: :tv_series, name: "Sample Show"}),
+          markers: ["Tracking"],
+          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
+            air_date: ~D[2026-10-09],
+            date_label: "Fri Oct 9",
+            subtitle: "S02E04",
+            status: :tracked
+          }
+        }
+      },
+      %Variation{
+        id: :in_pursuit,
+        description:
+          "Its release dropped and a pursuit is grabbing it: the pill carries the percent " <>
+            "and anchors to the pursuit row.",
+        attributes: %{
+          id: "row-in-pursuit",
+          title: title(%{media_type: :tv_series, name: "Sample Show"}),
+          markers: ["Auto-grab"],
+          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
+            air_date: ~D[2026-10-01],
+            date_label: "Yesterday",
+            subtitle: "S02E03",
+            status: :in_pursuit,
+            percent: 62,
+            pursuit_id: "7f1d2a0e-0000-4000-8000-000000000001"
+          }
+        }
+      },
+      %Variation{
         id: :reviewed_by_one,
         description:
           "A title one friend reviewed: On watchlist is a marker, the note " <>

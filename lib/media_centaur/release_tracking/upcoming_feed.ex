@@ -1,6 +1,6 @@
 defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   @moduledoc """
-  The release-forecast view-model behind the Incoming page's Coming up shelf
+  The release-forecast view-model behind the Incoming page's Watchlist tab
   and per-title detail timeline.
 
   A pure transform from `ReleaseTracking.Release` structs (with `:item`
@@ -72,6 +72,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     defstruct [
       :id,
       :item_id,
+      :tmdb_id,
       :item_name,
       :media_type,
       :title,
@@ -128,6 +129,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
+  end
+
+  @doc """
+  One event per tracked title — its soonest scheduled release — nearest
+  first. The watchlist row's next release. A title with nothing scheduled
+  has no event here (`unscheduled` holds it).
+  """
+  @spec next_per_title(t()) :: [Event.t()]
+  def next_per_title(%UpcomingFeed{} = feed) do
+    feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id)
   end
 
   @doc """
@@ -219,6 +230,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     %Event{
       id: release.id,
       item_id: release.item_id,
+      tmdb_id: item.tmdb_id,
       item_name: item.name,
       media_type: item.media_type,
       title: release.title,
