@@ -1215,7 +1215,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "the rail is on the Feed and Watchlist tabs, not the Friends tab; the scope and Show older leave it alone",
+    test "the rail is on the Feed, not the Friends tab; the scope and Show older leave it alone",
          %{conn: conn, data_dir: data_dir} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       now = System.os_time(:second)

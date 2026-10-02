@@ -7,7 +7,7 @@ amended: 2026-10-02
 
 Supersedes UIDR-036 rules 1, 4 (its bookmark exception) and 5. Design: `docs/superpowers/specs/2026-09-14-tracking-controls-design.md`.
 
-> **Amendment 2026-10-02 (UIDR-050).** The Follow switch's label is *Track release dates*; *Notify you via Coming up* named a tab that no longer exists.
+> **Amendment 2026-10-02 (UIDR-050).** The Follow switch's label is *Track release dates*, and its line says the next release shows on the watchlist; where rule 2 and the Consequences name Coming up, read the watchlist row.
 
 ## Context and Problem Statement
 

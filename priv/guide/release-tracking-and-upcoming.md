@@ -58,7 +58,7 @@ waits for your approval is your Download button default under **Settings → Acq
 Wants persist through TMDB calendar changes and transient outages — a missed sweep is caught by
 the next.
 
-Quality follows the Auto-acquisition settings: the **maximum quality** and the **release size
-preference**. The best release available at the time is taken right away; there is no waiting
+Quality follows the Auto-acquisition settings, **Highest resolution** and **Within a
+resolution**. The best release available at the time is taken right away; there is no waiting
 period for a higher quality, so an episode grabbed at 1080p is not replaced when a 4K release
 appears later.

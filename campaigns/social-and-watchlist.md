@@ -50,10 +50,12 @@ tab shows the followed ones by date. One list on Incoming replaces both.
 
 ## Status
 
-Phase 1 shipped on branch `social-and-watchlist` 2026-10-02 (commits
-a04bef5c, 5c254c47, 54052d63, and the docs commit that adds UIDR-050).
-Plan: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
-Phase 2 (the Discovery page becomes Social) is next.
+Phase 1 done on branch `social-and-watchlist`, awaiting merge (commits
+a04bef5c, 5c254c47, 54052d63, 9707fb89, 05158152, 39f9c9f7 and the
+final-review docs commit). Plan:
+`docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`. The
+retired `watchlist-single-entry-point` campaign's owner check is carried
+here, open. Phase 2 (the Discovery page becomes Social) is next.
 
 ## Decisions made
 
@@ -87,7 +89,7 @@ Phase 2 (the Discovery page becomes Social) is next.
 Four phases, each a plan under `docs/superpowers/plans/` and one or more
 commits. Each phase is test-first and ends green on `mix precommit`.
 
-1. **Merge the watchlist into Incoming** — shipped 2026-10-02 (UIDR-050). A `Watchlist` tab replaces
+1. **Merge the watchlist into Incoming** — done 2026-10-02 (UIDR-050), awaiting merge. A `Watchlist` tab replaces
    `Coming up` as the default (`?zone=watchlist`): `Title.Row` per
    listed title with poster, markers, social glyphs and acquisition
    state (as the Discovery tab draws it today), plus next release and
@@ -127,13 +129,21 @@ commits. Each phase is test-first and ends green on `mix precommit`.
    `:ignored` form (sets the record off, through `ReleaseTracking.set_rung`);
    delete the stale "Ignored items are skipped" paragraph in
    `ReleaseTracking.Wants`' moduledoc.
+5. **Owner check, desktop and TV, mouse and gamepad** (carried from
+   `watchlist-single-entry-point` Phase 4, open): search a title, list it
+   (Add to watchlist), turn on **Track release dates** from its detail,
+   see it on Incoming's Watchlist tab, download from the title view and
+   confirm the rung did not move.
+6. **Re-shoot `upcoming-calendar.png`** (README l.35, docs-site l.726)
+   with the Watchlist tab — `screenshot-showcase`, manual.
 
 ## Completion criteria
 
 * The sidebar's Watch group reads Home, Library, Social, Incoming, Apps;
   Social is gated by `show_social`, Incoming is not.
-* `/incoming` opens on the Watchlist tab; every listed title is on it
-  once; a followed title's row shows its next release and status; no
+* `/incoming` defaults to the Watchlist tab (the first-load smart default
+  to Activity while something is in flight stands); every listed title is
+  on it once; a followed title's row shows its next release and status; no
   Coming up tab or marquee exists on Incoming; Home's shelf is unchanged.
 * No route, module, directory, preference, CSS class or doc names the
   Discovery page; `MediaCentaur.Discovery` does not exist;
@@ -142,6 +152,8 @@ commits. Each phase is test-first and ends green on `mix precommit`.
   offers un-ignore and it works.
 * Wiki and guide describe the two groups; CHANGELOG entry drafted at
   ship time.
+* The owner has used the flow (list, track, download; the rung stays)
+  on the desktop and the TV, mouse and gamepad.
 
 ## Pointers
 
@@ -159,6 +171,5 @@ commits. Each phase is test-first and ends green on `mix precommit`.
   `lib/media_centaur/release_tracking/upcoming_feed.ex` (next release and
   status), `lib/media_centaur_web/components/title/logic.ex`
   (`row_markers/2`).
-* [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md)'s
-  open owner check covers the surfaces Phase 1 moves; it is absorbed
-  here and that file retired when Phase 1 ships.
+* `watchlist-single-entry-point.md` (retired 2026-10-02; git history
+  holds it) left the owner check that is Next steps 5.

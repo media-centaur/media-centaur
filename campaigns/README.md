@@ -72,20 +72,6 @@ Use [`template.md`](template.md) as a starter.
   owner's approval; one deferral named (several friends' review texts on
   one title view). social-relay v0.6.0 is tagged and deployed. Open: the
   desktop and TV check.
-* [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md) —
-  **shipped v1.22.0 2026-09-11; owner check open.** Adding a title to the watchlist and enabling
-  release tracking are two acts, in that order, and the second happens only
-  on the watchlist. The record already works that way (one title intent, one
-  write path); what does not is four download-side controls that raise a
-  title to Follow or Grab as a side effect (*Download all and track*, *Watch
-  for releases*, *Also grab future episodes*, *Track these*) and the full
-  ladder mounted on every title view. Phase 1 removes the four controls and
-  their machinery (`TrackingHandoffs`, `Plan.grab_future`, `Want.provenance`);
-  Phase 2 shows the ladder only where the watchlist is being looked at. Two
-  owner decisions open: whether the bookmark-or-ladder form is chosen by the
-  record's rung or by the surface, and whether the Library keeps the ladder
-  for an owned, unlisted title. Absorbs the owner check left by
-  `watchlist-and-release-tracking`.
 * [`indexer-id-search.md`](indexer-id-search.md) —
   **Phases 1 and 3 shipped; Phase 2 undecided.** Identify a title by identifier rather than by
   name. Phase 1 verifies identity using the ids already present in aggregated
@@ -171,6 +157,18 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
+* **The watchlist is the single entry point** — **shipped v1.22.0
+  2026-09-11; file retired 2026-10-02 (absorbed into
+  [`social-and-watchlist`](social-and-watchlist.md) 2026-10-02; its owner
+  check carried there).** Adding a title to the watchlist and enabling
+  release tracking are two acts, in that order, and the second happens only
+  on the watchlist: the four download-side controls that raised a title as a
+  side effect went with their machinery (`TrackingHandoffs`,
+  `Plan.grab_future`, `Want.provenance`), and a title view shows the
+  bookmark until the title is listed, then the tracking controls
+  ([UIDR-039](../decisions/user-interface/2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md)).
+  Leftover: the owner check, desktop and TV, now an open Next-steps item of
+  `social-and-watchlist`.
 * **Durable work** —
   **shipped v1.48.1 2026-09-30; file retired (git history holds it: `campaigns/durable-work.md` at `79617075`).**
   Every background carrier matched to what losing the work costs
@@ -340,7 +338,8 @@ where any leftover went.
   opened from the watchlist gets a stub with an *In library* hop, and that is
   accepted behaviour — the brief is in the retired file's history. Leftover:
   the owner check of the shipped surfaces, re-homed to
-  `watchlist-single-entry-point` Phase 4.
+  `watchlist-single-entry-point` Phase 4 and from there to
+  [`social-and-watchlist`](social-and-watchlist.md).
 * **Tracking is a person's act** — **shipped v1.17.0 2026-09-08; file
   retired 2026-09-11.** One authored record per title carrying the whole
   ladder (Off · Ignore · List · Follow · Ask · Grab · Default); the machinery
