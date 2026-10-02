@@ -548,7 +548,35 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "shelf_items/2 — the Incoming shelf presentation" do
+  describe "next_per_title/1 — one event per title, nearest first" do
+    # Two titles, several dates each: a movie's digital and physical
+    # dates, a show's two weekly episodes.
+    defp feed_with_two_titles do
+      movie = movie_item()
+      show = tv_item()
+
+      releases = [
+        release(movie, %{title: "digital", air_date: days(10), release_type: "digital"}),
+        release(movie, %{title: "physical", air_date: days(70), release_type: "physical"}),
+        release(show, %{title: "ep-1", air_date: days(1), season_number: 1, episode_number: 1}),
+        release(show, %{title: "ep-2", air_date: days(8), season_number: 1, episode_number: 2})
+      ]
+
+      UpcomingFeed.build(releases, armed_context())
+    end
+
+    # One show with a dated episode and an undated one.
+    defp feed_with_unscheduled do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "dated", air_date: days(1), season_number: 1, episode_number: 1}),
+        release(item, %{title: "undated", air_date: nil, season_number: 1, episode_number: 2})
+      ]
+
+      UpcomingFeed.build(releases, armed_context())
+    end
+
     test "flattens buckets nearness-first into one date-ordered list" do
       releases = [
         release(tv_item(%{tmdb_id: 1}), %{
@@ -572,105 +600,41 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       ]
 
       feed = UpcomingFeed.build(releases, armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
 
-      assert Enum.map(items, & &1.title) == ["today-ep", "week-ep", "later-ep"]
-      assert overflow == 0
+      assert Enum.map(UpcomingFeed.next_per_title(feed), & &1.title) == [
+               "today-ep",
+               "week-ep",
+               "later-ep"
+             ]
     end
 
-    test "caps at the requested size and reports the overflow count" do
-      releases =
-        for n <- 1..9 do
-          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
-            title: "ep-#{n}",
-            air_date: days(n),
-            season_number: 1,
-            episode_number: 1
-          })
-        end
+    test "returns the soonest scheduled event of each tracked title, nearest first" do
+      events = UpcomingFeed.next_per_title(feed_with_two_titles())
 
-      feed = UpcomingFeed.build(releases, armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
-
-      assert length(items) == 6
-      assert Enum.map(items, & &1.title) == for(n <- 1..6, do: "ep-#{n}")
-      assert overflow == 3
+      assert Enum.map(events, & &1.title) == ["ep-1", "digital"]
+      assert Enum.map(events, & &1.item_id) == Enum.uniq(Enum.map(events, & &1.item_id))
+      assert events == Enum.sort_by(events, & &1.air_date, Date)
     end
 
-    test "one card per title: same-item releases collapse into the soonest event" do
-      movie = movie_item()
-      show = tv_item()
+    test "an event carries its title's TMDB ref" do
+      assert [%UpcomingFeed.Event{tmdb_id: tmdb_id, media_type: media_type} | _] =
+               UpcomingFeed.next_per_title(feed_with_two_titles())
 
-      releases = [
-        release(movie, %{title: "digital", air_date: days(10), release_type: "digital"}),
-        release(movie, %{title: "physical", air_date: days(70), release_type: "physical"}),
-        release(show, %{title: "ep-1", air_date: days(1), season_number: 1, episode_number: 1}),
-        release(show, %{title: "ep-2", air_date: days(8), season_number: 1, episode_number: 2})
-      ]
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
-
-      assert Enum.map(items, & &1.title) == ["ep-1", "digital"]
-      assert overflow == 0
+      assert is_integer(tmdb_id) and media_type in [:movie, :tv_series]
     end
 
-    test "overflow counts hidden TITLES, not the collapsed later events" do
-      releases =
-        for n <- 1..8 do
-          item = movie_item(%{name: "Movie #{n}", tmdb_id: 3000 + n})
+    test "an unscheduled title has no event here (the title detail's timeline carries those)" do
+      events = UpcomingFeed.next_per_title(feed_with_unscheduled())
 
-          [
-            release(item, %{title: "m#{n}-soon", air_date: days(n), release_type: "digital"}),
-            release(item, %{title: "m#{n}-later", air_date: days(n + 40), release_type: "physical"})
-          ]
-        end
-
-      feed = UpcomingFeed.build(List.flatten(releases), armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
-
-      assert length(items) == 6
-      assert overflow == 2
-    end
-
-    test ":all lifts the cap — every title, nothing hidden" do
-      releases =
-        for n <- 1..9 do
-          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
-            title: "ep-#{n}",
-            air_date: days(n),
-            season_number: 1,
-            episode_number: 1
-          })
-        end
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, :all)
-
-      assert length(items) == 9
-      assert overflow == 0
-    end
-
-    test "excludes unscheduled events (the title detail's timeline carries those, not the shelf)" do
-      item = tv_item()
-
-      releases = [
-        release(item, %{title: "dated", air_date: days(1), season_number: 1, episode_number: 1}),
-        release(item, %{title: "undated", air_date: nil, season_number: 1, episode_number: 2})
-      ]
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
-
-      assert Enum.map(items, & &1.title) == ["dated"]
-      assert overflow == 0
+      assert Enum.map(events, & &1.title) == ["dated"]
+      refute Enum.any?(events, &is_nil(&1.air_date))
     end
   end
 
   describe "shelf_date_label/2 — graduated explicitness" do
     # 2026-06-14 is a Sunday; days(2) = Tue Jun 16, days(10) = Wed Jun 24,
     # days(40) = Fri Jul 24.
-    defp shelf_event(feed), do: feed |> UpcomingFeed.shelf_items(6) |> elem(0) |> hd()
+    defp shelf_event(feed), do: feed |> UpcomingFeed.next_per_title() |> hd()
 
     test "an episode airing today reads Tonight" do
       item = tv_item()
