@@ -136,13 +136,7 @@ defmodule MediaCentaurWeb.Layouts do
           <.link
             :if={@show_discovery}
             navigate="/discovery"
-            class={
-              sidebar_link_class(@current_path, [
-                "/discovery",
-                "/discovery/watchlist",
-                "/discovery/friends"
-              ])
-            }
+            class={sidebar_link_class(@current_path, ["/discovery", "/discovery/friends"])}
             data-tip="Discovery"
             data-nav-item
             data-nav-remember

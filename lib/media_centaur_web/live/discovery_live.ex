@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.DiscoveryLive do
   @moduledoc """
-  The Discovery page — the surface every candidate source lands on. Three
+  The Discovery page — the surface every candidate source lands on. Two
   tabs, one LiveView with a `live_action` per tab. Every title on every
   tab is a click target opening the title detail modal
   (`DetailPanel`, hosted through `TitleDetailHost` and driven by
@@ -21,8 +21,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   column at the layout's full width beside the rail: person cards
   (`PersonCard` at the rail's width, `People.rail/1` — You first, then
   friends by latest act, capped at eight with *All N friends*), drawn on
-  the Feed and Watchlist tabs, folded away by CSS below 1600px of
-  content (the LiveView never learns the width). Paging is a window with
+  the Feed, folded away by CSS below 1600px of content (the LiveView
+  never learns the width). Paging is a window with
   a cap and a queued head: the newest `feed_window` rows (twenty; *Show
   older* adds twenty to sixty, then `#feed-cap` says so), and
   `feed_head` — nil while the column's top is in view, so an arrival
@@ -46,17 +46,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   set), and `?person=<card id>` — where a rail card's press lands
   (`open_person`) — opens that card and hands it focus on mount; the
   add-friend form below; identity and relays live on the Settings
-  page's Social section, which this tab points at.
-
-  The watchlist — authored intent, and the arming surface (UIDR-035).
-  Rows come from `Discovery.list_watchlist/0` (library presence derived
-  live), each showing its tracking mode and, when it has one, its next
-  release date as quiet markers — joined here from `ReleaseTracking`,
-  because Discovery stays free of tracking (ADR-066); a row is armed
-  from its modal. A row added from a friend's action carries a bare
-  `activity_id`; the friend's name reaches the page through the social glyphs
-  (`Activities.activity_for/1`, whose rows carry their author as a
-  `Social.Person`).
+  page's Social section, which this tab points at. The watchlist itself
+  is Incoming's first tab (UIDR-050).
 
   A listing or an ignore made from a row carries that row's activity
   as provenance (`TitleIntent.friend_provenance/2`), the way the
@@ -64,13 +55,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   gets an undo toast (`ignore_undo` restores the rung the title had;
   `ignore_undo_dismiss` clears the toast, by click or by expiry).
 
-  Every watchlist and feed row carries its acquisition state (Planning /
-  Downloading / Needs review) stamped from one `TitleStates` read per
-  load; the page subscribes to `acquisition:updates` so a one-click
-  download's progress lands without a reload, the way `library:updates`
-  flips a title to In library when the file lands, and to `tmdb:titles`
-  so a listed title's name and poster land when the store first-contacts
-  it (ADR-071).
+  Every feed row carries its acquisition state (Planning / Downloading /
+  Needs review) stamped from one `TitleStates` read per load; the page
+  subscribes to `acquisition:updates` so a one-click download's progress
+  lands without a reload, the way `library:updates` flips a title to In
+  library when the file lands.
 
   Declares its topics through `Live.Subscriptions`, the door the title
   detail host declares its own through, so a topic both need is
@@ -82,7 +71,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   import MediaCentaurWeb.Components.TabStrip, only: [tab_strip: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{PlanEvents, TitleStates}
@@ -99,7 +87,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Hue
   alias MediaCentaur.TmdbArtwork
-  alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Discovery.FeedRow
   alias MediaCentaurWeb.Components.Discovery.PersonCard
@@ -107,11 +94,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.DetailPanel
-  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.ActivityArtwork
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.DiscoveryLive.FeedEntries
-  alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.DiscoveryLive.People
   alias MediaCentaurWeb.Live.Subscriptions
@@ -124,7 +109,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def mount(_params, _session, socket) do
     socket =
       Enum.reduce(
-        [Discovery, Library, Social, Activities, Acquisition, Store],
+        [Discovery, Library, Social, Activities, Acquisition],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -133,7 +118,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      socket
      |> assign(:page_title, "Discovery")
      |> assign(
-       items: [],
        activities: [],
        feed: [],
        feed_has_older?: false,
@@ -152,7 +136,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        today: Date.utc_today()
      )
      |> load_people()
-     |> load_items()
      |> load_activities()}
   end
 
@@ -384,17 +367,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: TitleIntent.friend_provenance(id, text)
 
   @impl true
-  def handle_info({:title_intent_changed, _event}, socket) do
-    {:noreply, socket |> load_items() |> load_activities()}
-  end
+  def handle_info({:title_intent_changed, _event}, socket), do: {:noreply, load_activities(socket)}
 
-  def handle_info({:entities_changed, %Library.Events.EntitiesChanged{}}, socket) do
-    {:noreply, socket |> load_items() |> load_activities()}
-  end
+  def handle_info({:entities_changed, %Library.Events.EntitiesChanged{}}, socket),
+    do: {:noreply, load_activities(socket)}
 
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
-    {:noreply, socket |> load_items() |> load_activities()}
+    {:noreply, load_activities(socket)}
   end
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
@@ -409,55 +389,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, socket |> load_people() |> load_activities()}
   end
 
-  # A mode moved, an arm landed, a calendar refreshed: the rows' mode and
-  # next date come from the tracked titles.
-  def handle_info({:releases_updated, _item_ids}, socket), do: {:noreply, load_items(socket)}
-
-  # A listed title's record landed or changed: the rows paint from the store.
-  def handle_info({:tmdb_title_changed, _ref}, socket), do: {:noreply, load_items(socket)}
-
   def handle_info(%PlanEvents.Changed{}, socket), do: {:noreply, stamp_acquisition_states(socket)}
 
   def handle_info(%struct{}, socket) when PursuitEvents.is_event(struct),
     do: {:noreply, stamp_acquisition_states(socket)}
 
   def handle_info(_message, socket), do: {:noreply, socket}
-
-  # The list row's decoration: Discovery owns the record and library
-  # presence; the poster, the social activity (the social glyphs) and the
-  # tracked title's next date are joined here, because Discovery knows
-  # nothing about Activities or ReleaseTracking. The rung comes straight
-  # off the record — it is the authored fact, not something to look up.
-  defp load_items(socket) do
-    rows = Discovery.list_watchlist()
-
-    social_activity =
-      Activities.activity_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
-
-    tracked = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
-
-    items =
-      Enum.map(rows, fn %{intent: intent} = row ->
-        tracked_item = Map.get(tracked, {intent.tmdb_id, intent.media_type})
-
-        row
-        |> Map.put(:item, intent)
-        |> Map.merge(%{
-          poster_url: title_poster_url(intent.title),
-          social_activity: Map.get(social_activity, {intent.tmdb_id, intent.media_type}, []),
-          rung: intent.rung,
-          next_air_date: next_air_date(tracked_item, socket.assigns.today)
-        })
-      end)
-
-    socket
-    |> assign(:items, items)
-    |> stamp_acquisition_states()
-  end
-
-  # No tracked title, no next date — the rung below Follow keeps no calendar.
-  defp next_air_date(nil, _today), do: nil
-  defp next_air_date(item, today), do: Logic.next_air_date(item.releases, today)
 
   # The activity row's decoration: Activities owns the record and its
   # author; watchlist and library presence are derived here, live,
@@ -523,23 +460,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, socket}
   end
 
-  # Acquisition state per row from one read over both lists' refs; the
+  # Acquisition state per row from one read over the rows' refs; the
   # rows are the one representation, so the projections and the open
   # detail re-read them.
   defp stamp_acquisition_states(socket) do
-    refs =
-      Enum.map(socket.assigns.items, &{&1.item.tmdb_id, &1.item.media_type}) ++
-        Enum.map(socket.assigns.activities, &activity_ref/1)
-
+    refs = Enum.map(socket.assigns.activities, &activity_ref/1)
     states = TitleStates.for_refs(Enum.uniq(refs))
 
     socket
-    |> update(:items, fn items ->
-      Enum.map(
-        items,
-        &Map.put(&1, :acquisition_state, Map.get(states, {&1.item.tmdb_id, &1.item.media_type}))
-      )
-    end)
     |> update(:activities, fn activities ->
       Enum.map(activities, &Map.put(&1, :acquisition_state, Map.get(states, activity_ref(&1))))
     end)
@@ -587,10 +515,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # another tab between the card's open and the click.
   defp flash_not_a_friend(socket), do: put_flash(socket, :error, "That friend is no longer on your list")
 
-  defp tabs(feed, items, friend_count, scope),
+  defp tabs(feed, friend_count, scope),
     do: [
       %Tab{id: :feed, label: "Feed", navigate: feed_path(scope), count: length(feed)},
-      %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: friend_count}
     ]
 
@@ -616,7 +543,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: "A review is always shared. A title you list is shared while Share your watchlist is on."
 
   defp current_path(:friends), do: "/discovery/friends"
-  defp current_path(:watchlist), do: "/discovery/watchlist"
   defp current_path(_action), do: "/discovery"
 
   # Path back to the current tab; every modal open/close patch routes
@@ -627,9 +553,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # their order.
   defp discovery_path(%{assigns: %{live_action: :feed, feed_scope: scope}}, params),
     do: ~p"/discovery?#{params ++ FeedEntries.scope_query(scope)}"
-
-  defp discovery_path(%{assigns: %{live_action: :watchlist}}, params),
-    do: ~p"/discovery/watchlist?#{params}"
 
   defp discovery_path(%{assigns: %{live_action: :friends}}, params), do: ~p"/discovery/friends?#{params}"
 
@@ -689,7 +612,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           <div class="discovery-columns discovery-head mb-4">
             <div class="discovery-head-cell">
               <.tab_strip
-                tabs={tabs(@feed, @items, @friend_count, @feed_scope)}
+                tabs={tabs(@feed, @friend_count, @feed_scope)}
                 active={@live_action}
               />
               <.segmented_control
@@ -826,55 +749,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               </.link>.
                 </p>
               </div>
-
-              <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="title_rows">
-                <.empty_state
-                  :if={@items == []}
-                  id="watchlist-empty"
-                  icon="hero-bookmark"
-                  headline="Titles you save land here"
-                >
-                  Bookmark a title from its detail view and it is kept here until you
-                  watch it.
-                  <:action>
-                    <.button
-                      variant="primary"
-                      size="sm"
-                      navigate={~p"/incoming"}
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      Search for a title
-                    </.button>
-                  </:action>
-                </.empty_state>
-
-                <%!-- A watchlist row never says On watchlist about itself —
-                  that is the tab's own fact. Its mode is shown, never set
-                  here: the row's modal is where you arm (UIDR-035). --%>
-                <TitleRow.title_row
-                  :for={row <- @items}
-                  id={"watchlist-item-#{row.item.media_type}-#{row.item.tmdb_id}"}
-                  title={row.item.title}
-                  poster_url={row.poster_url}
-                  markers={
-                    Logic.row_markers(
-                      %{
-                        in_library?: not is_nil(row.library_owner_id),
-                        acquisition_state: row.acquisition_state,
-                        rung: row.rung,
-                        next_air_date: row.next_air_date,
-                        today: @today
-                      },
-                      true
-                    )
-                  }
-                  notes={Logic.note_list(row.item.note)}
-                  social_activity={row.social_activity}
-                />
-              </div>
             </div>
-            <.rail :if={@live_action != :friends} rail={@rail} friend_count={@friend_count} />
+            <.rail :if={@live_action == :feed} rail={@rail} friend_count={@friend_count} />
           </div>
         </div>
       </div>
@@ -882,9 +758,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     """
   end
 
-  # The rail (UIDR-046): the roster's summary beside the Feed and the
-  # Watchlist — You first, then the seven most recent, and "All N
-  # friends" when the cap hides anyone. Page composition, not a reusable
+  # The rail (UIDR-046): the roster's summary beside the Feed — You
+  # first, then the seven most recent, and "All N friends" when the cap
+  # hides anyone. Page composition, not a reusable
   # component; nothing here is a nav item until the hardening pass.
   attr :rail, :map, required: true, doc: "`People.rail/1`: the cards shown and how many the cap hid"
   attr :friend_count, :integer, required: true, doc: "for All N friends"

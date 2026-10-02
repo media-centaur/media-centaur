@@ -226,7 +226,6 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/discovery", "discovery feed"},
           {"/discovery?scope=friends", "discovery feed, friends scope"},
           {"/discovery?scope=you", "discovery feed, you scope"},
-          {"/discovery/watchlist", "discovery watchlist"},
           {"/discovery/friends", "discovery friends"},
           {"/discovery/friends?person=person-you", "discovery friends, a card opened"}
         ] do
@@ -237,8 +236,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  # The Discovery title detail modal is URL-driven (`?title=`); a watchlist
-  # item for the ref makes the modal render on both title tabs.
+  # The Discovery title detail modal is URL-driven (`?title=`); a listed
+  # title for the ref makes the modal render on the Feed.
   describe "/discovery with the title modal open" do
     setup do
       # The modal warms the title's artwork through the TMDB client.
@@ -260,8 +259,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     for {path, label} <- [
-          {"/discovery?title=movie-777", "discovery feed with the title modal"},
-          {"/discovery/watchlist?title=movie-777", "discovery watchlist with the title modal"}
+          {"/discovery?title=movie-777", "discovery feed with the title modal"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
         assert {:ok, view, html} = smoke!(conn, unquote(path))

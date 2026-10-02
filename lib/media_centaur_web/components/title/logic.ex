@@ -2,9 +2,9 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   @moduledoc """
   Pure decisions for the title surfaces (ADR-030) — the ones Discovery
   and Incoming share: the title detail view-model, the acquisition-state
-  words the rows and the modal show, the row markers, and a watchlist
-  row's next release date. The planning-mode and scope words live here
-  too, so the Download menu and the Settings select say the same thing.
+  words the rows and the modal show, and the row markers. The
+  planning-mode and scope words live here too, so the Download menu and
+  the Settings select say the same thing.
   Discovery's own two tab projections live beside its LiveView:
   `FeedEntries` and `People`.
   """
@@ -12,7 +12,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Format
   alias MediaCentaur.Library.EntityView
-  alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
@@ -182,18 +181,4 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   defp rung_marker(:list, false), do: "On your list"
   defp rung_marker(:follow, _list_implied?), do: "Tracking"
   defp rung_marker(:grab, _list_implied?), do: "Auto-grab"
-
-  @doc """
-  A tracked title's next release date — the earliest air date today or
-  later among releases not yet in the library — or nil when nothing is
-  scheduled.
-  """
-  @spec next_air_date([Release.t()], Date.t()) :: Date.t() | nil
-  def next_air_date(releases, today) do
-    releases
-    |> Enum.reject(&(&1.in_library or is_nil(&1.air_date)))
-    |> Enum.map(& &1.air_date)
-    |> Enum.filter(&(Date.compare(&1, today) != :lt))
-    |> Enum.min(Date, fn -> nil end)
-  end
 end

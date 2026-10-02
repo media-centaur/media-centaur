@@ -2,15 +2,13 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
   import MediaCentaur.DiscoveryRows, only: [person: 1]
-  import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1, build_tracking_release: 1]
+  import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1]
 
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.ViewModel.LeafDetail
-
-  @today ~D[2026-09-05]
 
   defp movie(overrides \\ %{}) do
     Title.new!(
@@ -241,21 +239,6 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
 
     defp dated_movie(release_date),
       do: Title.new!(%{tmdb_id: 1, media_type: :movie, name: "Movie A", release_date: release_date})
-  end
-
-  describe "next_air_date/2" do
-    test "the earliest dated release today or later that is not in the library" do
-      releases = [
-        build_tracking_release(%{air_date: Date.add(@today, 9)}),
-        build_tracking_release(%{air_date: Date.add(@today, 2)}),
-        build_tracking_release(%{air_date: Date.add(@today, -3)}),
-        build_tracking_release(%{air_date: @today, in_library: true}),
-        build_tracking_release(%{air_date: nil})
-      ]
-
-      assert Logic.next_air_date(releases, @today) == Date.add(@today, 2)
-      assert Logic.next_air_date([], @today) == nil
-    end
   end
 
   describe "planning mode and scope words" do
