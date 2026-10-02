@@ -14,7 +14,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   | *(no record)* | nothing; the title is not on your list |
   | `:ignored` | keeps it off the Feed, and nothing else |
   | `:list` | keeps it on your list, and nothing else |
-  | `:follow` | keeps its calendar, so releases appear under Coming up |
+  | `:follow` | keeps its calendar, so its next release shows on the watchlist |
   | `:grab` | plans each release when it drops; the person's planning mode says whether the plan commits by itself or waits for approval |
 
   **Off is the absence of a record, never a stored value.** That is what

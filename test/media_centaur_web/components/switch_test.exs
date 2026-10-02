@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Components.SwitchTest do
     Keyword.merge(
       [
         id: "switch-track",
-        label: "Notify you via Coming up",
+        label: "Track release dates",
         description: "Its new episodes, as TMDB posts their air dates.",
         checked: false,
         event: "set_rung",

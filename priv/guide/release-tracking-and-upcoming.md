@@ -6,55 +6,59 @@ slug: release-tracking-and-upcoming
 order: 17
 ---
 Release tracking watches TMDB for releases you don't have yet — the next season of a show, a
-film that isn't out — for every title you set to **Follow** or higher on your
-[watchlist](/guide/watchlist-and-tracking). The Incoming page shows the dated ones as the
-**Coming up** shelf. If acquisition is configured, tracking can grab them too.
+film that isn't out — for every title with **Track release dates** or **Auto-grab** on in your
+[watchlist](/guide/watchlist-and-tracking). The title's watchlist row shows its next release;
+Home's **Coming up** shelf shows the releases of the next three months. If acquisition is
+configured, tracking can grab them too.
 
 ## What gets tracked, and why it stops
 
-A title is tracked because you set it to **Follow** or higher, and for no other reason.
-Adding a series to your library does not start following it; neither does downloading one.
+A title is tracked because you turned on **Track release dates** or **Auto-grab** for it, and
+for no other reason. Adding a series to your library does not start tracking it; neither does
+downloading one.
 
-- **Deleting a series from your library does not stop tracking it.** The setting is yours, and
-  losing the files says nothing about whether you still want new episodes.
-- **Setting a title to Off stops it, and deletes it.** The title leaves your list and its
-  release calendar goes with it. Nothing except you can turn it back on.
+- **Deleting a series from your library does not stop tracking it.** The switches are yours,
+  and losing the files says nothing about whether you still want new episodes.
+- **Taking a title off your list stops it, and deletes its calendar.** So does turning Track
+  release dates off. Nothing except you can turn it back on.
 
-## The Coming up shelf
+## The next release on the row
 
-One card per tracked title with a dated release, nearest first: a date badge that gets more
-explicit with distance (Tonight → Tue → Fri Jul 17 → Aug 6) and a status pill. A whole season
-dropping on one day collapses into one "all N episodes at once" card. Past the first six titles
-the shelf caps — **Show all N** grows it in place.
+A tracked title's watchlist row carries its next release at the right: a date that gets more
+explicit with distance (Tonight → Tue → Fri Jul 17 → Aug 6), the release (S02E04; a whole
+season dropping on one day collapses into one "all N episodes at once" line; a film's digital
+or disc date) and a status pill. Rows are ordered nearest first.
 
-Titles TMDB hasn't dated yet don't appear here. They're on your watchlist, or in your library,
-with their tracking level on the row.
+Titles TMDB hasn't dated yet have no next release. Their rows follow the dated ones, with
+**Tracking** or **Auto-grab** as the marker.
+
+A release that has already come out and is still missing stays on the row for as long as the
+app is searching for it — the date reads as how long ago it came out ("5 days ago",
+"May 1998") and the pill reads **Searching**. A release that landed reads **Landed** for a
+week, then it is the History tab's.
 
 | Status | Meaning |
 |---|---|
 | Landed | You already have it |
-| In pursuit | Released and being grabbed now — click the pill to jump to the live download below |
+| In pursuit | Released and being grabbed now — click the pill to jump to the live download |
 | Will grab | A future release that *will* be grabbed when it drops — shown only when a grab will genuinely fire |
 | Searching | A release whose date has passed that you still don't have — indexers are being re-checked for it |
 | Tracked | Dated, but won't auto-grab |
 | In theaters | A film's cinema date — informational only, never grabbed |
 
-Click a card for the title: its release timeline, recent activity, and the tracking control.
-Titles you own open in the library instead, and carry the same timeline and control there.
+Click a row for the title: its release dates beside the two switches.
 
 ## Auto-grab
 
 When a tracked release airs and you don't have it, the app records a durable **want**. A planner
-periodically sweeps open wants, batches what's due, and — if the title's setting allows — turns
-them into a [pursuit](/guide/pursuits). Per-title settings are in
-[the watchlist](/guide/watchlist-and-tracking#the-tracking-controls); a title left on **Default**
-follows the global setting and changes with it.
+periodically sweeps open wants, batches what's due, and — for a title with **Auto-grab** on —
+turns them into a [pursuit](/guide/pursuits). Whether the plan downloads without asking or
+waits for your approval is your Download button default under **Settings → Acquisition**.
 
 Wants persist through TMDB calendar changes and transient outages — a missed sweep is caught by
 the next.
 
-> [!TIP]
-> The patience window is the feature to know. If you want 4K but only a 1080p release has
-> appeared, tracking *waits* — for a configurable window (48 hours by default) it insists on
-> your top quality, then falls back to your floor and grabs what's there. Set it per title and
-> you stop getting a 1080p grab an hour before the 4K release lands.
+Quality follows the Auto-acquisition settings: the **maximum quality** and the **release size
+preference**. The best release available at the time is taken right away; there is no waiting
+period for a higher quality, so an episode grabbed at 1080p is not replaced when a 4K release
+appears later.

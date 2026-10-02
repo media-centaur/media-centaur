@@ -37,8 +37,7 @@ defmodule MediaCentaur.Format do
   @doc """
   The monogram of a name: its first grapheme, uppercased — the one rule
   behind every initial the UI draws (a person's identity tile, an app
-  card with no banner, an Incoming shelf card with no artwork). A missing
-  or empty name is `"?"`.
+  card with no banner). A missing or empty name is `"?"`.
   """
   @spec monogram(String.t() | nil) :: String.t()
   def monogram(name) do
@@ -75,8 +74,8 @@ defmodule MediaCentaur.Format do
 
   @doc """
   A date as its abbreviated month and unpadded day — the calendar
-  spelling user copy uses for a date within the year (Coming up's
-  shelf badges, the plan board's calendar verdict). Callers add the
+  spelling user copy uses for a date within the year (the watchlist's
+  next-release date label, the plan board's calendar verdict). Callers add the
   year when it differs from today's.
 
       iex> MediaCentaur.Format.month_day(~D[2026-10-03])

@@ -1,5 +1,5 @@
 ---
-status: planning
+status: active
 started: 2026-10-02
 last_updated: 2026-10-02
 ---
@@ -50,8 +50,10 @@ tab shows the followed ones by date. One list on Incoming replaces both.
 
 ## Status
 
-Phase 1 planned: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
-Design settled in conversation 2026-09-30 – 2026-10-02; no code yet.
+Phase 1 shipped on branch `social-and-watchlist` 2026-10-02 (commits
+a04bef5c, 5c254c47, 54052d63, and the docs commit that adds UIDR-050).
+Plan: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
+Phase 2 (the Discovery page becomes Social) is next.
 
 ## Decisions made
 
@@ -85,7 +87,7 @@ Design settled in conversation 2026-09-30 – 2026-10-02; no code yet.
 Four phases, each a plan under `docs/superpowers/plans/` and one or more
 commits. Each phase is test-first and ends green on `mix precommit`.
 
-1. **Merge the watchlist into Incoming.** A `Watchlist` tab replaces
+1. **Merge the watchlist into Incoming** — shipped 2026-10-02 (UIDR-050). A `Watchlist` tab replaces
    `Coming up` as the default (`?zone=watchlist`): `Title.Row` per
    listed title with poster, markers, social glyphs and acquisition
    state (as the Discovery tab draws it today), plus next release and

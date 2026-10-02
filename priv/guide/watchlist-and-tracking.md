@@ -5,10 +5,10 @@ part: Acquisition
 slug: watchlist-and-tracking
 order: 16
 ---
-The watchlist is the list of titles you want to watch, at **Discovery → Watchlist**. You put
-things on it and you take them off; nothing else does. It is also the only place release
-tracking is turned on: a title you want and a title the app is watching for are one record,
-at different strengths.
+The watchlist is the list of titles you want to watch, at **Incoming → Watchlist** — the first
+tab of the [Incoming](/guide/search-and-download) page. You put things on it and you take them
+off; nothing else does. It is also the only place release tracking is turned on: a title you
+want and a title the app is watching for are one record, at different strengths.
 
 Adding a title costs nothing — no search, no download, no calendar. Following its releases is
 a second, deliberate act.
@@ -25,37 +25,47 @@ A saved title keeps the name, year, poster and synopsis it had when you saved it
 renders when TMDB is unreachable. Titles you already own can stay on the list — owning
 something isn't the same as having watched it.
 
+## The rows
+
+One row per title: poster, name and year, with quiet markers for its state — **In library**,
+**Planning**, **Downloading** or **Needs review**, and **Tracking** or **Auto-grab** when a
+switch is on — your note when you wrote one, and a glyph at the right for each thing a friend
+did with it. A tracked title's row carries its next release at the far right: the date
+(**Tonight**, **Fri Oct 9**, **5 days ago**), the release (**S02E04**; a season dropping on
+one day as **S2 · all 8 episodes at once**) and a status pill — see
+[release tracking](/guide/release-tracking-and-upcoming) for the pills.
+
+Rows are ordered by next release, nearest first; tracked titles TMDB has not dated follow;
+titles you only listed come last, newest first. The list has no cap. Click a row to open the
+title; rows show the state and never set it.
+
 ## The tracking controls
 
-Once a title is on your list, the same view shows the tracking controls below. One control,
-one setting; every level above **List** includes being on the list. The bookmark takes a title
-off the list only while it is still at **List**; from **Follow** up, **Off** here is the way
-off, because it also deletes the release calendar and says so.
+Once a title is on your list, its view shows two switches beside its release dates. Auto-grab
+keeps Track release dates on.
 
-| Setting | What happens |
+| Switch | What happens |
 |---|---|
-| **Ignore** | Not on your list, and the title stays off the Feed whoever reviews or lists it next |
-| **Off** | Not on your list. Nothing is kept for the title |
-| **List** | On your list. No release calendar is kept and nothing is grabbed |
-| **Follow** | New releases appear under **Coming up**; nothing is downloaded |
-| **Ask** | A release drops and a draft plan parks on Incoming for you to approve |
-| **Grab** | A release drops and it's downloaded |
-| **Default** | Follows the global setting under **Settings → Acquisition**, and changes when you change it |
+| **Track release dates** | The app keeps the title's release calendar — a movie's theatrical, digital and disc dates, a series' new episodes, as TMDB posts them — and its next release shows on the watchlist row. Shown only while a release is still ahead |
+| **Auto-grab** | A release drops and the app plans it. Whether the plan downloads without asking or waits for your approval on Incoming is your Download button default under **Settings → Acquisition** — the same choice a manual download uses |
 
-**Nothing sets this but you.** Adding a series to your library does not start following it,
+A movie already in your library is complete and shows no switches.
+
+**Nothing sets this but you.** Adding a series to your library does not start tracking it,
 and neither does downloading one — not from the title view, not from the episode picker, not
-from a plan's missing episodes. A download is a download; new episodes are this control's
+from a plan's missing episodes. A download is a download; new episodes are the switches'
 business.
 
-**Off deletes.** Setting a title to Off takes it off your list and removes the release
-calendar kept for it. There is no "off but remembered" state, because nothing except you can
-turn tracking back on.
+**Removing deletes.** Taking a title off your list with the bookmark, or turning Track release
+dates off, removes the release calendar kept for it. There is no "off but remembered" state,
+because nothing except you can turn tracking back on.
 
-**Deleting a series from your library does not change its setting.** Losing the files says
-nothing about whether you still want new episodes. Set it to Off when you are done with it.
+**Deleting a series from your library does not change its switches.** Losing the files says
+nothing about whether you still want new episodes. Take it off your list when you are done
+with it.
 
 ## Related
 
-- [Release tracking](/guide/release-tracking-and-upcoming) — the Coming up schedule, and how
-  automatic grabs work.
+- [Release tracking](/guide/release-tracking-and-upcoming) — the next release on the row, and
+  how automatic grabs work.
 - [Search & download](/guide/search-and-download) — plans, and getting something now.

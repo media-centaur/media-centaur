@@ -424,6 +424,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 045 | Own actions join the Feed under an author scope; the segmented control is one component |
 | 046 | The Feed is the app's list beside a rail of people — the poster row, the identity tile, the person card's acts strip with centred glyphs and the grade, Library's frame; no still, no per-surface type floors |
 | 049 | What people did with a title is the social capsule — social glyphs at their grade on every title surface, one feed, drawn when a friend did it; no pennant, no rose |
+| 050 | The watchlist is Incoming's first tab; the schedule is on its rows |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -461,7 +462,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
-| `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
+| `coming_up_marquee/1` | `coming_up_marquee.ex` | Home's Coming up shelf, over `ReleaseTracking.Views.ComingUp`; the only surface the words name (UIDR-050 §5) |
 | `identity_tile/1` | `discovery/identity_tile.ex` | The app's one drawing of a person at 32, 40 or 48: monogram, photo, the filled own tile (UIDR-046) | ✅ |
 | `feed_row/1` | `discovery/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
 | `person_card/1` | `discovery/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
@@ -481,9 +482,9 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 |------|------|------|
 | **Home** | `/` | Hero + Continue Watching + shelves (UIDR-010) |
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
-| **Incoming** | `/incoming` | Acquisition activity, plans and Coming Up (UIDR-015) |
+| **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050) |
 | **History** | `/history` | Watch history |
-| **Discovery** | `/discovery`, `/discovery/watchlist`, `/discovery/friends` | Feed, watchlist, friends |
+| **Discovery** | `/discovery`, `/discovery/friends` | Feed, friends |
 | **Apps** | `/apps` | App launcher |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |

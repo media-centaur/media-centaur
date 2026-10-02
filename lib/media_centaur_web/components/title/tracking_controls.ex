@@ -4,8 +4,8 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   UIDR-042): up to two compact switches over the one record,
   `Discovery.TitleIntent`.
 
-  * **Notify you via Coming up** — on at Follow and above. The app keeps
-    the title's calendar and its dates show under Coming up on Incoming.
+  * **Track release dates** — on at Follow and above. The app keeps the
+    title's calendar and its next release shows on the watchlist.
     Rendered only while a release is ahead (`release_ahead?`): an
     unreleased movie, or any series.
   * **Auto-grab** — on at Grab. When a release drops the app plans it;
@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     (`Settings.Preferences.PlanningMode.approval_policy/1`), the same
     answer the Download button gives — the host maps it once and passes
     the policy. Auto-grab implies the calendar, so while it is on the
-    Notify switch stays on and takes no click. A movie the library
+    Track switch stays on and takes no click. A movie the library
     already owns is complete (`complete?`, `ReleaseTracking.complete?/2`)
     and gets no switches at all.
 
@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   attr :release_ahead?, :boolean,
     required: true,
     doc:
-      "a release is still to come (`Title.Logic.release_ahead?/3`); the Notify switch renders only then. Always true for a series."
+      "a release is still to come (`Title.Logic.release_ahead?/3`); the Track switch renders only then. Always true for a series."
 
   attr :complete?, :boolean,
     required: true,
@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
         <Switch.switch
           :if={:track in @rows}
           id={"#{@id}-track"}
-          label="Notify you via Coming up"
+          label="Track release dates"
           description={track_description(@media_type, @rung)}
           checked={TitleIntent.follows_releases?(@rung)}
           event={track_choice(@rung) && "set_rung"}
@@ -145,7 +145,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   def rows(%{media_type: :movie, release_ahead?: false}), do: [:grab]
   def rows(_movie_ahead_or_series), do: [:track, :grab]
 
-  @doc "What the Notify switch sets: Follow from List, List from Follow; nothing at Grab, which holds it on."
+  @doc "What the Track switch sets: Follow from List, List from Follow; nothing at Grab, which holds it on."
   @spec track_choice(TitleIntent.rung()) :: String.t() | nil
   def track_choice(:list), do: "follow"
   def track_choice(:follow), do: "list"
@@ -153,18 +153,23 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   @doc """
   What the Auto-grab switch sets: Grab from below; from Grab, back to
-  Follow when the Notify switch is there to show it, else List — turning
+  Follow when the Track switch is there to show it, else List — turning
   off the only switch shown leaves the title plainly listed.
   """
   @spec grab_choice(TitleIntent.rung(), [:track | :grab]) :: String.t()
   def grab_choice(:grab, rows), do: if(:track in rows, do: "follow", else: "list")
   def grab_choice(_below_grab, _rows), do: "grab"
 
-  @doc "The Notify switch's line: which dates Coming up will carry, or that auto-grab holds it on."
+  @doc "The Track switch's line: which dates the watchlist carries, or that auto-grab holds it on."
   @spec track_description(Title.media_type(), TitleIntent.rung()) :: String.t()
   def track_description(_media_type, :grab), do: "Stays on while auto-grab is on."
-  def track_description(:movie, _rung), do: "Its theatrical, digital and disc dates, as TMDB posts them."
-  def track_description(:tv_series, _rung), do: "Its new episodes, as TMDB posts their air dates."
+
+  def track_description(:movie, _rung),
+    do:
+      "Its theatrical, digital and disc dates, as TMDB posts them; the next one shows on your watchlist."
+
+  def track_description(:tv_series, _rung),
+    do: "Its new episodes, as TMDB posts their air dates; the next one shows on your watchlist."
 
   @doc "The Auto-grab switch's line: what a drop does under the approval policy."
   @spec grab_description(Title.media_type(), String.t()) :: String.t()

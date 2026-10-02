@@ -1,10 +1,13 @@
 ---
 status: accepted
 date: 2026-09-14
+amended: 2026-10-02
 ---
 # Tracking is the bookmark and two switches over one record
 
 Supersedes UIDR-036 rules 1, 4 (its bookmark exception) and 5. Design: `docs/superpowers/specs/2026-09-14-tracking-controls-design.md`.
+
+> **Amendment 2026-10-02 (UIDR-050).** The Follow switch's label is *Track release dates*; *Notify you via Coming up* named a tab that no longer exists.
 
 ## Context and Problem Statement
 
