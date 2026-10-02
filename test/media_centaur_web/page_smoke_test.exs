@@ -674,11 +674,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert is_binary(html)
 
       # Honest degradation: the hero mode hint reframes to tracking (the
-      # hero has no prompt line), the shelf renders the seeded forecast,
-      # and no acquisition section (in-flight pursuits, ledger) is on the
-      # page.
+      # hero has no prompt line), the Watchlist renders the seeded tracked
+      # title, and no acquisition section (in-flight pursuits, ledger) is
+      # on the page.
       assert html =~ "to track their releases"
-      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke TV Show")
+      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke TV Show")
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
     end
@@ -791,15 +791,14 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert html =~ "Sample Movie"
     end
 
-    test "renders without crashing (?zone=coming_up)", %{conn: conn} do
-      assert {:ok, view, html} = smoke!(conn, "/incoming?zone=coming_up")
+    test "renders without crashing (?zone=watchlist)", %{conn: conn} do
+      assert {:ok, view, html} = smoke!(conn, "/incoming?zone=watchlist")
       assert is_binary(html)
 
       # The explicit zone beats the smart default: the tab bar plus the
-      # seeded tracked release's agenda row — the forecast branch, not
-      # just the horizon.
+      # seeded tracked title's Watchlist row with its next release.
       assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
-      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
+      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke Shelf Show")
     end
 
     test "renders without crashing (?title= opens the title modal)", %{

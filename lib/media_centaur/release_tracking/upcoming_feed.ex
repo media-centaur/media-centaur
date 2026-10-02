@@ -32,14 +32,15 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:theatrical_info` — a movie's theatrical date; informational, never
       auto-grabbed.
     * `:unscheduled` — tracked but no air date yet (lives in `unscheduled`, not
-      a time bucket; the title detail's timeline lists it, the shelf never does).
+      a time bucket; the title detail's timeline lists it, the watchlist row
+      never does).
     * `:under_pursuit` — released and being acquired now; carries `pursuit_id`
       so the UI can deep-link to Downloads.
     * `:armed` — a future release that **will** auto-grab when it drops (only
       when acquisition is ready AND the title's rung is Grab AND the approval
       policy is automatic). Honest: never shown when a grab won't actually fire.
       A past armed release stays listed while it is still missing — the app
-      is searching for it, and the shelf says so (`forecast_worthy?/2`).
+      is searching for it, and the row says so (`forecast_worthy?/2`).
     * `:armed_fallback` — a movie's later acquirable date (its physical
       release after the digital one). The want ledger opens a single want per
       film, anchored on the earliest acquirable date, so only that date's
@@ -142,26 +143,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   @doc """
-  The Incoming shelf: scheduled events flattened nearness-first (bucket order,
-  date-ascending within each bucket), **one card per title** — a title's later
-  releases (a movie's physical date after its digital one, a weekly show's
-  following episodes) collapse into its soonest event, since the title
-  modal carries the full timeline. Capped at `cap`;
-  `{items, overflow_count}` counts hidden TITLES so a capped shelf never
-  silently truncates the forecast.
-  """
-  @spec shelf_items(t(), pos_integer() | :all) :: {[Event.t()], non_neg_integer()}
-  def shelf_items(%UpcomingFeed{} = feed, :all) do
-    {feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id), 0}
-  end
-
-  def shelf_items(%UpcomingFeed{} = feed, cap) do
-    titles = feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id)
-    {Enum.take(titles, cap), max(length(titles) - cap, 0)}
-  end
-
-  @doc """
-  The shelf card's date badge, graduating in explicitness with distance: an
+  The next release's date label, graduating in explicitness with distance: an
   arrived theatrical date → "Now"; today → "Tonight" (episodes) / "Today"
   (movies); under a week → "Tue"; under a month → "Wed Jun 24"; beyond →
   "Jul 24". A bare weekday is only unambiguous inside the coming week, hence
@@ -170,8 +152,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   differs — never as tonight: the row is there because the app is still
   searching for it, and the date says how long that has been.
   """
-  @spec shelf_date_label(Event.t(), Date.t()) :: String.t()
-  def shelf_date_label(%Event{air_date: date} = event, today) do
+  @spec date_label(Event.t(), Date.t()) :: String.t()
+  def date_label(%Event{air_date: date} = event, today) do
     diff = Date.diff(date, today)
 
     cond do

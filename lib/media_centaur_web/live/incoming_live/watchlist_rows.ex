@@ -21,10 +21,8 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.Row.NextRelease
 
-  @type ref :: {integer(), :movie | :tv_series}
-
   @type row :: %{
-          ref: ref(),
+          ref: MediaCentaur.Discovery.ref(),
           title: Title.t(),
           rung: TitleIntent.rung(),
           in_library?: boolean(),
@@ -87,7 +85,7 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
   defp next_release(%Event{} = event, today) do
     %NextRelease{
       air_date: event.air_date,
-      date_label: UpcomingFeed.shelf_date_label(event, today),
+      date_label: UpcomingFeed.date_label(event, today),
       subtitle: subtitle(event),
       status: pill_status(event, today),
       pursuit_id: event.pursuit_id
@@ -98,16 +96,16 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
     do: if(Date.before?(date, today), do: :searching, else: :armed)
 
   defp pill_status(%Event{status: :under_pursuit}, _today), do: :in_pursuit
+  # A fallback date never leads a title's row — the earlier armed date
+  # sorts first — mapped defensively.
   defp pill_status(%Event{status: :armed_fallback}, _today), do: :tracked
   defp pill_status(%Event{status: :theatrical_info}, _today), do: :in_theaters
   defp pill_status(%Event{status: :in_library}, _today), do: :landed
   defp pill_status(%Event{status: :upcoming}, _today), do: :tracked
 
-  # The shelf's words, moved here unchanged (`View.subtitle_for/1` and
-  # `Shelf.subtitle_line/1` before this): a season drop names the
-  # season and the count; an episode its code and, when the release
-  # has one, its title; a movie's edition title only when it differs
-  # from the movie's own name.
+  # A season drop names the season and the count; an episode its code
+  # and, when the release has one, its title; a movie's edition title
+  # only when it differs from the movie's own name.
   defp subtitle(%Event{kind: :season_drop, season_number: season, episode_count: count}),
     do: "S#{season} · all #{count} episodes at once"
 

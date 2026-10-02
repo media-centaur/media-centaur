@@ -243,26 +243,6 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       do: Title.new!(%{tmdb_id: 1, media_type: :movie, name: "Movie A", release_date: release_date})
   end
 
-  describe "row_markers/2 next release" do
-    test "a watchlist row states its next date when it has one" do
-      assert Logic.row_markers(%{
-               in_library?: false,
-               acquisition_state: nil,
-               rung: nil,
-               next_air_date: Date.add(@today, 1),
-               today: @today
-             }) == ["Next: Tomorrow"]
-
-      assert Logic.row_markers(%{
-               in_library?: false,
-               acquisition_state: :planning,
-               rung: nil,
-               next_air_date: nil,
-               today: @today
-             }) == ["Planning"]
-    end
-  end
-
   describe "next_air_date/2" do
     test "the earliest dated release today or later that is not in the library" do
       releases = [

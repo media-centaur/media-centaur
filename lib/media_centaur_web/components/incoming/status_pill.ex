@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   @moduledoc """
   The Incoming page's shared status vocabulary — one pill component
-  rendered by both zoom levels of an incoming item: the Coming-up shelf
-  card and the in-flight torrent row. Speaking the same pill on both is
+  rendered by both zoom levels of an incoming item: the Watchlist row's
+  next release and the in-flight torrent row. Speaking the same pill on both is
   what welds the pair together (UIDR-015).
 
   Color is state/health only (never identity): will-grab (`:armed`)
@@ -16,8 +16,8 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
 
   An `:in_pursuit` pill can carry a `percent` ("In pursuit · 62%") and
   an `anchor` — when set, the pill renders as a link to that fragment
-  (the pursuit row's DOM id) so the shelf card jumps to its own torrent
-  row.
+  (the pursuit row's DOM id) so the watchlist row jumps to its own
+  torrent row.
   """
 
   use Phoenix.Component
@@ -40,19 +40,19 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
     assigns = assign(assigns, :label, label(assigns.status, assigns.percent))
 
     ~H"""
-    <%!-- stopPropagation: the pill sits inside a phx-click card — jumping to
-          the torrent row must not also open the card's detail slide-over
-          (same guard as the event card's downloads deep-link). --%>
+    <%!-- stopPropagation: the pill sits inside a phx-click row — jumping to
+          the torrent row must not also open the row's title detail. --%>
     <a
       :if={@anchor}
       href={@anchor}
       class={[base_class(), tone_class(@status), anchor_hover_class(@status)]}
+      data-component="status-pill"
       data-tip="Jump to the live download"
       onclick="event.stopPropagation()"
     >
       <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}
     </a>
-    <span :if={!@anchor} class={[base_class(), tone_class(@status)]}>
+    <span :if={!@anchor} class={[base_class(), tone_class(@status)]} data-component="status-pill">
       <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}
     </span>
     """

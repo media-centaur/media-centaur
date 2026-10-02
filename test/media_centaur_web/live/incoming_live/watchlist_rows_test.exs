@@ -47,7 +47,8 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRowsTest do
     )
   end
 
-  # A feed whose only scheduled bucket holds `events`.
+  # A feed whose only scheduled bucket holds `events`. The bucket is
+  # irrelevant to these tests: the builder sorts on `air_date`.
   defp feed(events), do: %UpcomingFeed{buckets: %{this_week: events}, unscheduled: []}
 
   defp inputs(overrides) do
@@ -105,11 +106,12 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRowsTest do
         event(2, :tv_series, ~D[2026-09-30], %{status: :armed}),
         event(3, :tv_series, ~D[2026-09-29], %{status: :under_pursuit, pursuit_id: "p-3"}),
         event(4, :movie, ~D[2026-09-01], %{status: :theatrical_info, kind: :movie}),
-        event(5, :movie, ~D[2026-09-01], %{status: :in_library, kind: :movie})
+        event(5, :movie, ~D[2026-09-01], %{status: :in_library, kind: :movie}),
+        event(6, :movie, ~D[2026-10-20], %{status: :armed_fallback, kind: :movie})
       ])
 
     watchlist =
-      for id <- 1..5 do
+      for id <- 1..6 do
         media_type = if id > 3, do: :movie, else: :tv_series
         watchlist_row(intent(id, media_type, :grab, ~N[2026-09-01 00:00:00]))
       end
@@ -122,6 +124,25 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRowsTest do
     assert %NextRelease{status: :in_pursuit, pursuit_id: "p-3"} = by_id[3]
     assert by_id[4].status == :in_theaters
     assert by_id[5].status == :landed
+    assert by_id[6].status == :tracked
+  end
+
+  test "a listed-only title not in the library carries no markers and no next release" do
+    rows =
+      WatchlistRows.build(
+        inputs(%{watchlist: [watchlist_row(intent(1, :movie, :list, ~N[2026-09-01 00:00:00]))]})
+      )
+
+    assert [%{markers: [], next_release: nil}] = rows
+  end
+
+  test "a followed title TMDB has not dated carries no next release" do
+    rows =
+      WatchlistRows.build(
+        inputs(%{watchlist: [watchlist_row(intent(1, :tv_series, :follow, ~N[2026-09-01 00:00:00]))]})
+      )
+
+    assert [%{rung: :follow, markers: ["Tracking"], next_release: nil}] = rows
   end
 
   test "a season drop's subtitle names the season and the count" do

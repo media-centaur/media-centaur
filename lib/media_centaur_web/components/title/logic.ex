@@ -19,7 +19,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.ModalState
-  alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
 
@@ -137,12 +136,12 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   The quiet text markers a title row shows after its type and year, in
   order: the library or acquisition state (one of them — In library
   wins), then the tracking rung (Tracking at Follow, Auto-grab at Grab;
-  never for an owned title, whose tracking is the library detail's) and
-  the next release date when the facts carry one (`next_air_date` +
-  `today`).
+  never for an owned title, whose tracking is the library detail's). A
+  followed title's next release is the row's own block
+  (`Row.NextRelease`), not a marker.
 
   `list_implied?` is a fact about the *container*, not the title: pass
-  true where every row is on the list — Discovery's watchlist tab — and
+  true where every row is on the list — Incoming's Watchlist tab — and
   the List rung's own marker is dropped as redundant. Everywhere else a
   listed title says so, which is the only place a search result can.
 
@@ -153,9 +152,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
           %{
             required(:in_library?) => boolean(),
             required(:acquisition_state) => acquisition_state(),
-            optional(:rung) => TitleIntent.rung() | nil,
-            optional(:next_air_date) => Date.t() | nil,
-            optional(:today) => Date.t()
+            optional(:rung) => TitleIntent.rung() | nil
           },
           boolean()
         ) :: [String.t()]
@@ -172,13 +169,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
         rung_marker(Map.get(facts, :rung), list_implied?)
       end
 
-    next =
-      case Map.get(facts, :next_air_date) do
-        %Date{} = date -> "Next: " <> Present.relative_day(date, Map.fetch!(facts, :today))
-        nil -> nil
-      end
-
-    Enum.reject([state, tracking, next], &is_nil/1)
+    Enum.reject([state, tracking], &is_nil/1)
   end
 
   # Off says nothing — the row would not be here. Ignored says so: the
