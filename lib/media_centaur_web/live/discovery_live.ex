@@ -22,9 +22,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   (`PersonCard` at the rail's width, `People.rail/1` — You first, then
   friends by latest act, capped at eight with *All N friends*), drawn on
   the Feed, folded away by CSS below 1600px of content (the LiveView
-  never learns the width). Paging is a window with
-  a cap and a queued head: the newest `feed_window` rows (twenty; *Show
-  older* adds twenty to sixty, then `#feed-cap` says so), and
+  never learns the width). Paging is a window with a cap and a queued
+  head: the newest `feed_window` rows (twenty; *Show older* adds twenty
+  to sixty, then `#feed-cap` says so), and
   `feed_head` — nil while the column's top is in view, so an arrival
   prepends live; else the newest row shown, set by the `FeedHead`
   hook's `feed_scrolled`, cleared by `feed_at_top` and by "N new"
@@ -188,8 +188,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # The activity the modal speaks for: the one named, else the title's
   # newest friend review (it carries the text), else any friend's
   # activity for the title. Never an own act unless named — the You card
-  # and an own feed row name it; a watchlist title is not a place to
-  # narrate your own broadcasts back to you.
+  # and an own feed row name it; a `?title=` deep link on the Feed is not
+  # a place to narrate your own broadcasts back to you.
   defp activity_row(socket, ref, nil) do
     friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.author.own?))
     Enum.find(friends, &(&1.activity.kind == :review)) || List.first(friends)
@@ -599,10 +599,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="page-side-dim" aria-hidden="true"></div>
 
         <%!-- Library's frame: the page header at the top of the page, the
-              controls under it. The Feed and the Watchlist sit in the
-              layout's 1280px container like every page but Home — a poster
-              row wants a reading measure, not the panel — while the Friends
-              grid opts out to the full width for its two columns. --%>
+              controls under it. The Feed sits in the layout's 1280px
+              container like every page but Home — a poster row wants a
+              reading measure, not the panel — while the Friends grid opts
+              out to the full width for its two columns. --%>
         <div class="discovery-page relative z-[1] w-full">
           <.page_header title="Discovery" class="mb-5" />
 
@@ -760,8 +760,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # The rail (UIDR-046): the roster's summary beside the Feed — You
   # first, then the seven most recent, and "All N friends" when the cap
-  # hides anyone. Page composition, not a reusable
-  # component; nothing here is a nav item until the hardening pass.
+  # hides anyone. Page composition, not a reusable component; nothing
+  # here is a nav item until the hardening pass.
   attr :rail, :map, required: true, doc: "`People.rail/1`: the cards shown and how many the cap hid"
   attr :friend_count, :integer, required: true, doc: "for All N friends"
 

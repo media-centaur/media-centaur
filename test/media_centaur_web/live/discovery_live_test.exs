@@ -8,7 +8,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.TitleStates
   alias MediaCentaur.Discovery
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
@@ -1689,8 +1688,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "automatic"
-      # Nothing found → the plan is ready with a gap → the title needs review.
-      assert TitleStates.for_refs([{777, :movie}]) == %{{777, :movie} => :needs_review}
     end
 
     test "the menu names the other mode and performs it", %{conn: conn} do
@@ -1928,17 +1925,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(view, "#detail-release-dates-digital", "Digital")
       refute html =~ "Tracking since"
-      await_supervised_tasks()
-    end
-
-    test "Off forgets the title from the open modal", %{conn: conn} do
-      {:ok, _} = list(released_movie(), :list)
-      {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
-
-      view |> element("#detail-watchlist-toggle") |> render_click()
-
-      refute Discovery.listed?(777, :movie)
-      refute has_element?(view, "#detail-tracking-controls")
       await_supervised_tasks()
     end
   end

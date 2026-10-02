@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import { createDiscoveryBehavior } from "../discovery_behavior.js"
 import { inputConfig } from "../config.js"
-import { Context } from "../core/index.js"
+import { buildNavGraph } from "../core/index.js"
 
 describe("discovery behavior", () => {
   test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
@@ -15,15 +15,18 @@ describe("discovery behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the person cards are the one body zone under the zone tabs; the title rows TREE belongs to Incoming", () => {
-    expect(inputConfig.contextSelectors.title_rows).toBe("[data-nav-zone='title_rows'] [data-nav-item]")
-    expect(inputConfig.instanceTypes.title_rows).toBe(Context.TREE)
+  test("the person cards are the one body zone under the zone tabs; the title rows belong to Incoming", () => {
     expect(inputConfig.layouts.discovery).toEqual({
       zone_tabs: { down: ["people"] },
       people: { up: ["zone_tabs"] },
       sidebar: { right: ["people", "zone_tabs"] },
     })
     expect(inputConfig.cursorStartPriority.discovery).toEqual(["people", "zone_tabs", "sidebar"])
+
+    // A stray title_rows zone in the DOM is ignored: nothing routes to it.
+    const graph = buildNavGraph("discovery", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
+    expect(graph.zone_tabs.down).toBe("people")
+    expect(graph.sidebar.right).toBe("people")
   })
 
   test("a title opened on Discovery navigates as the one detail overlay: the action row over an open menu over the tracking card (UIDR-043)", () => {

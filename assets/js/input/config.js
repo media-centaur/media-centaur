@@ -47,8 +47,7 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
-    // Incoming's Watchlist rows: a vertical list whose rows nest their
-    // own controls — a TREE, so RIGHT steps into a row.
+    // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
@@ -91,6 +90,7 @@ export const inputConfig = {
     coming_up: Context.SHELF,
     // Incoming zones are vertical item lists (the home pages keep their
     // horizontal `coming_up` SHELF instance above).
+    title_rows: Context.MENU,
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
@@ -99,7 +99,6 @@ export const inputConfig = {
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
     people: Context.SHELF,
-    title_rows: Context.TREE,
     // The detail modal: a horizontal command row over a nesting list. The
     // Cast sub-view swaps the list for a photo grid, whose arrangement
     // carries the meaning — SHELF resolves it by geometry, which is what
