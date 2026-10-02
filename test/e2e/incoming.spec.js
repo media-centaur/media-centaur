@@ -80,7 +80,7 @@ test.describe("incoming navigation", () => {
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    expect(["title_rows", "drafts", "pursuits", "ledger"]).toContain(context)
+    expect(["title_rows", "drafts", "pursuits"]).toContain(context)
   })
 
   test("back reaches the sidebar; right returns", async ({ page, inputAction }) => {

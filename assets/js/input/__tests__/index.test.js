@@ -166,14 +166,6 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.sidebar.right).toBe("title_rows")
   })
 
-  test("Discovery has no title_rows zone any more — the watchlist lives on Incoming", () => {
-    expect(inputConfig.layouts.discovery.title_rows).toBeUndefined()
-    expect(inputConfig.cursorStartPriority.discovery).not.toContain("title_rows")
-    const graph = buildNavGraph("discovery", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
-    expect(graph.zone_tabs.down).toBe("people")
-    expect(graph.sidebar.right).toBe("people")
-  })
-
   test("no incoming context has a left edge — the sidebar is BACK's job", () => {
     const counts = {
       omnibox: 1, zone_tabs: 3, grid: 2, title_rows: 6,

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import { inputConfig } from "../config"
+import { Context } from "../core/index"
 import { createIncomingBehavior } from "../incoming_behavior"
 
 function fakeInput(initialValue) {
@@ -23,6 +25,11 @@ describe("download behavior", () => {
   test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
     const behavior = createIncomingBehavior(mockDom())
     expect(behavior.onEscape).toBeUndefined()
+  })
+
+  test("the Watchlist rows are a MENU like every other Incoming zone — one nav item per row", () => {
+    expect(inputConfig.contextSelectors.title_rows).toBe("[data-nav-zone='title_rows'] [data-nav-item]")
+    expect(inputConfig.instanceTypes.title_rows).toBe(Context.MENU)
   })
 
   test("onAttach and onDetach are no-ops (callable)", () => {
