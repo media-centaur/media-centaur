@@ -131,7 +131,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :review?, :boolean,
     default: false,
-    doc: "whether the Review control is offered — the host passes `show_discovery`."
+    doc: "whether the Review control is offered — the host passes `show_social`."
 
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_title"

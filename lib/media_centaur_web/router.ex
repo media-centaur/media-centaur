@@ -29,12 +29,11 @@ defmodule MediaCentaurWeb.Router do
         MediaCentaurWeb.Live.DisclosureState,
         MediaCentaurWeb.Live.CapabilitiesAware,
         {MediaCentaurWeb.ShellBadges, :default},
-        # The sidebar renders on every page, so its Discovery entry needs
-        # `:show_discovery` seeded session-wide (and re-assigned live on
+        # The sidebar renders on every page, so its Social entry needs
+        # `:show_social` seeded session-wide (and re-assigned live on
         # toggle) rather than per-LiveView.
         {MediaCentaurWeb.Live.SettingAware,
-         {MediaCentaur.Settings.Preferences.DiscoveryVisibility, :show_discovery,
-          :setting_aware_show_discovery}},
+         {MediaCentaur.Settings.Preferences.SocialVisibility, :show_social, :setting_aware_show_social}},
         # Same deal for the Apps launcher entry.
         {MediaCentaurWeb.Live.SettingAware,
          {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}

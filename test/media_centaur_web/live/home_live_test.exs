@@ -26,10 +26,10 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
       refute has_element?(view, "#sidebar a[href='/discovery']")
 
-      # The Settings write broadcasts {:setting_changed, "show_discovery", _};
+      # The Settings write broadcasts {:setting_changed, "show_social", _};
       # the session-wide SettingAware hook re-assigns without a remount.
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        key: MediaCentaur.Settings.Preferences.SocialVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 

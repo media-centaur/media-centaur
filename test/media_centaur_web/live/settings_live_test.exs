@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   alias MediaCentaur.Settings.Preferences.{
     AppsVisibility,
     AutoPlayNextEpisode,
-    DiscoveryVisibility,
+    SocialVisibility,
     LetterboxdLinks,
     LibraryCardInfo,
     UIScale,
@@ -208,16 +208,16 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert LetterboxdLinks.enabled?() == true
     end
 
-    test "toggling Discovery persists the flag", %{conn: conn} do
+    test "toggling Social persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert DiscoveryVisibility.enabled?() == false
+      assert SocialVisibility.enabled?() == false
 
-      view |> element("div[phx-click=toggle_show_discovery]") |> render_click()
-      assert DiscoveryVisibility.enabled?() == true
+      view |> element("div[phx-click=toggle_show_social]") |> render_click()
+      assert SocialVisibility.enabled?() == true
 
-      view |> element("div[phx-click=toggle_show_discovery]") |> render_click()
-      assert DiscoveryVisibility.enabled?() == false
+      view |> element("div[phx-click=toggle_show_social]") |> render_click()
+      assert SocialVisibility.enabled?() == false
     end
 
     test "toggling the apps launcher persists the flag", %{conn: conn} do

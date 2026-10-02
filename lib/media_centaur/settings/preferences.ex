@@ -10,7 +10,7 @@ defmodule MediaCentaur.Settings.Preferences do
       AutoPlayNextEpisode,
       BooleanSetting,
       CardPlayButton,
-      DiscoveryVisibility,
+      SocialVisibility,
       LetterboxdLinks,
       LibraryCardInfo,
       PlanningMode,

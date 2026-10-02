@@ -2530,7 +2530,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Review is gated on the default-off friend-network preview.
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        key: MediaCentaur.Settings.Preferences.SocialVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 

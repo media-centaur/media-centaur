@@ -784,7 +784,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
     ~H"""
     <Layouts.app
-      show_discovery={@show_discovery}
+      show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}
       current_path="/incoming"
@@ -836,7 +836,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           state={@modal_state}
           armed_gesture={@armed_gesture}
           today={@today}
-          review?={@show_discovery}
+          review?={@show_social}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           tmdb_ready={@tmdb_ready}

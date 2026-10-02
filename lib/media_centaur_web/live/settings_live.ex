@@ -937,10 +937,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
-  def handle_event("toggle_show_discovery", _params, socket) do
-    enabled = !socket.assigns.show_discovery
-    MediaCentaur.Settings.Preferences.DiscoveryVisibility.set(enabled)
-    {:noreply, assign(socket, show_discovery: enabled)}
+  def handle_event("toggle_show_social", _params, socket) do
+    enabled = !socket.assigns.show_social
+    MediaCentaur.Settings.Preferences.SocialVisibility.set(enabled)
+    {:noreply, assign(socket, show_social: enabled)}
   end
 
   def handle_event("toggle_show_apps", _params, socket) do
@@ -1845,7 +1845,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   def render(assigns) do
     ~H"""
     <Layouts.app
-      show_discovery={@show_discovery}
+      show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}
       current_path="/settings"
@@ -1974,7 +1974,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 show_play_button={@show_play_button}
                 auto_play_next_episode={@auto_play_next_episode}
                 letterboxd_links={@letterboxd_links}
-                show_discovery={@show_discovery}
+                show_social={@show_social}
                 show_apps={@show_apps}
                 connections={@connections}
                 editing={@editing}
@@ -2113,7 +2113,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
       letterboxd_links={@letterboxd_links}
-      show_discovery={@show_discovery}
+      show_social={@show_social}
       show_apps={@show_apps}
     />
     """

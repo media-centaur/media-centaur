@@ -459,7 +459,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   def render(assigns) do
     ~H"""
     <Layouts.app
-      show_discovery={@show_discovery}
+      show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}
       current_path="/review"

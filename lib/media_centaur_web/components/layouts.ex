@@ -45,11 +45,11 @@ defmodule MediaCentaurWeb.Layouts do
     pills and the condition dot (UIDR-030).
     """
 
-  attr :show_discovery, :boolean,
+  attr :show_social, :boolean,
     default: false,
     doc: """
-    Whether the sidebar shows the Discovery entry — the `show_discovery`
-    preference (`MediaCentaur.Settings.Preferences.DiscoveryVisibility`, default off
+    Whether the sidebar shows the Social entry — the `show_social`
+    preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default off
     while the feature is an opt-in preview). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
     entry is gated — `/discovery` stays reachable by URL.
@@ -134,7 +134,7 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
-            :if={@show_discovery}
+            :if={@show_social}
             navigate="/discovery"
             class={sidebar_link_class(@current_path, ["/discovery", "/discovery/friends"])}
             data-tip="Discovery"
