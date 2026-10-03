@@ -65,7 +65,7 @@ precommit clean, nothing pushed, not merged. Phase 4 next.**
   `docs/superpowers/plans/2026-10-03-discovery-page-becomes-social.md`.
 * Phase 3 (the `Discovery` context is `Watchlist`, ADR-075): commits
   `7e0891f3` (code), `19e01df7` (context-map tests + snapshot, droppable),
-  and the docs commit after it; plan
+  `eb55677e` and its docs follow-up (records, glossary); plan
   `docs/superpowers/plans/2026-10-03-discovery-context-becomes-watchlist.md`.
 * Wiki (`../media-centaur.wiki`): three local commits, unpushed —
   `f2b8bd1`, `fca9ad2`, `f15fe34`. Push them when the release ships, not

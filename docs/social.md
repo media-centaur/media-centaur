@@ -43,7 +43,7 @@ them (ADR-074).
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
 | `MediaCentaur.Social` | The network's *configuration* and who is on it: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), `Connections` (one live connection per relay), `Profile` (`profiles` table, what each known key published about itself; `Profile.Translation`, events ↔ rows), and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
-| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
+| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Watchlist`, `Settings.Preferences` |
 | `MediaCentaur.RelaySync` | No tables. The loop that keeps both contexts' rows in step with the relays: subscribes, routes each event to its owning context, publishes what a relay lacks. | `Activities`, `Social`, `Nostr` |
 | `MediaCentaur.Watchlist` | The watchlist (`title_intents`). Knows nothing about the friend network — a `:friend` record stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
@@ -446,7 +446,7 @@ The joins the contexts may not make happen here:
   its `author`, a `Social.Person`, for authors the reader knows; a former
   friend's rows are left out. `SocialLive` adds `poster_url`, `library_owner_id`
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
-  (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
+  (`Watchlist.rungs/0`) and the acquisition state, then both
   projections read from that one list.
 - **Watchlist rows** — on Incoming (`IncomingLive.WatchlistRows`); the
   row's note is the intent's own, and the glyphs come from
