@@ -114,4 +114,14 @@ defmodule MediaCentaurWeb.SocialLive.People do
   end
 
   defp ref(%{activity: %Activity{tmdb_id: tmdb_id, media_type: media_type}}), do: {tmdb_id, media_type}
+
+  @doc """
+  Why the Friends tab has no friends (UIDR-034): no relay first — Social is
+  on for everyone, and a friend is a key on a relay you share — then no
+  friends; nil once one exists. The reader's own card does not count.
+  """
+  @spec empty_reason(boolean(), non_neg_integer()) :: :no_relay | :no_friends | nil
+  def empty_reason(false, _friend_count), do: :no_relay
+  def empty_reason(true, 0), do: :no_friends
+  def empty_reason(true, _friend_count), do: nil
 end
