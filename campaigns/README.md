@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`social-and-watchlist.md`](social-and-watchlist.md) —
-  **Phases 1–3 done 2026-10-03, awaiting merge; Phase 4 next.** Two sidebar groups by purpose: **Social** (the
+  **Shipped v1.49.0 on 2026-10-03; owner check open.** Two sidebar groups by purpose: **Social** (the
   Feed and Friends — the Discovery page renamed, with its route, LiveView,
   components and `show_discovery` → `show_social`) and **Incoming** (the
   watchlist, search, downloads, history). Watchlist and Coming up become

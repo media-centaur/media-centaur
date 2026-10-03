@@ -1,5 +1,5 @@
 ---
-status: active
+status: shipped v1.49.0, owner check open
 started: 2026-10-02
 last_updated: 2026-10-03
 ---
@@ -54,9 +54,10 @@ replaces both, and the page that is left is named for what it holds.
 
 ## Status
 
-**Phases 1–4 merged to `main` (fast-forward, 2026-10-03), precommit
-clean, not pushed. The owner's copy pass, the owner check and the ship
-remain.**
+**Shipped as v1.49.0 on 2026-10-03** (all four phases, Social on by
+default with the relay opt-in explained on the empty Feed). Open: the
+owner's copy pass on the provisional labels, the desktop/TV check, the
+showcase screenshot re-shoot.
 
 * Phase 1 (the watchlist on Incoming, UIDR-050): commits `a04bef5c`,
   `5c254c47`, `54052d63`, `9707fb89`, `05158152`, `39f9c9f7`, `366db3c4`;
@@ -195,9 +196,9 @@ ran that way; it worked).
    Social section as **Show Social in the sidebar** (card *Sidebar*,
    last in the section) and the preference defaults on. Copy is
    provisional; owner adjusts at the end.
-8. **At ship:** push the wiki (six local commits), `/ship minor`. Draft
-   release notes (body only; copy to the `NOTES_FILE` `scripts/ship
-   prepare` names, then trim to what shipped):
+8. **Ship** — done 2026-10-03: v1.49.0 tagged and verified, the wiki
+   pushed. The notes as shipped are in `CHANGELOG.md`; the draft below
+   is what they were built from:
 
    ```markdown
    ### New
@@ -252,7 +253,7 @@ ran that way; it worked).
 * The owner has used the flow (list, track, download; the rung stays)
   on the desktop and the TV, mouse and gamepad.
 * The branch is on `main` (merged after context-map, 2026-10-03) and
-  shipped — the ship remains.
+  shipped — v1.49.0, met.
 
 ## Pointers
 
