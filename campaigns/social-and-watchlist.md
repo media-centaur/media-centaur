@@ -54,8 +54,8 @@ replaces both, and the page that is left is named for what it holds.
 
 ## Status
 
-**Phases 1–2 done on branch `social-and-watchlist` (HEAD `043827a3`,
-2026-10-03), precommit clean, nothing pushed, not merged. Phase 3 next.**
+**Phases 1–3 done on branch `social-and-watchlist` (2026-10-03),
+precommit clean, nothing pushed, not merged. Phase 4 next.**
 
 * Phase 1 (the watchlist on Incoming, UIDR-050): commits `a04bef5c`,
   `5c254c47`, `54052d63`, `9707fb89`, `05158152`, `39f9c9f7`, `366db3c4`;
@@ -63,6 +63,10 @@ replaces both, and the page that is left is named for what it holds.
 * Phase 2 (the Discovery page is the Social page, UIDR-051): commits
   `464cdef4`, `1314a8b5`, `b7b108ae`, `d84b433f`, `043827a3`; plan
   `docs/superpowers/plans/2026-10-03-discovery-page-becomes-social.md`.
+* Phase 3 (the `Discovery` context is `Watchlist`, ADR-075): commits
+  `7e0891f3` (code), `19e01df7` (context-map tests + snapshot, droppable),
+  and the docs commit after it; plan
+  `docs/superpowers/plans/2026-10-03-discovery-context-becomes-watchlist.md`.
 * Wiki (`../media-centaur.wiki`): three local commits, unpushed —
   `f2b8bd1`, `fca9ad2`, `f15fe34`. Push them when the release ships, not
   before (they describe the branch, not the released app).
@@ -75,11 +79,13 @@ before writing code. What a new session needs to know:
 1. **The branch is forked from the `context-map` branch, not `main`.**
    Its first commit `d6668d0e` sits on `7544b939` (context-map's tip);
    `main` is at `e0bac217`. `git log main..HEAD` therefore shows ~35
-   context-map commits plus this campaign's fourteen. The campaign's
-   commits touch no context-map file except `b7b108ae`
-   (`test/context_map/fixture_instances_test.exs`, one module name).
-   Owner's choice, not yet made: `git rebase --onto main 7544b939
-   social-and-watchlist` (drop `b7b108ae`; rerun precommit), or merge
+   context-map commits plus this campaign's. The campaign's commits
+   touch no context-map file except two droppable ones: `b7b108ae`
+   (`test/context_map/fixture_instances_test.exs`, one module name) and
+   `19e01df7` (`test/context_map/*` and `docs/context-map/context-map.json`
+   after the Phase 3 rename). Owner's choice, not yet made: `git rebase
+   --onto main 7544b939 social-and-watchlist` (drop both; rerun
+   precommit), or merge
    `context-map` first and keep it. An agent must not do the rebase (the
    harness declined it as a history rewrite); ask.
 2. **The `media-centaur-dev` service runs this checkout**, so whatever
@@ -139,6 +145,14 @@ before writing code. What a new session needs to know:
   context's file paths (`lib/media_centaur/discovery.ex`,
   `discovery/title_intent.ex`) and the two renames sequence differently
   against that merge. (agent)
+* `2026-10-03` — Phase 3 ran inline (sed-driven rename, test files
+  first, then `lib`), with one whole-slice review at the end instead of
+  per-task subagents: a mechanical rename has no design per task to
+  review. The context-map test changes are a separate commit so either
+  merge path (rebase or merge) stays clean. (agent)
+* `2026-10-03` — Phase 2 left two stale moduledoc references
+  (`Discovery.FeedRow` in `title/row.ex`, `Discovery.PersonCard` in
+  `switch.ex`); fixed in Phase 3's code commit as `Social.*`. (agent)
 
 ## Next steps
 
@@ -149,45 +163,11 @@ ran that way; it worked).
 
 1. **Merge the watchlist into Incoming** — done 2026-10-02 (UIDR-050).
 2. **Rename the Discovery page to Social** — done 2026-10-03 (UIDR-051).
-3. **Rename the `Discovery` context to `Watchlist`.** Not started; no
-   plan yet. Scope, verified on 2026-10-03:
-   * `lib/media_centaur/discovery.ex` → `watchlist.ex`
-     (`MediaCentaur.Watchlist`, `use Boundary … exports: [TitleIntent,
-     Events, Events.RungChanged]`); `lib/media_centaur/discovery/` →
-     `watchlist/` (`events.ex`, `title_intent.ex`, `titles.ex`,
-     `tmdb_references.ex`); `test/media_centaur/discovery*`.
-   * Every `alias MediaCentaur.Discovery` and `Discovery.` call in
-     `lib/` and `test/` (ReleaseTracking, Acquisition and its planners,
-     Activities and its Publisher, Review, EpisodeMapping, Library.Files
-     and .Inbound, Social.Connections/Identity, TMDB, Topics, the web
-     layer: `SocialLive`, `IncomingLive`, `WatchlistRows`, `TitleDetailHost`,
-     `LibraryLive`, `HomeLive`, components under `title/`, `detail/`,
-     `acquisition/`; `test/support/factory.ex` "Discovery (title
-     intents)" section). `grep -rln "MediaCentaur.Discovery\|Discovery\." lib test`
-     is the list.
-   * Boundary `deps:` lists naming `MediaCentaur.Discovery` in every
-     context above; `mix boundaries`/compile enforces it.
-   * `Topics.discovery_updates/0` → `watchlist_updates/0`, topic string
-     `discovery:updates` → `watchlist:updates`; `Live.Subscriptions`'
-     entry for the context; moduledocs that list the topic
-     (`title_detail_host.ex`, `incoming_live.ex`, `activities/publisher.ex`,
-     `docs/architecture.md`, `docs/social.md`).
-   * `Discovery.ref/0` type (used by `WatchlistRows`), `Discovery.rungs/0`,
-     `list_watchlist/0`, `put_rung/3`, `listed?/2`, `get_intent/2`,
-     `rung/2` — names stay, module changes.
-   * Records: ADR-066 (one ladder per title) and ADR-075 (naming — add
-     the second application) get dated amendments; ADR-029/ADR-074 if
-     they name the context; glossary rows *title intent*, *rung*,
-     *Ignored*, *Following*, *Listing* and `docs/social.md`'s context
-     table; `docs/context-map/` (the committed `context-map.json` names
-     the paths — regenerate with `agent-mix context_map` only on a
-     checkout that has the context-map code).
-   * Sequencing: the context-map branch's tests (`test/context_map/*`)
-     name `lib/media_centaur/discovery.ex` and `discovery/title_intent.ex`
-     as fixtures. If Phase 3 lands while this branch still sits on
-     context-map, those tests need the new paths in a droppable commit
-     like `b7b108ae`; if the owner rebases first, they are not on the
-     branch at all. Decide with the owner before planning.
+3. **Rename the `Discovery` context to `Watchlist`** — done 2026-10-03
+   (ADR-075 second application; plan
+   `docs/superpowers/plans/2026-10-03-discovery-context-becomes-watchlist.md`).
+   Context-map's tests and snapshot followed in a separate, droppable
+   commit (see *Resuming*, item 1).
 4. **Ignored.** Not started; no plan yet. Drop `rung_marker(:ignored)`
    from `Components.Title.Logic.row_markers/2` (search results on
    Incoming; `media_results.ex` is the caller) and its `logic_test`
@@ -228,8 +208,8 @@ ran that way; it worked).
   Coming up tab or marquee exists on Incoming; Home's shelf is unchanged.
   — met on the branch.
 * No route, module, directory, preference, CSS class or doc names the
-  Discovery page — met; `MediaCentaur.Discovery` does not exist — Phase 3;
-  `Pipeline.Discovery` is untouched.
+  Discovery page — met; `MediaCentaur.Discovery` does not exist — met
+  2026-10-03; `Pipeline.Discovery` is untouched.
 * A search result never says Ignored; an ignored title's detail modal
   offers un-ignore and it works. — Phase 4.
 * Wiki and guide describe the two groups — met (unpushed); CHANGELOG

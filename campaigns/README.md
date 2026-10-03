@@ -28,8 +28,8 @@ Use [`template.md`](template.md) as a starter.
   watchlist, search, downloads, history). Watchlist and Coming up become
   one list on Incoming — every listed title once, a followed title's row
   carrying its next release and status; the Coming up tab and marquee go,
-  Home's shelf stays. The `Discovery` context is renamed `Watchlist`
-  (ADR-075 rule 3). `:ignored` stays on the ladder; its search-result
+  Home's shelf stays. The `Discovery` context is `Watchlist`
+  (ADR-075 rule 3; done 2026-10-03). `:ignored` stays on the ladder; its search-result
   marker goes and the detail modal gains un-ignore. Phases 1–2 (the
   watchlist on Incoming, UIDR-050; the Social page, UIDR-051) are on
   branch `social-and-watchlist`.

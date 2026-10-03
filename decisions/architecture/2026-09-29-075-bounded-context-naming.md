@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-09-29
+amended: 2026-10-03
 ---
 # Bounded context naming
 
@@ -18,6 +19,8 @@ Context names were chosen ad hoc. Some name the capability (`Playback`, `Acquisi
 6. **Utility modules are not bounded contexts.** `Format`, `DateUtil`, `Iso639` sit behind `Boundary` but are shared libraries; these rules do not apply to them.
 
 First application: `Reconciliation` becomes `EpisodeMapping` — "Decides which episode on TMDB's list a file of a known series is."
+
+Second application (2026-10-03): `Discovery` becomes `Watchlist` — "The watchlist: the title intents a person holds." Rule 3: its one surface is Incoming's Watchlist tab (UIDR-050). `Pipeline.Discovery`, file discovery, is a different context and keeps its name.
 
 ### Consequences
 
