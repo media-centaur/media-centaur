@@ -175,8 +175,10 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   # Feed hides it, but a search result must still say the reader
   # dismissed it. List says it is on the list, except where the
   # container already says so.
+  # Ignored is a stance about the Feed, not an acquisition state, so a
+  # search result carries no marker for it; the title detail says so.
   defp rung_marker(nil, _list_implied?), do: nil
-  defp rung_marker(:ignored, _list_implied?), do: "Ignored"
+  defp rung_marker(:ignored, _list_implied?), do: nil
   defp rung_marker(:list, true), do: nil
   defp rung_marker(:list, false), do: "On your list"
   defp rung_marker(:follow, _list_implied?), do: "Tracking"

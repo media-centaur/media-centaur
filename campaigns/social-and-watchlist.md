@@ -54,8 +54,8 @@ replaces both, and the page that is left is named for what it holds.
 
 ## Status
 
-**Phases 1–3 done on branch `social-and-watchlist` (2026-10-03),
-precommit clean, nothing pushed, not merged. Phase 4 next.**
+**Phases 1–4 done on branch `social-and-watchlist` (2026-10-03),
+precommit clean, nothing pushed, not merged. Owner items and the ship remain.**
 
 * Phase 1 (the watchlist on Incoming, UIDR-050): commits `a04bef5c`,
   `5c254c47`, `54052d63`, `9707fb89`, `05158152`, `39f9c9f7`, `366db3c4`;
@@ -173,19 +173,12 @@ ran that way; it worked).
    `docs/superpowers/plans/2026-10-03-discovery-context-becomes-watchlist.md`).
    Context-map's tests and snapshot followed in a separate, droppable
    commit (see *Resuming*, item 1).
-4. **Ignored.** Not started; no plan yet. Drop `rung_marker(:ignored)`
-   from `Components.Title.Logic.row_markers/2` (search results on
-   Incoming; `media_results.ex` is the caller) and its `logic_test`
-   case; add an un-ignore control to `Components.Title.TrackingControls`'
-   `:ignored` form (today one line, `ignored_line/0`: "Hidden from the
-   Feed. Add it to your watchlist to bring it back.") — a button that sets
-   the record off through `ReleaseTracking.set_rung(title, :off, …)` via
-   the host's `set_rung` event (`TitleDetailHost`), with a story
-   variation and a `title_detail_host` test; delete the stale "Ignored
-   items are skipped" paragraph in `ReleaseTracking.Wants`' moduledoc
-   (~l.28). The copy and the control's form (a button beside the line;
-   label to be chosen with the `writing-copy` skill, e.g. "Show on the
-   Feed again") are the owner's call at plan time.
+4. **Ignored** — done 2026-10-03 (UIDR-042 amendment). The search-result
+   marker is gone (`Logic.row_markers/2`); the tracking controls' ignored
+   form carries **Stop ignoring** (`set_rung`, `off`); the stale "Ignored
+   items are skipped" paragraph left `ReleaseTracking.Wants`. Copy is
+   provisional (line "Hidden from the Feed, every friend's row for it.",
+   button "Stop ignoring"); owner adjusts at the end.
 5. **Owner check, desktop and TV, mouse and gamepad** (carried from
    `watchlist-single-entry-point` Phase 4, open): search a title, list it
    (Add to watchlist), turn on **Track release dates** from its detail,
@@ -216,7 +209,7 @@ ran that way; it worked).
   Discovery page — met; `MediaCentaur.Discovery` does not exist — met
   2026-10-03; `Pipeline.Discovery` is untouched.
 * A search result never says Ignored; an ignored title's detail modal
-  offers un-ignore and it works. — Phase 4.
+  offers un-ignore and it works. — met 2026-10-03.
 * Wiki and guide describe the two groups — met (unpushed); CHANGELOG
   entry drafted at ship time.
 * The owner has used the flow (list, track, download; the rung stays)

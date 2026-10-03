@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-14
-amended: 2026-10-02
+amended: 2026-10-03
 ---
 # Tracking is the bookmark and two switches over one record
+
+> **Amendment 2026-10-03.** The Ignored rung (rule 5) has two exits, not one: a rung at List or above replaces it, and the tracking controls' ignored form carries **Stop ignoring**, which sets the title Off through `set_rung`. A search result on Incoming carries no "Ignored" marker; the rung is a stance about the Feed and reads as an acquisition state in that list. Campaign `social-and-watchlist`, Phase 4.
 
 Supersedes UIDR-036 rules 1, 4 (its bookmark exception) and 5. Design: `docs/superpowers/specs/2026-09-14-tracking-controls-design.md`.
 

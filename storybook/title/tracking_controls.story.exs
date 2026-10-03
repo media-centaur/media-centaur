@@ -3,7 +3,8 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
   The rows a listed title shows beneath its details (UIDR-042): Track
   release dates and Auto-grab, over the one record. A title not on the
   list shows nothing — the bookmark in the action strip lists it; an
-  ignored one shows the line saying the Feed hides it. Auto-grab holds
+  ignored one shows the line saying the Feed hides it beside Stop
+  ignoring. Auto-grab holds
   the Track row on; a movie that is out has only Auto-grab; a movie the
   library owns has no rows.
   """
@@ -36,7 +37,9 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
       },
       %Variation{
         id: :ignored,
-        description: "An ignored title shows the one line that says the Feed is hiding it.",
+        description:
+          "An ignored title: the line that says the Feed is hiding it, and Stop ignoring, " <>
+            "which sets it Off.",
         attributes: base(%{rung: :ignored})
       },
       %VariationGroup{

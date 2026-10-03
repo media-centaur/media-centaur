@@ -1651,6 +1651,22 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_until(view, fn _html -> not has_element?(view, "#detail-review") end)
     end
 
+    test "an ignored title's detail offers Stop ignoring, which sets it Off", %{conn: conn} do
+      {:ok, _} = list(released_movie(), :ignored)
+      {:ok, view, _html} = live(conn, ~p"/social?title=movie-777")
+
+      assert has_element?(view, "#detail-tracking-controls[data-form='ignored']")
+      assert has_element?(view, "#detail-tracking-controls-unignore[phx-value-choice='off']")
+
+      view |> element("#detail-tracking-controls-unignore") |> render_click()
+      await_supervised_tasks()
+
+      assert Watchlist.rung(777, :movie) == nil
+      refute has_element?(view, "#detail-tracking-controls")
+      # Off, the title offers the bookmark again.
+      assert has_element?(view, "#detail-watchlist-toggle")
+    end
+
     test "Download under the default mode plans for manual selection and opens its board on Incoming",
          %{conn: conn} do
       {:ok, _} = list(released_movie(), :list)

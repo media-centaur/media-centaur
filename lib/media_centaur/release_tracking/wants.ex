@@ -25,8 +25,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     collection refreshes drop past parts and the TV fetch window moves,
     neither of which means the unit stopped being wanted. Closing a
     want is satisfaction or dismissal, nothing else.
-  * Ignored items are skipped (their wants freeze; re-watching resumes
-    them) and `list_open_wants/0` filters to watching items.
   """
 
   import Ecto.Query
@@ -68,9 +66,8 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     opened = open_missing_wants(item, releases)
     satisfied = satisfy_present_wants(item)
 
-    # Surfaces decorate from the ledger (the Upcoming page's :watching
-    # state); a sync that changed nothing stays silent so the 15-minute
-    # sweep doesn't churn LiveViews.
+    # Surfaces decorate from the ledger; a sync that changed nothing
+    # stays silent so the 15-minute sweep doesn't churn LiveViews.
     if opened + satisfied > 0 do
       MediaCentaur.Topics.publish(
         MediaCentaur.Topics.release_tracking_updates(),
