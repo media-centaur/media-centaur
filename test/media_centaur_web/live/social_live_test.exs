@@ -76,11 +76,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   end
 
   test "the sidebar marks Social active", %{conn: conn} do
-    Settings.find_or_create_entry!(%{
-      key: SocialVisibility.setting_key(),
-      value: %{"enabled" => true}
-    })
-
     {:ok, view, _html} = live(conn, "/social")
     assert has_element?(view, "#sidebar a.sidebar-link-active[href='/social']")
   end
@@ -1292,7 +1287,12 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       await_supervised_tasks()
     end
 
-    test "neither the entry nor the modal offers Review", %{conn: conn} do
+    test "with Social switched off, neither the entry nor the modal offers Review", %{conn: conn} do
+      Settings.find_or_create_entry!(%{
+        key: SocialVisibility.setting_key(),
+        value: %{"enabled" => false}
+      })
+
       {:ok, _item} =
         list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
@@ -1639,16 +1639,16 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, ~p"/social?title=movie-777")
 
-      # `show_social` is default-off: the Social page is a preview, and
-      # Review is the one control on this modal that belongs to it.
-      refute has_element?(view, "#detail-review")
+      # `show_social` is on by default; Review is the one control on this
+      # modal that belongs to the Social page, so it follows the switch.
+      assert has_element?(view, "#detail-review")
 
       Settings.find_or_create_entry!(%{
         key: SocialVisibility.setting_key(),
-        value: %{"enabled" => true}
+        value: %{"enabled" => false}
       })
 
-      render_until(view, fn _html -> has_element?(view, "#detail-review") end)
+      render_until(view, fn _html -> not has_element?(view, "#detail-review") end)
     end
 
     test "Download under the default mode plans for manual selection and opens its board on Incoming",

@@ -2113,7 +2113,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
       letterboxd_links={@letterboxd_links}
-      show_social={@show_social}
       show_apps={@show_apps}
     />
     """
@@ -2156,6 +2155,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       status={@relay_status}
       share_watched?={@share_watched?}
       share_watchlist?={@share_watchlist?}
+      show_social?={@show_social}
     />
     """
   end

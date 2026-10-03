@@ -91,9 +91,9 @@ before writing code. What a new session needs to know:
 2. **The `media-centaur-dev` service runs this checkout**, so whatever
    branch is checked out is what `http://127.0.0.1:2160` serves. Never
    run `mix` directly; `~/scripts/agents/agent-mix` only (CLAUDE.md).
-3. **`show_social` reset to off** (no migration). On the dev install the
-   Social entry is absent from the sidebar until Settings → Preferences →
-   Social is switched on again. That is by decision, not a bug.
+3. **`show_social` is on by default** since the afternoon of 2026-10-03
+   (UIDR-051 amendment); its switch is **Show Social in the sidebar**
+   under Settings → Social. The morning's reset-to-off is history.
 4. **Owner items open** (Next steps 5–7): the desktop/TV check, the
    screenshot re-shoot, the Settings wording question.
 5. The two decisions taken from the final review on 2026-10-02 (next
@@ -153,6 +153,11 @@ before writing code. What a new session needs to know:
 * `2026-10-03` — Phase 2 left two stale moduledoc references
   (`Discovery.FeedRow` in `title/row.ex`, `Discovery.PersonCard` in
   `switch.ex`); fixed in Phase 3's code commit as `Social.*`. (agent)
+* `2026-10-03` — `show_social` defaults on; its switch lives on the
+  Social settings section (card *Sidebar*, row *Show Social in the
+  sidebar*), not under Preferences. The Review control follows it as
+  before. No migration: an install that had it off keeps its stored
+  value. (owner)
 
 ## Next steps
 
@@ -190,18 +195,18 @@ ran that way; it worked).
    Friends tab.
 6. **Re-shoot `upcoming-calendar.png`** (README l.35, docs-site l.726)
    with the Watchlist tab — `screenshot-showcase`, manual.
-7. **Settings wording** (owner): Settings has a **Social** section
-   (profile, relays, sharing) and a **Social** toggle under Preferences
-   ("Show the Social page in the sidebar. Early preview — it may still
-   change shape"). Same subsystem, two controls; "Social page" on the
-   toggle is the alternative if the pair reads wrong.
+7. **Settings wording** — resolved 2026-10-03: the toggle moved into the
+   Social section as **Show Social in the sidebar** (card *Sidebar*,
+   last in the section) and the preference defaults on. Copy is
+   provisional; owner adjusts at the end.
 8. **At ship:** CHANGELOG entry (both phases; the preference reset is a
    migration note), push the wiki, `scripts/ship`.
 
 ## Completion criteria
 
 * The sidebar's Watch group reads Home, Library, Social, Incoming, Apps;
-  Social is gated by `show_social`, Incoming is not. — met on the branch.
+  Social is gated by `show_social` (default on, switched under
+  Settings → Social), Incoming is not. — met on the branch.
 * `/incoming` defaults to the Watchlist tab (the first-load smart default
   to Activity while something is in flight stands); every listed title is
   on it once; a followed title's row shows its next release and status; no

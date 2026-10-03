@@ -49,8 +49,8 @@ defmodule MediaCentaurWeb.Layouts do
     default: false,
     doc: """
     Whether the sidebar shows the Social entry — the `show_social`
-    preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default off
-    while the feature is an opt-in preview). Seeded app-wide by the
+    preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default on;
+    switched under Settings → Social). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
     entry is gated — `/social` stays reachable by URL.
     """

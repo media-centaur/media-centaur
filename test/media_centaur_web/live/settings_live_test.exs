@@ -208,16 +208,22 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert LetterboxdLinks.enabled?() == true
     end
 
-    test "toggling Social persists the flag", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+    test "toggling Social in the sidebar persists the flag — on the Social section, on by default",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=social")
 
-      assert SocialVisibility.enabled?() == false
-
-      view |> element("div[phx-click=toggle_show_social]") |> render_click()
       assert SocialVisibility.enabled?() == true
 
       view |> element("div[phx-click=toggle_show_social]") |> render_click()
       assert SocialVisibility.enabled?() == false
+
+      view |> element("div[phx-click=toggle_show_social]") |> render_click()
+      assert SocialVisibility.enabled?() == true
+    end
+
+    test "the Preferences section no longer carries the Social toggle", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+      refute has_element?(view, "div[phx-click=toggle_show_social]")
     end
 
     test "toggling the apps launcher persists the flag", %{conn: conn} do
