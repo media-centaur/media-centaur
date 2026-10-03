@@ -7,8 +7,8 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   alias MediaCentaur.ContextMap.Schema
 
   @contexts [
-    %Context{name: MediaCentaur.Discovery, kernel?: false, deps: [MediaCentaur.Library], exports: []},
-    %Context{name: MediaCentaur.Activities, kernel?: false, deps: [MediaCentaur.Discovery], exports: []},
+    %Context{name: MediaCentaur.Watchlist, kernel?: false, deps: [MediaCentaur.Library], exports: []},
+    %Context{name: MediaCentaur.Activities, kernel?: false, deps: [MediaCentaur.Watchlist], exports: []},
     %Context{name: MediaCentaur.Library, kernel?: true, deps: [], exports: []},
     %Context{name: MediaCentaur.WatchHistory, kernel?: false, deps: [MediaCentaur.Library], exports: []},
     %Context{
@@ -44,9 +44,9 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     associations: []
   }
   @intent %Schema{
-    module: MediaCentaur.Discovery.TitleIntent,
-    file: "lib/media_centaur/discovery/title_intent.ex",
-    context: MediaCentaur.Discovery,
+    module: MediaCentaur.Watchlist.TitleIntent,
+    file: "lib/media_centaur/watchlist/title_intent.ex",
+    context: MediaCentaur.Watchlist,
     table: "title_intents",
     fields: [
       %{name: :tmdb_id, type: ":integer", values: nil, line: 1, declaration: ""},
@@ -106,7 +106,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
   test "a soft key into a context outside the owner's deps is a finding", %{findings: findings} do
     assert %Finding{
              rule: "R4",
-             owner: MediaCentaur.Discovery,
+             owner: MediaCentaur.Watchlist,
              field: :activity_id,
              detail: %{target: MediaCentaur.Activities.Activity, in_deps: false}
            } = Enum.find(findings, &(&1.field == :activity_id))
@@ -116,7 +116,7 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     findings: findings
   } do
     assert %Finding{
-             file: "lib/media_centaur/discovery/title_intent.ex",
+             file: "lib/media_centaur/watchlist/title_intent.ex",
              line: 12,
              excerpt: "field :activity_id, Ecto.UUID"
            } = Enum.find(findings, &(&1.field == :activity_id))

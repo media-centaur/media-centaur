@@ -7,9 +7,9 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
   alias MediaCentaur.ContextMap.Sources
 
   @intent %Schema{
-    module: MediaCentaur.Discovery.TitleIntent,
-    file: "lib/media_centaur/discovery/title_intent.ex",
-    context: MediaCentaur.Discovery,
+    module: MediaCentaur.Watchlist.TitleIntent,
+    file: "lib/media_centaur/watchlist/title_intent.ex",
+    context: MediaCentaur.Watchlist,
     table: "title_intents",
     fields: [
       %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list], line: 1, declaration: ""},
@@ -34,24 +34,24 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
   }
   @schemas [@intent, @activity]
 
-  @schema_file {"lib/media_centaur/discovery/title_intent.ex",
-                "defmodule MediaCentaur.Discovery.TitleIntent do\n  def changeset(i, attrs), do: cast(i, attrs, [:rung, :activity_id, :note])\nend\n"}
-  @discovery {"lib/media_centaur/discovery.ex",
-              "defmodule MediaCentaur.Discovery do\n  def rungs, do: Repo.all(from(i in TitleIntent, select: {i.tmdb_id, i.rung}))\n  def note(%TitleIntent{note: note}), do: note\nend\n"}
+  @schema_file {"lib/media_centaur/watchlist/title_intent.ex",
+                "defmodule MediaCentaur.Watchlist.TitleIntent do\n  def changeset(i, attrs), do: cast(i, attrs, [:rung, :activity_id, :note])\nend\n"}
+  @watchlist {"lib/media_centaur/watchlist.ex",
+              "defmodule MediaCentaur.Watchlist do\n  def rungs, do: Repo.all(from(i in TitleIntent, select: {i.tmdb_id, i.rung}))\n  def note(%TitleIntent{note: note}), do: note\nend\n"}
   @activities {"lib/media_centaur/activities.ex",
-               "defmodule MediaCentaur.Activities do\n  alias MediaCentaur.Discovery.TitleIntent\n  def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})\n  def own(%Activity{note: note}), do: note\nend\n"}
+               "defmodule MediaCentaur.Activities do\n  alias MediaCentaur.Watchlist.TitleIntent\n  def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})\n  def own(%Activity{note: note}), do: note\nend\n"}
 
   defp parse(files), do: Enum.map(files, fn {path, code} -> Sources.parse(path, code) end)
   defp run(files), do: ForeignField.findings(@schemas, ForeignField.usage(@schemas, parse(files)))
 
   test "a field the owner never reads, written from another context, yields both findings" do
     findings =
-      [@schema_file, @discovery, @activities] |> run() |> Enum.filter(&(&1.field == :activity_id))
+      [@schema_file, @watchlist, @activities] |> run() |> Enum.filter(&(&1.field == :activity_id))
 
     assert Enum.find(
              findings,
              &match?(
-               %Finding{rule: "R1", owner: MediaCentaur.Discovery, detail: %{kind: :owner_never_reads}},
+               %Finding{rule: "R1", owner: MediaCentaur.Watchlist, detail: %{kind: :owner_never_reads}},
                &1
              )
            )
@@ -61,25 +61,25 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
              consumer_context: MediaCentaur.Activities,
              consumer: MediaCentaur.Activities,
              line: 3,
-             excerpt: "def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})"
+             excerpt: "def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})"
            } = Enum.find(findings, &match?(%{detail: %{kind: :foreign_write}}, &1))
 
     assert %Finding{
-             file: "lib/media_centaur/discovery/title_intent.ex",
+             file: "lib/media_centaur/watchlist/title_intent.ex",
              line: 12,
              excerpt: "field :activity_id, Ecto.UUID"
            } = Enum.find(findings, &match?(%{detail: %{kind: :owner_never_reads}}, &1))
   end
 
   test "a field the owner reads and nobody else writes is clean" do
-    assert [] = [@schema_file, @discovery, @activities] |> run() |> Enum.filter(&(&1.field == :rung))
+    assert [] = [@schema_file, @watchlist, @activities] |> run() |> Enum.filter(&(&1.field == :rung))
   end
 
   test "a non-distinctive field name counts only files that reference the owning schema" do
     # :note is on both schemas; Activities reads its own Activity.note without
     # referencing TitleIntent — not attributed to TitleIntent.
     findings =
-      [@schema_file, @discovery, @activities]
+      [@schema_file, @watchlist, @activities]
       |> run()
       |> Enum.filter(&(&1.schema == MediaCentaur.Activities.Activity))
 
@@ -87,15 +87,15 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
   end
 
   test "the usage table reports reads and writes per context" do
-    usage = ForeignField.usage(@schemas, parse([@schema_file, @discovery, @activities]))
+    usage = ForeignField.usage(@schemas, parse([@schema_file, @watchlist, @activities]))
 
-    assert %{reads: %{MediaCentaur.Discovery => 1}, writes: writes} =
-             usage[{MediaCentaur.Discovery.TitleIntent, :rung}]
+    assert %{reads: %{MediaCentaur.Watchlist => 1}, writes: writes} =
+             usage[{MediaCentaur.Watchlist.TitleIntent, :rung}]
 
     assert writes == %{}
 
     assert %{reads: reads, writes: %{MediaCentaur.Activities => 1}} =
-             usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}]
+             usage[{MediaCentaur.Watchlist.TitleIntent, :activity_id}]
 
     assert reads == %{}
   end
@@ -110,19 +110,19 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
              {MediaCentaur.Activities, MediaCentaur.Activities, "lib/media_centaur/activities.ex", 3,
               :write, "def b(c, attrs), do: Changeset.cast(c, attrs, [:activity_id])"}
            ] =
-             usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].sites
+             usage[{MediaCentaur.Watchlist.TitleIntent, :activity_id}].sites
   end
 
   test "a keyword argument is not a write; a map literal argument is" do
     keyword =
-      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Discovery.put_rung(title, :list, activity_id: id)\nend\n"
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, activity_id: id)\nend\n"
 
     map =
-      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Discovery.put_rung(title, :list, %{activity_id: id})\nend\n"
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})\nend\n"
 
     writes = fn code ->
       usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))
-      usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}].writes
+      usage[{MediaCentaur.Watchlist.TitleIntent, :activity_id}].writes
     end
 
     assert writes.(keyword) == %{}
@@ -156,12 +156,12 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
 
   test "a keyword key in an expression is a read, not a write" do
     code =
-      "defmodule MediaCentaur.Discovery do\n  def find(tmdb_id), do: Repo.get_by(TitleIntent, rung: :list, tmdb_id: tmdb_id)\nend\n"
+      "defmodule MediaCentaur.Watchlist do\n  def find(tmdb_id), do: Repo.get_by(TitleIntent, rung: :list, tmdb_id: tmdb_id)\nend\n"
 
-    usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/discovery.ex", code}]))
+    usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/watchlist.ex", code}]))
 
-    assert %{reads: %{MediaCentaur.Discovery => 1}, writes: writes} =
-             usage[{MediaCentaur.Discovery.TitleIntent, :rung}]
+    assert %{reads: %{MediaCentaur.Watchlist => 1}, writes: writes} =
+             usage[{MediaCentaur.Watchlist.TitleIntent, :rung}]
 
     assert writes == %{}
   end
@@ -173,7 +173,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
     usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))
 
     assert %{reads: %{MediaCentaur.Activities => 1}, writes: writes} =
-             usage[{MediaCentaur.Discovery.TitleIntent, :activity_id}]
+             usage[{MediaCentaur.Watchlist.TitleIntent, :activity_id}]
 
     assert writes == %{}
   end
