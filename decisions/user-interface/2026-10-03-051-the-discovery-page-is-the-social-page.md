@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-10-03
+amended: 2026-10-03
 ---
 # The Discovery page is the Social page
+
+> **Amendment 2026-10-03.** `show_social` is on by default and its switch is **Show Social in the sidebar** under Settings → Social, not under Preferences: the preference belongs with the identity, relays and sharing it gates, and the page is no longer treated as an opt-in preview. Point 1's "default off" and point 3's "switched on again" describe the morning of 2026-10-03 only.
 
 Amends UIDR-010 (the Watch group's pages) and the records that name the page: UIDR-038, UIDR-043, UIDR-045, UIDR-046, UIDR-050.
 

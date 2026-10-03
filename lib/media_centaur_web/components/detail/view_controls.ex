@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   attr :review?, :boolean,
     default: false,
     doc:
-      "whether the Review control is offered — the hosts pass `show_social`, the preference that gates the whole friend-network preview."
+      "whether the Review control is offered — the hosts pass `show_social`, the preference that gates the Social page."
 
   def view_controls(assigns) do
     detail = assigns.detail

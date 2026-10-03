@@ -494,9 +494,10 @@ injects the handlers, the clearable sentiment choice included), hosted by
 every `EntityModal` host for the library detail page and every
 `TitleDetailHost` host for a title without files — the only places a
 review is made. The sharing toggles live in
-`SettingsLive.SocialSection`. The Review control is gated
-on the `show_social` preference (`Settings.Preferences.SocialVisibility`),
-the same preference that gates the sidebar entry.
+`SettingsLive.SocialSection`, and so does **Show Social in the
+sidebar**. The Review control is gated on that `show_social` preference
+(`Settings.Preferences.SocialVisibility`, default on), the same
+preference that gates the sidebar entry.
 
 ## Health
 

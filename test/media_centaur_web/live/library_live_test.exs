@@ -19,7 +19,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Watchlist
   alias MediaCentaur.Library
-  alias MediaCentaur.Settings.Preferences.SocialVisibility
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
@@ -414,11 +413,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the detail page's Review control opens the modal and sends", %{conn: conn} do
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: SocialVisibility.setting_key(),
-        value: %{"enabled" => true}
-      })
-
       MediaCentaur.Social.Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
@@ -484,11 +478,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the Review modal paints the library poster", %{conn: conn} do
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: SocialVisibility.setting_key(),
-        value: %{"enabled" => true}
-      })
-
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
@@ -506,11 +495,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the Review modal's choices press before an identity exists", %{conn: conn} do
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: SocialVisibility.setting_key(),
-        value: %{"enabled" => true}
-      })
-
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
@@ -527,6 +511,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the Review control is absent while Social is off", %{conn: conn} do
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Settings.Preferences.SocialVisibility.setting_key(),
+        value: %{"enabled" => false}
+      })
+
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 

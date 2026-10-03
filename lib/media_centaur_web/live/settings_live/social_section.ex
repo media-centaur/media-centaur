@@ -80,6 +80,10 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   attr :share_watched?, :boolean, required: true, doc: "the `share_watched` preference"
   attr :share_watchlist?, :boolean, required: true, doc: "the `share_watchlist` preference"
 
+  attr :show_social?, :boolean,
+    required: true,
+    doc: "the `show_social` preference (`Preferences.SocialVisibility`)"
+
   def render(assigns) do
     ~H"""
     <div id="settings-social" class="space-y-4">
@@ -386,6 +390,15 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             event="toggle_share_watchlist"
           />
         </div>
+      </.settings_card>
+
+      <.settings_card id="social-sidebar" title="Sidebar">
+        <.settings_row
+          label="Show Social in the sidebar"
+          description="The Feed and Friends tabs, in the Watch group. Off, the page stays reachable at /social and movie and series pages lose their Review control."
+          checked={@show_social?}
+          event="toggle_show_social"
+        />
       </.settings_card>
     </div>
     """
