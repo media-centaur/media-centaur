@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Layouts do
     """
 
   attr :show_social, :boolean,
-    default: false,
+    default: true,
     doc: """
     Whether the sidebar shows the Social entry — the `show_social`
     preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default on;
