@@ -5,12 +5,12 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   alias MediaCentaur.ContextMap.Schemas
 
   test "TitleIntent: context, table, enum values, no virtual or timestamp fields" do
-    intent = Schemas.from_module(MediaCentaur.Discovery.TitleIntent)
+    intent = Schemas.from_module(MediaCentaur.Watchlist.TitleIntent)
 
     assert %Schema{
-             context: MediaCentaur.Discovery,
+             context: MediaCentaur.Watchlist,
              table: "title_intents",
-             file: "lib/media_centaur/discovery/title_intent.ex"
+             file: "lib/media_centaur/watchlist/title_intent.ex"
            } = intent
 
     assert %{name: :rung, type: "Ecto.Enum", values: [:ignored, :list, :follow, :grab]} =
@@ -34,16 +34,16 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
 
   test "value_owners maps an enum value to the fields that declare it" do
     owners = Schemas.value_owners(Schemas.all())
-    assert {MediaCentaur.Discovery.TitleIntent, :rung} in owners[:ignored]
+    assert {MediaCentaur.Watchlist.TitleIntent, :rung} in owners[:ignored]
     assert length(owners[:movie]) > 1
   end
 
   defp field(schema, name), do: Enum.find(schema.fields, &(&1.name == name))
 
   test "fields and associations carry their declaration line and trimmed declaration" do
-    intent = Schemas.from_module(MediaCentaur.Discovery.TitleIntent)
+    intent = Schemas.from_module(MediaCentaur.Watchlist.TitleIntent)
     rung = field(intent, :rung)
-    lines = "lib/media_centaur/discovery/title_intent.ex" |> File.read!() |> String.split("\n")
+    lines = "lib/media_centaur/watchlist/title_intent.ex" |> File.read!() |> String.split("\n")
 
     assert rung.declaration =~ "field :rung"
     assert rung.declaration == String.trim(rung.declaration)
@@ -110,13 +110,13 @@ defmodule MediaCentaur.ContextMap.SchemasTest do
   end
 
   test "a schema source outside the project root raises naming the module" do
-    assert_raise ArgumentError, ~r/MediaCentaur.Discovery.TitleIntent.*outside/, fn ->
-      Schemas.source_file(MediaCentaur.Discovery.TitleIntent, "/nonexistent-root")
+    assert_raise ArgumentError, ~r/MediaCentaur.Watchlist.TitleIntent.*outside/, fn ->
+      Schemas.source_file(MediaCentaur.Watchlist.TitleIntent, "/nonexistent-root")
     end
   end
 
   test "a schema source inside the project root is relative to it" do
-    assert Schemas.source_file(MediaCentaur.Discovery.TitleIntent, File.cwd!()) ==
-             "lib/media_centaur/discovery/title_intent.ex"
+    assert Schemas.source_file(MediaCentaur.Watchlist.TitleIntent, File.cwd!()) ==
+             "lib/media_centaur/watchlist/title_intent.ex"
   end
 end

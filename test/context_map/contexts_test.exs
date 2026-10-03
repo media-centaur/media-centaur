@@ -4,12 +4,12 @@ defmodule MediaCentaur.ContextMap.ContextsTest do
   alias MediaCentaur.ContextMap.Context
   alias MediaCentaur.ContextMap.Contexts
 
-  test "lists Discovery with its deps and prefixed exports" do
-    discovery = Enum.find(Contexts.all(), &(&1.name == MediaCentaur.Discovery))
+  test "lists Watchlist with its deps and prefixed exports" do
+    watchlist = Enum.find(Contexts.all(), &(&1.name == MediaCentaur.Watchlist))
 
-    assert %Context{kernel?: false} = discovery
-    assert MediaCentaur.Library in discovery.deps
-    assert MediaCentaur.Discovery.TitleIntent in discovery.exports
+    assert %Context{kernel?: false} = watchlist
+    assert MediaCentaur.Library in watchlist.deps
+    assert MediaCentaur.Watchlist.TitleIntent in watchlist.exports
   end
 
   test "Library and TMDB are the shared kernel" do
@@ -26,7 +26,7 @@ defmodule MediaCentaur.ContextMap.ContextsTest do
   end
 
   test "context_of folds nested modules into their context and the web layer into :web" do
-    assert Contexts.context_of(MediaCentaur.Discovery.TitleIntent) == MediaCentaur.Discovery
+    assert Contexts.context_of(MediaCentaur.Watchlist.TitleIntent) == MediaCentaur.Watchlist
     assert Contexts.context_of(MediaCentaur.Settings.Config) == MediaCentaur.Settings
     assert Contexts.context_of(MediaCentaurWeb.Components.Title.Logic) == :web
     assert Contexts.context_of(Mix.Tasks.ContextMap) == nil

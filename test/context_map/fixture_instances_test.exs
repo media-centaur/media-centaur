@@ -25,7 +25,7 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
                &match?(
                  %Finding{
                    rule: "R3",
-                   schema: MediaCentaur.Discovery.TitleIntent,
+                   schema: MediaCentaur.Watchlist.TitleIntent,
                    field: :rung,
                    value: :ignored,
                    consumer: unquote(consumer)
@@ -49,13 +49,13 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
     assert MediaCentaurWeb.IncomingLive in logic.surfaces
   end
 
-  test "R1: TitleIntent.activity_id is never read by Discovery", %{findings: findings} do
+  test "R1: TitleIntent.activity_id is never read by Watchlist", %{findings: findings} do
     assert Enum.any?(
              findings,
              &match?(
                %Finding{
                  rule: "R1",
-                 schema: MediaCentaur.Discovery.TitleIntent,
+                 schema: MediaCentaur.Watchlist.TitleIntent,
                  field: :activity_id,
                  detail: %{kind: :owner_never_reads}
                },
@@ -64,13 +64,13 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
            )
   end
 
-  test "R1: TitleIntent.source is never read by Discovery", %{findings: findings} do
+  test "R1: TitleIntent.source is never read by Watchlist", %{findings: findings} do
     assert Enum.any?(
              findings,
              &match?(
                %Finding{
                  rule: "R1",
-                 schema: MediaCentaur.Discovery.TitleIntent,
+                 schema: MediaCentaur.Watchlist.TitleIntent,
                  field: :source,
                  detail: %{kind: :owner_never_reads}
                },
@@ -79,14 +79,14 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
            )
   end
 
-  test "R4: TitleIntent.activity_id keys into Activities, which Discovery does not depend on",
+  test "R4: TitleIntent.activity_id keys into Activities, which Watchlist does not depend on",
        %{findings: findings} do
     assert Enum.any?(
              findings,
              &match?(
                %Finding{
                  rule: "R4",
-                 schema: MediaCentaur.Discovery.TitleIntent,
+                 schema: MediaCentaur.Watchlist.TitleIntent,
                  field: :activity_id,
                  detail: %{target: MediaCentaur.Activities.Activity, in_deps: false}
                },

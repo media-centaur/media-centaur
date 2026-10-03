@@ -6,8 +6,8 @@ defmodule MediaCentaur.ContextMap.ReportTest do
 
   @finding %Finding{
     rule: "R3",
-    owner: MediaCentaur.Discovery,
-    schema: MediaCentaur.Discovery.TitleIntent,
+    owner: MediaCentaur.Watchlist,
+    schema: MediaCentaur.Watchlist.TitleIntent,
     field: :rung,
     value: :ignored,
     consumer: MediaCentaurWeb.Components.Title.Logic,
@@ -28,10 +28,10 @@ defmodule MediaCentaur.ContextMap.ReportTest do
 
     assert encoded == %{
              key:
-               "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic",
+               "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic",
              rule: "R3",
-             owner: "MediaCentaur.Discovery",
-             schema: "MediaCentaur.Discovery.TitleIntent",
+             owner: "MediaCentaur.Watchlist",
+             schema: "MediaCentaur.Watchlist.TitleIntent",
              field: "rung",
              value: "ignored",
              consumer: "MediaCentaurWeb.Components.Title.Logic",
@@ -41,17 +41,17 @@ defmodule MediaCentaur.ContextMap.ReportTest do
              file: "lib/media_centaur_web/components/title/logic.ex",
              line: 189,
              excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|,
-             concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
+             concept_key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
              detail: nil,
              verdict: "leak",
              reason: "search marker",
              verdict_key:
-               "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
+               "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
            }
   end
 
   describe "concept verdicts" do
-    @concept_key "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*"
+    @concept_key "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*"
     @concept_verdict %{"verdict" => "leak", "reason" => "every consumer"}
     @exact_verdict %{"verdict" => "allowed", "reason" => "this one"}
 
@@ -80,7 +80,7 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     test "check counts a finding covered by a concept key; a concept key matching nothing is stale" do
       assert :ok = Report.check([@finding], %{@concept_key => @concept_verdict})
 
-      stale_concept = "R3|MediaCentaur.Discovery.TitleIntent|rung|list|*"
+      stale_concept = "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|*"
 
       assert {:error, %{unverdicted: [], stale: [^stale_concept]}} =
                Report.check([@finding], %{
@@ -124,7 +124,7 @@ defmodule MediaCentaur.ContextMap.ReportTest do
     assert {:error,
             %{
               unverdicted: [
-                "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
+                "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
               ],
               stale: ["R9|gone"]
             }} = Report.check([@finding], %{"R9|gone" => %{"verdict" => "allowed", "reason" => "x"}})

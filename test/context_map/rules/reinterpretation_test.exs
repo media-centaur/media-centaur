@@ -7,9 +7,9 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
   alias MediaCentaur.ContextMap.Sources
 
   @intent %Schema{
-    module: MediaCentaur.Discovery.TitleIntent,
-    file: "lib/media_centaur/discovery/title_intent.ex",
-    context: MediaCentaur.Discovery,
+    module: MediaCentaur.Watchlist.TitleIntent,
+    file: "lib/media_centaur/watchlist/title_intent.ex",
+    context: MediaCentaur.Watchlist,
     table: "title_intents",
     fields: [
       %{
@@ -52,8 +52,8 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
     assert [
              %Finding{
                rule: "R3",
-               owner: MediaCentaur.Discovery,
-               schema: MediaCentaur.Discovery.TitleIntent,
+               owner: MediaCentaur.Watchlist,
+               schema: MediaCentaur.Watchlist.TitleIntent,
                field: :rung,
                value: :ignored,
                consumer: MediaCentaurWeb.Components.Title.Logic,
@@ -67,7 +67,7 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
 
   test "anchored by a reference to the owning schema module anywhere in the file" do
     code =
-      "defmodule MediaCentaurWeb.Components.Title.TrackingControls do\n  @spec control_form(MediaCentaur.Discovery.TitleIntent.rung()) :: atom\n  def control_form(:ignored), do: :ignored\nend\n"
+      "defmodule MediaCentaurWeb.Components.Title.TrackingControls do\n  @spec control_form(MediaCentaur.Watchlist.TitleIntent.rung()) :: atom\n  def control_form(:ignored), do: :ignored\nend\n"
 
     assert [%Finding{anchored?: true, line: 3}] =
              run("lib/media_centaur_web/components/title/tracking_controls.ex", code)
@@ -82,8 +82,8 @@ defmodule MediaCentaur.ContextMap.Rules.ReinterpretationTest do
   end
 
   test "the owner interpreting its own value is not a finding" do
-    code = "defmodule MediaCentaur.Discovery do\n  def f(%{rung: :ignored}), do: :ok\nend\n"
-    assert [] = run("lib/media_centaur/discovery.ex", code)
+    code = "defmodule MediaCentaur.Watchlist do\n  def f(%{rung: :ignored}), do: :ok\nend\n"
+    assert [] = run("lib/media_centaur/watchlist.ex", code)
   end
 
   test "a kernel-owned value is not a finding" do

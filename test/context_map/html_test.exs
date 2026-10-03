@@ -6,28 +6,28 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
   @document %{
     contexts: [
       %{
-        name: "MediaCentaur.Discovery",
+        name: "MediaCentaur.Watchlist",
         kernel: false,
         deps: ["MediaCentaur.Library"],
-        exports: ["MediaCentaur.Discovery.TitleIntent"],
+        exports: ["MediaCentaur.Watchlist.TitleIntent"],
         schemas: [
           %{
-            module: "MediaCentaur.Discovery.TitleIntent",
+            module: "MediaCentaur.Watchlist.TitleIntent",
             table: "title_intents",
             fields: [
               %{
                 name: "rung",
                 type: "Ecto.Enum",
                 values: ["ignored", "list"],
-                reads: %{"MediaCentaur.Discovery" => 2, "web" => 3},
-                writes: %{"MediaCentaur.Discovery" => 1}
+                reads: %{"MediaCentaur.Watchlist" => 2, "web" => 3},
+                writes: %{"MediaCentaur.Watchlist" => 1}
               }
             ],
             associations: [
               %{
                 name: "sample_parent",
                 kind: "belongs_to",
-                target: "MediaCentaur.Discovery.SampleParent",
+                target: "MediaCentaur.Watchlist.SampleParent",
                 foreign_key: "sample_parent_id"
               }
             ]
@@ -52,24 +52,24 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     ],
     kernel_reads: [
       %{
-        owner: "MediaCentaur.Discovery",
-        schema: "MediaCentaur.Discovery.TitleIntent",
+        owner: "MediaCentaur.Watchlist",
+        schema: "MediaCentaur.Watchlist.TitleIntent",
         field: "tmdb_id",
         target: "external"
       },
       %{
-        owner: "MediaCentaur.Discovery",
-        schema: "MediaCentaur.Discovery.TitleIntent",
+        owner: "MediaCentaur.Watchlist",
+        schema: "MediaCentaur.Watchlist.TitleIntent",
         field: "movie_id",
         target: "MediaCentaur.Library.Movie"
       }
     ],
     findings: [
       %{
-        key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic",
+        key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic",
         rule: "R3",
-        owner: "MediaCentaur.Discovery",
-        schema: "MediaCentaur.Discovery.TitleIntent",
+        owner: "MediaCentaur.Watchlist",
+        schema: "MediaCentaur.Watchlist.TitleIntent",
         field: "rung",
         value: "ignored",
         consumer: "MediaCentaurWeb.Components.Title.Logic",
@@ -79,7 +79,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
         file: "lib/x.ex",
         line: 189,
         excerpt: ~s|defp rung_marker(:ignored), do: "Ignored"|,
-        concept_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|*",
+        concept_key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
         detail: nil,
         verdict: nil,
         reason: nil,
@@ -94,16 +94,16 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     assert html =~ "<title>Context map</title>"
 
     assert html =~
-             "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
+             "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Title.Logic"
 
-    assert html |> query(~s(.panel[data-context="MediaCentaur.Discovery"])) |> LazyHTML.text() =~
+    assert html |> query(~s(.panel[data-context="MediaCentaur.Watchlist"])) |> LazyHTML.text() =~
              "title_intents"
 
     assert html |> query(".consumer") |> LazyHTML.text() =~ "MediaCentaurWeb.IncomingLive"
 
     assert html
            |> LazyHTML.from_document()
-           |> LazyHTML.query(~s([data-cell="MediaCentaur.Discovery→web"]))
+           |> LazyHTML.query(~s([data-cell="MediaCentaur.Watchlist→web"]))
            |> Enum.count() == 1
 
     refute html =~ "<script src="
@@ -115,7 +115,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     for text <- [
           "sample_parent",
           "belongs_to",
-          "MediaCentaur.Discovery.SampleParent",
+          "MediaCentaur.Watchlist.SampleParent",
           "sample_parent_id"
         ] do
       assert html =~ text
@@ -136,7 +136,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     [cell] =
       @document
       |> Html.render()
-      |> query(~s([data-cell="MediaCentaur.Discovery→MediaCentaur.Library"]))
+      |> query(~s([data-cell="MediaCentaur.Watchlist→MediaCentaur.Library"]))
       |> Enum.to_list()
 
     assert LazyHTML.attribute(cell, "class") == ["kernel"]
@@ -157,15 +157,15 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     html = Html.render(@document)
 
     assert html
-           |> query(~s(.finding[data-owner="MediaCentaur.Discovery"][data-consumer="web"]))
+           |> query(~s(.finding[data-owner="MediaCentaur.Watchlist"][data-consumer="web"]))
            |> Enum.count() == 1
 
     assert html
-           |> query(~s(td[data-owner="MediaCentaur.Discovery"][data-consumer="web"]))
+           |> query(~s(td[data-owner="MediaCentaur.Watchlist"][data-consumer="web"]))
            |> Enum.count() == 1
 
     assert html
-           |> query(~s(select[data-filter="owner"] option[value="MediaCentaur.Discovery"]))
+           |> query(~s(select[data-filter="owner"] option[value="MediaCentaur.Watchlist"]))
            |> Enum.count() == 1
 
     assert html |> query(~s(select[data-filter="consumer"] option[value="web"])) |> Enum.count() == 1
@@ -180,7 +180,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
 
     second =
       Map.merge(first, %{
-        key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
+        key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
         consumer: "MediaCentaurWeb.Sample",
         file: "lib/sample.ex",
         line: 7,
@@ -222,11 +222,11 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
 
     overriding =
       Map.merge(first, %{
-        key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
+        key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Sample",
         consumer: "MediaCentaurWeb.Sample",
         verdict: "allowed",
         reason: "display only",
-        verdict_key: "R3|MediaCentaur.Discovery.TitleIntent|rung|ignored|MediaCentaurWeb.Sample"
+        verdict_key: "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Sample"
       })
 
     html = Html.render(%{@document | findings: [covered, overriding]})

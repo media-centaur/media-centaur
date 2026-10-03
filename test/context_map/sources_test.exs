@@ -7,7 +7,7 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
   @code """
   defmodule MediaCentaurWeb.SampleLive do
     use MediaCentaurWeb, :live_view
-    alias MediaCentaur.Discovery.TitleIntent
+    alias MediaCentaur.Watchlist.TitleIntent
     alias MediaCentaurWeb.Components.Title.{Logic, Row}
     alias MediaCentaur.Library.Movie, as: Film
 
@@ -26,7 +26,7 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
              live_view?: true
            } = source
 
-    assert MediaCentaur.Discovery.TitleIntent in source.references
+    assert MediaCentaur.Watchlist.TitleIntent in source.references
     assert MediaCentaurWeb.Components.Title.Logic in source.references
     assert MediaCentaurWeb.Components.Title.Row in source.references
     assert MediaCentaur.Library.Movie in source.references
@@ -36,11 +36,11 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
   test "a context module is not a live view and has its context" do
     source =
       Sources.parse(
-        "lib/media_centaur/discovery.ex",
-        "defmodule MediaCentaur.Discovery do\n  def x, do: 1\nend\n"
+        "lib/media_centaur/watchlist.ex",
+        "defmodule MediaCentaur.Watchlist do\n  def x, do: 1\nend\n"
       )
 
-    assert %Source{context: MediaCentaur.Discovery, live_view?: false} = source
+    assert %Source{context: MediaCentaur.Watchlist, live_view?: false} = source
   end
 
   test "alias __MODULE__.Child resolves against the file's first module" do
@@ -57,7 +57,7 @@ defmodule MediaCentaur.ContextMap.SourcesTest do
 
   test "all/0 reads every .ex under lib/media_centaur and lib/media_centaur_web, nothing under lib/mix" do
     paths = Enum.map(Sources.all(), & &1.path)
-    assert "lib/media_centaur/discovery.ex" in paths
+    assert "lib/media_centaur/watchlist.ex" in paths
     assert "lib/media_centaur_web/components/title/logic.ex" in paths
     refute Enum.any?(paths, &String.starts_with?(&1, "lib/mix/"))
     assert paths == Enum.sort(paths)
