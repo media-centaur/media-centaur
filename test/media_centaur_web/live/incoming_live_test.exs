@@ -3866,6 +3866,93 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
                ["watchlist-item-tv_series-#{item.tmdb_id}", "watchlist-item-movie-777"]
     end
 
+    test "an In pursuit pill is a button that switches to the Activity tab; a landed episode shows beside the next",
+         %{conn: conn} do
+      {item, _release} =
+        tracked_with_release(%{tmdb_id: 1001, name: "Pursued Show"}, %{
+          season_number: 1,
+          episode_number: 2,
+          air_date: Date.add(Date.utc_today(), -1),
+          released: true
+        })
+
+      # Landing is the library's write (`in_library_at` is not a changeset
+      # field), so the test forces it the way the app would have set it.
+      %{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(Date.utc_today(), -8),
+        released: true,
+        in_library: true
+      }
+      |> create_tracking_release()
+      |> force_attrs(in_library_at: DateTime.add(DateTime.utc_now(:second), -3600, :second))
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 3,
+        air_date: Date.add(Date.utc_today(), 6),
+        released: false
+      })
+
+      create_title_intent(%{tmdb_id: 1001, media_type: :tv_series, name: "Pursued Show", rung: :grab})
+
+      create_pursuit_with_target(%{
+        tmdb_id: "1001",
+        tmdb_type: "tv",
+        title: "Pursued Show",
+        season_number: 1,
+        episode_number: 2,
+        origin: "auto",
+        state: "active",
+        status: "seeking"
+      })
+
+      # A pursuit in flight makes Incoming open on Activity by default
+      # (UIDR-050); the Watchlist tab is asked for by name.
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=watchlist")
+
+      row = "#watchlist-item-tv_series-1001"
+      assert has_element?(view, "#{row} [data-component='status-pill']", "In pursuit")
+      # The pill is the row's one inner control; clicking it switches the
+      # tab instead of opening the title.
+      view |> element("#{row} [data-component='status-pill-link']") |> render_click()
+      assert_patch(view, "/incoming?zone=activity")
+      refute has_element?(view, "#detail-modal[data-state='open']")
+    end
+
+    test "a landed episode shows on its own line above the next release", %{conn: conn} do
+      {item, _release} =
+        tracked_with_release(%{tmdb_id: 1002, name: "Weekly Show"}, %{
+          season_number: 2,
+          episode_number: 4,
+          air_date: Date.add(Date.utc_today(), 5),
+          released: false
+        })
+
+      %{
+        item_id: item.id,
+        season_number: 2,
+        episode_number: 3,
+        air_date: Date.add(Date.utc_today(), -3),
+        released: true,
+        in_library: true
+      }
+      |> create_tracking_release()
+      |> force_attrs(in_library_at: DateTime.add(DateTime.utc_now(:second), -3600, :second))
+
+      create_title_intent(%{tmdb_id: 1002, media_type: :tv_series, name: "Weekly Show", rung: :follow})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      row = "#watchlist-item-tv_series-1002"
+      assert has_element?(view, "#{row} [data-component='landed-line']", "S02E03")
+      assert has_element?(view, "#{row} [data-component='landed-line']", "3 days ago")
+      assert has_element?(view, "#{row}", "S02E04")
+    end
+
     test "a row never says On your list about itself", %{conn: conn} do
       {:ok, _} = list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
       {:ok, view, html} = live_async!(conn, ~p"/incoming")

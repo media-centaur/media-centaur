@@ -103,12 +103,38 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         }
       },
       %Variation{
+        id: :landed_and_next,
+        description:
+          "A weekly show between episodes: the one that just landed on a quiet line above " <>
+            "the next one still to come.",
+        attributes: %{
+          id: "row-landed-and-next",
+          title: title(%{media_type: :tv_series, name: "Sample Show"}),
+          markers: ["Auto-grab"],
+          landed: %MediaCentaurWeb.Components.Title.Row.NextRelease{
+            air_date: ~D[2026-10-02],
+            date_label: "3 days ago",
+            subtitle: "S02E03",
+            status: :landed
+          },
+          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
+            air_date: ~D[2026-10-09],
+            date_label: "Fri Oct 9",
+            subtitle: "S02E04",
+            status: :armed
+          }
+        }
+      },
+      %Variation{
         id: :in_pursuit,
-        description: "Its release dropped and a pursuit is grabbing it: the pill carries the percent.",
+        description:
+          "Its release dropped and a pursuit is grabbing it: the pill carries the percent and, " <>
+            "given a `pursuit_path`, is a button that switches to the Activity tab.",
         attributes: %{
           id: "row-in-pursuit",
           title: title(%{media_type: :tv_series, name: "Sample Show"}),
           markers: ["Auto-grab"],
+          pursuit_path: "/incoming?zone=activity",
           next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
             air_date: ~D[2026-10-01],
             date_label: "Yesterday",

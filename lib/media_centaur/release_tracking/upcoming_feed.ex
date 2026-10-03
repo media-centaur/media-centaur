@@ -162,6 +162,25 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   @doc """
+  The release that just landed, per tracked title: the latest `:in_library`
+  event the feed still keeps (`@recent_days`), one per title, in date order.
+  The watchlist row shows it on a quiet line above the next release, so a
+  weekly series reads "S02E03 landed 3 days ago" and "Fri Oct 9 · S02E04 ·
+  Will grab" at once. A title whose only event is a landed one is
+  `next_per_title/1`'s business; the row shows the landed line only beside a
+  release still to come.
+  """
+  @spec landed_per_title(t()) :: [Event.t()]
+  def landed_per_title(%UpcomingFeed{} = feed) do
+    feed
+    |> scheduled_events()
+    |> Enum.filter(&(&1.status == :in_library))
+    |> Enum.sort_by(& &1.air_date, {:desc, Date})
+    |> Enum.uniq_by(& &1.item_id)
+    |> Enum.sort_by(& &1.air_date, Date)
+  end
+
+  @doc """
   The next release's date label, graduating in explicitness with distance: an
   arrived theatrical date → "Now"; today → "Tonight" (episodes) / "Today"
   (movies); under a week → "Tue"; under a month → "Wed Jun 24"; beyond →

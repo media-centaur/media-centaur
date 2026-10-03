@@ -5,7 +5,7 @@ amended: 2026-10-02
 ---
 # Merge Upcoming and Downloads into one "Incoming" page
 
-> **Amendment 2026-10-02 — superseded in part by UIDR-050.** The Coming up tab (rule 3, and the 2026-08-02 amendment's tab list) is the Watchlist tab: every listed title once, the schedule on the followed rows. Rule 6's anchor is retired: the watchlist row and the pursuit row are on different tabs, so the in-pursuit pill carries the percent and links nowhere. Rules 1, 2, 4, 5 and 7 stand; rule 7's forecast-only page is now the search box and the Watchlist.
+> **Amendment 2026-10-02 — superseded in part by UIDR-050.** The Coming up tab (rule 3, and the 2026-08-02 amendment's tab list) is the Watchlist tab: every listed title once, the schedule on the followed rows. Rule 6's anchor is retired: the watchlist row and the pursuit row are on different tabs, so the in-pursuit pill carries the percent and, since 2026-10-03, is a button that switches to the Activity tab (UIDR-050's amendment). Rules 1, 2, 4, 5 and 7 stand; rule 7's forecast-only page is now the search box and the Watchlist.
 
 ## Context and Problem Statement
 

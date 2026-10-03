@@ -697,6 +697,57 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
+  describe "landed_per_title/1 — the release that just landed, per title" do
+    test "the latest landed release per title, only while the feed still keeps it" do
+      show = tv_item(%{tmdb_id: 1})
+      other = tv_item(%{tmdb_id: 2})
+
+      releases = [
+        release(show, %{
+          title: "landed-e2",
+          air_date: days(-9),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 2
+        }),
+        release(show, %{
+          title: "landed-e3",
+          air_date: days(-2),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 3
+        }),
+        release(show, %{title: "next-e4", air_date: days(5), season_number: 1, episode_number: 4}),
+        release(other, %{title: "other-next", air_date: days(3), season_number: 1, episode_number: 1})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert [%UpcomingFeed.Event{title: "landed-e3", status: :in_library}] =
+               UpcomingFeed.landed_per_title(feed)
+    end
+
+    test "a release that landed outside the recent window is history, not a landed beat" do
+      show = tv_item()
+
+      releases = [
+        release(show, %{
+          title: "long-ago",
+          air_date: days(-30),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 1
+        }),
+        release(show, %{title: "next", air_date: days(5), season_number: 1, episode_number: 2})
+      ]
+
+      assert UpcomingFeed.landed_per_title(UpcomingFeed.build(releases, armed_context())) == []
+    end
+  end
+
   describe "date_label/2 — graduated explicitness" do
     # 2026-06-14 is a Sunday; days(2) = Tue Jun 16, days(10) = Wed Jun 24,
     # days(40) = Fri Jul 24.
