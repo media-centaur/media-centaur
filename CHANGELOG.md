@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.49.1 — 2026-10-03
+
+### Improved
+
+- **A weekly show's watchlist row shows the episode that just landed as well as the next one.** Above the next release, a quiet line reads **S02E03 · 3 days ago · Landed** for a week after an episode arrives, so you see both what came in and what is coming. A show whose only recent event is a landed episode still shows it as before.
+- **Press In pursuit to see the download.** On the Watchlist tab, the **In pursuit** pill is now a button that switches to the Activity tab, where the download's row is.
+
 ## v1.49.0 — 2026-10-03
 
 ### New
