@@ -36,7 +36,8 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
           notes: [map()],
           social_activity: list(),
           poster_url: String.t() | nil,
-          next_release: NextRelease.t() | nil
+          next_release: NextRelease.t() | nil,
+          landed: NextRelease.t() | nil
         }
 
   @doc """
@@ -50,12 +51,15 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
     next_by_ref =
       Map.new(UpcomingFeed.next_per_title(inputs.feed), &{{&1.tmdb_id, &1.media_type}, &1})
 
+    landed_by_ref =
+      Map.new(UpcomingFeed.landed_per_title(inputs.feed), &{{&1.tmdb_id, &1.media_type}, &1})
+
     inputs.watchlist
-    |> Enum.map(&row(&1, next_by_ref, inputs))
+    |> Enum.map(&row(&1, next_by_ref, landed_by_ref, inputs))
     |> Enum.sort_by(&sort_key/1)
   end
 
-  defp row(%{intent: intent, library_owner_id: owner_id}, next_by_ref, inputs) do
+  defp row(%{intent: intent, library_owner_id: owner_id}, next_by_ref, landed_by_ref, inputs) do
     ref = {intent.tmdb_id, intent.media_type}
     in_library? = not is_nil(owner_id)
     acquisition_state = Map.get(inputs.acquisition_states, ref)
@@ -74,9 +78,17 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
       notes: Logic.note_list(intent.note),
       social_activity: Map.get(inputs.social_activity, ref, []),
       poster_url: Map.get(inputs.posters, ref),
-      next_release: next_release(Map.get(next_by_ref, ref), inputs.today)
+      next_release: next_release(Map.get(next_by_ref, ref), inputs.today),
+      landed: landed(Map.get(next_by_ref, ref), Map.get(landed_by_ref, ref), inputs.today)
     }
   end
+
+  # The landed line rides beside a release still to come; a title whose
+  # only event landed already shows it as its next release.
+  defp landed(%Event{status: status}, %Event{} = landed, today) when status != :in_library,
+    do: next_release(landed, today)
+
+  defp landed(_next, _landed, _today), do: nil
 
   # Stable sort: within the undated and the listed-only groups the
   # watchlist read's order (newest first) stands. Every key is a pair —

@@ -6,6 +6,8 @@ amended: 2026-10-03
 # The watchlist is Incoming's first tab, and the schedule is on its rows
 
 > **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`.
+>
+> **Amendment 2026-10-03 (owner).** Rules 2–3, two changes. A followed title's row shows the release that just landed as well as the next one still to come: a quiet line above the next release — the episode, how long ago, the Landed pill — while the feed still keeps it (seven days, `UpcomingFeed.landed_per_title/1`); the next-release rule itself stands. And the In pursuit pill is a button that switches to the Activity tab, where the pursuit's row is (no scroll); the shelf-era anchor stays retired.
 
 Amends UIDR-015 (the Coming up tab), UIDR-035 rule 5 (three lists) and UIDR-042 rule 2 (the Follow switch's label). Campaign: `campaigns/social-and-watchlist.md`, Phase 1; plan: `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
 

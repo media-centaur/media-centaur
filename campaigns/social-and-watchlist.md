@@ -92,9 +92,10 @@ before writing code. What a new session needs to know:
 4. **Owner items open** (Next steps 5–6): the desktop/TV check and the
    screenshot re-shoot; plus a copy pass on the provisional labels
    (Next steps 4 and 7).
-5. The two decisions taken from the final review on 2026-10-02 (next
-   release still to come; no pill anchor across tabs — below) were taken
-   without the owner present; confirm before building on them.
+5. The two decisions taken from the final review on 2026-10-02 were
+   revised by the owner on 2026-10-03 (Decisions, below): the landed
+   line and the pill that switches to the Activity tab. Nothing is
+   open there.
 
 ## Decisions made
 
@@ -125,14 +126,16 @@ before writing code. What a new session needs to know:
 * `2026-10-02` — A row's next release is the next one still to come
   (`UpcomingFeed.next_per_title/1`): a Landed release leads only when
   nothing later is scheduled; a release still being searched for counts
-  as still to come. The shelf's old rule (earliest event, Landed kept
-  seven days) would have shown "Landed · 3 days ago" on every weekly
-  series. (agent, from the final review — confirm; commit `39f9c9f7`)
+  as still to come. (agent, from the final review; commit `39f9c9f7`.)
+  **Revised by the owner 2026-10-03:** show both — the release that just
+  landed on a quiet line above the next one (`landed_per_title/1`, the
+  feed's seven-day window), the next-release rule unchanged.
 * `2026-10-02` — The in-pursuit pill on a watchlist row does not anchor
   to `#pursuit-<id>`: the pursuit row renders on the Activity tab only,
-  so the link went nowhere. `StatusPill`'s `anchor` attr went with it
-  (no other caller); UIDR-015 §6's anchor is retired. (agent, from the
-  final review — confirm; commit `39f9c9f7`)
+  so the link went nowhere. (agent, from the final review; commit
+  `39f9c9f7`.) **Revised by the owner 2026-10-03:** the pill is a button
+  that switches to the Activity tab, no scroll (`Title.Row`
+  `pursuit_path`, `JS.patch`).
 * `2026-10-02` — Incoming's `title_rows` nav zone is a MENU, not a TREE:
   a `Title.Row` is one nav item with no sub-items. (agent; `9707fb89`)
 * `2026-10-03` — Sidebar icon for Social: `hero-users`. (agent, flagged)

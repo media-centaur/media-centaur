@@ -30,13 +30,15 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.SocialWords
   alias MediaCentaurWeb.TitleRef
+  alias Phoenix.LiveView.JS
 
   defmodule NextRelease do
     @moduledoc """
     A followed title's next release, as the row draws it: the date label
     (`UpcomingFeed.date_label/2`), the release (an episode, a
     season drop, a film's date type), the `StatusPill` status, and the
-    percent and pursuit id an in-pursuit release carries.
+    percent and pursuit id an in-pursuit release carries. The same shape
+    carries the release that just landed (`landed`, status `:landed`).
     """
     @enforce_keys [:air_date, :date_label, :status]
     defstruct [:air_date, :date_label, :subtitle, :status, :percent, :pursuit_id]
@@ -67,6 +69,16 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   attr :social_activity, :list,
     default: [],
     doc: "the title's `Activities.activity_for/1` rows — the social glyphs at the row's right"
+
+  attr :landed, NextRelease,
+    default: nil,
+    doc:
+      "the release that just landed, drawn on a quiet line above the next one (`UpcomingFeed.landed_per_title/1`); nil when none or when the next release is itself the landed one"
+
+  attr :pursuit_path, :string,
+    default: nil,
+    doc:
+      "where an In pursuit pill takes the reader — Incoming's Activity tab, where the pursuit's row is; nil leaves the pill plain"
 
   attr :next_release, NextRelease,
     default: nil,
@@ -110,11 +122,40 @@ defmodule MediaCentaurWeb.Components.Title.Row do
       </.title_summary>
       <div class="ml-auto flex shrink-0 items-center gap-4 self-center">
         <div :if={@next_release} class="flex flex-col items-end gap-1 text-right">
+          <span
+            :if={@landed}
+            class="flex items-center gap-1.5 text-xs text-base-content/55"
+            data-component="landed-line"
+          >
+            <span :if={@landed.subtitle}>{@landed.subtitle}</span>
+            <span :if={@landed.subtitle}>·</span>
+            <span>{@landed.date_label}</span>
+            <.status_pill status={:landed} />
+          </span>
           <span class="text-xs font-medium text-base-content/55">{@next_release.date_label}</span>
           <span :if={@next_release.subtitle} class="text-xs text-base-content/55">
             {@next_release.subtitle}
           </span>
-          <.status_pill status={@next_release.status} percent={@next_release.percent} />
+          <%!-- The pill is a plain label except In pursuit on a page that
+                can show the pursuit: then it is a button that patches to
+                the Activity tab. `phx-click` on the button keeps the
+                row's own click (open_title) from firing — LiveView
+                dispatches to the closest binding only. --%>
+          <button
+            :if={pursuit_button?(@next_release, @pursuit_path)}
+            type="button"
+            class="cursor-pointer rounded-full"
+            data-component="status-pill-link"
+            title="Open the Activity tab"
+            phx-click={JS.patch(@pursuit_path)}
+          >
+            <.status_pill status={@next_release.status} percent={@next_release.percent} />
+          </button>
+          <.status_pill
+            :if={not pursuit_button?(@next_release, @pursuit_path)}
+            status={@next_release.status}
+            percent={@next_release.percent}
+          />
         </div>
         <SocialGlyph.social_glyphs
           :if={@flags != []}
@@ -127,4 +168,9 @@ defmodule MediaCentaurWeb.Components.Title.Row do
     </div>
     """
   end
+
+  @doc "Whether the In pursuit pill is a button to `pursuit_path`: only that status, and only on a page that gave one."
+  @spec pursuit_button?(NextRelease.t(), String.t() | nil) :: boolean()
+  def pursuit_button?(%NextRelease{status: :in_pursuit}, path) when is_binary(path), do: true
+  def pursuit_button?(%NextRelease{}, _path), do: false
 end

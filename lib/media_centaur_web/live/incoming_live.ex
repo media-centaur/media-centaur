@@ -985,6 +985,8 @@ defmodule MediaCentaurWeb.IncomingLive do
                 notes={row.notes}
                 social_activity={row.social_activity}
                 next_release={row.next_release}
+                landed={row.landed}
+                pursuit_path={Logic.zone_path(:activity)}
               />
             </div>
           </section>
