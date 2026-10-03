@@ -25,39 +25,74 @@ adds three.
   (`MediaCentaur.Watchlist`, formerly `Discovery`; ADR-075 rule 3: a
   context carries its surface's name) and of Incoming's first tab, the
   one place the list is shown whole.
-* **Next release** — for a followed title, the earliest release event
-  `ReleaseTracking.UpcomingFeed` forecasts for it: which release (an
-  episode, a film's digital or physical date) and when. A listed-only
-  title has none.
+* **Next release** — for a followed title, its next release still to
+  come, as `ReleaseTracking.UpcomingFeed.next_per_title/1` picks it:
+  which release (an episode, a season drop, a film's date type) and
+  when. A release the app is still searching for counts as still to
+  come; a release already in the library leads the row, as Landed, only
+  while nothing else is scheduled. A listed-only title has none.
 * **Release status** — the `UpcomingFeed` status of a next release
-  (`:armed`, `:upcoming`, `:under_pursuit`, `:unscheduled`, …), drawn
-  with the `StatusPill` vocabulary Coming up used. Not to be confused
-  with a row's *acquisition state* (Planning / Downloading / Needs
-  review), which every watchlist row carries from `Acquisition.TitleStates`.
+  (`:armed`, `:upcoming`, `:under_pursuit`, `:in_library`, …), drawn
+  with the `StatusPill` vocabulary (Will grab, Tracked, In pursuit,
+  Searching, In theaters, Landed). Not to be confused with a row's
+  *acquisition state* (Planning / Downloading / Needs review), which
+  every watchlist row carries from `Acquisition.TitleStates`.
 * **Coming up** — retired as a tab and as a list. Home keeps its *Coming
-  up* shelf (`UpcomingFeed`, unchanged); the words stay for that shelf
-  only.
+  up* shelf (`coming_up_marquee` over `ReleaseTracking.Views.ComingUp`,
+  unchanged); the words stay for that shelf only.
 
 ## Goal
 
 Two sidebar groups where the pages are grouped by what they are for.
 **Social** is friends: the Feed and the Friends roster. **Incoming** is
 getting titles: the watchlist, search, downloads and their history.
-Today the watchlist is a tab of the Discovery page, so it is reachable
-only while the social preference is on, and the same records are listed
-twice — the Watchlist tab shows every listed title, Incoming's Coming up
-tab shows the followed ones by date. One list on Incoming replaces both.
+Before this campaign the watchlist was a tab of the Discovery page, so it
+was reachable only while the social preference was on, and the same
+records were listed twice — the Watchlist tab showed every listed title,
+Incoming's Coming up tab the followed ones by date. One list on Incoming
+replaces both, and the page that is left is named for what it holds.
 
 ## Status
 
-Phases 1–2 done on branch `social-and-watchlist`, awaiting merge; Phase 3
-next. Phase 1: commits a04bef5c, 5c254c47, 54052d63, 9707fb89, 05158152,
-39f9c9f7 and the final-review docs commit; plan
-`docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`. Phase 2:
-commits 464cdef4, 1314a8b5, b7b108ae and the UIDR-051 docs commit; plan
-`docs/superpowers/plans/2026-10-03-discovery-page-becomes-social.md`. The
-retired `watchlist-single-entry-point` campaign's owner check is carried
-here, open.
+**Phases 1–2 done on branch `social-and-watchlist` (HEAD `043827a3`,
+2026-10-03), precommit clean, nothing pushed, not merged. Phase 3 next.**
+
+* Phase 1 (the watchlist on Incoming, UIDR-050): commits `a04bef5c`,
+  `5c254c47`, `54052d63`, `9707fb89`, `05158152`, `39f9c9f7`, `366db3c4`;
+  plan `docs/superpowers/plans/2026-10-02-watchlist-on-incoming.md`.
+* Phase 2 (the Discovery page is the Social page, UIDR-051): commits
+  `464cdef4`, `1314a8b5`, `b7b108ae`, `d84b433f`, `043827a3`; plan
+  `docs/superpowers/plans/2026-10-03-discovery-page-becomes-social.md`.
+* Wiki (`../media-centaur.wiki`): three local commits, unpushed —
+  `f2b8bd1`, `fca9ad2`, `f15fe34`. Push them when the release ships, not
+  before (they describe the branch, not the released app).
+
+## Resuming in a new session
+
+Read this file, then reconcile against `git log main..social-and-watchlist`
+before writing code. What a new session needs to know:
+
+1. **The branch is forked from the `context-map` branch, not `main`.**
+   Its first commit `d6668d0e` sits on `7544b939` (context-map's tip);
+   `main` is at `e0bac217`. `git log main..HEAD` therefore shows ~35
+   context-map commits plus this campaign's fourteen. The campaign's
+   commits touch no context-map file except `b7b108ae`
+   (`test/context_map/fixture_instances_test.exs`, one module name).
+   Owner's choice, not yet made: `git rebase --onto main 7544b939
+   social-and-watchlist` (drop `b7b108ae`; rerun precommit), or merge
+   `context-map` first and keep it. An agent must not do the rebase (the
+   harness declined it as a history rewrite); ask.
+2. **The `media-centaur-dev` service runs this checkout**, so whatever
+   branch is checked out is what `http://127.0.0.1:2160` serves. Never
+   run `mix` directly; `~/scripts/agents/agent-mix` only (CLAUDE.md).
+3. **`show_social` reset to off** (no migration). On the dev install the
+   Social entry is absent from the sidebar until Settings → Preferences →
+   Social is switched on again. That is by decision, not a bug.
+4. **Owner items open** (Next steps 5–7): the desktop/TV check, the
+   screenshot re-shoot, the Settings wording question.
+5. The two decisions taken from the final review on 2026-10-02 (next
+   release still to come; no pill anchor across tabs — below) were taken
+   without the owner present; confirm before building on them.
 
 ## Decisions made
 
@@ -85,78 +120,124 @@ here, open.
   `d93e051b` for its origin). The title detail modal's "Hidden from the
   Feed…" line gains the way out — un-ignore, back to no record — since
   the Undo toast is today the only one. (owner, on recommendation)
+* `2026-10-02` — A row's next release is the next one still to come
+  (`UpcomingFeed.next_per_title/1`): a Landed release leads only when
+  nothing later is scheduled; a release still being searched for counts
+  as still to come. The shelf's old rule (earliest event, Landed kept
+  seven days) would have shown "Landed · 3 days ago" on every weekly
+  series. (agent, from the final review — confirm; commit `39f9c9f7`)
+* `2026-10-02` — The in-pursuit pill on a watchlist row does not anchor
+  to `#pursuit-<id>`: the pursuit row renders on the Activity tab only,
+  so the link went nowhere. `StatusPill`'s `anchor` attr went with it
+  (no other caller); UIDR-015 §6's anchor is retired. (agent, from the
+  final review — confirm; commit `39f9c9f7`)
+* `2026-10-02` — Incoming's `title_rows` nav zone is a MENU, not a TREE:
+  a `Title.Row` is one nav item with no sub-items. (agent; `9707fb89`)
+* `2026-10-03` — Sidebar icon for Social: `hero-users`. (agent, flagged)
+* `2026-10-03` — Phase 2 was a pure rename; Phase 3 (the context) was
+  kept separate because the context-map branch's tests name the
+  context's file paths (`lib/media_centaur/discovery.ex`,
+  `discovery/title_intent.ex`) and the two renames sequence differently
+  against that merge. (agent)
 
 ## Next steps
 
-Four phases, each a plan under `docs/superpowers/plans/` and one or more
-commits. Each phase is test-first and ends green on `mix precommit`.
+Each phase is a plan under `docs/superpowers/plans/`, test-first, green on
+`mix precommit`, executed subagent-driven with a spec review and a code
+quality review per task and a whole-branch review at the end (Phases 1–2
+ran that way; it worked).
 
-1. **Merge the watchlist into Incoming** — done 2026-10-02 (UIDR-050), awaiting merge. A `Watchlist` tab replaces
-   `Coming up` as the default (`?zone=watchlist`): `Title.Row` per
-   listed title with poster, markers, social glyphs and acquisition
-   state (as the Discovery tab draws it today), plus next release and
-   release status for followed titles; the sort above; the empty state
-   (UIDR-034) saying the omnibox is where titles come from; the
-   watchlist's `title_rows` nav zone moved with it. Remove
-   `Components.Incoming.Shelf` and `View.ShelfSection`; `Views.ComingUp*`
-   stays, Home reads it.
-   Remove the Watchlist tab and route from Discovery. A UIDR records the
-   merged list and amends UIDR-015 (Coming up tab) and UIDR-035 (the
-   watchlist as the arming surface — unchanged in substance, moved).
-   Wiki: `Watchlist.md`, `Release-Tracking.md`,
-   `Searching-and-Downloading.md`, `Social.md`; the guide pages
-   `watchlist-and-tracking.md` and `release-tracking-and-upcoming.md`.
-2. **Rename the Discovery page to Social** — done 2026-10-03 (UIDR-051;
-   commits 464cdef4, 1314a8b5, b7b108ae and the docs commit). Routes `/social`,
-   `/social/friends`; `SocialLive` and `live/social_live/`;
-   `components/social/`; stories; `show_social` /
-   `Preferences.SocialVisibility` (and the Settings row's copy — the
-   gate now hides the Social entry and the Review control only);
-   `discovery_behavior.js` and its `config.js` zones; `.discovery-rail`;
-   sidebar label and icon; the glossary's *Discovery* row;
-   `docs/social.md`, `docs/architecture.md`, `docs/storybook.md`,
-   `docs/input-system.md`; the UIDRs that name the page get a dated
-   amendment where the claim would mislead (010, 038, 043, 045, 046);
-   wiki pages and the guide.
-3. **Rename the `Discovery` context to `Watchlist`.**
-   `MediaCentaur.Watchlist`, `Watchlist.TitleIntent`, `.Titles`,
-   `.Events`, `.TmdbReferences`; the Boundary `deps` of every context
-   that names it (`ReleaseTracking`, `Acquisition`, `Activities`,
-   `Review`, `EpisodeMapping`, `Library`, `Social`, `Pipeline`); the
-   `discovery:updates` topic (`Topics.discovery_updates/0`) becomes
-   `watchlist:updates`; the `Log` component is not named for it;
-   `docs/context-map/`; ADR-066 and ADR-075 amendments; glossary rows
-   *title intent* and *rung*.
-4. **Ignored.** Drop `rung_marker(:ignored)` from `Title.Logic`
-   (search results); add the un-ignore control to `TrackingControls`'
-   `:ignored` form (sets the record off, through `ReleaseTracking.set_rung`);
-   delete the stale "Ignored items are skipped" paragraph in
-   `ReleaseTracking.Wants`' moduledoc.
+1. **Merge the watchlist into Incoming** — done 2026-10-02 (UIDR-050).
+2. **Rename the Discovery page to Social** — done 2026-10-03 (UIDR-051).
+3. **Rename the `Discovery` context to `Watchlist`.** Not started; no
+   plan yet. Scope, verified on 2026-10-03:
+   * `lib/media_centaur/discovery.ex` → `watchlist.ex`
+     (`MediaCentaur.Watchlist`, `use Boundary … exports: [TitleIntent,
+     Events, Events.RungChanged]`); `lib/media_centaur/discovery/` →
+     `watchlist/` (`events.ex`, `title_intent.ex`, `titles.ex`,
+     `tmdb_references.ex`); `test/media_centaur/discovery*`.
+   * Every `alias MediaCentaur.Discovery` and `Discovery.` call in
+     `lib/` and `test/` (ReleaseTracking, Acquisition and its planners,
+     Activities and its Publisher, Review, EpisodeMapping, Library.Files
+     and .Inbound, Social.Connections/Identity, TMDB, Topics, the web
+     layer: `SocialLive`, `IncomingLive`, `WatchlistRows`, `TitleDetailHost`,
+     `LibraryLive`, `HomeLive`, components under `title/`, `detail/`,
+     `acquisition/`; `test/support/factory.ex` "Discovery (title
+     intents)" section). `grep -rln "MediaCentaur.Discovery\|Discovery\." lib test`
+     is the list.
+   * Boundary `deps:` lists naming `MediaCentaur.Discovery` in every
+     context above; `mix boundaries`/compile enforces it.
+   * `Topics.discovery_updates/0` → `watchlist_updates/0`, topic string
+     `discovery:updates` → `watchlist:updates`; `Live.Subscriptions`'
+     entry for the context; moduledocs that list the topic
+     (`title_detail_host.ex`, `incoming_live.ex`, `activities/publisher.ex`,
+     `docs/architecture.md`, `docs/social.md`).
+   * `Discovery.ref/0` type (used by `WatchlistRows`), `Discovery.rungs/0`,
+     `list_watchlist/0`, `put_rung/3`, `listed?/2`, `get_intent/2`,
+     `rung/2` — names stay, module changes.
+   * Records: ADR-066 (one ladder per title) and ADR-075 (naming — add
+     the second application) get dated amendments; ADR-029/ADR-074 if
+     they name the context; glossary rows *title intent*, *rung*,
+     *Ignored*, *Following*, *Listing* and `docs/social.md`'s context
+     table; `docs/context-map/` (the committed `context-map.json` names
+     the paths — regenerate with `agent-mix context_map` only on a
+     checkout that has the context-map code).
+   * Sequencing: the context-map branch's tests (`test/context_map/*`)
+     name `lib/media_centaur/discovery.ex` and `discovery/title_intent.ex`
+     as fixtures. If Phase 3 lands while this branch still sits on
+     context-map, those tests need the new paths in a droppable commit
+     like `b7b108ae`; if the owner rebases first, they are not on the
+     branch at all. Decide with the owner before planning.
+4. **Ignored.** Not started; no plan yet. Drop `rung_marker(:ignored)`
+   from `Components.Title.Logic.row_markers/2` (search results on
+   Incoming; `media_results.ex` is the caller) and its `logic_test`
+   case; add an un-ignore control to `Components.Title.TrackingControls`'
+   `:ignored` form (today one line, `ignored_line/0`: "Hidden from the
+   Feed. Add it to your watchlist to bring it back.") — a button that sets
+   the record off through `ReleaseTracking.set_rung(title, :off, …)` via
+   the host's `set_rung` event (`TitleDetailHost`), with a story
+   variation and a `title_detail_host` test; delete the stale "Ignored
+   items are skipped" paragraph in `ReleaseTracking.Wants`' moduledoc
+   (~l.28). The copy and the control's form (a button beside the line;
+   label to be chosen with the `writing-copy` skill, e.g. "Show on the
+   Feed again") are the owner's call at plan time.
 5. **Owner check, desktop and TV, mouse and gamepad** (carried from
    `watchlist-single-entry-point` Phase 4, open): search a title, list it
    (Add to watchlist), turn on **Track release dates** from its detail,
    see it on Incoming's Watchlist tab, download from the title view and
-   confirm the rung did not move.
+   confirm the rung did not move. Also: turn **Social** on under
+   Settings → Preferences and confirm the sidebar entry, the Feed and the
+   Friends tab.
 6. **Re-shoot `upcoming-calendar.png`** (README l.35, docs-site l.726)
    with the Watchlist tab — `screenshot-showcase`, manual.
+7. **Settings wording** (owner): Settings has a **Social** section
+   (profile, relays, sharing) and a **Social** toggle under Preferences
+   ("Show the Social page in the sidebar. Early preview — it may still
+   change shape"). Same subsystem, two controls; "Social page" on the
+   toggle is the alternative if the pair reads wrong.
+8. **At ship:** CHANGELOG entry (both phases; the preference reset is a
+   migration note), push the wiki, `scripts/ship`.
 
 ## Completion criteria
 
 * The sidebar's Watch group reads Home, Library, Social, Incoming, Apps;
-  Social is gated by `show_social`, Incoming is not.
+  Social is gated by `show_social`, Incoming is not. — met on the branch.
 * `/incoming` defaults to the Watchlist tab (the first-load smart default
   to Activity while something is in flight stands); every listed title is
   on it once; a followed title's row shows its next release and status; no
   Coming up tab or marquee exists on Incoming; Home's shelf is unchanged.
+  — met on the branch.
 * No route, module, directory, preference, CSS class or doc names the
-  Discovery page; `MediaCentaur.Discovery` does not exist;
+  Discovery page — met; `MediaCentaur.Discovery` does not exist — Phase 3;
   `Pipeline.Discovery` is untouched.
 * A search result never says Ignored; an ignored title's detail modal
-  offers un-ignore and it works.
-* Wiki and guide describe the two groups; CHANGELOG entry drafted at
-  ship time.
+  offers un-ignore and it works. — Phase 4.
+* Wiki and guide describe the two groups — met (unpushed); CHANGELOG
+  entry drafted at ship time.
 * The owner has used the flow (list, track, download; the rung stays)
   on the desktop and the TV, mouse and gamepad.
+* The branch is on `main` (rebased or merged with context-map by the
+  owner's choice) and shipped.
 
 ## Pointers
 
@@ -164,15 +245,20 @@ commits. Each phase is test-first and ends green on `mix precommit`.
   — context naming (rule 3 drives the `Watchlist` rename).
 * [ADR-066](../decisions/architecture/2026-09-07-066-one-ladder-per-title.md)
   — one ladder per title; `set_rung/3` the one write path.
-* [UIDR-015](../decisions/user-interface/2026-07-11-015-incoming-page.md)
-  — Incoming's tabs; amended by Phase 1.
+* [UIDR-050](../decisions/user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md),
+  [UIDR-051](../decisions/user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md)
+  — this campaign's records; UIDR-015/035/042 and 010/038/043/045/046
+  carry their amendments.
 * [UIDR-042](../decisions/user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md)
   — the tracking controls Phase 4 extends.
 * `lib/media_centaur_web/live/social_live.ex` (the Social page),
-  `lib/media_centaur_web/live/incoming_live/view.ex`
-  (the page's single composition point),
-  `lib/media_centaur/release_tracking/upcoming_feed.ex` (next release and
-  status), `lib/media_centaur_web/components/title/logic.ex`
-  (`row_markers/2`).
+  `lib/media_centaur_web/live/incoming_live/view.ex` (Incoming's single
+  composition point), `lib/media_centaur_web/live/incoming_live/watchlist_rows.ex`
+  (the rows, pure), `lib/media_centaur/release_tracking/upcoming_feed.ex`
+  (`next_per_title/1`, `date_label/2`),
+  `lib/media_centaur_web/components/title/row.ex` (`Row.NextRelease`),
+  `lib/media_centaur_web/components/title/logic.ex` (`row_markers/2`),
+  `lib/media_centaur_web/components/title/tracking_controls.ex`
+  (Phase 4's `:ignored` form).
 * `watchlist-single-entry-point.md` (retired 2026-10-02; git history
   holds it) left the owner check that is Next steps 5.
