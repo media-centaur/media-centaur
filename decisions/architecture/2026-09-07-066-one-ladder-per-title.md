@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-09-07
-amended: 2026-09-28
+amended: 2026-10-03
 ---
 # One ladder per title: an authored rung, and machinery derived from it
 
@@ -55,6 +55,10 @@ its releases are one decision at different strengths.
 9. **There is no collection case.** A tracked movie collection cannot be
    listed (its id is a TMDB collection id, a different namespace); its only
    writer was a scanner with no caller, deleted with the carve-out.
+
+**Amendment 2026-10-03.** `Discovery` in rules 1–9 is the context now named
+`MediaCentaur.Watchlist` (ADR-075, second application); the rules stand
+unchanged.
 
 **Amendment 2026-09-28.** Rules 1 and 5 no longer describe movies. When
 *Take arrived movies off your watchlist* is on (Settings → Library, default

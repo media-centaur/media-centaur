@@ -32,9 +32,9 @@ and `campaigns/friends-recommendations.md` (completed and removed — see git hi
 ## Contexts
 
 Five `Boundary` contexts, each with one job; `RelaySync` is the one above two of
-them. The dependency edges run one way: `Discovery ← Activities → Social →
+them. The dependency edges run one way: `Watchlist ← Activities → Social →
 Nostr`, and `RelaySync → Activities, Social, Nostr`; `Activities` also reads
-`Library`, `WatchHistory`, `Discovery` and `Settings.Preferences` to turn a
+`Library`, `WatchHistory`, `Watchlist` and `Settings.Preferences` to turn a
 person's acts into activities. Neither `Activities` nor `Social` may depend on
 the other's rows, so the loop that reconciles both with the relays sits above
 them (ADR-074).
@@ -45,9 +45,9 @@ them (ADR-074).
 | `MediaCentaur.Social` | The network's *configuration* and who is on it: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), `Connections` (one live connection per relay), `Profile` (`profiles` table, what each known key published about itself; `Profile.Translation`, events ↔ rows), and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
 | `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
 | `MediaCentaur.RelaySync` | No tables. The loop that keeps both contexts' rows in step with the relays: subscribes, routes each event to its owning context, publishes what a relay lacks. | `Activities`, `Social`, `Nostr` |
-| `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
+| `MediaCentaur.Watchlist` | The watchlist (`title_intents`). Knows nothing about the friend network — a `:friend` record stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
-The Discovery/Activities separation is deliberate: a watchlist row records
+The Watchlist/Activities separation is deliberate: a title intent records
 *intent*, an activity records *what a signed event said*. Joining them (who
 reviewed a watchlist row, whether a feed row is already saved) is the web
 layer's job — see [Web layer](#web-layer).
@@ -180,12 +180,12 @@ absent `v` as 1 and drops an unknown one.
 (`Activities.review/3`, from the Review modal, with the sentiment and text
 the sender gave, neither required). Watched and listing
 activities come from `Activities.Publisher`, a pubsub listener over
-`watch_history:events` and `discovery:updates` that calls
+`watch_history:events` and `watchlist:updates` that calls
 `Activities.watched/2` / `listing/1` only while the `share_watched` /
 `share_watchlist` preference is on (Settings → Social → Sharing, both default
 off). A completion resolves its TMDB identity through `Library.ExternalIds`;
 an entity without one, and every extra, is skipped. A listing follows the
-rung transition: `Discovery.Events.RungChanged` carries `previous_rung`
+rung transition: `Watchlist.Events.RungChanged` carries `previous_rung`
 and `rung`, and only the crossing onto List publishes — moving up the
 ladder afterwards does not. Dropping below List (Off or Ignored) calls
 `Activities.withdraw/3` on the listing whether or not the toggle is still
