@@ -101,6 +101,26 @@ defmodule MediaCentaurWeb.SocialLiveTest do
           @friend_secret
         )
 
+    test "the empty tab diagnoses no relay, then no friends, and goes once a friend exists", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, "/social/friends")
+      assert render(view) =~ "once you join a relay"
+      assert has_element?(view, "#friends-empty a[href='/settings?section=social']", "Join a relay")
+      assert has_element?(view, "#add-friend-form")
+
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      {:ok, view, _html} = live(conn, "/social/friends")
+      assert has_element?(view, "#friends-empty")
+      assert render(view) =~ "the key they give you"
+      refute has_element?(view, "#friends-empty a")
+
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, view, _html} = live(conn, "/social/friends")
+      refute has_element?(view, "#friends-empty")
+      assert has_element?(view, "#friends-grid")
+    end
+
     test "shows the add form and points at Settings; no identity, no You card", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/social/friends")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")

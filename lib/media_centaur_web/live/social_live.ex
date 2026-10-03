@@ -124,6 +124,7 @@ defmodule MediaCentaurWeb.SocialLive do
        feed_window: FeedEntries.page_size(),
        feed_scope: :everyone,
        relay?: false,
+       friends_empty_reason: nil,
        feed_head: nil,
        feed_queued: 0,
        feed_at_cap?: false,
@@ -497,6 +498,7 @@ defmodule MediaCentaurWeb.SocialLive do
           socket.assigns.friend_count
         ),
       people: people,
+      friends_empty_reason: People.empty_reason(socket.assigns.relay?, socket.assigns.friend_count),
       rail: People.rail(people)
     )
   end
@@ -554,6 +556,16 @@ defmodule MediaCentaurWeb.SocialLive do
 
   defp feed_empty_body(:nothing_shared),
     do: "A review is always shared. A title you list is shared while Share your watchlist is on."
+
+  defp friends_empty_headline(:no_relay), do: "Friends appear here once you join a relay"
+  defp friends_empty_headline(:no_friends), do: "Friends appear here, with what they review and watch"
+
+  defp friends_empty_body(:no_relay),
+    do:
+      "A friend is a key you add on a relay you share. Join a relay under Settings → Social — your identity is created there too — then paste the key they give you below."
+
+  defp friends_empty_body(:no_friends),
+    do: "Paste the key they give you below, and ask them to add yours on the same relay."
 
   defp current_path(:friends), do: "/social/friends"
   defp current_path(_action), do: "/social"
@@ -753,6 +765,24 @@ defmodule MediaCentaurWeb.SocialLive do
               />
 
               <div :if={@live_action == :friends} class="space-y-4">
+                <.empty_state
+                  :if={@friends_empty_reason}
+                  id="friends-empty"
+                  headline={friends_empty_headline(@friends_empty_reason)}
+                >
+                  {friends_empty_body(@friends_empty_reason)}
+                  <:action :if={@friends_empty_reason == :no_relay}>
+                    <.button
+                      variant="primary"
+                      size="sm"
+                      navigate={~p"/settings?section=social"}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      Join a relay
+                    </.button>
+                  </:action>
+                </.empty_state>
                 <div :if={@people != []} id="friends-grid" class="friends-grid" data-nav-zone="people">
                   <PersonCard.person_card
                     :for={card <- @people}

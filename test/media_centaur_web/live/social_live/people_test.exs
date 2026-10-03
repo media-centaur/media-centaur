@@ -233,4 +233,13 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
 
     assert %{cards: [^you], hidden: 0} = People.rail([you])
   end
+
+  describe "empty_reason/2 — why the Friends tab has no friends" do
+    test "no relay first, then no friends; nothing once a friend exists" do
+      assert People.empty_reason(false, 0) == :no_relay
+      assert People.empty_reason(false, 2) == :no_relay
+      assert People.empty_reason(true, 0) == :no_friends
+      assert People.empty_reason(true, 1) == nil
+    end
+  end
 end
