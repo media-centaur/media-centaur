@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.49.0 — 2026-10-03
+
+### New
+
+- **Your watchlist is Incoming's first tab.** Every title you have listed, once, with its next release and status on the row — an episode's air date, a film's release, **Will grab**, **In pursuit**, **Landed**. It replaces the Coming up tab; Home's Coming up shelf is unchanged.
+- **The Discovery page is now Social, and it is in the sidebar for everyone.** The Feed and the Friends tab live at **Social**. Nothing is shared or received until you join a relay, and the Feed says so until then, with **Join a relay** leading to Settings → Social. Take the page out of the sidebar with **Show Social in the sidebar** on that same page; it stays reachable at `/social`.
+- **Stop ignoring a title from its page.** A title you ignored from the Feed shows **Stop ignoring** on its page, which forgets it so your friends' rows for it come back. Adding it to your watchlist still does the same.
+
+### Improved
+
+- **Search results no longer say Ignored.** Ignoring is about the Feed, not about downloads, so the label is gone from Incoming's results; the title's page still says the Feed is hiding it.
+
+### Migration safety
+
+- This release runs no database migration. The old **Discovery** switch under Settings → Preferences is no longer read; the Social page is shown by default, and the new switch is under Settings → Social.
+
 ## v1.48.1 — 2026-09-30
 
 ### New
