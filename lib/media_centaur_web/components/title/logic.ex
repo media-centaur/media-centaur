@@ -171,12 +171,11 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
     Enum.reject([state, tracking], &is_nil/1)
   end
 
-  # Off says nothing — the row would not be here. Ignored says so: the
-  # Feed hides it, but a search result must still say the reader
-  # dismissed it. List says it is on the list, except where the
-  # container already says so.
-  # Ignored is a stance about the Feed, not an acquisition state, so a
+  # Off says nothing — the row would not be here. Ignored says nothing
+  # either: it is a stance about the Feed, not an acquisition state, so a
   # search result carries no marker for it; the title detail says so.
+  # List says it is on the list, except where the container already
+  # says so.
   defp rung_marker(nil, _list_implied?), do: nil
   defp rung_marker(:ignored, _list_implied?), do: nil
   defp rung_marker(:list, true), do: nil
