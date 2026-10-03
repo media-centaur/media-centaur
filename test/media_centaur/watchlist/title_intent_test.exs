@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Discovery.TitleIntentTest do
+defmodule MediaCentaur.Watchlist.TitleIntentTest do
   @moduledoc """
   The rung ladder is the whole of a person's standing intent about a
   title. Off is the absence of a record, so it is never a stored value —
@@ -7,7 +7,7 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
   """
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
 
   describe "the ladder" do
     test "runs Ignored · List · Follow · Grab, and Off is not on it" do

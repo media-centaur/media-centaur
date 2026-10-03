@@ -14,7 +14,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
 
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Target
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Topics
 
   defp insert_active_pursuit(state \\ "active") do
@@ -79,7 +79,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
 
       # A download completing is not a watchlist act: nothing but a
       # person puts a title on the ladder (ADR-066).
-      assert Discovery.rung(42_001, :tv_series) == nil
+      assert Watchlist.rung(42_001, :tv_series) == nil
     end
 
     test "rejects already-terminal pursuit" do

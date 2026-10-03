@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `FeedEntries` and `People`.
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Format
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Settings.Preferences.PlanningMode

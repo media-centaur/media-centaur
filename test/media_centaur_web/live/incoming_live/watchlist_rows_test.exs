@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRowsTest do
   """
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaur.TMDB.Title

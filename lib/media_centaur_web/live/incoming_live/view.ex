@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   Build the page view from already-read facts:
 
     * `:releases` — the `ReleaseTracking` read (items preloaded)
-    * `:watchlist` — the `Discovery.list_watchlist/0` read
+    * `:watchlist` — the `Watchlist.list_watchlist/0` read
     * `:social_activity` — `Activities.activity_for/1` for the watchlist's refs
     * `:acquisition_states` — `TitleStates.for_refs/1` for the same refs
     * `:posters` — `ref => poster url` for the same refs

@@ -219,7 +219,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
   defp tracked_want_units(tmdb_id) do
     with {numeric_id, ""} <- Integer.parse(tmdb_id),
          %{} = item <- ReleaseTracking.get_item_by_tmdb(numeric_id, :tv_series),
-         true <- MediaCentaur.Discovery.grabs?(item.tmdb_id, item.media_type) do
+         true <- MediaCentaur.Watchlist.grabs?(item.tmdb_id, item.media_type) do
       item.id
       |> ReleaseTracking.open_wants_for_item()
       |> Enum.map(&{&1.season_number, &1.episode_number})

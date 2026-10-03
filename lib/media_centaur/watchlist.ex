@@ -1,17 +1,17 @@
-defmodule MediaCentaur.Discovery do
+defmodule MediaCentaur.Watchlist do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
     exports: [TitleIntent, Events, Events.RungChanged]
 
   @moduledoc """
-  Bounded context for discovery: the **title intents** a person holds —
-  one record per title, carrying the rung that says what the app should
-  do about that title's releases — and, in later iterations, the
-  candidate sources that feed them (TMDB discover, list import, friend
-  reviews).
+  The watchlist: the **title intents** a person holds — one record per
+  title, carrying the rung that says what the app should do about that
+  title's releases — and, in later iterations, the candidate sources
+  that feed them (TMDB discover, list import, friend reviews). Shown
+  whole on Incoming's Watchlist tab (UIDR-050).
 
   A record here is the only authored thing in the whole tracking story.
-  Discovery stores the rung and knows nothing about what it causes: no
+  Watchlist stores the rung and knows nothing about what it causes: no
   calendars, no wants, no grabs. `ReleaseTracking.set_rung/3` is the one
   write path, because deriving the machinery needs to see both sides, and
   the dependency runs that way (ADR-066).
@@ -21,12 +21,16 @@ defmodule MediaCentaur.Discovery do
   docs/superpowers/specs/2026-09-02-friends-recommendations-design.md).
   A record keeps only that title's identity: the snapshot a listed title
   is painted from is the TMDB store's, attached on every read by
-  `Discovery.Titles` (ADR-071).
+  `Watchlist.Titles` (ADR-071).
+
+  Named `Discovery` until 2026-10-03 (ADR-075 rule 3: a context carries
+  its surface's name). `Pipeline.Discovery` — file discovery — is a
+  different context.
   """
 
   import Ecto.Query
 
-  alias MediaCentaur.Discovery.{Events, TitleIntent, Titles}
+  alias MediaCentaur.Watchlist.{Events, TitleIntent, Titles}
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
@@ -38,7 +42,7 @@ defmodule MediaCentaur.Discovery do
 
   @doc "Subscribe the caller to title-intent update events."
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Topics.subscribe(Topics.discovery_updates())
+  def subscribe, do: Topics.subscribe(Topics.watchlist_updates())
 
   @doc """
   Puts `title` at `rung`, creating the record or moving the existing one.
@@ -46,8 +50,8 @@ defmodule MediaCentaur.Discovery do
   record — `:activity_id`; they apply on creation only, since provenance
   is about where a title first came from.
 
-  This is Discovery's write, not the app's: raising a rung has
-  consequences Discovery must not know about, so callers go through
+  This is Watchlist's write, not the app's: raising a rung has
+  consequences Watchlist must not know about, so callers go through
   `ReleaseTracking.set_rung/3`.
   """
   @spec put_rung(Title.t(), TitleIntent.rung(), map()) ::

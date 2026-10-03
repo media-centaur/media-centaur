@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
@@ -575,7 +575,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       _ = render(view)
       assert [_draft] = Plans.list_drafts()
-      assert Discovery.rung(246_810, :tv_series) == nil
+      assert Watchlist.rung(246_810, :tv_series) == nil
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
@@ -1725,7 +1725,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       view |> element("#plan-add-to-watchlist") |> render_click()
 
-      assert Discovery.rung(246_813, :movie) == :list
+      assert Watchlist.rung(246_813, :movie) == :list
       assert has_element?(view, "#plan-on-watchlist")
       refute has_element?(view, "#plan-add-to-watchlist")
 
@@ -1791,7 +1791,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       view |> element("#plan-add-to-watchlist") |> render_click()
 
-      assert Discovery.rung(246_810, :tv_series) == :list
+      assert Watchlist.rung(246_810, :tv_series) == :list
       assert has_element?(view, "#plan-on-watchlist")
       await_supervised_tasks()
     end
@@ -2002,7 +2002,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       ])
 
       {:ok, _intent} =
-        Discovery.put_rung(
+        Watchlist.put_rung(
           Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie"}),
           :list
         )
@@ -2193,15 +2193,15 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # (UIDR-039), and the tracking rows appear once it is listed.
       refute has_element?(view, "#detail-tracking-controls-track")
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(888, :movie) == :list
+      assert Watchlist.rung(888, :movie) == :list
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
       view |> element("#detail-tracking-controls-track") |> render_click()
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      assert Discovery.rung(888, :movie) == :follow
+      assert Watchlist.rung(888, :movie) == :follow
       assert ReleaseTracking.get_item_by_tmdb(888, :movie)
-      assert Discovery.listed?(888, :movie)
+      assert Watchlist.listed?(888, :movie)
     end
 
     test "an already-tracked title carries its ladder rung as a marker", %{conn: conn} do
@@ -3821,7 +3821,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     )
   end
 
-  # Lists `title` the way the app does — through `Discovery.put_rung/3`,
+  # Lists `title` the way the app does — through `Watchlist.put_rung/3`,
   # so the page hears the rung change — with the TMDB store holding the
   # title first (ADR-071): a listed row paints from the store, and in the
   # app a title is listed from its detail, which the store already holds.
@@ -3832,7 +3832,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       payload: TmdbStubs.detail_for(title)
     })
 
-    Discovery.put_rung(title, rung, attrs)
+    Watchlist.put_rung(title, rung, attrs)
   end
 
   # The ids of every element matching `selector`, in document order.
@@ -4176,7 +4176,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810", "On your list")
 
       {:ok, _} =
-        Discovery.put_rung(
+        Watchlist.put_rung(
           Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"}),
           :list
         )
@@ -4244,14 +4244,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
 
       view |> element("#detail-tracking-controls-grab") |> render_click()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == :follow
+      assert Watchlist.rung(item.tmdb_id, item.media_type) == :follow
       assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='list']")
 
       view |> element("#detail-tracking-controls-grab") |> render_click()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == :grab
+      assert Watchlist.rung(item.tmdb_id, item.media_type) == :grab
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == nil
+      assert Watchlist.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
       # Nothing is tracked, so there is no calendar to read dates from and
       # no Watchlist row; the modal itself stays (the test below).
@@ -4266,7 +4266,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == nil
+      assert Watchlist.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id)
 
       # This page knew the title through the tracked title, which Off
@@ -4288,7 +4288,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       view |> element("#detail-watchlist-toggle") |> render_click()
       await_supervised_tasks()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == :list
+      assert Watchlist.rung(item.tmdb_id, item.media_type) == :list
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
     end
 

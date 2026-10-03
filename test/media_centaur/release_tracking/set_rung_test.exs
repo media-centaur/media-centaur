@@ -10,7 +10,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TmdbStubs
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TMDB.Title
 
@@ -59,7 +59,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert intent.rung == :list
-      assert Discovery.listed?(@tmdb_id, :tv_series)
+      assert Watchlist.listed?(@tmdb_id, :tv_series)
       refute tracked?()
 
       await_supervised_tasks()
@@ -70,7 +70,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
         assert {:ok, intent} = ReleaseTracking.set_rung(show(), rung)
         MediaCentaur.JobRuns.run_enqueued_jobs()
         assert intent.rung == rung
-        assert Discovery.listed?(@tmdb_id, :tv_series)
+        assert Watchlist.listed?(@tmdb_id, :tv_series)
         assert tracked?(), "#{rung} must derive a tracked title"
       end
 
@@ -120,7 +120,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert intent.rung == :list
-      assert Discovery.listed?(@tmdb_id, :tv_series)
+      assert Watchlist.listed?(@tmdb_id, :tv_series)
       refute tracked?()
 
       await_supervised_tasks()
@@ -133,9 +133,9 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      refute Discovery.listed?(@tmdb_id, :tv_series)
+      refute Watchlist.listed?(@tmdb_id, :tv_series)
       refute tracked?()
-      assert Discovery.rung(@tmdb_id, :tv_series) == nil
+      assert Watchlist.rung(@tmdb_id, :tv_series) == nil
 
       await_supervised_tasks()
     end

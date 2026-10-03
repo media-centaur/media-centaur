@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggle do
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
 
   attr :id, :string, required: true
 

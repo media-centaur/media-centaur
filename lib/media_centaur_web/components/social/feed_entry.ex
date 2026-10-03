@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedEntry do
   """
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
 

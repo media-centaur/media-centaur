@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Discovery.Titles do
+defmodule MediaCentaur.Watchlist.Titles do
   @moduledoc """
   What the store says about title intents (ADR-071). A title intent
   carries no TMDB fact beyond its identity; `attach/1` fills the virtual
@@ -15,7 +15,7 @@ defmodule MediaCentaur.Discovery.Titles do
   first-contacts it at once.
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.TMDB.{Store, Title}
 
   @doc "Records with their stored title's snapshot attached."

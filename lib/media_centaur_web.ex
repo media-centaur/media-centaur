@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.HttpClient,
       MediaCentaur.EpisodeMapping,
       MediaCentaur.DeleteTargets,
-      MediaCentaur.Discovery,
+      MediaCentaur.Watchlist,
       MediaCentaur.Social,
       MediaCentaur.Activities
     ],

@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   """
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     feed =
       UpcomingFeed.build(releases, %{
         today: context.today,
-        rungs: %{{item.tmdb_id, item.media_type} => Discovery.rung(item.tmdb_id, item.media_type)},
+        rungs: %{{item.tmdb_id, item.media_type} => Watchlist.rung(item.tmdb_id, item.media_type)},
         acquisition_ready?: context.acquisition_ready?,
         approval_policy: context.approval_policy,
         grab_status_by_key: grab_status_by_key(releases, context.acquisition_ready?)

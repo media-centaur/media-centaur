@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   @moduledoc """
   What a listed title shows beside its release dates (spec 2026-09-14,
   UIDR-042): up to two compact switches over the one record,
-  `Discovery.TitleIntent`.
+  `Watchlist.TitleIntent`.
 
   * **Track release dates** — on at Follow and above. The app keeps the
     title's calendar and its next release shows on the watchlist.
@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   use Phoenix.Component
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Switch
 

@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   The modal's subject is a TMDB identity, and the snapshot it opens from
   is resolved here by that identity, in order: the open detail's own; the
-  title intent's embedded snapshot (`Discovery.get_intent/2` — any title
+  title intent's embedded snapshot (`Watchlist.get_intent/2` — any title
   on the ladder, listed, ignored or tracked); the owner's entity when the
   library owns the title (`Logic.snapshot_from_entity/1`); the activity
   the modal was opened from; the page's in-memory copy; and TMDB itself,
@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   |---|---|
   | `library:updates`, `library:views`, `library:availability` | re-resolve the owner by ref (an import can make an open unowned title owned); reload the half |
   | `playback:events` | in-memory merges by container id; the playing set for delete protection |
-  | `release_tracking:updates`, `discovery:updates`, `activities:updates`, `acquisition:updates` | rebuild the detail's facts by identity |
+  | `release_tracking:updates`, `watchlist:updates`, `activities:updates`, `acquisition:updates` | rebuild the detail's facts by identity |
 
   ## Setting a rung
 
@@ -90,8 +90,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Activities
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
@@ -145,7 +145,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     ReleaseTracking,
     Activities,
     MediaCentaur.Acquisition,
-    Discovery,
+    Watchlist,
     Store
   ]
 
@@ -474,7 +474,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     facts = %{
       library: library,
       activity: Map.get(given, :activity),
-      rung: Discovery.rung(title.tmdb_id, title.media_type),
+      rung: Watchlist.rung(title.tmdb_id, title.media_type),
       lower_quality_accepted?:
         DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
@@ -527,7 +527,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # The person's own words on the record, or the review text copied in as
   # provenance when the title was listed from a friend's review.
   defp intent_note({tmdb_id, media_type}) do
-    case Discovery.get_intent(tmdb_id, media_type) do
+    case Watchlist.get_intent(tmdb_id, media_type) do
       %TitleIntent{note: note} -> note
       nil -> nil
     end

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
   searching for, so it reads Searching, never "Will grab".
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaur.TMDB.Title
@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
   alias MediaCentaurWeb.Components.Title.Row.NextRelease
 
   @type row :: %{
-          ref: MediaCentaur.Discovery.ref(),
+          ref: MediaCentaur.Watchlist.ref(),
           title: Title.t(),
           rung: TitleIntent.rung(),
           in_library?: boolean(),
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.IncomingLive.WatchlistRows do
         }
 
   @doc """
-  Inputs: `:watchlist` (`Discovery.list_watchlist/0` rows), `:feed`
+  Inputs: `:watchlist` (`Watchlist.list_watchlist/0` rows), `:feed`
   (`UpcomingFeed.t()`), `:social_activity` (`Activities.activity_for/1`),
   `:acquisition_states` (`TitleStates.for_refs/1`), `:posters`
   (`ref => url`), `:today`.

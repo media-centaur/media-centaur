@@ -1,7 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.WatchlistAutoRemove
 
@@ -11,7 +11,7 @@ defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
 
       :ok = ReleaseTracking.movies_added([4101])
 
-      assert Discovery.rung(4101, :movie) == nil
+      assert Watchlist.rung(4101, :movie) == nil
     end
 
     test "a movie at a tracking rung leaves too: the arrival is what it waited for" do
@@ -20,8 +20,8 @@ defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
 
       :ok = ReleaseTracking.movies_added([4102, 4103])
 
-      assert Discovery.rung(4102, :movie) == nil
-      assert Discovery.rung(4103, :movie) == nil
+      assert Watchlist.rung(4102, :movie) == nil
+      assert Watchlist.rung(4103, :movie) == nil
     end
 
     test "an ignored movie is not on the watchlist and keeps its record" do
@@ -29,7 +29,7 @@ defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
 
       :ok = ReleaseTracking.movies_added([4104])
 
-      assert Discovery.rung(4104, :movie) == :ignored
+      assert Watchlist.rung(4104, :movie) == :ignored
     end
 
     test "a series sharing the number is a different title and stays" do
@@ -37,12 +37,12 @@ defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
 
       :ok = ReleaseTracking.movies_added([4105])
 
-      assert Discovery.rung(4105, :tv_series) == :list
+      assert Watchlist.rung(4105, :tv_series) == :list
     end
 
     test "a movie nobody listed is nothing to do" do
       assert :ok = ReleaseTracking.movies_added([4106])
-      assert Discovery.rung(4106, :movie) == nil
+      assert Watchlist.rung(4106, :movie) == nil
     end
   end
 
@@ -53,7 +53,7 @@ defmodule MediaCentaur.ReleaseTracking.MoviesAddedTest do
 
       :ok = ReleaseTracking.movies_added([4201])
 
-      assert Discovery.rung(4201, :movie) == :list
+      assert Watchlist.rung(4201, :movie) == :list
     end
   end
 

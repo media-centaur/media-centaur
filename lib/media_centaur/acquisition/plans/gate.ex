@@ -15,7 +15,7 @@ defmodule MediaCentaur.Acquisition.Plans.Gate do
 
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.Plan
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
 
   @doc """
@@ -89,7 +89,7 @@ defmodule MediaCentaur.Acquisition.Plans.Gate do
         true
 
       item ->
-        not Discovery.grabs?(item.tmdb_id, item.media_type)
+        not Watchlist.grabs?(item.tmdb_id, item.media_type)
     end
   end
 

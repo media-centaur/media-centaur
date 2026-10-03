@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
 
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title

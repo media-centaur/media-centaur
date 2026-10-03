@@ -180,7 +180,7 @@ config :media_centaur, :retention_policy_providers, [
 config :media_centaur, :tmdb_reference_providers, [
   MediaCentaur.ReleaseTracking.TmdbReferences,
   MediaCentaur.Acquisition.TmdbReferences,
-  MediaCentaur.Discovery.TmdbReferences,
+  MediaCentaur.Watchlist.TmdbReferences,
   MediaCentaur.Activities.TmdbReferences,
   MediaCentaur.Pipeline.TmdbReferences
 ]

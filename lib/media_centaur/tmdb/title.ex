@@ -19,7 +19,7 @@ defmodule MediaCentaur.TMDB.Title do
   `new!/1` or `changeset/2`, both of which require a name. The one
   nameless title is a **bare identity** — only `tmdb_id` and
   `media_type` set — which a surface carries for a title the TMDB store
-  has not yet first-contacted (`Discovery.Titles`), until the record
+  has not yet first-contacted (`Watchlist.Titles`), until the record
   lands.
   """
 

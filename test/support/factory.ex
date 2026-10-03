@@ -12,7 +12,7 @@ defmodule MediaCentaur.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
 
@@ -1096,7 +1096,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   # ---------------------------------------------------------------------------
-  # Discovery (title intents)
+  # Watchlist (title intents)
   # ---------------------------------------------------------------------------
 
   @doc """
@@ -1133,7 +1133,7 @@ defmodule MediaCentaur.TestFactory do
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
     intent_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name, :rung])
 
-    # `Discovery.put_rung/3`'s two branches, minus its `ensure_artwork_async/1`
+    # `Watchlist.put_rung/3`'s two branches, minus its `ensure_artwork_async/1`
     # — a supervised task that calls TMDB. That task outlives the test process
     # that owns the Req.Test stub, so it dies with `cannot find mock/stub
     # :tmdb` and the crash lands in a later test's captured log. "Writes the
