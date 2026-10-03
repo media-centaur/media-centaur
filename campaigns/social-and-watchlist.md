@@ -54,8 +54,9 @@ replaces both, and the page that is left is named for what it holds.
 
 ## Status
 
-**Phases 1–4 done on branch `social-and-watchlist` (2026-10-03),
-precommit clean, nothing pushed, not merged. Owner items and the ship remain.**
+**Phases 1–4 merged to `main` (fast-forward, 2026-10-03), precommit
+clean, not pushed. The owner's copy pass, the owner check and the ship
+remain.**
 
 * Phase 1 (the watchlist on Incoming, UIDR-050): commits `a04bef5c`,
   `5c254c47`, `54052d63`, `9707fb89`, `05158152`, `39f9c9f7`, `366db3c4`;
@@ -76,18 +77,11 @@ precommit clean, nothing pushed, not merged. Owner items and the ship remain.**
 Read this file, then reconcile against `git log main..social-and-watchlist`
 before writing code. What a new session needs to know:
 
-1. **The branch is forked from the `context-map` branch, not `main`.**
-   Its first commit `d6668d0e` sits on `7544b939` (context-map's tip);
-   `main` is at `e0bac217`. `git log main..HEAD` therefore shows ~35
-   context-map commits plus this campaign's. The campaign's commits
-   touch no context-map file except two droppable ones: `b7b108ae`
-   (`test/context_map/fixture_instances_test.exs`, one module name) and
-   `19e01df7` (`test/context_map/*` and `docs/context-map/context-map.json`
-   after the Phase 3 rename). Owner's choice, not yet made: `git rebase
-   --onto main 7544b939 social-and-watchlist` (drop both; rerun
-   precommit), or merge
-   `context-map` first and keep it. An agent must not do the rebase (the
-   harness declined it as a history rewrite); ask.
+1. **The work is on `main`** since 2026-10-03: `context-map` had been
+   fast-forwarded into `main` first, so the campaign branch merged as a
+   fast-forward with its two context-map test commits (`b7b108ae`,
+   `19e01df7`) kept. The branch is deleted. `main` is ahead of
+   `origin/main` until the ship pushes it.
 2. **The `media-centaur-dev` service runs this checkout**, so whatever
    branch is checked out is what `http://127.0.0.1:2160` serves. Never
    run `mix` directly; `~/scripts/agents/agent-mix` only (CLAUDE.md).
@@ -247,8 +241,8 @@ ran that way; it worked).
   entry drafted at ship time.
 * The owner has used the flow (list, track, download; the rung stays)
   on the desktop and the TV, mouse and gamepad.
-* The branch is on `main` (rebased or merged with context-map by the
-  owner's choice) and shipped.
+* The branch is on `main` (merged after context-map, 2026-10-03) and
+  shipped — the ship remains.
 
 ## Pointers
 
