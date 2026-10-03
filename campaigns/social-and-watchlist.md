@@ -153,6 +153,14 @@ before writing code. What a new session needs to know:
   sidebar*), not under Preferences. The Review control follows it as
   before. No migration: an install that had it off keeps its stored
   value. (owner)
+* `2026-10-03` — Social is on for every install (the `show_social` key
+  did not exist before this release, so no stored value can hold it
+  off). Joining a relay is the opt-in: the Feed's empty state diagnoses
+  no relay first (`FeedEntries.empty_reason/3`, `:no_relay`) and says
+  nothing is shared or received until one is added under Settings →
+  Social, with **Join a relay** and **Turn Social off** both leading
+  there; a relay with no friend is the next diagnosis (`:no_friends`,
+  **Add a friend**). Copy provisional. (owner)
 
 ## Next steps
 
@@ -187,7 +195,7 @@ ran that way; it worked).
    Social section as **Show Social in the sidebar** (card *Sidebar*,
    last in the section) and the preference defaults on. Copy is
    provisional; owner adjusts at the end.
-8. **At ship:** push the wiki (five local commits), `/ship minor`. Draft
+8. **At ship:** push the wiki (six local commits), `/ship minor`. Draft
    release notes (body only; copy to the `NOTES_FILE` `scripts/ship
    prepare` names, then trim to what shipped):
 
@@ -199,10 +207,12 @@ ran that way; it worked).
      episode's air date, a film's release, Will grab, In pursuit,
      Landed. It replaces the Coming up tab; Home's Coming up shelf is
      unchanged.
-   - **The Discovery page is now Social.** The Feed and the Friends tab
-     live at Social in the sidebar, on by default. Take it out of the
-     sidebar with **Show Social in the sidebar** under Settings → Social;
-     the page stays reachable at `/social`.
+   - **The Discovery page is now Social, and it is in the sidebar for
+     everyone.** The Feed and the Friends tab live at Social. Nothing is
+     shared or received until you join a relay, and the Feed says so
+     until then, with **Join a relay** leading to Settings → Social.
+     Take the page out of the sidebar with **Show Social in the sidebar**
+     on that same page; it stays reachable at `/social`.
    - **Stop ignoring a title from its page.** A title you ignored from
      the Feed shows **Stop ignoring** on its page, which forgets it so
      your friends' rows for it come back. Adding it to your watchlist

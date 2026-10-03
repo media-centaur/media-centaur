@@ -235,14 +235,16 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
     end
   end
 
-  describe "empty_reason/2" do
-    test "You never needs a relay or a friend; the other scopes diagnose readiness first" do
-      assert FeedEntries.empty_reason(:you, false) == :nothing_shared
-      assert FeedEntries.empty_reason(:you, true) == :nothing_shared
-      assert FeedEntries.empty_reason(:everyone, false) == :not_ready
-      assert FeedEntries.empty_reason(:friends, false) == :not_ready
-      assert FeedEntries.empty_reason(:everyone, true) == :quiet
-      assert FeedEntries.empty_reason(:friends, true) == :quiet
+  describe "empty_reason/3" do
+    test "You never needs a relay or a friend; the other scopes diagnose the relay, then the roster" do
+      assert FeedEntries.empty_reason(:you, false, 0) == :nothing_shared
+      assert FeedEntries.empty_reason(:you, true, 2) == :nothing_shared
+      assert FeedEntries.empty_reason(:everyone, false, 0) == :no_relay
+      assert FeedEntries.empty_reason(:friends, false, 3) == :no_relay
+      assert FeedEntries.empty_reason(:everyone, true, 0) == :no_friends
+      assert FeedEntries.empty_reason(:friends, true, 0) == :no_friends
+      assert FeedEntries.empty_reason(:everyone, true, 1) == :quiet
+      assert FeedEntries.empty_reason(:friends, true, 1) == :quiet
     end
   end
 
