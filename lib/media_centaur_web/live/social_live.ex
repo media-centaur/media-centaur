@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.SocialLive do
        feed_has_older?: false,
        feed_window: FeedEntries.page_size(),
        feed_scope: :everyone,
-       feed_ready?: false,
+       relay?: false,
        feed_head: nil,
        feed_queued: 0,
        feed_at_cap?: false,
@@ -422,10 +422,7 @@ defmodule MediaCentaurWeb.SocialLive do
       end)
 
     socket
-    |> assign(
-      activities: activities,
-      feed_ready?: Social.list_relays() != [] and socket.assigns.friend_count > 0
-    )
+    |> assign(activities: activities, relay?: Social.list_relays() != [])
     |> stamp_acquisition_states()
     |> warm_activity_artwork()
   end
@@ -493,7 +490,12 @@ defmodule MediaCentaurWeb.SocialLive do
       feed_has_older?: has_older?,
       feed_at_cap?: at_cap?,
       feed_queued: queued,
-      feed_empty_reason: FeedEntries.empty_reason(socket.assigns.feed_scope, socket.assigns.feed_ready?),
+      feed_empty_reason:
+        FeedEntries.empty_reason(
+          socket.assigns.feed_scope,
+          socket.assigns.relay?,
+          socket.assigns.friend_count
+        ),
       people: people,
       rail: People.rail(people)
     )
@@ -531,11 +533,22 @@ defmodule MediaCentaurWeb.SocialLive do
     do: "What you and your friends review and want to watch lands here"
 
   defp feed_empty_headline(_scope, :nothing_shared), do: "What you review and list lands here"
+
+  defp feed_empty_headline(_scope, :no_relay),
+    do: "Friends' reviews and watchlists land here once you join a relay"
+
   defp feed_empty_headline(_scope, _reason), do: "What your friends review and want to watch lands here"
 
-  defp feed_empty_body(:not_ready),
+  # Social is on for everyone; joining a relay is the opt-in. This is the
+  # one place a person who never asked for Social learns that, and where
+  # the switch is.
+  defp feed_empty_body(:no_relay),
     do:
-      "Media Centaur reaches your friends over a relay. Add one, then add a friend by the public key they give you."
+      "Nothing is shared or received until you add a relay under Settings → Social — a server you and your friends agree on; your identity is created there too. Would rather not use Social? The switch at the bottom of that page takes it out of the sidebar."
+
+  defp feed_empty_body(:no_friends),
+    do:
+      "You are on a relay. Add a friend by the public key they give you, and ask them to add yours on the same relay."
 
   defp feed_empty_body(:quiet), do: "Each action is one row, newest first."
 
@@ -660,7 +673,7 @@ defmodule MediaCentaurWeb.SocialLive do
                     headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
                   >
                     {feed_empty_body(@feed_empty_reason)}
-                    <:action :if={@feed_empty_reason == :not_ready}>
+                    <:action :if={@feed_empty_reason == :no_relay}>
                       <.button
                         variant="primary"
                         size="sm"
@@ -668,12 +681,23 @@ defmodule MediaCentaurWeb.SocialLive do
                         data-nav-item
                         tabindex="0"
                       >
-                        Add a relay
+                        Join a relay
                       </.button>
                     </:action>
-                    <:action :if={@feed_empty_reason == :not_ready}>
+                    <:action :if={@feed_empty_reason == :no_relay}>
                       <.button
                         variant="dismiss"
+                        size="sm"
+                        navigate={~p"/settings?section=social"}
+                        data-nav-item
+                        tabindex="0"
+                      >
+                        Turn Social off
+                      </.button>
+                    </:action>
+                    <:action :if={@feed_empty_reason == :no_friends}>
+                      <.button
+                        variant="primary"
                         size="sm"
                         navigate={~p"/social/friends"}
                         data-nav-item

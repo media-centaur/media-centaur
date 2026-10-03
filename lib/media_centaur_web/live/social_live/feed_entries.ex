@@ -24,9 +24,11 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   new" until pressed. A head the list no longer holds is live again.
   The tab's count is the window's size under the current scope.
 
-  `empty_reason/2` is the empty state's diagnosis (UIDR-034): the You
+  `empty_reason/3` is the empty state's diagnosis (UIDR-034): the You
   scope needs no relay and no friend, since a review creates its row
-  locally; the other scopes ask whether the network is ready first.
+  locally; the other scopes ask for a relay first — Social is on by
+  default, so a person who never opted in reads why nothing arrives and
+  where the switch is — then for a friend.
 
   The toolbar's two resolved slots come from the same three facts the
   row markers read — the rung, library presence, the acquisition state —
@@ -45,7 +47,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   @kinds [:review, :listing]
 
   @type scope :: :everyone | :friends | :you
-  @type empty_reason :: :not_ready | :quiet | :nothing_shared
+  @type empty_reason :: :no_relay | :no_friends | :quiet | :nothing_shared
 
   @doc "Rows per window — the initial load and each Show older step."
   @spec page_size() :: pos_integer()
@@ -66,11 +68,12 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   def scope_query(:everyone), do: []
   def scope_query(scope), do: [scope: Atom.to_string(scope)]
 
-  @doc "Why the feed is empty under `scope`, given whether a relay and a friend exist."
-  @spec empty_reason(scope(), boolean()) :: empty_reason()
-  def empty_reason(:you, _ready?), do: :nothing_shared
-  def empty_reason(_scope, false), do: :not_ready
-  def empty_reason(_scope, true), do: :quiet
+  @doc "Why the feed is empty under `scope`, given whether a relay exists and how many friends there are."
+  @spec empty_reason(scope(), boolean(), non_neg_integer()) :: empty_reason()
+  def empty_reason(:you, _relay?, _friend_count), do: :nothing_shared
+  def empty_reason(_scope, false, _friend_count), do: :no_relay
+  def empty_reason(_scope, true, 0), do: :no_friends
+  def empty_reason(_scope, true, _friend_count), do: :quiet
 
   @doc """
   The windowed rows under `scope`, newest first, at or below the `head`.

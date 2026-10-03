@@ -646,14 +646,24 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, view, _html} = live(conn, "/social")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Feed")
 
-      # Unready: the copy explains the mechanism and both prerequisites are
-      # offered as actions rather than named in prose the reader has to parse.
-      assert render(view) =~ "What your friends review and want to watch lands here"
-      assert render(view) =~ "Media Centaur reaches your friends over a relay"
-      assert has_element?(view, "#feed-empty a[href='/settings?section=social']")
-      assert has_element?(view, "#feed-empty a[href='/social/friends']")
+      # No relay: Social is on by default, so this is where a person learns
+      # that nothing happens until they join a relay — and where the
+      # switch is that takes Social out of the sidebar.
+      assert render(view) =~ "once you join a relay"
+      assert render(view) =~ "takes it out of the sidebar"
+      assert has_element?(view, "#feed-empty a[href='/settings?section=social']", "Join a relay")
+      assert has_element?(view, "#feed-empty a[href='/settings?section=social']", "Turn Social off")
+      refute has_element?(view, "#feed-empty a[href='/social/friends']")
 
       {:ok, _relay} = Social.add_relay("wss://relay.example")
+      {:ok, view, _html} = live(conn, "/social")
+
+      # A relay but no friend: the one remaining step.
+      assert render(view) =~ "What your friends review and want to watch lands here"
+      assert render(view) =~ "You are on a relay."
+      assert has_element?(view, "#feed-empty a[href='/social/friends']", "Add a friend")
+      refute has_element?(view, "#feed-empty a[href='/settings?section=social']")
+
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/social")
@@ -823,6 +833,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     test "watched and a former friend's actions never make a row; own reviews and listings do", %{
       conn: conn
     } do
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
       show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
@@ -1413,7 +1424,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert render(view) =~ "A title you list is shared while Share your watchlist is on."
       assert has_element?(view, "#feed-empty a[href='/settings?section=social']", "Settings → Social")
       refute has_element?(view, "#feed-empty a[href='/social/friends']")
-      refute render(view) =~ "Media Centaur reaches your friends over a relay"
+      refute render(view) =~ "once you join a relay"
     end
 
     test "the Friends scope with a ready roster and nothing shared says so, with no actions", %{
