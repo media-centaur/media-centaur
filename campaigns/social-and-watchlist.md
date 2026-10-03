@@ -67,8 +67,8 @@ precommit clean, nothing pushed, not merged. Owner items and the ship remain.**
   `7e0891f3` (code), `19e01df7` (context-map tests + snapshot, droppable),
   `eb55677e` and its docs follow-up (records, glossary); plan
   `docs/superpowers/plans/2026-10-03-discovery-context-becomes-watchlist.md`.
-* Wiki (`../media-centaur.wiki`): three local commits, unpushed —
-  `f2b8bd1`, `fca9ad2`, `f15fe34`. Push them when the release ships, not
+* Wiki (`../media-centaur.wiki`): five local commits, unpushed —
+  `f2b8bd1`, `fca9ad2`, `f15fe34`, `2054da2`, `50b04e1`. Push them when the release ships, not
   before (they describe the branch, not the released app).
 
 ## Resuming in a new session
@@ -94,8 +94,9 @@ before writing code. What a new session needs to know:
 3. **`show_social` is on by default** since the afternoon of 2026-10-03
    (UIDR-051 amendment); its switch is **Show Social in the sidebar**
    under Settings → Social. The morning's reset-to-off is history.
-4. **Owner items open** (Next steps 5–7): the desktop/TV check, the
-   screenshot re-shoot, the Settings wording question.
+4. **Owner items open** (Next steps 5–6): the desktop/TV check and the
+   screenshot re-shoot; plus a copy pass on the provisional labels
+   (Next steps 4 and 7).
 5. The two decisions taken from the final review on 2026-10-02 (next
    release still to come; no pill anchor across tabs — below) were taken
    without the owner present; confirm before building on them.
@@ -183,9 +184,9 @@ ran that way; it worked).
    `watchlist-single-entry-point` Phase 4, open): search a title, list it
    (Add to watchlist), turn on **Track release dates** from its detail,
    see it on Incoming's Watchlist tab, download from the title view and
-   confirm the rung did not move. Also: turn **Social** on under
-   Settings → Preferences and confirm the sidebar entry, the Feed and the
-   Friends tab.
+   confirm the rung did not move. Also: confirm the Social entry, the
+   Feed and the Friends tab, and that **Show Social in the sidebar**
+   under Settings → Social removes the entry and the Review control.
 6. **Re-shoot `upcoming-calendar.png`** (README l.35, docs-site l.726)
    with the Watchlist tab — `screenshot-showcase`, manual.
 7. **Settings wording** — resolved 2026-10-03: the toggle moved into the
