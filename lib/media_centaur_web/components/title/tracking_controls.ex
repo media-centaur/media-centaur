@@ -20,8 +20,11 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   The bookmark in the action strip (`WatchlistToggle`) is the first act:
   a title with no record shows nothing here (UIDR-039), and an ignored
-  title shows the one line saying the Feed hides it. `control_form/1` is
-  that rule; `rows/1` decides which switches a listed title gets.
+  title shows the line saying the Feed hides it beside **Stop ignoring**,
+  which sets the title Off — no record — through the same `set_rung`
+  (`choice="off"`); listing it from the bookmark is the other way off the
+  rung. `control_form/1` is that rule; `rows/1` decides which switches a
+  listed title gets.
 
   Each switch is `Components.Switch` in its leading layout, narrow enough
   to sit beside the dates readout. A click pushes `set_rung` with
@@ -37,6 +40,8 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Switch
+
+  import MediaCentaurWeb.CoreComponents, only: [button: 1]
 
   attr :id, :string, required: true
 
@@ -84,7 +89,22 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
       data-rung={@rung || :off}
       data-form={@form}
     >
-      <p :if={@form == :ignored} class="text-sm text-base-content/70">{ignored_line()}</p>
+      <div :if={@form == :ignored} class="flex items-center justify-between gap-3">
+        <p class="text-sm text-base-content/70">{ignored_line()}</p>
+        <.button
+          id={"#{@id}-unignore"}
+          variant="neutral"
+          size="xs"
+          class="shrink-0"
+          phx-click="set_rung"
+          phx-value-choice="off"
+          phx-value-ref={@ref}
+          data-nav-item
+          tabindex="0"
+        >
+          {unignore_label()}
+        </.button>
+      </div>
       <div :if={@form == :controls} class="space-y-1">
         <Switch.switch
           :if={:track in @rows}
@@ -182,5 +202,9 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   @doc "The line an ignored title shows in place of the switches."
   @spec ignored_line() :: String.t()
-  def ignored_line, do: "Hidden from the Feed. Add it to your watchlist to bring it back."
+  def ignored_line, do: "Hidden from the Feed, every friend's row for it."
+
+  @doc "The button beside it: back to no record, so the Feed shows the title again."
+  @spec unignore_label() :: String.t()
+  def unignore_label, do: "Stop ignoring"
 end

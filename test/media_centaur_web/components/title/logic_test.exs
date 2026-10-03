@@ -185,10 +185,10 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       assert Logic.row_markers(%{base | in_library?: true, rung: :grab}) == ["In library"]
     end
 
-    test "an ignored title says so — a search result you dismissed is still findable" do
+    test "an ignored title carries no marker — Ignored is a Feed stance, not an acquisition state" do
       base = %{in_library?: false, acquisition_state: nil}
-      assert Logic.row_markers(Map.put(base, :rung, :ignored)) == ["Ignored"]
-      assert Logic.row_markers(Map.put(base, :rung, :ignored), true) == ["Ignored"]
+      assert Logic.row_markers(Map.put(base, :rung, :ignored)) == []
+      assert Logic.row_markers(Map.put(base, :rung, :ignored), true) == []
     end
 
     test "list_implied? drops only the List marker" do
