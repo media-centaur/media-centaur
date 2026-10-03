@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.49.2 — 2026-10-03
+
+### Improved
+
+- **The Friends tab says what is missing.** With no relay it explains that friends appear once you join one and offers **Join a relay**; with a relay and no friends yet it points at the add-friend form and reminds you to have them add your key on the same relay. Once you have a friend the note is gone.
+
 ## v1.49.1 — 2026-10-03
 
 ### Improved
