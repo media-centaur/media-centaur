@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     TmdbStubs.setup_tmdb_client()
   end
 
-  # Lists `title` the way the app does — through `Discovery.put_rung/3`,
+  # Lists `title` the way the app does — through `Watchlist.put_rung/3`,
   # so the page hears the rung change — with the TMDB store holding the
   # title first (ADR-071): a listed row paints from the store, and in the
   # app a title is listed from its detail, which the store already holds.
@@ -45,7 +45,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       payload: payload || TmdbStubs.detail_for(title)
     })
 
-    Discovery.put_rung(title, rung, attrs)
+    Watchlist.put_rung(title, rung, attrs)
   end
 
   # The ids of every element matching `selector`, in document order.
@@ -398,7 +398,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # Your own review alone draws no social capsule.
       refute has_element?(view, "#detail-social")
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.listed?(99, :movie)
+      assert Watchlist.listed?(99, :movie)
       render_hook(view, "close_title", %{})
 
       view |> element("#person-you-#{mine.id}") |> render_click()
@@ -722,12 +722,12 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "#detail-note", "Watch it.")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.listed?(777, :movie)
+      assert Watchlist.listed?(777, :movie)
       render_hook(view, "close_title", %{})
       assert_patch(view, "/social")
 
       assert [%{intent: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
-               Discovery.list_watchlist()
+               Watchlist.list_watchlist()
 
       assert rec_id == rec.id
       await_supervised_tasks()
@@ -911,16 +911,16 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, entry(rec) <> "[data-list-slot='list']")
 
       view |> element(entry(rec) <> "-list", "List") |> render_click()
-      assert Discovery.rung(777, :movie) == :list
+      assert Watchlist.rung(777, :movie) == :list
 
       assert %{source: :friend, activity_id: rec_id, note: "Watch it."} =
-               Discovery.get_intent(777, :movie)
+               Watchlist.get_intent(777, :movie)
 
       assert rec_id == rec.id
       assert has_element?(view, entry(rec) <> "[data-list-slot='listed']")
 
       view |> element(entry(rec) <> "-list", "Listed") |> render_click()
-      assert Discovery.rung(777, :movie) == nil
+      assert Watchlist.rung(777, :movie) == nil
       assert has_element?(view, entry(rec) <> "[data-list-slot='list']")
 
       # Grab onboards the title, which first-contacts its TMDB detail.
@@ -994,10 +994,10 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element(entry(rec) <> "-ignore") |> render_click()
 
-      assert Discovery.rung(777, :movie) == :ignored
+      assert Watchlist.rung(777, :movie) == :ignored
 
       assert %{source: :friend, activity_id: rec_id, note: "Watch it."} =
-               Discovery.get_intent(777, :movie)
+               Watchlist.get_intent(777, :movie)
 
       assert rec_id == rec.id
       refute has_element?(view, entry(rec))
@@ -1008,7 +1008,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#ignore-undo-action") |> render_click()
 
-      assert Discovery.rung(777, :movie) == nil
+      assert Watchlist.rung(777, :movie) == nil
       assert has_element?(view, entry(rec))
       assert has_element?(view, entry(theirs))
       refute has_element?(view, "#ignore-undo")
@@ -1024,16 +1024,16 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       {:ok, view, _html} = live(conn, "/social")
       view |> element(entry(rec) <> "-ignore") |> render_click()
-      assert Discovery.rung(777, :movie) == :ignored
+      assert Watchlist.rung(777, :movie) == :ignored
 
       view |> element("#ignore-undo-action") |> render_click()
-      assert Discovery.rung(777, :movie) == :list
+      assert Watchlist.rung(777, :movie) == :list
       assert has_element?(view, entry(rec))
 
       view |> element(entry(rec) <> "-ignore") |> render_click()
       render_hook(view, "ignore_undo_dismiss", %{})
       refute has_element?(view, "#ignore-undo")
-      assert Discovery.rung(777, :movie) == :ignored
+      assert Watchlist.rung(777, :movie) == :ignored
       await_supervised_tasks()
     end
 
@@ -1059,7 +1059,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
-      assert Discovery.rung(777, :movie) == :list
+      assert Watchlist.rung(777, :movie) == :list
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
       assert has_element?(view, "#detail-tracking-controls[data-rung='list'][data-form='controls']")
       # A friend's snapshot carries no release date, so until the live
@@ -1077,14 +1077,14 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-tracking-controls-grab") |> render_click()
       await_supervised_tasks()
-      assert Discovery.rung(777, :movie) == :grab
+      assert Watchlist.rung(777, :movie) == :grab
       # Auto-grab holds the Track row on, and the bookmark still removes —
       # one act, at any rung.
       assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(777, :movie) == nil
+      assert Watchlist.rung(777, :movie) == nil
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
       refute has_element?(view, "#detail-tracking-controls")
     end
@@ -1106,7 +1106,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert render(view) =~ "Hidden from the Feed"
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(777, :movie) == :list
+      assert Watchlist.rung(777, :movie) == :list
       assert has_element?(view, "#detail-tracking-controls-grab")
     end
 
@@ -1254,7 +1254,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_click(view, "ignore_title", %{"activity" => Ecto.UUID.generate()})
 
       assert Process.alive?(view.pid)
-      assert Discovery.list_watchlist() == []
+      assert Watchlist.list_watchlist() == []
     end
 
     test "a friend's withdrawal removes the entry without a reload", %{conn: conn} do
@@ -1399,7 +1399,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, entry(mine) <> "[data-list-slot='listed']")
 
       view |> element(entry(mine) <> "-list") |> render_click()
-      refute Discovery.listed?(999, :movie)
+      refute Watchlist.listed?(999, :movie)
       render_until(view, fn _html -> not has_element?(view, entry(mine)) end)
       assert Activities.list_sent() == []
 
@@ -1489,7 +1489,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
              )
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(777, :movie) == nil
+      assert Watchlist.rung(777, :movie) == nil
 
       # No row and no friend activity know the title now: the open detail
       # keeps its own snapshot, so the bookmark is there to click again.
@@ -1501,7 +1501,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#detail-tracking-controls")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(777, :movie) == :list
+      assert Watchlist.rung(777, :movie) == :list
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
       assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
     end
@@ -1557,7 +1557,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # Every verb works on it: the bookmark lists it and the modal stays.
       view |> element("#detail-watchlist-toggle") |> render_click()
       await_supervised_tasks()
-      assert Discovery.rung(424_242, :movie) == :list
+      assert Watchlist.rung(424_242, :movie) == :list
 
       assert has_element?(
                view,
@@ -1754,7 +1754,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # Downloading what has aired says nothing about what is to come: the
       # title stays where the person put it, at List.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-      assert Discovery.rung(246_810, :tv_series) == :list
+      assert Watchlist.rung(246_810, :tv_series) == :list
     end
 
     test "Choose episodes sends Download to the picker with the default mode and plans nothing here",
@@ -1877,7 +1877,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      assert Discovery.rung(246_810, :tv_series) == :grab
+      assert Watchlist.rung(246_810, :tv_series) == :grab
       assert ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 
       # The broadcast lands the timeline and the rung on the open modal.
@@ -1899,11 +1899,11 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "#detail-tracking-controls[data-rung='follow']")
 
       view |> element("#detail-tracking-controls-grab") |> render_click()
-      assert Discovery.rung(777, :movie) == :grab
+      assert Watchlist.rung(777, :movie) == :grab
       assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
-      assert Discovery.rung(777, :movie) == nil
+      assert Watchlist.rung(777, :movie) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title too"
       refute has_element?(view, "#detail-release-dates")
       await_supervised_tasks()

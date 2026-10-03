@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Discovery.TmdbReferences do
+defmodule MediaCentaur.Watchlist.TmdbReferences do
   @moduledoc """
   Every title intent at List or above references its title — such a
   record is a standing interest, so the title's record and artwork never
@@ -11,7 +11,7 @@ defmodule MediaCentaur.Discovery.TmdbReferences do
 
   import Ecto.Query
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Repo
 
   @impl true

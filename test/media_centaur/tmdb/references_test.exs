@@ -28,7 +28,7 @@ defmodule MediaCentaur.TMDB.ReferencesTest do
     assert References.providers() == [
              MediaCentaur.ReleaseTracking.TmdbReferences,
              MediaCentaur.Acquisition.TmdbReferences,
-             MediaCentaur.Discovery.TmdbReferences,
+             MediaCentaur.Watchlist.TmdbReferences,
              MediaCentaur.Activities.TmdbReferences,
              MediaCentaur.Pipeline.TmdbReferences
            ]

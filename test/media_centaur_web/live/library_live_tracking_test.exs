@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TmdbStubs
 
@@ -80,14 +80,14 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
 
     view |> element("#detail-tracking-controls-grab") |> render_click()
     await_supervised_tasks()
-    assert Discovery.rung(424_242, :tv_series) == :follow
+    assert Watchlist.rung(424_242, :tv_series) == :follow
     assert has_element?(view, "#detail-tracking-controls[data-rung='follow']")
     assert has_element?(view, "#detail-release-dates")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     await_supervised_tasks()
 
-    assert Discovery.rung(424_242, :tv_series) == nil
+    assert Watchlist.rung(424_242, :tv_series) == nil
     refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
     # Off leaves nothing to show: no switches, no dates, no card.
     refute has_element?(view, "#detail-tracking")
@@ -118,15 +118,15 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
     view |> element("#detail-watchlist-toggle") |> render_click()
     # Listing fetches artwork on a supervised task; drive it home (ADR-049).
     await_supervised_tasks()
-    assert Discovery.rung(424_242, :tv_series) == :list
+    assert Watchlist.rung(424_242, :tv_series) == :list
     assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
     assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='follow']")
 
     view |> element("#detail-tracking-controls-grab") |> render_click()
     await_supervised_tasks()
 
-    assert Discovery.rung(424_242, :tv_series) == :grab
-    assert Discovery.listed?(424_242, :tv_series)
+    assert Watchlist.rung(424_242, :tv_series) == :grab
+    assert Watchlist.listed?(424_242, :tv_series)
     assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
   end
 

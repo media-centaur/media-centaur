@@ -2,7 +2,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
   @moduledoc """
   Mode-off mid-flight cleanup (ADR-056 Q11), run on the sweep tick
   before the drop planner: when a title no longer grabs
-  (`Discovery.grabs?/2` is false — its rung dropped below Grab) its
+  (`Watchlist.grabs?/2` is false — its rung dropped below Grab) its
   automated in-flight artifacts are withdrawn.
 
   Tick-driven rather than flip-driven for the same reason the planner
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Acquisition.{CancelReasons, Plans, Target, TargetStatus}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
@@ -130,7 +130,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
         standing =
           case ReleaseTracking.get_item(item_id) do
             nil -> :gone
-            item -> if Discovery.grabs?(item.tmdb_id, item.media_type), do: :grabs, else: :off
+            item -> if Watchlist.grabs?(item.tmdb_id, item.media_type), do: :grabs, else: :off
           end
 
         {standing, Map.put(cache, item_id, standing)}

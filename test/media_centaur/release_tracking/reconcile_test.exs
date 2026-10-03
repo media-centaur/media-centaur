@@ -13,7 +13,7 @@ defmodule MediaCentaur.ReleaseTracking.ReconcileTest do
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TmdbStubs
 
@@ -94,7 +94,7 @@ defmodule MediaCentaur.ReleaseTracking.ReconcileTest do
       :ok = ReleaseTracking.reconcile(7002, :movie)
 
       refute ReleaseTracking.get_item(item.id)
-      assert Discovery.rung(7002, :movie) == :grab, "the rung is the person's; nothing lowers it"
+      assert Watchlist.rung(7002, :movie) == :grab, "the rung is the person's; nothing lowers it"
     end
   end
 

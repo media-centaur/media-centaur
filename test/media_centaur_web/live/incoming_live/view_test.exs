@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.TestFactory
   alias MediaCentaurWeb.Components.Title.Row.NextRelease

@@ -57,7 +57,7 @@ defmodule MediaCentaur.Topics do
   | `controls:updates` | `Controls` | global control changes |
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
-  | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
+  | `watchlist:updates` | `Watchlist.Events` | `{:title_intent_changed, %RungChanged{}}` — one message: a rung moved (ADR-060 typed struct) |
   | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}`, `{:profile_updated, _}` |
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
   | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
@@ -166,7 +166,7 @@ defmodule MediaCentaur.Topics do
   def dir_state, do: "watcher:state"
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
-  def discovery_updates, do: "discovery:updates"
+  def watchlist_updates, do: "watchlist:updates"
   def social_updates, do: "social:updates"
   def social_connections, do: "social:connections"
   def activities_updates, do: "activities:updates"

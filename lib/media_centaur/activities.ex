@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Activities do
   use Boundary,
     deps: [
-      MediaCentaur.Discovery,
+      MediaCentaur.Watchlist,
       MediaCentaur.Library,
       MediaCentaur.Nostr,
       MediaCentaur.Settings.Preferences,
@@ -60,8 +60,8 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Activities.Events
   alias MediaCentaur.Activities.Translation
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Title
@@ -184,7 +184,7 @@ defmodule MediaCentaur.Activities do
         0
 
       me ->
-        rungs = Discovery.rungs()
+        rungs = Watchlist.rungs()
 
         Activity
         |> where([a], a.kind == :listing and a.author_pubkey == ^me)
@@ -495,7 +495,7 @@ defmodule MediaCentaur.Activities do
   end
 
   # Sync is the single writer for inbound events, so the unique-constraint
-  # race Discovery guards against cannot happen here.
+  # race Watchlist guards against cannot happen here.
   defp upsert(attrs) do
     case existing(attrs) do
       nil -> Repo.insert(Activity.changeset(attrs))

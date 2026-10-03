@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           library: Library.t() | nil,
           acquisition_state: acquisition_state(),
           release_mode_available: boolean(),
-          rung: MediaCentaur.Discovery.TitleIntent.rung() | nil,
+          rung: MediaCentaur.Watchlist.TitleIntent.rung() | nil,
           tracking: TrackingDetail.t() | nil,
           acquisition?: boolean(),
           lower_quality_accepted?: boolean(),

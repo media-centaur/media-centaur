@@ -10,7 +10,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   not a specific episode or movie file.
 
   It carries no authored field at all. What a person wants done about the
-  title is the rung on their `Discovery.TitleIntent`, and this row exists
+  title is the rung on their `Watchlist.TitleIntent`, and this row exists
   exactly while that rung is `:follow` or above — so there is nothing
   here to set, and nothing to keep in agreement with anything else. It
   carries no TMDB fact either: everything TMDB says about the title lives

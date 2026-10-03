@@ -50,7 +50,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:upcoming` — tracked and dated, but not auto-grabbing (neutral).
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed

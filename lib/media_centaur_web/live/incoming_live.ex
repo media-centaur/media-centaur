@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher, TitleStates}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
@@ -183,9 +183,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     prowlarr? = Capabilities.prowlarr_ready?()
 
     # The rows' rungs (the omnibox results, the plan board's bookmark)
-    # come from the ladder; `discovery:updates` keeps them live.
+    # come from the ladder; `watchlist:updates` keeps them live.
     socket =
-      [MediaCentaur.Library, Activities, Discovery, Store, IntegrationAvailability]
+      [MediaCentaur.Library, Activities, Watchlist, Store, IntegrationAvailability]
       |> Enum.reduce(socket, &Subscriptions.subscribe(&2, &1))
       |> then(&if(prowlarr?, do: subscribe_acquisition(&1), else: &1))
 
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.IncomingLive do
        assign(socket,
          loaded?: false,
          subscribed_acquisition?: prowlarr? and connected?(socket),
-         title_rungs: Discovery.rungs(),
+         title_rungs: Watchlist.rungs(),
          today: today,
          view: %View{},
          grab_status_by_key: %{},
@@ -379,7 +379,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     acquisition? = Capabilities.acquisition_ready?()
     approval_policy = PlanningMode.approval_policy(PlanningMode.value())
     grab = grab_status_by_key(releases, acquisition?)
-    watchlist = Discovery.list_watchlist()
+    watchlist = Watchlist.list_watchlist()
     refs = Enum.map(watchlist, &{&1.intent.tmdb_id, &1.intent.media_type})
 
     view =
@@ -1830,7 +1830,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # A rung moved anywhere: the rows' markers and the plan board's
   # bookmark read the ladder again.
   def handle_info({:title_intent_changed, _event}, socket),
-    do: {:noreply, socket |> assign(:title_rungs, Discovery.rungs()) |> build_view()}
+    do: {:noreply, socket |> assign(:title_rungs, Watchlist.rungs()) |> build_view()}
 
   # A review arriving or withdrawn re-reads the social glyphs: the
   # omnibox results' own at once, and the watchlist rows' through the

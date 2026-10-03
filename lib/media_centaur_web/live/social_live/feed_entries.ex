@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   no state is spelled twice.
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.FeedEntry

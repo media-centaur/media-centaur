@@ -6,7 +6,7 @@ defmodule MediaCentaur.Activities.Publisher do
   | Act | Source | Toggle | Activity |
   |---|---|---|---|
   | Finished a movie or an episode | `watch_history:events`, `{:watch_event_created, event}` | `share_watched` | `Activities.watched/2` |
-  | Listed a title — its rung crossed onto List from below | `discovery:updates`, `{:title_intent_changed, %RungChanged{}}` | `share_watchlist` | `Activities.listing/1` |
+  | Listed a title — its rung crossed onto List from below | `watchlist:updates`, `{:title_intent_changed, %RungChanged{}}` | `share_watchlist` | `Activities.listing/1` |
   | Dropped a listed title below List | the same message, the other way | none | `Activities.withdraw/3` |
 
   A listing follows the rung transition (ADR-067): `RungChanged` carries
@@ -38,9 +38,9 @@ defmodule MediaCentaur.Activities.Publisher do
 
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity.Episode
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.Events.RungChanged
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist
+  alias MediaCentaur.Watchlist.Events.RungChanged
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library.{Containers, Episodes, ExternalIds, Seasons}
   alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist}
   alias MediaCentaur.TMDB.Title
@@ -51,7 +51,7 @@ defmodule MediaCentaur.Activities.Publisher do
   @impl true
   def init(_opts) do
     WatchHistory.subscribe()
-    Discovery.subscribe()
+    Watchlist.subscribe()
     {:ok, %{}}
   end
 

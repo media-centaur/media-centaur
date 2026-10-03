@@ -10,7 +10,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   `effective_min_quality/1`.
 
   There is no grab mode here. Whether a title auto-grabs is its rung
-  (`Discovery.TitleIntent.grabs?/1`); whether the plan commits alone is
+  (`Watchlist.TitleIntent.grabs?/1`); whether the plan commits alone is
   the person's planning mode (`Settings.Preferences.PlanningMode`).
 
   Built-in fallback values:

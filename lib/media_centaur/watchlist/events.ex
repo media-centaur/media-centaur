@@ -1,6 +1,6 @@
-defmodule MediaCentaur.Discovery.Events do
+defmodule MediaCentaur.Watchlist.Events do
   @moduledoc """
-  Typed payloads for the `discovery:updates` topic (ADR-060): one struct
+  Typed payloads for the `watchlist:updates` topic (ADR-060): one struct
   per message, `@enforce_keys`, a single `broadcast/1`.
 
   There is one message, because there is one thing that can happen to a
@@ -15,7 +15,7 @@ defmodule MediaCentaur.Discovery.Events do
   fire a second event later).
   """
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
@@ -43,5 +43,5 @@ defmodule MediaCentaur.Discovery.Events do
 
   @spec broadcast(t()) :: :ok | {:error, term()}
   def broadcast(%RungChanged{} = event),
-    do: Topics.publish(Topics.discovery_updates(), {:title_intent_changed, event})
+    do: Topics.publish(Topics.watchlist_updates(), {:title_intent_changed, event})
 end

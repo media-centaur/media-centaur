@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Discovery.TitleIntent do
+defmodule MediaCentaur.Watchlist.TitleIntent do
   @moduledoc """
   One person's standing intent about one title: its TMDB identity, its
   provenance, and the **rung** that says what the app should do about
@@ -40,7 +40,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   `MediaCentaur.TMDB.Title` the person acted on (`create_changeset/3`).
   The record copies nothing else from it. The title's render snapshot is
   the TMDB store's (ADR-071), attached to the virtual `title` by
-  `Discovery.Titles.attach/1` on every read, so a listed title is
+  `Watchlist.Titles.attach/1` on every read, so a listed title is
   painted from the same record every other surface reads. The library
   is never referenced from here either — presence is derived at read
   time via `Library.ExternalIds` (one source of truth, cannot go stale).
@@ -49,7 +49,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   (`:import`, …); directed reviews later add nullable
   sender/recipient columns — no dead columns until then. A `:friend`
   record names the friend's review or listing it came from in
-  `activity_id` — a bare uuid, because Discovery and Activities are
+  `activity_id` — a bare uuid, because Watchlist and Activities are
   independent contexts; the web layer resolves the activity's author as
   a `Social.Person` — and, for a review, carries its text as the record's
   `note`: what the friend said when the person acted, a snapshot. A

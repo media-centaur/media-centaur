@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Components.Switch do
   Two layouts. `:leading` puts the toggle before the words, compact
   (`text-sm`), for a switch inside a card or a block: the tracking block's
   Track release dates and Auto-grab (`Title.TrackingControls`) and the person card's
-  *Show their picture* (`Discovery.PersonCard`). `:trailing` puts the
+  *Show their picture* (`Social.PersonCard`). `:trailing` puts the
   words first at the Settings kit's size and the toggle right-aligned: the
   Settings row (`Settings.settings_row/1`). The caller sets the row's
   spacing through `class`.

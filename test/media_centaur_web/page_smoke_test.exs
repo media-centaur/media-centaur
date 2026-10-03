@@ -245,7 +245,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       TmdbStubs.setup_artwork_cache()
 
       {:ok, _item} =
-        MediaCentaur.Discovery.put_rung(
+        MediaCentaur.Watchlist.put_rung(
           MediaCentaur.TMDB.Title.new!(%{
             tmdb_id: 777,
             media_type: :movie,

@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   flew (`SocialWords.drawn_flags/1`), each at its grade with its
   sentence on hover. State is shown, never acted on here: every verb
   lives in the modal, and the pursuit row an in-pursuit pill names is on
-  the Activity tab. (The Feed's rows are `Discovery.FeedRow`, which
+  the Activity tab. (The Feed's rows are `Social.FeedRow`, which
   carries its own toolbar.)
 
   Pure rendering; `open_title` bubbles to the host with the

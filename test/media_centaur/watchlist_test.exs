@@ -1,11 +1,11 @@
-defmodule MediaCentaur.DiscoveryTest do
+defmodule MediaCentaur.WatchlistTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
 
@@ -51,18 +51,18 @@ defmodule MediaCentaur.DiscoveryTest do
     end
 
     test "put_rung writes one record and moves it, never duplicates it" do
-      assert {:ok, %{rung: :list}} = Discovery.put_rung(@title, :list)
-      assert {:ok, %{rung: :grab}} = Discovery.put_rung(@title, :grab)
+      assert {:ok, %{rung: :list}} = Watchlist.put_rung(@title, :list)
+      assert {:ok, %{rung: :grab}} = Watchlist.put_rung(@title, :grab)
       assert [_] = Repo.all(TitleIntent)
       await_supervised_tasks()
     end
 
     test "a rung change broadcasts the transition: both rungs and the title" do
-      Discovery.subscribe()
-      {:ok, _intent} = Discovery.put_rung(@title, :list)
+      Watchlist.subscribe()
+      {:ok, _intent} = Watchlist.put_rung(@title, :list)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{
+                      %Watchlist.Events.RungChanged{
                         tmdb_id: 777,
                         media_type: :movie,
                         previous_rung: nil,
@@ -70,32 +70,32 @@ defmodule MediaCentaur.DiscoveryTest do
                         title: %Title{tmdb_id: 777}
                       }}
 
-      {:ok, _intent} = Discovery.put_rung(@title, :follow)
+      {:ok, _intent} = Watchlist.put_rung(@title, :follow)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{previous_rung: :list, rung: :follow}}
+                      %Watchlist.Events.RungChanged{previous_rung: :list, rung: :follow}}
 
       await_supervised_tasks()
     end
 
     test "leaving Ignored for the list is a transition from :ignored" do
-      {:ok, _intent} = Discovery.put_rung(@title, :ignored)
-      Discovery.subscribe()
-      {:ok, _intent} = Discovery.put_rung(@title, :list)
+      {:ok, _intent} = Watchlist.put_rung(@title, :ignored)
+      Watchlist.subscribe()
+      {:ok, _intent} = Watchlist.put_rung(@title, :list)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{previous_rung: :ignored, rung: :list}}
+                      %Watchlist.Events.RungChanged{previous_rung: :ignored, rung: :list}}
 
       await_supervised_tasks()
     end
 
     test "forget deletes and broadcasts nil — Off is the absence of a record; absent is a no-op" do
-      {:ok, _} = Discovery.put_rung(@title, :grab)
-      Discovery.subscribe()
-      assert :ok = Discovery.forget(777, :movie)
+      {:ok, _} = Watchlist.put_rung(@title, :grab)
+      Watchlist.subscribe()
+      assert :ok = Watchlist.forget(777, :movie)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{
+                      %Watchlist.Events.RungChanged{
                         tmdb_id: 777,
                         media_type: :movie,
                         previous_rung: :grab,
@@ -103,66 +103,66 @@ defmodule MediaCentaur.DiscoveryTest do
                         title: %Title{tmdb_id: 777}
                       }}
 
-      assert :ok = Discovery.forget(777, :movie)
-      refute Discovery.listed?(777, :movie)
-      assert Discovery.rung(777, :movie) == nil
+      assert :ok = Watchlist.forget(777, :movie)
+      refute Watchlist.listed?(777, :movie)
+      assert Watchlist.rung(777, :movie) == nil
       await_supervised_tasks()
     end
 
     test "rungs/0 returns every listed title's rung" do
-      {:ok, _} = Discovery.put_rung(@title, :list)
+      {:ok, _} = Watchlist.put_rung(@title, :list)
 
       {:ok, _} =
-        Discovery.put_rung(
+        Watchlist.put_rung(
           Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show"}),
           :grab
         )
 
-      assert Discovery.rungs() == %{{777, :movie} => :list, {42, :tv_series} => :grab}
+      assert Watchlist.rungs() == %{{777, :movie} => :list, {42, :tv_series} => :grab}
       await_supervised_tasks()
     end
 
     test "list_watchlist returns newest-first with nil library owner when absent" do
-      {:ok, _} = Discovery.put_rung(@title, :list)
-      assert [%{intent: %TitleIntent{tmdb_id: 777}, library_owner_id: nil}] = Discovery.list_watchlist()
+      {:ok, _} = Watchlist.put_rung(@title, :list)
+      assert [%{intent: %TitleIntent{tmdb_id: 777}, library_owner_id: nil}] = Watchlist.list_watchlist()
       await_supervised_tasks()
     end
 
     test "list_watchlist resolves the library owner when a presentable container exists" do
-      {:ok, _} = Discovery.put_rung(@title, :list)
+      {:ok, _} = Watchlist.put_rung(@title, :list)
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{source: "tmdb", external_id: "777", movie_id: movie.id})
       create_linked_file(%{movie_id: movie.id})
-      assert [%{library_owner_id: owner_id}] = Discovery.list_watchlist()
+      assert [%{library_owner_id: owner_id}] = Watchlist.list_watchlist()
       assert owner_id == movie.id
       await_supervised_tasks()
     end
 
     test "an ignored title is a record below the list: not listed, off the watchlist, in rungs/0" do
-      {:ok, %{rung: :ignored}} = Discovery.put_rung(@title, :ignored)
+      {:ok, %{rung: :ignored}} = Watchlist.put_rung(@title, :ignored)
 
-      refute Discovery.listed?(777, :movie)
-      assert Discovery.rung(777, :movie) == :ignored
-      assert Discovery.list_watchlist() == []
-      assert Discovery.rungs() == %{{777, :movie} => :ignored}
+      refute Watchlist.listed?(777, :movie)
+      assert Watchlist.rung(777, :movie) == :ignored
+      assert Watchlist.list_watchlist() == []
+      assert Watchlist.rungs() == %{{777, :movie} => :ignored}
       # No artwork is promoted or held for a title the person has dismissed.
-      assert MediaCentaur.Discovery.TmdbReferences.references() == MapSet.new()
+      assert MediaCentaur.Watchlist.TmdbReferences.references() == MapSet.new()
 
       # Wanting it again supersedes having dismissed it — one record, moved.
-      {:ok, %{rung: :list}} = Discovery.put_rung(@title, :list)
-      assert Discovery.listed?(777, :movie)
-      assert [_] = Discovery.list_watchlist()
+      {:ok, %{rung: :list}} = Watchlist.put_rung(@title, :list)
+      assert Watchlist.listed?(777, :movie)
+      assert [_] = Watchlist.list_watchlist()
       await_supervised_tasks()
     end
 
     test "TmdbArtworkHolds holds every listed ref" do
-      {:ok, _} = Discovery.put_rung(@title, :list)
-      assert MediaCentaur.Discovery.TmdbReferences.references() == MapSet.new([{777, :movie}])
+      {:ok, _} = Watchlist.put_rung(@title, :list)
+      assert MediaCentaur.Watchlist.TmdbReferences.references() == MapSet.new([{777, :movie}])
       await_supervised_tasks()
     end
 
     test "duplicate insert at the changeset level returns an error, not a raise" do
-      {:ok, _} = Discovery.put_rung(@title, :list)
+      {:ok, _} = Watchlist.put_rung(@title, :list)
       title = @title
       # This insert is the operation under test, not setup: it pins that the
       # unique constraint surfaces as {:error, changeset} rather than raising —
@@ -187,7 +187,7 @@ defmodule MediaCentaur.DiscoveryTest do
       })
 
       {:ok, %TitleIntent{title: %Title{name: "Stored Movie"}}} =
-        Discovery.put_rung(@title, :list, %{note: "why"})
+        Watchlist.put_rung(@title, :list, %{note: "why"})
 
       # The record copies nothing from the title it was listed with.
       assert %TitleIntent{
@@ -198,27 +198,27 @@ defmodule MediaCentaur.DiscoveryTest do
                  poster_path: "/stored.jpg"
                },
                note: "why"
-             } = Discovery.get_intent(777, :movie)
+             } = Watchlist.get_intent(777, :movie)
 
-      assert [%{intent: %TitleIntent{title: %Title{name: "Stored Movie"}}}] = Discovery.list_watchlist()
+      assert [%{intent: %TitleIntent{title: %Title{name: "Stored Movie"}}}] = Watchlist.list_watchlist()
       await_supervised_tasks()
     end
 
     test "a listed title the store lacks carries a bare identity until first contact lands" do
-      {:ok, _intent} = Discovery.put_rung(@title, :list)
+      {:ok, _intent} = Watchlist.put_rung(@title, :list)
 
       assert %TitleIntent{title: %Title{tmdb_id: 777, media_type: :movie, name: nil, poster_path: nil}} =
-               Discovery.get_intent(777, :movie)
+               Watchlist.get_intent(777, :movie)
 
       await_supervised_tasks()
     end
 
     test "forgetting a title the store never held still broadcasts the move to Off" do
-      Discovery.subscribe()
-      {:ok, _intent} = Discovery.put_rung(@title, :list)
+      Watchlist.subscribe()
+      {:ok, _intent} = Watchlist.put_rung(@title, :list)
       assert_receive {:title_intent_changed, %{rung: :list}}
 
-      :ok = Discovery.forget(777, :movie)
+      :ok = Watchlist.forget(777, :movie)
 
       assert_receive {:title_intent_changed,
                       %{previous_rung: :list, rung: nil, title: %Title{tmdb_id: 777, name: nil}}}

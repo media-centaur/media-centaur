@@ -2,7 +2,7 @@ defmodule MediaCentaur.ReleaseTracking do
   use Boundary,
     deps: [
       MediaCentaur.TMDB,
-      MediaCentaur.Discovery,
+      MediaCentaur.Watchlist,
       MediaCentaur.IntegrationAvailability,
       MediaCentaur.Library,
       MediaCentaur.Retention,
@@ -44,14 +44,14 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Settings.Preferences.WatchlistAutoRemove
   alias MediaCentaur.Repo
 
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Library.Containers
   alias MediaCentaur.Library.ExternalIds
 
   alias MediaCentaur.ReleaseTracking.DeriveJob
   alias MediaCentaur.ReleaseTracking.LibraryLinks
 
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist.TitleIntent
 
   alias MediaCentaur.ReleaseTracking.{
     Calendar,
@@ -270,7 +270,7 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   defp reconcile_item(%Item{} = item) do
-    rung = Discovery.rung(item.tmdb_id, item.media_type)
+    rung = Watchlist.rung(item.tmdb_id, item.media_type)
 
     if TitleIntent.follows_releases?(rung) and not complete?(item.tmdb_id, item.media_type) do
       :ok
@@ -348,8 +348,8 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   defp remove_arrived_from_watchlist(tmdb_id) do
-    with true <- Discovery.listed?(tmdb_id, :movie),
-         %{title: title} <- Discovery.get_intent(tmdb_id, :movie),
+    with true <- Watchlist.listed?(tmdb_id, :movie),
+         %{title: title} <- Watchlist.get_intent(tmdb_id, :movie),
          {:ok, nil} <- set_rung(title, :off) do
       Log.info(
         :acquisition,
@@ -466,8 +466,8 @@ defmodule MediaCentaur.ReleaseTracking do
   from its handler; the job reads the rung when it runs, so the latest
   of several quick changes is the one derived.
 
-  It lives here rather than in `Discovery` only because deriving needs to
-  see both sides and the dependency runs this way — `Discovery` must stay
+  It lives here rather than in `Watchlist` only because deriving needs to
+  see both sides and the dependency runs this way — `Watchlist` must stay
   free of tracking (ADR-066).
 
   `attrs` may carry `:source`, `:note` and `:activity_id` (applied on
@@ -479,7 +479,7 @@ defmodule MediaCentaur.ReleaseTracking do
   def set_rung(title, rung, attrs \\ %{})
 
   def set_rung(%Title{} = title, :off, _attrs) do
-    :ok = Discovery.forget(title.tmdb_id, title.media_type)
+    :ok = Watchlist.forget(title.tmdb_id, title.media_type)
     :ok = drop_machinery(title.tmdb_id, title.media_type)
     {:ok, nil}
   end
@@ -494,7 +494,7 @@ defmodule MediaCentaur.ReleaseTracking do
       })
 
     Repo.transaction(fn ->
-      with {:ok, intent} <- Discovery.put_rung(title, rung, attrs),
+      with {:ok, intent} <- Watchlist.put_rung(title, rung, attrs),
            {:ok, _job} <- Oban.insert(derivation) do
         intent
       else
@@ -511,7 +511,7 @@ defmodule MediaCentaur.ReleaseTracking do
   """
   @spec derive_from_rung(integer(), Title.media_type(), map()) :: :ok | {:error, term()}
   def derive_from_rung(tmdb_id, media_type, attrs) do
-    case Discovery.rung(tmdb_id, media_type) do
+    case Watchlist.rung(tmdb_id, media_type) do
       nil -> drop_machinery(tmdb_id, media_type)
       rung -> derive(%Title{tmdb_id: tmdb_id, media_type: media_type}, rung, attrs)
     end

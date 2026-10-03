@@ -32,7 +32,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleDownloadParams, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
   alias MediaCentaur.IntegrationAvailability
-  alias MediaCentaur.Discovery
+  alias MediaCentaur.Watchlist
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Identity, Item}
@@ -60,7 +60,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
-         true <- Discovery.grabs?(item.tmdb_id, item.media_type) do
+         true <- Watchlist.grabs?(item.tmdb_id, item.media_type) do
       due = Enum.filter(wants, &WantSchedule.due?(&1, now))
 
       case item.media_type do

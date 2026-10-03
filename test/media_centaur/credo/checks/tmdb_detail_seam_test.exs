@@ -80,13 +80,13 @@ defmodule MediaCentaur.Credo.Checks.TmdbDetailSeamTest do
 
     test "a collection fetch outside its three callers" do
       ~S'''
-      defmodule MediaCentaur.Discovery do
+      defmodule MediaCentaur.Watchlist do
         alias MediaCentaur.TMDB.Client
 
         def parts(id), do: Client.get_collection(id)
       end
       '''
-      |> to_source_file("lib/media_centaur/discovery.ex")
+      |> to_source_file("lib/media_centaur/watchlist.ex")
       |> run_check(TmdbDetailSeam)
       |> assert_issue(fn issue -> assert issue.trigger == "get_collection" end)
     end

@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.SocialLive do
   The social projections come from one list: every live activity with
   its actor (`Activities.list_activities/0`), enriched here with what
   Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
-  `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
+  `Watchlist.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
   Feed (`/social`, the page's default; UIDR-038, UIDR-045, UIDR-046)
   — every author's reviews and listings, friends' and your own, one
@@ -77,8 +77,8 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Watchlist
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Artwork
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.SocialLive do
   def mount(_params, _session, socket) do
     socket =
       Enum.reduce(
-        [Discovery, Library, Social, Activities, Acquisition],
+        [Watchlist, Library, Social, Activities, Acquisition],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -410,7 +410,7 @@ defmodule MediaCentaurWeb.SocialLive do
 
     refs = ActivityArtwork.library_refs(owners)
     library_artwork = Map.new(ActivityArtwork.roles(), &{&1, Artwork.urls_by_refs(refs, &1)})
-    rungs = Discovery.rungs()
+    rungs = Watchlist.rungs()
 
     activities =
       Enum.map(rows, fn %{activity: activity} = row ->
