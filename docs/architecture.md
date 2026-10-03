@@ -73,7 +73,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | Context | Owns | Notes |
 |---------|------|-------|
 | `MediaCentaur.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, ExternalId, PlayableItem, WatchProgress, ExtraProgress, WatchedFile, ExtraFile, FilePresence, FileMediaInfo, MediaTrackOverride, ChangeEntry, Person. |
-| `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Pipeline.Discovery.InflightSet` dedupes duplicate file-detected events — file discovery in the pipeline, unrelated to the `MediaCentaur.Discovery` context below. |
+| `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Pipeline.Discovery.InflightSet` dedupes duplicate file-detected events — file discovery in the pipeline, unrelated to the `MediaCentaur.Watchlist` context below. |
 | `MediaCentaur.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
 | `MediaCentaur.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
 | `MediaCentaur.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
