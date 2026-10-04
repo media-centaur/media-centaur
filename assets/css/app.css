@@ -3122,20 +3122,21 @@ body:has(.modal-backdrop[data-state="open"]) {
   cursor: pointer;
 }
 
-/* The crop box over a chosen picture (croppr 2.3.1, vendored; profiles
-   phase 5b). Its stylesheet, recoloured: the dim over the picture, the
-   square, the four handles. The stage is the Picture field's width.
+/* The crop box over a chosen picture (croppr 2.3.1, vendored; the
+   ImageCrop hook, Components.PictureField). Its stylesheet, recoloured:
+   the dim over the picture, the box, the four handles. The stage is the
+   picture field's width.
 
    The stage cancels the root zoom, as .strip-chart-plot does for uPlot:
    croppr maps the pointer with getBoundingClientRect (visual px) against
    offsetWidth (layout px) and converts the box to the picture's pixels by
    the same mix, so under --ui-scale the box drifts off the pointer and
-   the reported square is off by the scale. At effective zoom 1 the two
+   the reported box is off by the scale. At effective zoom 1 the two
    agree. The stage's width comes from its zoomed parent, and every pixel
    length inside is multiplied by --ui-scale to keep its design size. */
-.avatar-crop { max-width: 18rem; }
-.avatar-crop-stage { zoom: calc(1 / var(--ui-scale, 1)); }
-.avatar-crop-stage img[data-role="source"] { display: block; max-width: 100%; height: auto; border-radius: calc(8px * var(--ui-scale, 1)); }
+.image-crop { max-width: 18rem; }
+.image-crop-stage { zoom: calc(1 / var(--ui-scale, 1)); }
+.image-crop-stage img[data-role="source"] { display: block; max-width: 100%; height: auto; border-radius: calc(8px * var(--ui-scale, 1)); }
 .croppr-container * { user-select: none; box-sizing: border-box; }
 .croppr-container img { vertical-align: middle; max-width: 100%; }
 .croppr { position: relative; display: inline-block; border-radius: calc(8px * var(--ui-scale, 1)); overflow: hidden; }

@@ -165,6 +165,20 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert %{avatar_type: "image/webp"} = Social.own_profile()
     end
 
+    test "a rejected file is dropped on save and the profile saves without it", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "notes.txt", content: "hello", type: "text/plain"}
+        ])
+
+      assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      assert %{name: "Sample Name", avatar_type: nil} = Social.own_profile()
+    end
+
     test "Remove steps aside while a picture is chosen", %{conn: conn} do
       Identity.ensure()
       {:ok, img} = Image.new(64, 64, color: :red)
@@ -233,34 +247,35 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, img} = Image.new(400, 300, color: :blue)
       {:ok, png} = Image.write(img, :memory, suffix: ".png")
 
-      refute has_element?(view, "#profile-form [phx-hook='AvatarCrop']")
+      refute has_element?(view, "#profile-form [phx-hook='ImageCrop']")
 
       upload =
         file_input(view, "#profile-form", :avatar, [%{name: "me.png", content: png, type: "image/png"}])
 
       render_upload(upload, "me.png")
 
-      stage = "#profile-form [phx-hook='AvatarCrop'][phx-update='ignore']"
-      assert has_element?(view, stage <> " img[data-role='source']")
+      stage = "#profile-form [phx-hook='ImageCrop'][phx-update='ignore']"
+      assert has_element?(view, stage <> "[data-aspect='1.0'] img[data-role='source']")
       assert has_element?(view, stage <> " input[type='hidden'][name='crop_x']")
       assert has_element?(view, stage <> " input[type='hidden'][name='crop_y']")
-      assert has_element?(view, stage <> " input[type='hidden'][name='crop_side']")
+      assert has_element?(view, stage <> " input[type='hidden'][name='crop_width']")
+      assert has_element?(view, stage <> " input[type='hidden'][name='crop_height']")
       assert has_element?(view, stage <> " canvas[data-role='preview'][width='48']")
       assert has_element?(view, stage <> " canvas[data-role='preview'][width='40']")
       assert has_element?(view, stage <> " .identity-tile.identity-tile-own.identity-tile-avatar")
       assert render(view) =~ "How it will look"
 
-      # The previews follow the pending hue: it sits on the stage's parent,
+      # The previews follow the pending hue: it sits on the field's root,
       # outside the hook's ignored subtree, and inherits into the rings.
       view |> element("#profile-hues button[data-hue='195']") |> render_click()
-      assert has_element?(view, "#profile-form [data-role='pending-picture'][style='--hue: 195']")
+      assert has_element?(view, "#profile-form [data-role='picture-field'][style='--hue: 195']")
       refute has_element?(view, stage <> " .identity-tile[style]")
 
       view |> element("#profile-form button", "Cancel") |> render_click()
-      refute has_element?(view, "#profile-form [phx-hook='AvatarCrop']")
+      refute has_element?(view, "#profile-form [phx-hook='ImageCrop']")
     end
 
-    test "Save cuts the square the fields name; without them, the centre", %{conn: conn} do
+    test "Save cuts the rectangle the fields name; without them, the centre", %{conn: conn} do
       Identity.ensure()
       {:ok, view, _html} = live_async!(conn, @section)
       {:ok, red} = Image.new(200, 200, color: :red)
@@ -280,7 +295,12 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       # which is the documented route for hidden inputs.
       view
       |> form("#profile-form", %{"name" => "Sample Name"})
-      |> render_submit(%{"crop_x" => "200", "crop_y" => "0", "crop_side" => "200"})
+      |> render_submit(%{
+        "crop_x" => "200",
+        "crop_y" => "0",
+        "crop_width" => "200",
+        "crop_height" => "200"
+      })
 
       me = Identity.pubkey()
       {:ok, bytes} = AvatarStore.read(me, "image/webp")
@@ -297,7 +317,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
       view
       |> form("#profile-form", %{"name" => "Sample Name"})
-      |> render_submit(%{"crop_x" => "", "crop_y" => "", "crop_side" => ""})
+      |> render_submit(%{"crop_x" => "", "crop_y" => "", "crop_width" => "", "crop_height" => ""})
 
       {:ok, bytes} = AvatarStore.read(me, "image/webp")
       {:ok, master} = Image.from_binary(bytes)

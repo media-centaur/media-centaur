@@ -7,7 +7,11 @@ defmodule MediaCentaurWeb.AppsLive do
   edit / remove. The Add modal has two tabs: the Steam picker (installed
   games discovered from the local Steam root, header art hotlinked from
   Steam's CDN at browsing tier — the artwork ladder's browsing tier
-  downloads nothing) and the manual form (name + command). Modal state
+  downloads nothing) and the manual form (name, command, and — for a
+  manual app — the banner: `Components.PictureField` at 460:215, cut
+  on save into the 920×430 JPEG master and handed to
+  `Apps.change_banner/2`; a Steam app's banner follows the store, so
+  its edit has no picture field). Modal state
   lives in assigns — no URL params, so nothing for
   `data-nav-transient-params`.
 
@@ -21,7 +25,13 @@ defmodule MediaCentaurWeb.AppsLive do
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Apps.App
   alias MediaCentaur.Apps.Steam
+  alias MediaCentaur.ImageFiles
   alias MediaCentaurWeb.Components.AppCards
+  alias MediaCentaurWeb.Components.PictureField
+
+  # The banner master: Steam's current header size at 2×, the card's
+  # 460:215 shape.
+  @banner_size {920, 430}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -31,6 +41,8 @@ defmodule MediaCentaurWeb.AppsLive do
      socket
      |> assign(page_title: "Apps", manage: false, modal: :closed, add_tab: :steam)
      |> assign(steam_root_override: nil, steam_games: [], added_steam_ids: MapSet.new())
+     |> assign(banner_removed?: false)
+     |> allow_upload(:banner, PictureField.upload_options())
      |> assign_manual_form(App.create_changeset(%{}))
      |> load_apps()}
   end
@@ -61,6 +73,7 @@ defmodule MediaCentaurWeb.AppsLive do
     {:noreply,
      socket
      |> assign(modal: :add, add_tab: :steam)
+     |> reset_banner()
      |> assign_steam_games()
      |> assign_manual_form(App.create_changeset(%{}))}
   end
@@ -70,7 +83,7 @@ defmodule MediaCentaurWeb.AppsLive do
   end
 
   def handle_event("close_modal", _params, socket) do
-    {:noreply, assign(socket, :modal, :closed)}
+    {:noreply, socket |> assign(:modal, :closed) |> reset_banner()}
   end
 
   def handle_event("add_steam_game", %{"app-id" => raw_app_id}, socket) do
@@ -93,6 +106,7 @@ defmodule MediaCentaurWeb.AppsLive do
     {:noreply,
      socket
      |> assign(modal: {:edit, app})
+     |> reset_banner()
      |> assign_manual_form(App.update_changeset(app, %{}))}
   end
 
@@ -101,16 +115,31 @@ defmodule MediaCentaurWeb.AppsLive do
     {:noreply, load_apps(socket)}
   end
 
-  def handle_event("save_manual", %{"app" => params}, socket) do
+  # The upload's change event: LiveView needs it bound to track the entry.
+  def handle_event("validate_manual", _params, socket), do: {:noreply, socket}
+
+  # Remove is pending until the save, as the profile picture's is.
+  def handle_event("remove_banner", _params, socket),
+    do: {:noreply, assign(socket, banner_removed?: true)}
+
+  def handle_event("cancel_banner", %{"ref" => ref}, socket),
+    do: {:noreply, cancel_upload(socket, :banner, ref)}
+
+  # The row is saved before the chosen image is consumed, so a name or
+  # command error leaves the image pending for the next save.
+  def handle_event("save_manual", %{"app" => app_params} = params, socket) do
     result =
       case socket.assigns.modal do
-        {:edit, app} -> Apps.update_app(app, params)
-        _add -> Apps.add_app(Map.put(params, "origin", %{"source" => "manual"}))
+        {:edit, app} -> Apps.update_app(app, app_params)
+        _add -> Apps.add_app(Map.put(app_params, "origin", %{"source" => "manual"}))
       end
 
     case result do
-      {:ok, _app} ->
-        {:noreply, socket |> assign(:modal, :closed) |> load_apps()}
+      {:ok, app} ->
+        socket =
+          socket |> assign(:modal, :closed) |> save_banner(app, PictureField.crop_from_params(params))
+
+        {:noreply, socket |> assign(banner_removed?: false) |> load_apps()}
 
       {:error, changeset} ->
         {:noreply, assign_manual_form(socket, Map.put(changeset, :action, :validate))}
@@ -118,7 +147,7 @@ defmodule MediaCentaurWeb.AppsLive do
   end
 
   @impl true
-  def handle_info({:app_artwork_cached, %Apps.Events.ArtworkCached{}}, socket) do
+  def handle_info({:app_artwork_changed, %Apps.Events.ArtworkChanged{}}, socket) do
     {:noreply, load_apps(socket)}
   end
 
@@ -130,6 +159,7 @@ defmodule MediaCentaurWeb.AppsLive do
       assign(assigns,
         modal_open?: assigns.modal != :closed,
         editing?: match?({:edit, _app}, assigns.modal),
+        banner_app: banner_app(assigns.modal),
         steam_picker?:
           assigns.modal == :add and assigns.add_tab == :steam and
             is_list(assigns.steam_games) and assigns.steam_games != []
@@ -301,6 +331,7 @@ defmodule MediaCentaurWeb.AppsLive do
                 for={@manual_form}
                 id="app-manual-form"
                 phx-submit="save_manual"
+                phx-change="validate_manual"
                 class="space-y-3"
               >
                 <.input field={@manual_form[:name]} label="Name" />
@@ -309,6 +340,35 @@ defmodule MediaCentaurWeb.AppsLive do
                   label="Command"
                   placeholder="e.g. minecraft-launcher"
                 />
+                <PictureField.picture_field
+                  :if={@banner_app}
+                  id="banner"
+                  label="Banner"
+                  noun="image"
+                  upload={@uploads.banner}
+                  aspect={{460, 215}}
+                  removable?={@banner_app.banner_url != nil && !@banner_removed?}
+                  remove_event="remove_banner"
+                  cancel_event="cancel_banner"
+                >
+                  <:current>
+                    <AppCards.banner_art
+                      name={@banner_app.name}
+                      banner_url={!@banner_removed? && @banner_app.banner_url}
+                      class="w-32 shrink-0"
+                    />
+                  </:current>
+                  <:preview>
+                    <AppCards.banner_art name={@banner_app.name} class="w-32 shrink-0">
+                      <canvas
+                        data-role="preview"
+                        width="460"
+                        height="215"
+                        class="absolute inset-0 size-full"
+                      ></canvas>
+                    </AppCards.banner_art>
+                  </:preview>
+                </PictureField.picture_field>
                 <div class="flex justify-end gap-2">
                   <.button
                     variant="dismiss"
@@ -397,6 +457,56 @@ defmodule MediaCentaurWeb.AppsLive do
           added_steam_ids: Apps.added_steam_ids()
         )
     end
+  end
+
+  # The app whose banner the form edits, as the field draws it: a new
+  # manual app (nothing stored yet) or an edited manual app; nil for a
+  # Steam app, whose banner follows the store.
+  defp banner_app(:add), do: %{name: "", banner_url: nil}
+
+  defp banner_app({:edit, %App{origin: %{"source" => "manual"}} = app}),
+    do: %{name: app.name, banner_url: Apps.artwork_urls(app.id).banner_url}
+
+  defp banner_app(_steam_or_closed), do: nil
+
+  # What the save does with the banner (`Apps.banner_change/0`): the
+  # chosen file becomes the master, cut at the person's rectangle, else
+  # the centre; Remove means none, neither means keep. The entry is
+  # consumed either way, so a file libvips cannot open leaves nothing
+  # pending — the row is saved and the flash says the image was not. A
+  # rejected entry is dropped first (`PictureField.drop_rejected/2`).
+  defp save_banner(socket, app, crop) do
+    socket = PictureField.drop_rejected(socket, :banner)
+
+    masters =
+      consume_uploaded_entries(socket, :banner, fn %{path: path}, _entry ->
+        case ImageFiles.jpeg_master(path, @banner_size, crop: crop) do
+          {:ok, bytes} -> {:ok, {:new, bytes}}
+          {:error, _reason} -> {:ok, :bad_image}
+        end
+      end)
+
+    change =
+      case {masters, socket.assigns.banner_removed?} do
+        {[:bad_image], _removed?} -> :bad_image
+        {[{:new, bytes}], _removed?} -> {:new, bytes}
+        {[], true} -> :none
+        {[], false} -> :keep
+      end
+
+    case change != :bad_image && Apps.change_banner(app, change) do
+      :ok -> socket
+      {:error, :not_manual} -> socket
+      _unreadable -> put_flash(socket, :error, "Saved, but that file is not an image we can read")
+    end
+  end
+
+  # A closed or reopened form starts with nothing chosen and no Remove
+  # pending.
+  defp reset_banner(socket) do
+    socket.assigns.uploads.banner.entries
+    |> Enum.reduce(socket, &cancel_upload(&2, :banner, &1.ref))
+    |> assign(banner_removed?: false)
   end
 
   defp assign_manual_form(socket, changeset) do

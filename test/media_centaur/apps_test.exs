@@ -111,7 +111,7 @@ defmodule MediaCentaur.AppsTest do
       assert is_binary(banner) and is_binary(poster)
     end
 
-    test "add_steam_app/2 broadcasts app_artwork_cached as each role lands" do
+    test "add_steam_app/2 broadcasts app_artwork_changed as each role lands" do
       root = Path.join(System.tmp_dir!(), "mc-steam-evt-#{System.unique_integer([:positive])}")
       cache = Path.join([root, "appcache", "librarycache", "100"])
       File.mkdir_p!(cache)
@@ -123,8 +123,8 @@ defmodule MediaCentaur.AppsTest do
       assert {:ok, app} = Apps.add_steam_app(%{app_id: 100, name: "Sample Game"}, root)
       app_id = app.id
 
-      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :banner}}
-      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :poster}}
+      assert_receive {:app_artwork_changed, %Apps.Events.ArtworkChanged{app_id: ^app_id, role: :banner}}
+      assert_receive {:app_artwork_changed, %Apps.Events.ArtworkChanged{app_id: ^app_id, role: :poster}}
     end
 
     test "remove_app/1 deletes the cached artwork", %{data_dir: data_dir} do
@@ -187,7 +187,7 @@ defmodule MediaCentaur.AppsTest do
       assert :ok = Apps.refresh_steam_artwork(app)
 
       assert File.read!(banner) == fresh_bytes
-      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :banner}}
+      assert_receive {:app_artwork_changed, %Apps.Events.ArtworkChanged{app_id: ^app_id, role: :banner}}
     end
 
     test "noop when the store API cannot resolve a URL", %{data_dir: data_dir} do
@@ -206,6 +206,58 @@ defmodule MediaCentaur.AppsTest do
       app = create_app(%{name: "Manual One", origin: %{"source" => "manual"}})
 
       assert :noop = Apps.refresh_steam_artwork(app)
+    end
+  end
+
+  describe "change_banner/2 (tmp data_dir)" do
+    setup do
+      data_dir = Path.join(System.tmp_dir!(), "mc-apps-banner-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(data_dir)
+
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config}, %{})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        Map.put(original, :data_dir, data_dir)
+      )
+
+      on_exit(fn -> File.rm_rf!(data_dir) end)
+
+      %{data_dir: data_dir}
+    end
+
+    test "new bytes become a manual app's banner; none removes it; each broadcasts" do
+      app = create_app(%{})
+      app_id = app.id
+      :ok = Apps.subscribe()
+
+      assert :ok = Apps.change_banner(app, {:new, "banner-bytes"})
+      assert %{banner_url: url} = Apps.artwork_urls(app.id)
+      assert is_binary(url)
+      assert_receive {:app_artwork_changed, %Apps.Events.ArtworkChanged{app_id: ^app_id, role: :banner}}
+
+      assert :ok = Apps.change_banner(app, :none)
+      assert %{banner_url: nil} = Apps.artwork_urls(app.id)
+      assert_receive {:app_artwork_changed, %Apps.Events.ArtworkChanged{app_id: ^app_id, role: :banner}}
+    end
+
+    test "keep changes nothing and says nothing" do
+      app = create_app(%{})
+      :ok = Apps.change_banner(app, {:new, "banner-bytes"})
+      %{banner_url: url} = Apps.artwork_urls(app.id)
+      :ok = Apps.subscribe()
+
+      assert :ok = Apps.change_banner(app, :keep)
+      assert %{banner_url: ^url} = Apps.artwork_urls(app.id)
+      refute_receive {:app_artwork_changed, _event}
+    end
+
+    test "a Steam app's banner follows the store and is refused" do
+      app = create_app(%{origin: %{"source" => "steam", "app_id" => 100}})
+
+      assert {:error, :not_manual} = Apps.change_banner(app, {:new, "banner-bytes"})
+      assert {:error, :not_manual} = Apps.change_banner(app, :none)
+      assert %{banner_url: nil} = Apps.artwork_urls(app.id)
     end
   end
 end

@@ -113,6 +113,137 @@ defmodule MediaCentaurWeb.AppsLiveTest do
     end
   end
 
+  describe "banner" do
+    # A 400×200 PNG, red on the left half and blue on the right.
+    defp halves_png do
+      {:ok, red} = Image.new(200, 200, color: :red)
+      {:ok, blue} = Image.new(200, 200, color: :blue)
+      {:ok, halves} = Vix.Vips.Operation.join(red, blue, :VIPS_DIRECTION_HORIZONTAL)
+      {:ok, png} = Image.write(halves, :memory, suffix: ".png")
+      png
+    end
+
+    defp choose_banner(view, content, name \\ "banner.png", type \\ "image/png") do
+      upload =
+        file_input(view, "#app-manual-form", :banner, [%{name: name, content: content, type: type}])
+
+      {upload, render_upload(upload, name)}
+    end
+
+    defp open_manual_add(view) do
+      view |> element("[phx-click='toggle_manage']") |> render_click()
+      view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
+      view |> element("[phx-click='set_add_tab'][phx-value-tab='manual']") |> render_click()
+    end
+
+    defp open_edit(view, app) do
+      view |> element("[phx-click='toggle_manage']") |> render_click()
+      view |> element("[phx-click='edit_app'][phx-value-app-id='#{app.id}']") |> render_click()
+    end
+
+    defp banner_rgb_at(app, x, y) do
+      {:ok, banner} = Image.open(Apps.Artwork.on_disk_path(:banner, app.id))
+      {:ok, [r, g, b | _]} = Image.get_pixel(banner, x, y)
+      {round(r), round(g), round(b)}
+    end
+
+    test "a manual app added with an image shows it, cut where the box was", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/apps")
+      open_manual_add(view)
+      choose_banner(view, halves_png())
+
+      stage = "#app-manual-form [phx-hook='ImageCrop'][data-aspect='#{460 / 215}']"
+      assert has_element?(view, stage <> " canvas[data-role='preview']")
+
+      view
+      |> form("#app-manual-form", app: %{name: "Sample App", command: "sample-app"})
+      |> render_submit(%{
+        "crop_x" => "200",
+        "crop_y" => "0",
+        "crop_width" => "200",
+        "crop_height" => "93"
+      })
+
+      assert [app] = Apps.list_apps()
+      assert has_element?(view, "#app-card-#{app.id} img")
+      {:ok, banner} = Image.open(Apps.Artwork.on_disk_path(:banner, app.id))
+      assert {920, 430, _bands} = Image.shape(banner)
+      {r, _g, b} = banner_rgb_at(app, 460, 215)
+      assert b > 240 and r < 15
+    end
+
+    test "a name error keeps the chosen image for the next save", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/apps")
+      open_manual_add(view)
+      choose_banner(view, halves_png())
+
+      view
+      |> form("#app-manual-form", app: %{name: "", command: ""})
+      |> render_submit()
+
+      assert Apps.list_apps() == []
+      assert has_element?(view, "#app-manual-form [phx-hook='ImageCrop']")
+    end
+
+    test "editing a manual app replaces its image, and Remove then Save clears it", %{conn: conn} do
+      app = create_app(%{name: "Sample App"})
+      {:ok, view, _html} = live(conn, "/apps")
+      open_edit(view, app)
+      refute has_element?(view, "#remove-banner")
+      choose_banner(view, halves_png())
+
+      view
+      |> form("#app-manual-form", app: %{name: "Sample App", command: "sample-app"})
+      |> render_submit(%{"crop_x" => "", "crop_y" => "", "crop_width" => "", "crop_height" => ""})
+
+      assert %{banner_url: url} = Apps.artwork_urls(app.id)
+      assert is_binary(url)
+      # The centred rectangle straddles the seam.
+      {r, _g, _b} = banner_rgb_at(app, 200, 215)
+      assert r > 240
+
+      view |> element("[phx-click='edit_app'][phx-value-app-id='#{app.id}']") |> render_click()
+      view |> element("#remove-banner") |> render_click()
+      refute has_element?(view, "#remove-banner")
+      assert Apps.artwork_urls(app.id).banner_url == url
+
+      view
+      |> form("#app-manual-form", app: %{name: "Sample App", command: "sample-app"})
+      |> render_submit()
+
+      assert %{banner_url: nil} = Apps.artwork_urls(app.id)
+      refute has_element?(view, "#app-card-#{app.id} img")
+    end
+
+    test "a file that is not an image is refused and nothing is stored", %{conn: conn} do
+      app = create_app(%{name: "Sample App"})
+      {:ok, view, _html} = live(conn, "/apps")
+      open_edit(view, app)
+
+      upload =
+        file_input(view, "#app-manual-form", :banner, [
+          %{name: "notes.txt", content: "hello", type: "text/plain"}
+        ])
+
+      assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
+
+      view
+      |> form("#app-manual-form", app: %{name: "Sample App", command: "sample-app"})
+      |> render_submit()
+
+      assert %{banner_url: nil} = Apps.artwork_urls(app.id)
+    end
+
+    test "a Steam app's edit has no picture field", %{conn: conn} do
+      app = create_app(%{name: "Sample Game", origin: %{"source" => "steam", "app_id" => 100}})
+      {:ok, view, _html} = live(conn, "/apps")
+      open_edit(view, app)
+
+      assert has_element?(view, "#app-manual-form")
+      refute has_element?(view, "#choose-banner")
+    end
+  end
+
   describe "steam picker" do
     test "lists discovered games, adds on click, marks added games", %{conn: conn} do
       root = Path.join(System.tmp_dir!(), "mc-steam-live-#{System.unique_integer([:positive])}")
@@ -200,7 +331,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       File.mkdir_p!(Path.dirname(banner))
       File.write!(banner, "banner-bytes")
 
-      MediaCentaur.Apps.Events.broadcast(%MediaCentaur.Apps.Events.ArtworkCached{
+      MediaCentaur.Apps.Events.broadcast(%MediaCentaur.Apps.Events.ArtworkChanged{
         app_id: app.id,
         role: :banner
       })

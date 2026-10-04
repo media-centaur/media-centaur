@@ -71,4 +71,28 @@ defmodule MediaCentaur.Apps.ArtworkTest do
   test "delete/1 is a no-op for an app with no art" do
     assert :ok = Artwork.delete(Ecto.UUID.generate())
   end
+
+  test "store_bytes/3 writes a role's master, replacing what was there", %{data_dir: data_dir} do
+    app_id = Ecto.UUID.generate()
+    banner = Path.join([data_dir, "images", "apps", app_id, "banner.jpg"])
+
+    assert :ok = Artwork.store_bytes(:banner, app_id, "first")
+    assert File.read!(banner) == "first"
+
+    assert :ok = Artwork.store_bytes(:banner, app_id, "second")
+    assert File.read!(banner) == "second"
+  end
+
+  test "delete_role/2 removes one role and leaves the others", %{data_dir: data_dir} do
+    app_id = Ecto.UUID.generate()
+    :ok = Artwork.store_bytes(:banner, app_id, "banner")
+    :ok = Artwork.store_bytes(:poster, app_id, "poster")
+
+    assert :ok = Artwork.delete_role(:banner, app_id)
+    assert %{banner_url: nil, poster_url: poster} = Artwork.urls(app_id)
+    assert is_binary(poster)
+    assert File.exists?(Path.join([data_dir, "images", "apps", app_id, "poster.jpg"]))
+
+    assert :ok = Artwork.delete_role(:banner, app_id)
+  end
 end

@@ -10,6 +10,10 @@ defmodule MediaCentaurWeb.Components.AppCards do
 
   In manage mode the card stops launching: clicking it opens the edit
   modal instead, and a remove button appears.
+
+  `banner_art/1` is the card's art alone — the frame, the banner or the
+  monogram — so the manual form's picture field shows the stored banner
+  and the crop's *How it will look* in the card's own frame.
   """
 
   use Phoenix.Component
@@ -39,26 +43,12 @@ defmodule MediaCentaurWeb.Components.AppCards do
       phx-click={if @manage, do: "edit_app", else: "launch_app"}
       phx-value-app-id={@app_id}
       phx-throttle="1000"
-      class="card-hover relative aspect-[460/215] rounded-lg overflow-hidden glass-inset block w-full text-left cursor-pointer"
+      class="card-hover relative rounded-lg block w-full text-left cursor-pointer"
       data-nav-item
       data-app-id={@app_id}
       tabindex="0"
     >
-      <img
-        :if={@banner_url}
-        src={sized_image_url(@banner_url, 640)}
-        alt={@name}
-        class="absolute inset-0 w-full h-full object-cover"
-        loading="eager"
-        decoding="sync"
-      />
-      <div
-        :if={!@banner_url}
-        class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-base-content/60"
-      >
-        <span class="text-4xl font-semibold">{Format.monogram(@name)}</span>
-        <span class="text-sm font-medium truncate max-w-[90%]">{@name}</span>
-      </div>
+      <.banner_art name={@name} banner_url={@banner_url} />
       <.button
         :if={@manage}
         variant="destructive_inline"
@@ -73,6 +63,39 @@ defmodule MediaCentaurWeb.Components.AppCards do
       >
         <.icon name="hero-trash" class="size-4" />
       </.button>
+    </div>
+    """
+  end
+
+  attr :name, :string, required: true, doc: "the monogram's source, and the image's alt"
+
+  attr :banner_url, :string,
+    default: nil,
+    doc: "cached banner web path; nil renders the monogram, unless the inner block paints the frame"
+
+  attr :class, :any, default: nil, doc: "the frame's width; it fills its parent otherwise"
+
+  slot :inner_block, doc: "paints the frame instead: the picture field's preview canvas"
+
+  def banner_art(assigns) do
+    ~H"""
+    <div class={["relative aspect-[460/215] rounded-lg overflow-hidden glass-inset", @class]}>
+      {render_slot(@inner_block)}
+      <img
+        :if={@inner_block == [] && @banner_url}
+        src={sized_image_url(@banner_url, 640)}
+        alt={@name}
+        class="absolute inset-0 w-full h-full object-cover"
+        loading="eager"
+        decoding="sync"
+      />
+      <div
+        :if={@inner_block == [] && !@banner_url}
+        class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-base-content/60"
+      >
+        <span class="text-4xl font-semibold">{Format.monogram(@name)}</span>
+        <span class="text-sm font-medium truncate max-w-[90%]">{@name}</span>
+      </div>
     </div>
     """
   end
