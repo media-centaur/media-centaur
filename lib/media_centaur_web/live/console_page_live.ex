@@ -7,7 +7,8 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   text search is the browser's: the `ConsolePage` hook hides non-matching
   rows, keeps the query across reloads, and sends it with copy and download.
 
-  The shell does not link it. Each Status drill-in's log preview does, as
+  It renders in the app shell with Status marked active — it has no
+  sidebar entry of its own. Each Status drill-in's log preview links it, as
   `/console?subsystem=<name>`: a scoped visit whose filter is that
   subsystem's (`HealthBoard.log_filter/1`) and belongs to this view alone —
   chip and level edits change it without touching the saved filter, and
@@ -65,20 +66,36 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id="console-page" class="console-fullpage" phx-hook="ConsolePage">
-      <MediaCentaurWeb.ConsoleComponents.chip_row
-        filter={@filter}
-        scope={@scope}
-        app_components={@app_components}
-        framework_components={@framework_components}
-      />
-      <MediaCentaurWeb.ConsoleComponents.log_view
-        id="console"
-        stream={@streams.entries}
-        class="console-log"
-      />
-      <MediaCentaurWeb.ConsoleComponents.action_footer buffer_size={@buffer_size} />
-    </div>
+    <%!-- The console has no sidebar entry; it belongs with Status, where
+          every drill-in links to it. --%>
+    <Layouts.app
+      show_social={@show_social}
+      show_apps={@show_apps}
+      flash={@flash}
+      current_path="/status"
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
+      full_width
+    >
+      <div
+        id="console-page"
+        class="console-page glass-surface"
+        phx-hook="ConsolePage"
+        data-nav-default-zone="console"
+      >
+        <MediaCentaurWeb.ConsoleComponents.chip_row
+          filter={@filter}
+          scope={@scope}
+          app_components={@app_components}
+          framework_components={@framework_components}
+        />
+        <MediaCentaurWeb.ConsoleComponents.log_view
+          id="console"
+          stream={@streams.entries}
+          class="console-log"
+        />
+        <MediaCentaurWeb.ConsoleComponents.action_footer buffer_size={@buffer_size} />
+      </div>
+    </Layouts.app>
     """
   end
 

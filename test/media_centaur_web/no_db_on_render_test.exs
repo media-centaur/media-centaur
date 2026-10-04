@@ -313,9 +313,16 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     end
 
     test "GET /console mounts within budget", %{conn: conn} do
-      # Console is a debug surface backed by an in-memory buffer; no
-      # DB reads expected on the render path.
-      mount_and_assert(conn, "/console", 15, "Console in-memory buffer + on_mount hooks")
+      # Console is a debug surface backed by an in-memory buffer; its own
+      # render path reads no rows. It renders in the app shell, so the
+      # sidebar's bounded badge counts (incidents, review, episode mapping,
+      # plans awaiting review) run on each mount phase like every shell page.
+      mount_and_assert(
+        conn,
+        "/console",
+        20,
+        "Console in-memory buffer + on_mount hooks + shell badge counts"
+      )
     end
   end
 

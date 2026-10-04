@@ -14,8 +14,16 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   end
 
   test "mounts at /console", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/console")
-    assert html =~ "console-fullpage"
+    {:ok, view, _html} = live(conn, ~p"/console")
+    assert has_element?(view, "#console-page")
+  end
+
+  test "sits in the app shell, with Status marked as where it belongs", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/console")
+
+    assert has_element?(view, "[data-nav-zone='sidebar']")
+    assert has_element?(view, ~s|.sidebar-link-active[href="/status"]|)
+    assert has_element?(view, "[data-nav-default-zone='console']")
   end
 
   test "subscribes to Console topic and receives log entries", %{conn: conn} do
