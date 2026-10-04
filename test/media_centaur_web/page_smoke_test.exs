@@ -60,6 +60,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/review", "review"},
           {"/episode-mapping", "episode-mapping"},
           {"/console", "console"},
+          {"/console?subsystem=library", "console scoped to a subsystem"},
           {"/history", "watch history"},
           {"/guide", "guide index"},
           {"/guide/#{@guide_slug}", "guide chapter"},

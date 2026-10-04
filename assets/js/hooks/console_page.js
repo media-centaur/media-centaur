@@ -11,8 +11,8 @@
 //   pushes the event with the query, because the server holds none. The
 //   server answers with `console:copy` / `console:download`.
 //
-// Scroll pinning is not this hook's business: the log container carries
-// `phx-hook="LogTail"`.
+// Following the live edge is not this hook's business: the log view carries
+// `phx-hook="LogFollow"`, which re-pins when the search changes row heights.
 
 const STORAGE_KEY = "console:search"
 
@@ -35,7 +35,7 @@ function storeQuery(query) {
 export const ConsolePage = {
   mounted() {
     this._searchInput = this.el.querySelector("[data-console-search]")
-    this._entriesContainer = this.el.querySelector("#console-entries")
+    this._entriesContainer = this.el.querySelector("#console-rows")
 
     this._onSearchInput = () => {
       storeQuery(this._searchInput?.value || "")

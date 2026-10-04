@@ -54,7 +54,7 @@ function buildRoot(searchInput, entriesContainer) {
     _listeners: {},
     querySelector(selector) {
       if (selector === "[data-console-search]") return searchInput
-      if (selector === "#console-entries") return entriesContainer
+      if (selector === "#console-rows") return entriesContainer
       return null
     },
     addEventListener(event, handler) {

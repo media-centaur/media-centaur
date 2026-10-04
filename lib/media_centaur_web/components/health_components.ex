@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.RetentionPanel, only: [retention_panel: 1]
-  import MediaCentaurWeb.ConsoleComponents, only: [log_line: 1]
+  import MediaCentaurWeb.ConsoleComponents, only: [log_line: 1, log_view: 1]
 
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaurWeb.Live.DisclosureState
@@ -111,9 +111,16 @@ defmodule MediaCentaurWeb.HealthComponents do
   Inline drill-in for one subsystem, composed as an editorial instrument panel:
   a masthead (kicker → title → lede briefing) over an asymmetric body — the
   wide primary column carries the subsystem's Activity narrative, the quiet
-  right rail carries the plumbing (Status → Data retention → collapsed Logs).
-  Subsystems without a registered Activity widget (the health-only floor)
-  collapse to a single narrow column of rail cards.
+  right rail carries the plumbing (Status → Data retention). Subsystems
+  without a registered Activity widget (the health-only floor) collapse to a
+  single narrow column of rail cards.
+
+  The logs sit beneath the body at the drill-in's full width: a log line is
+  read and scanned, and the rail's 21rem wrapped every line several times.
+  The subsystem's own lines are a preview — the latest few, oldest first —
+  with a link to the console scoped to the subsystem, which is where logs are
+  read, followed, filtered and searched. The System journal, which has no
+  console counterpart, is a `log_view/1` that follows its live edge.
   """
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
@@ -121,7 +128,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   attr :log_lines, :list,
     default: [],
-    doc: "[Console.Entry.t()] recent lines for this subsystem, newest first"
+    doc: "[Console.Entry.t()] the latest lines for this subsystem, oldest first"
 
   attr :show_log_components, :boolean,
     default: false,
@@ -137,9 +144,8 @@ defmodule MediaCentaurWeb.HealthComponents do
   attr :on_close, :string, default: "close_subsystem"
   slot :activity, doc: "the subsystem's bespoke Activity widget"
 
-  slot :rail,
-    doc:
-      "extra plumbing cards for this subsystem, appended below the logs disclosure (the System journal)"
+  slot :logs,
+    doc: "extra log panels for this subsystem, after the technical logs (the System journal)"
 
   def health_drill_in(assigns) do
     ~H"""
@@ -239,28 +245,43 @@ defmodule MediaCentaurWeb.HealthComponents do
           </div>
 
           <.retention_panel :if={@retention != []} policies={@retention} />
-
-          <%!-- Absence is the empty state: a subsystem with nothing recent in
-                its rings gets no disclosure at all, rather than a permanent
-                shut drawer that opens onto "No recent log lines." --%>
-          <.disclosure
-            :if={@log_lines != []}
-            id="subsystem-logs"
-            variant={:panel}
-            open={DisclosureState.open?(@disclosures, "subsystem-logs")}
-            label="Technical logs"
-          >
-            <div class="max-h-96 overflow-y-auto">
-              <.log_line
-                :for={entry <- @log_lines}
-                entry={entry}
-                show_component={@show_log_components}
-              />
-            </div>
-          </.disclosure>
-
-          {render_slot(@rail)}
         </aside>
+      </div>
+
+      <div :if={@log_lines != [] or @logs != []} class="mt-8 flex flex-col gap-3.5">
+        <%!-- Absence is the empty state: a subsystem with nothing recent in
+              its rings gets no disclosure at all, rather than a permanent
+              shut drawer that opens onto "No recent log lines." --%>
+        <.disclosure
+          :if={@log_lines != []}
+          id="subsystem-logs"
+          variant={:panel}
+          open={DisclosureState.open?(@disclosures, "subsystem-logs")}
+          label="Technical logs"
+        >
+          <%!-- A preview, not a log view: the latest lines, no scroller.
+                Reading, following, filtering and search are the console's. --%>
+          <div class="flex flex-col gap-0.5">
+            <.log_line
+              :for={entry <- @log_lines}
+              entry={entry}
+              show_component={@show_log_components}
+            />
+          </div>
+          <div class="mt-3 flex justify-end">
+            <.button
+              variant="secondary"
+              size="xs"
+              navigate={~p"/console?subsystem=#{@view.component}"}
+              data-nav-item
+              tabindex="0"
+            >
+              Open in console <.icon name="hero-arrow-right-mini" class="size-3.5" />
+            </.button>
+          </div>
+        </.disclosure>
+
+        {render_slot(@logs)}
       </div>
     </section>
     """
@@ -281,7 +302,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   """
   attr :lines, :list,
     default: [],
-    doc: "[Console.Entry.t()] journal lines, newest first; every one is `component: :systemd`"
+    doc: "[Console.Entry.t()] journal lines, oldest first; every one is `component: :systemd`"
 
   attr :open, :boolean, default: false
   attr :on_toggle, :string, default: "toggle_journal"
@@ -321,18 +342,18 @@ defmodule MediaCentaurWeb.HealthComponents do
       <p :if={@lines == []} class="mt-3 text-xs text-base-content/55">
         Lines appear as the service writes them.
       </p>
-      <div :if={@lines != []} class="mt-3 max-h-96 overflow-y-auto">
-        <%!-- Every entry is `component: :systemd` — the badge would say the
-              same word on every row — and journalctl writes its own
-              timestamp into the message, so the row's arrival stamp would
-              print a second one beside it. --%>
-        <.log_line
-          :for={entry <- @lines}
-          entry={entry}
-          show_component={false}
-          show_timestamp={false}
-        />
-      </div>
+      <%!-- Every entry is `component: :systemd` — the badge would say the
+            same word on every row — and journalctl writes its own timestamp
+            into the message, so the row's arrival stamp would print a second
+            one beside it. --%>
+      <.log_view
+        :if={@lines != []}
+        id="subsystem-journal-lines"
+        lines={@lines}
+        show_component={false}
+        show_timestamp={false}
+        class="mt-3 max-h-[32rem]"
+      />
     </.disclosure>
     """
   end

@@ -2729,9 +2729,9 @@ body:has(.modal-backdrop[data-state="open"]) {
    Console (/console page)
    ============================================================================
 
-   The chip row, log list and footer of `ConsolePageLive`. `.console-entry`
-   and its children also render on the Status subsystem log panel, so their
-   typography rides the row rather than the `.console-log` scroller.
+   The chip row, log view and footer of `ConsolePageLive`. `.console-entry`
+   and its children also render on the Status drill-in, so their typography
+   rides the row rather than the scroller.
 */
 
 /* Header row — chips + level + search */
@@ -2841,19 +2841,51 @@ body:has(.modal-backdrop[data-state="open"]) {
   min-width: 12rem;
 }
 
-/* Main log list — scrollable, tight */
-.console-log {
-  flex: 1 1 auto;
+/* Log view (`ConsoleComponents.log_view/1`, the `LogFollow` hook): a
+   scroller of rows, oldest at the top, the live edge at the bottom. Scroll
+   anchoring is off while following — an anchoring adjustment when the oldest
+   rows are trimmed would read to the hook as the reader leaving — and on
+   while held, so trimming above the viewport does not move the lines being
+   read. */
+.log-view {
+  position: relative;
   overflow-y: auto;
-  padding: 0.5rem 1rem;
+}
+
+.log-view[data-following="true"] {
+  overflow-anchor: none;
+}
+
+.log-view-rows {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
+/* The jump control floats over the bottom of the scroller without taking
+   space in the flow, so showing it never changes the scroll height. */
+.log-view-jump {
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+.log-view-jump > * {
+  transform: translateY(calc(-100% - 0.5rem));
+}
+
+/* The console page's log view fills the space between header and footer. */
+.console-log {
+  flex: 1 1 auto;
+  padding: 0.5rem 1rem;
+}
+
 /* Typography rides the row, not the container: the same row renders inside
-   the console's scroller and inside the Status subsystem log panel, which
-   has no `.console-log` ancestor to inherit from. */
+   a log view and inside the Status log preview, which has no log-view
+   ancestor to inherit from. */
 .console-entry {
   display: flex;
   align-items: baseline;

@@ -110,6 +110,37 @@ export function installMutationObserver() {
   return observers
 }
 
+// Returns the live list of observers constructed since the install; each
+// remembers its targets, and `fire()` runs the callback as a size change.
+export function installResizeObserver() {
+  const observers = []
+
+  installGlobal(
+    "ResizeObserver",
+    class StubResizeObserver {
+      constructor(callback) {
+        this._callback = callback
+        this.targets = []
+        observers.push(this)
+      }
+
+      observe(target) {
+        this.targets.push(target)
+      }
+
+      disconnect() {
+        this.targets = []
+      }
+
+      fire() {
+        this._callback([])
+      }
+    }
+  )
+
+  return observers
+}
+
 // Synchronous, so work a hook defers to the next frame is observable in the
 // same tick as the call that scheduled it.
 export function installSyncAnimationFrame() {

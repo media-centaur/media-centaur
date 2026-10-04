@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
 
   # --- Helpers ---
 
-  defp build_entry(overrides \\ %{}) do
+  defp build_entry(overrides) do
     defaults = %{
       id: System.unique_integer([:positive, :monotonic]),
       timestamp: ~U[2026-04-05 12:00:00.000Z],
@@ -20,31 +20,24 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
     Entry.new(Map.merge(defaults, overrides))
   end
 
-  # --- should_insert_entry?/3 ---
+  # --- scope/1 ---
 
-  describe "should_insert_entry?/3" do
-    setup do
-      %{filter: Filter.new_with_defaults(), entry: build_entry()}
+  describe "scope/1" do
+    test "a board subsystem with log components scopes the console to it" do
+      assert Logic.scope(%{"subsystem" => "library"}) == :library
     end
 
-    test "returns false when paused", %{filter: filter, entry: entry} do
-      refute Logic.should_insert_entry?(filter, true, entry)
+    test "no parameter leaves the console unscoped" do
+      assert Logic.scope(%{}) == nil
     end
 
-    test "returns false when filter rejects the entry", %{filter: filter} do
-      debug_entry = build_entry(%{level: :debug, component: :pipeline})
-      # Default filter level is :info, so :debug is below the floor
-      refute Logic.should_insert_entry?(filter, false, debug_entry)
+    test "an unknown name leaves the console unscoped without minting an atom" do
+      assert Logic.scope(%{"subsystem" => "no_such_subsystem_anywhere"}) == nil
     end
 
-    test "returns true when not paused and filter matches", %{filter: filter, entry: entry} do
-      assert Logic.should_insert_entry?(filter, false, entry)
-    end
-
-    test "returns false when entry's component is hidden" do
-      filter = Filter.new_with_defaults()
-      ecto_entry = build_entry(%{component: :ecto})
-      refute Logic.should_insert_entry?(filter, false, ecto_entry)
+    test "a subsystem with no log components leaves the console unscoped" do
+      # Updates logs under Library's tag; its drill-in has no log section.
+      assert Logic.scope(%{"subsystem" => "self_update"}) == nil
     end
   end
 

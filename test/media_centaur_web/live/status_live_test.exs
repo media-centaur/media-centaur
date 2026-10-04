@@ -528,19 +528,45 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       refute has_element?(view, "#subsystem-logs")
     end
 
-    test "a matching broadcast lands newest-first above the lines already shown", %{conn: conn} do
+    test "a matching broadcast is appended after the lines already shown", %{conn: conn} do
       seed([entry(:watcher, "log panel seed line")])
 
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
       open_logs(view)
 
-      # The broadcast batch is oldest-first; the panel reads newest-first.
       broadcast([entry(:watcher, "log panel alpha"), entry(:watcher, "log panel omega")])
 
       html = panel(view)
 
-      assert position(html, "log panel omega") < position(html, "log panel alpha")
-      assert position(html, "log panel alpha") < position(html, "log panel seed line")
+      assert position(html, "log panel seed line") < position(html, "log panel alpha")
+      assert position(html, "log panel alpha") < position(html, "log panel omega")
+    end
+
+    test "the preview holds the latest 15 lines, oldest first", %{conn: conn} do
+      seed(for n <- 1..12, do: entry(:watcher, "preview line #{pad(n)}"))
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
+      broadcast(for n <- 13..20, do: entry(:watcher, "preview line #{pad(n)}"))
+
+      html = panel(view)
+
+      for n <- 1..5, do: refute(html =~ "preview line #{pad(n)}")
+      for n <- 6..20, do: assert(html =~ "preview line #{pad(n)}")
+      assert position(html, "preview line 06") < position(html, "preview line 20")
+    end
+
+    test "the preview opens the console scoped to the subsystem", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      open_logs(view)
+
+      assert has_element?(
+               view,
+               ~s|#subsystem-logs a[href="/console?subsystem=watcher"]|,
+               "Open in console"
+             )
     end
 
     test "a broadcast from another subsystem's component is ignored", %{conn: conn} do
@@ -607,6 +633,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     defp open_logs(view), do: view |> element("#subsystem-logs-head") |> render_click()
 
     defp panel(view), do: view |> element("#subsystem-logs") |> render()
+
+    defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
 
     defp entry(component, message) do
       %Entry{

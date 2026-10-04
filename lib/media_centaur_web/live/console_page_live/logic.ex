@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   @moduledoc """
-  Pure helper functions for `MediaCentaurWeb.ConsolePageLive` — filter
-  mutations, the text search over copy/download, payload formatting, and
+  Pure helper functions for `MediaCentaurWeb.ConsolePageLive` — the
+  subsystem scope, filter mutations, the text search over copy/download, payload formatting, and
   DOM id generation.
 
   No `Phoenix.LiveView`, no `Phoenix.Component`, no database access — follows
@@ -10,18 +10,25 @@ defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   """
 
   alias MediaCentaur.Console.{Entry, Filter, View}
+  alias MediaCentaurWeb.StatusLive.HealthBoard
 
   @doc """
-  Decides whether a newly broadcast entry should be streamed given the
-  current `filter` and `paused` state. Pause always wins; otherwise the
-  filter's `matches?/2` governs visibility.
-  """
-  @spec should_insert_entry?(Filter.t(), boolean(), Entry.t()) :: boolean()
-  def should_insert_entry?(%Filter{}, true, _entry), do: false
+  The subsystem a `/console?subsystem=<name>` visit is scoped to, or nil.
 
-  def should_insert_entry?(%Filter{} = filter, false, %Entry{} = entry) do
-    Filter.matches?(entry, filter)
+  A scope names a Status board subsystem that has log components — the
+  link each drill-in's log preview carries. Anything else (no parameter, an
+  unknown name, a subsystem with no logs of its own) is the unscoped console.
+  Names are matched against the board, never converted, so a stray parameter
+  cannot mint an atom.
+  """
+  @spec scope(map()) :: atom() | nil
+  def scope(%{"subsystem" => name}) when is_binary(name) do
+    Enum.find(HealthBoard.board_subsystems(), fn subsystem ->
+      Atom.to_string(subsystem) == name and HealthBoard.components_for(subsystem) != []
+    end)
   end
+
+  def scope(_params), do: nil
 
   @doc """
   The entries whose message contains `query`, case-insensitively, in order.

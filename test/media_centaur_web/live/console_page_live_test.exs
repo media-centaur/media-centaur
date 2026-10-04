@@ -48,12 +48,66 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     refute html =~ "excluded framework entry"
   end
 
-  test "toggle_pause flips the pause state", %{conn: conn} do
+  test "a live line is appended after the lines already shown", %{conn: conn} do
+    seed([entry(:pipeline, "earlier line")])
     {:ok, view, _html} = live(conn, ~p"/console")
 
-    render_click(view, "toggle_pause")
+    :ok = Console.subscribe()
+    require MediaCentaur.Log, as: Log
+    Log.warning(:pipeline, "later line")
+    await_log_broadcast(["later line"])
 
-    assert render(view) =~ "resume"
+    messages =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#console-rows .console-message")
+      |> Enum.map(&LazyHTML.text/1)
+
+    assert messages == ["earlier line", "later line"]
+  end
+
+  describe "scoped to a subsystem" do
+    test "shows only that subsystem's lines", %{conn: conn} do
+      seed([entry(:library, "library line"), entry(:pipeline, "pipeline line")])
+
+      {:ok, view, html} = live(conn, ~p"/console?subsystem=library")
+
+      assert html =~ "library line"
+      refute html =~ "pipeline line"
+      assert has_element?(view, ~s|a[href="/console"]|, "Show all logs")
+      assert has_element?(view, ~s|a[href="/status?subsystem=library"]|)
+    end
+
+    test "filter edits stay with this visit and leave the saved filter alone", %{conn: conn} do
+      saved = Console.get_filter()
+      seed([entry(:pipeline, "pipeline line")])
+      {:ok, view, _html} = live(conn, ~p"/console?subsystem=library")
+
+      render_click(view, "toggle_component", %{"component" => "pipeline"})
+
+      assert render(view) =~ "pipeline line"
+      assert Console.get_filter() == saved
+    end
+
+    test "ignores saved-filter changes made elsewhere", %{conn: conn} do
+      seed([entry(:pipeline, "pipeline line")])
+      {:ok, view, _html} = live(conn, ~p"/console?subsystem=library")
+
+      :ok = Console.update_filter(Filter.new(default_component: :show, level: :info))
+
+      refute render(view) =~ "pipeline line"
+    end
+
+    test "patching to /console returns to the saved filter", %{conn: conn} do
+      seed([entry(:pipeline, "pipeline line")])
+      {:ok, view, _html} = live(conn, ~p"/console?subsystem=library")
+
+      html = render_patch(view, ~p"/console")
+
+      assert html =~ "pipeline line"
+      refute has_element?(view, "a", "Show all logs")
+    end
   end
 
   test "clear_buffer event empties the buffer", %{conn: conn} do

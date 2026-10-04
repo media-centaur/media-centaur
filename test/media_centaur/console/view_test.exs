@@ -253,16 +253,6 @@ defmodule MediaCentaur.Console.ViewTest do
     end
   end
 
-  describe "pause_button_label/1" do
-    test "returns 'resume' when paused" do
-      assert View.pause_button_label(true) == "resume"
-    end
-
-    test "returns 'pause' when not paused" do
-      assert View.pause_button_label(false) == "pause"
-    end
-  end
-
   describe "entry_search_text/1" do
     test "returns lowercased message for search data attribute" do
       entry = build_entry(message: "Pipeline STARTED successfully")
