@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.50.0 — 2026-10-04
+
+### New
+
+- **Give a manually added app a banner.** In **Apps → Manage**, the Manual tab of **Add app** and the edit form of a manual app now have a **Banner** field. Click **Choose image** and pick a JPEG, PNG or WebP up to 10 MB. A box in the card's shape appears over the image: drag it to choose what shows, and drag its corners to make it bigger or smaller. *How it will look* shows the card before you save. **Remove**, then **Save**, brings back the monogram. Steam games keep the art from their store page.
+
+### Fixed
+
+- **Saving your profile after picking a file it can't use no longer breaks the page.** If you chose a file of the wrong type or over the size limit, **Save** now saves your name and colour and leaves the picture as it was.
+
 ## v1.49.2 — 2026-10-03
 
 ### Improved
