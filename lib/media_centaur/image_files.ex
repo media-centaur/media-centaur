@@ -130,57 +130,88 @@ defmodule MediaCentaur.ImageFiles do
   # The master's quality, then the steps down when it does not fit.
   @webp_qualities [82, 70, 55, 40, 25]
 
-  @typedoc "A square of the picture in its own oriented pixels: the left, the top, the side."
-  @type crop :: {non_neg_integer(), non_neg_integer(), pos_integer()}
+  @typedoc "A rectangle of the picture in its own oriented pixels: the left, the top, the width, the height."
+  @type crop :: {non_neg_integer(), non_neg_integer(), pos_integer(), pos_integer()}
+
+  @typedoc "A master's size in pixels: the width and the height."
+  @type size :: {pos_integer(), pos_integer()}
 
   @doc """
-  A square WebP master of `side` pixels from the image file at `path`:
-  the avatar a sender publishes. The picture is first turned the way up
-  its orientation tag says (a phone photo's pixels are often stored
-  sideways; a browser shows them turned, and a crop chosen on that
-  preview is in the turned frame), then `crop:` — `{x, y, side}` in
-  those pixels — is cut, or the largest centred square when the option
-  is nil, off the picture or degenerate; the square is resized to
-  `side`, flattened onto black and stripped of the source's metadata (a
-  photo's EXIF carries its GPS position, device and time, and the
-  master is published), and returned in memory at most `cap` long.
-  Quality starts at 82 and steps down until the bytes fit;
+  A WebP master of `size` from the image file at `path`, returned in
+  memory at most `cap` long: the avatar a sender publishes. The cut is
+  `cut/3`'s. Quality starts at 82 and steps down until the bytes fit;
   `{:error, :too_large}` when the lowest step does not. `{:error, reason}`
-  when the file is not an image libvips can open. A truncated file with
-  a sound header opens without error and yields a partly grey master,
-  so the sender sees the result before publishing. `path` is a file the
-  app wrote (an upload's temp file), never a user-typed name: libvips
-  reads loader options after a `[` in it.
+  when the file is not an image libvips can open.
   """
-  @spec square_webp(String.t(), pos_integer(), pos_integer(), crop: crop() | nil) ::
+  @spec webp_master(String.t(), size(), pos_integer(), crop: crop() | nil) ::
           {:ok, binary()} | {:error, :too_large | term()}
-  def square_webp(path, side, cap, crop: crop)
-      when is_binary(path) and is_integer(side) and side > 0 and is_integer(cap) and cap > 0 do
-    with {:ok, image} <- Image.open(path),
-         {:ok, {upright, _turn}} <- Image.autorotate(image),
-         {x, y, square} = crop_square(upright, crop),
-         {:ok, cut} <- Image.crop(upright, x, y, square, square),
-         {:ok, resized} <- Image.thumbnail(cut, side),
-         {:ok, flat} <- Image.flatten(resized) do
-      webp_under(flat, cap, @webp_qualities)
+  def webp_master(path, {width, height} = size, cap, crop: crop)
+      when is_binary(path) and is_integer(width) and width > 0 and is_integer(height) and height > 0 and
+             is_integer(cap) and cap > 0 do
+    with {:ok, master} <- cut(path, size, crop) do
+      webp_under(master, cap, @webp_qualities)
     end
   end
 
-  # The square to cut: the given one when it lies on the picture, else the
-  # largest centred one.
-  defp crop_square(image, {x, y, square}) when is_integer(x) and is_integer(y) and is_integer(square) do
-    on_picture? =
-      x >= 0 and y >= 0 and square > 0 and
-        x + square <= Image.width(image) and y + square <= Image.height(image)
-
-    if on_picture?, do: {x, y, square}, else: crop_square(image, nil)
+  @doc """
+  A JPEG master of `size` from the image file at `path`, returned in
+  memory: an app's banner. The cut is `cut/3`'s. `{:error, reason}` when
+  the file is not an image libvips can open.
+  """
+  @spec jpeg_master(String.t(), size(), crop: crop() | nil) :: {:ok, binary()} | {:error, term()}
+  def jpeg_master(path, {width, height} = size, crop: crop)
+      when is_binary(path) and is_integer(width) and width > 0 and is_integer(height) and height > 0 do
+    with {:ok, master} <- cut(path, size, crop) do
+      Image.write(master, :memory, suffix: ".jpg", quality: 88, strip_metadata: true)
+    end
   end
 
-  defp crop_square(image, _none_or_bad) do
-    width = Image.width(image)
-    height = Image.height(image)
-    square = min(width, height)
-    {div(width - square, 2), div(height - square, 2), square}
+  # The picture is first turned the way up its orientation tag says (a
+  # phone photo's pixels are often stored sideways; a browser shows them
+  # turned, and a crop chosen on that preview is in the turned frame),
+  # then `crop` — a rectangle in those pixels — is cut, or the largest
+  # centred rectangle of the master's shape when it is nil, off the
+  # picture or degenerate. The cut fills `size`, its centre kept when a
+  # rounded crop is a pixel off the shape, and is flattened onto black.
+  # Each encoder strips the source's metadata: a photo's EXIF carries its
+  # GPS position, device and time. A truncated file with a sound header
+  # opens without error and yields a partly grey master, so the person
+  # sees the result before it is kept. `path` is a file the app wrote (an
+  # upload's temp file), never a user-typed name: libvips reads loader
+  # options after a `[` in it.
+  defp cut(path, {width, height} = size, crop) do
+    with {:ok, image} <- Image.open(path),
+         {:ok, {upright, _turn}} <- Image.autorotate(image),
+         {x, y, cut_width, cut_height} = crop_rect(upright, size, crop),
+         {:ok, cut} <- Image.crop(upright, x, y, cut_width, cut_height),
+         {:ok, resized} <- Image.thumbnail(cut, width, height: height, fit: :cover) do
+      Image.flatten(resized)
+    end
+  end
+
+  # The rectangle to cut: the given one when it lies on the picture, else
+  # the largest centred one of the master's shape.
+  defp crop_rect(image, size, {x, y, width, height})
+       when is_integer(x) and is_integer(y) and is_integer(width) and is_integer(height) do
+    on_picture? =
+      x >= 0 and y >= 0 and width > 0 and height > 0 and
+        x + width <= Image.width(image) and y + height <= Image.height(image)
+
+    if on_picture?, do: {x, y, width, height}, else: crop_rect(image, size, nil)
+  end
+
+  defp crop_rect(image, {master_width, master_height}, _none_or_bad) do
+    picture_width = Image.width(image)
+    picture_height = Image.height(image)
+
+    {width, height} =
+      if picture_width * master_height > picture_height * master_width do
+        {div(picture_height * master_width, master_height), picture_height}
+      else
+        {picture_width, div(picture_width * master_height, master_width)}
+      end
+
+    {div(picture_width - width, 2), div(picture_height - height, 2), width, height}
   end
 
   defp webp_under(_image, _cap, []), do: {:error, :too_large}

@@ -5,6 +5,7 @@ defmodule MediaCentaur.ImageFilesTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ImageFiles
+  alias Vix.Vips.Image, as: VipsImage
   alias Vix.Vips.MutableImage
   alias Vix.Vips.Operation
 
@@ -368,7 +369,7 @@ defmodule MediaCentaur.ImageFilesTest do
     end
   end
 
-  describe "square_webp/4" do
+  describe "webp_master/4" do
     @cap 64 * 1024
 
     # A 400×200 picture, red on the left half and blue on the right.
@@ -404,24 +405,30 @@ defmodule MediaCentaur.ImageFilesTest do
     test "a given square is cut from the picture; the centre square when none", %{tmp_dir: dir} do
       source = halves(dir, "halves.png")
 
-      {:ok, right} = ImageFiles.square_webp(source, 256, @cap, crop: {200, 0, 200})
+      {:ok, right} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: {200, 0, 200, 200})
       assert_near(rgb_at(right, 128, 128), {0, 0, 255})
 
-      {:ok, left} = ImageFiles.square_webp(source, 256, @cap, crop: {0, 0, 200})
+      {:ok, left} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: {0, 0, 200, 200})
       assert_near(rgb_at(left, 128, 128), {255, 0, 0})
 
       # The centre square of a 400×200 straddles the seam: its centre column is the seam.
-      {:ok, centre} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      {:ok, centre} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
       assert_near(rgb_at(centre, 64, 128), {255, 0, 0})
       assert_near(rgb_at(centre, 192, 128), {0, 0, 255})
     end
 
     test "a square off the picture, or degenerate, is the centre crop", %{tmp_dir: dir} do
       source = halves(dir, "halves.png")
-      {:ok, centre} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      {:ok, centre} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
 
-      for bad <- [{300, 0, 200}, {0, 100, 200}, {-1, 0, 200}, {0, 0, 0}, {0, 0, 401}] do
-        assert {:ok, ^centre} = ImageFiles.square_webp(source, 256, @cap, crop: bad),
+      for bad <- [
+            {300, 0, 200, 200},
+            {0, 100, 200, 200},
+            {-1, 0, 200, 200},
+            {0, 0, 0, 0},
+            {0, 0, 401, 401}
+          ] do
+        assert {:ok, ^centre} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: bad),
                "#{inspect(bad)} must fall back to the centre"
       end
     end
@@ -431,13 +438,13 @@ defmodule MediaCentaur.ImageFilesTest do
       # with red on top, blue below, which is how a browser shows it.
       source = halves(dir, "portrait.jpg", orientation: 6)
 
-      {:ok, top} = ImageFiles.square_webp(source, 256, @cap, crop: {0, 0, 200})
+      {:ok, top} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: {0, 0, 200, 200})
       assert_near(rgb_at(top, 128, 128), {255, 0, 0})
 
-      {:ok, bottom} = ImageFiles.square_webp(source, 256, @cap, crop: {0, 200, 200})
+      {:ok, bottom} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: {0, 200, 200, 200})
       assert_near(rgb_at(bottom, 128, 128), {0, 0, 255})
 
-      {:ok, none} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      {:ok, none} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
       assert_near(rgb_at(none, 128, 64), {255, 0, 0})
       assert_near(rgb_at(none, 128, 192), {0, 0, 255})
     end
@@ -447,7 +454,7 @@ defmodule MediaCentaur.ImageFilesTest do
       {:ok, img} = Image.new(400, 300, color: :red)
       {:ok, _} = Image.write(img, source)
 
-      assert {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      assert {:ok, bytes} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
       assert <<"RIFF", _size::32-little, "WEBP", _rest::binary>> = bytes
       {:ok, back} = Image.from_binary(bytes)
       assert {256, 256, _bands} = Image.shape(back)
@@ -465,12 +472,12 @@ defmodule MediaCentaur.ImageFilesTest do
 
       {:ok, _} = Image.write(tagged, source)
       {:ok, reopened} = Image.open(source)
-      {:ok, fields} = Vix.Vips.Image.header_field_names(reopened)
+      {:ok, fields} = VipsImage.header_field_names(reopened)
       assert "exif-data" in fields and "xmp-data" in fields
 
-      {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      {:ok, bytes} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
       {:ok, master} = Image.from_binary(bytes)
-      {:ok, master_fields} = Vix.Vips.Image.header_field_names(master)
+      {:ok, master_fields} = VipsImage.header_field_names(master)
       refute Enum.any?(master_fields, &(&1 in ["exif-data", "xmp-data", "icc-profile-data"]))
       refute Enum.any?(master_fields, &String.starts_with?(&1, "exif-ifd"))
     end
@@ -482,7 +489,7 @@ defmodule MediaCentaur.ImageFilesTest do
       {:ok, rgba} = Operation.cast(rgba, :VIPS_FORMAT_UCHAR)
       {:ok, _} = Image.write(rgba, source)
 
-      assert {:ok, bytes} = ImageFiles.square_webp(source, 256, @cap, crop: nil)
+      assert {:ok, bytes} = ImageFiles.webp_master(source, {256, 256}, @cap, crop: nil)
       assert byte_size(bytes) <= @cap
       {:ok, master} = Image.from_binary(bytes)
       refute Image.has_alpha?(master)
@@ -493,11 +500,78 @@ defmodule MediaCentaur.ImageFilesTest do
       {:ok, img} = Image.new(256, 256, color: :red)
       {:ok, _} = Image.write(img, source)
 
-      assert {:error, :too_large} = ImageFiles.square_webp(source, 256, 16, crop: nil)
+      assert {:error, :too_large} = ImageFiles.webp_master(source, {256, 256}, 16, crop: nil)
     end
 
     test "a file that is not an image is refused" do
-      assert {:error, _reason} = ImageFiles.square_webp(__ENV__.file, 256, @cap, crop: nil)
+      assert {:error, _reason} = ImageFiles.webp_master(__ENV__.file, {256, 256}, @cap, crop: nil)
+    end
+  end
+
+  describe "jpeg_master/3" do
+    @banner {920, 430}
+
+    test "a given rectangle is cut and filled to the size, as a JPEG", %{tmp_dir: dir} do
+      source = halves(dir, "halves.png")
+
+      {:ok, right} = ImageFiles.jpeg_master(source, @banner, crop: {200, 0, 200, 93})
+      assert <<0xFF, 0xD8, _rest::binary>> = right
+      {:ok, back} = Image.from_binary(right)
+      assert {920, 430, _bands} = Image.shape(back)
+      assert_near(rgb_at(right, 460, 215), {0, 0, 255})
+
+      {:ok, left} = ImageFiles.jpeg_master(source, @banner, crop: {0, 0, 200, 93})
+      assert_near(rgb_at(left, 460, 215), {255, 0, 0})
+    end
+
+    test "a rectangle a pixel off the shape still fills the size exactly", %{tmp_dir: dir} do
+      source = halves(dir, "halves.png")
+
+      {:ok, bytes} = ImageFiles.jpeg_master(source, @banner, crop: {0, 0, 200, 94})
+      {:ok, back} = Image.from_binary(bytes)
+      assert {920, 430, _bands} = Image.shape(back)
+    end
+
+    test "no crop, or one off the picture, is the largest centred rectangle", %{tmp_dir: dir} do
+      source = halves(dir, "halves.png")
+
+      for crop <- [nil, {300, 0, 200, 93}, {0, 0, 0, 0}] do
+        {:ok, centre} = ImageFiles.jpeg_master(source, @banner, crop: crop)
+        assert_near(rgb_at(centre, 200, 215), {255, 0, 0})
+        assert_near(rgb_at(centre, 720, 215), {0, 0, 255})
+      end
+    end
+
+    test "the picture is turned the way up its orientation says before the cut", %{tmp_dir: dir} do
+      source = halves(dir, "portrait.jpg", orientation: 6)
+
+      {:ok, top} = ImageFiles.jpeg_master(source, @banner, crop: {0, 0, 200, 93})
+      assert_near(rgb_at(top, 460, 215), {255, 0, 0})
+
+      {:ok, bottom} = ImageFiles.jpeg_master(source, @banner, crop: {0, 300, 200, 93})
+      assert_near(rgb_at(bottom, 460, 215), {0, 0, 255})
+    end
+
+    test "the source's metadata is not in the master", %{tmp_dir: dir} do
+      source = Path.join(dir, "tagged.jpg")
+      {:ok, img} = Image.new(920, 430, color: :blue)
+
+      {:ok, tagged} =
+        Image.mutate(img, fn mut ->
+          :ok = MutableImage.set(mut, "exif-ifd0-Make", :gchararray, "Sample Camera")
+        end)
+
+      {:ok, _} = Image.write(tagged, source)
+
+      {:ok, bytes} = ImageFiles.jpeg_master(source, @banner, crop: nil)
+      {:ok, master} = Image.from_binary(bytes)
+      {:ok, master_fields} = VipsImage.header_field_names(master)
+      refute Enum.any?(master_fields, &(&1 in ["exif-data", "xmp-data"]))
+      refute Enum.any?(master_fields, &String.starts_with?(&1, "exif-ifd"))
+    end
+
+    test "a file that is not an image is refused" do
+      assert {:error, _reason} = ImageFiles.jpeg_master(__ENV__.file, @banner, crop: nil)
     end
   end
 end

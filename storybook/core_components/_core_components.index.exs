@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
   def entry("menu_list"), do: [icon: {:fa, "list-ul", :thin}, name: "Menu list"]
   def entry("menu_select"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Menu select"]
   def entry("modal"), do: [icon: {:fa, "window-maximize", :thin}]
+  def entry("picture_field"), do: [icon: {:fa, "crop", :thin}, name: "Picture field"]
   def entry("segmented_control"), do: [icon: {:fa, "grip-lines", :thin}, name: "Segmented control"]
   def entry("split_button"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Split button"]
   def entry("switch"), do: [icon: {:fa, "toggle-on", :thin}]

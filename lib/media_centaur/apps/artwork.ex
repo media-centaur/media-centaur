@@ -6,9 +6,10 @@ defmodule MediaCentaur.Apps.Artwork do
   disk at read time, served by `MediaCentaurWeb.Plugs.ImageServer` with
   the `?w=` derivative ladder.
 
-  Layout: `{data_dir}/images/apps/{app_id}/banner.jpg` (460×215 Steam
-  header — the card art) and `poster.jpg` (600×900 capsule — cached at
-  add time for a future poster view). No TTL, no holds: app art is
+  Layout: `{data_dir}/images/apps/{app_id}/banner.jpg` (the card art:
+  a Steam app's store header, 460×215 or its 920×430 double; a manual
+  app's uploaded master, 920×430) and `poster.jpg` (600×900 capsule —
+  cached at add time for a future poster view). No TTL, no holds: app art is
   permanent while its app exists and is deleted synchronously with it.
   """
 
@@ -47,6 +48,14 @@ defmodule MediaCentaur.Apps.Artwork do
     end
   end
 
+  @doc "Writes a role's master from bytes in memory (an uploaded banner's cut)."
+  @spec store_bytes(role(), String.t(), binary()) :: :ok | {:error, term()}
+  def store_bytes(role, app_id, bytes) when is_binary(bytes) do
+    dest = on_disk_path(role, app_id)
+    File.mkdir_p!(Path.dirname(dest))
+    File.write(dest, bytes)
+  end
+
   @doc "Downloads a URL into the cache via the shared ImageFiles service."
   @spec store_url(role(), String.t(), String.t()) :: :ok | {:error, term()}
   def store_url(role, app_id, url) do
@@ -54,6 +63,15 @@ defmodule MediaCentaur.Apps.Artwork do
       {:ok, _path} -> :ok
       {:error, _category, reason} -> {:error, reason}
     end
+  end
+
+  @doc "Removes one role's master and its derivatives. Idempotent."
+  @spec delete_role(role(), String.t()) :: :ok
+  def delete_role(role, app_id) do
+    path = on_disk_path(role, app_id)
+    ImageFiles.purge_derivatives_for(path)
+    File.rm(path)
+    :ok
   end
 
   @doc "Removes the app's art directory and any derivatives. Idempotent."

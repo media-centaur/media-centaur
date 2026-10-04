@@ -65,6 +65,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaur.ImageFiles
+  alias MediaCentaurWeb.Components.PictureField
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Hue
@@ -185,15 +186,9 @@ defmodule MediaCentaurWeb.SettingsLive do
       Process.send_after(self(), :refresh_update_schedule, 60_000)
     end
 
-    # The profile card's picture: one file, the three types the wire
-    # carries, capped well above any sensible source (the master is
-    # 256×256). Consumed on save by `avatar_change/1`.
-    socket =
-      allow_upload(socket, :avatar,
-        accept: ~w(.jpg .jpeg .png .webp),
-        max_entries: 1,
-        max_file_size: 10_000_000
-      )
+    # The profile card's picture (`PictureField`); the three types are
+    # the ones the wire carries. Consumed on save by `avatar_change/2`.
+    socket = allow_upload(socket, :avatar, PictureField.upload_options())
 
     {:ok,
      socket
@@ -421,14 +416,16 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # What the save does with the avatar (`Social.avatar_change/0`): the
   # chosen file becomes the 256×256 master under the wire cap, cut at
-  # the person's square, else the centre; Remove means none, neither
+  # the person's crop, else the centre; Remove means none, neither
   # means keep. A chosen file wins over a pending Remove. The entry is
   # consumed either way, so a file libvips cannot open leaves nothing
   # pending.
   defp avatar_change(socket, crop) do
+    cap = ProfileTranslation.max_avatar_bytes()
+
     masters =
       consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry ->
-        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes(), crop: crop) do
+        case ImageFiles.webp_master(path, {256, 256}, cap, crop: crop) do
           {:ok, bytes} -> {:ok, {:new, bytes}}
           {:error, :too_large} -> {:ok, :too_large}
           {:error, _reason} -> {:ok, :bad_image}
@@ -441,25 +438,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       {[{:new, bytes}], _removed?} -> {:ok, {:new, bytes}}
       {[], true} -> {:ok, :none}
       {[], false} -> {:ok, :keep}
-    end
-  end
-
-  # The square the person dragged over the picture, as the form's three
-  # fields; empty, missing or malformed is nil, the centre square.
-  defp crop_from_params(params) do
-    with {x, ""} <- parse_crop_field(params, "crop_x"),
-         {y, ""} <- parse_crop_field(params, "crop_y"),
-         {side, ""} <- parse_crop_field(params, "crop_side") do
-      {x, y, side}
-    else
-      _empty_or_bad -> nil
-    end
-  end
-
-  defp parse_crop_field(params, key) do
-    case Map.get(params, key) do
-      value when is_binary(value) -> Integer.parse(value)
-      _absent_or_not_a_string -> :error
     end
   end
 
@@ -1052,8 +1030,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   # is consumed, so a name error leaves the picture pending for the
   # next save instead of dropping it.
   def handle_event("save_profile", %{"name" => name} = params, socket) do
+    socket = PictureField.drop_rejected(socket, :avatar)
+
     with {:ok, _name} <- Social.check_name(name),
-         {:ok, avatar} <- avatar_change(socket, crop_from_params(params)),
+         {:ok, avatar} <- avatar_change(socket, PictureField.crop_from_params(params)),
          {:ok, profile} <- Social.save_profile(name, avatar, socket.assigns.profile_hue) do
       {:noreply,
        socket

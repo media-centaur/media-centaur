@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Apps do
   use Boundary,
     deps: [MediaCentaur.HttpClient, MediaCentaur.Library],
-    exports: [App, Events, Events.ArtworkCached, Steam, SteamStore]
+    exports: [App, Events, Events.ArtworkChanged, Steam, SteamStore]
 
   @moduledoc """
   Bounded context for the Apps launcher — user-curated external
@@ -81,6 +81,33 @@ defmodule MediaCentaur.Apps do
     end
   end
 
+  @typedoc "What a save does with a manual app's banner: keep it, remove it, or set new master bytes (`ImageFiles.jpeg_master/3`'s)."
+  @type banner_change :: :keep | :none | {:new, binary()}
+
+  @doc """
+  Applies a save's banner change to a manual app and broadcasts
+  `ArtworkChanged` when something changed, so every open Apps page
+  repaints (artwork URLs are mtime-versioned). A Steam app's banner
+  follows the store (`refresh_steam_artwork/1`) and is refused.
+  """
+  @spec change_banner(App.t(), banner_change()) :: :ok | {:error, :not_manual | term()}
+  def change_banner(%App{origin: %{"source" => "manual"}}, :keep), do: :ok
+
+  def change_banner(%App{origin: %{"source" => "manual"}} = app, change) do
+    result =
+      case change do
+        {:new, bytes} -> Artwork.store_bytes(:banner, app.id, bytes)
+        :none -> Artwork.delete_role(:banner, app.id)
+      end
+
+    with :ok <- result do
+      Events.broadcast(%Events.ArtworkChanged{app_id: app.id, role: :banner})
+      :ok
+    end
+  end
+
+  def change_banner(%App{}, _change), do: {:error, :not_manual}
+
   @doc "Web URLs for an app's cached artwork. See `MediaCentaur.Apps.Artwork`."
   @spec artwork_urls(Ecto.UUID.t()) :: %{
           banner_url: String.t() | nil,
@@ -108,7 +135,7 @@ defmodule MediaCentaur.Apps do
 
   @doc """
   Re-resolves the current store banner for a steam-origin app and
-  overwrites the cached copy, broadcasting `ArtworkCached` so cards
+  overwrites the cached copy, broadcasting `ArtworkChanged` so cards
   repaint (artwork URLs are mtime-versioned). `:noop` for non-steam
   apps and whenever the store API can't resolve a URL — the stored
   copy is never deleted, only replaced.
@@ -117,7 +144,7 @@ defmodule MediaCentaur.Apps do
   def refresh_steam_artwork(%App{origin: %{"source" => "steam", "app_id" => steam_app_id}} = app) do
     with url when is_binary(url) <- SteamStore.current_banner_url(steam_app_id),
          :ok <- Artwork.store_url(:banner, app.id, url) do
-      Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: :banner})
+      Events.broadcast(%Events.ArtworkChanged{app_id: app.id, role: :banner})
       :ok
     else
       _unresolved -> :noop
@@ -158,7 +185,7 @@ defmodule MediaCentaur.Apps do
                 Steam.cdn_art_url(steam_app_id, role)
 
             with :ok <- Artwork.store_url(role, app.id, url) do
-              Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
+              Events.broadcast(%Events.ArtworkChanged{app_id: app.id, role: role})
             end
           end)
 
@@ -168,7 +195,7 @@ defmodule MediaCentaur.Apps do
           # banner with the current store art when it lands (versioned
           # URLs make the card repaint).
           with :ok <- Artwork.store_file(role, app.id, local_path) do
-            Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
+            Events.broadcast(%Events.ArtworkChanged{app_id: app.id, role: role})
           end
 
           if role == :banner do
