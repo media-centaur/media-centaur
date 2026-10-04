@@ -25,7 +25,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/media_centaur"
 import {createInputHook} from "./input/index"
 import {ConsolePage} from "./hooks/console_page"
-import {LogTail} from "./hooks/log_tail"
+import {LogFollow} from "./hooks/log_follow"
 import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
@@ -48,7 +48,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...colocatedHooks,
     InputSystem: createInputHook(),
     ConsolePage,
-    LogTail,
+    LogFollow,
     CopyButton,
     MouseAutofocus,
     FlashAutoDismiss,

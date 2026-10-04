@@ -42,10 +42,14 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @vitals_refresh_ms 5 * 60 * 1_000
 
-  # The log panel's render cap, deliberately separate from the ring cap the
-  # console slider sets: raising the slider deepens the rings, but a disclosure
-  # holding 1,000 monospace rows is DOM cost with no reader.
-  @log_panel_lines 200
+  # The drill-in's log preview: the latest lines only, oldest first, with the
+  # console one link away for anything more.
+  @log_preview_lines 15
+
+  # The journal's render cap, deliberately separate from the ring cap the
+  # console slider sets: a log view holding thousands of rows is DOM cost with
+  # no reader.
+  @journal_lines 200
 
   @impl true
   def mount(_params, _session, socket) do
@@ -236,7 +240,7 @@ defmodule MediaCentaurWeb.StatusLive do
   # resource), so it composes as a second query param rather than a path
   # segment — `/status?subsystem=acquisition&incident=<fingerprint>`.
   @impl true
-  # While a drill-in is open this re-reads 200 log lines from the Console
+  # While a drill-in is open this re-reads the preview's log lines from the Console
   # Buffer on every patch, opening or closing an incident included — a
   # GenServer call per navigation. Accepted on an operator page; noted so it
   # is a known cost rather than a surprise.
@@ -262,7 +266,8 @@ defmodule MediaCentaurWeb.StatusLive do
   defp assign_log_panel(socket, nil), do: assign(socket, log_lines: [])
 
   defp assign_log_panel(socket, subsystem) do
-    assign(socket, log_lines: Console.read(HealthBoard.log_filter(subsystem), @log_panel_lines))
+    newest_first = Console.read(HealthBoard.log_filter(subsystem), @log_preview_lines)
+    assign(socket, log_lines: Enum.reverse(newest_first))
   end
 
   # --- Systemd journal panel ---
@@ -304,9 +309,9 @@ defmodule MediaCentaurWeb.StatusLive do
     assign(socket, journal_open: false, journal_lines: [])
   end
 
-  # The rail reads newest-first, like the ring panel above it; the journal's
-  # own snapshot arrives oldest-first, the order `journalctl -f` writes in.
-  defp journal_seed(entries), do: entries |> Enum.reverse() |> Enum.take(@log_panel_lines)
+  # The snapshot arrives oldest-first, the order `journalctl -f` writes in and
+  # the log view reads in.
+  defp journal_seed(entries), do: Enum.take(entries, -@journal_lines)
 
   defp parse_subsystem(%{"subsystem" => raw}) do
     atom = safe_existing_atom(raw)
@@ -676,9 +681,8 @@ defmodule MediaCentaurWeb.StatusLive do
     if matching == [] do
       {:noreply, socket}
     else
-      # The batch arrives oldest-first and the panel reads newest-first, so the
-      # batch goes on the front reversed (`Enum.reverse/2` is reverse ++ tail).
-      lines = Enum.take(Enum.reverse(matching, socket.assigns.log_lines), @log_panel_lines)
+      # The batch arrives oldest-first, the order the preview reads in.
+      lines = Enum.take(socket.assigns.log_lines ++ matching, -@log_preview_lines)
       {:noreply, assign(socket, :log_lines, lines)}
     end
   end
@@ -689,7 +693,7 @@ defmodule MediaCentaurWeb.StatusLive do
   # so the open flag — not the subscription — is what decides whether they are
   # kept.
   def handle_info({:journal_line, entry}, %{assigns: %{journal_open: true}} = socket) do
-    lines = Enum.take([entry | socket.assigns.journal_lines], @log_panel_lines)
+    lines = Enum.take(socket.assigns.journal_lines ++ [entry], -@journal_lines)
     {:noreply, assign(socket, :journal_lines, lines)}
   end
 
@@ -793,9 +797,9 @@ defmodule MediaCentaurWeb.StatusLive do
                     hangs off System — the drill-in that already owns the
                     running process. Absent where no systemd unit is
                     detected. --%>
-              <:rail :if={@journal_available and @selected_subsystem == :system}>
+              <:logs :if={@journal_available and @selected_subsystem == :system}>
                 <.journal_panel lines={@journal_lines} open={@journal_open} />
-              </:rail>
+              </:logs>
             </.health_drill_in>
           </div>
         </div>

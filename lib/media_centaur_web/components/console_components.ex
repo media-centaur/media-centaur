@@ -1,19 +1,20 @@
 defmodule MediaCentaurWeb.ConsoleComponents do
   @moduledoc """
   HEEx function components for the `/console` page (`ConsolePageLive`).
-  `log_line/1` is also imported by `HealthComponents` for the Status
-  subsystem log panel. Pure render functions driven entirely by assigns —
+  `log_view/1` and `log_line/1` are also imported by `HealthComponents` for
+  the Status drill-in's journal and log preview. Pure render functions driven entirely by assigns —
   no state, no PubSub.
   """
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
   Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
   @storybook_status :skip
-  @storybook_reason "Log stream is LiveView stream state — covered by page smoke tests"
+  @storybook_reason "chip_row and action_footer are the console page's own wiring, covered by its tests; log_view (and the log_line it draws) has storybook/console/log_view.story.exs"
 
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Console.{Entry, Filter, View}
+  alias MediaCentaurWeb.StatusLive.HealthBoard
 
   @doc """
   Header row with component chips, level filter, and search input.
@@ -21,10 +22,15 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   ## Attributes
 
   - `:filter` — the current `%Filter{}` struct
+  - `:scope` — the subsystem a scoped visit shows, or nil
   - `:app_components` — list of app component atoms
   - `:framework_components` — list of framework component atoms
   """
   attr :filter, Filter, required: true
+
+  attr :scope, :atom,
+    default: nil,
+    doc: "the Status subsystem this visit is scoped to (`/console?subsystem=…`), or nil"
 
   attr :app_components, :list,
     required: true,
@@ -39,6 +45,14 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   def chip_row(assigns) do
     ~H"""
     <header class="console-header">
+      <div :if={@scope} class="flex items-center gap-2">
+        <span class="text-sm font-medium">{HealthBoard.label(@scope)} logs</span>
+        <.button variant="dismiss" size="xs" patch={~p"/console"}>Show all logs</.button>
+        <.button variant="dismiss" size="xs" navigate={~p"/status?subsystem=#{@scope}"}>
+          <.icon name="hero-arrow-left-mini" class="size-3.5" /> Status
+        </.button>
+        <span class="console-chip-divider" aria-hidden="true"></span>
+      </div>
       <div class="console-chips">
         <span class="console-chip-group-label">app</span>
         <button
@@ -106,18 +120,18 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   @doc """
   One log row: timestamp, optional component badge, message.
 
-  Carries no container of its own, so the same row serves both the console's
-  stream (`log_list/1`) and the Status subsystem panel's plain list.
+  Carries no container of its own, so the same row serves a `log_view/1` and
+  the Status subsystem log preview's plain list.
   """
-  # No story file: this module is `@storybook_status :skip`, and the row's
-  # rendered states — levels, and with/without the component badge — are
-  # exercised through `storybook/health/health_drill_in.story.exs`.
+  # No story file of its own: the row's rendered states — levels, and
+  # with/without the component badge and timestamp — are exercised through
+  # `storybook/console/log_view.story.exs`.
   attr :entry, Entry, required: true
 
   attr :id, :string,
     default: nil,
     doc:
-      "DOM id. `log_list/1` sets it to the stream's dom_id — stream identity is the stream's business; surfaces without a stream leave it nil."
+      "DOM id. `log_view/1` sets it to the stream's dom_id, or derives one from the entry id for a list; the preview leaves it nil."
 
   attr :show_component, :boolean,
     default: true,
@@ -152,27 +166,67 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   end
 
   @doc """
-  Log entry list — iterates the entries stream and renders each entry.
+  A log view: log lines in a scroller, oldest at the top and newest at the
+  bottom (the live edge), which follows the live edge or holds the reader's
+  place. The `LogFollow` hook owns that state (`assets/js/hooks/log_follow.js`
+  carries the contract); while held, the jump control under the rows counts
+  the lines that arrived and scrolls back to the live edge.
 
-  ## Attributes
-
-  - `:streams` — the socket streams map; must contain `:entries`
+  Takes the rows as a LiveView stream (`stream`, the console) or as a list
+  (`lines`, the systemd journal), oldest first either way.
   """
-  attr :streams, :any,
-    required: true,
-    doc:
-      "Phoenix LiveView Streams map (`%Phoenix.LiveView.LiveStream{}` per key). Iterated via `phx-update=\"stream\"`. Phoenix attr has no Streams type — `:any` with this waiver is the canonical pattern."
+  attr :id, :string, required: true
 
-  def log_list(assigns) do
+  attr :stream, :any,
+    default: nil,
+    doc:
+      "a `%Phoenix.LiveView.LiveStream{}` of entries, appended at the live edge. Phoenix attr has no stream type — `:any` with this waiver is the canonical pattern."
+
+  attr :lines, :list, default: [], doc: "[Console.Entry.t()] oldest first, when there is no stream"
+  attr :show_component, :boolean, default: true
+  attr :show_timestamp, :boolean, default: true
+  attr :class, :any, default: nil, doc: "sizing for the scroller: a height bound or a flex share"
+
+  def log_view(assigns) do
     ~H"""
-    <main class="console-log" id="console-entries" phx-update="stream" phx-hook="LogTail">
-      <%!-- The row stays a direct child of `.console-log`: the container is a
-            flex column with a gap, and the ConsolePage hook's client-side
-            search hides matched-out rows with `display: none`. A wrapper
-            element would keep its gap slot and leave a ladder of holes
-            through a filtered list. --%>
-      <.log_line :for={{dom_id, entry} <- @streams.entries} id={dom_id} entry={entry} />
-    </main>
+    <div id={@id} class={["log-view", @class]} phx-hook="LogFollow">
+      <%!-- Rows stay direct children of the rows container: it is a flex
+            column with a gap, and the console's search hides matched-out rows
+            with `display: none`. A wrapper element would keep its gap slot
+            and leave a ladder of holes through a filtered list. --%>
+      <div
+        :if={@stream}
+        id={"#{@id}-rows"}
+        class="log-view-rows"
+        phx-update="stream"
+        data-log-rows
+      >
+        <.log_line
+          :for={{dom_id, entry} <- @stream}
+          id={dom_id}
+          entry={entry}
+          show_component={@show_component}
+          show_timestamp={@show_timestamp}
+        />
+      </div>
+      <div :if={!@stream} id={"#{@id}-rows"} class="log-view-rows" data-log-rows>
+        <.log_line
+          :for={entry <- @lines}
+          id={"#{@id}-#{entry.id}"}
+          entry={entry}
+          show_component={@show_component}
+          show_timestamp={@show_timestamp}
+        />
+      </div>
+      <%!-- The hook shows, hides and labels the control; `ignore` keeps a
+            patch from resetting what it set. --%>
+      <div id={"#{@id}-jump"} class="log-view-jump" phx-update="ignore">
+        <.button variant="secondary" size="xs" type="button" data-log-jump hidden>
+          <span data-log-jump-label>Jump to latest</span>
+          <.icon name="hero-arrow-down-mini" class="size-3.5" />
+        </.button>
+      </div>
+    </div>
     """
   end
 
@@ -181,18 +235,13 @@ defmodule MediaCentaurWeb.ConsoleComponents do
 
   ## Attributes
 
-  - `:paused` — whether log streaming is paused
   - `:buffer_size` — current per-component buffer capacity
   """
-  attr :paused, :boolean, required: true
   attr :buffer_size, :integer, required: true
 
   def action_footer(assigns) do
     ~H"""
     <footer class="console-footer">
-      <.button variant="neutral" size="xs" phx-click="toggle_pause">
-        {View.pause_button_label(@paused)}
-      </.button>
       <.button
         variant="neutral"
         size="xs"

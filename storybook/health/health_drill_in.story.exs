@@ -95,22 +95,32 @@ defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
       },
       %Variation{
         id: :with_log_lines,
-        description: "Recent lines from the subsystem's rings, newest first",
+        description:
+          "The log preview: the latest lines, oldest first, beneath the body at full width, with Open in console",
         attributes: %{
           view: view(:ok),
           buckets: [],
           log_lines: [
-            log_entry(3, ~U[2026-06-01 15:04:19Z], :error, :pipeline, "Artwork fetch failed (503)"),
-            log_entry(2, ~U[2026-06-01 15:03:51Z], :warning, :pipeline, "Retrying artwork in 30s"),
             log_entry(
               1,
               ~U[2026-06-01 15:02:11Z],
               :info,
               :pipeline,
               "Imported Sample.Show.S01E01.1080p.WEB-DL.mkv"
-            )
+            ),
+            log_entry(2, ~U[2026-06-01 15:03:51Z], :warning, :pipeline, "Retrying artwork in 30s"),
+            log_entry(3, ~U[2026-06-01 15:04:19Z], :error, :pipeline, "Artwork fetch failed (503)")
           ]
-        }
+        },
+        slots: [
+          """
+          <:activity>
+            <div class="glass-inset rounded-xl p-5 text-sm text-base-content/60">
+              Activity widget renders here
+            </div>
+          </:activity>
+          """
+        ]
       },
       %Variation{
         id: :without_log_lines,
@@ -125,8 +135,8 @@ defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
           buckets: [],
           show_log_components: true,
           log_lines: [
-            log_entry(5, ~U[2026-06-01 15:06:02Z], :info, :nostr, "Relay wss://relay.example open"),
-            log_entry(4, ~U[2026-06-01 15:05:40Z], :info, :social, "Published 1 listing to 2 relays")
+            log_entry(4, ~U[2026-06-01 15:05:40Z], :info, :social, "Published 1 listing to 2 relays"),
+            log_entry(5, ~U[2026-06-01 15:06:02Z], :info, :nostr, "Relay wss://relay.example open")
           ]
         }
       }

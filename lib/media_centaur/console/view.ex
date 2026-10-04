@@ -131,11 +131,4 @@ defmodule MediaCentaur.Console.View do
   """
   @spec entry_search_text(Entry.t()) :: String.t()
   def entry_search_text(%Entry{message: message}), do: String.downcase(message)
-
-  @doc """
-  Returns the button label for the pause/resume toggle.
-  """
-  @spec pause_button_label(boolean()) :: String.t()
-  def pause_button_label(true), do: "resume"
-  def pause_button_label(false), do: "pause"
 end

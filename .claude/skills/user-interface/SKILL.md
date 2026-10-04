@@ -469,7 +469,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `social_glyph/1`, `social_glyphs/1` | `title/social_glyph.ex` | One flag at its grade; a title's group (UIDR-049) | ✅ |
 | `social_capsule/1`, `social_panel/1` | `title/social.ex` | The title detail's social capsule and the panel it opens (UIDR-049) | ✅ |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
-| `log_list/1` | `console_components.ex` | Monospace log stream |
+| `log_view/1` | `console_components.ex` | A log view: oldest at the top, follows the live edge or holds the reader's place (`LogFollow` hook) — the console and the System journal | ✅ |
 | `action_footer/1` | `console_components.ex` | Console controls |
 
 Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `incoming/`, `release_tracking/`, `social/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).

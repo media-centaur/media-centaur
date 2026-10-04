@@ -130,7 +130,7 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `title/flag.ex` | ⚠️ skip | Pure vocabulary (flags, glyph names, mast order), not a function component |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
-| `console_components.log_list/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `console_components.log_view/1` | ✅ | `storybook/console/log_view.story.exs` (list form; the stream form is the console page's) |
 | `console_components.journal_list/1` | ⚠️ skip | Log stream is sticky LiveView state |
 | `console_components.source_tabs/1` | ⚠️ skip | Log stream is sticky LiveView state |
 | `console_components.action_footer/1` | ⚠️ skip | Log stream is sticky LiveView state |

@@ -1,10 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Health.JournalPanel do
   @moduledoc """
   Story for the `<.journal_panel>` component — the systemd journal in the
-  System subsystem's plumbing rail. Covers collapsed (the resting state, and
-  the only one that has not subscribed), expanded onto lines, and expanded
-  before the tail has written anything. Rendered at rail width, because that
-  is the only place it appears.
+  System drill-in's full-width logs row, a log view that follows its live
+  edge. Covers collapsed (the resting state, and the only one that has not
+  subscribed), expanded onto lines, and expanded before the tail has written
+  anything.
 
   Reconnect rides the expanded states — it force-respawns `journalctl` when
   the tail dies under an open panel — so it has no variation of its own.
@@ -30,33 +30,33 @@ defmodule MediaCentaurWeb.Storybook.Health.JournalPanel do
     }
   end
 
-  defp rail(inner), do: ~s|<div class="w-[21rem]">#{inner}</div>|
+  defp row(inner), do: ~s|<div class="w-[48rem]">#{inner}</div>|
 
   def variations do
     [
       %Variation{
         id: :collapsed,
         description: "The resting state — nothing is subscribed and journalctl is not running",
-        template: rail("<.psb-variation/>"),
+        template: row("<.psb-variation/>"),
         attributes: %{open: false}
       },
       %Variation{
         id: :expanded,
-        description: "Expanded onto the tail, newest first, with Reconnect",
-        template: rail("<.psb-variation/>"),
+        description: "Expanded onto the tail, oldest first, with Reconnect",
+        template: row("<.psb-variation/>"),
         attributes: %{
           open: true,
           lines: [
-            line(3, "2026-09-17T10:00:04+0200 host media-centaur[9142]: Watcher scan complete"),
+            line(1, "2026-09-17T10:00:00+0200 host systemd[1]: Started Media Centaur."),
             line(2, "2026-09-17T10:00:02+0200 host media-centaur[9142]: Listening on port 2160"),
-            line(1, "2026-09-17T10:00:00+0200 host systemd[1]: Started Media Centaur.")
+            line(3, "2026-09-17T10:00:04+0200 host media-centaur[9142]: Watcher scan complete")
           ]
         }
       },
       %Variation{
         id: :expanded_empty,
         description: "Expanded before the tail has written anything; Reconnect is still offered",
-        template: rail("<.psb-variation/>"),
+        template: row("<.psb-variation/>"),
         attributes: %{open: true, lines: []}
       }
     ]
