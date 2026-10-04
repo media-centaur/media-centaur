@@ -44,11 +44,19 @@ defmodule MediaCentaurWeb.ConsoleComponents do
 
   def chip_row(assigns) do
     ~H"""
-    <header class="console-header">
+    <header class="console-header" data-nav-zone="toolbar">
       <div :if={@scope} class="flex items-center gap-2">
         <span class="text-sm font-medium">{HealthBoard.label(@scope)} logs</span>
-        <.button variant="dismiss" size="xs" patch={~p"/console"}>Show all logs</.button>
-        <.button variant="dismiss" size="xs" navigate={~p"/status?subsystem=#{@scope}"}>
+        <.button variant="dismiss" size="xs" patch={~p"/console"} data-nav-item tabindex="0">
+          Show all logs
+        </.button>
+        <.button
+          variant="dismiss"
+          size="xs"
+          navigate={~p"/status?subsystem=#{@scope}"}
+          data-nav-item
+          tabindex="0"
+        >
           <.icon name="hero-arrow-left-mini" class="size-3.5" /> Status
         </.button>
         <span class="console-chip-divider" aria-hidden="true"></span>
@@ -66,6 +74,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           phx-click="toggle_component"
           phx-value-component={component}
           title={"click to toggle #{component}"}
+          data-nav-item
+          tabindex="0"
         >
           {View.component_label(component)}
         </button>
@@ -84,6 +94,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           phx-click="toggle_component"
           phx-value-component={component}
           title={"click to toggle #{component}"}
+          data-nav-item
+          tabindex="0"
         >
           {View.component_label(component)}
         </button>
@@ -100,6 +112,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           class={["join-item btn btn-xs", View.level_button_class(@filter, level)]}
           phx-click="set_level"
           phx-value-level={level}
+          data-nav-item
+          tabindex="0"
         >
           {level}
         </button>
@@ -112,6 +126,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
         placeholder="search..."
         name="search-query"
         data-console-search
+        data-nav-item
+        tabindex="0"
       />
     </header>
     """
@@ -241,10 +257,15 @@ defmodule MediaCentaurWeb.ConsoleComponents do
 
   def action_footer(assigns) do
     ~H"""
-    <footer class="console-footer">
+    <%!-- The size slider stays off the nav graph: LEFT and RIGHT move along
+          the footer, so a focused range input could never be adjusted. Tab
+          still reaches it. --%>
+    <footer class="console-footer" data-nav-zone="console_footer">
       <.button
         variant="neutral"
         size="xs"
+        data-nav-item
+        tabindex="0"
         phx-click="clear_buffer"
         data-confirm="Clear the diagnostic log buffer? Recent entries will be lost."
       >
@@ -255,6 +276,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <.button
         variant="neutral"
         size="xs"
+        data-nav-item
+        tabindex="0"
         phx-click={JS.dispatch("console:request", detail: %{event: "copy_visible"})}
       >
         copy
@@ -262,6 +285,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <.button
         variant="neutral"
         size="xs"
+        data-nav-item
+        tabindex="0"
         phx-click={JS.dispatch("console:request", detail: %{event: "download_buffer"})}
       >
         download
@@ -269,6 +294,8 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <.button
         variant="primary"
         size="xs"
+        data-nav-item
+        tabindex="0"
         phx-click="rescan_library"
         phx-disable-with="scanning…"
       >

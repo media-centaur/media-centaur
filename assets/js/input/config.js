@@ -72,6 +72,8 @@ export const inputConfig = {
     // Guide: chapter sidebar + on-this-page outline (both vertical link lists).
     guide_chapters: "[data-nav-zone='guide_chapters'] [data-nav-item]",
     guide_outline: "[data-nav-zone='guide_outline'] [data-nav-item]",
+    // The console's footer actions (clear, copy, download, rescan).
+    console_footer: "[data-nav-zone='console_footer'] [data-nav-item]",
   },
 
   // Instance → context type mapping
@@ -98,6 +100,7 @@ export const inputConfig = {
     other_downloads: Context.MENU,
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
+    console_footer: Context.TOOLBAR,
     people: Context.SHELF,
     // The detail modal: a horizontal command row over a nesting list. The
     // Cast sub-view swaps the list for a photo grid, whose arrangement
@@ -328,6 +331,14 @@ export const inputConfig = {
       grid:    { up: ["toolbar"] },
       sidebar: { right: ["grid", "toolbar"] },
     },
+    // Console: the header (scope links, component chips, level, search) over
+    // the log view — not navigable; it follows its live edge, and End holds
+    // or resumes it — over the footer actions.
+    console: {
+      toolbar:        { down: ["console_footer"] },
+      console_footer: { up: ["toolbar"] },
+      sidebar:        { right: ["toolbar", "console_footer"] },
+    },
     // Home: vertical stack of horizontal shelves. Up/down crosses between
     // shelves (candidate lists skip shelves the page didn't render).
     home: {
@@ -359,6 +370,7 @@ export const inputConfig = {
     watch_history: ["grid", "toolbar", "sidebar"],
     social: ["people", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
+    console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
   },

@@ -2950,14 +2950,20 @@ body:has(.modal-backdrop[data-state="open"]) {
   text-align: right;
 }
 
-/* Page shell — fills the viewport, header/list/footer column. */
-.console-fullpage {
-  position: fixed;
-  inset: 0;
+/* The console's panel in the app shell: header, log view and footer fill
+   the physical viewport less `<main>`'s vertical padding (py-6), so the log
+   view is the only part that scrolls. */
+.console-page {
+  height: calc(100 * var(--pvh) - 3rem);
   display: flex;
   flex-direction: column;
-  background: var(--color-base-100);
-  color: var(--color-base-content);
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-box, 0.75rem);
+}
+
+.console-page .console-log {
+  min-height: 0;
 }
 
 /* --- Disclosure (Components.Disclosure) -------------------------------- */
