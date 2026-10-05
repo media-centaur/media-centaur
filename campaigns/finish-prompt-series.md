@@ -1,5 +1,5 @@
 ---
-status: planning
+status: active
 started: 2026-10-05
 last_updated: 2026-10-05
 ---
@@ -36,9 +36,9 @@ from the movie version is reusable as is.
 
 ## Status
 
-Planning. The movie version shipped in v1.53.0 (2026-10-05). Nothing
-built for series. The next session starts with the design questions
-below, with the owner.
+Designed 2026-10-05: all seven questions decided (see Decisions made).
+Plan: [`plans/006-series-finish-prompt.md`](../plans/006-series-finish-prompt.md);
+UIDR-052 amended. Next: build plan 006 test-first. Nothing built yet.
 
 ## What exists, and why (v1.53.0)
 
@@ -156,17 +156,38 @@ the container (`:tv_series`), the completed items are its children
 * `2026-10-05` — Series and collections deferred to this campaign: the
   session entity is the container and the primary delete would remove all
   of it.
+* `2026-10-05` — **Series trigger (Q1, Q4):** the session completed
+  **TMDB's latest aired episode** (`last_episode_to_air`). First agreed as
+  "the last episode the library lists", reversed the same day: the library
+  holds only seasons with files (dev DB: an ended four-season show held
+  with season 1 only would have read "finished"). Not "the chain ended"
+  either: `NextEpisode.resolve/1` also returns `:none` when auto-play is
+  off or the successor is missing. Earlier episodes, no TMDB record: nothing.
+* `2026-10-05` — **Acts by show status (Q2, Q3):** settled series (TMDB
+  Ended/Canceled, nothing ahead) — "You finished X": Review, primary delete,
+  Done. Not settled — "You're caught up on X": Review, *Track release
+  dates* switch, Done; no delete. Nothing is deleted without the button's
+  arm-and-confirm.
+* `2026-10-05` — **Setting (Q5):** one setting. `movie_finish_prompt`
+  becomes `finish_prompt`, label "Ask after finishing a title"; old key
+  dropped, no migration.
+* `2026-10-05` — **Collections (Q6):** a collection is never "finished";
+  each **collection movie** is finished as a movie. The collection's detail
+  opens on that member; Review targets the movie; Delete removes only that
+  movie's files (a member delete target, never the collection's `:all`).
+* `2026-10-05` — **Where the rule lives (Q7, unify pass):** the web layer.
+  Playback states what it completed (episodes now carry season/episode
+  numbers) and the series' TMDB ref; `Finish.reaction` compares with the
+  `TMDB.Store` record. Playback cannot depend on TMDB. Same pass: fix
+  `Title.Logic.release_ahead?/3`, which was true for every series, so the
+  Track switch showed on ended shows (UIDR-042 rule 2); both consumers
+  read the settled fact. Prompt state keys on the detail's subject id
+  (member or container), not the container.
 
 ## Next steps
 
-1. Reconcile this file against `git log` and the code (CLAUDE.md
-   campaign rule).
-2. Design session with the owner on questions 1–3 and 5 (the trigger, the
-   acts, caught up vs finished, the setting). Load `unify_design` and run
-   it over the chosen trigger before planning.
-3. Amend UIDR-052 (or add a UIDR) for series; write `plans/006-…`.
-4. Build test-first, as plan 005 did; stories for any changed component.
-5. Carried from the movie version (do alongside, or close separately):
+1. Build plan 006 test-first, as plan 005 did; stories for any changed component.
+2. Carried from the movie version (do alongside, or close separately):
    - owner copy pass on "You finished …" and the setting label;
    - `mc-nav-trace` check that a modal opened by a finish lands the cursor
      in `detail_finish`;
@@ -178,7 +199,8 @@ the container (`:tv_series`), the completed items are its children
 * Closing mpv after finishing a series (by the agreed rule) opens the
   show's detail with a finish prompt whose acts were agreed with the
   owner, behind the agreed setting.
-* Collections either handled or explicitly declined in this file.
+* Finishing a collection movie prompts for that movie, deleting only its
+  files.
 * UIDR(s) accepted; wiki (Playback, Settings-Reference) updated; tests
   and stories cover the series states.
 
