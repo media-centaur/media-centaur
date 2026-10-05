@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
     %{
       status: :idle,
       throughput: 0.0,
-      avg_duration_ms: nil,
+      avg_duration_us: nil,
       active_count: 0,
       last_error: nil
     }
@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
     %{
       status: :idle,
       throughput: 0.0,
-      avg_duration_ms: nil,
+      avg_duration_us: nil,
       active_count: 0,
       total_downloaded: 0,
       total_failed: 0,
@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
               parse: %{
                 status: :active,
                 throughput: 2.5,
-                avg_duration_ms: 120,
+                avg_duration_us: 120_000,
                 active_count: 2,
                 last_error: nil
               },
@@ -76,7 +76,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
           image_stats: %{
             status: :active,
             throughput: 5.0,
-            avg_duration_ms: 800,
+            avg_duration_us: 800_000,
             active_count: 3,
             total_downloaded: 42,
             total_failed: 0,

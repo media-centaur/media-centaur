@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.Image.StatsTest do
       assert snapshot.status == :idle
       assert snapshot.active_count == 0
       assert snapshot.throughput == 0.0
-      assert snapshot.avg_duration_ms == nil
+      assert snapshot.avg_duration_us == nil
       assert snapshot.error_count == 0
       assert snapshot.last_error == nil
       assert snapshot.queue_depth == 0
@@ -233,12 +233,12 @@ defmodule MediaCentaur.Pipeline.Image.StatsTest do
       end
 
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.avg_duration_ms > 0
+      assert snapshot.avg_duration_us > 0
     end
 
     test "returns nil when no completions in window", %{stats: stats} do
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.avg_duration_ms == nil
+      assert snapshot.avg_duration_us == nil
     end
   end
 end

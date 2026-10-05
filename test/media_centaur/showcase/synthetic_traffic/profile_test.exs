@@ -45,15 +45,15 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.ProfileTest do
         samples = day(upstream)
 
         for sample <- samples do
-          assert sample.latency_sum_ms >= 0
+          assert sample.latency_sum_us >= 0
           assert sample.failed <= sample.requests, "a failure is a request that went out"
 
           if sample.requests == 0 do
-            assert sample.latency_sum_ms == 0
-            assert sample.latency_max_ms == 0
+            assert sample.latency_sum_us == 0
+            assert sample.latency_max_us == 0
           else
-            assert sample.latency_max_ms > 0
-            assert sample.latency_sum_ms >= sample.latency_max_ms
+            assert sample.latency_max_us > 0
+            assert sample.latency_sum_us >= sample.latency_max_us
           end
         end
       end

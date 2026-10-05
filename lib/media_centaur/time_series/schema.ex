@@ -8,7 +8,7 @@ defmodule MediaCentaur.TimeSeries.Schema do
 
   Build one at compile time with a module attribute:
 
-      @schema Schema.new(requests: :sum, failed: :sum, latency_max_ms: :max)
+      @schema Schema.new(requests: :sum, failed: :sum, latency_max_us: :max)
   """
 
   @type kind :: :sum | :max

@@ -5,7 +5,7 @@ defmodule MediaCentaur.HttpClient.IncidentContextTest do
   alias MediaCentaur.IntegrationAvailability.Status
 
   @now ~U[2026-09-18 12:00:00Z]
-  @zero %{requests: 0, failed: 0, cached: 0, mean_ms: nil, worst_ms: nil}
+  @zero %{requests: 0, failed: 0, cached: 0, mean_us: nil, worst_us: nil}
 
   # `%{upstream => {requests, failed}}` → the totals map `assess/3` takes.
   defp totals(overrides) do
@@ -90,8 +90,8 @@ defmodule MediaCentaur.HttpClient.IncidentContextTest do
              "window_requests" => 0,
              "window_failed" => 0,
              "window_cached" => 0,
-             "mean_latency_ms" => nil,
-             "worst_latency_ms" => nil
+             "mean_latency_us" => nil,
+             "worst_latency_us" => nil
            } = upstreams["tmdb"]
   end
 end

@@ -316,12 +316,12 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       end
 
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.stages.parse.avg_duration_ms > 0
+      assert snapshot.stages.parse.avg_duration_us > 0
     end
 
     test "returns nil when no completions in window", %{stats: stats} do
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.stages.parse.avg_duration_ms == nil
+      assert snapshot.stages.parse.avg_duration_us == nil
     end
   end
 end

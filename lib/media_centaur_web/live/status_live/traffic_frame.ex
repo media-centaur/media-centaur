@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
   """
 
   import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
+  import MediaCentaurWeb.StatusHelpers, only: [format_duration: 1]
 
   alias MediaCentaur.{Capabilities, IntegrationAvailability}
   alias MediaCentaur.HttpClient.{Traffic, Upstream}
@@ -25,7 +26,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
       %{key: "cached", label: "from cache", tone: "muted"}
     ],
     bars_total_label: "requests",
-    line: %{key: "mean_ms", worst_key: "worst_ms", label: "mean latency", unit: "ms"}
+    line: %{key: "mean_us", worst_key: "worst_us", label: "mean latency"}
   }
 
   @legend Enum.map(@schema.bars, &%{label: &1.label, tone: &1.tone}) ++
@@ -66,8 +67,8 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
           failed: upstream_series.failed,
           went_out: upstream_series.went_out,
           cached: upstream_series.cached,
-          mean_ms: upstream_series.mean_ms,
-          worst_ms: upstream_series.worst_ms
+          mean_us: upstream_series.mean_us,
+          worst_us: upstream_series.worst_us
         }
       end
 
@@ -112,7 +113,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
 
   defp second_line(totals) do
     cached = if totals.cached > 0, do: [%{text: "#{fmt(totals.cached)} cached"}], else: []
-    mean = if totals.mean_ms, do: [%{text: "#{duration(totals.mean_ms)} mean"}], else: []
+    mean = if totals.mean_us, do: [%{text: "#{format_duration(totals.mean_us)} mean"}], else: []
 
     case cached ++ mean do
       [] -> [%{text: "—"}]
@@ -132,18 +133,6 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
   defp slots(_upstream, _status), do: []
 
   defp fmt(n), do: n |> Integer.to_string() |> String.replace(~r/\B(?=(\d{3})+(?!\d))/, ",")
-
-  # Integer tenths, rounded half up, so 1650 reads "1.7 s" and 3000 "3 s".
-  defp duration(ms) when ms >= 1_000 do
-    tenths = div(ms + 50, 100)
-
-    case rem(tenths, 10) do
-      0 -> "#{div(tenths, 10)} s"
-      fraction -> "#{div(tenths, 10)}.#{fraction} s"
-    end
-  end
-
-  defp duration(ms), do: "#{ms} ms"
 
   defp fetch_rate_limiter do
     MediaCentaur.TMDB.RateLimiter.status()

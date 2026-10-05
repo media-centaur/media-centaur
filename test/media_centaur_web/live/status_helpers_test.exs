@@ -136,16 +136,27 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
       assert StatusHelpers.format_duration(nil) == "—"
     end
 
-    test "formats milliseconds" do
-      assert StatusHelpers.format_duration(500) == "500ms"
+    test "under ten milliseconds reads in tenths of a millisecond" do
+      assert StatusHelpers.format_duration(420) == "0.4 ms"
+      assert StatusHelpers.format_duration(2_350) == "2.4 ms"
+      assert StatusHelpers.format_duration(1_000) == "1 ms"
+      assert StatusHelpers.format_duration(30) == "0 ms"
     end
 
-    test "formats seconds" do
-      assert StatusHelpers.format_duration(2500) == "2.5s"
+    test "under a second reads in whole milliseconds" do
+      assert StatusHelpers.format_duration(9_960) == "10 ms"
+      assert StatusHelpers.format_duration(279_400) == "279 ms"
     end
 
-    test "formats minutes" do
-      assert StatusHelpers.format_duration(120_000) == "2.0m"
+    test "under a minute reads in tenths of a second" do
+      assert StatusHelpers.format_duration(999_600) == "1 s"
+      assert StatusHelpers.format_duration(1_650_000) == "1.7 s"
+      assert StatusHelpers.format_duration(3_000_000) == "3 s"
+    end
+
+    test "a minute or more reads in tenths of a minute" do
+      assert StatusHelpers.format_duration(59_970_000) == "1 min"
+      assert StatusHelpers.format_duration(150_000_000) == "2.5 min"
     end
   end
 

@@ -115,8 +115,8 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
              "window_requests" => totals.requests,
              "window_failed" => totals.failed,
              "window_cached" => totals.cached,
-             "mean_latency_ms" => totals.mean_ms,
-             "worst_latency_ms" => totals.worst_ms
+             "mean_latency_us" => totals.mean_us,
+             "worst_latency_us" => totals.worst_us
            }}
         end),
       "cache_entries" => Cache.stats().entries

@@ -7,8 +7,10 @@ defmodule MediaCentaur.HttpClient.Traffic do
   (`MediaCentaur.HttpClient.Instrument`) and, in the handler, in the
   requesting process, counts the attempt into the store: `requests`,
   `failed` (transport error or status 400+), `cached` (a cache hit, which
-  never reached the upstream and counts as nothing else), `latency_sum_ms`
-  and `latency_max_ms`. It also keeps, in its own ETS table, a twenty-slot
+  never reached the upstream and counts as nothing else), `latency_sum_us`
+  and `latency_max_us`. Latency is integer microseconds: the store's
+  counters are integers, and a local upstream answers well under a
+  millisecond. It also keeps, in its own ETS table, a twenty-slot
   ring of the most recent requests (hits included) and, per upstream, the
   last outcome and the last success time.
 
@@ -35,8 +37,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
             requests: :sum,
             failed: :sum,
             cached: :sum,
-            latency_sum_ms: :sum,
-            latency_max_ms: :max
+            latency_sum_us: :sum,
+            latency_max_us: :max
           )
   @store_table :http_traffic
   @recent_table :http_traffic_recent
@@ -47,8 +49,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
           requests: non_neg_integer(),
           failed: non_neg_integer(),
           cached: non_neg_integer(),
-          mean_ms: non_neg_integer() | nil,
-          worst_ms: non_neg_integer() | nil
+          mean_us: non_neg_integer() | nil,
+          worst_us: non_neg_integer() | nil
         }
 
   # --- Public API ---
@@ -90,8 +92,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
       went_out: Enum.zip_with(columns.requests, columns.failed, &(&1 - &2)),
       failed: columns.failed,
       cached: columns.cached,
-      mean_ms: Enum.zip_with(columns.latency_sum_ms, columns.requests, &mean/2),
-      worst_ms: Enum.zip_with(columns.latency_max_ms, columns.requests, &worst/2),
+      mean_us: Enum.zip_with(columns.latency_sum_us, columns.requests, &mean/2),
+      worst_us: Enum.zip_with(columns.latency_max_us, columns.requests, &worst/2),
       totals: totals_from(fold.totals)
     }
   end
@@ -105,7 +107,7 @@ defmodule MediaCentaur.HttpClient.Traffic do
     now = Keyword.get_lazy(opts, :now, fn -> System.os_time(:second) end)
     seconds = Keyword.get(opts, :seconds, 900)
     table = Keyword.get(opts, :store_table, @store_table)
-    zero = %{requests: 0, failed: 0, cached: 0, latency_sum_ms: 0, latency_max_ms: 0}
+    zero = %{requests: 0, failed: 0, cached: 0, latency_sum_us: 0, latency_max_us: 0}
 
     table
     |> Store.rows(:"10s", upstream, now - seconds, now)
@@ -114,8 +116,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
         requests: acc.requests + values.requests,
         failed: acc.failed + values.failed,
         cached: acc.cached + values.cached,
-        latency_sum_ms: acc.latency_sum_ms + values.latency_sum_ms,
-        latency_max_ms: max(acc.latency_max_ms, values.latency_max_ms)
+        latency_sum_us: acc.latency_sum_us + values.latency_sum_us,
+        latency_max_us: max(acc.latency_max_us, values.latency_max_us)
       }
     end)
     |> totals_from()
@@ -162,7 +164,7 @@ defmodule MediaCentaur.HttpClient.Traffic do
   @doc false
   def handle_telemetry(_event, %{duration: duration}, metadata, config) do
     now = Map.get_lazy(config, :now, fn -> System.os_time(:second) end)
-    duration_ms = System.convert_time_unit(duration, :native, :millisecond)
+    duration_us = System.convert_time_unit(duration, :native, :microsecond)
     hit? = metadata.cache == :hit
     failed? = metadata.error != nil or (is_integer(metadata.status) and metadata.status >= 400)
     upstream = metadata.upstream
@@ -171,8 +173,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
       requests: if(hit?, do: 0, else: 1),
       failed: if(failed? and not hit?, do: 1, else: 0),
       cached: if(hit?, do: 1, else: 0),
-      latency_sum_ms: if(hit?, do: 0, else: duration_ms),
-      latency_max_ms: if(hit?, do: 0, else: duration_ms)
+      latency_sum_us: if(hit?, do: 0, else: duration_us),
+      latency_max_us: if(hit?, do: 0, else: duration_us)
     })
 
     entry = %{
@@ -182,7 +184,7 @@ defmodule MediaCentaur.HttpClient.Traffic do
       path: metadata.path,
       status: metadata.status,
       error: metadata.error && Exception.message(metadata.error),
-      duration_ms: duration_ms,
+      duration_us: duration_us,
       cache: metadata.cache
     }
 
@@ -255,8 +257,8 @@ defmodule MediaCentaur.HttpClient.Traffic do
       requests: requests,
       failed: totals.failed,
       cached: totals.cached,
-      mean_ms: mean(totals.latency_sum_ms, requests),
-      worst_ms: worst(totals.latency_max_ms, requests)
+      mean_us: mean(totals.latency_sum_us, requests),
+      worst_us: worst(totals.latency_max_us, requests)
     }
   end
 end

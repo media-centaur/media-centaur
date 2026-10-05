@@ -64,7 +64,7 @@ defmodule MediaCentaur.Pipeline.StatsHelpersTest do
       assert StatsHelpers.calculate_avg_duration([]) == nil
     end
 
-    test "calculates average duration in milliseconds" do
+    test "calculates average duration in microseconds" do
       # Use native time units for durations
       ms_to_native = fn ms ->
         System.convert_time_unit(ms, :millisecond, :native)
@@ -76,7 +76,7 @@ defmodule MediaCentaur.Pipeline.StatsHelpersTest do
         {3, ms_to_native.(300)}
       ]
 
-      assert StatsHelpers.calculate_avg_duration(completions) == 200.0
+      assert StatsHelpers.calculate_avg_duration(completions) == 200_000
     end
 
     test "single completion returns its own duration" do
@@ -85,7 +85,12 @@ defmodule MediaCentaur.Pipeline.StatsHelpersTest do
       end
 
       completions = [{1, ms_to_native.(500)}]
-      assert StatsHelpers.calculate_avg_duration(completions) == 500.0
+      assert StatsHelpers.calculate_avg_duration(completions) == 500_000
+    end
+
+    test "keeps sub-millisecond precision" do
+      completions = [{1, System.convert_time_unit(420, :microsecond, :native)}]
+      assert StatsHelpers.calculate_avg_duration(completions) == 420
     end
   end
 

@@ -32,14 +32,14 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
           requests: non_neg_integer(),
           failed: non_neg_integer(),
           cached: non_neg_integer(),
-          latency_sum_ms: non_neg_integer(),
-          latency_max_ms: non_neg_integer()
+          latency_sum_us: non_neg_integer(),
+          latency_max_us: non_neg_integer()
         }
 
   # per_minute    requests that go out in a quiet minute
   # burst         {chance per minute, extra requests} — a search, a refresh
-  # latency_ms    typical round trip
-  # spread_ms     how much slower the slow ones are
+  # latency_us    typical round trip, microseconds
+  # spread_us     how much slower the slow ones are, microseconds
   # failure_rate  share of requests that come back 400+ or not at all
   # cache_rate    share of reads the response cache answers
   # diurnal?      driven by a person, so it follows the clock
@@ -47,8 +47,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     tmdb: %{
       per_minute: 0.3,
       burst: {0.04, 30},
-      latency_ms: 130,
-      spread_ms: 240,
+      latency_us: 130_000,
+      spread_us: 240_000,
       failure_rate: 0.006,
       cache_rate: 0.5,
       diurnal?: true
@@ -56,8 +56,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     tmdb_images: %{
       per_minute: 0.2,
       burst: {0.03, 18},
-      latency_ms: 85,
-      spread_ms: 170,
+      latency_us: 85_000,
+      spread_us: 170_000,
       failure_rate: 0.004,
       cache_rate: 0.3,
       diurnal?: true
@@ -65,8 +65,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     prowlarr: %{
       per_minute: 0.05,
       burst: {0.012, 5},
-      latency_ms: 460,
-      spread_ms: 900,
+      latency_us: 460_000,
+      spread_us: 900_000,
       failure_rate: 0.04,
       cache_rate: 0.0,
       diurnal?: true
@@ -74,8 +74,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     qbittorrent: %{
       per_minute: 6.0,
       burst: {0.0, 0},
-      latency_ms: 2,
-      spread_ms: 9,
+      latency_us: 600,
+      spread_us: 2_500,
       failure_rate: 0.001,
       cache_rate: 0.0,
       diurnal?: false
@@ -83,8 +83,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     sabnzbd: %{
       per_minute: 4.0,
       burst: {0.0, 0},
-      latency_ms: 3,
-      spread_ms: 11,
+      latency_us: 800,
+      spread_us: 3_000,
       failure_rate: 0.001,
       cache_rate: 0.0,
       diurnal?: false
@@ -92,8 +92,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     github: %{
       per_minute: 0.017,
       burst: {0.0, 0},
-      latency_ms: 190,
-      spread_ms: 140,
+      latency_us: 190_000,
+      spread_us: 140_000,
       failure_rate: 0.0,
       cache_rate: 0.0,
       diurnal?: false
@@ -108,9 +108,9 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
   @spec upstreams() :: [Upstream.id()]
   def upstreams, do: Enum.filter(Upstream.panel_ids(), &Map.has_key?(@profiles, &1))
 
-  @doc "An unremarkable round trip to `upstream`, in milliseconds."
-  @spec typical_latency_ms(Upstream.id()) :: pos_integer()
-  def typical_latency_ms(upstream), do: Map.fetch!(@profiles, upstream).latency_ms
+  @doc "An unremarkable round trip to `upstream`, in microseconds."
+  @spec typical_latency_us(Upstream.id()) :: pos_integer()
+  def typical_latency_us(upstream), do: Map.fetch!(@profiles, upstream).latency_us
 
   @doc """
   The counters for `upstream` in the `bar_seconds`-wide bucket starting at
@@ -131,14 +131,14 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     requests = attempts - cached
     failed = share(requests, profile.failure_rate, upstream, bucket_start, :fail)
 
-    {sum_ms, max_ms} = latency(profile, requests, upstream, bucket_start)
+    {sum_us, max_us} = latency(profile, requests, upstream, bucket_start)
 
     %{
       requests: requests,
       failed: failed,
       cached: cached,
-      latency_sum_ms: sum_ms,
-      latency_max_ms: max_ms
+      latency_sum_us: sum_us,
+      latency_max_us: max_us
     }
   end
 
@@ -169,8 +169,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic.Profile do
     # One slow request in the bucket sets the maximum; the rest sit near
     # the typical round trip. That is the shape a real bucket has, and it
     # is what makes the mean-latency line move at all.
-    slowest = profile.latency_ms + trunc(profile.spread_ms * unit(upstream, bucket_start, :slow))
-    typical = profile.latency_ms + trunc(profile.spread_ms * 0.2 * unit(upstream, bucket_start, :typ))
+    slowest = profile.latency_us + trunc(profile.spread_us * unit(upstream, bucket_start, :slow))
+    typical = profile.latency_us + trunc(profile.spread_us * 0.2 * unit(upstream, bucket_start, :typ))
 
     {slowest + (requests - 1) * typical, slowest}
   end
