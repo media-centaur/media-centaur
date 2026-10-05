@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.54.0 — 2026-10-05
+
+### New
+
+- **Review or clear a show when you reach the end.** When you close the player after watching the newest episode of a show, its page opens with a row above its buttons. If the show has ended, the row says you finished it and offers **Review**, **Delete all files** (press twice to confirm) and **Done**. If the show is still airing, it says you're caught up and offers **Review**, **Track release dates** so the next episode shows on your watchlist, and **Done**. Finishing an earlier episode, or the last one you have downloaded when more have aired, shows nothing.
+- **Movies in a collection get the row too.** Finishing a movie that belongs to a collection opens the collection on that movie, with **Review** for the movie and **Delete this file** for that movie's file only. The other movies in the collection are never touched.
+
+### Improved
+
+- **One setting for every title.** **Settings → Preferences → Ask after finishing a title** now covers movies and shows alike. It starts on; if you had turned off the old movie-only setting, turn this one off again.
+
+### Fixed
+
+- **Track release dates no longer shows on shows that have ended.** The switch now appears only while a show still has episodes to come.
+
 ## v1.53.0 — 2026-10-05
 
 ### New
