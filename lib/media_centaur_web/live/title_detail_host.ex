@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   `use MediaCentaurWeb.Live.TitleDetailHost` registers an `on_mount`
   that declares the modal's topics through `Live.Subscriptions`, seeds
   `:title_detail`, `:modal_state`, `:title_opening`, `:title_playback`
-  and `:finished_entity_id`, and attaches four lifecycle hooks:
+  and `:finished_id`, and attaches four lifecycle hooks:
 
   | Hook | Does |
   |---|---|
@@ -77,15 +77,18 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   ## The finish prompt
 
-  A `SessionEnded` naming a standalone movie the session completed opens
-  that movie's detail with the finish prompt (UIDR-052, decided by
-  `Finish.reaction/3` under the `MovieFinishPrompt` preference): in
-  place when its detail is open, otherwise by patching `?entity=<id>`.
-  `:finished_entity_id` holds the movie, not `ModalState` — the state is
-  replaced on every open, and the entity address canonicalises through a
-  second patch. Done (`finish_prompt_done`), closing, and another title
-  taking the modal clear it. The page passes it to `DetailPanel`, which
-  draws the prompt while it is the open entity.
+  A `SessionEnded` naming a finished title opens its detail with the
+  finish prompt (UIDR-052, decided by `Finish.reaction/4` under the
+  `FinishPrompt` preference): a movie, standalone or in a collection, or
+  a show whose latest aired episode the session completed — the one case
+  that reads the series' TMDB record. In place when its detail is open on
+  that subject, otherwise by patching `?entity=<id>`, which opens a
+  collection on the finished member. `:finished_id` holds the library id,
+  not `ModalState` — the state is replaced on every open, and the entity
+  address canonicalises through a second patch. Done
+  (`finish_prompt_done`), closing, and another title taking the modal
+  clear it. The page passes it to `DetailPanel`, which draws the prompt
+  while it is the open subject (`Detail.Logic.finish_prompt/3`).
 
   ## Setting a rung
 
@@ -106,7 +109,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Settings.Preferences.MovieFinishPrompt
+  alias MediaCentaur.Settings.Preferences.FinishPrompt
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -182,7 +185,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         modal_state: ModalState.new(),
         title_opening: nil,
         title_playback: %{},
-        finished_entity_id: nil
+        finished_id: nil
       )
       |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
@@ -399,15 +402,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     socket
     |> cancel_pending_download()
     |> reset_detail()
-    |> assign(:finished_entity_id, nil)
+    |> assign(:finished_id, nil)
   end
 
   # The finish prompt belongs to the finished entity: another title taking
   # the modal drops it.
   defp keep_finish_for(socket, detail) do
-    if LibraryHalf.container_id(detail) == socket.assigns.finished_entity_id,
+    if DetailLogic.subject_id(detail) == socket.assigns.finished_id,
       do: socket,
-      else: assign(socket, :finished_entity_id, nil)
+      else: assign(socket, :finished_id, nil)
   end
 
   defp cancel_opening(%{assigns: %{title_opening: nil}} = socket), do: socket
@@ -515,6 +518,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         }),
       acquisition?: acquisition?,
       complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
+      settled?: settled?(ref),
       release_window: nil,
       planning_mode: planning_mode,
       social_activity: Map.get(Activities.activity_for([ref]), ref, []),
@@ -523,6 +527,26 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     }
 
     Logic.title_detail(title, facts)
+  end
+
+  # The series' latest aired episode, from its TMDB record — nil without
+  # a TMDB identity or a record.
+  defp latest_aired_episode(series_id) do
+    with [{_id, tmdb_id}] <- Library.ExternalIds.tmdb_ids_for_tv_series([series_id]),
+         %{payload: payload} <- Store.get({tmdb_id, :tv_series}) do
+      Finish.latest_aired_episode(payload)
+    else
+      _ -> nil
+    end
+  end
+
+  # Settled in the TMDB store (ADR-071): no release fact can change. A
+  # title the store has never held is not.
+  defp settled?(ref) do
+    case Store.get(ref) do
+      %{settled_at: %DateTime{}} -> true
+      _ -> false
+    end
   end
 
   # The residue: an owned entity with no TMDB identity has the library
@@ -751,22 +775,23 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     )
   end
 
-  # UIDR-052: a finished standalone movie opens its title with the prompt
-  # — the modal may be closed. `:stopped` arrived first (same session, same
-  # topic), so the playing set no longer guards its delete.
+  # UIDR-052: a finished title opens with the prompt — the modal may be
+  # closed. `:stopped` arrived first (same session, same topic), so the
+  # playing set no longer guards its delete.
   defp react({:session_ended, event}, socket) do
-    open_id = LibraryHalf.container_id(socket.assigns.title_detail)
+    open_id = DetailLogic.subject_id(socket.assigns.title_detail)
+    latest_aired = if Finish.episodes?(event), do: latest_aired_episode(event.entity_id)
 
-    case Finish.reaction(event, open_id, MovieFinishPrompt.enabled?()) do
+    case Finish.reaction(event, open_id, FinishPrompt.enabled?(), latest_aired) do
       :ignore ->
         socket
 
       {:in_place, id} ->
-        assign(socket, :finished_entity_id, id)
+        assign(socket, :finished_id, id)
 
       {:open, id} ->
         socket
-        |> assign(:finished_entity_id, id)
+        |> assign(:finished_id, id)
         |> push_patch(to: path(socket, entity: id))
     end
   end
@@ -871,7 +896,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event("close_title", _params, socket), do: {:halt, close_or_return(socket)}
 
   def handle_title_event("finish_prompt_done", _params, socket),
-    do: {:halt, assign(socket, :finished_entity_id, nil)}
+    do: {:halt, assign(socket, :finished_id, nil)}
 
   def handle_title_event(
         "select_detail_view",

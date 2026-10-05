@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.Storybook.Detail.DeleteAllButton do
   @moduledoc """
   The title's primary delete — every file the library holds for it, as
-  one click-twice gesture. Drawn on the Manage toolbar and in the finish
+  one click-twice gesture — or, for a collection movie in the finish
+  prompt, that movie's files only. Drawn on the Manage toolbar and in the finish
   prompt (plan 005); absent until the file list has loaded.
   """
   use PhoenixStorybook.Story, :component
@@ -54,6 +55,21 @@ defmodule MediaCentaurWeb.Storybook.Detail.DeleteAllButton do
         attributes: %{
           files: two_files(),
           deleting: {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.en.srt"}
+        }
+      },
+      %Variation{
+        id: :member,
+        description:
+          "A collection movie's delete (the finish prompt): its own files only, armed by `{:member, id}`, never the collection's `:all`.",
+        attributes: %{files: one_file(), target: {:member, "movie-1"}}
+      },
+      %Variation{
+        id: :member_armed,
+        description: "The member delete pressed once.",
+        attributes: %{
+          files: one_file(),
+          target: {:member, "movie-1"},
+          delete_confirm: {:member, "movie-1"}
         }
       },
       %Variation{

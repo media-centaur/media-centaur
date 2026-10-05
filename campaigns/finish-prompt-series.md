@@ -36,9 +36,10 @@ from the movie version is reusable as is.
 
 ## Status
 
-Designed 2026-10-05: all seven questions decided (see Decisions made).
-Plan: [`plans/006-series-finish-prompt.md`](../plans/006-series-finish-prompt.md);
-UIDR-052 amended. Next: build plan 006 test-first. Nothing built yet.
+Built 2026-10-05 (plan 006, unreleased): series (finished / caught up),
+collection movies, the `finish_prompt` setting, and the Track switch
+fix on ended shows. Tests and stories cover the states; `docs/playback.md`
+and the wiki updated. Open: the verification items below, then ship.
 
 ## What exists, and why (v1.53.0)
 
@@ -186,9 +187,12 @@ the container (`:tv_series`), the completed items are its children
 
 ## Next steps
 
-1. Build plan 006 test-first, as plan 005 did; stories for any changed component.
+1. Verify in the real app: finish a show's latest episode in mpv (ended
+   and airing), and a collection movie; check the caught-up row's layout
+   in the 760px modal (the Track switch's description wraps the row).
 2. Carried from the movie version (do alongside, or close separately):
-   - owner copy pass on "You finished …" and the setting label;
+   - owner copy pass on "You finished …", "You're caught up on …" and
+     the setting label "Ask after finishing a title";
    - `mc-nav-trace` check that a modal opened by a finish lands the cursor
      in `detail_finish`;
    - one real end-to-end run: finish a movie in mpv and close it;

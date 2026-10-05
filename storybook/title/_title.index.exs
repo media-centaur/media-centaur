@@ -20,5 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Title do
 
   def entry("tracking_controls"), do: [icon: {:fa, "sliders", :thin}, name: "Tracking controls"]
 
+  def entry("track_switch"), do: [icon: {:fa, "toggle-on", :thin}, name: "Track switch"]
+
   def entry("title_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]
 end

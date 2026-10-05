@@ -134,10 +134,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     default: false,
     doc: "whether the Review control is offered — the host passes `show_social`."
 
-  attr :finished_entity_id, :string,
+  attr :finished_id, :string,
     default: nil,
     doc:
-      "the entity a session just finished (`TitleDetailHost`, UIDR-052); the finish prompt shows while it is the open entity."
+      "the library id a session just finished (`TitleDetailHost`, UIDR-052); the finish prompt shows while it is the open subject (`Detail.Logic.finish_prompt/3`)."
 
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_title"
@@ -188,6 +188,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:ref, ref)
       |> assign(:files, files)
       |> assign(:files_status, files_status)
+      |> assign(:finish, Logic.finish_prompt(detail, assigns.finished_id, assigns.today))
       |> assign(:seasons, seasons(half.entry))
       |> assign(:movies, movies(half.entry))
       |> assign(:resume_episode_key, resume_episode_key(half.entry))
@@ -271,10 +272,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                   arrowing up out of the body list glides the modal back
                   to the hero; BACK lands here without moving it. --%>
             <FinishPrompt.finish_prompt
-              :if={@entity && @entity.id == @finished_entity_id}
+              :if={@finish}
               name={@name}
+              kind={@finish.kind}
               review?={@review? && @ref != nil}
-              files={@files}
+              ref={@ref}
+              rung={@detail.rung}
+              files={Logic.files_for_target(@files, @finish.delete_target || :all)}
+              delete_target={@finish.delete_target || :all}
               files_status={@files_status}
               delete_confirm={ArmGesture.armed_target(@armed_gesture, ManagePanel.delete_events())}
               deleting={@state.deleting}
@@ -685,7 +690,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             ref={@ref}
             rung={@detail.rung}
             media_type={@detail.title.media_type}
-            release_ahead?={TitleLogic.release_ahead?(@detail.title, @detail.release_window, @today)}
+            release_ahead?={TitleLogic.release_ahead?(@detail, @today)}
             complete?={@detail.complete?}
             approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
             acquisition?={@detail.acquisition?}

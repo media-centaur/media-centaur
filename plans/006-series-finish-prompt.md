@@ -123,27 +123,53 @@ row is ignored).
 
 ## Acceptance Criteria
 
-- [ ] Completing the latest aired episode of a settled series: the show's
+- [x] Completing the latest aired episode of a settled series: the show's
       detail opens with "You finished", Review, Delete all files, Done.
-- [ ] Same for a series that is not settled: "You're caught up", Review,
+- [x] Same for a series that is not settled: "You're caught up", Review,
       Track release dates, Done; no delete.
-- [ ] Completing only earlier episodes, or the last held episode when TMDB
+- [x] Completing only earlier episodes, or the last held episode when TMDB
       lists later ones: nothing opens.
-- [ ] No TMDB record or no `last_episode_to_air`: nothing opens.
-- [ ] Completing a collection movie: the collection opens on that movie,
+- [x] No TMDB record or no `last_episode_to_air`: nothing opens.
+- [x] Completing a collection movie: the collection opens on that movie,
       "You finished *Movie A*"; Review targets the movie; Delete arms and
       deletes only that movie's files.
-- [ ] Standalone movie behaviour unchanged.
-- [ ] In place / open / another title's modal / Done / close / reload, for
+- [x] Standalone movie behaviour unchanged.
+- [x] In place / open / another title's modal / Done / close / reload, for
       all three kinds.
-- [ ] Preference `finish_prompt` off: nothing opens for any kind.
-- [ ] Track release dates absent on a settled series' detail.
-- [ ] `FinishPrompt` story: finished, caught up, member delete, no Review.
-- [ ] Docs and wiki updated; UIDR-052 amendment in place.
+- [x] Preference `finish_prompt` off: nothing opens for any kind.
+- [x] Track release dates absent on a settled series' detail.
+- [x] `FinishPrompt` story: finished, caught up, member delete, no Review.
+- [x] Docs and wiki updated; UIDR-052 amendment in place.
 
 ## Decisions
 
 - UIDR-052, amendment 2026-10-05.
+
+## As built (2026-10-05)
+
+Where the build departed from the Pieces table above:
+
+- **No `tmdb_ref` on `SessionEnded`.** The host resolves the series'
+  TMDB id itself (`Library.ExternalIds.tmdb_ids_for_tv_series/1`, then
+  `TMDB.Store.get/1`), and only when the payload holds an episode
+  (`Finish.episodes?/1`). The event states only what the session
+  completed; the session process does no extra read.
+- **`Finish.reaction/4`** takes the latest aired episode as
+  `{season_number, episode_number}` (`Finish.latest_aired_episode/1`
+  parses the payload), not the record.
+- **The prompt state is `:finished_id`, a string.** The kind is not
+  stored: `Detail.Logic.finish_prompt/3` derives `:finished` /
+  `:caught_up` and the delete target at render, from the open detail's
+  `settled?` fact — the same fact `Title.Logic.release_ahead?/2` reads.
+  `Detail.Logic.subject_id/1` (not `LibraryHalf`) names the subject.
+- **The Track switch** is `TrackingControls.track_switch/1`, drawn by the
+  tracking controls and the prompt. From Off or Ignored it sets Follow,
+  so a caught-up show not yet on the list can be tracked from the prompt.
+- **The member delete** reuses `delete_all_prompt` with
+  `phx-value-member`; the target is `{:member, movie_id}`.
+  `Library.Files.list_by_entity_id/1` now preloads each file's
+  `playable_item`, which `Detail.Logic.files_for_target/2` filters by.
+
 
 ## Smoke Tests
 

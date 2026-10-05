@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   alias MediaCentaur.Library
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
   alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, SessionEnded}
-  alias MediaCentaur.Settings.Preferences.MovieFinishPrompt
+  alias MediaCentaur.Settings.Preferences.FinishPrompt
 
   test "GET / renders without crashing", %{conn: conn} do
     {:ok, _view, html} = live_async!(conn, "/")
@@ -721,7 +721,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     test "the preference off opens nothing", %{conn: conn, movie: movie} do
       {:ok, _} =
         MediaCentaur.Settings.find_or_create_entry(%{
-          key: MovieFinishPrompt.setting_key(),
+          key: FinishPrompt.setting_key(),
           value: %{"enabled" => false}
         })
 
@@ -753,6 +753,144 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       view |> element(~s|#finish-prompt [phx-click="delete_all_prompt"]|) |> render_click()
 
       assert has_element?(view, ~s|#finish-prompt [phx-click="delete_all_prompt"][data-armed]|)
+    end
+  end
+
+  # UIDR-052 (amended 2026-10-05): a show finishes at TMDB's latest aired
+  # episode; a movie in a collection finishes as a movie.
+  describe "finish prompt — series" do
+    setup do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "4401"})
+      _ = create_linked_file(%{tv_series_id: series.id})
+      %{series: series}
+    end
+
+    defp record_series(status, latest) do
+      create_title_record(%{
+        tmdb_id: 4401,
+        media_type: :tv_series,
+        payload: %{
+          "id" => 4401,
+          "name" => "Sample Show",
+          "status" => status,
+          "seasons" => [],
+          "next_episode_to_air" => nil,
+          "last_episode_to_air" => %{
+            "season_number" => elem(latest, 0),
+            "episode_number" => elem(latest, 1)
+          }
+        }
+      })
+    end
+
+    defp finish_series(series, completed) do
+      Events.broadcast(%SessionEnded{entity_id: series.id, completed: MapSet.new(completed)})
+    end
+
+    test "the finale of an ended show opens it as finished, with the delete", %{
+      conn: conn,
+      series: series
+    } do
+      record = record_series("Ended", {2, 10})
+      assert record.settled_at
+
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_series(series, [{:episode, "episode-10", 2, 10}])
+
+      assert_patch(view, "/?title=tv_series-4401")
+      render_async(view)
+      assert has_element?(view, "#finish-prompt")
+      assert render(view) =~ "You finished"
+      assert has_element?(view, ~s|#finish-prompt [phx-click="delete_all_prompt"]|)
+    end
+
+    test "the latest episode of a show still airing reads caught up, without a delete", %{
+      conn: conn,
+      series: series
+    } do
+      record_series("Returning Series", {3, 6})
+
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_series(series, [{:episode, "episode-6", 3, 6}])
+
+      assert_patch(view, "/?title=tv_series-4401")
+      render_async(view)
+      assert has_element?(view, "#finish-prompt")
+      assert render(view) =~ "caught up"
+      refute has_element?(view, ~s|#finish-prompt [phx-click="delete_all_prompt"]|)
+    end
+
+    test "an earlier episode opens nothing", %{conn: conn, series: series} do
+      record_series("Ended", {2, 10})
+
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_series(series, [{:episode, "episode-9", 2, 9}])
+
+      refute render(view) =~ ~s|data-state="open"|
+      refute has_element?(view, "#finish-prompt")
+    end
+
+    test "a show with no TMDB record opens nothing", %{conn: conn, series: series} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_series(series, [{:episode, "episode-10", 2, 10}])
+
+      refute render(view) =~ ~s|data-state="open"|
+    end
+  end
+
+  describe "finish prompt — a movie in a collection" do
+    setup do
+      collection = create_movie_series(%{name: "Sample Collection", tmdb_id: "5501"})
+
+      finished =
+        create_movie(%{movie_series_id: collection.id, name: "Movie A", tmdb_id: "5502", position: 1})
+
+      other =
+        create_movie(%{movie_series_id: collection.id, name: "Movie B", tmdb_id: "5503", position: 2})
+
+      finished_file =
+        create_linked_file(%{movie_id: finished.id, file_path: "/media/test/a/Movie A.mkv"})
+
+      _ = create_linked_file(%{movie_id: other.id, file_path: "/media/test/b/Movie B.mkv"})
+
+      %{collection: collection, finished: finished, finished_file: finished_file}
+    end
+
+    defp finish_member(collection, movie) do
+      Events.broadcast(%SessionEnded{
+        entity_id: collection.id,
+        completed: MapSet.new([{:movie, movie.id}])
+      })
+    end
+
+    test "opens the collection on the finished movie with its prompt", %{
+      conn: conn,
+      collection: collection,
+      finished: finished
+    } do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_member(collection, finished)
+
+      assert_patch(view, "/?title=movie-5502")
+      render_async(view)
+      assert has_element?(view, "#finish-prompt")
+      assert render(view) =~ "You finished"
+    end
+
+    test "the prompt's delete arms that movie only, never the collection", %{
+      conn: conn,
+      collection: collection,
+      finished: finished
+    } do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish_member(collection, finished)
+      assert_patch(view, "/?title=movie-5502")
+      render_async(view)
+
+      delete = ~s|#finish-prompt [phx-click="delete_all_prompt"][phx-value-member="#{finished.id}"]|
+      view |> element(delete) |> render_click()
+
+      assert has_element?(view, delete <> "[data-armed]")
     end
   end
 end

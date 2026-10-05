@@ -192,7 +192,8 @@ defmodule MediaCentaur.Library.Files do
 
   Resolution walks through PlayableItem: Movie / VideoObject directly,
   Episode through its season's TVSeries, MovieSeries through its child
-  Movies.
+  Movies. Each file carries its `playable_item`, so a caller can tell
+  which child a file belongs to (a collection's member delete).
   """
   @spec list_by_entity_id(Ecto.UUID.t()) :: [WatchedFile.t()]
   def list_by_entity_id(entity_id) do
@@ -225,7 +226,8 @@ defmodule MediaCentaur.Library.Files do
         where:
           w.playable_item_id in subquery(movie_or_video) or
             w.playable_item_id in subquery(episodes) or
-            w.playable_item_id in subquery(movie_series_children)
+            w.playable_item_id in subquery(movie_series_children),
+        preload: [:playable_item]
       )
     )
   end

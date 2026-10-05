@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Detail.Library
+  alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Title.TrackingControls
 
   @doc """
@@ -634,4 +635,59 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
     Enum.any?(1..number_of_seasons//1, &(not MapSet.member?(owned, &1)))
   end
+
+  # --- The finish prompt (UIDR-052) ---
+
+  @doc """
+  The library id the open detail speaks of: the selected member of a
+  collection, else the owning container; nil for an unowned title. The
+  finish prompt belongs to this id (`TitleDetailHost.Finish`).
+  """
+  @spec subject_id(TitleDetail.t() | nil) :: String.t() | nil
+  def subject_id(%TitleDetail{library: %Library{member: %MovieRow.Library{movie: %{id: id}}}}), do: id
+  def subject_id(%TitleDetail{library: %Library{entry: %{entity: %{id: id}}}}), do: id
+  def subject_id(_detail), do: nil
+
+  @doc """
+  The finish prompt for the open detail, or nil when the finished id is
+  not its subject. `kind` is `:caught_up` for a series with a release
+  still ahead (`Title.Logic.release_ahead?/2`, the same fact as the Track
+  release dates switch), else `:finished`. `delete_target` is what the
+  prompt's delete covers: `:all` (the primary delete), `{:member, id}`
+  for a collection movie — never the whole collection — and nil for a
+  caught-up series, which offers no delete.
+  """
+  @spec finish_prompt(TitleDetail.t(), String.t() | nil, Date.t()) ::
+          %{kind: :finished | :caught_up, delete_target: :all | {:member, String.t()} | nil} | nil
+  def finish_prompt(_detail, nil, _today), do: nil
+
+  def finish_prompt(%TitleDetail{} = detail, finished_id, today) do
+    if subject_id(detail) == finished_id do
+      cond do
+        caught_up?(detail, today) ->
+          %{kind: :caught_up, delete_target: nil}
+
+        match?(%{library: %Library{member: %MovieRow.Library{}}}, detail) ->
+          %{kind: :finished, delete_target: {:member, finished_id}}
+
+        true ->
+          %{kind: :finished, delete_target: :all}
+      end
+    end
+  end
+
+  defp caught_up?(%TitleDetail{title: %{media_type: :tv_series}} = detail, today),
+    do: TitleLogic.release_ahead?(detail, today)
+
+  defp caught_up?(_detail, _today), do: false
+
+  @doc """
+  The file-info maps a delete target covers: all of them for `:all`, the
+  member movie's own (by the file's playable item) for `{:member, id}`.
+  """
+  @spec files_for_target([map()], :all | {:member, String.t()}) :: [map()]
+  def files_for_target(files, :all), do: files
+
+  def files_for_target(files, {:member, movie_id}),
+    do: Enum.filter(files, &match?(%{file: %{playable_item: %{container_id: ^movie_id}}}, &1))
 end

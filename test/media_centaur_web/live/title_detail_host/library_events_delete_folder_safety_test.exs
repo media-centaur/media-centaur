@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTest do
   @moduledoc """
-  `LibraryEvents.run_delete/1`'s `{:folder, path}` and `:all` branches
+  `LibraryEvents.run_delete/1`'s `{:folder, path}`, `:all` and
+  `{:member, movie_id}` branches
   gate the recursive folder delete on
   `MediaCentaur.DeleteTargets.safe_to_delete_folder?/2` before calling
   `Deletion.delete_folder/2` — closing the gap where a folder
@@ -109,6 +110,32 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTe
       refute File.exists?(path)
       assert File.exists?(other_path), "the shared folder itself must not be wiped"
       assert Library.Files.list_by_entity_id(movie.id) == []
+    end
+  end
+
+  describe "run_delete/1 — {:member, movie_id}" do
+    test "deletes one collection movie's files and leaves the other members", %{media_dir: media_dir} do
+      collection = create_movie_series(%{name: "Sample Collection"})
+      finished = create_movie(%{movie_series_id: collection.id, name: "Movie A", position: 1})
+      other = create_movie(%{movie_series_id: collection.id, name: "Movie B", position: 2})
+      finished_path = write_file!(media_dir, "Collection/Movie A.mkv")
+      other_path = write_file!(media_dir, "Collection/Movie B.mkv")
+      create_linked_file(%{movie_id: finished.id, file_path: finished_path, media_dir: media_dir})
+      create_linked_file(%{movie_id: other.id, file_path: other_path, media_dir: media_dir})
+
+      detail_files = Enum.map(Library.Files.list_by_entity_id(collection.id), &%{file: &1, size: 1})
+
+      assert {:ok, _} =
+               LibraryEvents.run_delete(%{
+                 target: {:member, finished.id},
+                 detail_files: detail_files,
+                 media_dirs: [media_dir]
+               })
+
+      refute File.exists?(finished_path)
+      assert File.exists?(other_path)
+      assert Library.Files.list_by_entity_id(finished.id) == []
+      assert [_] = Library.Files.list_by_entity_id(other.id)
     end
   end
 end

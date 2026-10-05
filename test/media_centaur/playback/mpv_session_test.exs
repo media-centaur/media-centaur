@@ -71,15 +71,26 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
         watching_state(%{
           movie_id: nil,
           episode_id: "episode-2",
-          completed: MapSet.new([{:episode, "episode-1"}])
+          season_number: 1,
+          episode_number: 2,
+          completed: MapSet.new([{:episode, "episode-1", 1, 1}])
         })
 
       {_reason, state} = MpvSession.judge_completion(state)
 
       assert MapSet.equal?(
                state.completed,
-               MapSet.new([{:episode, "episode-1"}, {:episode, "episode-2"}])
+               MapSet.new([{:episode, "episode-1", 1, 1}, {:episode, "episode-2", 1, 2}])
              )
+    end
+
+    test "names an episode by its id and its season and episode numbers" do
+      {_reason, state} =
+        MpvSession.judge_completion(
+          watching_state(%{movie_id: nil, episode_id: "episode-7", season_number: 3, episode_number: 7})
+        )
+
+      assert MapSet.equal?(state.completed, MapSet.new([{:episode, "episode-7", 3, 7}]))
     end
 
     test "names an extra by its own id" do

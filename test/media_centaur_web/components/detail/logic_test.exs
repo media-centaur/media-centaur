@@ -913,4 +913,84 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
       assert Logic.tracking_card?(detail(%{library: library, tracking: %TrackingDetail{}}))
     end
   end
+
+  describe "finish prompt — whose it is, what it says, what its delete covers" do
+    alias MediaCentaur.TMDB.Title
+    alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+    alias MediaCentaurWeb.Components.Title.Detail.Library, as: Half
+    alias MediaCentaurWeb.ViewModel.MovieRow
+
+    @today ~D[2026-10-05]
+
+    defp open_detail(media_type, container_id, opts \\ []) do
+      title = Title.new!(%{tmdb_id: 1, media_type: media_type, name: "Sample Title"})
+
+      member =
+        case opts[:member] do
+          nil -> nil
+          id -> %MovieRow.Library{movie: %{id: id}, state: :watched, is_resume_target: false}
+        end
+
+      %TitleDetail{
+        ref: Title.ref(title),
+        title: title,
+        settled?: Keyword.get(opts, :settled?, false),
+        library: %Half{entry: %{entity: %{id: container_id}}, subject: %{}, member: member}
+      }
+    end
+
+    defp file_info(path, movie_id),
+      do: %{file: %{file_path: path, playable_item: %{container_id: movie_id}}, size: 1}
+
+    test "subject_id/1 is the selected member, else the container, nil when unowned" do
+      assert Logic.subject_id(open_detail(:movie, "movie-1")) == "movie-1"
+      assert Logic.subject_id(open_detail(:movie, "collection-1", member: "movie-2")) == "movie-2"
+      assert Logic.subject_id(%TitleDetail{ref: nil, title: nil}) == nil
+    end
+
+    test "finish_prompt/3 is nil unless the open subject is the finished id" do
+      assert Logic.finish_prompt(open_detail(:movie, "movie-1"), nil, @today) == nil
+      assert Logic.finish_prompt(open_detail(:movie, "movie-1"), "movie-2", @today) == nil
+
+      assert Logic.finish_prompt(
+               open_detail(:movie, "collection-1", member: "movie-2"),
+               "movie-3",
+               @today
+             ) ==
+               nil
+    end
+
+    test "a finished movie offers the primary delete" do
+      assert Logic.finish_prompt(open_detail(:movie, "movie-1"), "movie-1", @today) ==
+               %{kind: :finished, delete_target: :all}
+    end
+
+    test "a finished collection movie's delete covers that member only" do
+      detail = open_detail(:movie, "collection-1", member: "movie-2")
+
+      assert Logic.finish_prompt(detail, "movie-2", @today) ==
+               %{kind: :finished, delete_target: {:member, "movie-2"}}
+    end
+
+    test "a settled series is finished; one with a release ahead is caught up" do
+      assert Logic.finish_prompt(open_detail(:tv_series, "series-1", settled?: true), "series-1", @today) ==
+               %{kind: :finished, delete_target: :all}
+
+      assert Logic.finish_prompt(open_detail(:tv_series, "series-1"), "series-1", @today) ==
+               %{kind: :caught_up, delete_target: nil}
+    end
+
+    test "files_for_target/2 — every file for :all, the member's own for {:member, id}" do
+      files = [
+        file_info("/m/a.mkv", "movie-1"),
+        file_info("/m/b.mkv", "movie-2"),
+        file_info("/m/b2.mkv", "movie-2")
+      ]
+
+      assert Logic.files_for_target(files, :all) == files
+
+      assert Enum.map(Logic.files_for_target(files, {:member, "movie-2"}), & &1.file.file_path) ==
+               ["/m/b.mkv", "/m/b2.mkv"]
+    end
+  end
 end
