@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :show_card_info, :boolean, required: true
   attr :show_play_button, :boolean, required: true
   attr :auto_play_next_episode, :boolean, required: true
+  attr :movie_finish_prompt, :boolean, required: true
   attr :letterboxd_links, :boolean, required: true
   attr :show_apps, :boolean, required: true
 
@@ -49,6 +50,13 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="When an episode ends, the next one starts on its own"
           checked={@auto_play_next_episode}
           event="toggle_auto_play_next_episode"
+        />
+
+        <.settings_row
+          label="Ask after finishing a movie"
+          description="When a movie ends, its page opens with Review and Delete"
+          checked={@movie_finish_prompt}
+          event="toggle_movie_finish_prompt"
         />
 
         <.settings_row

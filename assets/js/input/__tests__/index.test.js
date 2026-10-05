@@ -299,6 +299,27 @@ describe("Detail overlay cast region (real config)", () => {
     const graph = openDetail({ detail_social: 0, detail_actions: 3, detail_tracking: 4, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.up).toBeUndefined()
   })
+
+  // The finish prompt (UIDR-052) sits between the hero and the action row
+  // after a finished movie, and is where a modal opened by one lands. It
+  // has no `back` edge: BACK from it closes the modal.
+  test("the finish prompt is the entry toolbar between the capsule and the action row", () => {
+    expect(inputConfig.instanceTypes.detail_finish).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.detail_finish).toBe("[data-nav-zone='detail_finish'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry[0]).toBe("detail_finish")
+    const graph = openDetail({ detail_social: 1, detail_finish: 3, detail_actions: 3, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.up).toBe("detail_finish")
+    expect(graph.detail_finish.up).toBe("detail_social")
+    expect(graph.detail_finish.down).toBe("detail_actions")
+    expect(graph.detail_finish.back).toBeUndefined()
+    expect(graph.detail_social.down).toBe("detail_finish")
+  })
+
+  test("without the finish prompt, the capsule and the action row meet as before", () => {
+    const graph = openDetail({ detail_social: 1, detail_finish: 0, detail_actions: 3, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.up).toBe("detail_social")
+    expect(graph.detail_social.down).toBe("detail_actions")
+  })
 })
 
 // The plan modal (UIDR-029): its board is a vertical head (status, verdict

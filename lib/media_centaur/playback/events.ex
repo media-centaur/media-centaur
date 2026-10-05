@@ -99,6 +99,24 @@ defmodule MediaCentaur.Playback.Events do
           }
   end
 
+  defmodule SessionEnded do
+    @moduledoc """
+    The session ended — mpv closed. Broadcast once, right after
+    `PlaybackStateChanged :stopped`. `completed` is every item the
+    session completed (`MpvSession.judge_completion/1`); empty when it
+    ended before any.
+    """
+    @enforce_keys [:entity_id, :completed]
+    defstruct [:entity_id, :completed]
+
+    @type item ::
+            {:movie, String.t()}
+            | {:episode, String.t()}
+            | {:video_object, String.t()}
+            | {:extra, String.t()}
+    @type t :: %__MODULE__{entity_id: String.t(), completed: MapSet.t(item())}
+  end
+
   defmodule TrackOverrideChanged do
     @moduledoc """
     The user changed audio/subtitle tracks during playback and the
@@ -124,6 +142,7 @@ defmodule MediaCentaur.Playback.Events do
           | ExtraProgressUpdated.t()
           | PlaybackStateChanged.t()
           | PlaybackFailed.t()
+          | SessionEnded.t()
           | TrackOverrideChanged.t()
         ) :: :ok | {:error, term()}
   def broadcast(%EntityProgressUpdated{} = event), do: do_broadcast({:entity_progress_updated, event})
@@ -133,6 +152,8 @@ defmodule MediaCentaur.Playback.Events do
   def broadcast(%PlaybackStateChanged{} = event), do: do_broadcast({:playback_state_changed, event})
 
   def broadcast(%PlaybackFailed{} = event), do: do_broadcast({:playback_failed, event})
+
+  def broadcast(%SessionEnded{} = event), do: do_broadcast({:session_ended, event})
 
   def broadcast(%TrackOverrideChanged{} = event), do: do_broadcast({:track_override_changed, event})
 

@@ -42,7 +42,9 @@ graph TD
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
-**Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.ChapterCompletion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses.
+**Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.Completion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses. The session judges each persisted position itself (`MpvSession.judge_completion/1`) and keeps the set of items it completed; only the write runs in a task.
+
+**Session end:** `finalize/1` broadcasts `PlaybackStateChanged :stopped` and then `SessionEnded` with that set. The title detail hosts read it to open a finished standalone movie with the finish prompt (UIDR-052).
 
 **Offline state:** `Library.Availability` tracks per-media-directory mount/reachability. When a file's media directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
 
@@ -114,7 +116,7 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 | On stop / EOF | Save immediately |
 | During seeking | No save |
 
-Each tick calls `Library.Progress.record/3` with the tracker's `saveable_position` (guards against seek corruption). At 90% completion, `mark_completed` is called (monotonic).
+Each tick calls `Library.Progress.record/3` with the tracker's `saveable_position` (guards against seek corruption). When `Completion.reason/3` says the position completes the item, `LibraryProgress.complete/1` is called (monotonic).
 
 #### Progress Broadcasting
 
@@ -136,7 +138,15 @@ State changes broadcast with entity_id:
 {:playback_state_changed, %{entity_id: entity_id, state: state, now_playing: now_playing, started_at: started_at}}
 ```
 
-Both payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract).
+Once per session, right after `:stopped`:
+
+```elixir
+{:session_ended, %{entity_id: entity_id, completed: completed}}
+```
+
+`completed` is a `MapSet` of `{:movie | :episode | :video_object | :extra, id}` — every item the session completed, empty when it ended before any.
+
+All three payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract).
 
 #### Session Recovery (ADR-023)
 
@@ -176,6 +186,7 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centaur/playback/session_recovery.ex` |
 | `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
 | `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
+| `MediaCentaur.Playback.Completion` | When a viewing is complete: credits chapter or 90% | `lib/media_centaur/playback/completion.ex` |
 | `MediaCentaur.Playback.Resolver` | UUID → play params | `lib/media_centaur/playback/resolver.ex` |
 | `MediaCentaur.Library.EpisodeList` | TV episode walking helpers | `lib/media_centaur/library/episode_list.ex` |
 | `MediaCentaur.Playback.NextEpisode` | Auto-advance successor resolution + path re-identification (ADR-062) | `lib/media_centaur/playback/next_episode.ex` |

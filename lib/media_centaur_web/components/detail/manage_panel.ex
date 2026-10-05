@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
   import MediaCentaurWeb.LiveHelpers
 
+  alias MediaCentaurWeb.Components.Detail.DeleteAllButton
   alias MediaCentaurWeb.Components.Detail.SubtitlesRow
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.RefreshFromTmdb
@@ -167,21 +168,12 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         data-nav-zone="manage_tools"
       >
         <div class="flex flex-wrap items-center gap-2">
-          <.armed_button
-            :if={@files != [] and @files_status == :loaded}
-            armed={delete_gesture_state(:all, @deleting, @delete_confirm) == :confirm}
-            busy={delete_gesture_state(:all, @deleting, @delete_confirm) == :deleting}
-            busy_label={"Deleting… #{delete_all_label(@file_count)} (#{format_file_size(@total_size)})"}
-            event="delete_all_prompt"
-            armed_label={"Click again to confirm — #{delete_all_label(@file_count)} (#{format_file_size(@total_size)})"}
-            variant="danger"
-            size="sm"
-            disabled={delete_in_flight?(@deleting)}
-            aria-label={delete_all_aria_label(@file_count)}
-          >
-            <.icon name="hero-trash-mini" class="size-4" />
-            {delete_all_label(@file_count)} ({format_file_size(@total_size)})
-          </.armed_button>
+          <DeleteAllButton.delete_all_button
+            files={@files}
+            files_status={@files_status}
+            delete_confirm={@delete_confirm}
+            deleting={@deleting}
+          />
           <span class="flex-1" />
           <.armed_button
             :if={@tmdb_ready}
@@ -606,17 +598,6 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
     size_str = format_file_size(total_size)
     "#{count} #{if count == 1, do: "file", else: "files"}, #{size_str}"
   end
-
-  @doc """
-  Label for the prominent entity-wide delete button. Single-file
-  entities read "Delete this file" because "Delete all" reads as
-  awkward when there's only one.
-  """
-  def delete_all_label(1), do: "Delete this file"
-  def delete_all_label(_), do: "Delete all files"
-
-  defp delete_all_aria_label(1), do: "Delete the file for this entry"
-  defp delete_all_aria_label(_), do: "Delete all files for this entry"
 
   @doc """
   One compact " · "-joined line of a file's probed technical facts, e.g.

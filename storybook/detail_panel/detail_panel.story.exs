@@ -303,6 +303,27 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :movie_finished,
+        description:
+          "The movie was just finished in mpv (UIDR-052): the finish prompt above " <>
+            "the action row — Review, the primary delete, Done.",
+        attributes: %{
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          finished_entity_id: "11111111-1111-1111-1111-111111111111",
+          review?: true
+        }
+      },
+      %Variation{
+        id: :movie_finished_delete_armed,
+        description: "The finish prompt's Delete pressed once.",
+        attributes: %{
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          finished_entity_id: "11111111-1111-1111-1111-111111111111",
+          review?: true,
+          armed_gesture: {"delete_all_prompt", :all}
+        }
+      },
+      %Variation{
         id: :info_view_files_loading,
         description:
           "The Manage sheet while the deferred file-info load is still running " <>

@@ -3,20 +3,20 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   The host of the title detail modal (UIDR-043) — one trait for every
   LiveView that opens a title: it owns the URL, the open `Title.Detail`
   and `Title.ModalState`, every event of the modal, the owned asyncs,
-  and the subscriptions that keep an open detail honest. `SocialLive`
-  and `IncomingLive` `use` it; Home and Library follow.
+  and the subscriptions that keep an open detail honest. Home, Library,
+  Social and Incoming `use` it.
 
   ## Host contract
 
   `use MediaCentaurWeb.Live.TitleDetailHost` registers an `on_mount`
   that declares the modal's topics through `Live.Subscriptions`, seeds
-  `:title_detail`, `:modal_state`, `:title_opening` and
-  `:title_playback`, and attaches four lifecycle hooks:
+  `:title_detail`, `:modal_state`, `:title_opening`, `:title_playback`
+  and `:finished_entity_id`, and attaches four lifecycle hooks:
 
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) with `view` and `activity`, or from `?entity=<uuid>` — canonicalised to the title address when the entity has a TMDB identity, else the residue |
-  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, and the library sections' (`LibraryEvents.events/0`) |
+  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, and the library sections' (`LibraryEvents.events/0`) |
   | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load, the delete and the TMDB check — each landing by subject and dropped when the person moved on |
   | `:handle_info` | refreshes the open detail by identity on the topics below, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `review_open` opens it on the detail's title |
@@ -72,8 +72,20 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Topic | Reaction |
   |---|---|
   | `library:updates`, `library:views`, `library:availability` | re-resolve the owner by ref (an import can make an open unowned title owned); reload the half |
-  | `playback:events` | in-memory merges by container id; the playing set for delete protection |
+  | `playback:events` | in-memory merges by container id; the playing set for delete protection; `SessionEnded` → the finish prompt (below) |
   | `release_tracking:updates`, `watchlist:updates`, `activities:updates`, `acquisition:updates` | rebuild the detail's facts by identity |
+
+  ## The finish prompt
+
+  A `SessionEnded` naming a standalone movie the session completed opens
+  that movie's detail with the finish prompt (UIDR-052, decided by
+  `Finish.reaction/3` under the `MovieFinishPrompt` preference): in
+  place when its detail is open, otherwise by patching `?entity=<id>`.
+  `:finished_entity_id` holds the movie, not `ModalState` — the state is
+  replaced on every open, and the entity address canonicalises through a
+  second patch. Done (`finish_prompt_done`), closing, and another title
+  taking the modal clear it. The page passes it to `DetailPanel`, which
+  draws the prompt while it is the open entity.
 
   ## Setting a rung
 
@@ -94,6 +106,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings.Preferences.MovieFinishPrompt
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -112,6 +125,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
+  alias MediaCentaurWeb.Live.TitleDetailHost.Finish
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents
   alias MediaCentaurWeb.Live.TitleDetailHost.TmdbEvents
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
@@ -167,7 +181,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         title_detail: nil,
         modal_state: ModalState.new(),
         title_opening: nil,
-        title_playback: %{}
+        title_playback: %{},
+        finished_entity_id: nil
       )
       |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
@@ -338,6 +353,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       |> reset_detail()
       |> assign(:title_detail, detail)
       |> assign(:modal_state, ModalState.new(view, initial_expanded_seasons(detail)))
+      |> keep_finish_for(detail)
       |> start_files_load(subject, detail)
     end
   end
@@ -383,6 +399,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     socket
     |> cancel_pending_download()
     |> reset_detail()
+    |> assign(:finished_entity_id, nil)
+  end
+
+  # The finish prompt belongs to the finished entity: another title taking
+  # the modal drops it.
+  defp keep_finish_for(socket, detail) do
+    if LibraryHalf.container_id(detail) == socket.assigns.finished_entity_id,
+      do: socket,
+      else: assign(socket, :finished_entity_id, nil)
   end
 
   defp cancel_opening(%{assigns: %{title_opening: nil}} = socket), do: socket
@@ -726,6 +751,26 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     )
   end
 
+  # UIDR-052: a finished standalone movie opens its title with the prompt
+  # — the modal may be closed. `:stopped` arrived first (same session, same
+  # topic), so the playing set no longer guards its delete.
+  defp react({:session_ended, event}, socket) do
+    open_id = LibraryHalf.container_id(socket.assigns.title_detail)
+
+    case Finish.reaction(event, open_id, MovieFinishPrompt.enabled?()) do
+      :ignore ->
+        socket
+
+      {:in_place, id} ->
+        assign(socket, :finished_entity_id, id)
+
+      {:open, id} ->
+        socket
+        |> assign(:finished_entity_id, id)
+        |> push_patch(to: path(socket, entity: id))
+    end
+  end
+
   defp react(_message, %{assigns: %{title_detail: nil}} = socket), do: socket
 
   defp react({:entity_progress_updated, %{entity_id: id} = payload}, socket),
@@ -824,6 +869,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # the root view; from the root there is nothing above, so the modal
   # closes.
   def handle_title_event("close_title", _params, socket), do: {:halt, close_or_return(socket)}
+
+  def handle_title_event("finish_prompt_done", _params, socket),
+    do: {:halt, assign(socket, :finished_entity_id, nil)}
 
   def handle_title_event(
         "select_detail_view",

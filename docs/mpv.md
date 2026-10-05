@@ -206,7 +206,7 @@ appears when both hold:
 
 - the current chapter's title names the credits (`credits` or `outro`,
   case-insensitive whole word, the same words as the backend's
-  `ChapterCompletion`) and the chapter starts at or after 80% of the
+  `Playback.Completion`) and the chapter starts at or after 80% of the
   runtime, so an "Opening Credits" chapter at t=0 never triggers it; and
 - `playlist-count - playlist-pos > 1`, a successor is actually queued.
 
