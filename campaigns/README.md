@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`finish-prompt-series.md`](finish-prompt-series.md) —
+  **planning 2026-10-05.** The finish prompt (Review, Delete, Done on the
+  title detail after mpv closes) shipped for standalone movies in v1.53.0
+  (UIDR-052, plan 005). Design the series version: what "finished a
+  series" means (last held episode, every episode, last aired episode of
+  an ended show, a season), which acts fit (the primary delete removes the
+  whole show), caught up vs finished, and the setting. Collections share
+  the problem. Carries the movie version's open checks.
+
 * [`social-and-watchlist.md`](social-and-watchlist.md) —
   **Shipped v1.49.0 on 2026-10-03; owner check open.** Two sidebar groups by purpose: **Social** (the
   Feed and Friends — the Discovery page renamed, with its route, LiveView,
