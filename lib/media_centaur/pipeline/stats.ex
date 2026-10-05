@@ -218,7 +218,7 @@ defmodule MediaCentaur.Pipeline.Stats do
            throughput: throughput,
            error_count: data.error_count,
            last_error: data.last_error,
-           avg_duration_ms: avg_duration
+           avg_duration_us: avg_duration
          }}
       end)
 

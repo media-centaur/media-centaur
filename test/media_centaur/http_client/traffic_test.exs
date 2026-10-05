@@ -37,11 +37,11 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
           error: nil,
           cache: :miss
         },
-        Map.drop(overrides, [:duration_ms, :at])
+        Map.drop(overrides, [:duration_us, :at])
       )
 
     duration =
-      System.convert_time_unit(Map.get(overrides, :duration_ms, 100), :millisecond, :native)
+      System.convert_time_unit(Map.get(overrides, :duration_us, 100_000), :microsecond, :native)
 
     config = %{
       store: tables[:store_table],
@@ -53,11 +53,21 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
   end
 
   test "a request counts requests and latency; a failure counts failed too", %{tables: tables} do
-    record(tables, %{duration_ms: 200})
-    record(tables, %{status: 500, duration_ms: 400})
+    record(tables, %{duration_us: 200_000})
+    record(tables, %{status: 500, duration_us: 400_000})
 
     totals = Traffic.totals(:tmdb, [seconds: 900, now: @now] ++ tables)
-    assert totals == %{requests: 2, failed: 1, cached: 0, mean_ms: 300, worst_ms: 400}
+    assert totals == %{requests: 2, failed: 1, cached: 0, mean_us: 300_000, worst_us: 400_000}
+  end
+
+  test "a sub-millisecond request keeps its latency", %{tables: tables} do
+    record(tables, %{duration_us: 420})
+    record(tables, %{duration_us: 780})
+
+    assert %{mean_us: 600, worst_us: 780} =
+             Traffic.totals(:tmdb, [seconds: 900, now: @now] ++ tables)
+
+    assert [%{duration_us: 780}, %{duration_us: 420}] = Traffic.recent(tables)
   end
 
   test "a transport error is a failure", %{tables: tables} do
@@ -69,7 +79,7 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
     record(tables, %{cache: :hit})
 
     assert Traffic.totals(:tmdb, [seconds: 900, now: @now] ++ tables) ==
-             %{requests: 0, failed: 0, cached: 1, mean_ms: nil, worst_ms: nil}
+             %{requests: 0, failed: 0, cached: 1, mean_us: nil, worst_us: nil}
 
     assert Traffic.last(:tmdb, tables) == nil
   end
@@ -83,8 +93,8 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
   end
 
   test "series carries went_out, failed, cached, mean and worst per bar", %{tables: tables} do
-    record(tables, %{duration_ms: 100})
-    record(tables, %{duration_ms: 300, status: 502})
+    record(tables, %{duration_us: 100_000})
+    record(tables, %{duration_us: 300_000, status: 502})
 
     series = Traffic.series(:tmdb, :"1h", [now: @now, utc_offset: 0] ++ tables)
 
@@ -92,10 +102,17 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
     assert List.last(series.went_out) == 1
     assert List.last(series.failed) == 1
     assert List.last(series.cached) == 0
-    assert List.last(series.mean_ms) == 200
-    assert List.last(series.worst_ms) == 300
-    assert Enum.at(series.mean_ms, 0) == nil
-    assert series.totals == %{requests: 2, failed: 1, cached: 0, mean_ms: 200, worst_ms: 300}
+    assert List.last(series.mean_us) == 200_000
+    assert List.last(series.worst_us) == 300_000
+    assert Enum.at(series.mean_us, 0) == nil
+
+    assert series.totals == %{
+             requests: 2,
+             failed: 1,
+             cached: 0,
+             mean_us: 200_000,
+             worst_us: 300_000
+           }
   end
 
   test "recent keeps the newest twenty, newest first", %{tables: tables} do

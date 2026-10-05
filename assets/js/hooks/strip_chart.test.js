@@ -11,11 +11,11 @@ const schema = {
     { key: "cached", label: "from cache", tone: "muted" },
   ],
   bars_total_label: "requests",
-  line: { key: "mean_ms", worst_key: "worst_ms", label: "mean latency", unit: "ms" },
+  line: { key: "mean_us", worst_key: "worst_us", label: "mean latency" },
 }
 
 const strip = {
-  t: [100, 160], failed: [1, 0], went_out: [2, 3], cached: [4, 0], mean_ms: [180, 90], worst_ms: [400, 90],
+  t: [100, 160], failed: [1, 0], went_out: [2, 3], cached: [4, 0], mean_us: [180_000, 90_000], worst_us: [400_000, 90_000],
 }
 
 describe("stackColumns", () => {
@@ -25,11 +25,11 @@ describe("stackColumns", () => {
       [7, 3],      // cached total = failed + went_out + cached
       [3, 3],      // went_out total = failed + went_out
       [1, null],   // failed; a zero bar is null so uPlot draws nothing for it
-      [180, 90],
+      [180_000, 90_000],
     ])
   })
   test("a bucket without requests has no bars at all", () => {
-    const quiet = { t: [100], failed: [0], went_out: [0], cached: [0], mean_ms: [null], worst_ms: [null] }
+    const quiet = { t: [100], failed: [0], went_out: [0], cached: [0], mean_us: [null], worst_us: [null] }
     expect(stackColumns(schema, quiet)).toEqual([[100], [null], [null], [null], [null]])
   })
   test("omits the line when the schema has none", () => {
@@ -46,7 +46,7 @@ describe("hoverFigures", () => {
     ])
   })
   test("a bucket without requests has no latency and says 0 failed", () => {
-    const quiet = { ...strip, failed: [0], went_out: [0], cached: [0], mean_ms: [null], worst_ms: [null] }
+    const quiet = { ...strip, failed: [0], went_out: [0], cached: [0], mean_us: [null], worst_us: [null] }
     expect(hoverFigures(schema, quiet, 0, "13:26")).toEqual([
       [{ text: "13:26" }],
       [{ text: "0 requests" }, { text: "0 failed" }],
@@ -54,11 +54,27 @@ describe("hoverFigures", () => {
   })
 })
 
-describe("formatDuration", () => {
-  test("ms under a second, seconds above", () => {
-    expect(formatDuration(180)).toBe("180 ms")
-    expect(formatDuration(1200)).toBe("1.2 s")
-    expect(formatDuration(3000)).toBe("3 s")
+// The same table as StatusHelpers.format_duration/1's tests: the server
+// formats the rest-state figures, this formats the hover readout and axis.
+describe("formatDuration (microseconds)", () => {
+  test("tenths of a millisecond under ten milliseconds", () => {
+    expect(formatDuration(420)).toBe("0.4 ms")
+    expect(formatDuration(2350)).toBe("2.4 ms")
+    expect(formatDuration(1000)).toBe("1 ms")
+    expect(formatDuration(30)).toBe("0 ms")
+  })
+  test("whole milliseconds under a second", () => {
+    expect(formatDuration(9960)).toBe("10 ms")
+    expect(formatDuration(279400)).toBe("279 ms")
+  })
+  test("tenths of a second under a minute", () => {
+    expect(formatDuration(999600)).toBe("1 s")
+    expect(formatDuration(1650000)).toBe("1.7 s")
+    expect(formatDuration(3000000)).toBe("3 s")
+  })
+  test("tenths of a minute from a minute", () => {
+    expect(formatDuration(59970000)).toBe("1 min")
+    expect(formatDuration(150000000)).toBe("2.5 min")
   })
 })
 

@@ -123,7 +123,7 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   @spec prime([atom()]) :: :ok
   def prime(upstreams) do
     for upstream <- upstreams do
-      emit(upstream, Profile.typical_latency_ms(upstream), status: 200, cache: :miss)
+      emit(upstream, Profile.typical_latency_us(upstream), status: 200, cache: :miss)
     end
 
     :ok
@@ -217,12 +217,12 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   defp emit_requests(upstream, sample) do
     # Latency is the bucket's slowest for one request and the remainder
     # shared evenly, which is what the backfill wrote for the same bucket.
-    typical = div(max(sample.latency_sum_ms - sample.latency_max_ms, 0), max(sample.requests, 1))
+    typical = div(max(sample.latency_sum_us - sample.latency_max_us, 0), max(sample.requests, 1))
 
     for index <- 1..sample.requests//1 do
-      duration_ms = if index == 1, do: sample.latency_max_ms, else: typical
+      duration_us = if index == 1, do: sample.latency_max_us, else: typical
 
-      emit(upstream, duration_ms, status: 200, cache: :miss)
+      emit(upstream, duration_us, status: 200, cache: :miss)
     end
 
     :ok
@@ -235,10 +235,10 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
     :ok
   end
 
-  defp emit(upstream, duration_ms, opts) do
+  defp emit(upstream, duration_us, opts) do
     :telemetry.execute(
       Instrument.stop_event(),
-      %{duration: System.convert_time_unit(duration_ms, :millisecond, :native)},
+      %{duration: System.convert_time_unit(duration_us, :microsecond, :native)},
       %{
         upstream: upstream,
         method: :get,

@@ -22,7 +22,8 @@ defmodule MediaCentaurWeb.Components.StripChart.Feed do
   ## Frame
 
   Pushed as `strip_chart:frame`. Columnar, fixed length per strip,
-  zero-filled; `mean_ms`/`worst_ms` are `nil` in bars without requests.
+  zero-filled; `mean_us`/`worst_us` (integer microseconds) are `nil` in bars
+  without requests.
 
       %{
         id: "traffic", window: "1h", bucket_seconds: 60,
@@ -31,17 +32,18 @@ defmodule MediaCentaurWeb.Components.StripChart.Feed do
                  %{key: "went_out", label: "went out", tone: "solid"},
                  %{key: "cached", label: "from cache", tone: "muted"}],
           bars_total_label: "requests",
-          line: %{key: "mean_ms", worst_key: "worst_ms", label: "mean latency", unit: "ms"}
+          line: %{key: "mean_us", worst_key: "worst_us", label: "mean latency"}
         },
         strips: [
           %{id: "tmdb", label: "TMDB", dot: "ok",
             figures: [[%{text: "189 requests"}, %{text: "5 failed", tone: "error"}], …],
             t: [unix, …], failed: [...], went_out: [...], cached: [...],
-            mean_ms: [...], worst_ms: [...]}
+            mean_us: [...], worst_us: [...]}
         ]
       }
 
-  `schema.line` may be omitted. Bars are drawn back to front in the
+  `schema.line` may be omitted. The hook reads its column as integer
+  microseconds and labels it with `formatDuration`. Bars are drawn back to front in the
   order given, each as a full-height series from the baseline, so the
   hook stacks them with two additions per bar and no cumulative
   bookkeeping here. `figures` is a list of lines, each a list of

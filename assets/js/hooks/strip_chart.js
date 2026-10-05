@@ -43,11 +43,20 @@ export function stackColumns(schema, strip) {
   return data
 }
 
-export function formatDuration(ms) {
-  if (ms == null) return null
-  if (ms < 1000) return `${ms} ms`
-  const seconds = Math.round(ms / 100) / 10
-  return `${Number.isInteger(seconds) ? seconds.toFixed(0) : seconds.toFixed(1)} s`
+// Microseconds → the server's rule (StatusHelpers.format_duration/1):
+// tenths of a ms under 10 ms, whole ms under 1 s, tenths of a second under
+// a minute, tenths of a minute after; half up, a trailing ".0" dropped.
+export function formatDuration(us) {
+  if (us == null) return null
+  if (us < 9_950) return `${tenths(us, 1_000)} ms`
+  if (us < 999_500) return `${Math.round(us / 1_000)} ms`
+  if (us < 59_950_000) return `${tenths(us, 1_000_000)} s`
+  return `${tenths(us, 60_000_000)} min`
+}
+
+function tenths(value, unit) {
+  const count = Math.round((value * 10) / unit)
+  return count % 10 === 0 ? `${count / 10}` : `${Math.floor(count / 10)}.${count % 10}`
 }
 
 export function formatCount(n) {
@@ -326,7 +335,7 @@ export const StripChart = {
     }
     if (schema.line) {
       series.push({
-        scale: "ms", stroke: theme.line, width: lengths.lineWidth, spanGaps: false,
+        scale: "line", stroke: theme.line, width: lengths.lineWidth, spanGaps: false,
         points: {
           show: false,
           filter: (u, seriesIdx) => isolatedIndices(u.data[seriesIdx]),
@@ -353,9 +362,9 @@ export const StripChart = {
     const scales = { x: { time: true }, y: { range: (u, min, max) => [0, niceMax(max)] } }
     if (schema.line) {
       axes.push({
-        scale: "ms", side: 1, size: lengths.lineAxis, gap: lengths.axisGap, stroke: theme.line, font: lengths.font,
+        scale: "line", side: 1, size: lengths.lineAxis, gap: lengths.axisGap, stroke: theme.line, font: lengths.font,
         ticks: { show: false }, grid: { show: false }, space: lengths.ySpace,
-        // An idle strip has no latency at all; its ms scale is scaffolding
+        // An idle strip has no latency at all; its line scale is scaffolding
         // (0–1) and labelling it would claim a measurement that never happened.
         values: (u, splits) => {
           const line = u.data[u.data.length - 1]
@@ -363,7 +372,7 @@ export const StripChart = {
           return splits.map((v) => (v > 0 && Number.isInteger(v) ? formatDuration(v) : ""))
         },
       })
-      scales.ms = { range: (u, min, max) => [0, niceMax(max)] }
+      scales.line = { range: (u, min, max) => [0, niceMax(max)] }
     }
 
     return {

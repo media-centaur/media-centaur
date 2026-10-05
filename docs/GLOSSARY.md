@@ -134,7 +134,7 @@ The vocabulary of the strip charts (design
 | **Strip chart** | `MediaCentaurWeb.Components.StripChart`: N **strips** (a name column with figures beside a short wide chart) sharing one window, one time axis and one synced cursor. The `StripChart` hook owns the strips; the server sends **frames**. |
 | **Frame** | One push of data from the LiveView to the `StripChart` hook — window, schema, and per strip its figures and columns (`StripChart.Feed` moduledoc). |
 | **Feed** | `StripChart.Feed`: the LiveView-side lifecycle — window from the URL, one frame on becoming active, one every ten seconds while active and the tab is visible. |
-| **Traffic** | `MediaCentaur.HttpClient.Traffic`: the HTTP layer's time series of requests per upstream (requests, failed, cached, latency sum and max), plus the twenty most recent requests and each upstream's last outcome. Replaced `HttpClient.Stats`. |
+| **Traffic** | `MediaCentaur.HttpClient.Traffic`: the HTTP layer's time series of requests per upstream (requests, failed, cached, latency sum and max in integer microseconds), plus the twenty most recent requests and each upstream's last outcome. Replaced `HttpClient.Stats`. |
 
 ## Observability
 

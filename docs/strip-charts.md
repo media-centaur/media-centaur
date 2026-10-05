@@ -45,7 +45,7 @@ value; tests start their own store and tenant with unique table names and
 ## Adding a second tenant
 
 1. **Declare a schema** as a module attribute: `Schema.new(started: :sum,
-   failed: :sum, duration_max_ms: :max)`.
+   failed: :sum, duration_max_us: :max)`.
 2. **Start a store** under the owning context's supervisor with a unique
    `name`, `table`, the schema, `snapshot_path: Path.join(dir,
    "<tenant>.snapshot")` (the application passes the database directory

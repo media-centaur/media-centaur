@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
 
   attr :image_stats, :map,
     required: true,
-    doc: "Pipeline.Image.Stats snapshot (status/throughput/avg_duration_ms/active_count/totals)"
+    doc: "Pipeline.Image.Stats snapshot (status/throughput/avg_duration_us/active_count/totals)"
 
   attr :retry_status, :map,
     default: nil,
@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
           </span>
 
           <span class="text-xs font-mono text-base-content/60 text-right">
-            {format_duration(@image_stats.avg_duration_ms)}
+            {format_duration(@image_stats.avg_duration_us)}
           </span>
 
           <span class="text-xs font-mono text-base-content/55 text-right">
@@ -171,7 +171,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
       </span>
 
       <span class="text-xs font-mono text-base-content/60 text-right">
-        {format_duration(@data.avg_duration_ms)}
+        {format_duration(@data.avg_duration_us)}
       </span>
 
       <span class="text-xs font-mono text-base-content/55 text-right">

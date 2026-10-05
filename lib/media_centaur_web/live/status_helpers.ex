@@ -60,10 +60,31 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def format_throughput(rate) when rate == 0.0, do: "—"
   def format_throughput(rate), do: "#{rate}/s"
 
+  @doc """
+  A measured duration in integer microseconds, for reading: tenths of a
+  millisecond under 10 ms, whole milliseconds under a second, tenths of a
+  second under a minute, tenths of a minute after. Rounds half up and
+  drops a trailing ".0", so 420 reads "0.4 ms" and 3_000_000 "3 s".
+
+  `formatDuration` in `assets/js/hooks/strip_chart.js` implements the same
+  rule for the strip chart's hover readout and axis; the two test the same
+  cases.
+  """
+  @spec format_duration(non_neg_integer() | nil) :: String.t()
   def format_duration(nil), do: "—"
-  def format_duration(ms) when ms < 1_000, do: "#{round(ms)}ms"
-  def format_duration(ms) when ms < 60_000, do: "#{Float.round(ms / 1_000, 1)}s"
-  def format_duration(ms), do: "#{Float.round(ms / 60_000, 1)}m"
+  def format_duration(us) when us < 9_950, do: "#{tenths(us, 1_000)} ms"
+  def format_duration(us) when us < 999_500, do: "#{div(us + 500, 1_000)} ms"
+  def format_duration(us) when us < 59_950_000, do: "#{tenths(us, 1_000_000)} s"
+  def format_duration(us), do: "#{tenths(us, 60_000_000)} min"
+
+  defp tenths(value, unit) do
+    count = div(value * 10 + div(unit, 2), unit)
+
+    case rem(count, 10) do
+      0 -> "#{div(count, 10)}"
+      fraction -> "#{div(count, 10)}.#{fraction}"
+    end
+  end
 
   def format_datetime(nil), do: "—"
 

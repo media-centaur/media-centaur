@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.Components.StripChart, only: [strip_chart: 1]
+  import MediaCentaurWeb.StatusHelpers, only: [format_duration: 1]
 
   alias MediaCentaur.HttpClient.Upstream
   alias MediaCentaur.TimeSeries.Window
@@ -61,7 +62,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
                   {entry.method |> to_string() |> String.upcase()} {entry.path}
                 </span>
                 <span class={["ml-auto shrink-0", outcome_class(entry)]}>{outcome_label(entry)}</span>
-                <span class="text-base-content/55 shrink-0 tabular-nums">{entry.duration_ms}ms</span>
+                <span class="text-base-content/55 shrink-0 tabular-nums">{format_duration(
+                  entry.duration_us
+                )}</span>
                 <span class="text-base-content/55 shrink-0">{cache_label(entry.cache)}</span>
               </li>
             </ul>

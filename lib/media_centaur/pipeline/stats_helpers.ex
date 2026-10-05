@@ -21,7 +21,7 @@ defmodule MediaCentaur.Pipeline.StatsHelpers do
     Float.round(count / (window_ms / 1_000), 1)
   end
 
-  @doc "Calculates average duration in milliseconds from completions."
+  @doc "Calculates average duration in integer microseconds from completions."
   def calculate_avg_duration([]), do: nil
 
   def calculate_avg_duration(completions) do
@@ -30,8 +30,7 @@ defmodule MediaCentaur.Pipeline.StatsHelpers do
         {sum + duration, n + 1}
       end)
 
-    avg_native = total / count
-    Float.round(System.convert_time_unit(round(avg_native), :native, :millisecond) / 1, 1)
+    System.convert_time_unit(div(total, count), :native, :microsecond)
   end
 
   @doc "Derives status atom from current activity and error state."

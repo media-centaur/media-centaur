@@ -14,9 +14,9 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrameTest do
         went_out: [0, 0],
         failed: [0, 0],
         cached: [0, 0],
-        mean_ms: [nil, nil],
-        worst_ms: [nil, nil],
-        totals: %{requests: 0, failed: 0, cached: 0, mean_ms: nil, worst_ms: nil}
+        mean_us: [nil, nil],
+        worst_us: [nil, nil],
+        totals: %{requests: 0, failed: 0, cached: 0, mean_us: nil, worst_us: nil}
       },
       overrides
     )
@@ -56,11 +56,11 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrameTest do
     assert frame.window == "1h"
     assert frame.bucket_seconds == 60
     assert Enum.map(frame.schema.bars, & &1.key) == ["failed", "went_out", "cached"]
-    assert frame.schema.line.key == "mean_ms"
+    assert frame.schema.line.key == "mean_us"
   end
 
   test "figures carry window totals with failed toned, cached only when present" do
-    totals = %{requests: 1_189, failed: 5, cached: 577, mean_ms: 279, worst_ms: 1_200}
+    totals = %{requests: 1_189, failed: 5, cached: 577, mean_us: 279_000, worst_us: 1_200_000}
 
     frame =
       build(
@@ -126,8 +126,21 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrameTest do
   end
 
   test "latency at or above a second reads in seconds" do
-    totals = %{requests: 3, failed: 0, cached: 0, mean_ms: 1_650, worst_ms: 2_000}
+    totals = %{requests: 3, failed: 0, cached: 0, mean_us: 1_650_000, worst_us: 2_000_000}
     frame = build(series: fn _, _ -> series(%{totals: totals}) end)
     assert [_, [%{text: "1.7 s mean"}], _] = strip(frame, "github").figures
+  end
+
+  test "latency under a millisecond reads in tenths of a millisecond" do
+    totals = %{requests: 3, failed: 0, cached: 0, mean_us: 420, worst_us: 900}
+    frame = build(series: fn _, _ -> series(%{totals: totals}) end)
+    assert [_, [%{text: "0.4 ms mean"}], _] = strip(frame, "github").figures
+  end
+
+  test "the strip carries the latency columns in microseconds" do
+    frame =
+      build(series: fn _, _ -> series(%{mean_us: [nil, 420], worst_us: [nil, 900]}) end)
+
+    assert %{mean_us: [nil, 420], worst_us: [nil, 900]} = strip(frame, "github")
   end
 end

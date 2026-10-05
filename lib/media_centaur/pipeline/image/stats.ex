@@ -141,7 +141,7 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
       status: status,
       active_count: state.active_count,
       throughput: throughput,
-      avg_duration_ms: avg_duration,
+      avg_duration_us: avg_duration,
       error_count: state.error_count,
       last_error: state.last_error,
       queue_depth: state.queue_depth,

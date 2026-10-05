@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         path: "/3/tv/1/season/1",
         status: 200,
         error: nil,
-        duration_ms: 180,
+        duration_us: 180_000,
         cache: :miss
       },
       %{
@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         path: "/t/p/w500/sample.jpg",
         status: 200,
         error: nil,
-        duration_ms: 95,
+        duration_us: 95_000,
         cache: :uncached
       },
       %{
@@ -45,7 +45,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         path: "/api/v1/search",
         status: nil,
         error: "timeout",
-        duration_ms: 5_000,
+        duration_us: 5_000_000,
         cache: :uncached
       }
     ]
