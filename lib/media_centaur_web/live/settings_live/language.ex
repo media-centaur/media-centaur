@@ -57,6 +57,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             <span class="w-5 text-xs tabular-nums text-base-content/55">{index + 1}</span>
             <span class="flex-1 text-sm">{Iso639.display_name(code)}</span>
             <.button
+              shape="square"
               type="button"
               variant="dismiss"
               size="xs"
@@ -70,6 +71,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
               <.icon name="hero-chevron-up-mini" class="size-4" />
             </.button>
             <.button
+              shape="square"
               type="button"
               variant="dismiss"
               size="xs"
@@ -83,6 +85,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
               <.icon name="hero-chevron-down-mini" class="size-4" />
             </.button>
             <.button
+              shape="square"
               type="button"
               variant="destructive_inline"
               size="xs"

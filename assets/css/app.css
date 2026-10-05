@@ -1797,6 +1797,15 @@ body:has(.modal-backdrop[data-state="open"]) {
   .btn[data-armed]::after { animation: none; }
 }
 
+/* Icon-led button: a heroicon's box carries 2-4px of empty space around
+   its shape, which text has almost none of, so equal padding reads as a
+   wider left side. Trim the start padding to even it out optically.
+   CSS cannot see the label (a text node), so an icon-only button must
+   carry shape="square" or "circle" (the kit's rule) to stay symmetric. */
+.btn:not(.btn-square, .btn-circle):has(> [class*="hero-"]:first-child) {
+  padding-inline-start: calc(var(--btn-p) - 0.25rem);
+}
+
 /* Keyboard/gamepad focus ring — primary color glow */
 [data-input=keyboard] [data-nav-item]:focus,
 [data-input=gamepad] [data-nav-item]:focus {
