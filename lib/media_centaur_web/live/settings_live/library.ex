@@ -118,6 +118,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
 
             <div class="flex gap-1 shrink-0">
               <.button
+                shape="square"
                 variant="dismiss"
                 size="sm"
                 phx-click="media_dir:open_edit"
