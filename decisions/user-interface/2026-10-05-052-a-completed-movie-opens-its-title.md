@@ -1,8 +1,23 @@
 ---
 status: proposed
 date: 2026-10-05
+amended: 2026-10-05
 ---
 # A completed movie opens its title
+
+> **Amendment 2026-10-05 (plan 006).** The prompt extends past standalone
+> movies. A **collection movie** is finished as a movie: the collection's
+> detail opens on that member, Review targets the movie, and Delete removes
+> only that movie's files, never the collection. A **series** prompts when
+> the session completed TMDB's latest aired episode (`last_episode_to_air`),
+> not the last episode the library holds, because the library holds only
+> seasons with files. A settled series (Ended or Canceled, nothing ahead)
+> reads "You finished" with Review, Delete, Done; a series still airing reads
+> "You're caught up" with Review, Track release dates, Done. The rule is
+> judged in the web layer, where Playback's completed items and the TMDB
+> record are both readable. The preference becomes *Ask after finishing a
+> title* (`finish_prompt`). The consequence below excluding collections no
+> longer holds.
 
 ## Context and Problem Statement
 

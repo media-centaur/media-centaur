@@ -113,4 +113,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 049 | 2026-09-28 | [What people did with a title is the social capsule](user-interface/2026-09-28-049-what-people-did-with-a-title-is-the-social-capsule.md) | accepted |
 | 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted, amended 2026-10-03 |
 | 051 | 2026-10-03 | [The Discovery page is the Social page](user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md) | accepted, amended 2026-10-03 |
-| 052 | 2026-10-05 | [A completed movie opens its title](user-interface/2026-10-05-052-a-completed-movie-opens-its-title.md) | proposed |
+| 052 | 2026-10-05 | [A completed movie opens its title](user-interface/2026-10-05-052-a-completed-movie-opens-its-title.md) | proposed, amended 2026-10-05 |
