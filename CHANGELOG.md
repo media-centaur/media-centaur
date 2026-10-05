@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.53.0 — 2026-10-05
+
+### New
+
+- **Review or delete a movie right after you finish it.** When you close the player on a movie you watched to the end credits, or 90% of the way through, the movie's page opens with a row above its buttons: **Review** to share what you thought with friends, **Delete this file** to clear it off your drive (press twice to confirm), and **Done** to dismiss the row. If the movie's page was already open, the row appears on it without moving you. Movies that belong to a collection don't show it yet. Turn it off with **Settings → Preferences → Ask after finishing a movie**.
+
 ## v1.52.0 — 2026-10-05
 
 ### Improved
