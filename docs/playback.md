@@ -44,7 +44,7 @@ graph TD
 
 **Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.Completion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses. The session judges each persisted position itself (`MpvSession.judge_completion/1`) and keeps the set of items it completed; only the write runs in a task.
 
-**Session end:** `finalize/1` broadcasts `PlaybackStateChanged :stopped` and then `SessionEnded` with that set. The title detail hosts read it to open a finished standalone movie with the finish prompt (UIDR-052).
+**Session end:** `finalize/1` broadcasts `PlaybackStateChanged :stopped` and then `SessionEnded` with that set. The title detail hosts read it to open a finished title with the finish prompt (UIDR-052): a movie, standalone or in a collection, or a show whose latest aired episode (TMDB's `last_episode_to_air`) the session completed. The web layer judges that, since Playback does not read TMDB (`TitleDetailHost.Finish`).
 
 **Offline state:** `Library.Availability` tracks per-media-directory mount/reachability. When a file's media directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
 
@@ -144,7 +144,7 @@ Once per session, right after `:stopped`:
 {:session_ended, %{entity_id: entity_id, completed: completed}}
 ```
 
-`completed` is a `MapSet` of `{:movie | :episode | :video_object | :extra, id}` — every item the session completed, empty when it ended before any.
+`completed` is a `MapSet` of `{:movie | :video_object | :extra, id}` and `{:episode, id, season_number, episode_number}` — every item the session completed, empty when it ended before any. Episodes carry their numbers so a subscriber can compare them with TMDB's numbering without a read.
 
 All three payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract).
 

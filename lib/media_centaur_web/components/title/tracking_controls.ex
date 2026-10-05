@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   attr :release_ahead?, :boolean,
     required: true,
     doc:
-      "a release is still to come (`Title.Logic.release_ahead?/3`); the Track switch renders only then. Always true for a series."
+      "a release is still to come (`Title.Logic.release_ahead?/2`); the Track switch renders only then. For a series, until its TMDB record is settled."
 
   attr :complete?, :boolean,
     required: true,
@@ -106,15 +106,12 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
         </.button>
       </div>
       <div :if={@form == :controls} class="space-y-1">
-        <Switch.switch
+        <.track_switch
           :if={:track in @rows}
           id={"#{@id}-track"}
-          label="Track release dates"
-          description={track_description(@media_type, @rung)}
-          checked={TitleIntent.follows_releases?(@rung)}
-          event={track_choice(@rung) && "set_rung"}
-          values={%{"choice" => track_choice(@rung), "ref" => @ref}}
-          class="-mx-2 px-2 py-1.5"
+          ref={@ref}
+          rung={@rung}
+          media_type={@media_type}
         />
         <Switch.switch
           :if={:grab in @rows}
@@ -135,6 +132,35 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
         Auto-grab downloads nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
     </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :ref, :string, required: true, doc: "the title's `MediaCentaurWeb.TitleRef.param/1`"
+
+  attr :rung, :atom,
+    values: [nil, :ignored, :list, :follow, :grab],
+    default: nil,
+    doc: "the title's rung; from Off or Ignored the switch lists it at Follow"
+
+  attr :media_type, :atom, values: [:movie, :tv_series], required: true
+
+  @doc """
+  The Track release dates switch alone: drawn by `tracking_controls/1`
+  and by the finish prompt for a show the person is caught up on
+  (UIDR-052), where the title may not be on the list yet.
+  """
+  def track_switch(assigns) do
+    ~H"""
+    <Switch.switch
+      id={@id}
+      label="Track release dates"
+      description={track_description(@media_type, @rung)}
+      checked={TitleIntent.follows_releases?(@rung)}
+      event={track_choice(@rung) && "set_rung"}
+      values={%{"choice" => track_choice(@rung), "ref" => @ref}}
+      class="-mx-2 px-2 py-1.5"
+    />
     """
   end
 
@@ -165,9 +191,12 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   def rows(%{media_type: :movie, release_ahead?: false}), do: [:grab]
   def rows(_movie_ahead_or_series), do: [:track, :grab]
 
-  @doc "What the Track switch sets: Follow from List, List from Follow; nothing at Grab, which holds it on."
-  @spec track_choice(TitleIntent.rung()) :: String.t() | nil
-  def track_choice(:list), do: "follow"
+  @doc """
+  What the Track switch sets: Follow from Off, Ignored or List, List from
+  Follow; nothing at Grab, which holds it on.
+  """
+  @spec track_choice(TitleIntent.rung() | nil) :: String.t() | nil
+  def track_choice(rung) when rung in [nil, :ignored, :list], do: "follow"
   def track_choice(:follow), do: "list"
   def track_choice(:grab), do: nil
 

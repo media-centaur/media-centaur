@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.Storybook.Detail.FinishPrompt do
   @moduledoc """
-  The row the title detail shows after a movie was finished in mpv
-  (plan 005, UIDR-052): Review, the primary delete, Done.
+  The row the title detail shows after a title was finished in mpv
+  (plans 005 and 006, UIDR-052). Finished: Review, the delete, Done.
+  Caught up on a show still airing: Review, Track release dates, Done.
   """
   use PhoenixStorybook.Story, :component
 
@@ -55,6 +56,46 @@ defmodule MediaCentaurWeb.Storybook.Detail.FinishPrompt do
         id: :files_loading,
         description: "The file list has not loaded yet: no Delete.",
         attributes: %{name: "Sample Movie", review?: true, files: [], files_status: :loading}
+      },
+      %Variation{
+        id: :collection_movie,
+        description: "A movie in a collection: the delete covers that movie's files only.",
+        attributes: %{
+          name: "Movie A",
+          review?: true,
+          files: @files,
+          delete_target: {:member, "movie-1"}
+        }
+      },
+      %Variation{
+        id: :series_finished,
+        description: "The finale of an ended show: Review, Delete all files, Done.",
+        attributes: %{name: "Sample Show", kind: :finished, review?: true, files: @files}
+      },
+      %Variation{
+        id: :caught_up,
+        description:
+          "The latest episode of a show still airing, not on the list: Track release dates off.",
+        attributes: %{
+          name: "Sample Show",
+          kind: :caught_up,
+          review?: true,
+          files: @files,
+          ref: "tv_series-1399",
+          rung: nil
+        }
+      },
+      %Variation{
+        id: :caught_up_tracking,
+        description: "Caught up on a show already tracked: the switch is on.",
+        attributes: %{
+          name: "Sample Show",
+          kind: :caught_up,
+          review?: true,
+          files: @files,
+          ref: "tv_series-1399",
+          rung: :follow
+        }
       },
       %Variation{
         id: :files_failed,

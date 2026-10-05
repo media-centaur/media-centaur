@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   alias MediaCentaur.Playback
   alias MediaCentaur.Playback.ProgressBroadcaster
   alias MediaCentaurWeb.Components.Detail.CastSelection
+  alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.LibraryProgress
@@ -164,6 +165,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
       delete_gesture(socket, "delete_folder_prompt", {:folder, folder_path})
     end
   end
+
+  # The finish prompt's delete for one movie of a collection (UIDR-052):
+  # its files only, never the collection's `:all`.
+  def handle("delete_all_prompt", %{"member" => movie_id}, socket),
+    do: delete_gesture(socket, "delete_all_prompt", {:member, movie_id})
 
   def handle("delete_all_prompt", _params, socket), do: delete_gesture(socket, "delete_all_prompt", :all)
 
@@ -315,27 +321,38 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
         end
 
       :all ->
-        payload = ManagePanel.build_delete_all_payload(detail_files, MapSet.new(media_dirs))
+        delete_by_folder(detail_files, media_dirs)
 
-        Enum.each(payload.file_groups, fn group ->
-          file_paths = Enum.map(group.files, & &1.path)
-
-          if !group.is_media_dir and
-               MediaCentaur.DeleteTargets.safe_to_delete_folder?(group.dir, file_paths) do
-            Deletion.delete_folder(group.dir, file_paths)
-          else
-            # A media directory root, or a folder that also holds other
-            # already-imported content, can't be `rm -rf`'d wholesale — fall
-            # back to deleting just this entity's own files in it.
-            Deletion.delete_files(file_paths)
-          end
-        end)
-
-        {:ok, []}
+      {:member, _movie_id} ->
+        detail_files
+        |> DetailLogic.files_for_target(target)
+        |> delete_by_folder(media_dirs)
 
       nil ->
         {:ok, []}
     end
+  end
+
+  # Each folder the files sit in goes whole when nothing else in the
+  # library lives there; otherwise only these files go.
+  defp delete_by_folder(detail_files, media_dirs) do
+    payload = ManagePanel.build_delete_all_payload(detail_files, MapSet.new(media_dirs))
+
+    Enum.each(payload.file_groups, fn group ->
+      file_paths = Enum.map(group.files, & &1.path)
+
+      if !group.is_media_dir and
+           MediaCentaur.DeleteTargets.safe_to_delete_folder?(group.dir, file_paths) do
+        Deletion.delete_folder(group.dir, file_paths)
+      else
+        # A media directory root, or a folder that also holds other
+        # already-imported content, can't be `rm -rf`'d wholesale — fall
+        # back to deleting just this entity's own files in it.
+        Deletion.delete_files(file_paths)
+      end
+    end)
+
+    {:ok, []}
   end
 
   @doc """

@@ -23,8 +23,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Same for this one: the title detail hosts read it when a session
   # ends, Settings alone shows it.
   on_mount {MediaCentaurWeb.Live.SettingAware,
-            {MediaCentaur.Settings.Preferences.MovieFinishPrompt, :movie_finish_prompt,
-             :setting_aware_movie_finish_prompt}}
+            {MediaCentaur.Settings.Preferences.FinishPrompt, :finish_prompt,
+             :setting_aware_finish_prompt}}
 
   # Same for this one: release tracking reads it, Settings alone shows it.
   on_mount {MediaCentaurWeb.Live.SettingAware,
@@ -977,10 +977,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, auto_play_next_episode: enabled)}
   end
 
-  def handle_event("toggle_movie_finish_prompt", _params, socket) do
-    enabled = !socket.assigns.movie_finish_prompt
-    MediaCentaur.Settings.Preferences.MovieFinishPrompt.set(enabled)
-    {:noreply, assign(socket, movie_finish_prompt: enabled)}
+  def handle_event("toggle_finish_prompt", _params, socket) do
+    enabled = !socket.assigns.finish_prompt
+    MediaCentaur.Settings.Preferences.FinishPrompt.set(enabled)
+    {:noreply, assign(socket, finish_prompt: enabled)}
   end
 
   def handle_event("toggle_update_check", _params, socket) do
@@ -1965,7 +1965,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 show_card_info={@show_card_info}
                 show_play_button={@show_play_button}
                 auto_play_next_episode={@auto_play_next_episode}
-                movie_finish_prompt={@movie_finish_prompt}
+                finish_prompt={@finish_prompt}
                 letterboxd_links={@letterboxd_links}
                 show_social={@show_social}
                 show_apps={@show_apps}
@@ -2105,7 +2105,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_card_info={@show_card_info}
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
-      movie_finish_prompt={@movie_finish_prompt}
+      finish_prompt={@finish_prompt}
       letterboxd_links={@letterboxd_links}
       show_apps={@show_apps}
     />

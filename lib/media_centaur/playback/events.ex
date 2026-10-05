@@ -104,14 +104,15 @@ defmodule MediaCentaur.Playback.Events do
     The session ended — mpv closed. Broadcast once, right after
     `PlaybackStateChanged :stopped`. `completed` is every item the
     session completed (`MpvSession.judge_completion/1`); empty when it
-    ended before any.
+    ended before any. An episode carries its season and episode numbers,
+    so a subscriber can compare it with TMDB's numbering without a read.
     """
     @enforce_keys [:entity_id, :completed]
     defstruct [:entity_id, :completed]
 
     @type item ::
             {:movie, String.t()}
-            | {:episode, String.t()}
+            | {:episode, String.t(), integer() | nil, integer() | nil}
             | {:video_object, String.t()}
             | {:extra, String.t()}
     @type t :: %__MODULE__{entity_id: String.t(), completed: MapSet.t(item())}

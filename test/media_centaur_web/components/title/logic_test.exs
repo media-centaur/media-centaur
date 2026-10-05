@@ -199,43 +199,44 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "release_ahead?/3 — whether the Track release dates row has anything to track" do
-    test "a series always has a release ahead as far as the snapshot knows" do
+  describe "release_ahead?/2 — whether the Track release dates row has anything to track" do
+    test "a series has a release ahead until its TMDB record is settled" do
       show = Title.new!(%{tmdb_id: 2, media_type: :tv_series, name: "Sample Show"})
-      assert Logic.release_ahead?(show, nil, ~D[2026-09-14])
+      assert Logic.release_ahead?(detail(show, nil), ~D[2026-09-14])
+      refute Logic.release_ahead?(detail(show, nil, true), ~D[2026-09-14])
     end
 
     test "without the window, the snapshot's primary date decides" do
-      assert Logic.release_ahead?(dated_movie(~D[2026-12-01]), nil, ~D[2026-09-14])
-      assert Logic.release_ahead?(dated_movie(nil), nil, ~D[2026-09-14])
-      refute Logic.release_ahead?(dated_movie(~D[2020-01-01]), nil, ~D[2026-09-14])
+      assert Logic.release_ahead?(detail(dated_movie(~D[2026-12-01]), nil), ~D[2026-09-14])
+      assert Logic.release_ahead?(detail(dated_movie(nil), nil), ~D[2026-09-14])
+      refute Logic.release_ahead?(detail(dated_movie(~D[2020-01-01]), nil), ~D[2026-09-14])
     end
 
     test "with the window, only a home release that has passed says no" do
       out = dated_movie(~D[2020-01-01])
-      assert Logic.release_ahead?(out, %ReleaseWindow{stage: :unreleased}, ~D[2026-09-14])
-      assert Logic.release_ahead?(out, %ReleaseWindow{stage: :theatrical}, ~D[2026-09-14])
+      assert Logic.release_ahead?(detail(out, %ReleaseWindow{stage: :unreleased}), ~D[2026-09-14])
+      assert Logic.release_ahead?(detail(out, %ReleaseWindow{stage: :theatrical}), ~D[2026-09-14])
 
       refute Logic.release_ahead?(
-               dated_movie(~D[2026-12-01]),
-               %ReleaseWindow{stage: :home},
+               detail(dated_movie(~D[2026-12-01]), %ReleaseWindow{stage: :home}),
                ~D[2026-09-14]
              )
     end
 
     test "an unknown window defers to the snapshot" do
       assert Logic.release_ahead?(
-               dated_movie(~D[2026-12-01]),
-               %ReleaseWindow{stage: :unknown},
+               detail(dated_movie(~D[2026-12-01]), %ReleaseWindow{stage: :unknown}),
                ~D[2026-09-14]
              )
 
       refute Logic.release_ahead?(
-               dated_movie(~D[2020-01-01]),
-               %ReleaseWindow{stage: :unknown},
+               detail(dated_movie(~D[2020-01-01]), %ReleaseWindow{stage: :unknown}),
                ~D[2026-09-14]
              )
     end
+
+    defp detail(title, window, settled? \\ false),
+      do: %TitleDetail{ref: Title.ref(title), title: title, release_window: window, settled?: settled?}
 
     defp dated_movie(release_date),
       do: Title.new!(%{tmdb_id: 1, media_type: :movie, name: "Movie A", release_date: release_date})

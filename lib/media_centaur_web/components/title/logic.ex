@@ -49,6 +49,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       acquisition?: Map.get(facts, :acquisition?, false),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       complete?: Map.get(facts, :complete?, false),
+      settled?: Map.get(facts, :settled?, false),
       release_window: Map.get(facts, :release_window),
       planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
       activity: Map.get(facts, :activity),
@@ -89,23 +90,30 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
   @doc """
   Whether a release is still ahead — what decides if the Track release
-  dates row renders (`TrackingControls.rows/1`). A series always has one
-  ahead as far as the snapshot knows. For a movie the release window
+  dates row renders (`TrackingControls.rows/1`) and whether a finished
+  series reads "caught up" (`Detail.FinishPrompt`). A series has one
+  ahead until its TMDB record is settled. For a movie the release window
   read from the live TMDB payload answers once it has landed
   (`:unreleased` and `:theatrical` are ahead, `:home` is not, `:unknown`
   says nothing and defers to the snapshot); until then the snapshot's
   primary date against `today` (`MediaResults.release_status/2`).
   """
-  @spec release_ahead?(Title.t(), ReleaseWindow.t() | nil, Date.t()) :: boolean()
-  def release_ahead?(%Title{media_type: :tv_series}, _window, _today), do: true
+  @spec release_ahead?(TitleDetail.t(), Date.t()) :: boolean()
+  def release_ahead?(%TitleDetail{title: %Title{media_type: :tv_series}, settled?: settled?}, _today),
+    do: not settled?
 
-  def release_ahead?(%Title{media_type: :movie} = title, %ReleaseWindow{stage: :unknown}, today),
-    do: release_ahead?(title, nil, today)
+  def release_ahead?(
+        %TitleDetail{title: %Title{media_type: :movie} = title, release_window: window},
+        today
+      ), do: movie_release_ahead?(title, window, today)
 
-  def release_ahead?(%Title{media_type: :movie}, %ReleaseWindow{stage: stage}, _today),
+  defp movie_release_ahead?(title, %ReleaseWindow{stage: :unknown}, today),
+    do: movie_release_ahead?(title, nil, today)
+
+  defp movie_release_ahead?(_title, %ReleaseWindow{stage: stage}, _today),
     do: stage in [:unreleased, :theatrical]
 
-  def release_ahead?(%Title{media_type: :movie} = title, nil, today),
+  defp movie_release_ahead?(title, nil, today),
     do: MediaResults.release_status(title, today) == :upcoming
 
   @doc "A watchlist note as the row's `notes`: one unattributed entry, or none."

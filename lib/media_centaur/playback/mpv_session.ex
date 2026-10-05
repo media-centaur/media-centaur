@@ -175,8 +175,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     # stitches them back together.
     ipc_buffer: "",
     # Every item this session completed (`judge_completion/1`), as
-    # `{:movie | :episode | :video_object | :extra, id}`. A chain keeps
-    # each episode it finished; `SessionEnded` carries the set.
+    # `{:movie | :video_object | :extra, id}` or
+    # `{:episode, id, season_number, episode_number}`. A chain keeps each
+    # episode it finished; `SessionEnded` carries the set.
     completed: MapSet.new()
   ]
 
@@ -934,7 +935,10 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp current_item(%{extra_id: id}) when not is_nil(id), do: {:extra, id}
   defp current_item(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
-  defp current_item(%{episode_id: id}) when not is_nil(id), do: {:episode, id}
+
+  defp current_item(%{episode_id: id} = state) when not is_nil(id),
+    do: {:episode, id, state.season_number, state.episode_number}
+
   defp current_item(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}
   defp current_item(_state), do: nil
 
