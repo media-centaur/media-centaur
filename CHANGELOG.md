@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.54.1 — 2026-10-05
+
+### Improved
+
+- **Buttons with an icon look evenly spaced.** Buttons that start with an icon, such as **Play** and **More info**, no longer have more space on the left than on the right.
+
 ## v1.54.0 — 2026-10-05
 
 ### New
