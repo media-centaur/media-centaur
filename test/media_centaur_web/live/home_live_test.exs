@@ -7,7 +7,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
-  alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
+  alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, SessionEnded}
+  alias MediaCentaur.Settings.Preferences.MovieFinishPrompt
 
   test "GET / renders without crashing", %{conn: conn} do
     {:ok, _view, html} = live_async!(conn, "/")
@@ -657,6 +658,101 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       # The hero's Play is a standing control, not the hover overlay —
       # the toggle must not touch it.
       assert has_element?(view, ~s|[data-component="hero"] [phx-click="play"]|)
+    end
+  end
+
+  # UIDR-052: closing mpv on a movie the session completed opens its title
+  # with the finish prompt.
+  describe "finish prompt" do
+    setup do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      %{movie: movie}
+    end
+
+    defp finish(movie, completed \\ nil) do
+      Events.broadcast(%SessionEnded{
+        entity_id: movie.id,
+        completed: MapSet.new(completed || [{:movie, movie.id}])
+      })
+    end
+
+    test "opens the finished movie with the prompt", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      finish(movie)
+
+      assert_patch(view, "/?entity=#{movie.id}")
+      assert render(view) =~ ~s|data-state="open"|
+      assert has_element?(view, "#finish-prompt")
+      assert render(view) =~ "You finished"
+    end
+
+    test "Done dismisses the prompt and leaves the modal open", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish(movie)
+      assert_patch(view, "/?entity=#{movie.id}")
+
+      view |> element("#finish-prompt-done") |> render_click()
+
+      refute has_element?(view, "#finish-prompt")
+      assert render(view) =~ ~s|data-state="open"|
+    end
+
+    test "shows in place on the movie's open detail, keeping its view", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/?entity=#{movie.id}&view=info")
+      assert has_element?(view, ~s|[data-role="manage-toolbar"]|)
+
+      finish(movie)
+
+      assert has_element?(view, "#finish-prompt")
+      assert has_element?(view, ~s|[data-role="manage-toolbar"]|)
+    end
+
+    test "a session that completed nothing opens nothing", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      finish(movie, [])
+
+      refute render(view) =~ ~s|data-state="open"|
+      refute has_element?(view, "#finish-prompt")
+    end
+
+    test "the preference off opens nothing", %{conn: conn, movie: movie} do
+      {:ok, _} =
+        MediaCentaur.Settings.find_or_create_entry(%{
+          key: MovieFinishPrompt.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      finish(movie)
+
+      refute render(view) =~ ~s|data-state="open"|
+      refute has_element?(view, "#finish-prompt")
+    end
+
+    test "closing the modal drops the prompt", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish(movie)
+      assert_patch(view, "/?entity=#{movie.id}")
+
+      render_patch(view, "/")
+      render_patch(view, "/?entity=#{movie.id}")
+
+      refute has_element?(view, "#finish-prompt")
+    end
+
+    test "the prompt's Delete arms the primary delete", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      finish(movie)
+      assert_patch(view, "/?entity=#{movie.id}")
+      render_async(view)
+
+      view |> element(~s|#finish-prompt [phx-click="delete_all_prompt"]|) |> render_click()
+
+      assert has_element?(view, ~s|#finish-prompt [phx-click="delete_all_prompt"][data-armed]|)
     end
   end
 end

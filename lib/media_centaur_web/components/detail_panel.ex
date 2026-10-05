@@ -84,6 +84,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionRail
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
+  alias MediaCentaurWeb.Components.Detail.FinishPrompt
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Detail.MetadataRow
@@ -132,6 +133,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :review?, :boolean,
     default: false,
     doc: "whether the Review control is offered — the host passes `show_social`."
+
+  attr :finished_entity_id, :string,
+    default: nil,
+    doc:
+      "the entity a session just finished (`TitleDetailHost`, UIDR-052); the finish prompt shows while it is the open entity."
 
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_title"
@@ -264,6 +270,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                   it (`data-nav-dismiss-event`). data-nav-enter-scroll-top:
                   arrowing up out of the body list glides the modal back
                   to the hero; BACK lands here without moving it. --%>
+            <FinishPrompt.finish_prompt
+              :if={@entity && @entity.id == @finished_entity_id}
+              name={@name}
+              review?={@review? && @ref != nil}
+              files={@files}
+              files_status={@files_status}
+              delete_confirm={ArmGesture.armed_target(@armed_gesture, ManagePanel.delete_events())}
+              deleting={@state.deleting}
+            />
             <div
               class="flex items-center gap-2 pt-1"
               data-nav-zone="detail_actions"

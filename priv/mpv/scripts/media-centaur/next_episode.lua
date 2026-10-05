@@ -22,14 +22,14 @@ local cfg = {
     delay            = 1.0,  -- seconds after chapter change before showing (skip mode)
     countdown_window = 20,   -- seconds before EOF the countdown mode begins
     -- A credits chapter must start at or after this fraction of the
-    -- runtime — mirrors the backend's ChapterCompletion floor, and keeps
+    -- runtime — mirrors the backend's Playback.Completion floor, and keeps
     -- an "Opening Credits" chapter at t=0 from triggering the pill.
     outro_floor      = 0.80,
 }
 
 -- Chapter title patterns that mark rolling credits (matched
 -- case-insensitive, whole-word via %f frontiers). Mirrors the backend's
--- ChapterCompletion: `credits` covers "End Credits" / "Closing Credits" /
+-- Playback.Completion: `credits` covers "End Credits" / "Closing Credits" /
 -- "Credits"; `outro` covers "Outro". Bare "Ending" is deliberately
 -- excluded (often the story climax).
 local credits_patterns = {

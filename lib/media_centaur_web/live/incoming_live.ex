@@ -840,6 +840,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           tmdb_ready={@tmdb_ready}
+          finished_entity_id={@finished_entity_id}
         />
         <ReviewModal.review_modal
           subject={@review_subject}

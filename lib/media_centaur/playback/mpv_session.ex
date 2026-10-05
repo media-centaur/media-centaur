@@ -85,7 +85,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Platform.DisplayEnv
 
   alias MediaCentaur.Playback.{
-    ChapterCompletion,
+    Completion,
     Events,
     IpcFraming,
     LanguageContext,
@@ -143,7 +143,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     state: :starting,
     language_context: nil,
     # mpv `chapter-list` for the loaded file (`[%{"title", "time"}]`), used
-    # by `ChapterCompletion` to complete at the credits boundary rather than
+    # by `Completion` to complete at the credits boundary rather than
     # grinding to the 90%/eof fallback. Empty for files without chapters.
     chapters: [],
     audio_tracks: [],
@@ -173,7 +173,11 @@ defmodule MediaCentaur.Playback.MpvSession do
     # `{:tcp, ...}` deliveries. The socket is `packet: :raw`, so a long
     # JSON line (e.g. `track-list`) can span chunks — `IpcFraming.feed/2`
     # stitches them back together.
-    ipc_buffer: ""
+    ipc_buffer: "",
+    # Every item this session completed (`judge_completion/1`), as
+    # `{:movie | :episode | :video_object | :extra, id}`. A chain keeps
+    # each episode it finished; `SessionEnded` carries the set.
+    completed: MapSet.new()
   ]
 
   # --- Public API ---
@@ -450,7 +454,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   # Guard prevents double-finalize on already-stopped sessions.
 
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
-    if session.tracker.actively_watching, do: persist_progress(session)
+    session = if session.tracker.actively_watching, do: persist_progress(session), else: session
 
     cond do
       # Extra playback — broadcast extra progress update
@@ -480,6 +484,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
 
     broadcast_state_changed(:stopped, session)
+    # After `:stopped`, on the same topic from the same process: a
+    # subscriber has dropped the entity from its playing set before it
+    # reads what the session completed.
+    Events.broadcast(session_ended(session))
     %{session | state: :stopped}
   end
 
@@ -539,7 +547,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     Log.info(:playback, if(paused, do: "paused", else: "resumed"))
     state = %{state | paused: paused, state: new_state}
 
-    if paused and state.tracker.actively_watching, do: persist_progress(state)
+    state = if paused and state.tracker.actively_watching, do: persist_progress(state), else: state
     broadcast_state_changed(new_state, state)
 
     state
@@ -566,8 +574,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   # If this end-file is actually a quit, the exit-classification path
   # still finalizes the session moments later.
   defp handle_mpv_message(%{"event" => "end-file"}, state) do
-    if state.tracker.actively_watching, do: persist_progress(state)
-    state
+    if state.tracker.actively_watching, do: persist_progress(state), else: state
   end
 
   defp handle_mpv_message(
@@ -880,8 +887,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     now = System.monotonic_time(:millisecond)
 
     if state.tracker.actively_watching and now - state.last_db_write_at >= @db_write_interval_ms do
-      persist_progress(state)
-      %{state | last_db_write_at: now}
+      %{persist_progress(state) | last_db_write_at: now}
     else
       state
     end
@@ -889,18 +895,53 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- Progress Persistence ---
 
-  defp persist_progress(%{extra_id: extra_id} = state) when not is_nil(extra_id) do
-    persist_extra_progress(state)
-  end
-
-  defp persist_progress(%{movie_id: nil, episode_id: nil, video_object_id: nil}), do: :ok
-
+  # Judges completion here, in the session, so the session knows what it
+  # completed; the write itself runs in a task.
   defp persist_progress(state) do
-    persist_entity_progress(state)
+    {reason, state} = judge_completion(state)
+    write_progress(state, reason)
+    state
   end
 
-  defp persist_extra_progress(state) do
-    saveable = state.tracker.saveable_position || state.position
+  defp write_progress(%{extra_id: extra_id} = state, reason) when not is_nil(extra_id) do
+    persist_extra_progress(state, reason)
+  end
+
+  defp write_progress(%{movie_id: nil, episode_id: nil, video_object_id: nil}, _reason), do: :ok
+
+  defp write_progress(state, reason), do: persist_entity_progress(state, reason)
+
+  @doc """
+  Judges the saved position against `Completion.reason/3`; a complete
+  one adds the playing item (`current_item/1`) to `completed`. Returns
+  the reason (nil while incomplete) with the state.
+  """
+  @spec judge_completion(%__MODULE__{}) :: {String.t() | nil, %__MODULE__{}}
+  def judge_completion(state) do
+    reason = Completion.reason(saveable_position(state), state.duration, state.chapters)
+
+    case {reason, current_item(state)} do
+      {nil, _item} -> {nil, state}
+      {reason, nil} -> {reason, state}
+      {reason, item} -> {reason, %{state | completed: MapSet.put(state.completed, item)}}
+    end
+  end
+
+  @doc "The `SessionEnded` event for this session."
+  @spec session_ended(%__MODULE__{}) :: Events.SessionEnded.t()
+  def session_ended(state),
+    do: %Events.SessionEnded{entity_id: state.entity_id, completed: state.completed}
+
+  defp current_item(%{extra_id: id}) when not is_nil(id), do: {:extra, id}
+  defp current_item(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
+  defp current_item(%{episode_id: id}) when not is_nil(id), do: {:episode, id}
+  defp current_item(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}
+  defp current_item(_state), do: nil
+
+  defp saveable_position(state), do: state.tracker.saveable_position || state.position
+
+  defp persist_extra_progress(state, reason) do
+    saveable = saveable_position(state)
     duration = state.duration
 
     params = %{
@@ -921,7 +962,7 @@ defmodule MediaCentaur.Playback.MpvSession do
             "saved extra progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          maybe_mark_extra_completed(record, saveable, duration)
+          maybe_mark_extra_completed(record, reason)
           ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
 
         {:error, reason} ->
@@ -930,8 +971,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     end)
   end
 
-  defp persist_entity_progress(state) do
-    saveable = state.tracker.saveable_position || state.position
+  defp persist_entity_progress(state, reason) do
+    saveable = saveable_position(state)
     duration = state.duration
 
     params =
@@ -960,7 +1001,7 @@ defmodule MediaCentaur.Playback.MpvSession do
             "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          maybe_mark_completed_via_progress(playable_item_id, saveable, duration, state.chapters)
+          maybe_mark_completed(playable_item_id, reason)
           # Preserve the rich `%EntityProgressUpdated{}` event for
           # consumers that need summary/resume_target/changed_record
           # (EntityModal, StatusLive, LibraryLive). The simpler
@@ -1019,71 +1060,30 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp resolve_or_create_playable_item_id(_params), do: {:error, :no_fk_specified}
 
-  defp maybe_mark_completed_via_progress(playable_item_id, position, duration, chapters)
-       when is_number(position) and is_number(duration) and duration > 0 do
+  defp maybe_mark_completed(_playable_item_id, nil), do: :ok
+
+  defp maybe_mark_completed(playable_item_id, reason) do
     case LibraryProgress.get(playable_item_id) do
       %{completed: true} ->
         :ok
 
       _ ->
-        case completion_reason(position, duration, chapters) do
-          nil ->
-            :ok
-
-          reason ->
-            Log.info(:playback, "marked completed — #{reason}")
-            :ok = LibraryProgress.complete(playable_item_id)
-        end
+        Log.info(:playback, "marked completed — #{reason}")
+        :ok = LibraryProgress.complete(playable_item_id)
     end
   end
 
-  defp maybe_mark_completed_via_progress(_playable_item_id, _position, _duration, _chapters), do: :ok
+  defp maybe_mark_extra_completed(_record, nil), do: :ok
+  defp maybe_mark_extra_completed(%{completed: true}, _reason), do: :ok
 
-  # Returns a human-readable reason string when the item should be marked
-  # completed, or `nil` otherwise. Two triggers:
-  #
-  #   * a credits/outro chapter — the user reached the end of *content*,
-  #     independent of how long the credits tail runs; and
-  #   * the 90% position fallback, for the majority of files that carry no
-  #     usable chapter markers.
-  #
-  # The chapter trigger is checked first so a title with a long tail
-  # completes at the credits boundary instead of grinding to 90%.
-  defp completion_reason(position, duration, chapters) do
-    cond do
-      (content_end = ChapterCompletion.content_end_seconds(chapters, duration)) &&
-          position >= content_end ->
-        "reached credits chapter at #{Format.format_seconds(content_end)}"
+  defp maybe_mark_extra_completed(record, reason) do
+    Log.info(:playback, "extra marked completed — #{reason}")
 
-      position / duration >= 0.90 ->
-        "#{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
-
-      true ->
-        nil
+    case MediaCentaur.Library.ProgressRecords.mark_completed(record) do
+      {:ok, _} -> :ok
+      {:error, error} -> Log.warning(:playback, "failed to mark extra completed — #{inspect(error)}")
     end
   end
-
-  defp maybe_mark_extra_completed(record, position, duration)
-       when is_number(position) and is_number(duration) and duration > 0 do
-    if not record.completed and position / duration >= 0.90 do
-      Log.info(
-        :playback,
-        "extra marked completed — #{Float.round(position / duration * 100, 0)}%"
-      )
-
-      case MediaCentaur.Library.ProgressRecords.mark_completed(record) do
-        {:ok, _} ->
-          :ok
-
-        {:error, reason} ->
-          Log.warning(:playback, "failed to mark extra completed — #{inspect(reason)}")
-      end
-    end
-
-    :ok
-  end
-
-  defp maybe_mark_extra_completed(_record, _position, _duration), do: :ok
 
   # --- PubSub Broadcasting ---
 

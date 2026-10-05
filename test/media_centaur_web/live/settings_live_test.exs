@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   alias MediaCentaur.Settings.Preferences.{
     AppsVisibility,
     AutoPlayNextEpisode,
+    MovieFinishPrompt,
     SocialVisibility,
     LetterboxdLinks,
     LibraryCardInfo,
@@ -259,6 +260,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
       assert AutoPlayNextEpisode.enabled?() == true
+    end
+
+    test "toggling the movie finish prompt persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert MovieFinishPrompt.enabled?() == true
+
+      view |> element("div[phx-click=toggle_movie_finish_prompt]") |> render_click()
+      assert MovieFinishPrompt.enabled?() == false
+
+      view |> element("div[phx-click=toggle_movie_finish_prompt]") |> render_click()
+      assert MovieFinishPrompt.enabled?() == true
     end
   end
 

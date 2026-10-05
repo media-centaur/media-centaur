@@ -12,6 +12,8 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("people"), do: [icon: {:fa, "users", :thin}, name: "People (linked names)"]
 
   def entry("manage_panel"), do: [icon: {:fa, "gear", :thin}, name: "Manage panel"]
+  def entry("delete_all_button"), do: [icon: {:fa, "trash", :thin}, name: "Delete all button"]
+  def entry("finish_prompt"), do: [icon: {:fa, "flag-checkered", :thin}, name: "Finish prompt"]
 
   def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]

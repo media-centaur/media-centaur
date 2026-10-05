@@ -1,8 +1,13 @@
-defmodule MediaCentaur.Playback.ChapterCompletion do
+defmodule MediaCentaur.Playback.Completion do
   @moduledoc """
-  Reads mpv chapter markers to find where a title's *content* ends, so
-  playback completion can fire at the credits boundary instead of grinding
-  through the tail to the position/eof fallback in `MpvSession`.
+  When a viewing is complete: the one judgment `MpvSession` applies to
+  every position it persists (`reason/3`). Two triggers, the first that
+  holds wins:
+
+    * a credits/outro chapter reached — the end of *content*, independent
+      of how long the credits tail runs (`content_end_seconds/2`); and
+    * 90% of the duration, for the majority of files that carry no usable
+      chapter markers.
 
   ## Why chapters
 
@@ -33,13 +38,43 @@ defmodule MediaCentaur.Playback.ChapterCompletion do
   than a few minutes' delay.
   """
 
+  alias MediaCentaur.Format
+
   # A credits chapter must start at or after this fraction of the runtime.
   @outro_floor 0.80
+
+  # Without a credits chapter, a viewing is complete at this fraction.
+  @position_fraction 0.90
 
   # Case-insensitive whole-word match. `credits` covers "End Credits",
   # "Closing Credits", "Credits"; `outro` covers "Outro". Deliberately
   # excludes bare "Ending" (often the story climax, not the credits).
   @credits_title ~r/\b(credits|outro)\b/i
+
+  @doc """
+  Why a viewing at `position` of `duration` (seconds) is complete — a
+  human-readable reason for the log — or `nil` while it is not. The
+  chapter trigger is checked first, so a title with a long tail completes
+  at the credits boundary instead of grinding to 90%.
+  """
+  @spec reason(number() | nil, number() | nil, list()) :: String.t() | nil
+  def reason(position, duration, chapters)
+      when is_number(position) and is_number(duration) and duration > 0 do
+    content_end = content_end_seconds(chapters, duration)
+
+    cond do
+      content_end && position >= content_end ->
+        "reached credits chapter at #{Format.format_seconds(content_end)}"
+
+      position / duration >= @position_fraction ->
+        "#{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
+
+      true ->
+        nil
+    end
+  end
+
+  def reason(_position, _duration, _chapters), do: nil
 
   @doc """
   Returns the start time (seconds) of the credits chapter that marks the

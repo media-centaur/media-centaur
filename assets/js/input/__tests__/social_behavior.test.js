@@ -32,7 +32,8 @@ describe("social behavior", () => {
   test("a title opened on Social navigates as the one detail overlay: the action row over an open menu over the tracking card (UIDR-043)", () => {
     expect(inputConfig.overlays.title_detail).toBeUndefined()
     expect(inputConfig.contextSelectors.title_detail_body).toBeUndefined()
-    expect(inputConfig.overlays.detail.entry.slice(0, 2)).toEqual(["detail_actions", "detail_menu"])
+    // The finish prompt, when drawn, comes first (UIDR-052); otherwise the row, then an open menu.
+    expect(inputConfig.overlays.detail.entry.slice(0, 3)).toEqual(["detail_finish", "detail_actions", "detail_menu"])
     expect(inputConfig.overlays.detail.layout.detail_menu).toEqual({
       up: ["detail_actions"],
       down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],

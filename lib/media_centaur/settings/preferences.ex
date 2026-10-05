@@ -13,6 +13,7 @@ defmodule MediaCentaur.Settings.Preferences do
       SocialVisibility,
       LetterboxdLinks,
       LibraryCardInfo,
+      MovieFinishPrompt,
       PlanningMode,
       ShareWatched,
       ShareWatchlist,

@@ -248,6 +248,7 @@ defmodule MediaCentaurWeb.HomeLive do
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           tmdb_ready={@tmdb_ready}
+          finished_entity_id={@finished_entity_id}
         />
       </div>
     </Layouts.app>

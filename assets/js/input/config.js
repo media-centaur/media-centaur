@@ -19,6 +19,7 @@ export const inputConfig = {
     // and its items fail `checkVisibility()`, so these count zero until it
     // opens — no modal scoping needed on the selectors.
     detail_social: "[data-nav-zone='detail_social'] [data-nav-item]",
+    detail_finish: "[data-nav-zone='detail_finish'] [data-nav-item]",
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
     detail_menu: "[data-nav-zone='detail_menu'] [data-nav-item]",
     detail_rail: "[data-nav-zone='detail_rail'] [data-nav-item]",
@@ -111,6 +112,8 @@ export const inputConfig = {
     // The social capsule in the hero's upper right (`Title.Social`): one
     // button above the action row; its panel holds no controls.
     detail_social: Context.TOOLBAR,
+    // The finish prompt above the action row (UIDR-052): Review, Delete, Done.
+    detail_finish: Context.TOOLBAR,
     // Whichever Download menu is open — the other planning mode, or the
     // scope — a short vertical list nested inside the action row.
     detail_menu: Context.TREE,
@@ -154,7 +157,7 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+      entry: ["detail_finish", "detail_actions", "detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
       layout: {
         // detail_menu is whichever glass menu the action row has open —
         // an unowned title's Download mode or scope list — present only
@@ -176,9 +179,12 @@ export const inputConfig = {
         // detail_social is the social capsule in the hero's upper right,
         // above the row; its zone carries the panel's dismiss event while
         // the panel is open, so BACK closes the panel on the way down.
-        detail_social: { down: ["detail_actions"], back: ["detail_actions"] },
+        detail_social: { down: ["detail_finish", "detail_actions"], back: ["detail_actions"] },
+        // detail_finish is the finish prompt between the hero and the row,
+        // present only after a finished movie; the entry region while shown.
+        detail_finish: { up: ["detail_social"], down: ["detail_actions"] },
         detail_actions: {
-          up: ["detail_social"],
+          up: ["detail_finish", "detail_social"],
           down: ["detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
         },
         detail_menu: {
