@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.52.0 — 2026-10-05
+
+### Improved
+
+- **Connection latency charts show fast services properly.** On **Status → Connections**, a service that answers in under a millisecond, such as a download client on the same machine, used to chart as a flat line at zero. Latency is now measured finely enough to show it, and short times read with a decimal, like **0.4 ms** or **2.3 ms**. The request history on these charts starts fresh after this update.
+- **Durations read the same way across the Status page.** The Connections charts, the recent requests list and the media import panel now all write times as **279 ms**, **1.7 s** or **2.5 min**.
+
 ## v1.51.0 — 2026-10-05
 
 ### Improved
