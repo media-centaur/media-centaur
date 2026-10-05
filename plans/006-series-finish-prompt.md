@@ -1,7 +1,6 @@
 # Finish Prompt for Series and Collection Movies
 
-Extends plan 005 (movie finish prompt, v1.53.0). Campaign:
-[`campaigns/finish-prompt-series.md`](../campaigns/finish-prompt-series.md).
+Extends plan 005 (movie finish prompt, v1.53.0). Campaign `finish-prompt-series` (retired 2026-10-05; in git history).
 
 ## Glossary
 

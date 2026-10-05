@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-05
 amended: 2026-10-05
 ---
@@ -18,6 +18,10 @@ amended: 2026-10-05
 > record are both readable. The preference becomes *Ask after finishing a
 > title* (`finish_prompt`). The consequence below excluding collections no
 > longer holds.
+>
+> **Verified 2026-10-05** on the dev instance: an ended show, a show still
+> airing and a collection movie each opened as specified, and keyboard
+> focus lands in the prompt (`mc-nav-trace`). Status: accepted.
 
 ## Context and Problem Statement
 
