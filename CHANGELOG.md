@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.51.0 — 2026-10-05
+
+### Improved
+
+- **Logs follow new lines, and stay put while you read.** The console and the systemd journal on **Status → System** now read oldest at the top, with new lines arriving at the bottom. They keep the newest line in view as lines arrive. Scroll up and they stay exactly where you are while new lines keep coming in below; a button counts them, and pressing it, pressing End, or scrolling back to the bottom follows again. Nothing is dropped while you read, so the console's **pause** button is gone.
+- **Each Status subsystem opens its logs in the console.** A subsystem's **Technical logs** now shows its latest lines across the full width of the panel, with **Open in console** below them. The console then shows only that subsystem's lines; filter changes you make there last for that visit, and **Show all logs** returns to your own console filter.
+- **The console has the sidebar.** The console now opens inside the app like any other page, with **Status** highlighted, so you can leave it from the sidebar or with Back on a keyboard or controller.
+
 ## v1.50.0 — 2026-10-04
 
 ### New
