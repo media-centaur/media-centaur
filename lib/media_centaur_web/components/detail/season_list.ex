@@ -176,14 +176,17 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           also where the cursor lands (the rows it was standing on are about to
           go away). The id keeps morphdom from rebuilding the header across that
           patch, which would drop focus. Host-owned: `ModalState` resets the
-          open seasons with each opening. --%>
+          open seasons with each opening. The head wears the episode rows'
+          chrome (`px-2 py-1.5 rounded`, the same hover fill) so the cursor
+          ring has a box to sit around instead of hugging bare text; the
+          negative margin keeps the list's rhythm where it was. --%>
     <.disclosure
       id={"season-#{@entity_id}-#{@season.season_number}"}
       open={@expanded}
       event="toggle_season"
       phx-value-season={@season.season_number}
       variant={:bare}
-      head_class="flex items-baseline gap-2 w-full text-left text-sm font-medium text-base-content/70 hover:text-base-content"
+      head_class="flex items-baseline gap-2 w-full text-left text-sm font-medium text-base-content/70 hover:text-base-content px-2 py-1.5 -my-1.5 rounded hover:bg-base-content/5"
       caret_class="size-4 self-center"
       body_class="mt-1"
     >
