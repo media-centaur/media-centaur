@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
 
   defp facet_value(%{facet: %Facet{kind: :text}} = assigns) do
     ~H"""
-    <span class="text-sm text-base-content/90 truncate" title={@facet.value}>{@facet.value}</span>
+    <span class="text-sm text-base-content/90 truncate" data-tip={@facet.value}>{@facet.value}</span>
     """
   end
 

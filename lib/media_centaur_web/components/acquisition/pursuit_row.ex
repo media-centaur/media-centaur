@@ -299,7 +299,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
           class="text-base-content/55 hover:text-error"
           phx-value-id={@queue_item_id}
           phx-value-title={@cancel_title}
-          title="Cancel and delete"
+          data-tip="Cancel and delete"
           aria-label="Cancel download"
         >
           <.icon name="hero-x-mark-mini" class="size-4" />

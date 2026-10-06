@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
             <span
               :if={group.shared_release_title}
               class="hidden sm:block ml-auto max-w-[40%] truncate text-xs text-base-content/55"
-              title={group.shared_release_title}
+              data-tip={group.shared_release_title}
             >
               {group.shared_release_title}
             </span>
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
       <span
         :if={@unit.release_title && @unit.release_title != @hoisted_release}
         class="hidden sm:block max-w-[40%] truncate text-xs text-base-content/55"
-        title={@unit.release_title}
+        data-tip={@unit.release_title}
       >
         {@unit.release_title}
       </span>
@@ -141,7 +141,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
         class="flex-shrink-0 self-center"
         phx-click={@on_change_target}
         phx-value-unit-id={@unit.id}
-        title="Change target — pick a fresh release for this item"
+        data-tip="Change target — pick a fresh release for this item"
+        aria-label="Change target"
         data-nav-item
         tabindex="0"
       >

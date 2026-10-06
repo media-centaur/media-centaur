@@ -212,7 +212,7 @@ defmodule MediaCentaurWeb.Components.Settings do
         PathCheck.ok?(@result) && "text-success",
         !PathCheck.ok?(@result) && "text-warning"
       ]}
-      title={if PathCheck.ok?(@result), do: "Found at #{@path}", else: PathCheck.label(@result)}
+      data-tip={if PathCheck.ok?(@result), do: "Found at #{@path}", else: PathCheck.label(@result)}
       aria-label={PathCheck.label(@result)}
     >
       <.icon :if={PathCheck.ok?(@result)} name="hero-check-circle-mini" class="size-3.5" />
@@ -449,7 +449,7 @@ defmodule MediaCentaurWeb.Components.Settings do
               !@truncate_left && "truncate",
               @mono && "font-mono"
             ]}
-            title={item}
+            data-tip={item}
           >
             <bdo :if={@truncate_left} dir="ltr">{item}</bdo>
             <%= if !@truncate_left do %>

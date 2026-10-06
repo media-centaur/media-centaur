@@ -164,9 +164,8 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
                 class={[heatmap_class(cell.count), cell.count > 0 && "cursor-pointer"]}
                 phx-click={if cell.count > 0, do: "filter_date"}
                 phx-value-date={if cell.count > 0, do: Date.to_iso8601(cell.date)}
-              >
-                <title :if={cell.count > 0}>{heatmap_tooltip(cell)}</title>
-              </rect>
+                data-tip={if cell.count > 0, do: heatmap_tooltip(cell)}
+              />
             </svg>
           </div>
         </div>

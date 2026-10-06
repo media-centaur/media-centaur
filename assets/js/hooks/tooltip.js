@@ -5,6 +5,9 @@
 //   ...anywhere in the document: <button data-tip="Review">…</button>
 //   <aside id="sidebar" data-tip-placement="right">…links with data-tip…</aside>
 //
+// This is the app's only tooltip. The native `title` attribute is banned
+// (Credo MC0042): the browser draws it outside the page in its own chrome,
+// so it ignores the theme and the UI scale, and Chromium clips its box.
 // daisyUI tooltips are ::before/::after pseudo-elements of the anchor, so the
 // sidebar rail (overflow-y: auto) and each link (overflow: hidden) clip them
 // at the 52px collapsed width, and every other surface would have to match
@@ -12,7 +15,10 @@
 // nothing clips it), listening on the document and moving next to whichever
 // anchor is hovered or focused, reading the label from that anchor's
 // data-tip. Placement comes from the nearest data-tip-placement — "right"
-// on the sidebar rail, "bottom" (centered under the anchor) everywhere else.
+// on the sidebar rail, "bottom" (centered under the anchor) everywhere else;
+// a tip with no room beneath flips above, and every tip is kept inside the
+// viewport's edge margin (fitToViewport), since a label may be a full file
+// path on an anchor at the window's edge.
 //
 // Feel: the first hover waits a beat (COLD_DELAY_MS); while the tooltip is
 // warm — visible, or hidden less than WARM_WINDOW_MS ago — the next anchor's
@@ -35,6 +41,9 @@ export const WARM_WINDOW_MS = 250
 // button the same gap read as detached, so the bottom gap is tighter.
 const GAP_RIGHT_PX = 14
 const GAP_BELOW_PX = 8
+
+// The least the tip keeps between itself and the viewport's edge.
+export const EDGE_MARGIN_PX = 8
 
 /**
  * Should a tooltip show at all? A label is required; a sidebar anchor also
@@ -92,6 +101,34 @@ export function tooltipPosition(rect, scale, placement = "bottom") {
 }
 
 /**
+ * Keep the tip on screen. `position` is tooltipPosition's anchor point,
+ * `size` the tip's own box and `viewport` the window — all in local units.
+ * "bottom": x is clamped so the centred tip stays inside the edge margin,
+ * and when the tip would run past the bottom it flips above the anchor
+ * ("top", bottom edge on `anchorTop` minus the gap). "right": y is clamped
+ * the same way; the rail's tips never reach the right edge.
+ * @param {{position: {x: number, y: number}, placement: "right"|"bottom", size: {width: number, height: number}, viewport: {width: number, height: number}, anchorTop: number}} args
+ * @returns {{x: number, y: number, placement: "right"|"bottom"|"top"}}
+ */
+export function fitToViewport({ position, placement, size, viewport, anchorTop }) {
+  if (placement === "right") {
+    const y = clamp(position.y, EDGE_MARGIN_PX + size.height / 2, viewport.height - EDGE_MARGIN_PX - size.height / 2)
+    return { x: position.x, y, placement }
+  }
+  const x = clamp(position.x, EDGE_MARGIN_PX + size.width / 2, viewport.width - EDGE_MARGIN_PX - size.width / 2)
+  if (position.y + size.height <= viewport.height - EDGE_MARGIN_PX) {
+    return { x, y: position.y, placement: "bottom" }
+  }
+  return { x, y: anchorTop - GAP_BELOW_PX, placement: "top" }
+}
+
+// Lower bound wins when the range is inverted (a tip wider than the
+// viewport), so the tip pins to the leading margin instead of oscillating.
+function clamp(value, low, high) {
+  return Math.max(low, Math.min(value, high))
+}
+
+/**
  * Should a click hide the tooltip? Only a real pointer click (detail ≥ 1)
  * means the user is acting — keyboard nav activates links via
  * element.click() (detail 0) on focus, and hiding on those would kill the
@@ -109,13 +146,17 @@ export function clickHides(event) {
  * open tooltip can glide; `entrance` starts a few px back along the
  * placement axis for the slide-in.
  * @param {{x: number, y: number}} position
- * @param {"right"|"bottom"} placement
+ * @param {"right"|"bottom"|"top"} placement
  * @returns {{resting: string, entrance: string}}
  */
 export function tooltipTransforms({ x, y }, placement = "bottom") {
   if (placement === "right") {
     const resting = `translate3d(${x}px, ${y}px, 0) translateY(-50%)`
     return { resting, entrance: `${resting} translateX(-6px)` }
+  }
+  if (placement === "top") {
+    const resting = `translate3d(${x}px, ${y}px, 0) translate(-50%, -100%)`
+    return { resting, entrance: `${resting} translateY(6px)` }
   }
   const resting = `translate3d(${x}px, ${y}px, 0) translateX(-50%)`
   return { resting, entrance: `${resting} translateY(-6px)` }
@@ -203,12 +244,19 @@ export const Tooltip = {
     const scale = parseUiScale(
       getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")
     )
-    const placement = placementFor(anchor)
-    const { resting, entrance } = tooltipTransforms(
-      tooltipPosition(anchor.getBoundingClientRect(), scale, placement),
-      placement
-    )
+    // The label sets the tip's size, so it goes in before measuring. Every
+    // rect is viewport (zoomed) units; the fit works in local units.
     this.tip.textContent = label
+    const rect = anchor.getBoundingClientRect()
+    const box = this.tip.getBoundingClientRect()
+    const fit = fitToViewport({
+      position: tooltipPosition(rect, scale, placementFor(anchor)),
+      placement: placementFor(anchor),
+      size: { width: box.width / scale, height: box.height / scale },
+      viewport: { width: window.innerWidth / scale, height: window.innerHeight / scale },
+      anchorTop: rect.top / scale,
+    })
+    const { resting, entrance } = tooltipTransforms(fit, fit.placement)
     if (this.visible) {
       // Already open: transform transition carries it to the new anchor.
       this.tip.style.transform = resting

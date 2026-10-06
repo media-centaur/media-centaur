@@ -261,12 +261,16 @@ Stories: `/storybook/title/social_glyph`, `social_glyphs`,
 ### File Paths
 
 ```html
-<span class="truncate-left" title={full_path}>
+<span class="truncate-left" data-tip={full_path}>
   <bdo dir="ltr">{full_path}</bdo>
 </span>
 ```
 
-Start-truncation: filename (most identifying part) always visible, directory prefix elided. Full path in `title` tooltip. The `<bdo>` prevents RTL reordering of path separators.
+Start-truncation: filename (most identifying part) always visible, directory prefix elided. Full path in the app tooltip (`data-tip`). The `<bdo>` prevents RTL reordering of path separators.
+
+### Tooltips
+
+One tooltip: the `.app-tooltip` element in the layout, moved beside whichever `data-tip` anchor is hovered or focused by the `Tooltip` hook (`assets/js/hooks/tooltip.js`). Any element takes `data-tip`; it tips beneath itself, flips above when there is no room, and stays inside the viewport. The sidebar rail tips to the right (`data-tip-placement="right"`) and only while collapsed. The native `title` attribute and SVG `<title>` are banned (Credo **MC0042**): the browser draws them in its own chrome, unthemed and unscaled, and focus never reveals them. `data-tip` is a hover label only, so an icon-only control keeps `aria-label` for its accessible name.
 
 ### Durations
 

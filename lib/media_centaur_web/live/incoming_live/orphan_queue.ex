@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
       id={"orphan-#{@item.id}"}
       class="px-4 py-3 border-b border-base-content/5 last:border-0 flex items-center gap-3"
     >
-      <span class="flex-1 min-w-0 text-sm truncate" title={@item.title}>{@item.title}</span>
+      <span class="flex-1 min-w-0 text-sm truncate" data-tip={@item.title}>{@item.title}</span>
       <.badge
         :if={@item.state}
         variant={Logic.state_badge_variant(@item.state)}
@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
         class="text-base-content/55 hover:text-error"
         phx-value-id={@item.id}
         phx-value-title={@item.title}
-        title="Cancel and delete"
+        data-tip="Cancel and delete"
         aria-label="Cancel download"
       >
         <.icon name="hero-x-mark-mini" class="size-4" />

@@ -319,7 +319,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         data-nav-item
         tabindex="0"
         class="flex items-center gap-2 w-full px-1 py-1.5 rounded cursor-pointer text-sm text-base-content/70 hover:text-base-content hover:bg-base-content/5"
-        title={@group.dir}
+        data-tip={@group.dir}
       >
         <.icon
           name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
@@ -419,7 +419,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           name={if @absent, do: "hero-exclamation-triangle-mini", else: "hero-document-mini"}
           class={"size-3.5 flex-shrink-0 #{if @absent, do: "text-warning", else: "text-base-content/40"}"}
         />
-        <span class="truncate font-mono text-xs text-base-content/80" title={@file_path}>
+        <span class="truncate font-mono text-xs text-base-content/80" data-tip={@file_path}>
           {@filename}
         </span>
         <span :if={@size} class="text-xs text-base-content/55 flex-shrink-0 ml-auto">
@@ -467,7 +467,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           <span class="uppercase tracking-wider text-base-content/55 shrink-0">
             Container title
           </span>
-          <span class="truncate text-base-content/60" title={@media_info.container_title}>
+          <span class="truncate text-base-content/60" data-tip={@media_info.container_title}>
             {@media_info.container_title}
           </span>
         </div>

@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
               <div
                 :if={entry.detail}
                 class="text-xs text-base-content/55 truncate"
-                title={entry.detail}
+                data-tip={entry.detail}
               >
                 {entry.detail}
               </div>

@@ -321,7 +321,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
           class="glass-inset rounded-lg p-3 flex items-center gap-3"
         >
           <div class="min-w-0 flex-1">
-            <div class="truncate-left text-sm font-mono" title={row.file_path}>
+            <div class="truncate-left text-sm font-mono" data-tip={row.file_path}>
               <bdo dir="ltr">{row.file_path}</bdo>
             </div>
             <div class="text-xs text-base-content/55">release labelled {row.claimed}</div>

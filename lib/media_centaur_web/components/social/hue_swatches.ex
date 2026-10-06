@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
           {hue_style(@theirs_hue)}
           aria-pressed={to_string(is_nil(@selected))}
           aria-label="Theirs"
-          title="Theirs"
+          data-tip="Theirs"
           phx-click={@event}
           {phx_values(Map.put(@values, "hue", ""))}
           data-role="theirs"
@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
           {hue_style(hue)}
           aria-pressed={to_string(@selected == hue)}
           aria-label={name}
-          title={name}
+          data-tip={name}
           phx-click={@event}
           {phx_values(Map.put(@values, "hue", hue))}
           data-hue={hue}

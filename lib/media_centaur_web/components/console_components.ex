@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           ]}
           phx-click="toggle_component"
           phx-value-component={component}
-          title={"click to toggle #{component}"}
+          data-tip={"click to toggle #{component}"}
           data-nav-item
           tabindex="0"
         >
@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
           ]}
           phx-click="toggle_component"
           phx-value-component={component}
-          title={"click to toggle #{component}"}
+          data-tip={"click to toggle #{component}"}
           data-nav-item
           tabindex="0"
         >

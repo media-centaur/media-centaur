@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
       <div
         :if={@release_subtitle}
         class="text-xs font-mono text-base-content/55 truncate"
-        title={@release_subtitle}
+        data-tip={@release_subtitle}
       >
         {@release_subtitle}
       </div>
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           <li
             :for={query <- @vm.search_queries}
             class="font-mono text-base-content/80 truncate"
-            title={query}
+            data-tip={query}
           >
             {query}
           </li>

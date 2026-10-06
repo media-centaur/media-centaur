@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test"
 import {
   COLD_DELAY_MS,
   WARM_WINDOW_MS,
+  EDGE_MARGIN_PX,
   clickHides,
+  fitToViewport,
   focusReveals,
   parseUiScale,
   shouldShow,
@@ -112,6 +114,84 @@ describe("tooltipPosition", () => {
   })
 })
 
+// A label can be a full file path or a sentence, and an anchor can sit at
+// the viewport's edge. The native title tooltip stayed on screen; so must
+// this one: the centred tip is clamped inside the edge margin, and a tip
+// with no room beneath its anchor flips above it. Everything is in local
+// (unzoomed) units, like tooltipPosition's output.
+describe("fitToViewport", () => {
+  const viewport = { width: 1000, height: 600 }
+  const size = { width: 200, height: 36 }
+
+  test("bottom with room: the anchor point is returned as is", () => {
+    const fit = fitToViewport({
+      position: { x: 500, y: 300 },
+      placement: "bottom",
+      size,
+      viewport,
+      anchorTop: 256,
+    })
+    expect(fit).toEqual({ x: 500, y: 300, placement: "bottom" })
+  })
+
+  test("bottom near the left edge: x is pushed in so the tip's left edge sits on the margin", () => {
+    const fit = fitToViewport({
+      position: { x: 40, y: 300 },
+      placement: "bottom",
+      size,
+      viewport,
+      anchorTop: 256,
+    })
+    expect(fit.x).toBe(EDGE_MARGIN_PX + size.width / 2)
+    expect(fit.placement).toBe("bottom")
+  })
+
+  test("bottom near the right edge: x is pulled in so the tip's right edge sits on the margin", () => {
+    const fit = fitToViewport({
+      position: { x: 980, y: 300 },
+      placement: "bottom",
+      size,
+      viewport,
+      anchorTop: 256,
+    })
+    expect(fit.x).toBe(viewport.width - EDGE_MARGIN_PX - size.width / 2)
+  })
+
+  test("bottom with no room beneath: flips above the anchor by the same gap", () => {
+    // Anchor bottom at 570 → tip would end at 614, past 600 - margin.
+    const fit = fitToViewport({
+      position: { x: 500, y: 578 },
+      placement: "bottom",
+      size,
+      viewport,
+      anchorTop: 540,
+    })
+    expect(fit).toEqual({ x: 500, y: 540 - 8, placement: "top" })
+  })
+
+  test("a tip wider than the viewport is pinned to the left margin rather than oscillating", () => {
+    const fit = fitToViewport({
+      position: { x: 500, y: 300 },
+      placement: "bottom",
+      size: { width: 1200, height: 36 },
+      viewport,
+      anchorTop: 256,
+    })
+    expect(fit.x).toBe(EDGE_MARGIN_PX + 600)
+  })
+
+  test("right: y is clamped inside the margin; x is untouched", () => {
+    const fit = fitToViewport({
+      position: { x: 66, y: 590 },
+      placement: "right",
+      size,
+      viewport,
+      anchorTop: 572,
+    })
+    expect(fit).toEqual({ x: 66, y: viewport.height - EDGE_MARGIN_PX - size.height / 2, placement: "right" })
+  })
+})
+
 // `--ui-scale` arrives as a raw custom-property string from computed style.
 describe("parseUiScale", () => {
   test("numeric string → number", () => {
@@ -141,5 +221,11 @@ describe("tooltipTransforms", () => {
     const { resting, entrance } = tooltipTransforms({ x: 34, y: 150 })
     expect(resting).toBe("translate3d(34px, 150px, 0) translateX(-50%)")
     expect(entrance).toBe(`${resting} translateY(-6px)`)
+  })
+
+  test("top: resting sits its bottom edge on the point; entrance slides in from below", () => {
+    const { resting, entrance } = tooltipTransforms({ x: 34, y: 92 }, "top")
+    expect(resting).toBe("translate3d(34px, 92px, 0) translate(-50%, -100%)")
+    expect(entrance).toBe(`${resting} translateY(6px)`)
   })
 })

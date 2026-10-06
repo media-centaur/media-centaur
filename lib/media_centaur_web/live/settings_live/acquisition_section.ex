@@ -91,7 +91,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             size="xs"
             phx-click="detect_download_client"
             disabled={@download_client_detecting || !@prowlarr_configured}
-            title={if !@prowlarr_configured, do: "Needs Prowlarr"}
+            data-tip={if !@prowlarr_configured, do: "Needs Prowlarr"}
             data-nav-item
             tabindex="0"
           >

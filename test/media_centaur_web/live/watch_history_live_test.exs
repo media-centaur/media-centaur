@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       {:ok, _view, html} = live_async!(conn, "/history")
 
       assert count_substrings(html, "data-heatmap=") == 0
-      assert count_substrings(html, "<title>") == 0
+      assert tipped_cells(html) == 0
       assert count_substrings(html, "phx-value-date") == 0
       assert html =~ "Every finished watch lands here"
     end
@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       {:ok, _view, html} = live_async!(conn, "/history")
 
-      assert count_substrings(html, "<title>") == 1
+      assert tipped_cells(html) == 1
       assert count_substrings(html, "phx-value-date") == 1
     end
 
@@ -71,6 +71,12 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
   defp count_substrings(string, pattern) do
     string |> String.split(pattern) |> length() |> Kernel.-(1)
+  end
+
+  # Heatmap cells carrying the app tooltip's label. The sidebar's links
+  # carry `data-tip` too, so the count is scoped to `<rect>`.
+  defp tipped_cells(html) do
+    ~r/<rect[^>]*data-tip=/ |> Regex.scan(html) |> length()
   end
 
   describe "mount" do
