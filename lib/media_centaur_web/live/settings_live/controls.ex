@@ -100,7 +100,8 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
                 phx-value-id={Atom.to_string(view.id)}
                 phx-value-kind="keyboard"
                 class="controls-icon-btn"
-                title="Remap key"
+                data-tip="Remap key"
+                aria-label="Remap key"
                 data-nav-item
                 tabindex="0"
               >
@@ -111,7 +112,8 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
                 phx-value-id={Atom.to_string(view.id)}
                 phx-value-kind="keyboard"
                 class="controls-icon-btn danger"
-                title="Clear key"
+                data-tip="Clear key"
+                aria-label="Clear key"
                 data-nav-item
                 tabindex="0"
               >

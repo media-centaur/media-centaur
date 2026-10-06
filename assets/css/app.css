@@ -600,7 +600,11 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.5rem;
-  white-space: nowrap;
+  /* A label is usually a word or a sentence, but it can be a full file
+     path on a truncated row: cap the measure and let it wrap, breaking
+     inside a path (no spaces) rather than running off screen. */
+  max-width: min(28rem, 100vw - 1rem);
+  overflow-wrap: anywhere;
   color: oklch(from var(--color-base-content) l c h / 0.95);
   background: var(--glass-nav-bg);
   @apply backdrop-blur-[12px];

@@ -98,18 +98,18 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             <div class="min-w-0 flex-1 space-y-0.5">
               <%= if entry["name"] && entry["name"] != "" do %>
                 <div class="font-medium truncate">{entry["name"]}</div>
-                <div class="text-sm text-base-content/60 truncate-left" title={entry["dir"]}>
+                <div class="text-sm text-base-content/60 truncate-left" data-tip={entry["dir"]}>
                   <bdo dir="ltr">{entry["dir"]}</bdo>
                 </div>
               <% else %>
-                <div class="font-medium truncate-left" title={entry["dir"]}>
+                <div class="font-medium truncate-left" data-tip={entry["dir"]}>
                   <bdo dir="ltr">{entry["dir"]}</bdo>
                 </div>
               <% end %>
               <div
                 :if={MediaDirsLogic.show_images_dir?(entry)}
                 class="text-xs text-base-content/55 flex gap-1 min-w-0"
-                title={entry["images_dir"]}
+                data-tip={entry["images_dir"]}
               >
                 <span class="shrink-0">Images cached at</span>
                 <span class="truncate-left"><bdo dir="ltr">{entry["images_dir"]}</bdo></span>

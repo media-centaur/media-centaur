@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
             id={"overview-recent-#{item.id}"}
             navigate={~p"/"}
             class="card-hover relative aspect-[2/3] w-16 shrink-0 rounded overflow-hidden glass-inset block"
-            title={item.name}
+            data-tip={item.name}
           >
             <img
               :if={item.poster_url}
@@ -171,7 +171,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
 
       <div :for={drive <- @drives} class="space-y-1">
         <div class="flex items-baseline justify-between gap-2">
-          <span class="text-sm truncate-left" title={drive_label(drive)}>
+          <span class="text-sm truncate-left" data-tip={drive_label(drive)}>
             <bdo dir="ltr">{drive_label(drive)}</bdo>
           </span>
           <span class="text-xs font-mono text-base-content/60 shrink-0">

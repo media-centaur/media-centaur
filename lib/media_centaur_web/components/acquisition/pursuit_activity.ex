@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           <li
             :for={query <- @vm.search_queries}
             class="font-mono text-base-content/70 truncate"
-            title={query}
+            data-tip={query}
           >
             {query}
           </li>
@@ -56,7 +56,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
             :if={length(@vm.downloads) > 1 || @vm.downloads_done > 0}
             class="flex items-baseline justify-between gap-3 text-xs"
           >
-            <span class="min-w-0 truncate font-mono text-base-content/55" title={entry.release_title}>
+            <span
+              class="min-w-0 truncate font-mono text-base-content/55"
+              data-tip={entry.release_title}
+            >
               {entry.release_title}
             </span>
             <span

@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
           <li
             :for={query <- @vm.search_queries}
             class="font-mono text-base-content/80 truncate"
-            title={query}
+            data-tip={query}
           >
             {query}
           </li>

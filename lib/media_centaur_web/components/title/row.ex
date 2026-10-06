@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
             type="button"
             class="cursor-pointer rounded-full"
             data-component="status-pill-link"
-            title="Open the Activity tab"
+            data-tip="Open the Activity tab"
             phx-click={JS.patch(@pursuit_path)}
           >
             <.status_pill status={@next_release.status} percent={@next_release.percent} />

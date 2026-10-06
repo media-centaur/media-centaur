@@ -125,7 +125,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
 
           <div :for={row <- @rows} id={"needs-attention-storage-#{row.id}"} class="space-y-1.5">
             <div class="flex items-baseline justify-between gap-2">
-              <span class="flex items-center gap-1.5 truncate text-sm" title={row.mount_point}>
+              <span class="flex items-center gap-1.5 truncate text-sm" data-tip={row.mount_point}>
                 <.icon :if={row.icon} name={row.icon} class={"size-4 shrink-0 #{row.text_class}"} />
                 {row.label}
               </span>

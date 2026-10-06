@@ -488,7 +488,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <span
             :if={episode.tracked? && !episode.in_library?}
             class="flex-shrink-0 text-xs text-info/70"
-            title="Release tracking is already watching for this — check it to grab it in this plan instead"
+            data-tip="Release tracking is already watching for this — check it to grab it in this plan instead"
           >
             Tracked
           </span>
@@ -790,7 +790,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
                       else: "plan_show_alternatives"
                   }
                   phx-value-unit-id={release.swap_unit_id}
-                  title="See the other options for this"
+                  data-tip="See the other options for this"
                   data-nav-item
                   tabindex="0"
                 >
@@ -805,7 +805,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
                   phx-click="plan_swap_release"
                   phx-value-unit-id={release.swap_unit_id}
                   phx-value-guid={release.guid}
-                  title="Remove this release — exclude it everywhere and re-solve"
+                  data-tip="Remove this release — exclude it everywhere and re-solve"
+                  aria-label="Remove this release"
                   data-nav-item
                   tabindex="0"
                 >
@@ -836,7 +837,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               phx-click="plan_swap_release"
               phx-value-unit-id={overlap.exclude_unit_id}
               phx-value-guid={overlap.exclude_guid}
-              title="Exclude this release everywhere and let the planner re-solve without it"
+              data-tip="Exclude this release everywhere and let the planner re-solve without it"
               data-nav-item
               tabindex="0"
             >
@@ -863,7 +864,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               phx-click="plan_choose_release"
               phx-value-unit-id={offer.unit_id}
               phx-value-guid={offer.guid}
-              title={offer.title}
+              data-tip={offer.title}
               data-nav-item
               tabindex="0"
             >
@@ -903,7 +904,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
                 size="xs"
                 class="flex-shrink-0"
                 phx-click="plan_accept_lower_quality"
-                title="Grab the best of what exists for this title, and keep accepting lower quality for it"
+                data-tip="Grab the best of what exists for this title, and keep accepting lower quality for it"
                 data-nav-item
                 tabindex="0"
               >
@@ -936,7 +937,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               variant="dismiss"
               size="sm"
               phx-click="plan_stop_searching"
-              title="Stop now and keep what's been found so far — nothing is grabbed"
+              data-tip="Stop now and keep what's been found so far — nothing is grabbed"
               data-nav-item
               tabindex="0"
             >
@@ -1061,7 +1062,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           phx-click={
             if @variant == :rejected, do: "plan_hide_rejected", else: "plan_hide_alternatives"
           }
-          title="Close"
+          data-tip="Close"
+          aria-label="Close"
           data-nav-item
           tabindex="0"
         >
@@ -1099,7 +1101,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           }
           phx-value-unit-id={@alternatives.unit_id}
           phx-value-guid={alternative.guid}
-          title="Choose this release"
+          data-tip="Choose this release"
           data-nav-item
           tabindex="0"
         />
@@ -1119,7 +1121,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           phx-click="plan_find_more_alternatives"
           phx-value-unit-id={@alternatives.unit_id}
           disabled={@alternatives[:searching?] == true}
-          title="Search the indexers for more options for this span"
+          data-tip="Search the indexers for more options for this span"
           data-nav-item
           tabindex="0"
         >

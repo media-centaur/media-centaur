@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
         :if={@logo_url}
         src={sized_image_url(@logo_url, 960)}
         alt={@title}
-        title={@title}
+        data-tip={@title}
         class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
         loading="eager"
         decoding="sync"

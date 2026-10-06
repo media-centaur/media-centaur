@@ -68,14 +68,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
     </span>
     <span
       class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"
-      title={@entry.title}
+      data-tip={@entry.title}
     >
       {@entry.title}
     </span>
     <span
       :if={@entry.suspicious?}
       class="flex-shrink-0 text-[10px] uppercase tracking-wider text-error/80"
-      title="The release name looks like executable bait — only grab it if you're sure."
+      data-tip="The release name looks like executable bait — only grab it if you're sure."
     >
       ⚠ looks fake
     </span>

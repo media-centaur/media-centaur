@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.DismissedFiles do
         <li :for={file <- @files} id={"#{@id}-#{file.id}"} class="flex items-center gap-2">
           <span
             class="flex-1 min-w-0 font-mono text-xs text-base-content/70 truncate-left"
-            title={file.path}
+            data-tip={file.path}
           >
             <bdo dir="ltr">{file.path}</bdo>
           </span>

@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
               </span>
               <code
                 class="text-sm truncate-left flex-1"
-                title={health.dir}
+                data-tip={health.dir}
               >
                 <bdo dir="ltr">{health.dir}</bdo>
               </code>
@@ -197,7 +197,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
           <code
             :if={db_role}
             class="text-xs truncate-left text-base-content/55 mt-1 block ml-2"
-            title={db_role.path}
+            data-tip={db_role.path}
           >
             <bdo dir="ltr">{db_role.path}</bdo>
           </code>

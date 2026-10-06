@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Components.Settings.ConnectionRow do
               {@address} <.icon name="hero-arrow-top-right-on-square-mini" class="size-3" />
             </a>
             <span :if={@address && @detail}>·</span>
-            <span :if={@detail} class="truncate" title={@detail}>{@detail}</span>
+            <span :if={@detail} class="truncate" data-tip={@detail}>{@detail}</span>
           </div>
         </div>
         <div class="ml-auto min-w-0 flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">

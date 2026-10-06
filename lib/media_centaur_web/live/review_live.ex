@@ -768,7 +768,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             <p
               :if={@file_count == 1}
               class="font-mono text-xs text-base-content/55 truncate-left mt-1"
-              title={relative_file_path(@file)}
+              data-tip={relative_file_path(@file)}
             >
               <bdo dir="ltr">{relative_file_path(@file)}</bdo>
             </p>
@@ -989,7 +989,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </.badge>
           <span
             class="font-mono text-xs text-base-content/70 truncate-left"
-            title={relative_file_path(file)}
+            data-tip={relative_file_path(file)}
           >
             <bdo dir="ltr">{relative_file_path(file)}</bdo>
           </span>

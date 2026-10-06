@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-selected={@selected || nil}
       data-nav-item
       tabindex="0"
-      title={@movie.name}
+      data-tip={@movie.name}
       class="group relative aspect-[16/9] rounded-lg overflow-hidden glass-inset text-left cursor-pointer"
     >
       <img
@@ -159,7 +159,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
     <div
       id={"rail-upcoming-#{@item.part_tmdb_id}"}
       data-role="rail-upcoming"
-      title={@item.title}
+      data-tip={@item.title}
       class="relative aspect-[16/9] rounded-lg border border-dashed border-base-content/15 opacity-55"
     >
       <div class="absolute inset-0 flex items-center justify-center">

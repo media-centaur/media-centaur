@@ -207,6 +207,10 @@
           # default counts completed jobs and silently drops a new one.
           {MediaCentaur.Credo.Checks.ObanUniqueStatesDeclared, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
+          # MC0042 bans the native `title` tooltip (and SVG `<title>`): the
+          # browser draws it outside the page — unthemed, unscaled, clipped.
+          # The app tooltip (`data-tip`, hooks/tooltip.js) is the one label.
+          {MediaCentaur.Credo.Checks.NativeTitleTooltip, []},
           # MC0027 bans `data-confirm` — the native browser dialog is unthemed
           # and not d-pad reachable, which is disqualifying for a couch app.
           # The check's moduledoc carries the three-way rule that replaced it
