@@ -30,7 +30,14 @@ defmodule MediaCentaurWeb.Layouts do
 
   ## Examples
 
-      <Layouts.app flash={@flash}>
+      <Layouts.app
+        flash={@flash}
+        badges={@badges}
+        show_social={@show_social}
+        show_apps={@show_apps}
+        profile={@profile}
+        profiles={@profiles}
+      >
         <h1>Content</h1>
       </Layouts.app>
 
@@ -121,14 +128,17 @@ defmodule MediaCentaurWeb.Layouts do
       >
         <%!-- The profile switcher (UIDR-053 rule 3): the active profile's
               tile and name, a link to the picker; present only when there is
-              someone to switch to. --%>
+              someone to switch to. data-nav-defer-activate: sidebar entries
+              activate on focus, but merely walking the cursor over the switcher
+              must not open the picker — only an explicit SELECT does. --%>
         <.link
           :if={length(@profiles) > 1}
           id="sidebar-profile"
           navigate="/profiles"
-          class="sidebar-link mb-3"
+          class="sidebar-link sidebar-link-profile mb-3"
           data-tip="Switch profile"
           data-nav-item
+          data-nav-defer-activate
           tabindex="0"
         >
           <IdentityTile.identity_tile

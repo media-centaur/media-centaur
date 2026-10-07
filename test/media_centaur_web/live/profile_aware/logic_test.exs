@@ -18,6 +18,17 @@ defmodule MediaCentaurWeb.Live.ProfileAware.LogicTest do
     assert Logic.resolve("gone", [@me, @ana]) == :pick
   end
 
+  test "the cookie's profile is gone and one remains: that one is active" do
+    assert Logic.resolve(@ana.id, [@me]) == {:active, @me}
+  end
+
+  test "return_to is the page's path, with its query when it has one, form-encoded" do
+    assert Logic.return_to("http://localhost/guide") == "%2Fguide"
+
+    assert Logic.return_to("http://localhost/settings?section=tmdb") ==
+             "%2Fsettings%3Fsection%3Dtmdb"
+  end
+
   test "no profiles at all asks" do
     assert Logic.resolve(nil, []) == :pick
   end
