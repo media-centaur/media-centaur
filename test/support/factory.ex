@@ -505,8 +505,12 @@ defmodule MediaCentaur.TestFactory do
     {:ok, profile} = MediaCentaur.Profiles.add(Map.get(attrs, :name, "Sample Profile"))
 
     case Map.get(attrs, :hue) do
-      nil -> profile
-      hue -> elem(MediaCentaur.Profiles.set_hue(profile, hue), 1)
+      nil ->
+        profile
+
+      hue ->
+        {:ok, profile} = MediaCentaur.Profiles.set_hue(profile, hue)
+        profile
     end
   end
 

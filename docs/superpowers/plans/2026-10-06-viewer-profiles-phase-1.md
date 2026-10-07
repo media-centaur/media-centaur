@@ -447,8 +447,17 @@ defmodule MediaCentaur.ProfilesTest do
     assert PictureStore.url(ana.id, 1) == nil
   end
 
-  test "the social profiles table kept its rows and its unique key" do
+  test "the social profile schema reads social_profiles and the table carries its unique key" do
     assert MediaCentaur.Social.Profile.__schema__(:source) == "social_profiles"
+
+    %{columns: columns, rows: rows} = Repo.query!("PRAGMA index_list('social_profiles')")
+    indexes = Enum.map(rows, &Map.new(Enum.zip(columns, &1)))
+
+    assert [%{"name" => "social_profiles_pubkey_index"}] =
+             Enum.filter(indexes, &(&1["unique"] == 1 and &1["origin"] != "pk"))
+
+    %{columns: columns, rows: rows} = Repo.query!("PRAGMA index_info('social_profiles_pubkey_index')")
+    assert ["pubkey"] = Enum.map(rows, &Map.new(Enum.zip(columns, &1))["name"])
   end
 end
 ```

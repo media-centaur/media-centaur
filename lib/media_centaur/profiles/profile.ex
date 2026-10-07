@@ -20,7 +20,7 @@ defmodule MediaCentaur.Profiles.Profile do
   schema "profiles" do
     field :name, :string
     field :hue, :integer
-    field :picture_at, :utc_datetime
+    field :picture_at, :utc_datetime_usec
 
     timestamps()
   end

@@ -41,8 +41,10 @@ defmodule MediaCentaur.ProfilesTest do
     [me] = Profiles.list()
     Profiles.subscribe()
 
-    assert {:ok, %Profile{name: "Sample Name"}} = Profiles.rename(me, " Sample Name ")
+    assert {:ok, %Profile{name: "Sample Name"} = renamed} = Profiles.rename(me, " Sample Name ")
     assert_receive {:profile_changed, %Events.ProfileChanged{profile: %Profile{name: "Sample Name"}}}
+    assert {:ok, %Profile{name: "Sample Name"}} = Profiles.rename(renamed, "Sample Name")
+    refute_receive {:profile_changed, _}, 50
     assert {:error, :name_required} = Profiles.rename(me, "")
 
     assert {:ok, %Profile{hue: 195}} = Profiles.set_hue(me, 195)
@@ -62,11 +64,35 @@ defmodule MediaCentaur.ProfilesTest do
     assert File.read!(Path.join(data_dir, "images/profiles/#{me.id}.webp")) == "webp-bytes"
 
     assert Profiles.picture_url(with_picture) ==
-             "/media-images/images/profiles/#{me.id}.webp?v=#{DateTime.to_unix(at)}"
+             "/media-images/images/profiles/#{me.id}.webp?v=#{DateTime.to_unix(at, :microsecond)}"
 
     assert {:ok, %Profile{picture_at: nil} = without} = Profiles.set_picture(with_picture, :none)
     refute File.exists?(Path.join(data_dir, "images/profiles/#{me.id}.webp"))
     assert Profiles.picture_url(without) == nil
+  end
+
+  test "picture_url answers nil when the row has a picture time but the file is missing",
+       %{data_dir: data_dir} do
+    [me] = Profiles.list()
+    {:ok, with_picture} = Profiles.set_picture(me, {:new, "webp-bytes"})
+    File.rm!(Path.join(data_dir, "images/profiles/#{me.id}.webp"))
+    assert Profiles.picture_url(with_picture) == nil
+  end
+
+  test "removing the picture of a profile that has none leaves no file", %{data_dir: data_dir} do
+    [me] = Profiles.list()
+    assert {:ok, %Profile{picture_at: nil}} = Profiles.set_picture(me, :none)
+    refute File.exists?(Path.join(data_dir, "images/profiles/#{me.id}.webp"))
+  end
+
+  test "removing an already removed profile answers ok and broadcasts nothing" do
+    {:ok, ana} = Profiles.add("Ana")
+    Profiles.subscribe()
+
+    assert :ok = Profiles.remove(ana)
+    assert_receive {:profile_removed, %Events.ProfileRemoved{}}
+    assert :ok = Profiles.remove(ana)
+    refute_receive {:profile_removed, _}, 50
   end
 
   test "remove refuses the last profile, otherwise deletes the row and the picture and broadcasts",
@@ -86,7 +112,16 @@ defmodule MediaCentaur.ProfilesTest do
     assert PictureStore.url(ana.id, 1) == nil
   end
 
-  test "the social profiles table kept its rows and its unique key" do
+  test "the social profile schema reads social_profiles and the table carries its unique key" do
     assert MediaCentaur.Social.Profile.__schema__(:source) == "social_profiles"
+
+    %{columns: columns, rows: rows} = Repo.query!("PRAGMA index_list('social_profiles')")
+    indexes = Enum.map(rows, &Map.new(Enum.zip(columns, &1)))
+
+    assert [%{"name" => "social_profiles_pubkey_index"}] =
+             Enum.filter(indexes, &(&1["unique"] == 1 and &1["origin"] != "pk"))
+
+    %{columns: columns, rows: rows} = Repo.query!("PRAGMA index_info('social_profiles_pubkey_index')")
+    assert ["pubkey"] = Enum.map(rows, &Map.new(Enum.zip(columns, &1))["name"])
   end
 end
