@@ -42,7 +42,7 @@ them (ADR-074).
 | Context | Owns | Depends on |
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
-| `MediaCentaur.Social` | The network's *configuration* and who is on it: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), `Connections` (one live connection per relay), `Profile` (`profiles` table, what each known key published about itself; `Profile.Translation`, events ↔ rows), and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
+| `MediaCentaur.Social` | The network's *configuration* and who is on it: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), `Connections` (one live connection per relay), `Profile` (`social_profiles` table, what each known key published about itself; `Profile.Translation`, events ↔ rows), and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
 | `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Watchlist`, `Settings.Preferences` |
 | `MediaCentaur.RelaySync` | No tables. The loop that keeps both contexts' rows in step with the relays: subscribes, routes each event to its owning context, publishes what a relay lacks. | `Activities`, `Social`, `Nostr` |
 | `MediaCentaur.Watchlist` | The watchlist (`title_intents`). Knows nothing about the friend network — a `:friend` record stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |

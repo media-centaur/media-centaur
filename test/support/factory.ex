@@ -499,6 +499,17 @@ defmodule MediaCentaur.TestFactory do
     app
   end
 
+  @doc "Persists a viewer profile through `MediaCentaur.Profiles.add/1`; `hue:` and `name:` override."
+  def create_profile(attrs \\ %{}) do
+    attrs = Map.new(attrs)
+    {:ok, profile} = MediaCentaur.Profiles.add(Map.get(attrs, :name, "Sample Profile"))
+
+    case Map.get(attrs, :hue) do
+      nil -> profile
+      hue -> elem(MediaCentaur.Profiles.set_hue(profile, hue), 1)
+    end
+  end
+
   def create_tv_series(attrs \\ %{}) do
     create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs)
   end
