@@ -25,7 +25,6 @@ defmodule MediaCentaurWeb.AppsLive do
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Apps.App
   alias MediaCentaur.Apps.Steam
-  alias MediaCentaur.ImageFiles
   alias MediaCentaurWeb.Components.AppCards
   alias MediaCentaurWeb.Components.PictureField
 
@@ -469,35 +468,31 @@ defmodule MediaCentaurWeb.AppsLive do
 
   defp banner_app(_steam_or_closed), do: nil
 
-  # What the save does with the banner (`Apps.banner_change/0`): the
-  # chosen file becomes the master, cut at the person's rectangle, else
-  # the centre; Remove means none, neither means keep. The entry is
-  # consumed either way, so a file libvips cannot open leaves nothing
-  # pending — the row is saved and the flash says the image was not. A
-  # rejected entry is dropped first (`PictureField.drop_rejected/2`).
+  # What the save does with the banner (`Apps.banner_change/0`), read
+  # by `PictureField.consume_change/5`: the chosen file becomes the JPEG
+  # master, cut at the person's rectangle, else the centre; Remove means
+  # none, neither means keep. A file libvips cannot open is consumed
+  # anyway, so nothing is left pending — the row is saved and the flash
+  # says the image was not.
   defp save_banner(socket, app, crop) do
-    socket = PictureField.drop_rejected(socket, :banner)
+    {socket, change} =
+      PictureField.consume_change(
+        socket,
+        :banner,
+        {:jpeg, @banner_size},
+        crop,
+        socket.assigns.banner_removed?
+      )
 
-    masters =
-      consume_uploaded_entries(socket, :banner, fn %{path: path}, _entry ->
-        case ImageFiles.jpeg_master(path, @banner_size, crop: crop) do
-          {:ok, bytes} -> {:ok, {:new, bytes}}
-          {:error, _reason} -> {:ok, :bad_image}
+    case change do
+      {:ok, change} ->
+        case Apps.change_banner(app, change) do
+          :ok -> socket
+          {:error, :not_manual} -> socket
         end
-      end)
 
-    change =
-      case {masters, socket.assigns.banner_removed?} do
-        {[:bad_image], _removed?} -> :bad_image
-        {[{:new, bytes}], _removed?} -> {:new, bytes}
-        {[], true} -> :none
-        {[], false} -> :keep
-      end
-
-    case change != :bad_image && Apps.change_banner(app, change) do
-      :ok -> socket
-      {:error, :not_manual} -> socket
-      _unreadable -> put_flash(socket, :error, "Saved, but that file is not an image we can read")
+      {:error, :bad_image} ->
+        put_flash(socket, :error, "Saved, but that file is not an image we can read")
     end
   end
 
