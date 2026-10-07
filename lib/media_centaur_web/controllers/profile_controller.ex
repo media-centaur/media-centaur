@@ -11,11 +11,10 @@ defmodule MediaCentaurWeb.ProfileController do
   alias MediaCentaur.Profiles
   alias MediaCentaurWeb.ProfileController.ReturnTo
 
-  # The picker route (Task 11) will make this a ~p"/profiles".
   def activate(conn, %{"id" => id} = params) do
     case Profiles.get(id) do
       nil ->
-        redirect(conn, to: "/profiles")
+        redirect(conn, to: ~p"/profiles")
 
       profile ->
         conn

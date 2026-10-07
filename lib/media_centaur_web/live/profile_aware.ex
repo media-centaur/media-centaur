@@ -22,6 +22,8 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   `handle_params` or `start_async`.
   """
 
+  use MediaCentaurWeb, :verified_routes
+
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [attach_hook: 4, redirect: 2]
 
@@ -49,7 +51,7 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   end
 
   defp redirect_to_picker(_params, uri, socket) do
-    {:halt, redirect(socket, to: "/profiles?return_to=" <> Logic.return_to(uri))}
+    {:halt, redirect(socket, to: ~p"/profiles?return_to=#{Logic.return_to(uri)}")}
   end
 
   defp remember_return_to(_params, uri, socket) do
@@ -68,7 +70,7 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   defp on_profiles_event(_message, socket), do: {:cont, socket}
 
   defp picker_path(%{assigns: %{profile_aware_return_to: return_to}}),
-    do: "/profiles?return_to=" <> return_to
+    do: ~p"/profiles?return_to=#{return_to}"
 
-  defp picker_path(_socket), do: "/profiles"
+  defp picker_path(_socket), do: ~p"/profiles"
 end

@@ -22,11 +22,9 @@ defmodule MediaCentaurWeb.Live.ProfileAware.LogicTest do
     assert Logic.resolve(@ana.id, [@me]) == {:active, @me}
   end
 
-  test "return_to is the page's path, with its query when it has one, form-encoded" do
-    assert Logic.return_to("http://localhost/guide") == "%2Fguide"
-
-    assert Logic.return_to("http://localhost/settings?section=tmdb") ==
-             "%2Fsettings%3Fsection%3Dtmdb"
+  test "return_to is the page's path, with its query when it has one" do
+    assert Logic.return_to("http://localhost/guide") == "/guide"
+    assert Logic.return_to("http://localhost/settings?section=tmdb") == "/settings?section=tmdb"
   end
 
   test "no profiles at all asks" do

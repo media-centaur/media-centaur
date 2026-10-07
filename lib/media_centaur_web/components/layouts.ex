@@ -134,7 +134,7 @@ defmodule MediaCentaurWeb.Layouts do
         <.link
           :if={length(@profiles) > 1}
           id="sidebar-profile"
-          navigate="/profiles"
+          navigate={~p"/profiles"}
           class="sidebar-link sidebar-link-profile mb-3"
           data-tip="Switch profile"
           data-nav-item

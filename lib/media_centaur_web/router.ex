@@ -58,6 +58,12 @@ defmodule MediaCentaurWeb.Router do
       live "/status", StatusLive, :index
     end
 
+    # The picker runs without ProfileAware: it is where a session with no
+    # active profile is sent, so it cannot require one.
+    live_session :profiles do
+      live "/profiles", ProfilesLive, :index
+    end
+
     # The picker's tiles post here: a LiveView cannot write the session cookie.
     post "/profiles/:id/activate", ProfileController, :activate
 

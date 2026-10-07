@@ -57,6 +57,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/status", "status"},
           {"/settings", "settings"},
           {"/setup", "setup tour"},
+          {"/profiles", "profile picker"},
           {"/review", "review"},
           {"/episode-mapping", "episode-mapping"},
           {"/console", "console"},
