@@ -70,6 +70,27 @@ cropped by the `AvatarCrop` hook and made by
 
 ## Design
 
+**Amendments 2026-10-06/07 (planning and build).** (1) The owner profile is named
+"Me" by the migration and carries no hue or picture; nothing reads the
+social profile, since a migration cannot derive the identity's key and
+a boot-time copy would need a heuristic for "never edited". Rename it
+in Settings. (2) The picker's Add is an inline form on the picker
+itself, not a link to Settings: with no active profile, Settings would
+redirect back to the picker. (3) The cursor starts on the first tile;
+the "last used" start is dropped. (4) The social card's ids and events
+take a `social_` prefix with the relabel (`#social-profile-form`,
+`save_social_profile`, …). (5) Five convergences from the unify pass:
+`ImageFiles` picture primitives, `PictureField.consume_change/5`,
+`MediaCentaur.DisplayName`, `MediaCentaurWeb.ProfileWords`,
+`IdentityTile.crop_previews/1`. (6) Remove profile's line "Their
+watching history goes with it." waits for phase 2, when it becomes true.
+(7) The picker is a geometry-resolved `profile_picker` SHELF zone, not a
+GRID: a wrapping row of tiles has no column count. (8) Settings →
+Profiles is one form per concern (name, colour, picture), so Enter in
+the name never submits a picture save. (9) `picture_at` is
+`:utc_datetime_usec` so two saves in one second never share an
+immutable URL; removal and add run in an immediate transaction.
+
 ### The Profiles context
 
 `MediaCentaur.Profiles` is a Boundary with no deps. It owns:

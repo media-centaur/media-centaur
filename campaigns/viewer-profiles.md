@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in-progress
 started: 2026-10-05
-last_updated: 2026-10-06
+last_updated: 2026-10-07
 ---
 # Viewer profiles: who has watched what
 
@@ -43,15 +43,9 @@ session with its own active profile.
 
 ## Status
 
-Planning, 2026-10-06. Two code surveys done (per-person state
-inventory; session identity and content ratings). Scope agreed with
-the owner on 2026-10-06 after one over-reach (see Decisions made).
-Spec written
-(`docs/superpowers/specs/2026-10-06-viewer-profiles-design.md`),
-ADR-078 and UIDR-053 written, spec approved. Phase 1 plan written
-(`docs/superpowers/plans/2026-10-06-viewer-profiles-phase-1.md`,
-fourteen tasks, unify pass applied). Next: execute the plan on branch
-`viewer-profiles` in a sibling worktree. No code.
+Phase 1 built on branch `viewer-profiles` (worktree
+`../media-centaur-app-viewer-profiles`), every task reviewed; owner's
+visual check and merge next; phase 2 plan after.
 
 ## What the surveys found
 
@@ -238,12 +232,20 @@ three releases.
   meaning a person of this install. Plan amendments: the owner profile
   is "Me" (no seeding from the social profile); the picker's Add is
   inline; the social card's ids and events take a `social_` prefix.
+* `2026-10-07` — Three amendments found during the phase 1 build (plan:
+  `docs/superpowers/plans/2026-10-06-viewer-profiles-phase-1.md`):
+  the picker is a geometry-resolved `profile_picker` SHELF zone, not a
+  GRID, since a wrapping row of tiles has no column count; Settings →
+  Profiles is one form per concern (name, colour, picture), so Enter
+  in the name field never submits a picture save; `picture_at` is
+  `:utc_datetime_usec` so two saves in one second never share an
+  immutable URL, with removal and add run in an immediate transaction.
 
 ## Next steps
 
-1. Execute the phase 1 plan on branch `viewer-profiles` in a sibling
-   worktree (`../media-centaur-app-viewer-profiles`); the owner merges.
-2. Owner's visual check of the picker and Settings → Profiles.
+1. Owner's visual check of the picker and Settings → Profiles (TV
+   sizing is open: 96 is the largest tile and the heading is 3xl).
+2. Owner merges `viewer-profiles`.
 3. Plan phase 2 (per-profile watching).
 
 ## Completion criteria
