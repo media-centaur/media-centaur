@@ -2,7 +2,8 @@ defmodule MediaCentaurWeb.Components.PictureField do
   @moduledoc """
   The app's one picture field: a person chooses a picture, picks the
   region that shows at the master's fixed shape, and the save cuts the
-  master from it (`ImageFiles.webp_master/4`, `jpeg_master/3`). The
+  master from it: `consume_change/5`, the one upload-to-master path
+  (`ImageFiles.webp_master/4`, `jpeg_master/3`). The
   profile avatar is this at 1:1 (Settings → Social → Your profile); an
   app's banner at 460:215 (Apps → Manage, the manual form).
 
@@ -76,6 +77,65 @@ defmodule MediaCentaurWeb.Components.PictureField do
     case Map.get(params, key) do
       value when is_binary(value) -> Integer.parse(value)
       _absent_or_not_a_string -> :error
+    end
+  end
+
+  @typedoc "What a save does with the picture: keep what is stored, remove it, or set the master bytes."
+  @type change :: :keep | :none | {:new, binary()}
+
+  @typedoc "The master to cut: a WebP under a byte cap (an avatar, a profile picture) or a JPEG (an app banner)."
+  @type master ::
+          {:webp, MediaCentaur.ImageFiles.size(), pos_integer()}
+          | {:jpeg, MediaCentaur.ImageFiles.size()}
+
+  @doc """
+  The one upload-to-master path: drops rejected entries, consumes the
+  chosen file into `master` cut at `crop` (else the centre), and reads
+  the result with a pending Remove as `change/2` does. Returns the
+  socket (consuming changes it) and the change or the refusal. The
+  entry is consumed either way, so a file libvips cannot open leaves
+  nothing pending.
+  """
+  @spec consume_change(
+          Phoenix.LiveView.Socket.t(),
+          atom(),
+          master(),
+          MediaCentaur.ImageFiles.crop() | nil,
+          boolean()
+        ) ::
+          {Phoenix.LiveView.Socket.t(), {:ok, change()} | {:error, :bad_image | :too_large}}
+  def consume_change(socket, upload, master, crop, removed?) do
+    socket = drop_rejected(socket, upload)
+
+    masters =
+      Phoenix.LiveView.consume_uploaded_entries(socket, upload, fn %{path: path}, _entry ->
+        {:ok, cut(master, path, crop)}
+      end)
+
+    {socket, change(masters, removed?)}
+  end
+
+  @doc "The pure step behind `consume_change/5`: a cut master wins, else Remove means none, else keep."
+  @spec change([{:new, binary()} | :bad_image | :too_large], boolean()) ::
+          {:ok, change()} | {:error, :bad_image | :too_large}
+  def change([:bad_image], _removed?), do: {:error, :bad_image}
+  def change([:too_large], _removed?), do: {:error, :too_large}
+  def change([{:new, bytes}], _removed?), do: {:ok, {:new, bytes}}
+  def change([], true), do: {:ok, :none}
+  def change([], false), do: {:ok, :keep}
+
+  defp cut({:webp, size, cap}, path, crop) do
+    case MediaCentaur.ImageFiles.webp_master(path, size, cap, crop: crop) do
+      {:ok, bytes} -> {:new, bytes}
+      {:error, :too_large} -> :too_large
+      {:error, _reason} -> :bad_image
+    end
+  end
+
+  defp cut({:jpeg, size}, path, crop) do
+    case MediaCentaur.ImageFiles.jpeg_master(path, size, crop: crop) do
+      {:ok, bytes} -> {:new, bytes}
+      {:error, _reason} -> :bad_image
     end
   end
 
