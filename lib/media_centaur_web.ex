@@ -37,7 +37,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.DeleteTargets,
       MediaCentaur.Watchlist,
       MediaCentaur.Social,
-      MediaCentaur.Activities
+      MediaCentaur.Activities,
+      MediaCentaur.Profiles
     ],
     exports: [Endpoint]
 
