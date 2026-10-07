@@ -1085,7 +1085,8 @@ defmodule MediaCentaurWeb.SettingsLive do
     do: {:noreply, cancel_upload(socket, :profile_picture, ref)}
 
   # The picture form exists only on the open card; the match on
-  # `picture_editing` is a defensive check of that.
+  # `picture_editing` routes a submit that arrives after that card's
+  # field closed to the no-op clause below.
   def handle_event(
         "save_profile_picture",
         %{"profile_id" => id} = params,
@@ -1112,6 +1113,10 @@ defmodule MediaCentaurWeb.SettingsLive do
       {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
     end
   end
+
+  # A submit that arrives after its field closed (Cancel, Remove, or another
+  # card's Change picture won the race) has nothing to save.
+  def handle_event("save_profile_picture", _params, socket), do: {:noreply, socket}
 
   def handle_event("remove_profile", %{"id" => id}, socket) do
     case ArmGesture.press(socket, "remove_profile", id) do

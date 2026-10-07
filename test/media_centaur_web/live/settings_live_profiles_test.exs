@@ -135,6 +135,19 @@ defmodule MediaCentaurWeb.SettingsLiveProfilesTest do
     assert %{picture_at: nil} = Profiles.get(me.id)
   end
 
+  test "a save that arrives after Cancel closed the field is ignored", %{conn: conn} do
+    [me] = Profiles.list()
+    {:ok, view, _html} = live_async!(conn, @section)
+
+    view |> element("#edit-profile-picture-#{me.id}") |> render_click()
+    view |> element("#cancel-profile-picture-#{me.id}") |> render_click()
+
+    render_hook(view, "save_profile_picture", %{"profile_id" => me.id})
+
+    assert has_element?(view, "#{card(me.id)}")
+    assert %{picture_at: nil} = Profiles.get(me.id)
+  end
+
   defp choose_picture(view, id) do
     upload =
       file_input(view, "#profile-picture-form-#{id}", :profile_picture, [
