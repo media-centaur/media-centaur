@@ -1,7 +1,8 @@
 defmodule MediaCentaur.Social.Profile do
   @moduledoc """
-  What a public key published about itself (ADR-073): its name, its
-  avatar's type and its hue, or nothing yet. The decoded avatar bytes live in
+  The social profile, table `social_profiles`: what a public key
+  published about itself (ADR-073) — its name, its avatar's type and its
+  hue, or nothing yet. The decoded avatar bytes live in
   `AvatarStore`'s file, never in a column. One row per known key,
   replaced whole by a newer event; `raw_event` is the signed wire form
   the own-events diff republishes, avatar included, `created_at` the
@@ -18,7 +19,7 @@ defmodule MediaCentaur.Social.Profile do
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @timestamps_opts [type: :utc_datetime]
 
-  schema "profiles" do
+  schema "social_profiles" do
     field :pubkey, :string
     field :name, :string
     field :avatar_type, :string
