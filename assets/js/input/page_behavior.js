@@ -25,6 +25,7 @@ import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createSocialBehavior } from "./social_behavior"
 import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
+import { createProfilesBehavior } from "./profiles_behavior"
 import { createGuideBehavior } from "./guide_behavior"
 import { withWipNotice } from "./wip_notice"
 
@@ -43,6 +44,7 @@ const BEHAVIOR_REGISTRY = {
   social: () => createSocialBehavior(),
   apps: () => createAppsBehavior(),
   setup: () => createSetupBehavior(),
+  profiles: () => createProfilesBehavior(),
   guide: () => createGuideBehavior(),
 }
 

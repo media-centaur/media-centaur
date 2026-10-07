@@ -361,6 +361,10 @@ export const inputConfig = {
     setup: {
       grid: {},
     },
+    // Profile picker: one grid of tiles and the add form, no sidebar.
+    profiles: {
+      grid: {},
+    },
   },
 
   // Cursor start priority per zone
@@ -379,6 +383,7 @@ export const inputConfig = {
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
+    profiles:  ["grid"],
   },
 
   // Always-populated contexts (skip item count check)
