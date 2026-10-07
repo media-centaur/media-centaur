@@ -18,17 +18,16 @@ defmodule MediaCentaur.Repo.Migrations.ViewerProfiles do
       add :id, :uuid, null: false, primary_key: true
       add :name, :text, null: false
       add :hue, :integer
-      add :picture_at, :utc_datetime
+      add :picture_at, :utc_datetime_usec
 
       timestamps(type: :utc_datetime)
     end
 
     execute(fn ->
-      # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
       repo().query!(
         """
         INSERT INTO profiles (id, name, inserted_at, updated_at)
-        SELECT ?1, 'Me', datetime('now'), datetime('now')
+        SELECT ?1, 'Me', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         WHERE NOT EXISTS (SELECT 1 FROM profiles)
         """,
         [Ecto.UUID.generate()]

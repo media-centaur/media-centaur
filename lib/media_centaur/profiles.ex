@@ -60,6 +60,7 @@ defmodule MediaCentaur.Profiles do
 
   def get(_not_a_string), do: nil
 
+  @doc "How many profiles the install holds."
   @spec count() :: non_neg_integer()
   def count, do: Repo.aggregate(Profile, :count)
 
@@ -68,11 +69,23 @@ defmodule MediaCentaur.Profiles do
           {:ok, Profile.t()} | {:error, :name_required | :name_too_long | :too_many_profiles}
   def add(name) when is_binary(name) do
     with {:ok, name} <- DisplayName.check(name),
-         :ok <- under_cap() do
-      {:ok, profile} = %Profile{} |> Profile.changeset(%{name: name}) |> Repo.insert()
+         {:ok, profile} <- insert_under_cap(name) do
       Events.broadcast(%Events.ProfileAdded{profile: profile})
       {:ok, profile}
     end
+  end
+
+  # The count and the insert share one immediate transaction, so two adds
+  # cannot both pass the cap check.
+  defp insert_under_cap(name) do
+    Repo.transaction(
+      fn ->
+        if count() < @max_profiles,
+          do: %Profile{} |> Profile.changeset(%{name: name}) |> Repo.insert!(),
+          else: Repo.rollback(:too_many_profiles)
+      end,
+      mode: :immediate
+    )
   end
 
   @doc "Renames under `DisplayName.check/1`. Broadcasts `ProfileChanged`."
@@ -96,52 +109,84 @@ defmodule MediaCentaur.Profiles do
   end
 
   @doc """
-  Sets or removes the picture: the row first, then the file, so a write
-  that fails after the row reads as no picture until the next save
-  rather than serving new bytes under the old URL. Broadcasts `ProfileChanged`.
+  Sets or removes the picture: the row first, then the file, so new
+  bytes are never served under the old URL. A write that fails after the
+  row reads as no picture until the next save when there was no file
+  before, and as the old picture under the new version when there was.
+  Broadcasts `ProfileChanged` only once the file has landed or gone, so
+  a session never fetches the new URL ahead of its bytes.
   """
   @spec set_picture(Profile.t(), picture_change()) :: {:ok, Profile.t()}
   def set_picture(%Profile{} = profile, :none) do
-    {:ok, updated} = profile |> Profile.changeset(%{picture_at: nil}) |> update_and_broadcast()
+    updated = profile |> Profile.changeset(%{picture_at: nil}) |> update!()
     if profile.picture_at, do: :ok = PictureStore.delete(profile.id)
+    Events.broadcast(%Events.ProfileChanged{profile: updated})
     {:ok, updated}
   end
 
   def set_picture(%Profile{} = profile, {:new, bytes}) when is_binary(bytes) do
-    now = DateTime.utc_now(:second)
-    {:ok, updated} = profile |> Profile.changeset(%{picture_at: now}) |> update_and_broadcast()
+    updated = profile |> Profile.changeset(%{picture_at: DateTime.utc_now()}) |> update!()
     :ok = PictureStore.write(profile.id, bytes)
+    Events.broadcast(%Events.ProfileChanged{profile: updated})
     {:ok, updated}
   end
 
   @doc "The picture's versioned URL, or nil when the profile has none or the file is missing."
   @spec picture_url(Profile.t()) :: String.t() | nil
   def picture_url(%Profile{picture_at: nil}), do: nil
-  def picture_url(%Profile{id: id, picture_at: at}), do: PictureStore.url(id, DateTime.to_unix(at))
+
+  def picture_url(%Profile{id: id, picture_at: at}),
+    do: PictureStore.url(id, DateTime.to_unix(at, :microsecond))
 
   @doc """
   Removes a profile and its picture. Refuses the last one: the install
-  always has someone to watch as. Phase 2 cascades the watching rows by
-  foreign key. Broadcasts `ProfileRemoved`.
+  always has someone to watch as. A profile already removed answers `:ok`
+  and broadcasts nothing. Phase 2 cascades the watching rows by foreign
+  key. Broadcasts `ProfileRemoved`.
   """
   @spec remove(Profile.t()) :: :ok | {:error, :last_profile}
   def remove(%Profile{} = profile) do
-    if count() <= 1 do
-      {:error, :last_profile}
-    else
-      {:ok, _deleted} = Repo.delete(profile)
-      if profile.picture_at, do: :ok = PictureStore.delete(profile.id)
-      Events.broadcast(%Events.ProfileRemoved{id: profile.id})
-      :ok
+    case delete_unless_last(profile) do
+      {:ok, :removed} ->
+        if profile.picture_at, do: :ok = PictureStore.delete(profile.id)
+        Events.broadcast(%Events.ProfileRemoved{id: profile.id})
+        :ok
+
+      {:ok, :already_removed} ->
+        :ok
+
+      {:error, :last_profile} ->
+        {:error, :last_profile}
     end
   end
 
-  defp under_cap, do: if(count() < @max_profiles, do: :ok, else: {:error, :too_many_profiles})
+  # The delete and the count share one immediate transaction, so two
+  # removes cannot together take the install to no profile. Deleting
+  # first lets an already removed row answer before the count.
+  defp delete_unless_last(profile) do
+    Repo.transaction(
+      fn ->
+        case Repo.delete(profile, stale_error_field: :id) do
+          {:ok, _deleted} -> if count() == 0, do: Repo.rollback(:last_profile), else: :removed
+          {:error, _stale} -> :already_removed
+        end
+      end,
+      mode: :immediate
+    )
+  end
+
+  defp update!(changeset) do
+    {:ok, profile} = Repo.update(changeset)
+    profile
+  end
+
+  # An unchanged row is no change: nothing is written or broadcast.
+  defp update_and_broadcast(%Ecto.Changeset{changes: changes, data: profile}) when changes == %{},
+    do: {:ok, profile}
 
   defp update_and_broadcast(changeset) do
-    with {:ok, profile} <- Repo.update(changeset) do
-      Events.broadcast(%Events.ProfileChanged{profile: profile})
-      {:ok, profile}
-    end
+    profile = update!(changeset)
+    Events.broadcast(%Events.ProfileChanged{profile: profile})
+    {:ok, profile}
   end
 end
