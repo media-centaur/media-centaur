@@ -179,6 +179,25 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert %{name: "Sample Name", avatar_type: nil} = Social.own_profile()
     end
 
+    test "a name error comes before the rejected file is dropped; the next save drops it", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "notes.txt", content: "hello", type: "text/plain"}
+        ])
+
+      assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
+      html = view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      assert html =~ "A profile needs a name"
+      assert html =~ "notes.txt"
+      assert Social.own_profile() == nil
+
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      assert %{name: "Sample Name", avatar_type: nil} = Social.own_profile()
+    end
+
     test "Remove steps aside while a picture is chosen", %{conn: conn} do
       Identity.ensure()
       {:ok, img} = Image.new(64, 64, color: :red)

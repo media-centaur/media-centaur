@@ -234,6 +234,40 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       assert %{banner_url: nil} = Apps.artwork_urls(app.id)
     end
 
+    test "a picture the app cannot read is consumed and refused; the row is still saved", %{conn: conn} do
+      app = create_app(%{name: "Sample App"})
+      {:ok, view, _html} = live(conn, "/apps")
+      open_edit(view, app)
+      {_upload, html} = choose_banner(view, "hello", "x.png")
+      assert html =~ "x.png"
+
+      html =
+        view
+        |> form("#app-manual-form", app: %{name: "Sample App Renamed", command: "sample-app"})
+        |> render_submit()
+
+      assert html =~ "Saved, but that file is not an image we can read"
+      assert [%{name: "Sample App Renamed"}] = Apps.list_apps()
+      assert %{banner_url: nil} = Apps.artwork_urls(app.id)
+    end
+
+    test "a banner the disk refuses to store leaves the row saved and says so", %{conn: conn} do
+      app = create_app(%{name: "Sample App"})
+      # A directory where the banner file goes makes the write fail.
+      File.mkdir_p!(Apps.Artwork.on_disk_path(:banner, app.id))
+      {:ok, view, _html} = live(conn, "/apps")
+      open_edit(view, app)
+      choose_banner(view, halves_png())
+
+      html =
+        view
+        |> form("#app-manual-form", app: %{name: "Sample App Renamed", command: "sample-app"})
+        |> render_submit()
+
+      assert html =~ "Saved, but the image could not be stored"
+      assert [%{name: "Sample App Renamed"}] = Apps.list_apps()
+    end
+
     test "a Steam app's edit has no picture field", %{conn: conn} do
       app = create_app(%{name: "Sample Game", origin: %{"source" => "steam", "app_id" => 100}})
       {:ok, view, _html} = live(conn, "/apps")
