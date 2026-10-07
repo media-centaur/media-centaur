@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.Storybook.Composites do
   def entry("cinematic_shell"), do: [icon: {:fa, "window-maximize", :thin}, name: "Cinematic shell"]
   def entry("hero_card"), do: [icon: {:fa, "id-card", :thin}, name: "Hero card"]
 
+  def entry("profile_tile"), do: [icon: {:fa, "user-check", :thin}, name: "Profile tile"]
   def entry("progress_hairline"), do: [icon: {:fa, "wave-square", :thin}, name: "Progress hairline"]
   def entry("strip_chart"), do: [icon: {:fa, "chart-column", :thin}, name: "Strip chart"]
 end
