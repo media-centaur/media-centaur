@@ -69,6 +69,8 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     <%!-- The console has no sidebar entry; it belongs with Status, where
           every drill-in links to it. --%>
     <Layouts.app
+      profile={@profile}
+      profiles={@profiles}
       show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}

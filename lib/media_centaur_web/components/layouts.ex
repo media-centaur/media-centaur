@@ -11,7 +11,9 @@ defmodule MediaCentaurWeb.Layouts do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaur.Profiles
   alias MediaCentaurWeb.Components.FollowUpPill
+  alias MediaCentaurWeb.Components.Social.IdentityTile
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -65,6 +67,14 @@ defmodule MediaCentaurWeb.Layouts do
     by URL.
     """
 
+  attr :profile, MediaCentaur.Profiles.Profile,
+    required: true,
+    doc: "the session's active profile (`Live.ProfileAware`)"
+
+  attr :profiles, :list,
+    required: true,
+    doc: "every profile; the switcher shows only with more than one"
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   slot :inner_block, required: true
@@ -109,6 +119,27 @@ defmodule MediaCentaurWeb.Layouts do
         data-nav-zone="sidebar"
         data-tip-placement="right"
       >
+        <%!-- The profile switcher (UIDR-053 rule 3): the active profile's
+              tile and name, a link to the picker; present only when there is
+              someone to switch to. --%>
+        <.link
+          :if={length(@profiles) > 1}
+          id="sidebar-profile"
+          navigate="/profiles"
+          class="sidebar-link mb-3"
+          data-tip="Switch profile"
+          data-nav-item
+          tabindex="0"
+        >
+          <IdentityTile.identity_tile
+            name={@profile.name}
+            picture_url={Profiles.picture_url(@profile)}
+            hue={@profile.hue}
+            own?
+            size={32}
+          />
+          <span class="sidebar-label truncate">{@profile.name}</span>
+        </.link>
         <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
           <.link

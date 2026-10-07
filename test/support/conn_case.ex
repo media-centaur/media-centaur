@@ -61,6 +61,10 @@ defmodule MediaCentaurWeb.ConnCase do
     :ok
   end
 
+  @doc "Picks a viewer profile for the connection's session, as the activate route does."
+  def with_profile(conn, %MediaCentaur.Profiles.Profile{id: id}),
+    do: Plug.Test.init_test_session(conn, %{"profile_id" => id})
+
   @doc """
   Mounts a LiveView like `Phoenix.LiveViewTest.live/2`, then drains its
   `start_async` operations via `render_async/1` before returning.
