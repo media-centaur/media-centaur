@@ -471,9 +471,9 @@ defmodule MediaCentaurWeb.AppsLive do
   # What the save does with the banner (`Apps.banner_change/0`), read
   # by `PictureField.consume_change/5`: the chosen file becomes the JPEG
   # master, cut at the person's rectangle, else the centre; Remove means
-  # none, neither means keep. A file libvips cannot open is consumed
-  # anyway, so nothing is left pending — the row is saved and the flash
-  # says the image was not.
+  # none, neither means keep. The row is already saved, so a refused
+  # picture — one libvips cannot open (consumed anyway, so nothing is
+  # left pending) or one the disk will not store — only adds a flash.
   defp save_banner(socket, app, crop) do
     {socket, change} =
       PictureField.consume_change(
@@ -484,15 +484,18 @@ defmodule MediaCentaurWeb.AppsLive do
         socket.assigns.banner_removed?
       )
 
-    case change do
-      {:ok, change} ->
-        case Apps.change_banner(app, change) do
-          :ok -> socket
-          {:error, :not_manual} -> socket
-        end
+    with {:ok, banner} <- change,
+         :ok <- Apps.change_banner(app, banner) do
+      socket
+    else
+      {:error, :not_manual} ->
+        socket
 
       {:error, :bad_image} ->
         put_flash(socket, :error, "Saved, but that file is not an image we can read")
+
+      {:error, _reason} ->
+        put_flash(socket, :error, "Saved, but the image could not be stored")
     end
   end
 
