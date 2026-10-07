@@ -15,4 +15,11 @@ defmodule MediaCentaurWeb.ProfileController.ReturnToTest do
     assert ReturnTo.local_path("/profiles") == "/"
     assert ReturnTo.local_path("/profiles?return_to=%2Flibrary") == "/"
   end
+
+  test "a control character or a backslash anywhere goes home, since the redirect would raise on it" do
+    assert ReturnTo.local_path("/\t/x") == "/"
+    assert ReturnTo.local_path("/a\\b") == "/"
+    assert ReturnTo.local_path("/x\ny") == "/"
+    assert ReturnTo.local_path("/x\0y") == "/"
+  end
 end
