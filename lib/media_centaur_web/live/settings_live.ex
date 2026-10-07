@@ -72,6 +72,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaur.ImageFiles
   alias MediaCentaurWeb.Components.PictureField
+  alias MediaCentaurWeb.ProfileWords
   alias MediaCentaur.Hue
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
@@ -1053,20 +1054,7 @@ defmodule MediaCentaurWeb.SettingsLive do
        |> assign(own_person: Social.own_person(), avatar_removed?: false)
        |> put_flash(:info, "Profile saved")}
     else
-      {:error, :name_required} ->
-        {:noreply, put_flash(socket, :error, "Your profile needs a name")}
-
-      {:error, :name_too_long} ->
-        {:noreply, put_flash(socket, :error, "Names are at most #{socket.assigns.name_cap} characters")}
-
-      {:error, :bad_image} ->
-        {:noreply, put_flash(socket, :error, "That file is not a picture we can read")}
-
-      {:error, :avatar_too_large} ->
-        {:noreply, put_flash(socket, :error, "That picture cannot be made small enough")}
-
-      {:error, :invalid_hue} ->
-        {:noreply, put_flash(socket, :error, "That colour cannot be used")}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
     end
   end
 

@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       refute has_element?(view, "#social-sharing")
 
       view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
-      assert render(view) =~ "Your profile needs a name"
+      assert render(view) =~ "A profile needs a name"
       refute Identity.present?()
 
       # The input's maxlength stops this in a browser; a crafted submit must not crash the view.
@@ -157,7 +157,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
       assert render_upload(upload, "me.png") =~ "me.png"
       html = view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
-      assert html =~ "Your profile needs a name"
+      assert html =~ "A profile needs a name"
       assert html =~ "me.png"
       assert Social.own_profile() == nil
 
