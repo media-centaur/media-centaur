@@ -452,26 +452,28 @@ The joins the contexts may not make happen here:
   row's note is the intent's own, and the glyphs come from
   `Activities.activity_for/1` like every title row's.
 
-Settings → Social (`SettingsLive.SocialSection`) is four cards. **Your
+Settings → Social (`SettingsLive.SocialSection`) is four cards. **Social
 profile** comes first: two columns of the kit's stacked fields (UIDR-041) —
 Picture on the left, Name and Colour on the right, Save in the form's
 footer — one form saved by `Social.save_profile/3`; before an identity
-exists its button is **Create profile**, and saving mints the identity.
-The Colour field is `Components.Social.HueSwatches` over the form's
-pending hue (`profile_hue`): a swatch pushes `set_profile_hue`, the ring
-slider is a field of the form and reaches `validate_profile`; a form with
-no saved hue starts on `Hue.random/0`, a palette member, and the
-card's tile previews the pending hue until Save publishes it.
-While a picture is chosen, the Picture field carries the crop stage: the
-`AvatarCrop` hook (`assets/js/hooks/avatar_crop.js`) mounts croppr on the
-entry's `live_img_preview`, writes the square the person drags as three
-hidden fields (`crop_x`, `crop_y`, `crop_side`, in the picture's own
-pixels as the browser shows it, orientation applied) and paints two
-canvases in the own tile's recipe (*How it will look*); the fields ride
-the submit, `crop_from_params/1` reads them, and `ImageFiles.square_webp/4`
-turns the picture upright and cuts that square, else the largest centred
-one. The stage sits under `zoom: calc(1 / var(--ui-scale))` because
-croppr mixes layout and visual pixels under the root zoom, as uPlot does.
+exists its button is **Create social profile**, and saving mints the
+identity. The Colour field is `Components.Social.HueSwatches` over the
+form's pending hue (`profile_hue`): a swatch pushes `set_social_profile_hue`,
+the ring slider is a field of the form and reaches `validate_social_profile`;
+a form with no saved hue starts on `Hue.random/0`, a palette member, and
+the card's tile previews the pending hue until Save publishes it.
+While a picture is chosen, the Picture field (`Components.PictureField`,
+shared with the app banner field) carries the crop stage: the `ImageCrop`
+hook (`assets/js/hooks/image_crop.js`, croppr vendored) draws a box
+locked to the field's aspect over the entry's `live_img_preview` — moved
+and resized by pointer — and writes it into four hidden fields
+(`crop_x`, `crop_y`, `crop_width`, `crop_height`, in the picture's
+oriented pixels) that ride the submit; `PictureField.crop_from_params/1`
+reads them, and `PictureField.consume_change/5` turns the entry into the
+256×256 WebP master — the named rectangle if one rode the submit, else
+the largest centred square. The stage sits under
+`zoom: calc(1 / var(--ui-scale))` because croppr mixes layout and visual
+pixels under the root zoom, as uPlot does.
 
 | Vendored | File | Notes |
 |---|---|---|
