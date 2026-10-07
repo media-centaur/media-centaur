@@ -24,7 +24,7 @@ defmodule MediaCentaur.Acquisition.TargetStatusTest do
     for %{status: status, bucket: bucket} <- @bucket_table do
       test "categorises #{status} as #{bucket}" do
         assert TargetStatus.bucket(unquote(status)) == unquote(bucket)
-        assert TargetStatus.bucket(String.to_existing_atom(unquote(status))) == unquote(bucket)
+        assert TargetStatus.bucket(unquote(String.to_atom(status))) == unquote(bucket)
       end
     end
 
