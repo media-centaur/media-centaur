@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.PictureField do
       %VariationGroup{
         id: :avatar,
         description:
-          "The profile picture at 1:1 (Settings → Social → Your profile), inside a Settings field, " <>
+          "The profile picture at 1:1 (Settings → Social → Social profile), inside a Settings field, " <>
             "so no label of its own; the previews are the identity tile's rings.",
         variations: [
           avatar(:avatar_stored, upload(:avatar), true),
@@ -100,8 +100,8 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.PictureField do
         upload: upload,
         aspect: {1, 1},
         removable?: stored?,
-        remove_event: "remove_avatar",
-        cancel_event: "cancel_avatar"
+        remove_event: "remove_social_avatar",
+        cancel_event: "cancel_social_avatar"
       },
       slots: [
         """

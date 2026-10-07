@@ -16,13 +16,13 @@ defmodule MediaCentaurWeb.Storybook.Social.HueSwatches do
     [
       %Variation{
         id: :settings,
-        description: "Settings → Your profile: Teal chosen, the slider's thumb at 195",
-        attributes: %{id: "hues-settings", selected: 195, event: "set_profile_hue"}
+        description: "Settings → Social profile: Teal chosen, the slider's thumb at 195",
+        attributes: %{id: "hues-settings", selected: 195, event: "set_social_profile_hue"}
       },
       %Variation{
         id: :custom,
         description: "A hue off the palette from the slider: no swatch pressed, the thumb at 100",
-        attributes: %{id: "hues-custom", selected: 100, event: "set_profile_hue"}
+        attributes: %{id: "hues-custom", selected: 100, event: "set_social_profile_hue"}
       },
       %Variation{
         id: :foot_theirs,

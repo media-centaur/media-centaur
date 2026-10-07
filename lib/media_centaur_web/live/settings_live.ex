@@ -127,7 +127,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       label: "Social",
       group: :media,
       description:
-        "Your profile and identity, the relays your activity travels over, and what you share. Friends are managed on the Social page."
+        "Your social profile and identity, the relays your activity travels over, and what you share. Friends are managed on the Social page."
     },
     %{
       id: "acquisition",
@@ -375,9 +375,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # Opening the Social section mints nothing (UIDR-047 rule 3): Create
-  # profile does (`Social.save_profile/3`), and publishing an own activity
-  # still mints silently (`Activities`). Without an identity only the
-  # profile card shows.
+  # social profile does (`Social.save_profile/3`), and publishing an own
+  # activity still mints silently (`Activities`). Without an identity only
+  # the social profile card shows.
   defp load_social(socket, "social") do
     socket
     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_draft: "")
@@ -995,27 +995,28 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # The upload's change event: LiveView needs it bound to track the entry.
   # The slider is a field of the same form; a drag lands here as `hue`.
-  def handle_event("validate_profile", %{"_target" => ["hue"], "hue" => hue}, socket),
+  def handle_event("validate_social_profile", %{"_target" => ["hue"], "hue" => hue}, socket),
     do: {:noreply, assign_hue(socket, hue)}
 
-  def handle_event("validate_profile", _params, socket), do: {:noreply, socket}
+  def handle_event("validate_social_profile", _params, socket), do: {:noreply, socket}
 
   # A swatch: the form's pending hue, previewed in the card's tile.
-  def handle_event("set_profile_hue", %{"hue" => hue}, socket), do: {:noreply, assign_hue(socket, hue)}
+  def handle_event("set_social_profile_hue", %{"hue" => hue}, socket),
+    do: {:noreply, assign_hue(socket, hue)}
 
   # Remove is pending until the save: the tile shows the letter, the
   # stored avatar stays until `:none` is saved.
-  def handle_event("remove_avatar", _params, socket),
+  def handle_event("remove_social_avatar", _params, socket),
     do: {:noreply, assign(socket, avatar_removed?: true)}
 
-  def handle_event("cancel_avatar", %{"ref" => ref}, socket),
+  def handle_event("cancel_social_avatar", %{"ref" => ref}, socket),
     do: {:noreply, cancel_upload(socket, :avatar, ref)}
 
   # The first save mints the identity; the identity, relay and sharing
   # cards appear with it. The name is checked before the chosen picture
   # is consumed, so a name error leaves the picture pending for the
   # next save instead of dropping it.
-  def handle_event("save_profile", %{"name" => name} = params, socket) do
+  def handle_event("save_social_profile", %{"name" => name} = params, socket) do
     case Social.check_name(name) do
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
@@ -1040,7 +1041,7 @@ defmodule MediaCentaurWeb.SettingsLive do
              profile_hue: profile.hue
            )
            |> assign(own_person: Social.own_person(), avatar_removed?: false)
-           |> put_flash(:info, "Profile saved")}
+           |> put_flash(:info, "Social profile saved")}
         else
           {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
         end
