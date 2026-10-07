@@ -36,11 +36,11 @@ defmodule MediaCentaur.Social do
 
   import Ecto.Query
 
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
-  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
   alias MediaCentaur.Social.Profile

@@ -27,8 +27,8 @@ defmodule MediaCentaur.Social.Profile.Translation do
   integer out of range drops the whole profile.
   """
 
-  alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Hue
+  alias MediaCentaur.Nostr.Event
 
   @kind 12_160
   @content_version 1
