@@ -25,9 +25,7 @@ defmodule MediaCentaur.Social.AvatarStore do
   @spec write(String.t(), String.t(), binary()) :: :ok
   def write(pubkey, type, bytes) when is_binary(pubkey) and is_binary(type) and is_binary(bytes) do
     :ok = delete(pubkey)
-    dest = ImageFiles.on_disk_path(relative_path(pubkey, type))
-    File.mkdir_p!(Path.dirname(dest))
-    File.write!(dest, bytes)
+    ImageFiles.write_file(relative_path(pubkey, type), bytes)
   end
 
   @doc "The stored bytes, or `{:error, :enoent}`."
@@ -68,9 +66,5 @@ defmodule MediaCentaur.Social.AvatarStore do
   @doc "The versioned URL for the key's avatar, or nil when there is no type or no file."
   @spec url(String.t(), String.t() | nil, non_neg_integer()) :: String.t() | nil
   def url(_pubkey, nil, _version), do: nil
-
-  def url(pubkey, type, version) do
-    relative = relative_path(pubkey, type)
-    if File.regular?(ImageFiles.on_disk_path(relative)), do: ImageFiles.web_path(relative, version)
-  end
+  def url(pubkey, type, version), do: ImageFiles.url_if_present(relative_path(pubkey, type), version)
 end

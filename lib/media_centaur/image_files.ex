@@ -56,6 +56,36 @@ defmodule MediaCentaur.ImageFiles do
   end
 
   @doc """
+  Writes bytes at a data-dir-relative path, creating its directory. The
+  one write every data-dir picture store (`Social.AvatarStore`,
+  `Profiles.PictureStore`, `Apps.Artwork`) makes.
+  """
+  @spec write_file(String.t(), binary()) :: :ok
+  def write_file(relative_path, bytes) when is_binary(relative_path) and is_binary(bytes) do
+    dest = on_disk_path(relative_path)
+    File.mkdir_p!(Path.dirname(dest))
+    File.write!(dest, bytes)
+  end
+
+  @doc "Removes the file at a data-dir-relative path. A file already gone is what we wanted."
+  @spec remove_file(String.t()) :: :ok
+  def remove_file(relative_path) when is_binary(relative_path) do
+    path = on_disk_path(relative_path)
+
+    case File.rm(path) do
+      :ok -> :ok
+      {:error, :enoent} -> :ok
+      {:error, reason} -> raise File.Error, reason: reason, action: "remove file", path: path
+    end
+  end
+
+  @doc "The versioned URL for a data-dir-relative path, or nil when no file is there."
+  @spec url_if_present(String.t(), non_neg_integer()) :: String.t() | nil
+  def url_if_present(relative_path, version) when is_binary(relative_path) do
+    if File.regular?(on_disk_path(relative_path)), do: web_path(relative_path, version)
+  end
+
+  @doc """
   The relative path a `/media-images/` URL names, any query dropped — the
   inverse of `web_path/1`. `nil` for any other URL, so a caller checking a
   file on disk skips URLs this route does not serve.
