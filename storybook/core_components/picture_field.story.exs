@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.PictureField do
 
   def function, do: &MediaCentaurWeb.Components.PictureField.picture_field/1
   def render_source, do: :function
-  def aliases, do: [MediaCentaurWeb.Components.AppCards]
+  def aliases, do: [MediaCentaurWeb.Components.AppCards, MediaCentaurWeb.Components.Social.IdentityTile]
 
   def template do
     ~s|<div class="max-w-md"><.psb-variation/></div>|
@@ -111,12 +111,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.PictureField do
         """,
         """
         <:preview>
-          <span class="identity-tile identity-tile-own identity-tile-avatar relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full">
-            <canvas data-role="preview" width="48" height="48" class="size-full"></canvas>
-          </span>
-          <span class="identity-tile identity-tile-own identity-tile-avatar relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full">
-            <canvas data-role="preview" width="40" height="40" class="size-full"></canvas>
-          </span>
+          <IdentityTile.crop_previews />
         </:preview>
         """
       ]

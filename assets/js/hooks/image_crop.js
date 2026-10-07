@@ -1,7 +1,8 @@
 // ImageCrop — the region a person picks on the picture they chose, at the
 // master's fixed shape, before the app cuts the master: the profile
 // avatar at 1:1, an app's banner at 460:215. Rendered by
-// `Components.PictureField`.
+// `Components.PictureField`; the avatar's preview frames come from
+// `IdentityTile.crop_previews/1`.
 //
 // Expected shape (one per pending upload entry, `phx-update="ignore"` so
 // croppr's DOM survives patches):

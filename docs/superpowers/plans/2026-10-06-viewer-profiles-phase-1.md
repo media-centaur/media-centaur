@@ -1122,8 +1122,8 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
   is of this install (filled) or a friend (tinted). The marks: the
   picture, else the first letter of the name, else the person glyph for
   a friend with no name at all. Four sizes: 32 in the title detail's
-  social panel and lead review, 40 on a Feed row, the rail's person
-  card and the sidebar's profile switcher, 48 on the Friends page's card
+  social panel and lead review and the sidebar's profile switcher, 40 on
+  a Feed row and the rail's person card, 48 on the Friends page's card
   and the Settings cards, 96 on the "Who's watching?" picker. The last
   group is the palette (UIDR-048).
   """
@@ -1139,8 +1139,8 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
 
   def variations do
     [
-      %VariationGroup{id: :panel_32, description: "32px: the social panel and the lead review", variations: states(32)},
-      %VariationGroup{id: :row_40, description: "40px: a Feed row, the rail card, the sidebar switcher", variations: states(40)},
+      %VariationGroup{id: :panel_32, description: "32px: the social panel, the lead review and the sidebar switcher", variations: states(32)},
+      %VariationGroup{id: :row_40, description: "40px: a Feed row and the rail card", variations: states(40)},
       %VariationGroup{id: :card_48, description: "48px: the Friends page's card and the Settings cards", variations: states(48)},
       %VariationGroup{
         id: :picker_96,

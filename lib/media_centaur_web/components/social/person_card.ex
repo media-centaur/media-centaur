@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
       phx-mounted={@landed? && JS.focus()}
     >
       <header class="flex items-center gap-3">
-        <IdentityTile.identity_tile person={@person} size={tile_size(@width)} />
+        <IdentityTile.identity_tile {IdentityTile.person_attrs(@person)} size={tile_size(@width)} />
         <h2
           class={[
             "min-w-0 flex-1 truncate font-semibold",

@@ -108,23 +108,12 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               >
                 <:current>
                   <IdentityTile.identity_tile
-                    person={shown_person(@own_person, @avatar_removed?, @profile_hue)}
+                    {IdentityTile.person_attrs(shown_person(@own_person, @avatar_removed?, @profile_hue))}
                     size={48}
                   />
                 </:current>
                 <:preview>
-                  <span
-                    class="identity-tile identity-tile-own identity-tile-avatar relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full"
-                    aria-hidden="true"
-                  >
-                    <canvas data-role="preview" width="48" height="48" class="size-full"></canvas>
-                  </span>
-                  <span
-                    class="identity-tile identity-tile-own identity-tile-avatar relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full"
-                    aria-hidden="true"
-                  >
-                    <canvas data-role="preview" width="40" height="40" class="size-full"></canvas>
-                  </span>
+                  <IdentityTile.crop_previews />
                 </:preview>
               </PictureField.picture_field>
             </.settings_field>

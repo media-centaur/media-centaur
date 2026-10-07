@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
       phx-value-activity={@entry.activity_id}
       data-entity-id={TitleRef.param(@entry.ref)}
     >
-      <IdentityTile.identity_tile person={@entry.author} size={40} />
+      <IdentityTile.identity_tile {IdentityTile.person_attrs(@entry.author)} size={40} />
 
       <img
         :if={@entry.poster_url}
