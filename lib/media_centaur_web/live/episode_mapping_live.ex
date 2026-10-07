@@ -183,6 +183,8 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
   def render(assigns) do
     ~H"""
     <Layouts.app
+      profile={@profile}
+      profiles={@profiles}
       show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}

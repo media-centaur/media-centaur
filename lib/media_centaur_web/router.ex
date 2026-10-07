@@ -25,6 +25,9 @@ defmodule MediaCentaurWeb.Router do
         # First, so its hooks run before any page's: the arm gesture's
         # "any other interaction disarms" rule must see every event.
         MediaCentaurWeb.Live.ArmGesture,
+        # Who is watching (ADR-078): assigns :profile and :profiles, or
+        # redirects the first handle_params to the picker.
+        MediaCentaurWeb.Live.ProfileAware,
         # Which disclosures the user opened, for the ones no handler reads.
         MediaCentaurWeb.Live.DisclosureState,
         MediaCentaurWeb.Live.CapabilitiesAware,
