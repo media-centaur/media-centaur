@@ -66,6 +66,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 075 | 2026-09-29 | [Bounded context naming](architecture/2026-09-29-075-bounded-context-naming.md) | accepted, amended 2026-10-03 |
 | 076 | 2026-09-29 | [Durability follows the cost of losing the work](architecture/2026-09-29-076-durability-follows-the-cost-of-losing-the-work.md) | accepted |
 | 077 | 2026-09-29 | [A durable job is recorded with the decision that owes it](architecture/2026-09-29-077-a-durable-job-is-recorded-with-the-decision-that-owes-it.md) | accepted |
+| 078 | 2026-10-06 | [A profile is a watching identity, and the browser session holds the active one](architecture/2026-10-06-078-a-profile-is-a-watching-identity-held-by-the-session.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
@@ -114,3 +115,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted, amended 2026-10-03 |
 | 051 | 2026-10-03 | [The Discovery page is the Social page](user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md) | accepted, amended 2026-10-03 |
 | 052 | 2026-10-05 | [A completed movie opens its title](user-interface/2026-10-05-052-a-completed-movie-opens-its-title.md) | accepted, amended 2026-10-05 |
+| 053 | 2026-10-06 | [A profile is picked at the front door and drawn as the identity tile](user-interface/2026-10-06-053-a-profile-is-picked-at-the-front-door.md) | accepted |
