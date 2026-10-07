@@ -237,7 +237,7 @@ one per key (`pubkey` unique, `name`, `avatar_type`, `hue`, `raw_event`,
 `created_at`), for the identity and the roster only.
 
 - `Social.save_profile/3` is the Settings form's save. It takes the name, an
-  avatar change and the hue (`Social.Hue`, an integer 0–359 or nil; out of
+  avatar change and the hue (`MediaCentaur.Hue`, an integer 0–359 or nil; out of
   range is refused, `:invalid_hue`). The avatar change: `:keep` the stored avatar, `:none` to remove it, or
   `{:new, bytes}`, the WebP master `ImageFiles.square_webp/4` made; bytes over the cap are refused (`:avatar_too_large`). It refuses
   a blank name (`:name_required`) or one over the cap (`:name_too_long`) before
@@ -460,7 +460,7 @@ exists its button is **Create profile**, and saving mints the identity.
 The Colour field is `Components.Social.HueSwatches` over the form's
 pending hue (`profile_hue`): a swatch pushes `set_profile_hue`, the ring
 slider is a field of the form and reaches `validate_profile`; a form with
-no saved hue starts on `Social.Hue.random/0`, a palette member, and the
+no saved hue starts on `Hue.random/0`, a palette member, and the
 card's tile previews the pending hue until Save publishes it.
 While a picture is chosen, the Picture field carries the crop stage: the
 `AvatarCrop` hook (`assets/js/hooks/avatar_crop.js`) mounts croppr on the

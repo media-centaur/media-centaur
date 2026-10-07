@@ -2,10 +2,10 @@ defmodule MediaCentaur.DisplayName do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  The one rule for a person's name wherever the app holds one: the
-  social profile's published name (`Social.save_profile/3`, the wire cap
-  in `Social.Profile.Translation`) and a viewer profile's name
-  (`Profiles`). Trimmed, present, and at most `max_length/0` characters.
+  The one rule for a profile's name, the social profile's published
+  name (`Social.save_profile/3`, the wire cap in
+  `Social.Profile.Translation`) and a viewer profile's name
+  (`Profiles`): trimmed, present, and at most `max_length/0` characters.
   """
 
   @max_length 50

@@ -72,9 +72,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaur.ImageFiles
   alias MediaCentaurWeb.Components.PictureField
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
-  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaurWeb.SettingsLive.LanguageLogic

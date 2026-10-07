@@ -4,10 +4,10 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   import MediaCentaur.TmpDataDir
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events
-  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
