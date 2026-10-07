@@ -74,17 +74,17 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     render_until(view, fn _html -> has_element?(view, "#sidebar-profile") end)
   end
 
-  test "removing another profile keeps the active one, down to a single profile", %{conn: conn} do
+  test "removing another profile keeps the active one chosen by the cookie", %{conn: conn} do
     ana = create_profile(name: "Ana")
-    bea = create_profile(name: "Bea")
+    create_profile(name: "Bea")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
 
     [me | _] = Profiles.list()
     :ok = Profiles.remove(me)
-    :ok = Profiles.remove(bea)
-    # The switcher disappears only once the hook has processed the second
-    # removal and Ana is the single remaining profile.
-    render_until(view, fn _html -> not has_element?(view, "#sidebar-profile") end)
-    assert has_element?(view, "#sidebar")
+    {:ok, _ana} = Profiles.rename(ana, "Anna")
+    # Both broadcasts come from this process in order, so the switcher
+    # showing "Anna" means the hook handled the removal with two profiles
+    # left, the cookie lookup chose Ana, and the page was not redirected.
+    render_until(view, fn _html -> has_element?(view, "#sidebar-profile", "Anna") end)
   end
 end
