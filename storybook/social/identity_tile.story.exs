@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Person
 
   def function, do: &MediaCentaurWeb.Components.Social.IdentityTile.identity_tile/1

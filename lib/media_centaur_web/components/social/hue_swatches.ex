@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
   import MediaCentaurWeb.Components.Social.IdentityTile, only: [hue_style: 1]
   import MediaCentaurWeb.CoreComponents, only: [phx_values: 1]
 
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
 
   attr :id, :string, required: true
   attr :selected, :integer, default: nil, doc: "the chosen hue; nil is none (Theirs, when shown)"

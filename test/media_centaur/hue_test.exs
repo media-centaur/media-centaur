@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Social.HueTest do
+defmodule MediaCentaur.HueTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
 
   test "a hue is an integer angle 0–359" do
     assert Hue.valid?(0)

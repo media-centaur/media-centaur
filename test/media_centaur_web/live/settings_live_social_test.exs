@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret

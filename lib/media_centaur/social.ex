@@ -12,7 +12,6 @@ defmodule MediaCentaur.Social do
       Events.RelayAdded,
       Events.RelayRemoved,
       Friend,
-      Hue,
       Identity,
       Person,
       Profile,
@@ -41,7 +40,7 @@ defmodule MediaCentaur.Social do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
   alias MediaCentaur.Social.Profile
