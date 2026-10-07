@@ -58,6 +58,9 @@ defmodule MediaCentaurWeb.Router do
       live "/status", StatusLive, :index
     end
 
+    # The picker's tiles post here: a LiveView cannot write the session cookie.
+    post "/profiles/:id/activate", ProfileController, :activate
+
     # Steam picker artwork — local librarycache file or CDN redirect
     # (hash-addressed titles have no guessable CDN URL; see controller).
     get "/apps/steam-art/:app_id/:role", SteamArtController, :show
