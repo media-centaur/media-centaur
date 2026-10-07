@@ -35,26 +35,11 @@ defmodule MediaCentaur.Social.AvatarStore do
   @doc "Removes every avatar file for the key. Idempotent."
   @spec delete(String.t()) :: :ok
   def delete(pubkey) when is_binary(pubkey) do
-    dir = ImageFiles.on_disk_path(@subdir)
-
-    case File.ls(dir) do
+    case File.ls(ImageFiles.on_disk_path(@subdir)) do
       {:ok, files} ->
-        # A file another writer removed between the listing and the
-        # remove is already what we wanted.
         files
         |> Enum.filter(&String.starts_with?(&1, pubkey <> "."))
-        |> Enum.each(fn file ->
-          case File.rm(Path.join(dir, file)) do
-            :ok ->
-              :ok
-
-            {:error, :enoent} ->
-              :ok
-
-            {:error, reason} ->
-              raise File.Error, reason: reason, action: "remove file", path: Path.join(dir, file)
-          end
-        end)
+        |> Enum.each(&ImageFiles.remove_file(Path.join(@subdir, &1)))
 
       {:error, _no_dir} ->
         :ok

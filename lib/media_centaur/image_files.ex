@@ -57,8 +57,9 @@ defmodule MediaCentaur.ImageFiles do
 
   @doc """
   Writes bytes at a data-dir-relative path, creating its directory. The
-  one write every data-dir picture store (`Social.AvatarStore`,
-  `Profiles.PictureStore`, `Apps.Artwork`) makes.
+  one write `Social.AvatarStore` and `Profiles.PictureStore` make.
+  `Apps.Artwork` keeps its own non-raising write because its caller
+  handles `{:error, _}`.
   """
   @spec write_file(String.t(), binary()) :: :ok
   def write_file(relative_path, bytes) when is_binary(relative_path) and is_binary(bytes) do
