@@ -43,9 +43,54 @@ session with its own active profile.
 
 ## Status
 
-Phase 1 built on branch `viewer-profiles` (worktree
-`../media-centaur-app-viewer-profiles`), every task reviewed; owner's
-visual check and merge next; phase 2 plan after.
+Phase 1 built and gated on branch `viewer-profiles` (worktree
+`../media-centaur-app-viewer-profiles`, 2026-10-07): fourteen tasks,
+each reviewed for spec compliance and quality with the fixes landed;
+`mix precommit` clean on every static gate; the suite at 8398 with
+the three load flakes below passing alone. Not merged, not pushed.
+Owner's visual check and merge next; phase 2 plan after.
+
+**Hand-off for the next session (read before anything else).**
+
+* The branch is in the worktree, not the main checkout. The main
+  checkout still holds *uncommitted, older* copies of the planning
+  docs from the session that wrote them (`docs/superpowers/specs/…`,
+  `docs/superpowers/plans/…`, the two decision records,
+  `decisions/README.md`, `campaigns/viewer-profiles.md`,
+  `campaigns/README.md`). The branch's versions are the truth. Before
+  merging, discard those copies in the main checkout
+  (`git checkout -- decisions/README.md campaigns/README.md` and remove
+  the untracked files) or the merge refuses to overwrite them.
+* The wiki checkout has two local, unpushed commits (`5b8ca60`,
+  `4f91542`): the Social profile relabel and the new Profiles section
+  of the Settings reference. Push them with the release.
+* A throwaway dev server config for the worktree (port 2161, its own
+  SQLite file, Me and Ana) is in this session's scratchpad and will be
+  gone; recreate one from `defaults/media-centaur.toml`'s three keys
+  if a worktree server is needed again.
+* Three pre-existing flakes showed under machine load on full runs:
+  `Exqlite "Database busy"` on a `settings_entries` insert in test
+  setup (several files, never the same), an `Exqlite` client-exited
+  disconnect, and the two context-map tests timing out at 60 s. Every
+  one passes alone. The `TargetStatus` load-order flake was fixed on
+  the branch (`c20bd71e`); `Jobs.PursueTarget`'s own
+  `String.to_existing_atom` carries the same fragility and is untouched.
+* The context map was regenerated on the branch; `verdicts.json` is
+  still empty for every finding. One false positive to raise with the
+  tool: the R1 foreign-write rule matches the `name` key of the
+  ignore-rules map literal in `SettingsLive.mount/3` as a write to
+  `Profiles.Profile.name`.
+* Open for the owner: TV sizing of the picker (96 is the largest tile
+  size the identity tile allows; the heading is 3xl); the uppercase
+  card titles on Settings → Profiles (the kit's card title treatment
+  renders a name as "ME"); the pre-existing `Friend.name_override`
+  takes no name rule while `DisplayName` governs both profiles.
+
+**Phase 2 starts from** the "What the surveys found" section below
+(the four watching tables, the touch counts, the three read models,
+the playback path) and the spec's "Watching per profile" section; the
+backfill is an inline heal in each schema migration assigning rows to
+the oldest profile.
 
 ## What the surveys found
 
