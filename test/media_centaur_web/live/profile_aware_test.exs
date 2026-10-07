@@ -28,6 +28,8 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     ana = create_profile(name: "Ana")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
     assert has_element?(view, "#sidebar-profile", "Ana")
+    # Walking the cursor over it must not open the picker; only SELECT does.
+    assert has_element?(view, "#sidebar-profile[data-nav-defer-activate]")
   end
 
   test "a stale cookie asks again", %{conn: conn} do
@@ -36,16 +38,51 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     assert {:error, {:redirect, %{to: "/profiles?return_to=%2Fguide"}}} = live(conn, @page)
   end
 
-  test "a rename reaches the open page; removing the active profile drops it to the picker", %{
-    conn: conn
-  } do
+  test "a rename reaches the open page", %{conn: conn} do
     ana = create_profile(name: "Ana")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
 
-    {:ok, ana} = Profiles.rename(ana, "Anna")
+    {:ok, _ana} = Profiles.rename(ana, "Anna")
     render_until(view, fn _html -> has_element?(view, "#sidebar-profile", "Anna") end)
+  end
+
+  test "removing the active profile of three drops the page to the picker, returning to it", %{
+    conn: conn
+  } do
+    ana = create_profile(name: "Ana")
+    create_profile(name: "Bea")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
 
     :ok = Profiles.remove(ana)
-    assert_redirect(view, "/profiles")
+    assert_redirect(view, "/profiles?return_to=%2Fguide")
+  end
+
+  test "removing the active profile of two leaves the other active, with no switcher", %{conn: conn} do
+    ana = create_profile(name: "Ana")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
+    assert has_element?(view, "#sidebar-profile", "Ana")
+
+    :ok = Profiles.remove(ana)
+    render_until(view, fn _html -> not has_element?(view, "#sidebar-profile") end)
+  end
+
+  test "adding a second profile shows the switcher on the open page", %{conn: conn} do
+    {:ok, view, _html} = live_async!(conn, @page)
+    refute has_element?(view, "#sidebar-profile")
+
+    create_profile(name: "Ana")
+    render_until(view, fn _html -> has_element?(view, "#sidebar-profile") end)
+  end
+
+  test "removing another profile keeps the active one", %{conn: conn} do
+    ana = create_profile(name: "Ana")
+    create_profile(name: "Bea")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
+
+    [me | _] = Profiles.list()
+    :ok = Profiles.remove(me)
+    # The broadcast is in the view's mailbox before this call, so the
+    # view has handled it by the time it answers.
+    assert has_element?(view, "#sidebar-profile", "Ana")
   end
 end

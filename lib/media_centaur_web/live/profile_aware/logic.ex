@@ -15,4 +15,14 @@ defmodule MediaCentaurWeb.Live.ProfileAware.Logic do
   end
 
   def resolve(_cookie, _profiles), do: :pick
+
+  @doc """
+  The page a picker visit returns to: the URI's path, with its query when
+  it has one, form-encoded for a `return_to` query value.
+  """
+  @spec return_to(String.t()) :: String.t()
+  def return_to(uri) do
+    %URI{path: path, query: query} = URI.parse(uri)
+    URI.encode_www_form(if query, do: path <> "?" <> query, else: path)
+  end
 end
