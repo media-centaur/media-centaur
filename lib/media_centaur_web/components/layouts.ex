@@ -130,7 +130,9 @@ defmodule MediaCentaurWeb.Layouts do
               tile and name, a link to the picker; present only when there is
               someone to switch to. data-nav-defer-activate: sidebar entries
               activate on focus, but merely walking the cursor over the switcher
-              must not open the picker — only an explicit SELECT does. --%>
+              must not open the picker — only an explicit SELECT does. The
+              picker is in another live_session, so this navigate is a full
+              page load by design. --%>
         <.link
           :if={length(@profiles) > 1}
           id="sidebar-profile"

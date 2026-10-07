@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
 
   alias MediaCentaur.DisplayName
   alias MediaCentaur.Profiles
-  alias MediaCentaurWeb.Components.Social.IdentityTile
+  alias MediaCentaurWeb.Components.ProfileTile
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.ProfileController.ReturnTo
   alias MediaCentaurWeb.ProfileWords
@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Who's watching?", profiles: [], return_to: "/", add_error: nil)
+     |> assign(page_title: "Who's watching?", profiles: [], return_to: "/", add_error: nil, added: 0)
      |> Subscriptions.subscribe(Profiles)}
   end
 
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
   @impl true
   def handle_event("add_profile", %{"name" => name}, socket) do
     case Profiles.add(name) do
-      {:ok, _profile} -> {:noreply, assign(socket, add_error: nil)}
+      {:ok, _profile} -> {:noreply, assign(socket, added: socket.assigns.added + 1, add_error: nil)}
       {:error, reason} -> {:noreply, assign(socket, add_error: ProfileWords.error(reason))}
     end
   end
@@ -63,12 +63,11 @@ defmodule MediaCentaurWeb.ProfilesLive do
         <div
           id="profile-picker"
           class="flex flex-wrap items-start justify-center gap-10"
-          data-nav-zone="grid"
+          data-nav-zone="profile_picker"
         >
           <.form
             :for={profile <- @profiles}
             for={%{}}
-            as={:pick}
             id={"pick-#{profile.id}"}
             action={~p"/profiles/#{profile.id}/activate"}
             method="post"
@@ -77,18 +76,15 @@ defmodule MediaCentaurWeb.ProfilesLive do
             <input type="hidden" name="return_to" value={@return_to} />
             <button
               type="submit"
-              class="flex w-36 cursor-pointer flex-col items-center gap-3 rounded-xl p-3"
+              class="cursor-pointer rounded-xl p-3"
               data-nav-item
               tabindex="0"
             >
-              <IdentityTile.identity_tile
+              <ProfileTile.profile_tile
                 name={profile.name}
                 picture_url={Profiles.picture_url(profile)}
                 hue={profile.hue}
-                own?
-                size={96}
               />
-              <span class="max-w-full truncate text-base">{profile.name}</span>
             </button>
           </.form>
           <form
@@ -97,15 +93,33 @@ defmodule MediaCentaurWeb.ProfilesLive do
             phx-submit="add_profile"
             class="flex w-36 flex-col items-center gap-3 p-3"
           >
+            <%!-- The field and its button share one width, so geometry finds
+                  them equally in line with a tile and document order sends
+                  Right from a tile to the field; Down from the field reaches
+                  the button. The field's id counts the adds: a success
+                  replaces it with an empty field that takes the focus, since
+                  the server never held the typed text to clear. A refusal
+                  keeps it, and the text with it. --%>
             <.settings_input
+              id={"add-profile-name-#{@added}"}
               name="name"
+              autofocus={@added > 0}
               placeholder="Add profile"
               maxlength={DisplayName.max_length()}
               autocomplete="off"
               class="text-center"
             />
-            <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">Add</.button>
-            <p :if={@add_error} class="text-xs text-error">{@add_error}</p>
+            <.button
+              type="submit"
+              variant="neutral"
+              size="sm"
+              class="w-full"
+              data-nav-item
+              tabindex="0"
+            >
+              Add
+            </.button>
+            <p :if={@add_error} class="text-sm text-error">{@add_error}</p>
           </form>
         </div>
       </div>

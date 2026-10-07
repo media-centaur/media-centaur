@@ -48,6 +48,7 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
+    profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
     // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
@@ -103,6 +104,8 @@ export const inputConfig = {
     guide_outline: Context.MENU,
     console_footer: Context.TOOLBAR,
     people: Context.SHELF,
+    // The profile picker: tiles in a wrapping row plus the Add input over its button, so geometry answers adjacency.
+    profile_picker: Context.SHELF,
     // The detail modal: a horizontal command row over a nesting list. The
     // Cast sub-view swaps the list for a photo grid, whose arrangement
     // carries the meaning — SHELF resolves it by geometry, which is what
@@ -361,9 +364,10 @@ export const inputConfig = {
     setup: {
       grid: {},
     },
-    // Profile picker: one grid of tiles and the add form, no sidebar.
+    // Profile picker: one geometry-resolved zone of tiles and the add
+    // form, no sidebar; nowhere else to go, so the zone has no edges.
     profiles: {
-      grid: {},
+      profile_picker: {},
     },
   },
 
@@ -383,7 +387,7 @@ export const inputConfig = {
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
-    profiles:  ["grid"],
+    profiles:  ["profile_picker"],
   },
 
   // Always-populated contexts (skip item count check)

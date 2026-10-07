@@ -8,5 +8,6 @@ defmodule MediaCentaurWeb.Storybook.Social do
   def entry("feed_row"), do: [icon: {:fa, "stream", :thin}, name: "Feed row"]
   def entry("hue_swatches"), do: [icon: {:fa, "palette", :thin}, name: "Hue swatches"]
   def entry("identity_tile"), do: [icon: {:fa, "circle-user", :thin}, name: "Identity tile"]
+  def entry("profile_tile"), do: [icon: {:fa, "user-check", :thin}, name: "Profile tile"]
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
 end

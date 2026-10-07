@@ -18,6 +18,5 @@ defmodule MediaCentaurWeb.ProfileController.ReturnTo do
 
   def local_path(_other), do: "/"
 
-  defp unsafe?(path),
-    do: String.contains?(path, "\\") or Enum.any?(:binary.bin_to_list(path), &(&1 < 0x20))
+  defp unsafe?(path), do: String.match?(path, ~r/[\x00-\x1F\\]/)
 end
