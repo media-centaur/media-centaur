@@ -22,13 +22,13 @@ defmodule MediaCentaur.Social.Profile.Translation do
   `raw_event` still carries the wire form, avatar included, for
   republish.
 
-  The hue is the optional integer field `"hue"`, 0–359 (`Social.Hue`),
+  The hue is the optional integer field `"hue"`, 0–359 (`MediaCentaur.Hue`),
   absent or null when the key gives none; a float, a string or an
   integer out of range drops the whole profile.
   """
 
   alias MediaCentaur.Nostr.Event
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
 
   @kind 12_160
   @content_version 1

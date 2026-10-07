@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTile do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
   alias MediaCentaur.Social.Person
 
   attr :person, Person, required: true, doc: "as the reader sees them"

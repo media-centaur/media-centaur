@@ -1,17 +1,21 @@
-defmodule MediaCentaur.Social.Hue do
+defmodule MediaCentaur.Hue do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   A person's colour is a hue (UIDR-048): an integer angle 0–359 on one
   oklch ring whose lightness and chroma the theme fixes (`--person-l`,
   `--person-c` in `app.css`), so nothing published can be dark, pastel
-  or grey and a letter's contrast never depends on the choice. On the
-  wire it is the profile's optional `hue` field (ADR-073); in the row,
-  `profiles.hue` and the reader's `friends.hue_override`. User copy says
-  *colour*; code and the wire say hue.
+  or grey and a letter's contrast never depends on the choice. Two
+  contexts carry one: the social profile's optional `hue` field on the
+  wire (ADR-073; `social_profiles.hue` and the reader's
+  `friends.hue_override`) and a viewer profile's `profiles.hue`
+  (ADR-078). User copy says *colour*; code and the wire say hue.
 
   The palette is the eight named angles the swatch row offers; any
-  other angle comes from the slider. `random/0` seeds a new profile's
-  form. A person with no hue is drawn at 250, the primary's angle, by
-  CSS alone (`var(--hue, 250)`); no function here supplies a default.
+  other angle comes from the slider. `random/0` seeds a new social
+  profile's form. A person with no hue is drawn at 250, the primary's
+  angle, by CSS alone (`var(--hue, 250)`); no function here supplies a
+  default.
   """
 
   @type t :: 0..359

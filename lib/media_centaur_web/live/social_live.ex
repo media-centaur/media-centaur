@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Social.FeedRow

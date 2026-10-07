@@ -22,7 +22,7 @@ defmodule MediaCentaur.Social.Person do
   Not `MediaCentaur.Library.Person`, which is a title's cast member.
   """
 
-  alias MediaCentaur.Social.Hue
+  alias MediaCentaur.Hue
 
   defstruct [
     :pubkey,
