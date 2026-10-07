@@ -70,6 +70,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.SocialSection
+  alias MediaCentaurWeb.SettingsLive.ProfilesSection
+  alias MediaCentaur.Profiles
+  alias MediaCentaur.Profiles.PictureStore
+  alias MediaCentaur.Profiles.Profile
   alias MediaCentaurWeb.Components.PictureField
   alias MediaCentaurWeb.ProfileWords
   alias MediaCentaur.Hue
@@ -105,6 +109,12 @@ defmodule MediaCentaurWeb.SettingsLive do
       label: "Preferences",
       group: :general,
       description: "How the app looks and behaves for you."
+    },
+    %{
+      id: "profiles",
+      label: "Profiles",
+      group: :general,
+      description: "Who watches on this install. Each profile is picked on the Who's watching? screen."
     },
     %{id: "controls", label: "Controls", group: :general, description: "Keyboard and gamepad bindings."},
     # Media workflow — the arr stack. (Release tracking's refresh interval
@@ -197,6 +207,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     # `PictureField.consume_change/5`.
     socket = allow_upload(socket, :avatar, PictureField.upload_options())
 
+    # A viewer profile's picture, on the one card `picture_editing` opens.
+    socket = allow_upload(socket, :profile_picture, PictureField.upload_options())
+
     {:ok,
      socket
      |> assign(loaded?: false)
@@ -230,6 +243,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(identity_npub: nil, nsec_revealed: nil, import_draft: "")
      |> assign(profile_name: nil, profile_hue: nil, name_cap: ProfileTranslation.max_name_length())
      |> assign(own_person: nil, avatar_removed?: false)
+     |> assign(picture_editing: nil, picture_removed: nil)
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
        sections: @sections,
@@ -404,6 +418,30 @@ defmodule MediaCentaurWeb.SettingsLive do
   # so a new profile starts with a colour; the random one is the form's
   # alone until Save publishes it.
   defp profile_hue, do: saved_hue_or(Hue.random())
+
+  # A viewer profile's hue saves on the act (UIDR-041 §2); an empty slider
+  # value or a malformed one changes nothing.
+  defp set_viewer_hue(socket, id, value) do
+    with %Profile{} = profile <- Profiles.get(id),
+         {:ok, hue} when is_integer(hue) <- Hue.parse(value),
+         {:ok, _updated} <- Profiles.set_hue(profile, hue) do
+      socket
+    else
+      {:error, reason} -> put_flash(socket, :error, ProfileWords.error(reason))
+      _nil_or_empty -> socket
+    end
+  end
+
+  defp apply_profile_picture(_profile, :keep), do: {:ok, :kept}
+  defp apply_profile_picture(profile, change), do: Profiles.set_picture(profile, change)
+
+  # Opening or closing the field drops whatever was chosen, so the next
+  # card to open it starts empty.
+  defp drop_profile_picture_entries(socket) do
+    Enum.reduce(socket.assigns.uploads.profile_picture.entries, socket, fn entry, socket ->
+      cancel_upload(socket, :profile_picture, entry.ref)
+    end)
+  end
 
   defp assign_hue(socket, value) do
     case Hue.parse(value) do
@@ -990,6 +1028,109 @@ defmodule MediaCentaurWeb.SettingsLive do
   # form re-renders against `@config` — which now matches the typed-in
   # values, so the user sees their input preserved instead of clobbered.
   # See `test/media_centaur_web/live/settings_live_acquisition_test.exs`.
+
+  # --- Profiles (ADR-078) -----------------------------------------------------
+  # The list is `Live.ProfileAware`'s `@profiles`; each change below
+  # broadcasts, and the hook re-assigns it.
+
+  def handle_event("add_profile", %{"name" => name}, socket) do
+    case Profiles.add(name) do
+      {:ok, profile} -> {:noreply, put_flash(socket, :info, "Added #{profile.name}")}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
+    end
+  end
+
+  # Blur and Enter both land here with the input's `value`.
+  def handle_event("rename_profile", %{"id" => id, "value" => name}, socket) do
+    with %Profile{} = profile <- Profiles.get(id),
+         {:ok, _renamed} <- Profiles.rename(profile, name) do
+      {:noreply, socket}
+    else
+      nil -> {:noreply, socket}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
+    end
+  end
+
+  # The hue slider is a field of the card's form; a drag lands here as
+  # `hue`, beside the card's hidden `profile_id` (a field named `id` would
+  # shadow the form element's own id).
+  def handle_event(
+        "validate_profile_card",
+        %{"_target" => ["hue"], "hue" => hue, "profile_id" => id},
+        socket
+      ), do: {:noreply, set_viewer_hue(socket, id, hue)}
+
+  # The upload's change event: LiveView needs it bound to track the entry.
+  def handle_event("validate_profile_card", _params, socket), do: {:noreply, socket}
+
+  def handle_event("set_profile_hue", %{"hue" => hue, "id" => id}, socket),
+    do: {:noreply, set_viewer_hue(socket, id, hue)}
+
+  def handle_event("edit_profile_picture", %{"id" => id}, socket),
+    do:
+      {:noreply,
+       socket |> drop_profile_picture_entries() |> assign(picture_editing: id, picture_removed: nil)}
+
+  def handle_event("stop_editing_picture", _params, socket),
+    do:
+      {:noreply,
+       socket |> drop_profile_picture_entries() |> assign(picture_editing: nil, picture_removed: nil)}
+
+  # Remove is pending until the save: the tile shows the letter, the
+  # stored picture stays until `:none` is saved.
+  def handle_event("remove_profile_picture", _params, socket),
+    do: {:noreply, assign(socket, picture_removed: socket.assigns.picture_editing)}
+
+  def handle_event("cancel_profile_picture", %{"ref" => ref}, socket),
+    do: {:noreply, cancel_upload(socket, :profile_picture, ref)}
+
+  # Enter in the Name field also submits the card's form (its only text
+  # field); with this card's picture field closed there is nothing to save.
+  def handle_event(
+        "save_profile_picture",
+        %{"profile_id" => id},
+        %{assigns: %{picture_editing: editing}} = socket
+      )
+      when editing != id, do: {:noreply, socket}
+
+  def handle_event("save_profile_picture", %{"profile_id" => id} = params, socket) do
+    {socket, change} =
+      PictureField.consume_change(
+        socket,
+        :profile_picture,
+        {:webp, PictureStore.master_size(), PictureStore.max_bytes()},
+        PictureField.crop_from_params(params),
+        socket.assigns.picture_removed == id
+      )
+
+    with %Profile{} = profile <- Profiles.get(id),
+         {:ok, change} <- change,
+         {:ok, _updated} <- apply_profile_picture(profile, change) do
+      {:noreply,
+       socket
+       |> assign(picture_editing: nil, picture_removed: nil)
+       |> put_flash(:info, "Picture saved")}
+    else
+      nil -> {:noreply, assign(socket, picture_editing: nil, picture_removed: nil)}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
+    end
+  end
+
+  def handle_event("remove_profile", %{"id" => id}, socket) do
+    case ArmGesture.press(socket, "remove_profile", id) do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        with %Profile{} = profile <- Profiles.get(id),
+             :ok <- Profiles.remove(profile) do
+          {:noreply, put_flash(socket, :info, "Profile removed")}
+        else
+          nil -> {:noreply, socket}
+          {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
+        end
+    end
+  end
 
   # --- Social: profile, identity + relays ------------------------------------
 
@@ -1917,6 +2058,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 uploads={@uploads}
                 own_person={@own_person}
                 avatar_removed?={@avatar_removed?}
+                profiles={@profiles}
+                picture_editing={@picture_editing}
+                picture_removed={@picture_removed}
                 nsec_revealed={@nsec_revealed}
                 import_draft={@import_draft}
                 relays={@relays}
@@ -2108,6 +2252,18 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     ~H"""
     <Tmdb.render config={@config} row={@tmdb_row} editing={@editing == :tmdb} />
+    """
+  end
+
+  defp section_content(%{active_section: "profiles"} = assigns) do
+    ~H"""
+    <ProfilesSection.render
+      profiles={@profiles}
+      uploads={@uploads}
+      picture_editing={@picture_editing}
+      picture_removed={@picture_removed}
+      armed_gesture={@armed_gesture}
+    />
     """
   end
 
