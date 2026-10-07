@@ -9,10 +9,16 @@ defmodule MediaCentaurWeb.SettingsLive.ProfilesSection do
   disabled on the last profile; and an Add card. `SettingsLive`
   delegates to `render/1` and hosts the handlers: `edit_profile_picture`,
   `stop_editing_picture`, `remove_profile_picture`,
-  `cancel_profile_picture`, `save_profile_picture`,
-  `validate_profile_card`, `set_profile_hue`, `rename_profile`,
+  `cancel_profile_picture`, `validate_profile_picture`,
+  `save_profile_picture`, `set_profile_hue`, `rename_profile`,
   `remove_profile`, `add_profile`. The list itself is
   `Live.ProfileAware`'s `@profiles`, kept live by the hook.
+
+  One form per concern: the name input stands in no form (Enter pushes
+  `rename_profile` at once and submits nothing); the colour is a small
+  form whose `phx-change` carries the slider; the picture form exists
+  only while that card's field is open, so a picture save can only come
+  from it.
   """
 
   use MediaCentaurWeb, :html
@@ -56,111 +62,123 @@ defmodule MediaCentaurWeb.SettingsLive.ProfilesSection do
             Remove profile
           </.armed_button>
         </:action>
-        <form
-          id={"profile-card-form-#{profile.id}"}
-          phx-change="validate_profile_card"
-          phx-submit="save_profile_picture"
-          class="space-y-3"
-        >
-          <input type="hidden" name="profile_id" value={profile.id} />
-          <div class="flex flex-wrap gap-x-8">
-            <.settings_field
-              label="Picture"
-              description="Shown in the circle. One JPEG, PNG or WebP; drag the square to choose what shows."
-              layout={:stacked}
-              class="w-72 shrink-0"
+        <div class="flex flex-wrap gap-x-8">
+          <.settings_field
+            label="Picture"
+            description="Shown in the circle. One JPEG, PNG or WebP; drag the square to choose what shows."
+            layout={:stacked}
+            class="w-72 shrink-0"
+          >
+            <form
+              :if={@picture_editing == profile.id}
+              id={"profile-picture-form-#{profile.id}"}
+              phx-change="validate_profile_picture"
+              phx-submit="save_profile_picture"
             >
-              <%= if @picture_editing == profile.id do %>
-                <PictureField.picture_field
-                  id={"profile-picture-#{profile.id}"}
-                  upload={@uploads.profile_picture}
-                  aspect={{1, 1}}
-                  removable?={profile.picture_at != nil && @picture_removed != profile.id}
-                  remove_event="remove_profile_picture"
-                  cancel_event="cancel_profile_picture"
-                  {IdentityTile.hue_style(profile.hue)}
-                >
-                  <:current>
-                    <IdentityTile.identity_tile
-                      name={profile.name}
-                      picture_url={shown_picture(profile, @picture_removed)}
-                      hue={profile.hue}
-                      own?
-                      size={48}
-                    />
-                  </:current>
-                  <:preview>
-                    <IdentityTile.crop_previews />
-                  </:preview>
-                </PictureField.picture_field>
-                <div class="flex gap-2 pt-2">
-                  <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-                    Save picture
-                  </.button>
-                  <.button
-                    type="button"
-                    variant="dismiss"
-                    size="sm"
-                    phx-click="stop_editing_picture"
-                    data-nav-item
-                    tabindex="0"
-                  >
-                    Cancel
-                  </.button>
-                </div>
-              <% else %>
-                <div class="flex items-center gap-3">
+              <input type="hidden" name="profile_id" value={profile.id} />
+              <PictureField.picture_field
+                id={"profile-picture-#{profile.id}"}
+                upload={@uploads.profile_picture}
+                aspect={{1, 1}}
+                removable?={profile.picture_at != nil && @picture_removed != profile.id}
+                remove_event="remove_profile_picture"
+                cancel_event="cancel_profile_picture"
+                {IdentityTile.hue_style(profile.hue)}
+              >
+                <:current>
                   <IdentityTile.identity_tile
                     name={profile.name}
-                    picture_url={Profiles.picture_url(profile)}
+                    picture_url={shown_picture(profile, @picture_removed)}
                     hue={profile.hue}
                     own?
                     size={48}
                   />
-                  <.button
-                    id={"edit-profile-picture-#{profile.id}"}
-                    type="button"
-                    variant="neutral"
-                    size="sm"
-                    phx-click="edit_profile_picture"
-                    phx-value-id={profile.id}
-                    data-nav-item
-                    tabindex="0"
-                  >
-                    {if profile.picture_at, do: "Change picture", else: "Add picture"}
-                  </.button>
-                </div>
-              <% end %>
+                </:current>
+                <:preview>
+                  <IdentityTile.crop_previews />
+                </:preview>
+              </PictureField.picture_field>
+              <div class="flex gap-2 pt-2">
+                <.button
+                  id={"save-profile-picture-#{profile.id}"}
+                  type="submit"
+                  variant="secondary"
+                  size="sm"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Save picture
+                </.button>
+                <.button
+                  id={"cancel-profile-picture-#{profile.id}"}
+                  type="button"
+                  variant="dismiss"
+                  size="sm"
+                  phx-click="stop_editing_picture"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Cancel
+                </.button>
+              </div>
+            </form>
+            <div :if={@picture_editing != profile.id} class="flex items-center gap-3">
+              <IdentityTile.identity_tile
+                name={profile.name}
+                picture_url={Profiles.picture_url(profile)}
+                hue={profile.hue}
+                own?
+                size={48}
+              />
+              <.button
+                id={"edit-profile-picture-#{profile.id}"}
+                type="button"
+                variant="neutral"
+                size="sm"
+                phx-click="edit_profile_picture"
+                phx-value-id={profile.id}
+                data-nav-item
+                tabindex="0"
+              >
+                {if profile.picture_at, do: "Change picture", else: "Add picture"}
+              </.button>
+            </div>
+          </.settings_field>
+          <div class="min-w-0 grow basis-64">
+            <.settings_field label="Name" layout={:stacked}>
+              <%!-- In no form, so Enter pushes at once and submits nothing.
+                    Not `settings_text_row`: its payload carries no profile id. --%>
+              <.settings_input
+                id={"profile-name-#{profile.id}"}
+                name="name"
+                value={profile.name}
+                maxlength={DisplayName.max_length()}
+                autocomplete="off"
+                phx-blur="rename_profile"
+                phx-keydown="rename_profile"
+                phx-key="Enter"
+                phx-value-id={profile.id}
+                class="max-w-64"
+              />
             </.settings_field>
-            <div class="min-w-0 grow basis-64">
-              <.settings_field label="Name" layout={:stacked}>
-                <%!-- Not `settings_text_row`: its payload carries no profile id. --%>
-                <.settings_input
-                  id={"profile-name-#{profile.id}"}
-                  name="name"
-                  value={profile.name}
-                  maxlength={DisplayName.max_length()}
-                  autocomplete="off"
-                  phx-blur="rename_profile"
-                  phx-keydown="rename_profile"
-                  phx-key="Enter"
-                  phx-value-id={profile.id}
-                  phx-debounce="blur"
-                  class="max-w-64"
-                />
-              </.settings_field>
-              <.settings_field label="Colour" description="The circle's colour." layout={:stacked}>
+            <.settings_field label="Colour" description="The circle's colour." layout={:stacked}>
+              <%!-- The slider is a field of this form; its drag and a swatch
+                    click reach `set_profile_hue` with one payload. The hidden
+                    field is `profile_id`: one named `id` would shadow the
+                    form element's own id. --%>
+              <form id={"profile-hue-form-#{profile.id}"} phx-change="set_profile_hue">
+                <input type="hidden" name="profile_id" value={profile.id} />
                 <HueSwatches.hue_swatches
                   id={"profile-hues-#{profile.id}"}
                   selected={profile.hue}
                   event="set_profile_hue"
-                  values={%{"id" => profile.id}}
+                  values={%{"profile_id" => profile.id}}
                   aria-label="Colour"
                 />
-              </.settings_field>
-            </div>
+              </form>
+            </.settings_field>
           </div>
-        </form>
+        </div>
       </.settings_card>
 
       <.settings_card

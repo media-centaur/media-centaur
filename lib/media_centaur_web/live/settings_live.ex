@@ -114,7 +114,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       id: "profiles",
       label: "Profiles",
       group: :general,
-      description: "Who watches on this install. Each profile is picked on the Who's watching? screen."
+      description:
+        "Who watches on this install. With more than one, each person picks theirs on the Who's watching? screen."
     },
     %{id: "controls", label: "Controls", group: :general, description: "Keyboard and gamepad bindings."},
     # Media workflow — the arr stack. (Release tracking's refresh interval
@@ -434,6 +435,12 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp apply_profile_picture(_profile, :keep), do: {:ok, :kept}
   defp apply_profile_picture(profile, change), do: Profiles.set_picture(profile, change)
+
+  # A removed profile's open picture field closes with it.
+  defp close_picture_field_of(%{assigns: %{picture_editing: id}} = socket, id),
+    do: socket |> drop_profile_picture_entries() |> assign(picture_editing: nil, picture_removed: nil)
+
+  defp close_picture_field_of(socket, _id), do: socket
 
   # Opening or closing the field drops whatever was chosen, so the next
   # card to open it starts empty.
@@ -1035,7 +1042,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("add_profile", %{"name" => name}, socket) do
     case Profiles.add(name) do
-      {:ok, profile} -> {:noreply, put_flash(socket, :info, "Added #{profile.name}")}
+      {:ok, profile} -> {:noreply, put_flash(socket, :info, "#{profile.name} added")}
       {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
     end
   end
@@ -1051,20 +1058,13 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  # The hue slider is a field of the card's form; a drag lands here as
-  # `hue`, beside the card's hidden `profile_id` (a field named `id` would
-  # shadow the form element's own id).
-  def handle_event(
-        "validate_profile_card",
-        %{"_target" => ["hue"], "hue" => hue, "profile_id" => id},
-        socket
-      ), do: {:noreply, set_viewer_hue(socket, id, hue)}
+  # A swatch click, or the slider's drag through the colour form's
+  # `phx-change` (its `_target` is ignored).
+  def handle_event("set_profile_hue", %{"profile_id" => id, "hue" => hue}, socket),
+    do: {:noreply, set_viewer_hue(socket, id, hue)}
 
   # The upload's change event: LiveView needs it bound to track the entry.
-  def handle_event("validate_profile_card", _params, socket), do: {:noreply, socket}
-
-  def handle_event("set_profile_hue", %{"hue" => hue, "id" => id}, socket),
-    do: {:noreply, set_viewer_hue(socket, id, hue)}
+  def handle_event("validate_profile_picture", _params, socket), do: {:noreply, socket}
 
   def handle_event("edit_profile_picture", %{"id" => id}, socket),
     do:
@@ -1084,16 +1084,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("cancel_profile_picture", %{"ref" => ref}, socket),
     do: {:noreply, cancel_upload(socket, :profile_picture, ref)}
 
-  # Enter in the Name field also submits the card's form (its only text
-  # field); with this card's picture field closed there is nothing to save.
+  # The picture form exists only on the open card; the match on
+  # `picture_editing` is a defensive check of that.
   def handle_event(
         "save_profile_picture",
-        %{"profile_id" => id},
-        %{assigns: %{picture_editing: editing}} = socket
-      )
-      when editing != id, do: {:noreply, socket}
-
-  def handle_event("save_profile_picture", %{"profile_id" => id} = params, socket) do
+        %{"profile_id" => id} = params,
+        %{assigns: %{picture_editing: id}} = socket
+      ) do
     {socket, change} =
       PictureField.consume_change(
         socket,
@@ -1124,7 +1121,10 @@ defmodule MediaCentaurWeb.SettingsLive do
       {:fire, socket} ->
         with %Profile{} = profile <- Profiles.get(id),
              :ok <- Profiles.remove(profile) do
-          {:noreply, put_flash(socket, :info, "Profile removed")}
+          {:noreply,
+           socket
+           |> close_picture_field_of(id)
+           |> put_flash(:info, "#{profile.name} removed")}
         else
           nil -> {:noreply, socket}
           {:error, reason} -> {:noreply, put_flash(socket, :error, ProfileWords.error(reason))}
