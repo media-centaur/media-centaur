@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`viewer-profiles.md`](viewer-profiles.md) —
+  **planning 2026-10-06.** Who has watched what: each profile picked
+  on the screen keeps its own progress, history, Continue Watching
+  and resume. Nothing else splits — one library, one watchlist, one
+  social setup, one set of settings. Decided: the word is *profile*
+  (the social kind is always *social profile*), the active profile
+  is per browser session so a second device is just another session,
+  every profile's completions publish under the one identity.
+  Later, on their own decisions: a few settings per profile,
+  watching together per title, restricted profiles. Two code
+  surveys done; spec and ADR next; no code yet.
 * [`social-and-watchlist.md`](social-and-watchlist.md) —
   **Shipped v1.49.0 on 2026-10-03; owner check open.** Two sidebar groups by purpose: **Social** (the
   Feed and Friends — the Discovery page renamed, with its route, LiveView,
