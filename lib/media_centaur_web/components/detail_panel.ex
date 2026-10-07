@@ -640,7 +640,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp note_line(assigns) do
     ~H"""
     <div id="detail-note" class="mb-3 flex max-w-[760px] items-start gap-2.5" data-role="lead-review">
-      <IdentityTile.identity_tile person={@note.author} size={32} />
+      <IdentityTile.identity_tile {IdentityTile.person_attrs(@note.author)} size={32} />
       <p class="text-[15px] leading-relaxed text-base-content/85">
         <span class="font-semibold text-base-content/95">{Format.person_name(@note.author)}</span>
         <SocialGlyph.social_glyph

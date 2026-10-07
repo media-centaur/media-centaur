@@ -158,7 +158,7 @@ defmodule MediaCentaurWeb.Components.Title.Social do
         class="social-panel-review"
         data-role="review"
       >
-        <IdentityTile.identity_tile person={review.author} size={32} />
+        <IdentityTile.identity_tile {IdentityTile.person_attrs(review.author)} size={32} />
         <div class="min-w-0 flex-1">
           <p class="flex items-center gap-2 text-[15px] leading-[22px]">
             <span class="font-semibold text-base-content/95">{Format.person_name(review.author)}</span>

@@ -1,82 +1,81 @@
 defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
   @moduledoc """
-  The app's one drawing of a person (UIDR-046, UIDR-047): the three
-  marks — the avatar, the letter, the person glyph for a friend with no
-  name at all — for a friend and for the reader's own filled tile, at
-  the three sizes the surfaces render: 32 in the title detail's social
-  panel and lead review, 40 on a Feed row and the rail's person card, 48
-  on the Friends page's card and the Settings profile card. The avatar is the picture a key published with its profile.
-  The third group is the palette (UIDR-048): every hue on a friend's
-  tile, on the reader's own, and as the ring around a picture; the
-  first tile has no hue and is drawn in the default Blue.
+  The app's one drawing of a person (UIDR-046, UIDR-047, UIDR-053) from
+  three facts — the name, the picture, the hue — and whether the person
+  is of this install (filled) or a friend (tinted). The marks: the
+  picture, else the first letter of the name, else the person glyph for
+  a friend with no name at all. Four sizes: 32 in the title detail's
+  social panel and lead review and the sidebar's profile switcher, 40 on
+  a Feed row and the rail's person card, 48 on the Friends page's card
+  and the Settings cards, 96 on the "Who's watching?" picker. The last
+  group is the palette (UIDR-048).
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Hue
-  alias MediaCentaur.Social.Person
 
   def function, do: &MediaCentaurWeb.Components.Social.IdentityTile.identity_tile/1
   def render_source, do: :function
 
-  @friend "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
-  @me "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
   @photo "/images/storybook/sample-poster.jpg"
 
   def variations do
     [
       %VariationGroup{
         id: :panel_32,
-        description: "The title detail's social panel and lead review: 32px, the letter at 14",
+        description: "32px: the social panel, the lead review and the sidebar switcher",
         variations: states(32)
       },
       %VariationGroup{
         id: :row_40,
-        description: "A Feed row and the rail's person card: 40px, the letter at 16",
+        description: "40px: a Feed row and the rail card",
         variations: states(40)
       },
       %VariationGroup{
-        id: :page_48,
-        description: "The Friends page's card: 48px, the letter at 19",
+        id: :card_48,
+        description: "48px: the Friends page's card and the Settings cards",
         variations: states(48)
+      },
+      %VariationGroup{
+        id: :picker_96,
+        description:
+          "96px: a profile on the picker — always filled, never the glyph (a profile's name is required)",
+        variations: [
+          %Variation{id: :letter, attributes: %{name: "Ana", hue: 150, own?: true, size: 96}},
+          %Variation{
+            id: :picture,
+            attributes: %{name: "Ana", picture_url: @photo, hue: 150, own?: true, size: 96}
+          }
+        ]
       },
       %VariationGroup{
         id: :hues,
         description:
-          "The palette (UIDR-048): a friend's letter at every hue, then the reader's own, then a picture ringed in the hue; the first tile has no hue and is the default Blue",
+          "The palette (UIDR-048): a friend's letter at every hue, then a filled tile at every hue, then a picture ringed in the hue; the first tile has no hue and is the default Blue",
         variations:
-          [
-            %Variation{id: :none, attributes: %{person: friend("Cleo"), size: 48}}
-          ] ++
+          [%Variation{id: :none, attributes: %{name: "Cleo", size: 48}}] ++
             for {name, hue} <- Hue.palette() do
               %Variation{
                 id: String.to_atom("friend_" <> String.downcase(name)),
                 description: "#{name} #{hue}",
-                attributes: %{person: %{friend("Cleo") | published_hue: hue}, size: 48}
+                attributes: %{name: "Cleo", hue: hue, size: 48}
               }
             end ++
             for {name, hue} <- Hue.palette() do
               %Variation{
                 id: String.to_atom("own_" <> String.downcase(name)),
-                attributes: %{person: %Person{pubkey: @me, own?: true, published_hue: hue}, size: 48}
+                attributes: %{name: "You", hue: hue, own?: true, size: 48}
               }
             end ++
             [
               %Variation{
-                id: :avatar_teal,
-                description:
-                  "A friend's picture ringed in Teal; the override wins over the published Rose",
-                attributes: %{
-                  person: %{friend("Ada") | avatar_url: @photo, published_hue: 12, hue_override: 195},
-                  size: 48
-                }
+                id: :picture_teal,
+                attributes: %{name: "Ada", picture_url: @photo, hue: 195, size: 48}
               },
               %Variation{
-                id: :own_avatar_violet,
-                attributes: %{
-                  person: %Person{pubkey: @me, own?: true, avatar_url: @photo, published_hue: 290},
-                  size: 48
-                }
+                id: :own_picture_violet,
+                attributes: %{name: "You", picture_url: @photo, hue: 290, own?: true, size: 48}
               }
             ]
       }
@@ -87,38 +86,29 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
     [
       %Variation{
         id: :letter,
-        description: "A friend: the first letter of your name for them, in the default Blue on its tint",
-        attributes: %{person: friend("Cleo"), size: size}
+        description: "A friend: the first letter of the name, in the default Blue on its tint",
+        attributes: %{name: "Cleo", size: size}
       },
       %Variation{
         id: :glyph,
-        description: "A friend with no name at all: the person glyph on the tint, never a letter",
-        attributes: %{person: friend(nil), size: size}
+        description: "A friend with no name at all: the person glyph, never a letter",
+        attributes: %{size: size}
       },
       %Variation{
-        id: :avatar,
-        description: "A friend with an avatar: the picture inside a 1px ring in the hue",
-        attributes: %{person: %{friend("Ada") | avatar_url: @photo}, size: size}
+        id: :picture,
+        description: "A friend with a picture: inside a 1px ring in the hue",
+        attributes: %{name: "Ada", picture_url: @photo, size: size}
       },
       %Variation{
         id: :own,
-        description: "The reader: filled in the default Blue, the Y of You near-white",
-        attributes: %{person: %Person{pubkey: @me, own?: true}, size: size}
+        description: "A person of this install: filled in the hue, the letter near-white",
+        attributes: %{name: "You", own?: true, size: size}
       },
       %Variation{
-        id: :own_avatar,
-        description: "The reader with an avatar: the picture inside a 2px ring in the hue",
-        attributes: %{person: %Person{pubkey: @me, own?: true, avatar_url: @photo}, size: size}
+        id: :own_picture,
+        description: "A person of this install with a picture: a 2px ring",
+        attributes: %{name: "You", picture_url: @photo, own?: true, size: size}
       }
     ]
   end
-
-  defp friend(name),
-    do: %Person{
-      pubkey: @friend,
-      name_override: name,
-      own?: false,
-      short_npub: "npub1lyy9…8z4h",
-      added_on: ~D[2026-08-30]
-    }
 end
