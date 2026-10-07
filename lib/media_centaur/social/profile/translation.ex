@@ -32,7 +32,6 @@ defmodule MediaCentaur.Social.Profile.Translation do
 
   @kind 12_160
   @content_version 1
-  @max_name_length 50
   # Each accepted type: its file extension and the marks its bytes must
   # carry, as `{offset, magic}`.
   @avatar_types %{
@@ -65,7 +64,7 @@ defmodule MediaCentaur.Social.Profile.Translation do
 
   @doc "The name cap in characters; the Settings form and the protocol page mirror it."
   @spec max_name_length() :: 50
-  def max_name_length, do: @max_name_length
+  def max_name_length, do: MediaCentaur.DisplayName.max_length()
 
   @doc "The file extension for an accepted avatar type; raises on any other."
   @spec avatar_extension(String.t()) :: String.t()
@@ -144,7 +143,7 @@ defmodule MediaCentaur.Social.Profile.Translation do
 
     cond do
       trimmed == "" -> {:ok, nil}
-      String.length(trimmed) <= @max_name_length -> {:ok, trimmed}
+      String.length(trimmed) <= max_name_length() -> {:ok, trimmed}
       true -> {:error, :bad_content}
     end
   end

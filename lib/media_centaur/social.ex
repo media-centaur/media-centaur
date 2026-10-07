@@ -231,17 +231,12 @@ defmodule MediaCentaur.Social do
   # --- profiles ----------------------------------------------------------------
 
   @doc """
-  The profile name rule, the one `save_profile/3` applies: trimmed, present
-  and within `Profile.Translation.max_name_length/0`. The form checks it
-  before it consumes a chosen picture, so a name error costs nothing.
+  The profile name rule, the one `save_profile/3` applies: `DisplayName.check/1`.
+  The form checks it before it consumes a chosen picture, so a name error
+  costs nothing.
   """
   @spec check_name(String.t()) :: {:ok, String.t()} | {:error, :name_required | :name_too_long}
-  def check_name(name) when is_binary(name) do
-    with {:ok, trimmed} <- present_name(name),
-         :ok <- within_name_cap(trimmed) do
-      {:ok, trimmed}
-    end
-  end
+  defdelegate check_name(name), to: MediaCentaur.DisplayName, as: :check
 
   @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.webp_master/4` made)."
   @type avatar_change :: :keep | :none | {:new, binary()}
@@ -451,19 +446,6 @@ defmodule MediaCentaur.Social do
     do: AvatarStore.url(profile.pubkey, profile.avatar_type, profile.created_at)
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
-
-  defp present_name(name) do
-    case String.trim(name) do
-      "" -> {:error, :name_required}
-      trimmed -> {:ok, trimmed}
-    end
-  end
-
-  defp within_name_cap(name) do
-    if String.length(name) <= ProfileTranslation.max_name_length(),
-      do: :ok,
-      else: {:error, :name_too_long}
-  end
 
   defp valid_hue(nil), do: :ok
   defp valid_hue(hue), do: if(Hue.valid?(hue), do: :ok, else: {:error, :invalid_hue})
