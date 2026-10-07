@@ -74,15 +74,17 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     render_until(view, fn _html -> has_element?(view, "#sidebar-profile") end)
   end
 
-  test "removing another profile keeps the active one", %{conn: conn} do
+  test "removing another profile keeps the active one, down to a single profile", %{conn: conn} do
     ana = create_profile(name: "Ana")
-    create_profile(name: "Bea")
+    bea = create_profile(name: "Bea")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
 
     [me | _] = Profiles.list()
     :ok = Profiles.remove(me)
-    # The broadcast is in the view's mailbox before this call, so the
-    # view has handled it by the time it answers.
-    assert has_element?(view, "#sidebar-profile", "Ana")
+    :ok = Profiles.remove(bea)
+    # The switcher disappears only once the hook has processed the second
+    # removal and Ana is the single remaining profile.
+    render_until(view, fn _html -> not has_element?(view, "#sidebar-profile") end)
+    assert has_element?(view, "#sidebar")
   end
 end

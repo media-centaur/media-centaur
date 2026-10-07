@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.Layouts do
             own?
             size={32}
           />
-          <span class="sidebar-label truncate">{@profile.name}</span>
+          <span class="sidebar-label min-w-0 truncate">{@profile.name}</span>
         </.link>
         <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
