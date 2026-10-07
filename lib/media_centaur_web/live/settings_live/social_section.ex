@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
   The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
-  four cards. Your profile — the name friends see, the picture beside it,
+  four cards. Social profile — the name friends see, the picture beside it,
   the colour the circle takes (`HueSwatches`, starting on a palette hue
   at random), one form whose save mints the identity when none exists
   (`Social.save_profile/3`); it is the only card before an identity
@@ -22,8 +22,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   the inline add-by-URL. Sharing — the toggles that decide which of the
   user's acts become activities for friends (watched, listed; reviewing
   always is). `SettingsLive` delegates to `render/1` and hosts the
-  handlers: `validate_profile`, `set_profile_hue`, `remove_avatar`,
-  `cancel_avatar`, `save_profile`, `reveal_nsec`, `hide_nsec`,
+  handlers: `validate_social_profile`, `set_social_profile_hue`, `remove_social_avatar`,
+  `cancel_social_avatar`, `save_social_profile`, `reveal_nsec`, `hide_nsec`,
   `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
   `toggle_share_watchlist`. The friend roster stays on the Social
   page's Friends tab.
@@ -83,11 +83,11 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   def render(assigns) do
     ~H"""
     <div id="settings-social" class="space-y-4">
-      <.settings_card title="Your profile" description={profile_description(@npub)}>
+      <.settings_card title="Social profile" description={profile_description(@npub)}>
         <form
-          id="profile-form"
-          phx-submit="save_profile"
-          phx-change="validate_profile"
+          id="social-profile-form"
+          phx-submit="save_social_profile"
+          phx-change="validate_social_profile"
           class="space-y-3"
         >
           <div class="flex flex-wrap gap-x-8">
@@ -102,8 +102,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
                 upload={@uploads.avatar}
                 aspect={{1, 1}}
                 removable?={@own_person.avatar_url != nil && !@avatar_removed?}
-                remove_event="remove_avatar"
-                cancel_event="cancel_avatar"
+                remove_event="remove_social_avatar"
+                cancel_event="cancel_social_avatar"
                 {IdentityTile.hue_style(@profile_hue)}
               >
                 <:current>
@@ -120,7 +120,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             <div class="min-w-0 grow basis-64">
               <.settings_field label="Name" layout={:stacked}>
                 <.settings_input
-                  id="profile-name"
+                  id="social-profile-name"
                   name="name"
                   value={@profile_name}
                   maxlength={@name_cap}
@@ -131,9 +131,9 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               </.settings_field>
               <.settings_field label="Colour" description="Your circle's colour." layout={:stacked}>
                 <HueSwatches.hue_swatches
-                  id="profile-hues"
+                  id="social-profile-hues"
                   selected={@profile_hue}
-                  event="set_profile_hue"
+                  event="set_social_profile_hue"
                   aria-label="Colour"
                 />
               </.settings_field>
@@ -141,7 +141,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           </div>
           <div class="flex justify-end">
             <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-              {if @npub, do: "Save", else: "Create profile"}
+              {if @npub, do: "Save", else: "Create social profile"}
             </.button>
           </div>
         </form>

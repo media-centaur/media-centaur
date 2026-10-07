@@ -24,33 +24,33 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
     # The avatar master lands under `{data_dir}/images/social/`.
     setup :setup_tmp_data_dir
 
-    test "opening Social mints nothing; Create profile mints the identity and shows the other cards",
+    test "opening Social mints nothing; Create social profile mints the identity and shows the other cards",
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
       refute Identity.present?()
-      assert has_element?(view, "#profile-form button", "Create profile")
+      assert has_element?(view, "#social-profile-form button", "Create social profile")
       refute has_element?(view, "#identity-npub")
       refute has_element?(view, "#add-relay-form")
       refute has_element?(view, "#social-sharing")
 
-      view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "   "}) |> render_submit()
       assert render(view) =~ "A profile needs a name"
       refute Identity.present?()
 
       # The input's maxlength stops this in a browser; a crafted submit must not crash the view.
-      view |> form("#profile-form", %{"name" => String.duplicate("x", 51)}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => String.duplicate("x", 51)}) |> render_submit()
       assert render(view) =~ "Names are at most 50 characters"
       refute Identity.present?()
 
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert Identity.present?()
-      assert render(view) =~ "Profile saved"
+      assert render(view) =~ "Social profile saved"
       assert has_element?(view, "#identity-npub", Identity.npub())
       assert has_element?(view, "#copy-npub[data-copy-text='#{Identity.npub()}']")
       assert has_element?(view, "#add-relay-form")
       assert has_element?(view, "#social-sharing")
-      assert has_element?(view, "#profile-form input[name='name'][value='Sample Name']")
-      assert has_element?(view, "#profile-form button", "Save")
+      assert has_element?(view, "#social-profile-form input[name='name'][value='Sample Name']")
+      assert has_element?(view, "#social-profile-form button", "Save")
       assert %{name: "Sample Name"} = Social.own_profile()
     end
 
@@ -58,8 +58,8 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       Identity.ensure()
       {:ok, view, _html} = live_async!(conn, @section)
       assert has_element?(view, "#identity-npub")
-      assert has_element?(view, "#profile-form input[name='name']:not([value])")
-      assert has_element?(view, "#profile-form button", "Save")
+      assert has_element?(view, "#social-profile-form input[name='name']:not([value])")
+      assert has_element?(view, "#social-profile-form button", "Save")
     end
 
     test "a profile saved in another tab shows here", %{conn: conn} do
@@ -67,10 +67,10 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, tab_a, _html} = live_async!(conn, @section)
       {:ok, tab_b, _html} = live_async!(conn, @section)
 
-      tab_b |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      tab_b |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
 
       render_until(tab_a, fn _html ->
-        has_element?(tab_a, "#profile-form input[name='name'][value='Sample Name']")
+        has_element?(tab_a, "#social-profile-form input[name='name'][value='Sample Name']")
       end)
     end
 
@@ -87,29 +87,44 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, png} = Image.write(img, :memory, suffix: ".png")
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "me.png", content: png, type: "image/png"}
         ])
 
       assert render_upload(upload, "me.png") =~ "me.png"
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
 
       me = Identity.pubkey()
       assert %{avatar_type: "image/webp"} = Social.own_profile()
       {:ok, bytes} = AvatarStore.read(me, "image/webp")
       {:ok, back} = Image.from_binary(bytes)
       assert {256, 256, _bands} = Image.shape(back)
-      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='avatar']")
+
+      assert has_element?(
+               view,
+               "#social-profile-form [data-component='identity-tile'][data-mark='avatar']"
+             )
+
       assert has_element?(view, "#remove-avatar")
 
       view |> element("#remove-avatar") |> render_click()
-      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='letter']")
+
+      assert has_element?(
+               view,
+               "#social-profile-form [data-component='identity-tile'][data-mark='letter']"
+             )
+
       assert %{avatar_type: "image/webp"} = Social.own_profile()
 
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert %{avatar_type: nil} = Social.own_profile()
       assert AvatarStore.read(me, "image/webp") == {:error, :enoent}
-      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='letter']")
+
+      assert has_element?(
+               view,
+               "#social-profile-form [data-component='identity-tile'][data-mark='letter']"
+             )
+
       refute has_element?(view, "#remove-avatar")
     end
 
@@ -118,7 +133,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, view, _html} = live_async!(conn, @section)
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "notes.txt", content: "hello", type: "text/plain"}
         ])
 
@@ -131,12 +146,12 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, view, _html} = live_async!(conn, @section)
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "x.png", content: "hello", type: "image/png"}
         ])
 
       assert render_upload(upload, "x.png") =~ "x.png"
-      html = view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      html = view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
 
       assert html =~ "That file is not a picture we can read"
       # The consumed entry drops on the channel's next pass, after the reply.
@@ -151,17 +166,17 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, png} = Image.write(img, :memory, suffix: ".png")
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "me.png", content: png, type: "image/png"}
         ])
 
       assert render_upload(upload, "me.png") =~ "me.png"
-      html = view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      html = view |> form("#social-profile-form", %{"name" => "   "}) |> render_submit()
       assert html =~ "A profile needs a name"
       assert html =~ "me.png"
       assert Social.own_profile() == nil
 
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert %{avatar_type: "image/webp"} = Social.own_profile()
     end
 
@@ -170,12 +185,12 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, view, _html} = live_async!(conn, @section)
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "notes.txt", content: "hello", type: "text/plain"}
         ])
 
       assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert %{name: "Sample Name", avatar_type: nil} = Social.own_profile()
     end
 
@@ -184,17 +199,17 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, view, _html} = live_async!(conn, @section)
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "notes.txt", content: "hello", type: "text/plain"}
         ])
 
       assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
-      html = view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      html = view |> form("#social-profile-form", %{"name" => "   "}) |> render_submit()
       assert html =~ "A profile needs a name"
       assert html =~ "notes.txt"
       assert Social.own_profile() == nil
 
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert %{name: "Sample Name", avatar_type: nil} = Social.own_profile()
     end
 
@@ -207,7 +222,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, "#remove-avatar")
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "next.png", content: png, type: "image/png"}
         ])
 
@@ -218,23 +233,23 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
     test "a new profile's form starts on a palette hue; a swatch or the slider changes it; Save publishes it",
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
-      tile = "#profile-form [data-component='identity-tile']"
+      tile = "#social-profile-form [data-component='identity-tile']"
 
       [seed] =
         view |> element(tile) |> render() |> LazyHTML.from_fragment() |> LazyHTML.attribute("data-hue")
 
       assert String.to_integer(seed) in Enum.map(Hue.palette(), &elem(&1, 1))
-      assert has_element?(view, "#profile-hues button[data-hue='#{seed}'][aria-pressed='true']")
+      assert has_element?(view, "#social-profile-hues button[data-hue='#{seed}'][aria-pressed='true']")
 
-      view |> element("#profile-hues button[data-hue='195']") |> render_click()
+      view |> element("#social-profile-hues button[data-hue='195']") |> render_click()
       assert has_element?(view, tile <> "[data-hue='195']")
-      assert has_element?(view, "#profile-hues input[name='hue'][value='195']")
+      assert has_element?(view, "#social-profile-hues input[name='hue'][value='195']")
 
-      view |> form("#profile-form", %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
+      view |> form("#social-profile-form", %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
       assert has_element?(view, tile <> "[data-hue='100']")
-      refute has_element?(view, "#profile-hues button[aria-pressed='true']")
+      refute has_element?(view, "#social-profile-hues button[aria-pressed='true']")
 
-      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      view |> form("#social-profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert %{hue: 100} = Social.own_profile()
       assert has_element?(view, tile <> "[data-hue='100']")
     end
@@ -244,19 +259,19 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
     } do
       {:ok, _profile} = Social.save_profile("Sample Name", :keep, 290)
       {:ok, view, _html} = live_async!(conn, @section)
-      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-hue='290']")
-      assert has_element?(view, "#profile-hues button[data-hue='290'][aria-pressed='true']")
+      assert has_element?(view, "#social-profile-form [data-component='identity-tile'][data-hue='290']")
+      assert has_element?(view, "#social-profile-hues button[data-hue='290'][aria-pressed='true']")
 
       {:ok, _profile} = Social.save_profile("Sample Name", :keep, nil)
       {:ok, view, _html} = live_async!(conn, @section)
-      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-hue]")
+      assert has_element?(view, "#social-profile-form [data-component='identity-tile'][data-hue]")
       assert %{hue: nil} = Social.own_profile()
     end
 
     test "the name field is 16rem with Save beside it, not the card's width", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
-      assert has_element?(view, "#profile-form input[name='name'].max-w-64")
-      refute has_element?(view, "#profile-form input[name='name'].flex-1")
+      assert has_element?(view, "#social-profile-form input[name='name'].max-w-64")
+      refute has_element?(view, "#social-profile-form input[name='name'].flex-1")
     end
 
     test "a chosen picture gets a crop stage with the box's fields and two previews; Cancel removes it",
@@ -266,14 +281,16 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, img} = Image.new(400, 300, color: :blue)
       {:ok, png} = Image.write(img, :memory, suffix: ".png")
 
-      refute has_element?(view, "#profile-form [phx-hook='ImageCrop']")
+      refute has_element?(view, "#social-profile-form [phx-hook='ImageCrop']")
 
       upload =
-        file_input(view, "#profile-form", :avatar, [%{name: "me.png", content: png, type: "image/png"}])
+        file_input(view, "#social-profile-form", :avatar, [
+          %{name: "me.png", content: png, type: "image/png"}
+        ])
 
       render_upload(upload, "me.png")
 
-      stage = "#profile-form [phx-hook='ImageCrop'][phx-update='ignore']"
+      stage = "#social-profile-form [phx-hook='ImageCrop'][phx-update='ignore']"
       assert has_element?(view, stage <> "[data-aspect='1.0'] img[data-role='source']")
       assert has_element?(view, stage <> " input[type='hidden'][name='crop_x']")
       assert has_element?(view, stage <> " input[type='hidden'][name='crop_y']")
@@ -286,12 +303,12 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
       # The previews follow the pending hue: it sits on the field's root,
       # outside the hook's ignored subtree, and inherits into the rings.
-      view |> element("#profile-hues button[data-hue='195']") |> render_click()
-      assert has_element?(view, "#profile-form [data-role='picture-field'][style='--hue: 195']")
+      view |> element("#social-profile-hues button[data-hue='195']") |> render_click()
+      assert has_element?(view, "#social-profile-form [data-role='picture-field'][style='--hue: 195']")
       refute has_element?(view, stage <> " .identity-tile[style]")
 
-      view |> element("#profile-form button", "Cancel") |> render_click()
-      refute has_element?(view, "#profile-form [phx-hook='ImageCrop']")
+      view |> element("#social-profile-form button", "Cancel") |> render_click()
+      refute has_element?(view, "#social-profile-form [phx-hook='ImageCrop']")
     end
 
     test "Save cuts the rectangle the fields name; without them, the centre", %{conn: conn} do
@@ -303,7 +320,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       {:ok, png} = Image.write(halves, :memory, suffix: ".png")
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "halves.png", content: png, type: "image/png"}
         ])
 
@@ -313,7 +330,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       # hidden value, so the box goes in as `render_submit/2`'s value,
       # which is the documented route for hidden inputs.
       view
-      |> form("#profile-form", %{"name" => "Sample Name"})
+      |> form("#social-profile-form", %{"name" => "Sample Name"})
       |> render_submit(%{
         "crop_x" => "200",
         "crop_y" => "0",
@@ -328,14 +345,14 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert round(b) == 255 and round(r) == 0
 
       upload =
-        file_input(view, "#profile-form", :avatar, [
+        file_input(view, "#social-profile-form", :avatar, [
           %{name: "halves.png", content: png, type: "image/png"}
         ])
 
       render_upload(upload, "halves.png")
 
       view
-      |> form("#profile-form", %{"name" => "Sample Name"})
+      |> form("#social-profile-form", %{"name" => "Sample Name"})
       |> render_submit(%{"crop_x" => "", "crop_y" => "", "crop_width" => "", "crop_height" => ""})
 
       {:ok, bytes} = AvatarStore.read(me, "image/webp")
@@ -399,7 +416,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, "#identity-npub", Identity.npub())
       refute has_element?(view, "#import-nsec", nsec)
       assert Social.own_profile() == nil
-      assert has_element?(view, "#profile-form input[name='name']:not([value])")
+      assert has_element?(view, "#social-profile-form input[name='name']:not([value])")
     end
 
     test "replacing the identity in another tab clears the revealed key and the arm", %{conn: conn} do
@@ -485,14 +502,14 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, relay_row(), "not on the allowlist")
     end
 
-    test "the section is four cards, Your profile first", %{conn: conn} do
+    test "the section is four cards, Social profile first", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
 
-      for title <- ["Your profile", "Your identity", "Relays", "Sharing"] do
+      for title <- ["Social profile", "Your identity", "Relays", "Sharing"] do
         assert has_element?(view, "#settings-social h3", title)
       end
 
-      assert has_element?(view, "#settings-social > div:first-child h3", "Your profile")
+      assert has_element?(view, "#settings-social > div:first-child h3", "Social profile")
     end
   end
 

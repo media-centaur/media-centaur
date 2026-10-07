@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Components.PictureField do
   region that shows at the master's fixed shape, and the save cuts the
   master from it: `consume_change/5`, the one upload-to-master path
   (`ImageFiles.webp_master/4`, `jpeg_master/3`). The
-  profile avatar is this at 1:1 (Settings → Social → Your profile); an
+  profile avatar is this at 1:1 (Settings → Social → Social profile); an
   app's banner at 460:215 (Apps → Manage, the manual form).
 
   The field sits inside the caller's form, over a LiveView upload made
