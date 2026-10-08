@@ -50,9 +50,16 @@ each reviewed for spec compliance and quality with the fixes landed;
 the three load flakes below passing alone. Not merged, not pushed.
 Owner's visual check and merge next.
 
-Phase 2 planned, 2026-10-08: unify pass over the slice and the plan at
+Phase 2 built and gated on the same branch, 2026-10-08: a unify pass
+over the slice, the plan at
 `docs/superpowers/plans/2026-10-08-viewer-profiles-phase-2.md` (seven
-tasks). Execution follows on the same branch in the same worktree.
+tasks), each task implemented by a fresh agent, reviewed for spec
+compliance and quality with the fixes landed; `mix precommit` clean;
+the suite at 8412 Elixir and 895 bun. Seven commits
+(`e733dc62`..`5cba9db1`) past the plan commit. Not merged, not pushed.
+Two profiles' progress, resume, Continue Watching, history, track
+memory and finish prompts are now separate; a single-profile install is
+unchanged.
 
 **Hand-off for the next session (read before anything else).**
 
@@ -91,11 +98,34 @@ tasks). Execution follows on the same branch in the same worktree.
   renders a name as "ME"); the pre-existing `Friend.name_override`
   takes no name rule while `DisplayName` governs both profiles.
 
-**Phase 2 starts from** the "What the surveys found" section below
-(the four watching tables, the touch counts, the three read models,
-the playback path) and the spec's "Watching per profile" section; the
-backfill is an inline heal in each schema migration assigning rows to
-the oldest profile.
+**Phase 2 hand-off, 2026-10-08.**
+
+* The four migrations (`20261008120000`..`20261008120003`) rebuild each
+  watching table with `profile_id`; the backfill is the rebuild's
+  `INSERT … SELECT` (oldest profile), so no `UPDATE` and no MC0015
+  carve-out. Between `migrate` and the restart the outgoing release's
+  progress flush is refused by `NOT NULL` and retried on its next
+  tick; the migration moduledocs say so.
+* `docs/context-map/verdicts.json` holds its first four verdicts (the
+  R4 `profile_id` keys on the four schemas). `context_map --check` is
+  red on the pre-existing backlog, unchanged by this branch. Three new
+  R1 findings on `WatchHistory.Event.{movie_id,episode_id,video_object_id}`
+  ("owner never reads") appeared when the dead `reset_progress` path
+  went; they are read by `WatchHistoryLive` and written by the Recorder.
+  Owner's call: a verdict, or a rule calibration.
+* Phase 3 is docs: FAQ, README, the wiki (a Profiles page, the Settings
+  reference's section already exists from phase 1, Troubleshooting for
+  the skipped legacy mpv session), UIDR-012's amendment, screenshots.
+  The two wiki commits from phase 1 are still local and unpushed.
+* Noticed, not touched: `EntityView.watch_progress: []` and the
+  `DetailItem` `watch_progress: []` fields are dead ("progress is an
+  overlay") and predate the campaign; a cleanup candidate.
+* The finish-prompt test for another profile's session, the ignore
+  clauses for another profile's broadcasts, and the two-profile
+  isolation tests at every layer are in `*_live_test.exs` and the
+  context tests; the negative "ignore another profile's completion"
+  test on the History page proves page state untouched, not that no
+  reload timer armed (MC0004 forbids the direct assertion).
 
 ## What the surveys found
 
@@ -111,9 +141,11 @@ wrapping every page, with an `on_mount` list (`ArmGesture`,
 injected. The endpoint is bound to loopback; the expected client
 today is one browser on the host, driven from the couch (UIDR-012).
 
-**Watching rows today, all keyed without a person:**
+**Watching rows as surveyed on 2026-10-05, all keyed without a person**
+(phase 2 made each key `(profile_id, …)` and `watch_history_events`
+indexed on `(profile_id, completed_at)`):
 
-| Table | Unique key today |
+| Table | Unique key then |
 |---|---|
 | `library_watch_progress` | `playable_item_id` |
 | `library_extra_progress` | `extra_id` |
@@ -291,31 +323,53 @@ three releases.
   `:utc_datetime_usec` so two saves in one second never share an
   immutable URL, with removal and add run in an immediate transaction.
 
+* `2026-10-08` — **Unify pass on phase 2** and the review decisions
+  made while executing it. Rationale and dispositions are in the plan's
+  head; the owner may overrule any of them:
+  * the `has_one :watch_progress` associations and
+    `EntityShape.extract_progress/2` are removed — with a profile the
+    relation is one-to-many, and a title's progress is read through
+    `ProgressRecords.list_for_container/3` only; `EntityCascade` relies
+    on the FK cascade it already described;
+  * the profile rides the mpv command line
+    (`--script-opts-append=media_centaur_session-profile_id=<id>`) and
+    `SessionRecovery` reads it back, so a backend restart keeps the
+    session's profile without a `Profiles` dependency in `Playback`; a
+    running mpv started by the outgoing release is skipped. (A first
+    cut put both ids in the socket name; at 92 bytes that left 15 for
+    `mpv_socket_dir` under the 107-byte Unix socket path limit.)
+  * `WatchHistory` readers take a scope, a profile id or `:all`
+    (the Status page); `get_event/2` takes a profile only;
+    `delete_event!/2`'s dead `reset_progress` option is gone;
+  * `Profiles.owner/0` is the one definition of the oldest profile
+    (migrations, the showcase seeder, the benchmark loader and the test
+    factory all meant it);
+  * Continue Watching is a `:set` of `{profile_id, items}` and the
+    history summary a map of profile to snapshot, both rebuilt whole for
+    the profiles present in their source table; `HeroCandidates` is
+    untouched (it reads no watching state);
+  * the extra-progress FK to `library_extras` now cascades;
+    `MediaTrackOverride` joined the whole-library delete order; the
+    overrides table keeps an owner index; `playable_item_id` keeps its
+    own index for the cascade;
+  * the bare `{:watch_completed, playable_item_id}` tuple stays a
+    trigger-only message.
+
 ## Next steps
 
-1. **Plan phase 2, per-profile watching** — the next session's first
-   job, in a clear context. Start by reading this file's Status and
-   hand-off, then the spec's "Watching per profile" section
-   (`docs/superpowers/specs/2026-10-06-viewer-profiles-design.md`) and
-   "What the surveys found" above. Write the plan with the
-   `writing-plans` skill to
-   `docs/superpowers/plans/2026-10-08-viewer-profiles-phase-2.md`,
-   after a `unify_design` pass over the slice (the four watching
-   tables, `Library.Progress.Worker`'s ETS key, the three read models,
-   `Playback.play/2` and the session struct, the completion events
-   under MC0012, `WatchHistory.Recorder`, the finish prompt, the
-   factories, the showcase seeder). The backfill is an inline heal in
-   each schema migration assigning rows to the oldest profile, with a
-   per-line Credo carve-out only where the rule actually matches
-   (UPDATE/DELETE in `execute(<string>)`). Then execute it the same way
-   as phase 1: one implementer per task, spec review, quality review,
-   full suite logged to a file.
-2. Work on the same branch in the same worktree until the owner
-   merges; if phase 1 has been merged by then, branch
-   `viewer-profiles-phase-2` from main in a fresh worktree instead.
-3. Owner's visual check of the picker and Settings → Profiles (TV
-   sizing is open: 96 is the largest tile and the heading is 3xl) and
-   the merge of phase 1 can happen before or during phase 2.
+1. Owner's check of the branch: the picker and Settings → Profiles (TV
+   sizing is open: 96 is the largest tile and the heading is 3xl); two
+   profiles watching the same title on the dev server (progress,
+   resume, Continue Watching, History, remembered tracks, the finish
+   prompt); the context-map R1 findings above. Then the merge of
+   `viewer-profiles` into main — discard the main checkout's
+   uncommitted older planning-doc copies first (hand-off above).
+2. **Phase 3, docs**: FAQ and README narrowed to "profiles for who has
+   watched what, no accounts"; a wiki Profiles page; Troubleshooting
+   (a session started before the upgrade is not tracked after it);
+   UIDR-012 amended for sessions; screenshots; push the wiki.
+3. Later, each on its own decision: a few settings per profile,
+   watching together per title, restricted profiles.
 
 ## Completion criteria
 
