@@ -61,6 +61,19 @@ Two profiles' progress, resume, Continue Watching, history, track
 memory and finish prompts are now separate; a single-profile install is
 unchanged.
 
+Phase 3 (docs) written on the same branch, 2026-10-08, later the same
+day: README and the marketing page (`docs-site/index.html`, whose
+"single-user by design" lede and "Multi-user" non-goal card said the
+old position too) say profiles, not accounts; UIDR-012 carries a dated
+amendment; `docs/GLOSSARY.md`'s Profiles section holds the phase 2
+terms. In the wiki checkout: `Profiles.md` (new), the FAQ entry
+rewritten, Troubleshooting's two update entries, and the sidebar, Home,
+Home Page, Watch History, Playback and the Settings reference pointing
+at the profile's state. Five wiki commits are local and unpushed
+(`5b8ca60`..`893eaf2`): the wiki describes Settings → Profiles, which
+no release has yet, so the push waits for `/ship`. Every completion
+criterion but the owner's own checks is met.
+
 **Hand-off for the next session (read before anything else).**
 
 * The branch is in the worktree, not the main checkout. The main
@@ -363,69 +376,35 @@ three releases.
 
 ## Next steps
 
-1. **Phase 3, docs — starts now, in a new context, on the same branch
-   in the same worktree.** The owner is away and validates later;
-   nothing in phase 3 waits on the visual check. Read this file's
-   Status, the two hand-off blocks and the phase 3 hand-off below,
-   then write the docs (no implementation plan needed; one commit per
-   surface is fine):
-   * `README.md`: the "does not … support multiple users" sentence
-     becomes "profiles for who has watched what, no accounts" (one
-     library, one watchlist, one social setup, one set of settings).
-   * Wiki `FAQ.md`: rewrite "Why no multi-user accounts?" the same way.
-   * Wiki: a `Profiles.md` page under *Using Media Centaur* (what a
-     profile is and is not, the picker, the switcher, Settings →
-     Profiles, what is per profile and what stays shared, the owner
-     profile an upgrade creates, removal takes the profile's watching
-     with it, the cap of eight); link it from `_Sidebar.md`, `Home.md`,
-     `Home-Page.md` (Continue Watching is the profile's),
-     `Watch-History.md` (the page is the profile's), `Playback.md`
-     (resume and remembered tracks are the profile's; the finish prompt
-     opens for the profile that watched), `Settings-Reference.md`
-     (the Profiles section exists from phase 1; check it still reads
-     true after phase 2).
-   * Wiki `Troubleshooting.md`: "A film that was playing during
-     *Update now* is not tracked afterwards" (the legacy mpv session is
-     skipped on recovery; close and replay), and "Progress recorded in
-     the seconds of the update may be lost" (the flush window).
-   * `decisions/user-interface/…-012-…`: a dated amendment — the
-     single-screen appliance now has sessions, each with an active
-     profile; `scripts/gen-decisions-index` afterwards.
-   * `docs/GLOSSARY.md`: promote the campaign glossary's terms
-     (profile, social profile, active profile, picker, switcher,
-     watching state, shared state, owner profile, watching scope,
-     profile-keyed read model, legacy session) per the terminology SOP.
-   * Push the wiki (`cd ../media-centaur.wiki && git push`; its two
-     phase 1 commits `5b8ca60`, `4f91542` are still local) with the
-     phase 3 wiki commits on top.
-   * **Skipped by decision (owner, 2026-10-08): screenshots.** The
-     website and README screenshots are re-shot some day in the future,
-     not in this campaign.
-2. Owner's check when home: the picker and Settings → Profiles (TV
+1. Owner's check when home: the picker and Settings → Profiles (TV
    sizing is open: 96 is the largest tile and the heading is 3xl); two
    profiles watching the same title on the dev server (progress,
    resume, Continue Watching, History, remembered tracks, the finish
-   prompt); the context-map R1 findings above. Then the merge of
-   `viewer-profiles` into main — discard the main checkout's
-   uncommitted older planning-doc copies first (hand-off above) — and
-   `/ship minor`.
-3. Later, each on its own decision: a few settings per profile,
-   watching together per title, restricted profiles.
+   prompt); the context-map R1 findings above; a read of the wiki
+   `Profiles.md` page and the README sentence for copy.
+2. The merge of `viewer-profiles` into main — discard the main
+   checkout's uncommitted older planning-doc copies first (hand-off
+   above) — then `/ship minor`, and with it the wiki push
+   (`cd ../media-centaur.wiki && git push`: five local commits,
+   `5b8ca60`..`893eaf2`). The site redeploys on its own from the
+   `docs-site/` change in the merge.
+3. **Skipped by decision (owner, 2026-10-08): screenshots.** The
+   website and README screenshots are re-shot some day in the future,
+   not in this campaign.
+4. Later, each on its own decision: a few settings per profile,
+   watching together per title, restricted profiles. Cleanup candidate
+   from phase 2: the dead `EntityView.watch_progress` and `DetailItem`
+   `watch_progress` fields.
 
-**Phase 3 hand-off, 2026-10-08.** The user-visible shape is settled:
-phase 1 (`/profiles` picker, sidebar switcher, Settings → Profiles with
-name, picture, colour, Remove, cap of eight, owner profile "Me") and
-phase 2 (per-profile progress, resume, Continue Watching, History,
-remembered tracks, finish prompt; one watchlist, social setup and
-settings). The wiki checkout is `../media-centaur.wiki` (sibling
-repo); the phase 1 Settings → Profiles section is in
-`Settings-Reference.md`. Copy follows the `writing-copy` skill and the
-terminology SOP: the word is **profile**, the social kind is always
-**social profile**, never a coined term. Read `docs/superpowers/specs/
-2026-10-06-viewer-profiles-design.md` ("Core idea", "Glossary",
-"Scope") and ADR-078 for the facts; the migration moduledocs under
-`priv/repo/migrations/20261008*` for the upgrade behaviour the
-Troubleshooting entries describe.
+**Phase 3 notes, 2026-10-08.** The Troubleshooting entries say the
+legacy-session skip and the flush window apply to a manual *Update now*
+only: `SelfUpdate.AutoApply` defers an automatic update until nothing is
+playing. The wiki's Playback page links the first entry from its
+Recovery section. The marketing page was not in the phase 3 list but
+made the same "single-user" claim as the README, so it changed in the
+same commit. The wiki push was deliberately held: the earlier hand-off
+said "push them with the release", and the pages now describe a
+Settings section no release has.
 
 ## Completion criteria
 
