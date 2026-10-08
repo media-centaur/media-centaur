@@ -821,7 +821,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     do: merge_into_half(socket, id, &LibraryHalf.merge_extra_progress(&1, payload))
 
   defp react({:track_override_changed, %{owner_type: type, owner_id: id}}, socket) do
-    override = Library.MediaTrackOverrides.get(type, id)
+    override = Library.MediaTrackOverrides.get(socket.assigns.profile.id, type, id)
     merge_into_half(socket, id, &LibraryHalf.put_track_override(&1, override))
   end
 

@@ -1,18 +1,21 @@
 defmodule MediaCentaur.Library.MediaTrackOverride do
   @moduledoc """
-  Per-entity remembered audio + subtitle track selection. When the user
-  manually changes tracks during mpv playback and the new selection
-  differs from what the language policy chose, the selection is captured
-  here so the next play of the same entity (next episode of a series,
-  rewatch of a movie) honours it.
+  One profile's remembered audio + subtitle track selection for one
+  entity (ADR-078). When the viewer manually changes tracks during mpv
+  playback and the new selection differs from what the language policy
+  chose, the selection is captured here so the next play of the same
+  entity (next episode of a series, rewatch of a movie) by the same
+  profile honours it. The profile is a plain id, not an association —
+  `Profiles` is another context.
 
   The owner is identified by the discriminator pair `(owner_type,
   owner_id)`. `owner_type` is one of `:tv_series`, `:movie`,
   `:video_object` — every container that is watched as a unit and can
   therefore be re-watched with the same track choice. `:movie_series` is
   absent because a collection is never played directly; its child movies
-  carry their own overrides. Unique within `(owner_type, owner_id)` —
-  one override row per entity, updated in place via upsert.
+  carry their own overrides. Unique within `(profile_id, owner_type,
+  owner_id)` — one override row per profile and entity, updated in place
+  via upsert.
 
   Overrides are **partial**: any of the four override fields may be
   unset, in which case that aspect falls back to the policy.
@@ -39,6 +42,7 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   @type owner_type :: :tv_series | :movie | :video_object
   @type t :: %__MODULE__{
           id: Ecto.UUID.t() | nil,
+          profile_id: Ecto.UUID.t() | nil,
           owner_type: owner_type() | nil,
           owner_id: Ecto.UUID.t() | nil,
           audio_lang: String.t() | nil,
@@ -48,6 +52,7 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
         }
 
   schema "library_media_track_overrides" do
+    field :profile_id, Ecto.UUID
     field :owner_type, Ecto.Enum, values: @owner_types
     field :owner_id, Ecto.UUID
 
@@ -62,13 +67,14 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   def owner_types, do: @owner_types
 
   @doc """
-  Changeset for insert or full update. Owner identity (`owner_type`,
-  `owner_id`) is required; override fields are all optional and default
-  to the "follow policy" interpretation.
+  Changeset for insert or full update. The profile and the owner identity
+  (`profile_id`, `owner_type`, `owner_id`) are required; override fields
+  are all optional and default to the "follow policy" interpretation.
   """
   def changeset(override, attrs) do
     override
     |> cast(attrs, [
+      :profile_id,
       :owner_type,
       :owner_id,
       :audio_lang,
@@ -76,10 +82,10 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
       :subtitle_forced,
       :subtitles_off
     ])
-    |> validate_required([:owner_type, :owner_id])
+    |> validate_required([:profile_id, :owner_type, :owner_id])
     |> validate_subtitle_consistency()
-    |> unique_constraint([:owner_type, :owner_id],
-      name: :library_media_track_overrides_owner_type_owner_id_index
+    |> unique_constraint([:profile_id, :owner_type, :owner_id],
+      name: :library_media_track_overrides_profile_id_owner_type_owner_id_index
     )
   end
 

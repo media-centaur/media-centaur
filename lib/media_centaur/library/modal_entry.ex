@@ -100,7 +100,7 @@ defmodule MediaCentaur.Library.ModalEntry do
   defp any_present?(_type, %Views.DetailItem{present?: present}), do: present == true
 
   defp build_modal_entry(profile_id, container_type, item, id) do
-    entity = item |> Views.DetailItem.to_entity_view() |> MediaTrackOverrides.put_on_entity()
+    entity = MediaTrackOverrides.put_on_entity(profile_id, Views.DetailItem.to_entity_view(item))
     progress_records = ProgressRecords.list_for_container(profile_id, container_type, id)
     progress = ProgressSummary.compute(entity, progress_records)
 
