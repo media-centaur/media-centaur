@@ -301,8 +301,7 @@ defmodule MediaCentaur.TestFactory do
       url: nil,
       images: [],
       external_ids: [],
-      watched_files: [],
-      watch_progress: nil
+      watched_files: []
     }
 
     struct(VideoObject, Map.merge(defaults, overrides))
@@ -342,8 +341,7 @@ defmodule MediaCentaur.TestFactory do
       images: [],
       extras: [],
       external_ids: [],
-      watched_files: [],
-      watch_progress: nil
+      watched_files: []
     }
 
     struct(Movie, Map.merge(defaults, overrides))

@@ -44,7 +44,7 @@ defmodule MediaCentaur.Library.TypeResolver do
   ## Examples
 
       TypeResolver.resolve_container(uuid)
-      TypeResolver.resolve_container(uuid, preload: [tv_series: [:images, seasons: [episodes: [:watch_progress]]]])
+      TypeResolver.resolve_container(uuid, preload: [tv_series: [:images, seasons: [:episodes]]])
       TypeResolver.resolve_container(uuid, standalone_movie: false)
   """
   @spec resolve_container(Ecto.UUID.t(), keyword()) ::

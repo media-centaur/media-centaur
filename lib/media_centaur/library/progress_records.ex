@@ -16,9 +16,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   `PlayableItem`, not before. Keeping them in one module makes the
   parallel visible rather than filing it 200 lines apart.
 
-  `mark_completed/1`, `mark_incomplete/1` and `destroy/1` already
-  dispatch on the struct, so callers holding either kind of record use
-  one name. Note the asymmetry in the adjacent clauses:
+  `mark_completed/1` and `mark_incomplete/1` already dispatch on the
+  struct, so callers holding either kind of record use one name. Note the asymmetry in the adjacent clauses:
   completing a `WatchProgress` broadcasts `{:entity_watch_completed,
   record}`, completing an `ExtraProgress` does not — extras do not
   participate in Continue Watching.
@@ -154,14 +153,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
   @spec mark_incomplete!(WatchProgress.t() | ExtraProgress.t()) :: struct()
   def mark_incomplete!(progress), do: Repo.bang!(mark_incomplete(progress))
 
-  @doc "Deletes a progress record."
-  @spec destroy(struct()) :: {:ok, struct()} | {:error, Ecto.Changeset.t()}
-  def destroy(progress), do: Repo.delete(progress)
-
-  @doc "As `destroy/1`, raising on failure and returning `:ok`."
-  @spec destroy!(struct()) :: :ok
-  def destroy!(progress), do: Writes.destroy!(progress)
-
   # ---- WatchProgress -------------------------------------------------------
 
   @doc "Every `WatchProgress` row."
@@ -257,9 +248,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   so consumers can key by leaf-container UUID without a separate
   `belongs_to :playable_item` preload.
 
-  Same shape `EntityShape.extract_progress/2` produces from a preloaded
-  record; this is the projection-side counterpart, used by the modal
-  compose flows where there is no preloaded entity to extract from.
+  The one way a title's progress is read — the detail modal, playback
+  resolution and the Browse rebuild all come through here.
 
   Returns `[]` for an unknown container id, or one with no rows beneath
   any leaf.
@@ -269,6 +259,26 @@ defmodule MediaCentaur.Library.ProgressRecords do
   def list_for_container(:movie_series, id), do: list_for_movie_series(id)
   def list_for_container(:movie, id), do: list_for_leaf(:movie, id)
   def list_for_container(:video_object, id), do: list_for_leaf(:video_object, id)
+
+  @doc """
+  The progress row of each leaf container (movie, video object) in
+  `ids`, keyed by container id, in one query. A leaf without a row is
+  absent. The read Continue Watching uses for its single-leaf entries.
+  """
+  @spec progress_by_leaf(:movie | :video_object, [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => struct()}
+  def progress_by_leaf(_container_type, []), do: %{}
+
+  def progress_by_leaf(container_type, ids) when container_type in [:movie, :video_object] do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on:
+        pi.id == wp.playable_item_id and pi.container_type == ^container_type and
+          pi.container_id in ^ids,
+      select: {pi.container_id, wp}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @doc """
   TV-series specialisation of `list_for_container/2`, kept for the

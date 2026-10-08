@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library.Deletion do
   alias MediaCentaur.Library.Helpers
 
   import EntityCascade,
-    only: [bulk_destroy: 2, delete_images: 1, delete_playable_items: 2, destroy_progress: 1]
+    only: [bulk_destroy: 2, delete_images: 1, delete_playable_items: 2]
 
   # ---------------------------------------------------------------------------
   # Disk deletion — user-initiated, from the detail modal and Review
@@ -191,12 +191,11 @@ defmodule MediaCentaur.Library.Deletion do
     Enum.each(seasons, fn season ->
       matched_episodes =
         Enum.filter(
-          Library.Episodes.list_for_season(season.id, load: [:images, :watch_progress]),
+          Library.Episodes.list_for_season(season.id, load: [:images]),
           &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
         )
 
       Enum.each(matched_episodes, fn episode ->
-        destroy_progress(episode)
         delete_images(episode.images || [])
         delete_playable_items(:episode, episode.id)
       end)
@@ -206,12 +205,11 @@ defmodule MediaCentaur.Library.Deletion do
 
     matched_movies =
       Enum.filter(
-        Library.Containers.list_child_movies(entity_id, load: [:images, :watch_progress, :external_ids]),
+        Library.Containers.list_child_movies(entity_id, load: [:images, :external_ids]),
         &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
       )
 
     Enum.each(matched_movies, fn movie ->
-      destroy_progress(movie)
       delete_images(movie.images || [])
       # ExternalId rows reference the movie via `movie_id` FK — delete
       # them before the Movie row or the cascade trips the FK constraint

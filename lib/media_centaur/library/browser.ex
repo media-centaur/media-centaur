@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.Browser do
   }
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder, ProgressSummary}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
   alias MediaCentaur.Repo
 
   # Leaf preload chain for materialising the virtual `Episode.content_url` /
@@ -28,35 +28,28 @@ defmodule MediaCentaur.Library.Browser do
   # `episode.content_url` without code changes.
   @leaf_file_path_preload [playable_items: :watched_files]
 
-  @standalone_movie_preloads [:images, :external_ids, :watched_files, :watch_progress] ++
-                               @leaf_file_path_preload
-  @hoisted_movie_preloads [
-                            :images,
-                            :external_ids,
-                            :watched_files,
-                            :watch_progress,
-                            :movie_series
-                          ] ++ @leaf_file_path_preload
+  @standalone_movie_preloads [:images, :external_ids, :watched_files] ++ @leaf_file_path_preload
+  @hoisted_movie_preloads [:images, :external_ids, :watched_files, :movie_series] ++
+                            @leaf_file_path_preload
   @tv_series_preloads [
     :images,
     :external_ids,
     :watched_files,
-    seasons: [episodes: [:images, :watch_progress] ++ @leaf_file_path_preload]
+    seasons: [episodes: [:images] ++ @leaf_file_path_preload]
   ]
   @movie_series_preloads [
     :images,
     :external_ids,
     :watched_files,
-    movies: [:images, :watch_progress] ++ @leaf_file_path_preload
+    movies: [:images] ++ @leaf_file_path_preload
   ]
-  @video_object_preloads [:images, :external_ids, :watched_files, :watch_progress] ++
-                           @leaf_file_path_preload
+  @video_object_preloads [:images, :external_ids, :watched_files] ++ @leaf_file_path_preload
 
   @doc """
   Loads all library entries from the type-specific tables
-  (Movie, TVSeries, MovieSeries, VideoObject), computes progress summaries.
+  (Movie, TVSeries, MovieSeries, VideoObject).
 
-  Returns a list of `%{entity: entity, progress: summary, progress_records: records}`.
+  Returns a list of `%{entity: entity}`.
 
   ## Options
 
@@ -108,10 +101,10 @@ defmodule MediaCentaur.Library.Browser do
   #
   # All fetchers use `Repo.all |> Repo.preload(...)`, which issues one query
   # per (association, parent type) pair via an `IN` clause. The total cost is
-  # a bounded constant (~29 queries) that does NOT scale with row count. This
-  # is the standard Ecto preload pattern, not N+1, and is enforced as a
-  # regression by `test/media_centaur/library_browser_test.exs` — see the
-  # "query count (N+1 regression guard)" describe block.
+  # a bounded constant that does not scale with row count. This is the
+  # standard Ecto preload pattern, not N+1, and is enforced as a regression
+  # by `test/media_centaur/library/browser_test.exs` — see the "query count
+  # (N+1 regression guard)" describe block.
 
   defp fetch_standalone_movies do
     PresentableQueries.standalone_movies()
@@ -171,17 +164,7 @@ defmodule MediaCentaur.Library.Browser do
   end
 
   defp build_entry_for(record, type) do
-    progress_records = EntityShape.extract_progress(record, type)
-    normalized = EntityShape.to_entity_view(record, type)
-    build_entry_from_normalized(normalized, progress_records)
-  end
-
-  defp build_entry_from_normalized(entity, progress_records) do
-    entity = pre_sort_children(entity)
-
-    summary = ProgressSummary.compute(entity, progress_records)
-
-    %{entity: entity, progress: summary, progress_records: progress_records}
+    %{entity: record |> EntityShape.to_entity_view(type) |> pre_sort_children()}
   end
 
   # --- Private Helpers ---

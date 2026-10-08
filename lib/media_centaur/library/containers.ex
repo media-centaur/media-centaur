@@ -70,7 +70,7 @@ defmodule MediaCentaur.Library.Containers do
     :external_ids,
     :extras,
     :watched_files,
-    seasons: [:extras, episodes: [:images, :watch_progress] ++ @leaf_file_path_preload]
+    seasons: [:extras, episodes: [:images] ++ @leaf_file_path_preload]
   ]
 
   @movie_series_full_preloads [
@@ -78,7 +78,7 @@ defmodule MediaCentaur.Library.Containers do
     :external_ids,
     :extras,
     :watched_files,
-    movies: [:images, :watch_progress] ++ @leaf_file_path_preload
+    movies: [:images] ++ @leaf_file_path_preload
   ]
 
   @movie_full_preloads [
@@ -86,7 +86,6 @@ defmodule MediaCentaur.Library.Containers do
     :external_ids,
     :extras,
     :watched_files,
-    :watch_progress,
     {:playable_items, :watched_files}
   ]
 
@@ -94,7 +93,6 @@ defmodule MediaCentaur.Library.Containers do
     :images,
     :external_ids,
     :watched_files,
-    :watch_progress,
     {:playable_items, :watched_files}
   ]
 

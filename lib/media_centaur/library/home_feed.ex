@@ -23,6 +23,7 @@ defmodule MediaCentaur.Library.HomeFeed do
     MovieSeries,
     PlayableItem,
     PresentableQueries,
+    ProgressRecords,
     Season,
     TVSeries,
     VideoObject,
@@ -69,9 +70,9 @@ defmodule MediaCentaur.Library.HomeFeed do
   end
 
   # Overlays the hot-path in-memory `WatchProgress` state on top of the
-  # DB-preloaded progress records so Continue Watching reflects the live
-  # position during active playback. Without this, the persisted row is
-  # ~5s stale (the `MediaCentaur.Library.Progress` debounced-flush
+  # progress records read from the database so Continue Watching reflects
+  # the live position during active playback. Without this, the persisted
+  # row is ~5s stale (the `MediaCentaur.Library.Progress` debounced-flush
   # interval), so the bar visibly lags playback. Closes the same
   # stale-read window the `Playback.ProgressBroadcaster` overlay
   # closes for the modal — Library Schema v2 Phase 3 Task E I-2.
@@ -278,31 +279,36 @@ defmodule MediaCentaur.Library.HomeFeed do
   # intent to keep watching). The parent collection's images ride along
   # for the UIDR-021 art fallback.
   defp fetch_in_progress_movies(limit) do
-    from(m in Movie,
-      as: :item,
-      where:
-        exists(
-          from(wp in WatchProgress,
-            join: pi in PlayableItem,
-            on: pi.id == wp.playable_item_id,
-            where:
-              pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
-                wp.completed == false,
-            select: 1
-          )
-        ),
-      join: last_watched in subquery(last_watched_by_container(:movie)),
-      on: last_watched.container_id == m.id,
-      order_by: [desc: last_watched.last_watched_at],
-      limit: ^limit
-    )
-    |> Repo.all()
-    |> Repo.preload([:images, :watch_progress, movie_series: :images])
-    |> Enum.map(&build_in_progress_movie_entry/1)
+    movies =
+      from(m in Movie,
+        as: :item,
+        where:
+          exists(
+            from(wp in WatchProgress,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
+              where:
+                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
+                  wp.completed == false,
+              select: 1
+            )
+          ),
+        join: last_watched in subquery(last_watched_by_container(:movie)),
+        on: last_watched.container_id == m.id,
+        order_by: [desc: last_watched.last_watched_at],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, movie_series: :images])
+
+    progress_by_id = ProgressRecords.progress_by_leaf(:movie, Enum.map(movies, & &1.id))
+
+    movies
+    |> Enum.map(&build_in_progress_movie_entry(&1, Map.get(progress_by_id, &1.id)))
     |> Enum.reject(&is_nil/1)
   end
 
-  defp build_in_progress_movie_entry(movie) do
+  defp build_in_progress_movie_entry(movie, progress) do
     single_leaf_entry(
       %{
         id: movie.id,
@@ -316,7 +322,7 @@ defmodule MediaCentaur.Library.HomeFeed do
         genres: movie.genres,
         duration_seconds: movie.duration_seconds
       },
-      movie.watch_progress
+      progress
     )
   end
 
@@ -457,7 +463,10 @@ defmodule MediaCentaur.Library.HomeFeed do
         limit: ^limit
       )
       |> Repo.all()
-      |> Repo.preload([:images, :watch_progress])
+      |> Repo.preload([:images])
+
+    progress_by_id =
+      ProgressRecords.progress_by_leaf(:video_object, Enum.map(video_objects, & &1.id))
 
     Enum.reject(
       Enum.map(video_objects, fn video_object ->
@@ -471,7 +480,7 @@ defmodule MediaCentaur.Library.HomeFeed do
             genres: nil,
             duration_seconds: nil
           },
-          video_object.watch_progress
+          Map.get(progress_by_id, video_object.id)
         )
       end),
       &is_nil/1

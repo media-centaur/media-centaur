@@ -344,7 +344,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     # WatchProgress is keyed by `playable_item_id` since Library Schema
     # v2 Phase 2 Task C. The container id (Episode UUID) lives on the
     # synthesised `:playable_item` field that
-    # `EntityShape.extract_progress/2` attaches at runtime (or that
+    # `ProgressRecords.list_for_container/2` attaches at runtime (or that
     # tests inject via `build_progress`).
     progress_records
     |> Enum.map(fn record ->

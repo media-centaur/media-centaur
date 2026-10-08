@@ -12,11 +12,11 @@ defmodule MediaCentaur.Library.EntityCascade do
 
       1. Walk the container's children (seasons → episodes, or child movies).
          For each leaf (Episode / child Movie / standalone Movie / VideoObject):
-           a. Delete the leaf's PlayableItem rows by `(container_type, container_id)`.
+           a. Delete the leaf's polymorphic supporting rows
+              (Image / Extra / ExternalId) by `(owner_type, owner_id)`.
+           b. Delete the leaf's PlayableItem rows by `(container_type, container_id)`.
               WatchedFiles and WatchProgress cascade automatically via their
               `on_delete: :delete_all` FK to `library_playable_items`.
-           b. Delete the leaf's polymorphic supporting rows
-              (Image / Extra / ExternalId) by `(owner_type, owner_id)`.
            c. Delete the leaf container row itself.
       2. Delete the parent container's own polymorphic supporting rows
          (Image / Extra / ExternalId by `(owner_type, owner_id)`, plus the
@@ -188,12 +188,9 @@ defmodule MediaCentaur.Library.EntityCascade do
   # PlayableItems). Library Schema v2 Phase 2 Task G made PlayableItem the
   # canonical leaf, so it must come down with the container.
   #
-  # Order: supporting rows first (including the preloaded WatchProgress
-  # struct via `destroy_progress/1`), then PlayableItem rows. Dropping
-  # PlayableItem first would cascade-delete WatchProgress via the
-  # `on_delete: :delete_all` FK, leaving `destroy_progress/1` with a
-  # stale struct that raises `Ecto.StaleEntryError` on the explicit
-  # `Repo.delete`.
+  # Order: supporting rows first, then PlayableItem rows; the
+  # `PlayableItem → WatchProgress` FK (`on_delete: :delete_all`) takes the
+  # progress rows of every profile with the items.
   defp destroy_leaf!(record, leaf_type) when leaf_type in [:movie, :episode, :video_object] do
     destroy_supporting_rows!(record, leaf_type)
     delete_playable_items(leaf_type, record.id)
@@ -212,7 +209,6 @@ defmodule MediaCentaur.Library.EntityCascade do
   # `delete_polymorphic/3` is a no-op when the schema doesn't accept the
   # owner type so callers can stay uniform across leaf and container.
   defp destroy_supporting_rows!(record, owner_type) do
-    destroy_progress(record)
     delete_images(loaded_assoc(record, :images))
     delete_polymorphic(Extra, owner_type, record.id)
     delete_polymorphic(ExternalId, owner_type, record.id)
@@ -264,24 +260,14 @@ defmodule MediaCentaur.Library.EntityCascade do
   end
 
   @doc false
-  def destroy_progress(%{watch_progress: nil}), do: :ok
-  def destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
-
-  def destroy_progress(%{watch_progress: progress}), do: Library.ProgressRecords.destroy!(progress)
-
-  # Some records (Season, TVSeries) don't have a :watch_progress field.
-  def destroy_progress(_record), do: :ok
-
-  @doc false
   # `bulk_destroy/2` deletes the leaf container rows (Episode / child
   # Movie) by id, but MUST run AFTER `destroy_leaf!/2` has cleaned up
   # each leaf's supporting rows and PlayableItems. Reversing the order
   # would FK-cascade-delete the PlayableItems via SQLite's
   # `on_delete: :delete_all` when the Episode/Movie row goes, leaving
-  # the per-leaf `destroy_progress/1` walk operating on stale structs
-  # (raises `Ecto.StaleEntryError`). Callers in `destroy_children!/2`
-  # encode the sequence; see the module docstring's "Cascade order"
-  # section for the full picture.
+  # the per-leaf image cleanup operating on stale structs. Callers in
+  # `destroy_children!/2` encode the sequence; see the module
+  # docstring's "Cascade order" section for the full picture.
   def bulk_destroy([], _schema), do: :ok
 
   def bulk_destroy(records, schema) do

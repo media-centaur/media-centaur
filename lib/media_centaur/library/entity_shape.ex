@@ -9,17 +9,8 @@ defmodule MediaCentaur.Library.EntityShape do
 
   `MediaCentaur.Library.PlayableItem` is the write-side leaf identity that
   files and progress key against; this module operates one layer up, at
-  the container the user sees.
-
-  ## Companion helpers (`extract_progress/2`, `attach_container/3`)
-
-  `extract_progress/2` walks a container's preloaded associations and
-  returns the `WatchProgress` rows attached to each leaf, each carrying
-  a synthesised `:playable_item` field with the leaf's `(container_type,
-  container_id)`. Downstream consumers
-  (`MediaCentaur.Library.ProgressRecords.index_progress_by_key/1`) key
-  progress by container id without an extra preload of the
-  `belongs_to :playable_item` back-ref.
+  the container the user sees. Progress is not read here: a title's
+  progress comes from `MediaCentaur.Library.ProgressRecords.list_for_container/2`.
   """
 
   alias MediaCentaur.Library.EntityView
@@ -119,65 +110,6 @@ defmodule MediaCentaur.Library.EntityShape do
   end
 
   defp extract_external_id(_, _), do: nil
-
-  @doc """
-  Extracts watch progress records from a type-specific struct's preloaded associations.
-
-  Dispatches by type atom to dig into the correct nested structure:
-  - `:tv_series` — walks seasons > episodes > watch_progress
-  - `:movie_series` — walks movies > watch_progress
-  - `:movie` / `:video_object` — wraps the single watch_progress record
-
-  Each returned WatchProgress carries a synthesised `:playable_item`
-  field with the owning container's `(container_type, container_id)`.
-  The `has_one :watch_progress, through: [:playable_items, :watch_progress]`
-  preload path doesn't materialise the `belongs_to :playable_item` back-ref
-  on the loaded progress record, so this function plugs in just enough
-  for downstream consumers (e.g. `ProgressRecords.index_progress_by_key/1`)
-  to key by container id.
-  """
-  def extract_progress(record, :tv_series), do: extract_episode_progress(record.seasons)
-  def extract_progress(record, :movie_series), do: extract_movie_progress(record.movies)
-  def extract_progress(record, :movie), do: wrap_progress(record.watch_progress, :movie, record.id)
-
-  def extract_progress(record, :video_object),
-    do: wrap_progress(record.watch_progress, :video_object, record.id)
-
-  defp extract_episode_progress(seasons) when is_list(seasons) do
-    for season <- seasons,
-        episode <- season.episodes || [],
-        progress = episode.watch_progress,
-        not is_nil(progress),
-        do: attach_container(progress, :episode, episode.id)
-  end
-
-  defp extract_episode_progress(_), do: []
-
-  defp extract_movie_progress(movies) when is_list(movies) do
-    for movie <- movies,
-        progress = movie.watch_progress,
-        not is_nil(progress),
-        do: attach_container(progress, :movie, movie.id)
-  end
-
-  defp extract_movie_progress(_), do: []
-
-  defp wrap_progress(nil, _container_type, _container_id), do: []
-
-  defp wrap_progress(progress, container_type, container_id),
-    do: [attach_container(progress, container_type, container_id)]
-
-  # Plugs a synthesised `:playable_item` onto a WatchProgress so
-  # downstream code can key by container id without an extra preload.
-  defp attach_container(progress, container_type, container_id) do
-    %{
-      progress
-      | playable_item: %{
-          container_type: container_type,
-          container_id: container_id
-        }
-    }
-  end
 
   defp collection_from(%{movie_series: %{id: id, name: name}}, :movie), do: %{id: id, name: name}
 

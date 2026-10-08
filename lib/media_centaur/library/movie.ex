@@ -94,17 +94,6 @@ defmodule MediaCentaur.Library.Movie do
     # WatchedFile.
     has_many :watched_files, through: [:playable_items, :watched_files]
 
-    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
-    # Task C). For the canonical single-cut case there is one or zero
-    # — `has_one :through` matches the historical Movie-level
-    # `:watch_progress` semantics. If a Movie ever has multiple
-    # PlayableItems (director's cut etc.) each with WatchProgress,
-    # `Repo.preload(movie, :watch_progress)` silently returns the
-    # first PlayableItem's progress; the second cut would be invisible
-    # at this preload path. Multi-cut work must read progress through
-    # `:playable_items` directly.
-    has_one :watch_progress, through: [:playable_items, :watch_progress]
-
     timestamps()
   end
 
