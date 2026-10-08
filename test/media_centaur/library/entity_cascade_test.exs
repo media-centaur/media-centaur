@@ -86,6 +86,20 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       assert Library.Images.list_all() == []
     end
 
+    test "destroying a movie takes every profile's progress on its extras through the FK cascade" do
+      movie = create_entity(%{type: :movie, name: "Sample Movie"})
+      extra = create_extra(%{movie_id: movie.id, name: "Behind the Scenes"})
+      me = owner_profile_id()
+      ana = create_profile(%{name: "Ana"}).id
+      create_extra_progress(%{profile_id: me, extra_id: extra.id, position_seconds: 45.0})
+      create_extra_progress(%{profile_id: ana, extra_id: extra.id, position_seconds: 5.0})
+
+      EntityCascade.destroy!(movie.id)
+
+      assert Library.ProgressRecords.fetch_for_extra(me, extra.id) == {:error, :not_found}
+      assert Library.ProgressRecords.fetch_for_extra(ana, extra.id) == {:error, :not_found}
+    end
+
     test "cascade deletes the entity's media track override" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 

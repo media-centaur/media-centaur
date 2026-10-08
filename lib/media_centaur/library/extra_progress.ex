@@ -1,9 +1,9 @@
 defmodule MediaCentaur.Library.ExtraProgress do
   @moduledoc """
-  Per-extra playback progress. Tracks position, duration, and completion state
-  for bonus content (featurettes, deleted scenes, behind-the-scenes).
-
-  Keyed by `extra_id` — each extra gets at most one progress record.
+  A row is one profile's progress on one extra (ADR-078) — position,
+  duration and completion for bonus content (featurettes, deleted scenes,
+  behind-the-scenes) — unique on `(profile_id, extra_id)`; the profile is
+  a plain id, not an association — `Profiles` is another context.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -12,25 +12,29 @@ defmodule MediaCentaur.Library.ExtraProgress do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @timestamps_opts [type: :utc_datetime]
+  @timestamps_opts [type: :utc_datetime_usec]
 
   schema "library_extra_progress" do
     field :position_seconds, :float, default: 0.0
     field :duration_seconds, :float, default: 0.0
     field :completed, :boolean, default: false
     field :last_watched_at, :utc_datetime
+    field :profile_id, Ecto.UUID
 
     belongs_to :extra, MediaCentaur.Library.Extra
 
     timestamps()
   end
 
+  @type t :: %__MODULE__{}
+
   @impl true
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:extra_id, :position_seconds, :duration_seconds])
-    |> validate_required([:extra_id])
+    |> cast(attrs, [:profile_id, :extra_id, :position_seconds, :duration_seconds])
+    |> validate_required([:profile_id, :extra_id])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
+    |> unique_constraint([:profile_id, :extra_id])
   end
 
   @impl true

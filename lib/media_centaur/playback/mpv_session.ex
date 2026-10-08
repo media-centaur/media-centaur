@@ -965,6 +965,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     duration = state.duration
 
     params = %{
+      profile_id: state.profile_id,
       extra_id: state.extra_id,
       entity_id: state.entity_id,
       position_seconds: saveable,

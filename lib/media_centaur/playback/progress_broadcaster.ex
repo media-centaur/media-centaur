@@ -152,7 +152,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   @spec broadcast_extra(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, term()}
   def broadcast_extra(profile_id, entity_id, extra_id) do
     progress =
-      case MediaCentaur.Library.ProgressRecords.fetch_for_extra(extra_id) do
+      case MediaCentaur.Library.ProgressRecords.fetch_for_extra(profile_id, extra_id) do
         {:ok, record} -> record
         {:error, :not_found} -> nil
       end

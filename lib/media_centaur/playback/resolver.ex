@@ -290,12 +290,10 @@ defmodule MediaCentaur.Playback.Resolver do
     {:error, :no_playable_content}
   end
 
-  # Extra progress is not yet per profile; `extra_resume_position/1`
-  # reads the one row.
   defp resolve_extra_playback(profile_id, extra) do
     {entity_id, entity_name} = resolve_extra_parent(profile_id, extra)
 
-    position = extra_resume_position(extra.id)
+    position = extra_resume_position(profile_id, extra.id)
     action = if position > 0.0, do: :resume, else: :play_extra
 
     {:ok,
@@ -328,8 +326,8 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp extra_resume_position(extra_id) do
-    case Library.ProgressRecords.fetch_for_extra(extra_id) do
+  defp extra_resume_position(profile_id, extra_id) do
+    case Library.ProgressRecords.fetch_for_extra(profile_id, extra_id) do
       {:ok, %{completed: true}} -> 0.0
       {:ok, %{position_seconds: pos}} when is_number(pos) -> pos
       _ -> 0.0

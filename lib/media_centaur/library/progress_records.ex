@@ -8,8 +8,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
     * `WatchProgress`, keyed by `(profile_id, playable_item_id)`, for the
       playable leaves (Movie / Episode / VideoObject).
-    * `ExtraProgress`, keyed by `extra_id`, for bonus features, which are
-      not `PlayableItem`s.
+    * `ExtraProgress`, keyed by `(profile_id, extra_id)`, for bonus
+      features, which are not `PlayableItem`s.
 
   They are deliberately adjacent. The two carry the *same seven
   operations* and differ only in their key, and that duplication is a
@@ -323,20 +323,25 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   # ---- ExtraProgress -------------------------------------------------------
 
-  @doc "Fetches the progress row for an Extra."
-  @spec fetch_for_extra(Ecto.UUID.t()) :: {:ok, ExtraProgress.t()} | {:error, :not_found}
-  def fetch_for_extra(extra_id) do
-    case Repo.get_by(ExtraProgress, extra_id: extra_id) do
+  @doc "Fetches one profile's progress row for an Extra."
+  @spec fetch_for_extra(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, ExtraProgress.t()} | {:error, :not_found}
+  def fetch_for_extra(profile_id, extra_id) when is_binary(profile_id) and is_binary(extra_id) do
+    case Repo.get_by(ExtraProgress, profile_id: profile_id, extra_id: extra_id) do
       nil -> {:error, :not_found}
       record -> {:ok, record}
     end
   end
 
-  @doc "Upserts the progress row for an Extra."
+  @doc "Upserts one profile's progress on an extra; `attrs` carries `:profile_id` and `:extra_id`."
   @spec find_or_create_for_extra(map()) ::
           {:ok, ExtraProgress.t()} | {:error, Ecto.Changeset.t()}
-  def find_or_create_for_extra(attrs),
-    do: Writes.upsert_by(ExtraProgress, [extra_id: Writes.attr(attrs, :extra_id)], attrs)
+  def find_or_create_for_extra(attrs) do
+    Writes.upsert_by(
+      ExtraProgress,
+      [profile_id: Writes.attr(attrs, :profile_id), extra_id: Writes.attr(attrs, :extra_id)],
+      attrs
+    )
+  end
 
   @doc "As `find_or_create_for_extra/1`, raising on a rejected changeset."
   @spec find_or_create_for_extra!(map()) :: ExtraProgress.t()

@@ -888,9 +888,14 @@ defmodule MediaCentaur.TestFactory do
   defp container_ref(%{episode_id: id}) when not is_nil(id), do: {:episode, id}
   defp container_ref(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}
 
+  @doc "Persists one profile's progress on an extra — the owner profile when `profile_id:` is absent."
   def create_extra_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-    Library.ProgressRecords.find_or_create_for_extra!(Map.merge(defaults, attrs))
+
+    defaults
+    |> Map.merge(Map.new(attrs))
+    |> Map.put_new_lazy(:profile_id, &owner_profile_id/0)
+    |> Library.ProgressRecords.find_or_create_for_extra!()
   end
 
   # ---------------------------------------------------------------------------
