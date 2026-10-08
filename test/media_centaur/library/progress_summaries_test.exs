@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Library.ProgressSummariesTest do
   @moduledoc """
-  Spec for `Library.ProgressRecords.summaries/1` — the bulk progress
+  Spec for `Library.ProgressRecords.summaries/2` — the bulk progress
   lookup used by projection consumers (Phase 3.1).
 
   Returns `%{entity_id => summary}` keyed by container UUID. Each

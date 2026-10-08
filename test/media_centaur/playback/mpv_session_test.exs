@@ -107,6 +107,29 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
     end
   end
 
+  describe "reset_for_file/4" do
+    test "an episode advance keeps the profile the session was started for" do
+      profile_id = Ecto.UUID.generate()
+
+      state =
+        struct!(MpvSession, %{
+          profile_id: profile_id,
+          content_url: "/media/a.mkv",
+          episode_id: "ep-1",
+          position: 1200.0,
+          tracker: WatchingTracker.new()
+        })
+
+      item = %{season_number: 1, episode_number: 2, episode_name: "Sample Episode"}
+      next = MpvSession.reset_for_file(state, "/media/b.mkv", %{episode_id: "ep-2"}, item)
+
+      assert next.profile_id == profile_id
+      assert next.episode_id == "ep-2"
+      assert next.content_url == "/media/b.mkv"
+      assert next.position == 0.0
+    end
+  end
+
   describe "session_ended/1" do
     test "names the session's entity, profile and completed set" do
       profile_id = Ecto.UUID.generate()

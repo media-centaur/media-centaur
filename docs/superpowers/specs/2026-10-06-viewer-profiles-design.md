@@ -262,7 +262,9 @@ snapshot; both rebuilt whole for the profiles present in their source
 table. The extra-progress FK to `library_extras` now cascades;
 `MediaTrackOverride` joined the whole-library delete order. The
 `{:watch_completed, playable_item_id}` tuple stays a trigger-only
-message.
+message. `Library.list_in_progress/2` and `Views.continue_watching/2`
+take the profile first; the arities in the paragraph above are the
+pre-phase-2 ones.
 
 ### Events and topics
 

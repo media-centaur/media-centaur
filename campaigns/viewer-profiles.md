@@ -104,8 +104,14 @@ unchanged.
   watching table with `profile_id`; the backfill is the rebuild's
   `INSERT … SELECT` (oldest profile), so no `UPDATE` and no MC0015
   carve-out. Between `migrate` and the restart the outgoing release's
-  progress flush is refused by `NOT NULL` and retried on its next
-  tick; the migration moduledocs say so.
+  progress worker crash-restarts on every flush (`NOT NULL` raises;
+  position since the last flush is lost) until the new release is
+  serving; the migration moduledoc says so.
+* The four migrations were run on 2026-10-08 against a backup copy of
+  the production database (pre-phase-1 schema, 220 progress rows, 10
+  track overrides, 491 history events): every row survived and was
+  assigned to the owner profile, all indexes present, `PRAGMA
+  foreign_key_check` empty, `integrity_check` ok.
 * `docs/context-map/verdicts.json` holds its first four verdicts (the
   R4 `profile_id` keys on the four schemas). `context_map --check` is
   red on the pre-existing backlog, unchanged by this branch. Three new

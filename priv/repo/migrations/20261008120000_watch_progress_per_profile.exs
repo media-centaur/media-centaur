@@ -12,11 +12,13 @@ defmodule MediaCentaur.Repo.Migrations.WatchProgressPerProfile do
   its own index for the cascade from `library_playable_items`, as every
   FK child column here has (`20260405173122_add_library_fk_indexes`).
 
-  Between `migrate` and the restart the outgoing release can still write
-  a row without a profile; `NOT NULL` refuses it, the progress worker
-  logs the failed flush and retries on its next tick, and the new release
-  is serving by then. Not reversible: rows of several profiles would
-  collapse onto one key.
+  Between `migrate` and the restart the outgoing release's progress
+  worker cannot write a row without a profile: `NOT NULL` raises out of
+  its flush, the worker crash-restarts and loses its in-memory rows
+  (position since the last flush), and this repeats every flush interval
+  until the new release is serving — seconds, during `Update now`. The
+  installer runs `migrate` with the old service still up, then restarts.
+  Not reversible: rows of several profiles would collapse onto one key.
   """
   use Ecto.Migration
 

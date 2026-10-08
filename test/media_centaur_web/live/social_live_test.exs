@@ -903,7 +903,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, entry(rec) <> "-download")
 
       # The owned title shows Play on Social (UIDR-043); the factory
-      # file has no bytes on disk, so reaching Playback.play/1 answers with
+      # file has no bytes on disk, so reaching Playback.play/2 answers with
       # the mount flash — the modal is never a waystation (UIDR-027).
       refute has_element?(view, "#detail-download")
       view |> element("#detail-modal button[phx-click='play']") |> render_click()

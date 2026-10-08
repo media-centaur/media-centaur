@@ -37,7 +37,7 @@ defmodule MediaCentaur.Profile.ReporterTest do
             input: "warm-cache",
             scenarios: [
               %{
-                name: "Views.continue_watching/1",
+                name: "Views.continue_watching/2",
                 stats: %{
                   ips: 1_500_000.0,
                   average_ns: 666.0,
