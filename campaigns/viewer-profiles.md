@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-10-05
-last_updated: 2026-10-07
+last_updated: 2026-10-08
 ---
 # Viewer profiles: who has watched what
 
@@ -68,13 +68,14 @@ Owner's visual check and merge next; phase 2 plan after.
   SQLite file, Me and Ana) is in this session's scratchpad and will be
   gone; recreate one from `defaults/media-centaur.toml`'s three keys
   if a worktree server is needed again.
-* Three pre-existing flakes showed under machine load on full runs:
-  `Exqlite "Database busy"` on a `settings_entries` insert in test
-  setup (several files, never the same), an `Exqlite` client-exited
-  disconnect, and the two context-map tests timing out at 60 s. Every
-  one passes alone. The `TargetStatus` load-order flake was fixed on
-  the branch (`c20bd71e`); `Jobs.PursueTarget`'s own
-  `String.to_existing_atom` carries the same fragility and is untouched.
+* Full runs under machine load showed an occasional `Exqlite
+  "Database busy"` on a write in test setup, an `Exqlite` client-exited
+  disconnect, and the two context-map tests timing out at 60 s. These
+  are normal for SQLite under load, not flakes to chase (owner,
+  2026-10-08): re-run the file alone and move on. The one genuine
+  load-order flake, `TargetStatus`, was fixed on the branch
+  (`c20bd71e`); `Jobs.PursueTarget`'s own `String.to_existing_atom`
+  carries the same fragility and is untouched.
 * The context map was regenerated on the branch; `verdicts.json` is
   still empty for every finding. One false positive to raise with the
   tool: the R1 foreign-write rule matches the `name` key of the
@@ -288,10 +289,29 @@ three releases.
 
 ## Next steps
 
-1. Owner's visual check of the picker and Settings → Profiles (TV
-   sizing is open: 96 is the largest tile and the heading is 3xl).
-2. Owner merges `viewer-profiles`.
-3. Plan phase 2 (per-profile watching).
+1. **Plan phase 2, per-profile watching** — the next session's first
+   job, in a clear context. Start by reading this file's Status and
+   hand-off, then the spec's "Watching per profile" section
+   (`docs/superpowers/specs/2026-10-06-viewer-profiles-design.md`) and
+   "What the surveys found" above. Write the plan with the
+   `writing-plans` skill to
+   `docs/superpowers/plans/2026-10-08-viewer-profiles-phase-2.md`,
+   after a `unify_design` pass over the slice (the four watching
+   tables, `Library.Progress.Worker`'s ETS key, the three read models,
+   `Playback.play/2` and the session struct, the completion events
+   under MC0012, `WatchHistory.Recorder`, the finish prompt, the
+   factories, the showcase seeder). The backfill is an inline heal in
+   each schema migration assigning rows to the oldest profile, with a
+   per-line Credo carve-out only where the rule actually matches
+   (UPDATE/DELETE in `execute(<string>)`). Then execute it the same way
+   as phase 1: one implementer per task, spec review, quality review,
+   full suite logged to a file.
+2. Work on the same branch in the same worktree until the owner
+   merges; if phase 1 has been merged by then, branch
+   `viewer-profiles-phase-2` from main in a fresh worktree instead.
+3. Owner's visual check of the picker and Settings → Profiles (TV
+   sizing is open: 96 is the largest tile and the heading is 3xl) and
+   the merge of phase 1 can happen before or during phase 2.
 
 ## Completion criteria
 
