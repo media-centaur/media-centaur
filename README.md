@@ -54,7 +54,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 ## Non-goals
 
-Media Centaur is deliberately **not** a streaming server or cross-platform media suite. It does not stream to remote devices, transcode, run in Docker, or support multiple users. If you need those, [Jellyfin](https://jellyfin.org/) and Plex do them well.
+Media Centaur is deliberately **not** a streaming server or cross-platform media suite. It does not stream to remote devices, transcode, or run in Docker. If you need those, [Jellyfin](https://jellyfin.org/) and Plex do them well. People who share the install pick a [profile](https://github.com/media-centaur/media-centaur/wiki/Profiles) on the screen, and each keeps their own progress and history; there are no accounts, and one library, one watchlist, one social setup and one set of settings serve everyone.
 
 See the [FAQ](https://github.com/media-centaur/media-centaur/wiki/FAQ) for the full list and reasoning.
 
