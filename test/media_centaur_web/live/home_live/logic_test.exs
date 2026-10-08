@@ -622,9 +622,10 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         {:playback_state_changed,
          %MediaCentaur.Playback.Events.PlaybackStateChanged{
            entity_id: "abc",
+           profile_id: "p-1",
            state: :playing,
            now_playing: %{},
-           started_at: DateTime.utc_now()
+           started_at: System.monotonic_time(:millisecond)
          }}
 
       assert Logic.section_reloaders(msg) == [:continue_watching]

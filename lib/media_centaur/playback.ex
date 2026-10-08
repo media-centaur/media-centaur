@@ -29,14 +29,17 @@ defmodule MediaCentaur.Playback do
   end
 
   @doc """
-  Smart play for any UUID — resolves the target and starts playback.
+  Starts playback of `uuid` for `profile_id`, the session's active profile
+  (ADR-078). The profile is captured here and held by the session for its
+  life: a switch mid-film does not re-home the progress.
   """
-  def play(uuid) do
-    Log.info(:playback, "play requested — #{Format.short_id(uuid)}")
+  @spec play(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, atom()}
+  def play(profile_id, uuid) when is_binary(profile_id) and is_binary(uuid) do
+    Log.info(:playback, "play requested — #{Format.short_id(uuid)} for #{Format.short_id(profile_id)}")
 
     case Resolver.resolve(uuid) do
       {:ok, play_params} ->
-        Sessions.play(play_params)
+        Sessions.play(Map.put(play_params, :profile_id, profile_id))
 
       {:error, reason} ->
         Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")

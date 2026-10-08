@@ -4,14 +4,22 @@ defmodule MediaCentaur.Playback.SessionRecovery do
 
   On backend restart, mpv instances may still be running with entity-scoped
   sockets (`media-centaur-{entity_id}.sock`). This module scans the socket
-  directory, probes each socket, queries mpv for the current file path and
-  position, then resolves the entity so a new MpvSession can reconnect.
+  directory, probes each socket, queries mpv for the current file path,
+  position and script options, then resolves the entity so a new MpvSession
+  can reconnect.
+
+  The profile the session records under (ADR-078) is read back from mpv's
+  `script-opts`, where `LaunchFlags` pinned it at launch under
+  `LaunchFlags.profile_script_opt/0`. A session mpv reports without that
+  option was started by the outgoing release: it is skipped rather than
+  recovered under a guessed profile — mpv keeps playing, and its socket goes
+  when mpv exits or on the next boot's dead-socket sweep.
   """
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{EntityShape, TypeResolver}
-  alias MediaCentaur.Playback.PlayableFks
+  alias MediaCentaur.Playback.{LaunchFlags, PlayableFks}
 
   @socket_prefix "media-centaur-"
   @socket_suffix ".sock"
@@ -33,11 +41,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
 
       case recover_from_socket(socket_path, entity_id) do
         {:ok, params} ->
-          Log.info(
-            :playback,
-            "recovery: found live session for #{params[:entity_name] || entity_id}"
-          )
-
+          Log.info(:playback, "recovery: found live session for #{params[:entity_name] || entity_id}")
           [params]
 
         :skip ->
@@ -77,9 +81,19 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   defp query_and_resolve(socket, entity_id) do
     with {:ok, path} <- get_property(socket, "path"),
          {:ok, position} <- get_property(socket, "time-pos"),
+         {:ok, script_opts} <- get_property(socket, "script-opts"),
+         {:ok, profile_id} <- session_profile(script_opts),
          {:ok, params} <- build_params(entity_id, path, position) do
-      {:ok, params}
+      {:ok, Map.put(params, :profile_id, profile_id)}
     else
+      :no_profile ->
+        Log.info(
+          :playback,
+          "recovery: skipping session without a profile — mpv was started by the outgoing release (#{entity_id})"
+        )
+
+        :skip
+
       {:error, reason} ->
         Log.info(
           :playback,
@@ -89,6 +103,17 @@ defmodule MediaCentaur.Playback.SessionRecovery do
         :skip
     end
   end
+
+  # One-release edge: mpv launched by the outgoing release has no profile
+  # option, so the session is not recovered (see the moduledoc).
+  defp session_profile(script_opts) when is_map(script_opts) do
+    case Map.get(script_opts, LaunchFlags.profile_script_opt()) do
+      nil -> :no_profile
+      profile_id -> {:ok, profile_id}
+    end
+  end
+
+  defp session_profile(_not_a_map), do: :no_profile
 
   defp get_property(socket, name) do
     command = Jason.encode!(%{"command" => ["get_property", name]}) <> "\n"

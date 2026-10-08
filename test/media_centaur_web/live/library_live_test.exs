@@ -1040,17 +1040,43 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # the MpvSession broadcasts TrackOverrideChanged. The open modal
       # must reflect it without the user reopening.
       {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "fra"})
-      Events.broadcast(%TrackOverrideChanged{owner_type: :movie, owner_id: movie.id})
+
+      Events.broadcast(%TrackOverrideChanged{
+        profile_id: owner_profile_id(),
+        owner_type: :movie,
+        owner_id: movie.id
+      })
 
       html = render(view)
       assert html =~ "Remembered tracks"
       assert html =~ "French audio"
     end
 
+    test "TrackOverrideChanged from another profile leaves the open detail alone", %{
+      conn: conn,
+      movie: movie
+    } do
+      ana = create_profile(%{name: "Ana"})
+
+      # With two profiles a cookie-less conn lands on the picker, so the owner is picked.
+      {:ok, view, _html} =
+        conn
+        |> with_profile(MediaCentaur.Profiles.get(owner_profile_id()))
+        |> live_async!(~p"/library?entity=#{movie.id}&view=info")
+
+      refute render(view) =~ "Remembered tracks"
+
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "fra"})
+      Events.broadcast(%TrackOverrideChanged{profile_id: ana.id, owner_type: :movie, owner_id: movie.id})
+
+      refute render(view) =~ "Remembered tracks"
+    end
+
     test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       Events.broadcast(%TrackOverrideChanged{
+        profile_id: owner_profile_id(),
         owner_type: :movie,
         owner_id: Ecto.UUID.generate()
       })
@@ -1555,11 +1581,32 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         duration_seconds: 1000.0
       })
 
-      ProgressBroadcaster.broadcast(movie.id, nil)
+      ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
       html = render(view)
       assert html =~ "progress-fill"
       assert html =~ "width: 60"
+    end
+
+    test "entity_progress_updated from another profile leaves the card's progress alone",
+         %{conn: conn, movie: movie} do
+      ana = create_profile(%{name: "Ana"})
+
+      # With two profiles a cookie-less conn lands on the picker, so the owner is picked.
+      {:ok, view, html} =
+        conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/library")
+
+      refute html =~ "progress-fill"
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 600.0,
+        duration_seconds: 1000.0
+      })
+
+      ProgressBroadcaster.broadcast(ana.id, movie.id, nil)
+
+      refute render(view) =~ "progress-fill"
     end
 
     test "playback_state_changed broadcast surfaces the now-playing pulse",
@@ -1572,9 +1619,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       Events.broadcast(%PlaybackStateChanged{
         entity_id: movie.id,
+        profile_id: owner_profile_id(),
         state: :playing,
         now_playing: %{},
-        started_at: DateTime.utc_now()
+        started_at: System.monotonic_time(:millisecond)
       })
 
       assert render(view) =~ "animate-pulse"

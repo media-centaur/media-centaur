@@ -777,8 +777,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # UIDR-052: a finished title opens with the prompt — the modal may be
   # closed. `:stopped` arrived first (same session, same topic), so the
-  # playing set no longer guards its delete.
-  defp react({:session_ended, event}, socket) do
+  # playing set no longer guards its delete. Only the profile that
+  # watched is asked (ADR-078): another profile's session, or a page on
+  # the pick path with no profile yet, leaves this page as it was.
+  defp react(
+         {:session_ended, %{profile_id: profile_id} = event},
+         %{assigns: %{profile: %{id: profile_id}}} = socket
+       ) do
     open_id = DetailLogic.subject_id(socket.assigns.title_detail)
     latest_aired = if Finish.episodes?(event), do: latest_aired_episode(event.entity_id)
 
@@ -796,7 +801,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
+  defp react({:session_ended, _another_profile}, socket), do: socket
+
   defp react(_message, %{assigns: %{title_detail: nil}} = socket), do: socket
+
+  # The open detail holds one profile's progress and track memory; a
+  # broadcast about another profile's is not merged into it.
+  defp react({tag, %{profile_id: other}}, %{assigns: %{profile: %{id: mine}}} = socket)
+       when tag in [:entity_progress_updated, :extra_progress_updated, :track_override_changed] and
+              other != mine, do: socket
 
   defp react({:entity_progress_updated, %{entity_id: id} = payload}, socket),
     do: merge_into_half(socket, id, &LibraryHalf.merge_progress(&1, payload))

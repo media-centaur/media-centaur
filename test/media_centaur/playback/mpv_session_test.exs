@@ -108,10 +108,17 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
   end
 
   describe "session_ended/1" do
-    test "states the entity and everything the session completed" do
-      state = struct!(MpvSession, %{entity_id: "movie-1", completed: MapSet.new([{:movie, "movie-1"}])})
+    test "names the session's entity, profile and completed set" do
+      profile_id = Ecto.UUID.generate()
 
-      assert %Events.SessionEnded{entity_id: "movie-1", completed: completed} =
+      state =
+        struct!(MpvSession, %{
+          entity_id: "movie-1",
+          profile_id: profile_id,
+          completed: MapSet.new([{:movie, "movie-1"}])
+        })
+
+      assert %Events.SessionEnded{entity_id: "movie-1", profile_id: ^profile_id, completed: completed} =
                MpvSession.session_ended(state)
 
       assert MapSet.equal?(completed, MapSet.new([{:movie, "movie-1"}]))

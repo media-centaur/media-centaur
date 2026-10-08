@@ -11,6 +11,7 @@ defmodule MediaCentaur.Playback.Sessions do
 
   @doc """
   Starts playback for the given params. Returns `:ok` or `{:error, reason}`.
+  `params.profile_id` is required: the profile the session records under.
 
   If a session is already active for the entity, returns `{:error, :already_playing}`.
   """

@@ -3,6 +3,9 @@ defmodule MediaCentaur.Playback.MpvSession do
   Per-session GenServer managing one MPV process via Port + Unix domain socket IPC.
 
   Each session tracks one entity's *viewing chain*, identified by entity_id.
+  It also holds the profile it was started for (`profile_id`, ADR-078) for its
+  whole life — progress, track memory and every event it broadcasts are that
+  profile's, and a switch mid-film does not re-home them.
   The socket path is `media-centaur-{entity_id}.sock` in the configured socket dir.
   Sessions register in `SessionRegistry` by entity_id for lookup and enumeration.
 
@@ -115,6 +118,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   defstruct [
     :session_id,
     :entity_id,
+    :profile_id,
     :entity_name,
     :season_number,
     :episode_number,
@@ -219,6 +223,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     state = %__MODULE__{
       session_id: session_id,
       entity_id: params.entity_id,
+      profile_id: params.profile_id,
       entity_name: params[:entity_name],
       season_number: params[:season_number],
       episode_number: params[:episode_number],
@@ -416,7 +421,8 @@ defmodule MediaCentaur.Playback.MpvSession do
         language_flags: LanguageContext.to_mpv_flags(state.language_context.priority_args),
         content_url: state.content_url,
         start_position: state.start_position,
-        bundled_scripts_dir: LaunchFlags.bundled_scripts_dir()
+        bundled_scripts_dir: LaunchFlags.bundled_scripts_dir(),
+        profile_id: state.profile_id
       })
 
     port =
@@ -460,15 +466,17 @@ defmodule MediaCentaur.Playback.MpvSession do
     cond do
       # Extra playback — broadcast extra progress update
       session.extra_id ->
+        profile_id = session.profile_id
         entity_id = session.entity_id
         extra_id = session.extra_id
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+          ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
         end)
 
       # Entity/episode/movie playback — broadcast entity progress update
       session.movie_id || session.episode_id || session.video_object_id ->
+        profile_id = session.profile_id
         entity_id = session.entity_id
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
@@ -476,7 +484,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           # per-tick broadcast in persist_progress/1 already carried the
           # changed playable_item_id, so there is no single record to
           # report here.
-          ProgressBroadcaster.broadcast(entity_id, nil)
+          ProgressBroadcaster.broadcast(profile_id, entity_id, nil)
         end)
 
       # No progress tracking (shouldn't happen, but safe fallback)
@@ -857,11 +865,13 @@ defmodule MediaCentaur.Playback.MpvSession do
         :ok
 
       {:override, attrs} ->
-        persist_track_override(state.language_context, attrs)
+        persist_track_override(state, attrs)
     end
   end
 
-  defp persist_track_override(%{owner_type: owner_type, owner_id: owner_id}, attrs) do
+  defp persist_track_override(state, attrs) do
+    %{owner_type: owner_type, owner_id: owner_id} = state.language_context
+
     case Library.MediaTrackOverrides.upsert(owner_type, owner_id, attrs) do
       {:ok, _override} ->
         Log.info(
@@ -870,6 +880,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         )
 
         Events.broadcast(%Events.TrackOverrideChanged{
+          profile_id: state.profile_id,
           owner_type: owner_type,
           owner_id: owner_id
         })
@@ -930,8 +941,13 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   @doc "The `SessionEnded` event for this session."
   @spec session_ended(%__MODULE__{}) :: Events.SessionEnded.t()
-  def session_ended(state),
-    do: %Events.SessionEnded{entity_id: state.entity_id, completed: state.completed}
+  def session_ended(state) do
+    %Events.SessionEnded{
+      entity_id: state.entity_id,
+      profile_id: state.profile_id,
+      completed: state.completed
+    }
+  end
 
   defp current_item(%{extra_id: id}) when not is_nil(id), do: {:extra, id}
   defp current_item(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
@@ -955,6 +971,7 @@ defmodule MediaCentaur.Playback.MpvSession do
       duration_seconds: duration
     }
 
+    profile_id = state.profile_id
     entity_id = state.entity_id
     extra_id = state.extra_id
 
@@ -967,7 +984,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           )
 
           maybe_mark_extra_completed(record, reason)
-          ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+          ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save extra progress — #{inspect(reason)}")
@@ -988,6 +1005,7 @@ defmodule MediaCentaur.Playback.MpvSession do
       |> maybe_put(:episode_id, state.episode_id)
       |> maybe_put(:video_object_id, state.video_object_id)
 
+    profile_id = state.profile_id
     entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
@@ -1017,7 +1035,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           # record — without it the detail modal's in-memory merge
           # no-ops and a per-episode badge never flips live (it only
           # corrects on a full remount).
-          ProgressBroadcaster.broadcast(entity_id, playable_item_id)
+          ProgressBroadcaster.broadcast(profile_id, entity_id, playable_item_id)
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
@@ -1096,6 +1114,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     Events.broadcast(%Events.PlaybackStateChanged{
       entity_id: session.entity_id,
+      profile_id: session.profile_id,
       state: new_state,
       now_playing: now_playing,
       started_at: session.started_at

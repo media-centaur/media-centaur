@@ -167,7 +167,7 @@ defmodule MediaCentaur.Library.Progress do
 
   The single overlay seam shared by the Continue Watching list
   (`Library.list_in_progress/1`) and the modal broadcast
-  (`Playback.ProgressBroadcaster.broadcast/2`).
+  (`Playback.ProgressBroadcaster.broadcast/3`).
   """
   @spec overlay_in_memory(map()) :: map()
   def overlay_in_memory(%{playable_item_id: playable_item_id} = record)

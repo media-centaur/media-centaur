@@ -19,6 +19,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
 
   setup do
     socket_dir = Path.join(System.tmp_dir!(), "mc-recovery-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(socket_dir)
 
     # `Config.update/2` writes a Settings row, so it must run in the test
@@ -35,6 +36,10 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
   end
 
   defp socket_path(dir, entity_id), do: Path.join(dir, "media-centaur-#{entity_id}.sock")
+
+  # The launch-time script option that pins the session's profile
+  # (`LaunchFlags.profile_script_opt/0`), as mpv reports it over IPC.
+  defp script_opts(profile_id), do: %{"media_centaur_session-profile_id" => profile_id}
 
   # A dead socket: the file exists but nothing is listening, which is what a
   # crashed mpv leaves behind.
@@ -106,16 +111,24 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
       refute File.exists?(path)
     end
 
-    test "recovers a live session and resolves it to the library entity", %{socket_dir: dir} do
+    test "recovers a live session to its entity and profile", %{socket_dir: dir} do
       movie = create_standalone_movie(%{name: "Recovered Movie"})
       file = create_linked_file(%{movie_id: movie.id})
+      profile_id = Ecto.UUID.generate()
 
       path = socket_path(dir, movie.id)
-      task = start_stub_mpv(path, %{"path" => file.file_path, "time-pos" => 42.5})
+
+      task =
+        start_stub_mpv(path, %{
+          "path" => file.file_path,
+          "time-pos" => 42.5,
+          "script-opts" => script_opts(profile_id)
+        })
 
       assert [params] = SessionRecovery.recover_all()
 
       assert params.entity_id == movie.id
+      assert params.profile_id == profile_id
       assert params.entity_name == "Recovered Movie"
       assert params.content_url == file.file_path
       assert params.start_position == 42.5
@@ -125,16 +138,24 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
 
     test "recovers a live session playing a file the library doesn't know", %{socket_dir: dir} do
       entity_id = Ecto.UUID.generate()
+      profile_id = Ecto.UUID.generate()
       unknown_path = "/media/not-in-library/Sample.Movie.2020.1080p.mkv"
 
       path = socket_path(dir, entity_id)
-      task = start_stub_mpv(path, %{"path" => unknown_path, "time-pos" => 7.0})
+
+      task =
+        start_stub_mpv(path, %{
+          "path" => unknown_path,
+          "time-pos" => 7.0,
+          "script-opts" => script_opts(profile_id)
+        })
 
       # mpv is genuinely playing something; dropping the session because we
       # can't name it would strand a running player with no UI attached.
       assert [params] = SessionRecovery.recover_all()
 
       assert params.entity_id == entity_id
+      assert params.profile_id == profile_id
       assert params.content_url == unknown_path
       assert params.start_position == 7.0
       refute Map.has_key?(params, :entity_name)
@@ -145,9 +166,28 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
     test "skips a session whose mpv cannot report a path", %{socket_dir: dir} do
       entity_id = Ecto.UUID.generate()
       path = socket_path(dir, entity_id)
-      task = start_stub_mpv(path, %{"time-pos" => 3.0})
+
+      task =
+        start_stub_mpv(path, %{"time-pos" => 3.0, "script-opts" => script_opts(Ecto.UUID.generate())})
 
       assert SessionRecovery.recover_all() == []
+
+      Task.shutdown(task, :brutal_kill)
+    end
+
+    # mpv started by the outgoing release carries no profile option. It is
+    # not recovered under a guessed profile: mpv keeps playing and its socket
+    # stays for the dead-socket sweep once it exits.
+    test "skips a live session mpv reports without a profile and leaves its socket in place",
+         %{socket_dir: dir} do
+      movie = create_standalone_movie(%{name: "Legacy Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+
+      path = socket_path(dir, movie.id)
+      task = start_stub_mpv(path, %{"path" => file.file_path, "time-pos" => 1.0, "script-opts" => %{}})
+
+      assert SessionRecovery.recover_all() == []
+      assert File.exists?(path)
 
       Task.shutdown(task, :brutal_kill)
     end
