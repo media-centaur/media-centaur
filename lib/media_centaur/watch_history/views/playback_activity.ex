@@ -4,8 +4,10 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
   a short recent-watched feed, the timestamp of the most recent write (the
   honest "recorder is alive" signal — see the status-page persona), and lifetime
   totals. Pure read-shaping; no PubSub, no caching. `StatusLive` calls `snapshot/0`
-  on mount and after `watch_history:events` messages, and uses `empty/0` for the
-  disconnected mount.
+  on mount and after `watch_history:events` messages.
+
+  Install-wide: the Status page sums across profiles (spec, 2026-10-06), so
+  every read here is scoped `:all`.
 
   Each recent entry carries two-tier display parts derived from the *stored*
   event title (`primary`/`secondary` — see `title_parts/2`) and a `poster_url`
@@ -34,13 +36,13 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
 
   @spec snapshot() :: map()
   def snapshot do
-    events = WatchHistory.recent_events(@recent_limit)
+    events = WatchHistory.recent_events(:all, @recent_limit)
 
     posters =
       events |> Enum.map(&event_ref/1) |> Enum.reject(&is_nil/1) |> Artwork.urls_by_refs("poster")
 
     recent = Enum.map(events, &shape_event(&1, posters))
-    stats = WatchHistory.stats()
+    stats = WatchHistory.stats(:all)
 
     %{
       recent: recent,

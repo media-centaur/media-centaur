@@ -8,22 +8,23 @@ defmodule MediaCentaur.WatchHistory.Rewatch do
   """
   import Ecto.Query
 
-  alias MediaCentaur.Repo
+  alias MediaCentaur.{Repo, WatchHistory}
   alias MediaCentaur.WatchHistory.Event
 
   @type entity_type :: :movie | :episode | :video_object
 
   @doc """
-  Count completion events per entity for the given type.
+  Count completion events per entity for the given type within `scope`.
   Returns a map of `entity_id => count`. Entities with zero events are absent.
   """
-  @spec count_per_entity(entity_type()) :: %{Ecto.UUID.t() => pos_integer()}
-  def count_per_entity(:movie), do: do_count(:movie_id)
-  def count_per_entity(:episode), do: do_count(:episode_id)
-  def count_per_entity(:video_object), do: do_count(:video_object_id)
+  @spec count_per_entity(WatchHistory.scope(), entity_type()) :: %{Ecto.UUID.t() => pos_integer()}
+  def count_per_entity(scope, :movie), do: do_count(scope, :movie_id)
+  def count_per_entity(scope, :episode), do: do_count(scope, :episode_id)
+  def count_per_entity(scope, :video_object), do: do_count(scope, :video_object_id)
 
-  defp do_count(field) do
+  defp do_count(scope, field) do
     Event
+    |> WatchHistory.scoped(scope)
     |> where([event], not is_nil(field(event, ^field)))
     |> group_by([event], field(event, ^field))
     |> select([event], {field(event, ^field), count(event.id)})

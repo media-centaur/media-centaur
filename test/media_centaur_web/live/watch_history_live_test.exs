@@ -4,9 +4,10 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
   import Phoenix.LiveViewTest
   import MediaCentaur.TestFactory
 
-  # `WatchHistoryLive.ensure_loaded/1` defers the summary read + first
-  # page fetch to an owned `start_async(:history_load, …)` (ADR-049).
-  # `render_async/1` awaits it deterministically — no wall-clock sleep.
+  # `WatchHistoryLive.load_history/1` is synchronous (first-paint
+  # correctness), so there is nothing to await — but `render_async/1` is
+  # the uniform "settled view" read in this suite should an owned async
+  # load (ADR-049) return.
   defp render_after_async_load(view) do
     render_async(view)
   end
@@ -80,6 +81,23 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
   end
 
   describe "mount" do
+    test "the History page lists the session's profile's completions only", %{conn: conn} do
+      movie = create_movie(%{name: "Sample Movie"})
+      ana = create_profile(%{name: "Ana"})
+      create_watch_event(%{profile_id: owner_profile_id(), movie_id: movie.id, title: "Mine Only"})
+      create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Hers Only"})
+
+      {:ok, _view, html} =
+        conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/history")
+
+      assert html =~ "Mine Only"
+      refute html =~ "Hers Only"
+
+      {:ok, _view, html} = conn |> with_profile(ana) |> live_async!("/history")
+      assert html =~ "Hers Only"
+      refute html =~ "Mine Only"
+    end
+
     test "mounts the history page without error", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/history")
       assert html =~ "Watch History"
@@ -144,12 +162,72 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       html = render_click(view, "remove_event", %{"id" => event.id})
       assert html =~ "Click again to remove"
-      assert MediaCentaur.WatchHistory.get_event(event.id), "the first click must only arm"
+
+      assert MediaCentaur.WatchHistory.get_event(owner_profile_id(), event.id),
+             "the first click must only arm"
 
       html = render_click(view, "remove_event", %{"id" => event.id})
-      assert MediaCentaur.WatchHistory.get_event(event.id) == nil
+      assert MediaCentaur.WatchHistory.get_event(owner_profile_id(), event.id) == nil
       assert html =~ "Removed Sample Removable Movie from history"
       refute has_element?(view, "#history-deleted-modal")
+    end
+
+    test "firing remove with another profile's event id removes nothing", %{conn: conn} do
+      movie = create_movie(%{name: "Sample Movie"})
+      ana = create_profile(%{name: "Ana"})
+      create_watch_event(%{profile_id: owner_profile_id(), movie_id: movie.id, title: "Mine Only"})
+      hers = create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Hers Only"})
+
+      {:ok, view, _html} =
+        conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/history")
+
+      render_click(view, "remove_event", %{"id" => hers.id})
+      html = render_click(view, "remove_event", %{"id" => hers.id})
+
+      assert MediaCentaur.WatchHistory.get_event(ana.id, hers.id)
+      assert html =~ "Mine Only"
+      refute html =~ "Removed"
+      assert [%{title: "Mine Only"}] = MediaCentaur.WatchHistory.list_events(owner_profile_id())
+    end
+  end
+
+  describe "a completion lands while the page is open" do
+    # `:sys.get_state` is off limits in tests (MC0004), so both tests
+    # assert the observable: whether the debounced list reload brings the
+    # new row onto the page.
+    setup %{conn: conn} do
+      movie = create_movie(%{name: "Sample Movie"})
+      ana = create_profile(%{name: "Ana"})
+
+      {:ok, view, _html} =
+        conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/history")
+
+      %{view: view, movie: movie, ana: ana}
+    end
+
+    test "the session's profile's completion reloads the list", %{view: view, movie: movie} do
+      mine =
+        create_watch_event(%{profile_id: owner_profile_id(), movie_id: movie.id, title: "Mine Later"})
+
+      refute render(view) =~ "Mine Later"
+
+      send(view.pid, {:watch_event_created, mine})
+
+      eventually(fn -> render(view) =~ "Mine Later" end,
+        message: "the owner's completion must reload the list"
+      )
+    end
+
+    test "another profile's completion is ignored", %{view: view, movie: movie, ana: ana} do
+      hers = create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Hers Later"})
+
+      send(view.pid, {:watch_event_created, hers})
+      # A reload, were one scheduled, would still list only the owner's rows —
+      # so the second assertion is what the ignore clause buys: the page is
+      # not re-fetched at all, and the empty state stays put.
+      html = render(view)
+      refute html =~ "Hers Later"
+      assert html =~ "Every finished watch lands here"
     end
   end
 

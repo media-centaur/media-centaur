@@ -61,13 +61,15 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     end
   end
 
-  # Synchronous first-render load. The summary is a microsecond ETS read
-  # and `fetch_page_for/1` is a single paginated local query — running
+  # Synchronous first-render load. The summary is a `:persistent_term`
+  # read (computed fresh for a profile with no events yet, so still a few
+  # local queries at most) and `fetch_page_for/1` is a single paginated
+  # local query — running
   # them inline on both the disconnected and connected renders keeps the
   # first paint correct (no empty-state flash) at negligible local cost.
   # Desktop first-paint correctness (see AGENTS.md → LiveView callbacks).
   defp load_history(socket) do
-    summary = WatchHistoryViews.summary()
+    summary = WatchHistoryViews.summary(socket.assigns.profile.id)
     {events, has_next} = fetch_page_for(filter_snapshot(socket))
 
     assign(socket,
@@ -81,6 +83,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   defp filter_snapshot(socket) do
     %{
+      profile_id: socket.assigns.profile.id,
       page: socket.assigns.page,
       filter_type: socket.assigns.filter_type,
       filter_search: socket.assigns.filter_search,
@@ -410,12 +413,18 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_info({:watch_event_created, _event}, socket) do
+  def handle_info(
+        {:watch_event_created, %{profile_id: profile_id}},
+        %{assigns: %{profile: %{id: profile_id}}} = socket
+      ) do
     # Source event — the projection observes this too and will emit
     # `:watch_history_view_updated` after its refresh. Here we only
-    # care about reloading the paginated events list itself.
+    # care about reloading the paginated events list itself, and only
+    # when the completion is this session's profile's (ADR-078).
     {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
   end
+
+  def handle_info({:watch_event_created, _another_profile}, socket), do: {:noreply, socket}
 
   def handle_info({:watch_event_deleted, _event}, socket) do
     # Local list was already pruned in `handle_event("remove_event", …)`;
@@ -427,7 +436,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     # Derived event — projection finished its refresh, pull the new
     # snapshot in one read (ADR-041 encapsulation rule: consumers
     # subscribe to derived topics, not source events for aggregates).
-    summary = WatchHistoryViews.summary()
+    summary = WatchHistoryViews.summary(socket.assigns.profile.id)
 
     {:noreply,
      assign(socket,
@@ -457,7 +466,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   defp remove_event(socket, id) do
-    case WatchHistory.get_event(id) do
+    # Scoped to the session's profile: another profile's id resolves to
+    # nil and nothing is removed.
+    case WatchHistory.get_event(socket.assigns.profile.id, id) do
       nil ->
         {:noreply, socket}
 
@@ -487,7 +498,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     offset = (filters.page - 1) * @page_size
 
     raw =
-      WatchHistory.list_events(
+      WatchHistory.list_events(filters.profile_id,
         entity_type: filters.filter_type,
         search: filters.filter_search,
         date: filters.filter_date,

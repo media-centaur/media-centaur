@@ -131,7 +131,7 @@ defmodule MediaCentaur.Showcase do
       watch_progress: seed_watch_progress!(owner_id, movies, tv_series),
       tracked_items: seed_release_tracking!(client),
       pending_files: seed_pending_files!(client),
-      watch_events: seed_watch_history!(movies, tv_series),
+      watch_events: seed_watch_history!(owner_id, movies, tv_series),
       acquisitions: seed_acquisition_activity!()
     }
 
@@ -617,7 +617,7 @@ defmodule MediaCentaur.Showcase do
   #     streak, and ≥80 events overall so stats read as 3-digit hours.
   #   - Type-filter chips — at least one episode event so the Episodes
   #     filter has content (Videos remains intentionally empty).
-  defp seed_watch_history!(movies, tv_series) do
+  defp seed_watch_history!(owner_id, movies, tv_series) do
     now = DateTime.utc_now(:second)
     movies_with_id = Enum.filter(movies, & &1.id)
 
@@ -628,9 +628,9 @@ defmodule MediaCentaur.Showcase do
       |> Enum.flat_map(& &1.episodes)
       |> Enum.filter(& &1.id)
 
-    long_tail_events = seed_long_tail_events!(movies_with_id, episodes_with_id, now)
-    streak_events = seed_streak_events!(movies_with_id, now)
-    busy_day_events = seed_busy_day_events!(movies_with_id, episodes_with_id, now)
+    long_tail_events = seed_long_tail_events!(owner_id, movies_with_id, episodes_with_id, now)
+    streak_events = seed_streak_events!(owner_id, movies_with_id, now)
+    busy_day_events = seed_busy_day_events!(owner_id, movies_with_id, episodes_with_id, now)
 
     long_tail_events + streak_events + busy_day_events
   end
@@ -638,14 +638,14 @@ defmodule MediaCentaur.Showcase do
   # Long tail — every movie + every episode gets 5 events spread across
   # the last ~90 days, combined with the busy-day and streak seeds the
   # showcase comfortably clears 80 events across many distinct days.
-  defp seed_long_tail_events!(movies, episodes, now) do
+  defp seed_long_tail_events!(owner_id, movies, episodes, now) do
     movie_count =
       movies
       |> Enum.with_index()
       |> Enum.flat_map(fn {movie, movie_idx} ->
         for event_idx <- 0..4 do
           day_offset = 14 + movie_idx * 5 + event_idx * 9
-          create_movie_event!(movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
+          create_movie_event!(owner_id, movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
         end
       end)
       |> length()
@@ -656,7 +656,13 @@ defmodule MediaCentaur.Showcase do
       |> Enum.flat_map(fn {episode, episode_idx} ->
         for event_idx <- 0..4 do
           day_offset = 22 + episode_idx * 7 + event_idx * 11
-          create_episode_event!(episode, DateTime.add(now, -day_offset * 86_400, :second), 1800.0)
+
+          create_episode_event!(
+            owner_id,
+            episode,
+            DateTime.add(now, -day_offset * 86_400, :second),
+            1800.0
+          )
         end
       end)
       |> length()
@@ -666,13 +672,13 @@ defmodule MediaCentaur.Showcase do
 
   # Five consecutive days of activity ending today so the History page's
   # Current Streak stat reads as multi-day.
-  defp seed_streak_events!(movies, now) do
+  defp seed_streak_events!(owner_id, movies, now) do
     streak_movies = Enum.take(movies, 5)
 
     streak_movies
     |> Enum.with_index()
     |> Enum.map(fn {movie, day_offset} ->
-      create_movie_event!(movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
+      create_movie_event!(owner_id, movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
       :ok
     end)
     |> length()
@@ -680,7 +686,7 @@ defmodule MediaCentaur.Showcase do
 
   # One day with 5 completions so the heatmap renders its deepest-green
   # colour ramp step.
-  defp seed_busy_day_events!(movies, episodes, now) do
+  defp seed_busy_day_events!(owner_id, movies, episodes, now) do
     busy_day = DateTime.add(now, -42 * 86_400, :second)
     pool = Enum.take(movies, 4) ++ Enum.take(episodes, 1)
 
@@ -690,16 +696,17 @@ defmodule MediaCentaur.Showcase do
       stamp = DateTime.add(busy_day, -slot_idx * 1800, :second)
 
       case entity do
-        %Library.Movie{} = movie -> create_movie_event!(movie, stamp, 5400.0)
-        %Library.Episode{} = episode -> create_episode_event!(episode, stamp, 1800.0)
+        %Library.Movie{} = movie -> create_movie_event!(owner_id, movie, stamp, 5400.0)
+        %Library.Episode{} = episode -> create_episode_event!(owner_id, episode, stamp, 1800.0)
       end
     end)
     |> length()
   end
 
-  defp create_movie_event!(movie, completed_at, duration_seconds) do
+  defp create_movie_event!(owner_id, movie, completed_at, duration_seconds) do
     {:ok, event} =
       WatchHistory.create_event(%{
+        profile_id: owner_id,
         entity_type: :movie,
         movie_id: movie.id,
         title: movie.name,
@@ -710,9 +717,10 @@ defmodule MediaCentaur.Showcase do
     event
   end
 
-  defp create_episode_event!(episode, completed_at, duration_seconds) do
+  defp create_episode_event!(owner_id, episode, completed_at, duration_seconds) do
     {:ok, event} =
       WatchHistory.create_event(%{
+        profile_id: owner_id,
         entity_type: :episode,
         episode_id: episode.id,
         title: episode.name,

@@ -280,7 +280,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
   describe "playback activity widget" do
     test "idle tile shows the recent feed and lifetime stat figures", %{conn: conn} do
-      MediaCentaur.WatchHistory.create_event(%{
+      create_watch_event(%{
         entity_type: :movie,
         title: "Movie A",
         duration_seconds: 3600.0,
@@ -298,8 +298,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
       refute render(view) =~ "Movie A"
 
-      {:ok, event} =
-        MediaCentaur.WatchHistory.create_event(%{
+      event =
+        create_watch_event(%{
           entity_type: :movie,
           title: "Movie A",
           duration_seconds: 3600.0,
