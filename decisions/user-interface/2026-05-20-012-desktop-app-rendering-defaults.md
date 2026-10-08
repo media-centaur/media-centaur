@@ -1,13 +1,15 @@
 ---
 status: accepted
 date: 2026-05-20
-amended: 2026-08-07
+amended: 2026-10-08
 ---
 # Desktop-app rendering defaults — eager, sync, stable, immutable
 
 ## Context and Problem Statement
 
 Media Centaur is a single-user desktop application with a library bounded by local disk, but it had inherited every "good web citizen" default (lazy images, async decode, unkeyed iterators, entrance animations, an eager progress bar, a longpoll fallback, revalidated bundles), and each one shows up as perceived latency on local navigation.
+
+**Amendment, 2026-10-08 ([ADR-078](../architecture/2026-10-06-078-a-profile-is-a-watching-identity-held-by-the-session.md)).** "Single-user" is no longer the premise. The install has one library and any number of profiles, and each browser session holds an active profile; the people in one household pick who is watching on the screen. Nothing below changes: a session is still one browser on the host's local display over a local-disk library, and a profile splits watching state, not the library, so the memory-for-perception trade is the same. A second device, if one ever comes, is another session and is judged when it does.
 
 ## Decision Outcome
 
