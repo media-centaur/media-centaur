@@ -1,7 +1,8 @@
 defmodule MediaCentaur.WatchHistory.Event do
   @moduledoc """
   A single completion event. Append-only — one row per time a title is watched
-  to completion (≥90%). Re-watching creates a new row.
+  to completion (≥90%). Re-watching creates a new row. Each event is one
+  profile's completion (ADR-078); removing the profile removes its events.
 
   FKs are nilify_all so history survives entity deletion. `title` is denormalized
   for the same reason — display remains meaningful after an entity is removed.
@@ -13,7 +14,10 @@ defmodule MediaCentaur.WatchHistory.Event do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime_usec]
 
+  @type t :: %__MODULE__{}
+
   schema "watch_history_events" do
+    field :profile_id, Ecto.UUID
     field :entity_type, Ecto.Enum, values: [:movie, :episode, :video_object]
     field :title, :string
     field :duration_seconds, :float
@@ -29,6 +33,7 @@ defmodule MediaCentaur.WatchHistory.Event do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
+      :profile_id,
       :entity_type,
       :title,
       :duration_seconds,
@@ -37,6 +42,6 @@ defmodule MediaCentaur.WatchHistory.Event do
       :episode_id,
       :video_object_id
     ])
-    |> validate_required([:entity_type, :title, :duration_seconds, :completed_at])
+    |> validate_required([:profile_id, :entity_type, :title, :duration_seconds, :completed_at])
   end
 end

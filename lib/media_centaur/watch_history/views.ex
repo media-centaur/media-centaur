@@ -9,7 +9,8 @@ defmodule MediaCentaur.WatchHistory.Views do
 
   Reads are byte-code-inlined `:persistent_term` lookups when the
   projection's `Cache.Worker` is running. When it isn't (test mode,
-  or briefly during boot before the first refresh completes), reads
+  or briefly during boot before the first refresh completes), or the
+  profile asked for is absent from the snapshot (no events yet), reads
   fall back to fresh DB queries so behaviour is identical from the
   caller's POV.
   """
@@ -25,10 +26,10 @@ defmodule MediaCentaur.WatchHistory.Views do
   end
 
   @doc """
-  Returns the dashboard summary — stats, heatmap cells per type, and
-  rewatch counts per type. Single read serves the entire top-of-page
-  aggregate panel.
+  Returns one profile's dashboard summary — stats, heatmap cells per
+  type, and rewatch counts per type. Single read serves the entire
+  top-of-page aggregate panel.
   """
-  @spec summary() :: SummaryData.t()
-  def summary, do: Summary.read()
+  @spec summary(Ecto.UUID.t()) :: SummaryData.t()
+  def summary(profile_id), do: Summary.read(profile_id)
 end

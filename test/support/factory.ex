@@ -1194,21 +1194,6 @@ defmodule MediaCentaur.TestFactory do
   # WatchHistory
   # ---------------------------------------------------------------------------
 
-  def build_watch_event(overrides \\ %{}) do
-    defaults = %{
-      id: Ecto.UUID.generate(),
-      entity_type: :movie,
-      movie_id: nil,
-      episode_id: nil,
-      video_object_id: nil,
-      title: "Test Movie",
-      duration_seconds: 7200.0,
-      completed_at: DateTime.utc_now(:second)
-    }
-
-    struct(MediaCentaur.WatchHistory.Event, Map.merge(defaults, overrides))
-  end
-
   def create_watch_event(attrs \\ %{}) do
     defaults = %{
       entity_type: :movie,
@@ -1217,7 +1202,11 @@ defmodule MediaCentaur.TestFactory do
       completed_at: DateTime.utc_now(:second)
     }
 
-    {:ok, event} = MediaCentaur.WatchHistory.create_event(Map.merge(defaults, attrs))
+    {:ok, event} =
+      defaults
+      |> Map.merge(Map.new(attrs))
+      |> Map.put_new_lazy(:profile_id, &owner_profile_id/0)
+      |> MediaCentaur.WatchHistory.create_event()
 
     event
   end

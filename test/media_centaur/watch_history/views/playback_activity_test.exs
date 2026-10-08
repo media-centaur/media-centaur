@@ -1,7 +1,6 @@
 defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
   use MediaCentaur.DataCase, async: true
 
-  alias MediaCentaur.WatchHistory
   alias MediaCentaur.WatchHistory.Views.PlaybackActivity
 
   describe "snapshot/0" do
@@ -21,16 +20,16 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
       yesterday_dt = DateTime.new!(Date.add(today, -1), ~T[10:00:00.000000], "Etc/UTC")
       today_dt = DateTime.new!(today, ~T[12:00:00.000000], "Etc/UTC")
 
-      {:ok, older} =
-        WatchHistory.create_event(%{
+      older =
+        create_watch_event(%{
           entity_type: :movie,
           title: "Movie A",
           duration_seconds: 3600.0,
           completed_at: yesterday_dt
         })
 
-      {:ok, newer} =
-        WatchHistory.create_event(%{
+      newer =
+        create_watch_event(%{
           entity_type: :episode,
           title: "Sample Show — Pilot",
           duration_seconds: 1800.0,
@@ -55,8 +54,8 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
         content_url: "posters/movie-a.jpg"
       })
 
-      {:ok, _event} =
-        WatchHistory.create_event(%{
+      _event =
+        create_watch_event(%{
           entity_type: :movie,
           movie_id: movie.id,
           title: "Movie A",
@@ -68,8 +67,8 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
     end
 
     test "entries for deleted or posterless entities carry a nil poster_url" do
-      {:ok, _event} =
-        WatchHistory.create_event(%{
+      _event =
+        create_watch_event(%{
           entity_type: :movie,
           title: "Orphaned Movie",
           duration_seconds: 3600.0,
@@ -80,8 +79,8 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
     end
 
     test "entries carry two-tier title parts" do
-      {:ok, _event} =
-        WatchHistory.create_event(%{
+      _event =
+        create_watch_event(%{
           entity_type: :episode,
           title: "Sample Show S01E03 — The One With the Plan",
           duration_seconds: 1800.0,

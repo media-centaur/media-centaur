@@ -32,6 +32,7 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
       assert event.entity_type == :movie
       assert event.movie_id == movie.id
       assert_in_delta event.duration_seconds, 8880.0, 0.01
+      assert event.profile_id == progress.profile_id
     end
 
     test "records a WatchEvent when an episode is completed", %{recorder: recorder} do
@@ -108,7 +109,7 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
       )
 
       refute_receive {:watch_event_created, _}, 500
-      assert WatchHistory.list_events() == []
+      assert WatchHistory.list_events(progress.profile_id) == []
     end
   end
 end

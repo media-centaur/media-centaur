@@ -5,7 +5,8 @@ defmodule MediaCentaur.WatchHistory.Recorder do
 
   `Library.ProgressRecords.mark_completed/1` broadcasts `{:entity_watch_completed, record}`
   exactly once per transition (pre-update record had `completed: false`), so no
-  dedup is needed here.
+  dedup is needed here. The event takes the profile from the progress row
+  that completed (ADR-078).
   """
   use GenServer
 
@@ -82,6 +83,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
       movie ->
         {:ok,
          %{
+           profile_id: record.profile_id,
            entity_type: :movie,
            movie_id: movie_id,
            title: movie.name,
@@ -114,6 +116,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
       parts ->
         {:ok,
          %{
+           profile_id: record.profile_id,
            entity_type: :episode,
            episode_id: episode_id,
            title: format_episode_title(parts),
@@ -134,6 +137,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
       video_object ->
         {:ok,
          %{
+           profile_id: record.profile_id,
            entity_type: :video_object,
            video_object_id: video_object_id,
            title: video_object.name,

@@ -6,6 +6,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
   describe "create_changeset/1" do
     test "valid attrs produce a valid changeset" do
       attrs = %{
+        profile_id: Ecto.UUID.generate(),
         entity_type: :movie,
         title: "Sample Movie",
         duration_seconds: 9360.0,
@@ -16,9 +17,10 @@ defmodule MediaCentaur.WatchHistory.EventTest do
       assert changeset.valid?
     end
 
-    test "requires entity_type, title, duration_seconds, and completed_at" do
+    test "requires profile_id, entity_type, title, duration_seconds, and completed_at" do
       changeset = Event.create_changeset(%{})
       refute changeset.valid?
+      assert Keyword.has_key?(changeset.errors, :profile_id)
       assert Keyword.has_key?(changeset.errors, :entity_type)
       assert Keyword.has_key?(changeset.errors, :title)
       assert Keyword.has_key?(changeset.errors, :duration_seconds)
@@ -89,9 +91,9 @@ defmodule MediaCentaur.WatchHistory.EventTest do
     end
   end
 
-  describe "WatchHistory.heatmap_cells_by_type/0" do
+  describe "WatchHistory.heatmap_cells_by_type/1" do
     test "returns a map with keys for all types and nil" do
-      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type(owner_profile_id())
       assert Map.has_key?(result, nil)
       assert Map.has_key?(result, :movie)
       assert Map.has_key?(result, :episode)
@@ -99,7 +101,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
     end
 
     test "each value is a list of 364 cell maps" do
-      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type(owner_profile_id())
 
       for {_type, cells} <- result do
         assert length(cells) == 364
@@ -111,7 +113,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
       create_watch_event(%{entity_type: :movie, title: "A Movie"})
       create_watch_event(%{entity_type: :episode, title: "An Episode"})
 
-      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type(owner_profile_id())
       today = Date.utc_today()
 
       movie_count = Enum.find(result[:movie], &(&1.date == today)).count

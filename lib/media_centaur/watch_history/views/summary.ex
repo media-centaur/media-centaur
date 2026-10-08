@@ -1,10 +1,13 @@
 defmodule MediaCentaur.WatchHistory.Views.Summary do
   @moduledoc """
   `:persistent_term`-backed projection of the History page's aggregate
-  read paths (ADR-041). Bundles `WatchHistory.stats/0`,
-  `heatmap_cells_by_type/0`, and the three per-type
-  `rewatch_count_map/1` calls into one snapshot the LiveView reads in
+  read paths (ADR-041). Bundles `WatchHistory.stats/1`,
+  `heatmap_cells_by_type/1`, and the three per-type
+  `rewatch_count_map/2` calls into one snapshot the LiveView reads in
   a single lookup at render time.
+
+  Profile-keyed (ADR-078): one `SummaryData` per profile with an event,
+  rebuilt whole on every refresh.
 
   `:persistent_term` flavour because the payload is small,
   mostly-read, and hot — exactly the shape that benefits from
@@ -23,10 +26,11 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
 
   ## Read fallback
 
-  `read/0` returns a freshly-computed `SummaryData` when
+  `read/1` returns a freshly-computed `SummaryData` when
   `:persistent_term` is unset — preserves identical behaviour in test
   mode (where no Cache.Worker runs) and during the brief boot window
-  before the first refresh.
+  before the first refresh — and for a profile the snapshot does not
+  hold (no events yet).
   """
   @behaviour MediaCentaur.Cache
 
@@ -34,6 +38,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   alias MediaCentaur.WatchHistory
   alias MediaCentaur.WatchHistory.Views.SummaryData
 
+  # %{profile_id => SummaryData.t()} for every profile with an event.
   @cache_key {__MODULE__, :data}
 
   @impl MediaCentaur.Cache
@@ -48,7 +53,8 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    :persistent_term.put(@cache_key, compute())
+    snapshot = Map.new(WatchHistory.profile_ids_with_events(), &{&1, compute(&1)})
+    :persistent_term.put(@cache_key, snapshot)
 
     Topics.publish(
       Topics.watch_history_views(),
@@ -59,25 +65,25 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   end
 
   @doc """
-  Read the cached snapshot, falling back to a fresh compute when
-  `:persistent_term` is unset.
+  One profile's snapshot. Falls back to a fresh compute when the term is
+  unset (test mode, the boot window) or the profile has no events yet.
   """
-  @spec read() :: SummaryData.t()
-  def read do
+  @spec read(Ecto.UUID.t()) :: SummaryData.t()
+  def read(profile_id) when is_binary(profile_id) do
     case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> compute()
-      data -> data
+      :__unset -> compute(profile_id)
+      snapshot -> Map.get_lazy(snapshot, profile_id, fn -> compute(profile_id) end)
     end
   end
 
-  defp compute do
+  defp compute(profile_id) do
     %SummaryData{
-      stats: WatchHistory.stats(),
-      heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
+      stats: WatchHistory.stats(profile_id),
+      heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(profile_id),
       rewatch_counts: %{
-        movie: WatchHistory.rewatch_count_map(:movie),
-        episode: WatchHistory.rewatch_count_map(:episode),
-        video_object: WatchHistory.rewatch_count_map(:video_object)
+        movie: WatchHistory.rewatch_count_map(profile_id, :movie),
+        episode: WatchHistory.rewatch_count_map(profile_id, :episode),
+        video_object: WatchHistory.rewatch_count_map(profile_id, :video_object)
       }
     }
   end
