@@ -2,16 +2,18 @@ defmodule MediaCentaur.Library.Progress.Worker do
   @moduledoc """
   GenServer that owns active watch-progress state in an ETS table and
   debounce-flushes dirty rows to `library_watch_progress` (ADR-041,
-  Library Schema v2 Phase 3 Task D).
+  Library Schema v2 Phase 3 Task D). Key shape:
+  `{{profile_id, playable_item_id}, row}` — one row per profile per
+  playable item (ADR-078).
 
   This is the only writer of `WatchProgress` rows on the live playback
   hot path — `MediaCentaur.Playback.MpvSession` records position ticks
-  via `Library.Progress.record/3`, which casts into this GenServer.
+  via `Library.Progress.record/4`, which casts into this GenServer.
   Position updates land in microseconds (an ETS upsert + a dirty-set
   membership flip); a `Process.send_after/3` timer batches the writes
   into a single `Ecto.Multi` upsert every `@default_flush_interval_ms`.
 
-  Reads bypass the GenServer entirely — see `MediaCentaur.Library.Progress.get/1`.
+  Reads bypass the GenServer entirely — see `MediaCentaur.Library.Progress.get/2`.
 
   ## Lifecycle
 
@@ -23,21 +25,21 @@ defmodule MediaCentaur.Library.Progress.Worker do
       `MediaCentaur.Library.Progress.Events.broadcast/1` (the typed-event
       chokepoint) as a deterministic observability hook for boot
       ordering.
-    * `handle_cast({:record, id, pos, dur}, state)` upserts the in-memory
+    * `handle_cast({:record, key, pos, dur}, state)` upserts the in-memory
       row, marks it dirty, broadcasts
-      `{:progress_ticked, %ProgressTicked{playable_item_id: id, position_seconds: pos}}`
+      `{:progress_ticked, %ProgressTicked{profile_id:, playable_item_id:, position_seconds: pos}}`
       on `library:progress` (preserves the live-progress-bar UX), and
       schedules a `:flush` after the configured interval if no timer is
       already pending.
     * `handle_info(:flush, state)` wraps the batched upsert in a
       single `Repo.transaction/1` via `persist_rows/1` —
-      `Library.ProgressRecords.upsert_by_playable_item!/1` is
+      `Library.ProgressRecords.upsert_by_profile_item!/1` is
       called per row inside the transaction so a mid-flush failure
       rolls back the whole batch. On success, the dirty set is
-      cleared and `{:progress_flushed, %ProgressFlushed{playable_item_id: id}}`
+      cleared and `{:progress_flushed, %ProgressFlushed{profile_id:, playable_item_id:}}`
       is broadcast on `library:progress` per row. On failure the
       dirty set is left populated so the next flush retries.
-    * `handle_call({:complete, id}, _from, state)` writes a
+    * `handle_call({:complete, key}, _from, state)` writes a
       `completed: true` row directly (no debounce — completion is a
       watershed event) and broadcasts
       `{:watch_completed, playable_item_id}` on `watch_history:events`.
@@ -49,8 +51,8 @@ defmodule MediaCentaur.Library.Progress.Worker do
   All progress broadcasts go through
   `MediaCentaur.Library.Progress.Events.broadcast/1` on the
   `library:progress` topic. The typed payloads are
-  `%ProgressTicked{playable_item_id, position_seconds}`,
-  `%ProgressFlushed{playable_item_id}`, and
+  `%ProgressTicked{profile_id, playable_item_id, position_seconds}`,
+  `%ProgressFlushed{profile_id, playable_item_id}`, and
   `%ProgressHydrated{count}`. Completion broadcasts ride the
   `watch_history:events` topic as `{:watch_completed, playable_item_id}`
   to stay aligned with the WatchHistory consumer set.
@@ -106,14 +108,15 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
   @doc """
   Test seam: delivers a raw `{:record, …}` cast to `server`, bypassing
-  `Library.Progress.record/3`'s synchronous ETS write — the shape of a
+  `Library.Progress.record/4`'s synchronous ETS write — the shape of a
   cast whose enqueue lagged behind a newer public write. Exists so the
   reorder regression can be reproduced without a test owning the
   message format.
   """
-  @spec __inject_record_for_test__(GenServer.server(), Ecto.UUID.t(), float(), float()) :: :ok
-  def __inject_record_for_test__(server \\ __MODULE__, playable_item_id, position, duration) do
-    GenServer.cast(server, {:record, playable_item_id, position, duration})
+  @spec __inject_record_for_test__(GenServer.server(), Ecto.UUID.t(), Ecto.UUID.t(), float(), float()) ::
+          :ok
+  def __inject_record_for_test__(server \\ __MODULE__, profile_id, playable_item_id, position, duration) do
+    GenServer.cast(server, {:record, {profile_id, playable_item_id}, position, duration})
   end
 
   # --- GenServer callbacks ---
@@ -156,16 +159,16 @@ defmodule MediaCentaur.Library.Progress.Worker do
     {:reply, :ok, %{state | dirty: MapSet.new()}}
   end
 
-  def handle_call({:complete, playable_item_id}, _from, state) do
+  def handle_call({:complete, {profile_id, playable_item_id} = key}, _from, state) do
     now = DateTime.utc_now(:second)
 
-    case Library.ProgressRecords.find_or_create_by_playable_item(playable_item_id) do
+    case Library.ProgressRecords.find_or_create_by_playable_item(profile_id, playable_item_id) do
       {:ok, record} ->
-        # Flush any pending dirty position for this PI first so we
+        # Flush any pending dirty position for this key first so we
         # mark-completed against the latest known position, not a
         # stale just-created row at position 0.
         record =
-          case lookup_row(state.table, playable_item_id) do
+          case lookup_row(state.table, key) do
             nil ->
               record
 
@@ -183,27 +186,20 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
         {:ok, _completed} = Library.ProgressRecords.mark_completed(record)
 
-        upsert_in_memory(
-          state.table,
-          playable_item_id,
-          record.position_seconds,
-          record.duration_seconds,
-          now,
-          true
-        )
+        upsert_in_memory(state.table, key, record.position_seconds, record.duration_seconds, now, true)
 
         Topics.publish(
           Topics.watch_history_events(),
           {:watch_completed, playable_item_id}
         )
 
-        dirty = MapSet.delete(state.dirty, playable_item_id)
+        dirty = MapSet.delete(state.dirty, key)
         {:reply, :ok, %{state | dirty: dirty}}
 
       {:error, reason} ->
         Log.warning(
           :library,
-          "Library.Progress.complete/1 — could not resolve watch_progress: #{inspect(reason)}"
+          "Library.Progress.complete/2 — could not resolve watch_progress: #{inspect(reason)}"
         )
 
         {:reply, :ok, state}
@@ -211,9 +207,9 @@ defmodule MediaCentaur.Library.Progress.Worker do
   end
 
   @impl true
-  def handle_cast({:record, playable_item_id, position, duration}, state) do
+  def handle_cast({:record, {profile_id, playable_item_id} = key, position, duration}, state) do
     # The public-API caller already wrote the latest row into the ETS
-    # table synchronously before casting (see `Library.Progress.record/3`)
+    # table synchronously before casting (see `Library.Progress.record/4`)
     # for read-after-write semantics. We only *fill a missing* row here,
     # for direct callers that bypass the public write path (e.g. worker
     # tests under a non-default table). We must NOT re-upsert a present
@@ -223,14 +219,15 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # reads the ETS hot value, not this snapshot, so persistence stays
     # correct either way.
     now = DateTime.utc_now(:second)
-    fill_in_memory_if_absent(state.table, playable_item_id, position, duration, now, false)
+    fill_in_memory_if_absent(state.table, key, position, duration, now, false)
 
     Events.broadcast(%ProgressTicked{
+      profile_id: profile_id,
       playable_item_id: playable_item_id,
       position_seconds: position
     })
 
-    dirty = MapSet.put(state.dirty, playable_item_id)
+    dirty = MapSet.put(state.dirty, key)
     state = schedule_flush(%{state | dirty: dirty})
 
     {:noreply, state}
@@ -244,8 +241,8 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # populated, and let the next `:flush` retry — partial writes
     # never leak past the transaction boundary.
     case flush_dirty(state) do
-      {:ok, flushed_ids} ->
-        Enum.each(flushed_ids, &broadcast_flushed/1)
+      {:ok, flushed_keys} ->
+        Enum.each(flushed_keys, &broadcast_flushed/1)
         {:noreply, %{state | dirty: MapSet.new(), flush_timer: nil}}
 
       {:error, reason} ->
@@ -274,7 +271,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # shutdown is logged rather than crashing the supervision tree.
     try do
       case flush_dirty(state) do
-        {:ok, _flushed_ids} ->
+        {:ok, _flushed_keys} ->
           :ok
 
         {:error, reason} ->
@@ -308,18 +305,26 @@ defmodule MediaCentaur.Library.Progress.Worker do
     )
   end
 
-  defp fill_in_memory_if_absent(table, playable_item_id, position, duration, last_watched_at, completed?) do
-    case lookup_row(table, playable_item_id) do
-      nil -> upsert_in_memory(table, playable_item_id, position, duration, last_watched_at, completed?)
+  defp fill_in_memory_if_absent(table, key, position, duration, last_watched_at, completed?) do
+    case lookup_row(table, key) do
+      nil -> upsert_in_memory(table, key, position, duration, last_watched_at, completed?)
       _present -> :ok
     end
   end
 
-  defp upsert_in_memory(table, playable_item_id, position, duration, last_watched_at, completed?) do
+  defp upsert_in_memory(
+         table,
+         {profile_id, playable_item_id} = key,
+         position,
+         duration,
+         last_watched_at,
+         completed?
+       ) do
     :ets.insert(
       table,
-      {playable_item_id,
+      {key,
        %{
+         profile_id: profile_id,
          playable_item_id: playable_item_id,
          position_seconds: position,
          duration_seconds: duration,
@@ -348,22 +353,22 @@ defmodule MediaCentaur.Library.Progress.Worker do
       [] ->
         {:ok, []}
 
-      ids ->
+      keys ->
         rows =
-          ids
-          |> Enum.map(fn id -> lookup_row(table, id) end)
+          keys
+          |> Enum.map(fn key -> lookup_row(table, key) end)
           |> Enum.reject(&is_nil/1)
 
         case persist_rows(rows) do
-          :ok -> {:ok, Enum.map(rows, & &1.playable_item_id)}
+          :ok -> {:ok, Enum.map(rows, &{&1.profile_id, &1.playable_item_id})}
           {:error, reason} -> {:error, reason}
         end
     end
   end
 
-  defp lookup_row(table, playable_item_id) do
-    case :ets.lookup(table, playable_item_id) do
-      [{^playable_item_id, row}] -> row
+  defp lookup_row(table, key) do
+    case :ets.lookup(table, key) do
+      [{^key, row}] -> row
       [] -> nil
     end
   end
@@ -374,15 +379,15 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # desync from the in-memory ETS state and silently drop the
     # un-persisted dirty entries.
     case Repo.transaction(fn ->
-           Enum.each(rows, &Library.ProgressRecords.upsert_by_playable_item!/1)
+           Enum.each(rows, &Library.ProgressRecords.upsert_by_profile_item!/1)
          end) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp broadcast_flushed(playable_item_id) do
-    Events.broadcast(%ProgressFlushed{playable_item_id: playable_item_id})
+  defp broadcast_flushed({profile_id, playable_item_id}) do
+    Events.broadcast(%ProgressFlushed{profile_id: profile_id, playable_item_id: playable_item_id})
   end
 
   defp hydrate_from_db(table) do
@@ -394,8 +399,9 @@ defmodule MediaCentaur.Library.Progress.Worker do
     |> Enum.reduce(0, fn record, count ->
       :ets.insert(
         table,
-        {record.playable_item_id,
+        {{record.profile_id, record.playable_item_id},
          %{
+           profile_id: record.profile_id,
            playable_item_id: record.playable_item_id,
            position_seconds: record.position_seconds,
            duration_seconds: record.duration_seconds,

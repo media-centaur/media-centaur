@@ -11,9 +11,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalfTest do
   describe "reload/1" do
     test "a TV series keeps its typed seasons (regression: episode list vanished on player close)" do
       tv = create_tv_series_with_one_episode("Sample Show")
-      half = LibraryHalf.load_entity(tv.id)
+      half = LibraryHalf.load_entity(owner_profile_id(), tv.id)
 
-      reloaded = LibraryHalf.reload(half)
+      reloaded = LibraryHalf.reload(owner_profile_id(), half)
 
       assert %SeriesDetail{seasons: seasons} = reloaded.entry
       assert length(seasons) == 1
@@ -22,9 +22,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalfTest do
     test "a movie still reloads into a renderable entry, keeping its files" do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
-      half = %{LibraryHalf.load_entity(movie.id) | files: {:ok, [%{file: :one}]}}
+      half = %{LibraryHalf.load_entity(owner_profile_id(), movie.id) | files: {:ok, [%{file: :one}]}}
 
-      reloaded = LibraryHalf.reload(half)
+      reloaded = LibraryHalf.reload(owner_profile_id(), half)
 
       assert %LeafDetail{} = reloaded.entry
       assert reloaded.entry.entity.id == movie.id
@@ -34,9 +34,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalfTest do
     test "an entity that lost its files reloads to nothing" do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
-      half = LibraryHalf.load_entity(movie.id)
+      half = LibraryHalf.load_entity(owner_profile_id(), movie.id)
 
-      assert LibraryHalf.reload(%{
+      assert LibraryHalf.reload(owner_profile_id(), %{
                half
                | entry: %{half.entry | entity: %{half.entry.entity | id: Ecto.UUID.generate()}}
              }) ==
@@ -48,18 +48,18 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalfTest do
     test "a titled movie: its title address" do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       create_linked_file(%{movie_id: movie.id})
-      assert {:title, {777, :movie}, %Library{}} = LibraryHalf.address(movie.id)
+      assert {:title, {777, :movie}, %Library{}} = LibraryHalf.address(owner_profile_id(), movie.id)
     end
 
     test "an unmatched movie: the entity address (the residue)" do
       movie = create_standalone_movie(%{name: "Unmatched Movie"})
       create_linked_file(%{movie_id: movie.id})
-      assert {:entity, id, %Library{}} = LibraryHalf.address(movie.id)
+      assert {:entity, id, %Library{}} = LibraryHalf.address(owner_profile_id(), movie.id)
       assert id == movie.id
     end
 
     test "an id the library has no present file for: not found" do
-      assert LibraryHalf.address(Ecto.UUID.generate()) == :not_found
+      assert LibraryHalf.address(owner_profile_id(), Ecto.UUID.generate()) == :not_found
     end
   end
 

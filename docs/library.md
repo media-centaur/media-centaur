@@ -184,9 +184,9 @@ The scan's ledger of every path the watcher has seen under a media directory, an
 
 ### WatchProgress
 
-Per-playable-item progress, keyed by `playable_item_id`. Written by `Library.Progress` (in-memory hot state, flushed to rows by `Library.Progress.Worker`); read through `Library.Progress.get/1`.
+One profile's progress on one playable item, unique on `(profile_id, playable_item_id)` (ADR-078). Written by `Library.Progress` (in-memory hot state, flushed to rows by `Library.Progress.Worker`); read through `Library.Progress.get/2`.
 
-**Key attributes:** `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `playable_item_id`
+**Key attributes:** `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `profile_id`, `playable_item_id`
 
 > Settings (the per-installation key/value store) is its own bounded context — `MediaCentaur.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
 

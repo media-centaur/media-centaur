@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   playing in the session's `now_playing` map.
 
   Compares the progress's synthesised `playable_item.container_id`
-  (plugged on by `MediaCentaur.Library.ProgressRecords.list_for_container/2`)
+  (plugged on by `MediaCentaur.Library.ProgressRecords.list_for_container/3`)
   against `now_playing.entity_id` — the container UUID
   `MpvSession.build_now_playing/1` emits. UUIDs are globally unique
   across container kinds, so the kind itself doesn't need to be

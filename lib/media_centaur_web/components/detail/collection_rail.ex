@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   plays; Play stays the panel's only playback affordance.
 
   Renders from the same typed `[%MediaCentaurWeb.ViewModel.MovieRow{}]`
-  list `CollectionDetail.compose/1` builds. Per-member state rides the
+  list `CollectionDetail.compose/2` builds. Per-member state rides the
   tile: watched check badge, progress underline on the in-progress
   member (`Detail.PlayableRow.progress_underline/1`, shared with the
   episode rows), date pill on upcoming parts. Collection-level extras
@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   attr :movie_items, :list,
     required: true,
     doc:
-      "`[%MediaCentaurWeb.ViewModel.MovieRow{}]` from `CollectionDetail.compose/1` — tagged `Library` / `Upcoming` items in display order."
+      "`[%MediaCentaurWeb.ViewModel.MovieRow{}]` from `CollectionDetail.compose/2` — tagged `Library` / `Upcoming` items in display order."
 
   attr :selected_id, :string,
     required: true,

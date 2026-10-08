@@ -127,8 +127,8 @@ defmodule MediaCentaur.Library do
     to: MediaCentaur.Library.Images,
     as: :report_missing_file
 
-  @doc "See `MediaCentaur.Library.HomeFeed.list_in_progress/1` (Continue Watching)."
-  def list_in_progress(opts \\ []), do: HomeFeed.list_in_progress(opts)
+  @doc "See `MediaCentaur.Library.HomeFeed.list_in_progress/2` (one profile's Continue Watching)."
+  def list_in_progress(profile_id, opts \\ []), do: HomeFeed.list_in_progress(profile_id, opts)
 
   @doc "See `MediaCentaur.Library.HomeFeed.list_recently_added/1`."
   def list_recently_added(opts \\ []), do: HomeFeed.list_recently_added(opts)

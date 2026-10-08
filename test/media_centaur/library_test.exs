@@ -84,7 +84,7 @@ defmodule MediaCentaur.LibraryTest do
 
       record_present(create_linked_file(%{movie_id: child.id}))
 
-      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(child.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(owner_profile_id(), child.id)
       assert entity.type == :movie
       assert entity.id == child.id
       assert entity.name == "Only Child"
@@ -97,7 +97,7 @@ defmodule MediaCentaur.LibraryTest do
       child = create_movie(%{movie_series_id: ms.id, name: "Only Child", position: 0})
       record_present(create_linked_file(%{movie_id: child.id}))
 
-      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(ms.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(owner_profile_id(), ms.id)
       assert entity.type == :movie
       assert entity.id == child.id
     end
@@ -109,15 +109,15 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
-      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(ms.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(owner_profile_id(), ms.id)
       assert entity.type == :movie_series
       assert entity.id == ms.id
     end
   end
 
-  describe "list_in_progress/1" do
+  describe "list_in_progress/2" do
     test "returns empty list when no entities exist" do
-      assert Library.list_in_progress() == []
+      assert Library.list_in_progress(owner_profile_id()) == []
     end
 
     test "returns empty list when no in-progress watch progress exists" do
@@ -131,7 +131,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
-      assert Library.list_in_progress() == []
+      assert Library.list_in_progress(owner_profile_id()) == []
     end
 
     test "returns in-progress movie with required shape" do
@@ -139,7 +139,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: movie.id}))
       create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-      results = Library.list_in_progress()
+      results = Library.list_in_progress(owner_profile_id())
 
       assert length(results) == 1
       row = hd(results)
@@ -161,7 +161,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: movie.id}))
       create_watch_progress(%{movie_id: movie.id, position_seconds: 50.0, duration_seconds: 100.0})
 
-      [row] = Library.list_in_progress()
+      [row] = Library.list_in_progress(owner_profile_id())
       assert row.progress_pct == 50
     end
 
@@ -214,7 +214,7 @@ defmodule MediaCentaur.LibraryTest do
         duration_seconds: 1000.0
       })
 
-      [row] = Library.list_in_progress()
+      [row] = Library.list_in_progress(owner_profile_id())
       assert row.progress_pct == 55
     end
 
@@ -244,7 +244,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
-      [row] = Library.list_in_progress()
+      [row] = Library.list_in_progress(owner_profile_id())
       assert row.progress_pct == 50
     end
 
@@ -272,7 +272,7 @@ defmodule MediaCentaur.LibraryTest do
         duration_seconds: 100.0
       })
 
-      [row] = Library.list_in_progress()
+      [row] = Library.list_in_progress(owner_profile_id())
       assert row.entity_id == part2.id
       assert row.entity_name == "Part 2"
       assert row.progress_pct == 40
@@ -292,7 +292,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
-      assert Library.list_in_progress() == []
+      assert Library.list_in_progress(owner_profile_id()) == []
     end
 
     test "two paused members yield two independent rows" do
@@ -305,7 +305,7 @@ defmodule MediaCentaur.LibraryTest do
       create_watch_progress(%{movie_id: part1.id, position_seconds: 20.0, duration_seconds: 100.0})
       create_watch_progress(%{movie_id: part3.id, position_seconds: 60.0, duration_seconds: 100.0})
 
-      rows = Library.list_in_progress()
+      rows = Library.list_in_progress(owner_profile_id())
       assert Enum.sort(Enum.map(rows, & &1.entity_id)) == Enum.sort([part1.id, part3.id])
       refute Enum.any?(rows, &(&1.entity_id == ms.id))
     end
@@ -326,7 +326,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{movie_id: part2.id, position_seconds: 40.0, duration_seconds: 100.0})
 
-      [row] = Library.list_in_progress()
+      [row] = Library.list_in_progress(owner_profile_id())
       assert row.entity_id == part2.id
       assert row.backdrop_url =~ "backdrop.jpg"
     end
@@ -342,7 +342,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
-      assert Library.list_in_progress() == []
+      assert Library.list_in_progress(owner_profile_id()) == []
     end
 
     test "respects the limit option" do
@@ -352,7 +352,7 @@ defmodule MediaCentaur.LibraryTest do
         create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
       end)
 
-      results = Library.list_in_progress(limit: 3)
+      results = Library.list_in_progress(owner_profile_id(), limit: 3)
       assert length(results) == 3
     end
 
@@ -371,20 +371,20 @@ defmodule MediaCentaur.LibraryTest do
         create_watch_progress(%{episode_id: episode.id, position_seconds: 10.0, duration_seconds: 60.0})
       end
 
-      query_count = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+      query_count = count_queries(fn -> Library.list_in_progress(owner_profile_id(), limit: 12) end)
       assert query_count <= 15, "Expected at most 15 queries, got #{query_count}"
     end
 
     test "query count does not grow with the number of in-progress TV series (no N+1)" do
       # Baseline: 1 TV series with one in-progress episode.
       seed_in_progress_tv_series(1, 1)
-      baseline = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+      baseline = count_queries(fn -> Library.list_in_progress(owner_profile_id(), limit: 12) end)
 
       # Add 9 more (10 total). Per-series WatchProgress fan-out would inflate
       # the count by ~9 queries; with a single batched WatchProgress query the
       # count must stay constant.
       seed_in_progress_tv_series(9, 1, name_prefix: "Extra")
-      expanded = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+      expanded = count_queries(fn -> Library.list_in_progress(owner_profile_id(), limit: 12) end)
 
       assert expanded == baseline,
              "Query count should not grow with TV series count (N+1 detected). " <>
@@ -436,7 +436,7 @@ defmodule MediaCentaur.LibraryTest do
         last_watched_at: DateTime.add(now, -10, :minute)
       })
 
-      names = Enum.map(Library.list_in_progress(limit: 3), & &1.entity_name)
+      names = Enum.map(Library.list_in_progress(owner_profile_id(), limit: 3), & &1.entity_name)
 
       assert "Still Going" in names
     end
@@ -468,7 +468,7 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
-  describe "list_in_progress/1 keeps the most recently watched within the limit" do
+  describe "list_in_progress/2 keeps the most recently watched within the limit" do
     # The final row order is decided in Elixir, so a test that only checks
     # sortedness passes even with the SQL `order_by` deleted. What the
     # order_by actually decides is *which* rows survive each per-type
@@ -594,7 +594,7 @@ defmodule MediaCentaur.LibraryTest do
   end
 
   defp surviving_ids(opts) do
-    opts |> Library.list_in_progress() |> Enum.map(& &1.entity_id) |> Enum.sort()
+    owner_profile_id() |> Library.list_in_progress(opts) |> Enum.map(& &1.entity_id) |> Enum.sort()
   end
 
   defp hours_ago(hours) do
@@ -891,7 +891,7 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
-  describe "list_in_progress/1 keeps absent-file titles in Continue Watching" do
+  describe "list_in_progress/2 keeps absent-file titles in Continue Watching" do
     # Continue Watching is the user's mental list of "things I'm watching".
     # An absent file does not erase that intent. The hoist
     # categorization is presence-agnostic on this surface (by Movie record
@@ -900,7 +900,7 @@ defmodule MediaCentaur.LibraryTest do
       orphan = create_standalone_movie(%{name: "Orphan With Progress"})
       create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-      results = Library.list_in_progress(limit: 10)
+      results = Library.list_in_progress(owner_profile_id(), limit: 10)
       assert Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
     end
 
@@ -929,7 +929,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
-      results = Library.list_in_progress(limit: 10)
+      results = Library.list_in_progress(owner_profile_id(), limit: 10)
       assert Enum.any?(results, &(&1.entity_name == "Half-Watched Show"))
     end
 
@@ -967,12 +967,12 @@ defmodule MediaCentaur.LibraryTest do
         })
       end
 
-      results = Library.list_in_progress(limit: 10)
+      results = Library.list_in_progress(owner_profile_id(), limit: 10)
       refute Enum.any?(results, &(&1.entity_name == "Fully Watched Show"))
     end
   end
 
-  describe "list_in_progress/1 collection hoist" do
+  describe "list_in_progress/2 collection hoist" do
     test "single-child movie_series with in-progress child surfaces as the child movie" do
       ms = create_movie_series(%{name: "Mascot Collection"})
       child = create_movie(%{movie_series_id: ms.id, name: "Mascot Cosmos", position: 0})
@@ -985,7 +985,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: false
       })
 
-      results = Library.list_in_progress(limit: 10)
+      results = Library.list_in_progress(owner_profile_id(), limit: 10)
 
       hoisted = Enum.find(results, fn r -> r.entity_name == "Mascot Cosmos" end)
       assert hoisted, "expected the child movie to surface in Continue Watching"
@@ -1006,7 +1006,7 @@ defmodule MediaCentaur.LibraryTest do
         completed: false
       })
 
-      results = MediaCentaur.Library.list_in_progress(limit: 50)
+      results = MediaCentaur.Library.list_in_progress(owner_profile_id(), limit: 50)
 
       assert Enum.any?(results, &(&1.entity_name == "Mascot Cosmos"))
       refute Enum.any?(results, &(&1.entity_name == "Mascot Collection"))
@@ -1073,7 +1073,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_extra(%{movie_id: movie.id, name: "Behind the Scenes", kind: :featurette})
 
-      assert {:ok, entry} = Library.ModalEntry.load(movie.id)
+      assert {:ok, entry} = Library.ModalEntry.load(owner_profile_id(), movie.id)
       assert entry.entity.id == movie.id
       assert entry.entity.type == :movie
       assert Enum.map(entry.entity.extras, & &1.name) == ["Behind the Scenes"]
@@ -1109,7 +1109,7 @@ defmodule MediaCentaur.LibraryTest do
       create_extra(%{tv_series_id: series.id, name: "Series Trailer", kind: :trailer})
       create_extra(%{season_id: season.id, name: "Season Recap", kind: :featurette})
 
-      assert {:ok, entry} = Library.ModalEntry.load(series.id)
+      assert {:ok, entry} = Library.ModalEntry.load(owner_profile_id(), series.id)
       assert entry.entity.id == series.id
       assert entry.entity.type == :tv_series
       assert Enum.map(entry.entity.extras, & &1.name) == ["Series Trailer"]
@@ -1138,7 +1138,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
-      assert {:ok, entry} = Library.ModalEntry.load(series.id)
+      assert {:ok, entry} = Library.ModalEntry.load(owner_profile_id(), series.id)
       assert entry.entity.id == series.id
     end
 
@@ -1146,18 +1146,18 @@ defmodule MediaCentaur.LibraryTest do
       video = create_video_object(%{name: "Sample Clip"})
       record_present(create_linked_file(%{video_object_id: video.id}))
 
-      assert {:ok, entry} = Library.ModalEntry.load(video.id)
+      assert {:ok, entry} = Library.ModalEntry.load(owner_profile_id(), video.id)
       assert entry.entity.id == video.id
       assert entry.entity.type == :video_object
     end
 
     test "returns :not_found for a missing UUID" do
-      assert Library.ModalEntry.load(Ecto.UUID.generate()) == :not_found
+      assert Library.ModalEntry.load(owner_profile_id(), Ecto.UUID.generate()) == :not_found
     end
 
     test "returns :not_found when no file is present for the entity" do
       orphan = create_standalone_movie(%{name: "Orphan"})
-      assert Library.ModalEntry.load(orphan.id) == :not_found
+      assert Library.ModalEntry.load(owner_profile_id(), orphan.id) == :not_found
     end
 
     test "issues a bounded number of queries (no N+1 regression)" do
@@ -1188,7 +1188,7 @@ defmodule MediaCentaur.LibraryTest do
       # scale with episode count — bounded, but noise for an N+1 check).
       :ok = MediaCentaur.Library.Views.Detail.refresh_cache()
 
-      query_count = count_queries(fn -> Library.ModalEntry.load(series.id) end)
+      query_count = count_queries(fn -> Library.ModalEntry.load(owner_profile_id(), series.id) end)
 
       # Projection-warm path: ETS lookup (0 queries) + 1 progress query.
       # Bound at 5 to leave room for incidental queries; cap is well
@@ -1255,7 +1255,7 @@ defmodule MediaCentaur.LibraryTest do
 
     test "returns [] for a series with no episodes" do
       tv = create_tv_series(%{name: "Empty Series"})
-      assert Library.ProgressRecords.list_for_tv_series(tv.id) == []
+      assert Library.ProgressRecords.list_for_container(owner_profile_id(), :tv_series, tv.id) == []
     end
 
     test "returns [] for episodes without WatchProgress" do
@@ -1264,7 +1264,7 @@ defmodule MediaCentaur.LibraryTest do
       episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
       _playable_item = create_playable_item_for_episode(episode)
 
-      assert Library.ProgressRecords.list_for_tv_series(tv.id) == []
+      assert Library.ProgressRecords.list_for_container(owner_profile_id(), :tv_series, tv.id) == []
     end
 
     test "returns one record per episode with progress, keyed via :playable_item.container_id" do
@@ -1279,7 +1279,7 @@ defmodule MediaCentaur.LibraryTest do
       create_watch_progress(%{episode_id: episode1.id, completed: true})
       create_watch_progress(%{episode_id: episode2.id, position_seconds: 120.0})
 
-      records = Library.ProgressRecords.list_for_tv_series(tv.id)
+      records = Library.ProgressRecords.list_for_container(owner_profile_id(), :tv_series, tv.id)
 
       assert length(records) == 2
 
@@ -1305,14 +1305,18 @@ defmodule MediaCentaur.LibraryTest do
       create_watch_progress(%{episode_id: episode_a.id, completed: true})
       create_watch_progress(%{episode_id: episode_b.id, completed: true})
 
-      records = Library.ProgressRecords.list_for_tv_series(tv_a.id)
+      records = Library.ProgressRecords.list_for_container(owner_profile_id(), :tv_series, tv_a.id)
 
       assert [record] = records
       assert ProgressRecords.progress_container_id(record) == episode_a.id
     end
 
     test "returns [] for an unknown TVSeries id" do
-      assert Library.ProgressRecords.list_for_tv_series(Ecto.UUID.generate()) == []
+      assert Library.ProgressRecords.list_for_container(
+               owner_profile_id(),
+               :tv_series,
+               Ecto.UUID.generate()
+             ) == []
     end
   end
 

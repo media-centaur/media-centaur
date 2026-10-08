@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   (`inserted_at desc`) order, each carrying `available?` and a poster
   URL only when its storage is reachable (`Views.ItemAvailability`).
   Progress lives in a per-id map populated via the bulk context function
-  `Library.ProgressRecords.summaries/1`. The mount issues a bounded
+  `Library.ProgressRecords.summaries/2` for the session's profile. The mount issues a bounded
   number of queries that does not scale with catalog size.
 
   ## Update path
@@ -225,7 +225,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     # its own. Here we refresh just the affected card's progress
     # summary so the bar / completion overlay reflects the change.
     # Another profile's progress is not this grid's (ADR-078).
-    updated_summaries = Library.ProgressRecords.summaries([entity_id])
+    updated_summaries = Library.ProgressRecords.summaries(profile_id, [entity_id])
 
     progress_by_id =
       case Map.get(updated_summaries, entity_id) do
@@ -479,7 +479,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp load_library(socket) do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
-    progress_by_id = Library.ProgressRecords.summaries(ids)
+    progress_by_id = Library.ProgressRecords.summaries(socket.assigns.profile.id, ids)
 
     assign(socket,
       entries: entries,

@@ -221,7 +221,10 @@ defmodule MediaCentaur.Library.DeletionTest do
 
       assert entity_ids == [tv_series.id]
       assert {:error, _} = Library.Episodes.fetch(ep1.id)
-      assert {:error, :not_found} = Library.ProgressRecords.fetch_for_container(:episode, ep1.id)
+
+      assert {:error, :not_found} =
+               Library.ProgressRecords.fetch_for_container(owner_profile_id(), :episode, ep1.id)
+
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
 

@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.HomeFeed do
   @moduledoc """
   Query + display-shaping for the home page's three feed rows: Continue
-  Watching (`list_in_progress/1`), Recently Added (`list_recently_added/1`),
+  Watching (`list_in_progress/2`, one profile's), Recently Added (`list_recently_added/1`),
   and the Hero banner (`list_hero_candidates/1`).
 
   Split out of the `Library` context (which keeps thin delegators) so the
@@ -35,8 +35,9 @@ defmodule MediaCentaur.Library.HomeFeed do
   @epoch_datetime ~U[1970-01-01 00:00:00Z]
 
   @doc """
-  List in-progress titles (those with watch progress that is not yet completed),
-  most recently watched first. Used by HomeLive's Continue Watching row.
+  List `profile_id`'s in-progress titles (those with watch progress of
+  that profile that is not yet completed), most recently watched first.
+  Used by HomeLive's Continue Watching row.
 
   Returns a list of plain maps in the shape:
     `%{entity_id, entity_name, progress_pct, backdrop_url}`
@@ -51,15 +52,13 @@ defmodule MediaCentaur.Library.HomeFeed do
   Issues at most ~15 targeted queries regardless of library size, compared to
   the ~87 queries of the previous `fetch_all_typed_entries` approach.
   """
-  @spec list_in_progress(keyword()) :: [map()]
-  def list_in_progress(opts \\ []) do
+  @spec list_in_progress(Ecto.UUID.t(), keyword()) :: [map()]
+  def list_in_progress(profile_id, opts \\ []) when is_binary(profile_id) do
     limit = Keyword.get(opts, :limit, 12)
 
-    movie_entries = fetch_in_progress_movies(limit)
-    tv_series_entries = fetch_in_progress_tv_series(limit)
-    video_object_entries = fetch_in_progress_video_objects(limit)
-
-    (movie_entries ++ tv_series_entries ++ video_object_entries)
+    (fetch_in_progress_movies(profile_id, limit) ++
+       fetch_in_progress_tv_series(profile_id, limit) ++
+       fetch_in_progress_video_objects(profile_id, limit))
     |> Enum.map(&overlay_in_memory_progress/1)
     |> Enum.sort_by(
       fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
@@ -223,12 +222,12 @@ defmodule MediaCentaur.Library.HomeFeed do
   # with a left join. `max/1` also replaces two `LIMIT 1`s that took an
   # arbitrary progress row for titles with more than one playable item.
 
-  # Every WatchProgress row beneath a set of series, grouped by series, in
-  # one query. Replaces a per-episode lookup that first needed every episode
-  # id in memory to ask the question.
-  defp progress_records_by_tv_series([]), do: %{}
+  # Every WatchProgress row of the profile beneath a set of series, grouped
+  # by series, in one query. Replaces a per-episode lookup that first needed
+  # every episode id in memory to ask the question.
+  defp progress_records_by_tv_series(_profile_id, []), do: %{}
 
-  defp progress_records_by_tv_series(series_ids) do
+  defp progress_records_by_tv_series(profile_id, series_ids) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id,
@@ -236,7 +235,9 @@ defmodule MediaCentaur.Library.HomeFeed do
       on: episode.id == pi.container_id,
       join: season in Season,
       on: season.id == episode.season_id,
-      where: pi.container_type == ^:episode and season.tv_series_id in ^series_ids,
+      where:
+        wp.profile_id == ^profile_id and pi.container_type == ^:episode and
+          season.tv_series_id in ^series_ids,
       select: {season.tv_series_id, wp}
     )
     |> Repo.all()
@@ -245,11 +246,11 @@ defmodule MediaCentaur.Library.HomeFeed do
 
   # Containers whose playable items point straight at them (movies, video
   # objects).
-  defp last_watched_by_container(container_type) do
+  defp last_watched_by_container(profile_id, container_type) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id,
-      where: pi.container_type == ^container_type,
+      where: wp.profile_id == ^profile_id and pi.container_type == ^container_type,
       group_by: pi.container_id,
       select: %{container_id: pi.container_id, last_watched_at: max(wp.last_watched_at)}
     )
@@ -257,7 +258,7 @@ defmodule MediaCentaur.Library.HomeFeed do
 
   # A series is watched through its episodes, so the progress rolls up two
   # levels: episode -> season -> series.
-  defp last_watched_by_tv_series do
+  defp last_watched_by_tv_series(profile_id) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id,
@@ -265,7 +266,7 @@ defmodule MediaCentaur.Library.HomeFeed do
       on: episode.id == pi.container_id,
       join: season in Season,
       on: season.id == episode.season_id,
-      where: pi.container_type == ^:episode,
+      where: wp.profile_id == ^profile_id and pi.container_type == ^:episode,
       group_by: season.tv_series_id,
       select: %{container_id: season.tv_series_id, last_watched_at: max(wp.last_watched_at)}
     )
@@ -278,7 +279,7 @@ defmodule MediaCentaur.Library.HomeFeed do
   # Presence-agnostic (a transiently absent file doesn't erase the user's
   # intent to keep watching). The parent collection's images ride along
   # for the UIDR-021 art fallback.
-  defp fetch_in_progress_movies(limit) do
+  defp fetch_in_progress_movies(profile_id, limit) do
     movies =
       from(m in Movie,
         as: :item,
@@ -288,12 +289,12 @@ defmodule MediaCentaur.Library.HomeFeed do
               join: pi in PlayableItem,
               on: pi.id == wp.playable_item_id,
               where:
-                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
-                  wp.completed == false,
+                wp.profile_id == ^profile_id and pi.container_type == ^:movie and
+                  pi.container_id == parent_as(:item).id and wp.completed == false,
               select: 1
             )
           ),
-        join: last_watched in subquery(last_watched_by_container(:movie)),
+        join: last_watched in subquery(last_watched_by_container(profile_id, :movie)),
         on: last_watched.container_id == m.id,
         order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
@@ -301,7 +302,7 @@ defmodule MediaCentaur.Library.HomeFeed do
       |> Repo.all()
       |> Repo.preload([:images, movie_series: :images])
 
-    progress_by_id = ProgressRecords.progress_by_leaf(:movie, Enum.map(movies, & &1.id))
+    progress_by_id = ProgressRecords.progress_by_leaf(profile_id, :movie, Enum.map(movies, & &1.id))
 
     movies
     |> Enum.map(&build_in_progress_movie_entry(&1, Map.get(progress_by_id, &1.id)))
@@ -347,12 +348,14 @@ defmodule MediaCentaur.Library.HomeFeed do
   defp collection_images(%Movie{movie_series: %MovieSeries{images: images}}), do: images || []
   defp collection_images(_movie), do: []
 
-  # Fetches TV series the user has started but not finished.
+  # Fetches TV series the profile has started but not finished.
   #
   # Both halves of "in progress" are tested in SQL, before `limit`. The
   # unfinished test used to run in Elixir after the fetch, so a window full
-  # of finished series was fetched, rejected, and left the row short.
-  defp fetch_in_progress_tv_series(limit) do
+  # of finished series was fetched, rejected, and left the row short. Both
+  # halves name the profile: an episode another profile completed is not
+  # this profile's finished episode.
+  defp fetch_in_progress_tv_series(profile_id, limit) do
     series_list =
       from(t in TVSeries,
         as: :series,
@@ -365,7 +368,7 @@ defmodule MediaCentaur.Library.HomeFeed do
               on: ep.id == pi.container_id and pi.container_type == ^:episode,
               join: s in Season,
               on: s.id == ep.season_id,
-              where: s.tv_series_id == parent_as(:series).id,
+              where: wp.profile_id == ^profile_id and s.tv_series_id == parent_as(:series).id,
               select: 1
             )
           ),
@@ -382,7 +385,7 @@ defmodule MediaCentaur.Library.HomeFeed do
                     join: pi in PlayableItem,
                     on: pi.id == wp.playable_item_id,
                     where:
-                      pi.container_type == ^:episode and
+                      wp.profile_id == ^profile_id and pi.container_type == ^:episode and
                         pi.container_id == parent_as(:episode).id and
                         wp.completed == true,
                     select: 1
@@ -391,7 +394,7 @@ defmodule MediaCentaur.Library.HomeFeed do
               select: 1
             )
           ),
-        join: last_watched in subquery(last_watched_by_tv_series()),
+        join: last_watched in subquery(last_watched_by_tv_series(profile_id)),
         on: last_watched.container_id == t.id,
         order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
@@ -405,7 +408,7 @@ defmodule MediaCentaur.Library.HomeFeed do
     # `seasons: [:episodes]` to compute them loaded every episode of every
     # returned series into memory to produce two integers apiece.
     series_ids = Enum.map(series_list, & &1.id)
-    progress_by_series = progress_records_by_tv_series(series_ids)
+    progress_by_series = progress_records_by_tv_series(profile_id, series_ids)
     episode_counts = Episodes.count_available_by_tv_series(series_ids)
 
     Enum.reject(
@@ -440,8 +443,8 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # Fetches video objects with at least one incomplete WatchProgress record.
-  defp fetch_in_progress_video_objects(limit) do
+  # Fetches video objects with an incomplete WatchProgress record of the profile.
+  defp fetch_in_progress_video_objects(profile_id, limit) do
     video_objects =
       from(v in VideoObject,
         as: :video_object,
@@ -451,13 +454,13 @@ defmodule MediaCentaur.Library.HomeFeed do
               join: pi in PlayableItem,
               on: pi.id == wp.playable_item_id,
               where:
-                pi.container_type == ^:video_object and
+                wp.profile_id == ^profile_id and pi.container_type == ^:video_object and
                   pi.container_id == parent_as(:video_object).id and
                   wp.completed == false,
               select: 1
             )
           ),
-        join: last_watched in subquery(last_watched_by_container(:video_object)),
+        join: last_watched in subquery(last_watched_by_container(profile_id, :video_object)),
         on: last_watched.container_id == v.id,
         order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
@@ -466,7 +469,7 @@ defmodule MediaCentaur.Library.HomeFeed do
       |> Repo.preload([:images])
 
     progress_by_id =
-      ProgressRecords.progress_by_leaf(:video_object, Enum.map(video_objects, & &1.id))
+      ProgressRecords.progress_by_leaf(profile_id, :video_object, Enum.map(video_objects, & &1.id))
 
     Enum.reject(
       Enum.map(video_objects, fn video_object ->

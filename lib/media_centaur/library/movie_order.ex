@@ -5,8 +5,8 @@ defmodule MediaCentaur.Library.MovieOrder do
 
   Ordinals here are 1-based *walk positions* used by the playback
   resume chain and its display hints ("Play Movie 2") — they are not a
-  storage key. `WatchProgress` is keyed by `playable_item_id`, and the
-  UI addresses movies by their container UUID.
+  storage key. `WatchProgress` is keyed by `(profile_id, playable_item_id)`
+  (ADR-078), and the UI addresses movies by their container UUID.
   """
 
   @doc "Sorts movies chronologically by date_published, then position as tiebreaker."

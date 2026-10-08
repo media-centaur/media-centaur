@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
   View-model for one row of the Continue Watching projection.
 
   This is the public read contract of `MediaCentaur.Library.Views`'s
-  `continue_watching/1` function. Per ADR-041, the view-model struct
+  `continue_watching/2` function. Per ADR-041, the view-model struct
   decouples render shape from storage shape — UI consumers depend
   only on the field set declared here.
 

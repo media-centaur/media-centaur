@@ -97,11 +97,10 @@ defmodule MediaCentaurWeb.LibraryProgress do
   end
 
   defp progress_record_key(record) do
-    # WatchProgress is keyed solely by `playable_item_id` since Library
-    # Schema v2 Phase 2 Task C — the unique constraint on
-    # `playable_item_id` makes that the natural identity. Extras flow
-    # through `merge_extra_progress/2`, so we don't need a cross-stream
-    # tiebreak here.
+    # A page holds one profile's records, within which `playable_item_id`
+    # is unique (`(profile_id, playable_item_id)`, ADR-078) — the natural
+    # identity for the merge. Extras flow through `merge_extra_progress/2`,
+    # so we don't need a cross-stream tiebreak here.
     Map.get(record, :playable_item_id)
   end
 

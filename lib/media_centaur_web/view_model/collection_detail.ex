@@ -9,11 +9,11 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   collections) — into a single typed struct the modal LiveView assigns
   and the detail panel renders.
 
-  `compose/1` does the cross-context fetch and delegates to `build/4`,
+  `compose/2` does the cross-context fetch and delegates to `build/4`,
   which is pure and unit-tested without a database. Callers reach this
   composer through the detail modal's single loader
   (`MediaCentaurWeb.Live.EntityModal`), which resolves the container
-  kind via `MediaCentaur.Library.Presentable` first — so `compose/1` is
+  kind via `MediaCentaur.Library.Presentable` first — so `compose/2` is
   only ever asked about ids already known to present as `:movie_series`.
 
   Like `SeriesDetail`, release records are read by field, not struct
@@ -68,20 +68,20 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
   on the loaded entry, so callers don't have to thread it separately.
   """
-  @spec compose(Ecto.UUID.t()) :: {:ok, t()} | :not_found
-  def compose(entity_id) when is_binary(entity_id) do
+  @spec compose(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, t()} | :not_found
+  def compose(profile_id, entity_id) when is_binary(profile_id) and is_binary(entity_id) do
     case Library.Views.detail_by_container(:movie_series, entity_id) do
       %DetailItem{} = detail_item ->
-        {:ok, compose_from_detail(detail_item, entity_id)}
+        {:ok, compose_from_detail(profile_id, detail_item, entity_id)}
 
       nil ->
         :not_found
     end
   end
 
-  defp compose_from_detail(detail_item, entity_id) do
+  defp compose_from_detail(profile_id, detail_item, entity_id) do
     entity = detail_item |> DetailItem.to_entity_view() |> Library.MediaTrackOverrides.put_on_entity()
-    progress_records = Library.ProgressRecords.list_for_container(:movie_series, entity_id)
+    progress_records = Library.ProgressRecords.list_for_container(profile_id, :movie_series, entity_id)
     progress_summary = ProgressSummary.compute(entity, progress_records)
 
     entry = %{

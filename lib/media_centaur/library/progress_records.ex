@@ -1,12 +1,13 @@
 defmodule MediaCentaur.Library.ProgressRecords do
   @moduledoc """
   Persisted watch state for the library — the database side of progress.
+  Every `WatchProgress` read and write names the profile first (ADR-078).
 
   Two tables live here because the library has two kinds of watchable
   thing:
 
-    * `WatchProgress`, keyed by `playable_item_id`, for the playable
-      leaves (Movie / Episode / VideoObject).
+    * `WatchProgress`, keyed by `(profile_id, playable_item_id)`, for the
+      playable leaves (Movie / Episode / VideoObject).
     * `ExtraProgress`, keyed by `extra_id`, for bonus features, which are
       not `PlayableItem`s.
 
@@ -17,10 +18,11 @@ defmodule MediaCentaur.Library.ProgressRecords do
   parallel visible rather than filing it 200 lines apart.
 
   `mark_completed/1` and `mark_incomplete/1` already dispatch on the
-  struct, so callers holding either kind of record use one name. Note the asymmetry in the adjacent clauses:
-  completing a `WatchProgress` broadcasts `{:entity_watch_completed,
-  record}`, completing an `ExtraProgress` does not — extras do not
-  participate in Continue Watching.
+  struct, so callers holding either kind of record use one name. Note
+  the asymmetry in the adjacent clauses: completing a `WatchProgress`
+  broadcasts `{:entity_watch_completed, record}`, completing an
+  `ExtraProgress` does not — extras do not participate in Continue
+  Watching.
 
   Not to be confused with `Library.Progress`, which is the in-memory ETS
   projection that debounce-flushes *into* this module.
@@ -155,22 +157,24 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   # ---- WatchProgress -------------------------------------------------------
 
-  @doc "Every `WatchProgress` row."
+  @doc "Every `WatchProgress` row, of every profile."
   @spec list_all() :: [WatchProgress.t()]
   def list_all, do: Repo.all(WatchProgress)
 
   @doc """
-  Fetches the watch-progress row for a leaf container, resolving through
-  its `PlayableItem`.
+  Fetches `profile_id`'s watch-progress row for a leaf container,
+  resolving through its `PlayableItem`.
   """
-  @spec fetch_for_container(PlayableItem.container_type(), Ecto.UUID.t()) ::
+  @spec fetch_for_container(Ecto.UUID.t(), PlayableItem.container_type(), Ecto.UUID.t()) ::
           {:ok, WatchProgress.t()} | {:error, :not_found}
-  def fetch_for_container(container_type, container_id) do
+  def fetch_for_container(profile_id, container_type, container_id) when is_binary(profile_id) do
     query =
       from(wp in WatchProgress,
         join: pi in PlayableItem,
         on: pi.id == wp.playable_item_id,
-        where: pi.container_type == ^container_type and pi.container_id == ^container_id,
+        where:
+          wp.profile_id == ^profile_id and pi.container_type == ^container_type and
+            pi.container_id == ^container_id,
         limit: 1
       )
 
@@ -181,61 +185,72 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  Upserts the watch-progress row for a leaf container, resolving (and
-  creating if needed) its canonical `PlayableItem` first.
+  Upserts `profile_id`'s watch-progress row for a leaf container,
+  resolving (and creating if needed) its canonical `PlayableItem` first.
 
   The position is derived by `PlayableItems.canonical_position/2` — the
   only per-type behaviour in this path.
   """
-  @spec find_or_create_for_container(PlayableItem.container_type(), Ecto.UUID.t(), map()) ::
-          {:ok, WatchProgress.t()} | {:error, term()}
-  def find_or_create_for_container(container_type, container_id, attrs \\ %{}) do
+  @spec find_or_create_for_container(
+          Ecto.UUID.t(),
+          PlayableItem.container_type(),
+          Ecto.UUID.t(),
+          map()
+        ) :: {:ok, WatchProgress.t()} | {:error, term()}
+  def find_or_create_for_container(profile_id, container_type, container_id, attrs \\ %{})
+      when is_binary(profile_id) do
     position = PlayableItems.canonical_position(container_type, container_id)
 
-    with {:ok, playable_item} <-
-           PlayableItems.find_or_create(container_type, container_id, position) do
+    with {:ok, playable_item} <- PlayableItems.find_or_create(container_type, container_id, position) do
       attrs =
         attrs
         |> Map.new()
-        |> Map.put(:playable_item_id, playable_item.id)
+        |> Map.merge(%{profile_id: profile_id, playable_item_id: playable_item.id})
 
-      Writes.upsert_by(WatchProgress, [playable_item_id: playable_item.id], attrs)
+      Writes.upsert_by(
+        WatchProgress,
+        [profile_id: profile_id, playable_item_id: playable_item.id],
+        attrs
+      )
     end
   end
 
   @doc """
-  Upserts a `WatchProgress` row by `playable_item_id`, raising on
-  failure.
-
-  Used by `Library.Progress.Worker` during the debounced flush — the
-  in-memory row already carries the canonical `playable_item_id`, so it
-  bypasses the container-shaped path above. A flush error means the
-  in-memory row is out of sync with the DB and must surface immediately
-  rather than silently dropping state.
+  The progress worker's flush: writes one in-memory row through to its
+  `(profile_id, playable_item_id)` row, raising on failure — a flush
+  error means the in-memory row is out of sync with the DB and must
+  surface rather than silently drop state.
   """
-  @spec upsert_by_playable_item!(map()) :: WatchProgress.t()
-  def upsert_by_playable_item!(%{playable_item_id: playable_item_id} = attrs)
-      when is_binary(playable_item_id) do
-    case Writes.upsert_by(WatchProgress, [playable_item_id: playable_item_id], attrs) do
+  @spec upsert_by_profile_item!(map()) :: WatchProgress.t()
+  def upsert_by_profile_item!(%{profile_id: profile_id, playable_item_id: playable_item_id} = attrs)
+      when is_binary(profile_id) and is_binary(playable_item_id) do
+    case Writes.upsert_by(
+           WatchProgress,
+           [profile_id: profile_id, playable_item_id: playable_item_id],
+           attrs
+         ) do
       {:ok, record} -> record
       {:error, changeset} -> raise "WatchProgress flush failed: #{inspect(changeset)}"
     end
   end
 
   @doc """
-  Looks up or creates the `WatchProgress` row for a `playable_item_id`.
+  Looks up or creates `profile_id`'s row for a `playable_item_id`.
 
-  Used by `Library.Progress.complete/1` — completion has to resolve the
+  Used by `Library.Progress.complete/2` — completion has to resolve the
   persisted row, creating one if necessary, before flipping `completed`.
   """
-  @spec find_or_create_by_playable_item(Ecto.UUID.t()) ::
+  @spec find_or_create_by_playable_item(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, WatchProgress.t()} | {:error, term()}
-  def find_or_create_by_playable_item(playable_item_id) when is_binary(playable_item_id) do
-    case Repo.get_by(WatchProgress, playable_item_id: playable_item_id) do
+  def find_or_create_by_playable_item(profile_id, playable_item_id)
+      when is_binary(profile_id) and is_binary(playable_item_id) do
+    case Repo.get_by(WatchProgress, profile_id: profile_id, playable_item_id: playable_item_id) do
       nil ->
-        Writes.upsert_by(WatchProgress, [playable_item_id: playable_item_id], %{
-          playable_item_id: playable_item_id
-        })
+        Writes.upsert_by(
+          WatchProgress,
+          [profile_id: profile_id, playable_item_id: playable_item_id],
+          %{profile_id: profile_id, playable_item_id: playable_item_id}
+        )
 
       record ->
         {:ok, record}
@@ -243,10 +258,10 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  Every `WatchProgress` record beneath a container, each carrying a
-  synthesised `:playable_item` map (`container_type` + `container_id`)
-  so consumers can key by leaf-container UUID without a separate
-  `belongs_to :playable_item` preload.
+  Every `WatchProgress` record of `profile_id` beneath a container, each
+  carrying a synthesised `:playable_item` map (`container_type` +
+  `container_id`) so consumers can key by leaf-container UUID without a
+  separate `belongs_to :playable_item` preload.
 
   The one way a title's progress is read — the detail modal, playback
   resolution and the Browse rebuild all come through here.
@@ -254,58 +269,33 @@ defmodule MediaCentaur.Library.ProgressRecords do
   Returns `[]` for an unknown container id, or one with no rows beneath
   any leaf.
   """
-  @spec list_for_container(container_type(), Ecto.UUID.t()) :: [struct()]
-  def list_for_container(:tv_series, id), do: list_for_tv_series(id)
-  def list_for_container(:movie_series, id), do: list_for_movie_series(id)
-  def list_for_container(:movie, id), do: list_for_leaf(:movie, id)
-  def list_for_container(:video_object, id), do: list_for_leaf(:video_object, id)
+  @spec list_for_container(Ecto.UUID.t(), container_type(), Ecto.UUID.t()) :: [WatchProgress.t()]
+  def list_for_container(profile_id, :tv_series, id), do: list_for_tv_series(profile_id, id)
+  def list_for_container(profile_id, :movie_series, id), do: list_for_movie_series(profile_id, id)
+  def list_for_container(profile_id, :movie, id), do: list_for_leaf(profile_id, :movie, id)
+  def list_for_container(profile_id, :video_object, id), do: list_for_leaf(profile_id, :video_object, id)
 
   @doc """
-  The progress row of each leaf container (movie, video object) in
-  `ids`, keyed by container id, in one query. A leaf without a row is
-  absent. The read Continue Watching uses for its single-leaf entries.
+  `profile_id`'s progress row of each leaf container (movie, video
+  object) in `ids`, keyed by container id, in one query. A leaf without
+  a row is absent. The read Continue Watching uses for its single-leaf
+  entries.
   """
-  @spec progress_by_leaf(:movie | :video_object, [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => struct()}
-  def progress_by_leaf(_container_type, []), do: %{}
+  @spec progress_by_leaf(Ecto.UUID.t(), :movie | :video_object, [Ecto.UUID.t()]) ::
+          %{Ecto.UUID.t() => WatchProgress.t()}
+  def progress_by_leaf(_profile_id, _container_type, []), do: %{}
 
-  def progress_by_leaf(container_type, ids) when container_type in [:movie, :video_object] do
-    from(wp in WatchProgress,
-      join: pi in PlayableItem,
-      on:
-        pi.id == wp.playable_item_id and pi.container_type == ^container_type and
-          pi.container_id in ^ids,
-      select: {pi.container_id, wp}
-    )
+  def progress_by_leaf(profile_id, container_type, ids) when container_type in [:movie, :video_object] do
+    profile_id
+    |> leaf_rows(container_type, ids)
     |> Repo.all()
     |> Map.new()
   end
 
   @doc """
-  TV-series specialisation of `list_for_container/2`, kept for the
-  `SeriesDetail.compose` call site that preceded the unified dispatcher.
-  """
-  @spec list_for_tv_series(Ecto.UUID.t()) :: [struct()]
-  def list_for_tv_series(tv_series_id) when is_binary(tv_series_id) do
-    from(wp in WatchProgress,
-      join: pi in PlayableItem,
-      on: pi.id == wp.playable_item_id and pi.container_type == :episode,
-      join: e in Episode,
-      on: e.id == pi.container_id,
-      join: s in Season,
-      on: s.id == e.season_id,
-      where: s.tv_series_id == ^tv_series_id,
-      select: {wp, e.id}
-    )
-    |> Repo.all()
-    |> Enum.map(fn {progress, episode_id} ->
-      %{progress | playable_item: %{container_type: :episode, container_id: episode_id}}
-    end)
-  end
-
-  @doc """
   Bulk progress lookup for projection consumers (Phase 3.1). Resolves
   `%{entity_id => summary}` for every container UUID in the input that
-  has at least one `WatchProgress` row.
+  has at least one `WatchProgress` row of `profile_id`.
 
   Each summary carries the shape `Library.ProgressSummary.compute/2`
   returns, plus `:last_watched_at` so consumers that sort by recency
@@ -314,16 +304,22 @@ defmodule MediaCentaur.Library.ProgressRecords do
   per container kind in the input set; totals do not scale with row
   count.
   """
-  @spec summaries([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => summary()}
-  def summaries([]), do: %{}
+  @spec summaries(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => summary()}
+  def summaries(_profile_id, []), do: %{}
 
-  def summaries(entity_ids) when is_list(entity_ids) do
+  def summaries(profile_id, entity_ids) when is_binary(profile_id) and is_list(entity_ids) do
     %{}
-    |> Map.merge(leaf_summaries(:movie, entity_ids))
-    |> Map.merge(leaf_summaries(:video_object, entity_ids))
-    |> Map.merge(movie_series_summaries(entity_ids))
-    |> Map.merge(tv_series_summaries(entity_ids))
+    |> Map.merge(leaf_summaries(profile_id, :movie, entity_ids))
+    |> Map.merge(leaf_summaries(profile_id, :video_object, entity_ids))
+    |> Map.merge(movie_series_summaries(profile_id, entity_ids))
+    |> Map.merge(tv_series_summaries(profile_id, entity_ids))
   end
+
+  @doc "Every profile with at least one progress row — the profiles Continue Watching is built for."
+  @spec profile_ids_with_progress() :: [Ecto.UUID.t()]
+  def profile_ids_with_progress,
+    do:
+      Repo.all(from(wp in WatchProgress, distinct: true, select: wp.profile_id, order_by: wp.profile_id))
 
   # ---- ExtraProgress -------------------------------------------------------
 
@@ -348,57 +344,82 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   # ---- internals -----------------------------------------------------------
 
-  defp list_for_movie_series(movie_series_id) when is_binary(movie_series_id) do
+  # The three row queries below are the one join each container shape
+  # needs, filtered to one profile; the public readers differ only in how
+  # they shape the rows.
+
+  # `{container_id, progress}` for each leaf (movie, video object) in `ids`.
+  defp leaf_rows(profile_id, container_type, container_ids) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on:
+        pi.id == wp.playable_item_id and pi.container_type == ^container_type and
+          pi.container_id in ^container_ids,
+      where: wp.profile_id == ^profile_id,
+      select: {pi.container_id, wp}
+    )
+  end
+
+  # `{tv_series_id, episode_id, progress}` for each episode beneath the series in `ids`.
+  defp episode_rows_by_tv_series(profile_id, tv_series_ids) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id and pi.container_type == :episode,
+      join: e in Episode,
+      on: e.id == pi.container_id,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: wp.profile_id == ^profile_id and s.tv_series_id in ^tv_series_ids,
+      select: {s.tv_series_id, e.id, wp}
+    )
+  end
+
+  # `{movie_series_id, movie_id, progress}` for each movie beneath the collections in `ids`.
+  defp movie_rows_by_movie_series(profile_id, movie_series_ids) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id and pi.container_type == :movie,
       join: m in Movie,
       on: m.id == pi.container_id,
-      where: m.movie_series_id == ^movie_series_id,
-      select: {wp, m.id}
+      where: wp.profile_id == ^profile_id and m.movie_series_id in ^movie_series_ids,
+      select: {m.movie_series_id, m.id, wp}
     )
+  end
+
+  defp attach_leaf(progress, container_type, container_id),
+    do: %{progress | playable_item: %{container_type: container_type, container_id: container_id}}
+
+  defp list_for_tv_series(profile_id, tv_series_id) when is_binary(tv_series_id) do
+    profile_id
+    |> episode_rows_by_tv_series([tv_series_id])
     |> Repo.all()
-    |> Enum.map(fn {progress, movie_id} ->
-      %{progress | playable_item: %{container_type: :movie, container_id: movie_id}}
+    |> Enum.map(fn {_tv_series_id, episode_id, progress} ->
+      attach_leaf(progress, :episode, episode_id)
     end)
   end
 
-  defp list_for_leaf(container_type, container_id) when is_binary(container_id) do
-    from(wp in WatchProgress,
-      join: pi in PlayableItem,
-      on:
-        pi.id == wp.playable_item_id and pi.container_type == ^container_type and
-          pi.container_id == ^container_id,
-      select: wp
-    )
+  defp list_for_movie_series(profile_id, movie_series_id) when is_binary(movie_series_id) do
+    profile_id
+    |> movie_rows_by_movie_series([movie_series_id])
     |> Repo.all()
-    |> Enum.map(fn progress ->
-      %{progress | playable_item: %{container_type: container_type, container_id: container_id}}
-    end)
+    |> Enum.map(fn {_movie_series_id, movie_id, progress} -> attach_leaf(progress, :movie, movie_id) end)
+  end
+
+  defp list_for_leaf(profile_id, container_type, container_id) when is_binary(container_id) do
+    profile_id
+    |> leaf_rows(container_type, [container_id])
+    |> Repo.all()
+    |> Enum.map(fn {^container_id, progress} -> attach_leaf(progress, container_type, container_id) end)
   end
 
   # Movies and video objects are single-leaf containers — totals are
   # always 1, so no separate count query is needed.
-  defp leaf_summaries(container_type, ids) do
-    rows =
-      Repo.all(
-        from(wp in WatchProgress,
-          join: pi in PlayableItem,
-          on:
-            pi.id == wp.playable_item_id and pi.container_type == ^container_type and
-              pi.container_id in ^ids,
-          select: %{
-            container_id: pi.container_id,
-            position_seconds: wp.position_seconds,
-            duration_seconds: wp.duration_seconds,
-            completed: wp.completed,
-            last_watched_at: wp.last_watched_at
-          }
-        )
-      )
-
-    Map.new(rows, fn row ->
-      {row.container_id,
+  defp leaf_summaries(profile_id, container_type, ids) do
+    profile_id
+    |> leaf_rows(container_type, ids)
+    |> Repo.all()
+    |> Map.new(fn {container_id, row} ->
+      {container_id,
        %{
          current_episode: nil,
          episode_position_seconds: row.position_seconds || 0.0,
@@ -413,53 +434,33 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # TV series: episodes_total counts *present* episodes (those with a
   # WatchedFile) under any season of the series; episodes_completed
   # counts completed progress rows beneath it.
-  defp tv_series_summaries(ids) do
-    rows =
-      Repo.all(
-        from(wp in WatchProgress,
-          join: pi in PlayableItem,
-          on: pi.id == wp.playable_item_id and pi.container_type == :episode,
-          join: e in Episode,
-          on: e.id == pi.container_id,
-          join: s in Season,
-          on: s.id == e.season_id,
-          where: s.tv_series_id in ^ids,
-          select: %{
-            owner_id: s.tv_series_id,
-            completed: wp.completed,
-            position_seconds: wp.position_seconds,
-            duration_seconds: wp.duration_seconds,
-            last_watched_at: wp.last_watched_at
-          }
-        )
-      )
-
-    summarise(rows, &Episodes.count_available_by_tv_series/1)
+  defp tv_series_summaries(profile_id, ids) do
+    profile_id
+    |> episode_rows_by_tv_series(ids)
+    |> Repo.all()
+    |> Enum.map(fn {tv_series_id, _episode_id, row} -> owner_row(tv_series_id, row) end)
+    |> summarise(&Episodes.count_available_by_tv_series/1)
   end
 
   # Movie series: total counts *present* child movies (those with a
   # WatchedFile); completed counts child movies carrying a completed
   # WatchProgress.
-  defp movie_series_summaries(ids) do
-    rows =
-      Repo.all(
-        from(wp in WatchProgress,
-          join: pi in PlayableItem,
-          on: pi.id == wp.playable_item_id and pi.container_type == :movie,
-          join: m in Movie,
-          on: m.id == pi.container_id,
-          where: m.movie_series_id in ^ids,
-          select: %{
-            owner_id: m.movie_series_id,
-            completed: wp.completed,
-            position_seconds: wp.position_seconds,
-            duration_seconds: wp.duration_seconds,
-            last_watched_at: wp.last_watched_at
-          }
-        )
-      )
+  defp movie_series_summaries(profile_id, ids) do
+    profile_id
+    |> movie_rows_by_movie_series(ids)
+    |> Repo.all()
+    |> Enum.map(fn {movie_series_id, _movie_id, row} -> owner_row(movie_series_id, row) end)
+    |> summarise(&movie_totals_by_movie_series/1)
+  end
 
-    summarise(rows, &movie_totals_by_movie_series/1)
+  defp owner_row(owner_id, row) do
+    %{
+      owner_id: owner_id,
+      completed: row.completed,
+      position_seconds: row.position_seconds,
+      duration_seconds: row.duration_seconds,
+      last_watched_at: row.last_watched_at
+    }
   end
 
   # Shared tail for the two multi-leaf container kinds. They differ only

@@ -59,7 +59,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
     end
   end
 
-  describe "WatchHistory.delete_event!/2 (default — no progress reset)" do
+  describe "WatchHistory.delete_event!/1" do
     test "removes the event record" do
       event = create_watch_event(%{title: "Sample Movie Ten"})
 
@@ -77,7 +77,9 @@ defmodule MediaCentaur.WatchHistory.EventTest do
 
       MediaCentaur.WatchHistory.delete_event!(event)
 
-      {:ok, progress} = MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, movie.id)
+      {:ok, progress} =
+        MediaCentaur.Library.ProgressRecords.fetch_for_container(owner_profile_id(), :movie, movie.id)
+
       assert progress.completed == true
     end
 
@@ -119,39 +121,6 @@ defmodule MediaCentaur.WatchHistory.EventTest do
       assert movie_count == 1
       assert episode_count == 1
       assert all_count == 2
-    end
-  end
-
-  describe "WatchHistory.delete_event!/2 (reset_progress: true)" do
-    test "deletes the event record" do
-      movie = create_movie(%{name: "Sample Movie Eight"})
-
-      event =
-        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Eight"})
-
-      MediaCentaur.WatchHistory.delete_event!(event, reset_progress: true)
-
-      assert_raise Ecto.NoResultsError, fn ->
-        MediaCentaur.Repo.get!(MediaCentaur.WatchHistory.Event, event.id)
-      end
-    end
-
-    test "resets watch progress to incomplete" do
-      movie = create_movie(%{name: "Sample Movie Fourteen"})
-      _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
-
-      event =
-        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
-
-      MediaCentaur.WatchHistory.delete_event!(event, reset_progress: true)
-
-      {:ok, reloaded} = MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, movie.id)
-      assert reloaded.completed == false
-    end
-
-    test "succeeds when FK is nil (entity already deleted)" do
-      event = create_watch_event(%{entity_type: :movie, movie_id: nil, title: "Ghost Movie"})
-      assert :ok = MediaCentaur.WatchHistory.delete_event!(event, reset_progress: true)
     end
   end
 end

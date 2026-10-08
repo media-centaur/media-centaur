@@ -416,7 +416,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
   describe "compose/1 — DB-backed assembly" do
     test "returns :not_found when entity_id matches no library record" do
-      assert :not_found == SeriesDetail.compose(Ecto.UUID.generate())
+      assert :not_found == SeriesDetail.compose(owner_profile_id(), Ecto.UUID.generate())
     end
 
     test "returns :not_found for non-TV entities" do
@@ -431,13 +431,13 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       movie = create_standalone_movie()
       record_present(create_linked_file(%{movie_id: movie.id}))
 
-      assert :not_found = SeriesDetail.compose(movie.id)
+      assert :not_found = SeriesDetail.compose(owner_profile_id(), movie.id)
     end
 
     test "tv_series with no Item: seasons mirror library; no future seasons" do
       tv = create_tv_series_with_one_episode("Sample Series")
 
-      assert {:ok, view_model} = SeriesDetail.compose(tv.id)
+      assert {:ok, view_model} = SeriesDetail.compose(owner_profile_id(), tv.id)
       assert [%SeasonView{kind: :library, items: items}] = view_model.seasons
       assert Enum.all?(items, &match?(%EpisodeRow.Library{}, &1))
     end
@@ -461,7 +461,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         released: false
       })
 
-      assert {:ok, view_model} = SeriesDetail.compose(tv.id)
+      assert {:ok, view_model} = SeriesDetail.compose(owner_profile_id(), tv.id)
 
       assert [
                %SeasonView{kind: :library, season_number: 1},

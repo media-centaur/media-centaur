@@ -17,8 +17,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   alias MediaCentaur.Playback.Events.{EntityProgressUpdated, ExtraProgressUpdated}
 
   @doc """
-  Loads entity progress and broadcasts an `:entity_progress_updated` message
-  naming `profile_id`, the profile the change was recorded under.
+  Loads `profile_id`'s progress on the entity and broadcasts an
+  `:entity_progress_updated` message naming that profile.
 
   `changed` identifies the `WatchProgress` whose change triggered this
   broadcast, in either of two forms:
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   """
   @spec broadcast(Ecto.UUID.t(), Ecto.UUID.t(), map() | String.t() | nil) :: :ok | {:error, term()}
   def broadcast(profile_id, entity_id, changed) do
-    case resolve_entity_with_progress(entity_id) do
+    case resolve_entity_with_progress(profile_id, entity_id) do
       {:ok, entity, progress_records} ->
         summary = MediaCentaur.Library.ProgressSummary.compute(entity, progress_records)
         resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
@@ -69,13 +69,14 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   end
 
   # Resolve the caller's `changed` hint to the matching record from the
-  # freshly loaded `progress_records` list, keyed by the stable
-  # `playable_item_id` (the unique identity since Library Schema v2 Phase
-  # 2 Task C). The list version carries the synthesised `:playable_item`
+  # freshly loaded `progress_records` list by `playable_item_id` — unique
+  # within one profile's rows, and the list is one profile's
+  # (`(profile_id, playable_item_id)`, ADR-078). The list version carries
+  # the synthesised `:playable_item`
   # subscribers key by container id; the caller's own record — whether a
-  # raw `Library.fetch_watch_progress_by_fk/2` result with
+  # raw `ProgressRecords.fetch_for_container/3` result with
   # `:playable_item` as `%Ecto.Association.NotLoaded{}`, or an in-memory
-  # row from `Library.Progress.get/1` with `id: nil` — is unsuitable to
+  # row from `Library.Progress.get/2` with `id: nil` — is unsuitable to
   # pass through directly, which is why we substitute rather than echo.
   # Returns `nil` when no single record is implicated, or when the
   # implicated row isn't in the list yet (e.g. a brand-new item whose
@@ -104,24 +105,24 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   # The function still probes 4 container types since the broadcaster
   # only receives `entity_id`. Future work: thread the known type from
   # MpvSession so the probe loop drops to a single direct lookup.
-  defp resolve_entity_with_progress(id) do
+  defp resolve_entity_with_progress(profile_id, id) do
     cond do
-      result = load_via_detail(:tv_series, id) -> result
-      result = load_via_detail(:movie_series, id) -> result
-      result = load_via_detail(:movie, id) -> result
-      result = load_via_detail(:video_object, id) -> result
+      result = load_via_detail(profile_id, :tv_series, id) -> result
+      result = load_via_detail(profile_id, :movie_series, id) -> result
+      result = load_via_detail(profile_id, :movie, id) -> result
+      result = load_via_detail(profile_id, :video_object, id) -> result
       true -> :not_found
     end
   end
 
-  defp load_via_detail(type, id) do
+  defp load_via_detail(profile_id, type, id) do
     case LibraryViews.detail_by_container(type, id) do
       %DetailItem{} = item ->
         entity = DetailItem.to_entity_view(item)
 
         progress_records =
-          type
-          |> Library.ProgressRecords.list_for_container(id)
+          profile_id
+          |> Library.ProgressRecords.list_for_container(type, id)
           |> overlay_in_memory_progress()
 
         {:ok, entity, progress_records}

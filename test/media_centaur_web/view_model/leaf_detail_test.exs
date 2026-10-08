@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.ViewModel.LeafDetailTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
 
-      assert {:ok, %LeafDetail{} = entry} = LeafDetail.compose(:movie, movie.id)
+      assert {:ok, %LeafDetail{} = entry} = LeafDetail.compose(owner_profile_id(), :movie, movie.id)
       assert entry.entity.id == movie.id
       assert entry.entity.type == :movie
       assert entry.entity.name == "Sample Movie"
@@ -19,11 +19,11 @@ defmodule MediaCentaurWeb.ViewModel.LeafDetailTest do
 
     test "a movie the library has no file for is not found" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      assert LeafDetail.compose(:movie, movie.id) == :not_found
+      assert LeafDetail.compose(owner_profile_id(), :movie, movie.id) == :not_found
     end
 
     test "an unknown id is not found" do
-      assert LeafDetail.compose(:movie, Ecto.UUID.generate()) == :not_found
+      assert LeafDetail.compose(owner_profile_id(), :movie, Ecto.UUID.generate()) == :not_found
     end
   end
 end

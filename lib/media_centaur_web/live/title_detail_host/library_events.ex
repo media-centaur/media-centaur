@@ -197,21 +197,26 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   defp parse_container_type("video_object"), do: :video_object
 
   defp toggle_watch_progress(profile_id, entity_id, container_type, container_id) do
-    progress = load_progress(container_type, container_id)
-    changed_record = apply_progress_transition(progress, container_type, container_id)
+    progress = load_progress(profile_id, container_type, container_id)
+    changed_record = apply_progress_transition(progress, profile_id, container_type, container_id)
     ProgressBroadcaster.broadcast(profile_id, entity_id, changed_record)
   end
 
-  defp load_progress(_container_type, nil), do: nil
+  defp load_progress(_profile_id, _container_type, nil), do: nil
 
-  defp load_progress(container_type, container_id) do
-    case Library.ProgressRecords.fetch_for_container(container_type, container_id) do
+  defp load_progress(profile_id, container_type, container_id) do
+    case Library.ProgressRecords.fetch_for_container(profile_id, container_type, container_id) do
       {:ok, record} -> record
       _ -> nil
     end
   end
 
-  defp apply_progress_transition(%{completed: true} = progress, _container_type, _container_id) do
+  defp apply_progress_transition(
+         %{completed: true} = progress,
+         _profile_id,
+         _container_type,
+         _container_id
+       ) do
     Log.info(
       :library,
       "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
@@ -220,7 +225,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     Library.ProgressRecords.mark_incomplete!(progress)
   end
 
-  defp apply_progress_transition(%{completed: false} = progress, _container_type, _container_id) do
+  defp apply_progress_transition(
+         %{completed: false} = progress,
+         _profile_id,
+         _container_type,
+         _container_id
+       ) do
     Log.info(:library, fn ->
       "toggled completed — was #{LibraryProgress.completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
     end)
@@ -228,11 +238,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     Library.ProgressRecords.mark_completed!(progress)
   end
 
-  defp apply_progress_transition(nil, container_type, container_id) when not is_nil(container_id) do
+  defp apply_progress_transition(nil, profile_id, container_type, container_id)
+       when not is_nil(container_id) do
     Log.info(:library, "toggled completed — no prior progress, created fresh record")
 
     {:ok, record} =
-      Library.ProgressRecords.find_or_create_for_container(container_type, container_id, %{
+      Library.ProgressRecords.find_or_create_for_container(profile_id, container_type, container_id, %{
         position_seconds: 0.0,
         duration_seconds: 0.0
       })
@@ -240,7 +251,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     Library.ProgressRecords.mark_completed!(record)
   end
 
-  defp apply_progress_transition(nil, _container_type, nil), do: nil
+  defp apply_progress_transition(nil, _profile_id, _container_type, nil), do: nil
 
   defp toggle_extra_watched(profile_id, entity_id, extra_id) do
     case Library.ProgressRecords.fetch_for_extra(extra_id) do

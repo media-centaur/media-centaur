@@ -12,7 +12,7 @@ defmodule MediaCentaur.WatchHistory do
   """
   import Ecto.Query
 
-  alias MediaCentaur.{Library, Repo, Topics}
+  alias MediaCentaur.{Repo, Topics}
   alias MediaCentaur.WatchHistory.{Event, Rewatch, Stats}
 
   @doc "Subscribe to watch_history:events PubSub topic."
@@ -155,19 +155,12 @@ defmodule MediaCentaur.WatchHistory do
   def rewatch_count_map(type), do: Rewatch.count_per_entity(type)
 
   @doc """
-  Delete an Event from history.
-
-  By default the linked `WatchProgress` is left untouched (use `remove from
-  history` semantics). Pass `reset_progress: true` to also reset the linked
-  progress to incomplete — used when the user wants to mark the title as
-  unwatched, not just prune the history row.
-
-  If the entity FK has been nilified (the entity was deleted), the progress
-  reset is skipped silently.
+  Delete an Event from history. The linked `WatchProgress` is left
+  untouched — removing a history row is not marking the title unwatched.
 
   Returns `:ok`.
   """
-  def delete_event!(%Event{} = event, opts \\ []) do
+  def delete_event!(%Event{} = event) do
     Repo.delete!(event)
 
     Topics.publish(
@@ -175,7 +168,6 @@ defmodule MediaCentaur.WatchHistory do
       {:watch_event_deleted, event}
     )
 
-    if Keyword.get(opts, :reset_progress, false), do: reset_watch_progress(event)
     :ok
   end
 
@@ -205,39 +197,4 @@ defmodule MediaCentaur.WatchHistory do
     end_dt = DateTime.new!(date, ~T[23:59:59], "Etc/UTC")
     where(query, [e], e.completed_at >= ^start_dt and e.completed_at <= ^end_dt)
   end
-
-  defp reset_watch_progress(%Event{movie_id: movie_id}) when not is_nil(movie_id) do
-    case Library.ProgressRecords.fetch_for_container(:movie, movie_id) do
-      {:ok, progress} ->
-        Library.ProgressRecords.mark_incomplete(progress)
-        Library.broadcast_entities_changed([movie_id])
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp reset_watch_progress(%Event{episode_id: episode_id}) when not is_nil(episode_id) do
-    case Library.ProgressRecords.fetch_for_container(:episode, episode_id) do
-      {:ok, progress} ->
-        Library.ProgressRecords.mark_incomplete(progress)
-        Library.broadcast_entities_changed([episode_id])
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp reset_watch_progress(%Event{video_object_id: video_object_id}) when not is_nil(video_object_id) do
-    case Library.ProgressRecords.fetch_for_container(:video_object, video_object_id) do
-      {:ok, progress} ->
-        Library.ProgressRecords.mark_incomplete(progress)
-        Library.broadcast_entities_changed([video_object_id])
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp reset_watch_progress(_event), do: :ok
 end

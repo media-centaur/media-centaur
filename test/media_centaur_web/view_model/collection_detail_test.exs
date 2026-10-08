@@ -208,7 +208,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
   describe "compose/1 — DB-backed assembly" do
     test "returns :not_found when the id matches no movie_series projection" do
-      assert :not_found == CollectionDetail.compose(Ecto.UUID.generate())
+      assert :not_found == CollectionDetail.compose(owner_profile_id(), Ecto.UUID.generate())
     end
 
     test "collection with two present movies composes Library items" do
@@ -217,7 +217,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       create_present_member(collection, "Member One", ~D[2010-01-01])
       create_present_member(collection, "Member Two", ~D[2012-01-01])
 
-      assert {:ok, view_model} = CollectionDetail.compose(collection.id)
+      assert {:ok, view_model} = CollectionDetail.compose(owner_profile_id(), collection.id)
 
       assert [
                %MovieRow.Library{movie: %{name: "Member One"}},
@@ -247,7 +247,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         part_tmdb_id: 900_003
       })
 
-      assert {:ok, view_model} = CollectionDetail.compose(collection.id)
+      assert {:ok, view_model} = CollectionDetail.compose(owner_profile_id(), collection.id)
 
       assert [
                %MovieRow.Library{},

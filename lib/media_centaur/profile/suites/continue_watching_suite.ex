@@ -7,18 +7,22 @@ defmodule MediaCentaur.Profile.Suites.ContinueWatchingSuite do
   Two inputs:
 
     * `warm-cache` — `ContinueWatching.refresh_cache/0` is called
-      first, so `Views.continue_watching/1` reads from
+      first, so `Views.continue_watching/2` reads from
       `:library_view_continue_watching` (ETS).
     * `cold-fallback` — the ETS table is wiped, so
-      `Views.continue_watching/1` falls through to
-      `Library.list_in_progress/1` (DB). Both functions are
+      `Views.continue_watching/2` falls through to
+      `Library.list_in_progress/2` (DB). Both functions are
       timed under both inputs so the comparison is symmetric.
+
+  Both read as the owner profile (`Profiles.owner/0`), whose rows
+  `Profile.Loader` seeds.
   """
   @behaviour MediaCentaur.Profile.Suite
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.ContinueWatching
+  alias MediaCentaur.Profiles
 
   @table :library_view_continue_watching
 
@@ -49,12 +53,14 @@ defmodule MediaCentaur.Profile.Suites.ContinueWatchingSuite do
     # recreate the ETS table mid-bench and pollute subsequent
     # cold-fallback measurements. It gets its own suite below
     # (ContinueWatchingRefreshSuite) so cold reads stay honest.
+    owner_id = Profiles.owner().id
+
     %{
-      "Views.continue_watching/1 (limit: 30)" => fn ->
-        Views.continue_watching(limit: 30)
+      "Views.continue_watching/2 (limit: 30)" => fn ->
+        Views.continue_watching(owner_id, limit: 30)
       end,
-      "Library.list_in_progress/1 (limit: 30)" => fn ->
-        Library.list_in_progress(limit: 30)
+      "Library.list_in_progress/2 (limit: 30)" => fn ->
+        Library.list_in_progress(owner_id, limit: 30)
       end
     }
   end

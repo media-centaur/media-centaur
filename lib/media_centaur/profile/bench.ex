@@ -28,8 +28,8 @@ if Mix.env() in [:dev, :test] do
             %{
               input: "warm-cache",
               scenarios: [
-                %{name: "Views.continue_watching/1", stats: %{...}},
-                %{name: "Library.list_in_progress/1", stats: %{...}}
+                %{name: "Views.continue_watching/2", stats: %{...}},
+                %{name: "Library.list_in_progress/2", stats: %{...}}
               ]
             },
             %{input: "cold-fallback", scenarios: [...]}

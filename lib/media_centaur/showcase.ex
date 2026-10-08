@@ -125,9 +125,10 @@ defmodule MediaCentaur.Showcase do
     movies = Enum.map(Catalog.movies(), &seed_movie!(&1, client))
     tv_series = Enum.map(Catalog.tv_series(), &seed_tv_series!(&1, client))
     video_objects = Enum.map(Catalog.video_objects(), &seed_video_object!/1)
+    owner_id = MediaCentaur.Profiles.owner().id
 
     counts = %{
-      watch_progress: seed_watch_progress!(movies, tv_series),
+      watch_progress: seed_watch_progress!(owner_id, movies, tv_series),
       tracked_items: seed_release_tracking!(client),
       pending_files: seed_pending_files!(client),
       watch_events: seed_watch_history!(movies, tv_series),
@@ -366,7 +367,7 @@ defmodule MediaCentaur.Showcase do
   @completed_movie_count 2
   @completed_episode_count 2
 
-  defp seed_watch_progress!(movies, tv_series) do
+  defp seed_watch_progress!(owner_id, movies, tv_series) do
     now = DateTime.utc_now()
     movies_with_id = Enum.filter(movies, & &1.id)
 
@@ -382,6 +383,7 @@ defmodule MediaCentaur.Showcase do
         pcts: @in_progress_movie_pcts,
         completed: false,
         now: now,
+        profile: owner_id,
         stagger_offset: 0
       )
 
@@ -393,6 +395,7 @@ defmodule MediaCentaur.Showcase do
         pcts: List.duplicate(1.0, @completed_movie_count),
         completed: true,
         now: now,
+        profile: owner_id,
         stagger_offset: length(@in_progress_movie_pcts)
       )
 
@@ -401,6 +404,7 @@ defmodule MediaCentaur.Showcase do
         pcts: @in_progress_episode_pcts,
         completed: false,
         now: now,
+        profile: owner_id,
         stagger_offset: 0
       )
 
@@ -412,6 +416,7 @@ defmodule MediaCentaur.Showcase do
         pcts: List.duplicate(1.0, @completed_episode_count),
         completed: true,
         now: now,
+        profile: owner_id,
         stagger_offset: length(@in_progress_episode_pcts)
       )
 
@@ -423,6 +428,7 @@ defmodule MediaCentaur.Showcase do
     pcts = Keyword.fetch!(opts, :pcts)
     completed? = Keyword.fetch!(opts, :completed)
     stagger_offset = Keyword.fetch!(opts, :stagger_offset)
+    owner_id = Keyword.fetch!(opts, :profile)
     duration = 5400.0
 
     movies
@@ -430,7 +436,7 @@ defmodule MediaCentaur.Showcase do
     |> Enum.with_index()
     |> Enum.map(fn {{movie, pct}, idx} ->
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
+        Library.ProgressRecords.find_or_create_for_container(owner_id, :movie, movie.id, %{
           position_seconds: pct * duration,
           duration_seconds: duration,
           completed: completed?,
@@ -447,6 +453,7 @@ defmodule MediaCentaur.Showcase do
     pcts = Keyword.fetch!(opts, :pcts)
     completed? = Keyword.fetch!(opts, :completed)
     stagger_offset = Keyword.fetch!(opts, :stagger_offset)
+    owner_id = Keyword.fetch!(opts, :profile)
     duration = 1800.0
 
     episodes
@@ -454,7 +461,7 @@ defmodule MediaCentaur.Showcase do
     |> Enum.with_index()
     |> Enum.map(fn {{episode, pct}, idx} ->
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(:episode, episode.id, %{
+        Library.ProgressRecords.find_or_create_for_container(owner_id, :episode, episode.id, %{
           position_seconds: pct * duration,
           duration_seconds: duration,
           completed: completed?,

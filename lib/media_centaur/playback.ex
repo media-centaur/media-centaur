@@ -37,9 +37,9 @@ defmodule MediaCentaur.Playback do
   def play(profile_id, uuid) when is_binary(profile_id) and is_binary(uuid) do
     Log.info(:playback, "play requested — #{Format.short_id(uuid)} for #{Format.short_id(profile_id)}")
 
-    case Resolver.resolve(uuid) do
+    case Resolver.resolve(profile_id, uuid) do
       {:ok, play_params} ->
-        Sessions.play(Map.put(play_params, :profile_id, profile_id))
+        Sessions.play(play_params)
 
       {:error, reason} ->
         Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")

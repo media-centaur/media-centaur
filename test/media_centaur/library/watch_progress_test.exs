@@ -16,7 +16,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       {:ok, found} =
-        Library.ProgressRecords.fetch_for_container(:movie, movie.id)
+        Library.ProgressRecords.fetch_for_container(owner_profile_id(), :movie, movie.id)
 
       found = MediaCentaur.Repo.preload(found, :playable_item)
 
@@ -61,7 +61,9 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       # Mark completed via dedicated action
-      {:ok, record} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
+      {:ok, record} =
+        Library.ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
+
       {:ok, _} = Library.ProgressRecords.mark_completed(record)
 
       # Now upsert with a lower position (re-watching from earlier)
@@ -71,7 +73,8 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, updated} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
+      {:ok, updated} =
+        Library.ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
 
       # completed stays true — never regresses
       assert updated.completed == true
@@ -152,7 +155,8 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, updated} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
+      {:ok, updated} =
+        Library.ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
 
       assert DateTime.compare(updated.last_watched_at, first.last_watched_at) in [:gt, :eq]
       assert updated.position_seconds == 300.0
@@ -301,37 +305,34 @@ defmodule MediaCentaur.Library.WatchProgressTest do
     end
   end
 
-  describe "unique constraint on playable_item_id" do
-    # Library Schema v2 Phase 2 Task C added `UNIQUE(playable_item_id)`
-    # so a second insert targeting the same PlayableItem fails with a
-    # changeset constraint error rather than silently creating duplicate
-    # progress rows.
-    test "second insert against the same playable_item_id errors" do
+  describe "unique constraint on (profile_id, playable_item_id)" do
+    # One progress row per profile per PlayableItem (ADR-078): a second
+    # insert for the same pair fails with a changeset constraint error
+    # rather than silently creating duplicate rows; another profile's
+    # row for the same item is a different pair.
+    test "a second insert for the same pair errors; another profile's row is fine" do
       movie = create_entity(%{type: :movie, name: "Unique Constraint Movie"})
+      ana = create_profile(%{name: "Ana"})
 
       {:ok, playable_item} =
         Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
-      assert {:ok, _first} =
-               Repo.insert(
-                 WatchProgress.create_changeset(%{
-                   playable_item_id: playable_item.id,
-                   position_seconds: 10.0,
-                   duration_seconds: 100.0
-                 })
-               )
+      attrs = %{
+        profile_id: owner_profile_id(),
+        playable_item_id: playable_item.id,
+        position_seconds: 10.0,
+        duration_seconds: 100.0
+      }
+
+      assert {:ok, _first} = Repo.insert(WatchProgress.create_changeset(attrs))
 
       assert {:error, changeset} =
-               Repo.insert(
-                 WatchProgress.create_changeset(%{
-                   playable_item_id: playable_item.id,
-                   position_seconds: 50.0,
-                   duration_seconds: 100.0
-                 })
-               )
+               Repo.insert(WatchProgress.create_changeset(%{attrs | position_seconds: 50.0}))
 
       refute changeset.valid?
-      assert {"has already been taken", _} = changeset.errors[:playable_item_id]
+      assert {"has already been taken", _} = changeset.errors[:profile_id]
+
+      assert {:ok, _hers} = Repo.insert(WatchProgress.create_changeset(%{attrs | profile_id: ana.id}))
     end
   end
 end

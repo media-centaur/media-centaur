@@ -38,7 +38,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
         })
 
       # mpv mid-playback hot row at ~89% — completed:false
-      :ok = Progress.record(record.playable_item_id, 1659.0, 1851.0)
+      :ok = Progress.record(owner_profile_id(), record.playable_item_id, 1659.0, 1851.0)
 
       # Manual "mark watched": writes DB completed:true, leaves the hot row.
       {:ok, _completed} = ProgressRecords.mark_completed(record)
@@ -172,7 +172,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # helper (no preload), then mark completed. The resulting record
       # has `playable_item: %Ecto.Association.NotLoaded{}`.
       {:ok, raw_progress} =
-        ProgressRecords.fetch_for_container(:episode, episode.id)
+        ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
 
       {:ok, raw_progress} = ProgressRecords.mark_completed(raw_progress)
 
@@ -280,7 +280,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # Write a *fresh* in-memory position via the Pillar-2 GenServer.
       # The flush interval is 60s, so the persisted row stays at 10s
       # for the duration of the test.
-      :ok = Progress.record(playable_item.id, 75.0, 100.0)
+      :ok = Progress.record(owner_profile_id(), playable_item.id, 75.0, 100.0)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 

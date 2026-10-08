@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   if no `:tv_series` projection row matches `entity_id`. Callers reach
   this through the detail modal's single loader, which resolves the
   container kind via `MediaCentaur.Library.Presentable` first — so
-  `compose/1` is only ever asked about ids already known to present as
+  `compose/2` is only ever asked about ids already known to present as
   `:tv_series`, and its projection read is the data fetch, not a probe.
 
   Reads the Library half from `MediaCentaur.Library.Views.Detail`
@@ -79,20 +79,20 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
   on the loaded entry, so callers don't have to thread it separately.
   """
-  @spec compose(Ecto.UUID.t()) :: {:ok, t()} | :not_found
-  def compose(entity_id) when is_binary(entity_id) do
+  @spec compose(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, t()} | :not_found
+  def compose(profile_id, entity_id) when is_binary(profile_id) and is_binary(entity_id) do
     case Library.Views.detail_by_container(:tv_series, entity_id) do
       %DetailItem{} = detail_item ->
-        compose_from_detail(detail_item, entity_id)
+        compose_from_detail(profile_id, detail_item, entity_id)
 
       nil ->
         :not_found
     end
   end
 
-  defp compose_from_detail(detail_item, entity_id) do
+  defp compose_from_detail(profile_id, detail_item, entity_id) do
     entity = detail_item |> DetailItem.to_entity_view() |> Library.MediaTrackOverrides.put_on_entity()
-    progress_records = Library.ProgressRecords.list_for_tv_series(entity_id)
+    progress_records = Library.ProgressRecords.list_for_container(profile_id, :tv_series, entity_id)
     progress_summary = ProgressSummary.compute(entity, progress_records)
 
     entry = %{
@@ -341,10 +341,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   end
 
   defp index_progress_by_episode_id(progress_records) do
-    # WatchProgress is keyed by `playable_item_id` since Library Schema
-    # v2 Phase 2 Task C. The container id (Episode UUID) lives on the
-    # synthesised `:playable_item` field that
-    # `ProgressRecords.list_for_container/2` attaches at runtime (or that
+    # The records are one profile's, so `playable_item_id` is unique
+    # among them (`(profile_id, playable_item_id)`, ADR-078). The
+    # container id (Episode UUID) lives on the synthesised
+    # `:playable_item` field that
+    # `ProgressRecords.list_for_container/3` attaches at runtime (or that
     # tests inject via `build_progress`).
     progress_records
     |> Enum.map(fn record ->

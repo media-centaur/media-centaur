@@ -26,10 +26,10 @@ defmodule MediaCentaurWeb.ViewModel.LeafDetail do
           resume_target: map() | nil
         }
 
-  @doc "Loads the entry for a resolved leaf; `:not_found` when it has no present file."
-  @spec compose(:movie | :video_object, Ecto.UUID.t()) :: {:ok, t()} | :not_found
-  def compose(kind, id) when kind in [:movie, :video_object] and is_binary(id) do
-    case ModalEntry.load_resolved(kind, id) do
+  @doc "Loads the entry for a resolved leaf with `profile_id`'s progress; `:not_found` when it has no present file."
+  @spec compose(Ecto.UUID.t(), :movie | :video_object, Ecto.UUID.t()) :: {:ok, t()} | :not_found
+  def compose(profile_id, kind, id) when kind in [:movie, :video_object] and is_binary(id) do
+    case ModalEntry.load_resolved(profile_id, kind, id) do
       {:ok, entry} -> {:ok, build(entry)}
       :not_found -> :not_found
     end

@@ -49,6 +49,14 @@ defmodule MediaCentaur.Profiles do
   @spec list() :: [Profile.t()]
   def list, do: Repo.all(from profile in Profile, order_by: [asc: profile.inserted_at, asc: profile.id])
 
+  @doc """
+  The owner profile: the oldest one, which the upgrade created and every
+  watching row from before profiles was assigned to. Never nil — the
+  install always has a profile (`remove/1` refuses the last).
+  """
+  @spec owner() :: Profile.t()
+  def owner, do: hd(list())
+
   @doc "A profile by id; nil for an unknown or malformed id."
   @spec get(String.t()) :: Profile.t() | nil
   def get(id) when is_binary(id) do

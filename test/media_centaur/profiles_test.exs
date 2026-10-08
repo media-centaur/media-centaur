@@ -10,6 +10,14 @@ defmodule MediaCentaur.ProfilesTest do
 
   setup :setup_tmp_data_dir
 
+  describe "owner/0" do
+    test "owner is the oldest profile" do
+      [me] = Profiles.list()
+      {:ok, _ana} = Profiles.add("Ana")
+      assert Profiles.owner().id == me.id
+    end
+  end
+
   test "the upgrade left one owner profile named Me" do
     assert [%Profile{name: "Me", hue: nil, picture_at: nil}] = Profiles.list()
     assert Profiles.count() == 1
