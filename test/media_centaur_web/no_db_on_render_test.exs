@@ -159,7 +159,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
 
     test "GET /library mounts within budget", %{conn: conn} do
       # Library Schema v2 Phase 3.1: LibraryLive reads from Views.Browse
-      # (BrowseItem structs), Library.ProgressRecords.summaries/1, and
+      # (BrowseItem structs), Library.ProgressRecords.summaries/2, and
       # Library.MediaFileAvailability.available_for_ids/1 — three bounded reads.
       #
       # In **production** the Browse projection's Cache.Worker keeps

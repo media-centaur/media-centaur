@@ -54,6 +54,7 @@ to `Port.open`. Unit-tested without spawning anything.
 | `--keep-open=yes` | `eof-reached` fires only at true playlist end. `always` would fire it at every file and quit mpv mid-chain. |
 | `--resume-playback=no` | The app owns position, track choice and sound toggles. mpv's watch-later restore fills in `start`, `aid`, `sid`, `af` and more whenever the command line leaves them unset, which the restart-from-0 path does. |
 | `--script=<priv>/mpv/scripts/media-centaur` | The bundled package. |
+| `--script-opts-append=media_centaur_session-profile_id=<id>` | The profile the session records under; `SessionRecovery` reads it back over IPC after a backend restart. `-append` so the user's own `script-opts` stay. |
 | `--alang`, `--slang`, `--subs-with-matching-audio`, `--sid=no` | The language policy (`LanguageContext.to_mpv_flags/1`). |
 | `--{ --start=N <file> --}` | Resume position, scoped to the launch file so appended successors start at their own offset (ADR-062). |
 

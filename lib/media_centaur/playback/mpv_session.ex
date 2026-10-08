@@ -725,7 +725,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  defp reset_for_file(state, path, fk_fields, item) do
+  # Pure apart from cancelling the capture timer; public so the test can
+  # pin that an advance keeps the profile the session was started for.
+  @doc false
+  def reset_for_file(state, path, fk_fields, item) do
     if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
 
     Map.merge(

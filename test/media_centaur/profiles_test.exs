@@ -3,6 +3,7 @@ defmodule MediaCentaur.ProfilesTest do
 
   import MediaCentaur.TmpDataDir
 
+  alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Profiles
   alias MediaCentaur.Profiles.Events
   alias MediaCentaur.Profiles.PictureStore
@@ -128,6 +129,8 @@ defmodule MediaCentaur.ProfilesTest do
     create_watch_progress(%{profile_id: ana.id, movie_id: movie.id, position_seconds: 10.0})
     create_watch_progress(%{profile_id: me.id, movie_id: movie.id, position_seconds: 20.0})
     create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Sample Movie"})
+    extra = create_extra(%{movie_id: movie.id, name: "Behind the Scenes"})
+    create_extra_progress(%{profile_id: ana.id, extra_id: extra.id, position_seconds: 5.0})
 
     {:ok, _} =
       MediaCentaur.Library.MediaTrackOverrides.upsert(ana.id, :movie, movie.id, %{audio_lang: "fra"})
@@ -135,10 +138,13 @@ defmodule MediaCentaur.ProfilesTest do
     assert :ok = Profiles.remove(ana)
 
     assert {:error, :not_found} =
-             MediaCentaur.Library.ProgressRecords.fetch_for_container(ana.id, :movie, movie.id)
+             ProgressRecords.fetch_for_container(ana.id, :movie, movie.id)
+
+    assert ProgressRecords.fetch_for_extra(ana.id, extra.id) ==
+             {:error, :not_found}
 
     assert {:ok, %{position_seconds: 20.0}} =
-             MediaCentaur.Library.ProgressRecords.fetch_for_container(me.id, :movie, movie.id)
+             ProgressRecords.fetch_for_container(me.id, :movie, movie.id)
 
     assert MediaCentaur.WatchHistory.list_events(ana.id) == []
     assert MediaCentaur.Library.MediaTrackOverrides.get(ana.id, :movie, movie.id) == nil

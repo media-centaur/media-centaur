@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   affordance does not exist for keyboard/gamepad input. Fade-out is
   never delayed. A soft radial halo behind the button provides glyph
   legibility without washing the card. The button fires
-  the shared `"play"` event (`MediaCentaur.Playback.play/1` in place —
+  the shared `"play"` event (`MediaCentaur.Playback.play/2` in place —
   no detail modal).
 
   Deliberately outside the input system: `tabindex="-1"`, no

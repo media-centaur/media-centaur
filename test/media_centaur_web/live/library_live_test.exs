@@ -2182,7 +2182,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       |> element(~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
       |> render_click()
 
-      # The factory file has no bytes on disk, so reaching Playback.play/1
+      # The factory file has no bytes on disk, so reaching Playback.play/2
       # deterministically surfaces the file-not-available flash — proof the
       # click went straight to playback instead of routing through the modal.
       assert render(view) =~ "File not available"

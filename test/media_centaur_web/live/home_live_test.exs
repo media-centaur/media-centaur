@@ -679,7 +679,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       |> element(~s|[data-component="hero"] button[phx-click="play"]|)
       |> render_click()
 
-      # Factory file has no bytes on disk → reaching Playback.play/1
+      # Factory file has no bytes on disk → reaching Playback.play/2
       # surfaces the flash; the modal must not have opened on the way.
       assert render(view) =~ "File not available"
       refute has_element?(view, "#detail-modal[data-state='open']")

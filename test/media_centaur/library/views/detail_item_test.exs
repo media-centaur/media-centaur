@@ -13,7 +13,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
   Position ticks during playback would otherwise invalidate the
   projection on every flush — same overlay pattern Phase 3.1
   established for `BrowseItem` (consumed alongside
-  `Library.ProgressRecords.summaries/1`).
+  `Library.ProgressRecords.summaries/2`).
   """
   use MediaCentaur.Case, async: true
 

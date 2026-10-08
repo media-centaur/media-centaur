@@ -122,7 +122,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # v2 Phase 2 Task C; the linked PlayableItem carries the
       # `(container_type, container_id)` discriminator. The broadcaster
       # substitutes a synthesised-`:playable_item` version (the shape
-      # `ProgressRecords.list_for_container/2` returns) so subscribers can key by
+      # `ProgressRecords.list_for_container/3` returns) so subscribers can key by
       # container id without an extra preload.
       assert changed_record.playable_item.container_type == :episode
       assert changed_record.playable_item.container_id == episode.id
@@ -235,13 +235,13 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
   describe "stale-read window — broadcast must reflect in-memory progress" do
     # Regression for Library Schema v2 Phase 3 Task E I-2: the
-    # `LibraryProgress.record/3` hot-path writes to the in-memory ETS
+    # `LibraryProgress.record/4` hot-path writes to the in-memory ETS
     # table only; the debounced flush persists to disk on the next
     # interval (default ~5s). Before Phase 3 Task E,
     # `ProgressBroadcaster.broadcast/3` re-read entity progress via
     # `TypeResolver.resolve_container` + Repo preload — which would
     # see the *stale* persisted row, not the fresh in-memory state.
-    # The fix overlays `Library.Progress.get/1` for every record's
+    # The fix overlays `Library.Progress.get/2` for every record's
     # `playable_item_id` after the DB load.
 
     alias MediaCentaur.Library.Progress
@@ -263,7 +263,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       end
     end
 
-    test "broadcast payload reflects fresh in-memory position written via Progress.record/3" do
+    test "broadcast payload reflects fresh in-memory position written via Progress.record/4" do
       ensure_progress_worker!()
       Progress.reset_for_test!()
 

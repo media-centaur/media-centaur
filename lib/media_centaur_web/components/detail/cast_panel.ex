@@ -138,7 +138,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   The episode Play would start, with its cast membership: the
   resume-target episode when its key matches a loaded episode, otherwise
   the first episode with a present file — the same episode
-  `Playback.play/1`'s resolver would pick for a fresh series. Returns
+  `Playback.play/2`'s resolver would pick for a fresh series. Returns
   `%{key: {season_number, episode_number}, cast_person_ids: ids}`; the
   key names the lead section's heading. Returns `nil` for movies and
   series without loaded seasons or present episodes; membership ids may
