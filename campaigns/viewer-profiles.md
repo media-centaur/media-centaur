@@ -363,19 +363,69 @@ three releases.
 
 ## Next steps
 
-1. Owner's check of the branch: the picker and Settings → Profiles (TV
+1. **Phase 3, docs — starts now, in a new context, on the same branch
+   in the same worktree.** The owner is away and validates later;
+   nothing in phase 3 waits on the visual check. Read this file's
+   Status, the two hand-off blocks and the phase 3 hand-off below,
+   then write the docs (no implementation plan needed; one commit per
+   surface is fine):
+   * `README.md`: the "does not … support multiple users" sentence
+     becomes "profiles for who has watched what, no accounts" (one
+     library, one watchlist, one social setup, one set of settings).
+   * Wiki `FAQ.md`: rewrite "Why no multi-user accounts?" the same way.
+   * Wiki: a `Profiles.md` page under *Using Media Centaur* (what a
+     profile is and is not, the picker, the switcher, Settings →
+     Profiles, what is per profile and what stays shared, the owner
+     profile an upgrade creates, removal takes the profile's watching
+     with it, the cap of eight); link it from `_Sidebar.md`, `Home.md`,
+     `Home-Page.md` (Continue Watching is the profile's),
+     `Watch-History.md` (the page is the profile's), `Playback.md`
+     (resume and remembered tracks are the profile's; the finish prompt
+     opens for the profile that watched), `Settings-Reference.md`
+     (the Profiles section exists from phase 1; check it still reads
+     true after phase 2).
+   * Wiki `Troubleshooting.md`: "A film that was playing during
+     *Update now* is not tracked afterwards" (the legacy mpv session is
+     skipped on recovery; close and replay), and "Progress recorded in
+     the seconds of the update may be lost" (the flush window).
+   * `decisions/user-interface/…-012-…`: a dated amendment — the
+     single-screen appliance now has sessions, each with an active
+     profile; `scripts/gen-decisions-index` afterwards.
+   * `docs/GLOSSARY.md`: promote the campaign glossary's terms
+     (profile, social profile, active profile, picker, switcher,
+     watching state, shared state, owner profile, watching scope,
+     profile-keyed read model, legacy session) per the terminology SOP.
+   * Push the wiki (`cd ../media-centaur.wiki && git push`; its two
+     phase 1 commits `5b8ca60`, `4f91542` are still local) with the
+     phase 3 wiki commits on top.
+   * **Skipped by decision (owner, 2026-10-08): screenshots.** The
+     website and README screenshots are re-shot some day in the future,
+     not in this campaign.
+2. Owner's check when home: the picker and Settings → Profiles (TV
    sizing is open: 96 is the largest tile and the heading is 3xl); two
    profiles watching the same title on the dev server (progress,
    resume, Continue Watching, History, remembered tracks, the finish
    prompt); the context-map R1 findings above. Then the merge of
    `viewer-profiles` into main — discard the main checkout's
-   uncommitted older planning-doc copies first (hand-off above).
-2. **Phase 3, docs**: FAQ and README narrowed to "profiles for who has
-   watched what, no accounts"; a wiki Profiles page; Troubleshooting
-   (a session started before the upgrade is not tracked after it);
-   UIDR-012 amended for sessions; screenshots; push the wiki.
+   uncommitted older planning-doc copies first (hand-off above) — and
+   `/ship minor`.
 3. Later, each on its own decision: a few settings per profile,
    watching together per title, restricted profiles.
+
+**Phase 3 hand-off, 2026-10-08.** The user-visible shape is settled:
+phase 1 (`/profiles` picker, sidebar switcher, Settings → Profiles with
+name, picture, colour, Remove, cap of eight, owner profile "Me") and
+phase 2 (per-profile progress, resume, Continue Watching, History,
+remembered tracks, finish prompt; one watchlist, social setup and
+settings). The wiki checkout is `../media-centaur.wiki` (sibling
+repo); the phase 1 Settings → Profiles section is in
+`Settings-Reference.md`. Copy follows the `writing-copy` skill and the
+terminology SOP: the word is **profile**, the social kind is always
+**social profile**, never a coined term. Read `docs/superpowers/specs/
+2026-10-06-viewer-profiles-design.md` ("Core idea", "Glossary",
+"Scope") and ADR-078 for the facts; the migration moduledocs under
+`priv/repo/migrations/20261008*` for the upgrade behaviour the
+Troubleshooting entries describe.
 
 ## Completion criteria
 
