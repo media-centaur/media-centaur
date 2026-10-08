@@ -217,10 +217,14 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> reset_stream()}
   end
 
-  def handle_info({:entity_progress_updated, %{entity_id: entity_id}}, socket) do
+  def handle_info(
+        {:entity_progress_updated, %{entity_id: entity_id, profile_id: profile_id}},
+        %{assigns: %{profile: %{id: profile_id}}} = socket
+      ) do
     # The title detail host keeps the open modal's progress fresh on
     # its own. Here we refresh just the affected card's progress
     # summary so the bar / completion overlay reflects the change.
+    # Another profile's progress is not this grid's (ADR-078).
     updated_summaries = Library.ProgressRecords.summaries([entity_id])
 
     progress_by_id =
@@ -234,6 +238,8 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> assign(progress_by_id: progress_by_id)
      |> touch_stream_entries([entity_id])}
   end
+
+  def handle_info({:entity_progress_updated, _another_profile}, socket), do: {:noreply, socket}
 
   def handle_info({:playback_state_changed, %{entity_id: entity_id}}, socket) do
     # The title detail host owns the playing set. Here we only

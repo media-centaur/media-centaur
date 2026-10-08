@@ -514,6 +514,14 @@ defmodule MediaCentaur.TestFactory do
     end
   end
 
+  @doc """
+  The owner profile the phase 1 migration created ("Me"): the profile a
+  `ConnCase` test mounts as when it does not pick one with `with_profile/2`,
+  and the default profile of the watching-row factories as phase 2 gives
+  them one.
+  """
+  def owner_profile_id, do: MediaCentaur.Profiles.list() |> hd() |> Map.fetch!(:id)
+
   def create_tv_series(attrs \\ %{}) do
     create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs)
   end

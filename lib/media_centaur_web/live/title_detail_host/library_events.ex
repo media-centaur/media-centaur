@@ -50,10 +50,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   @spec events() :: [String.t()]
   def events, do: @events
 
-  @doc "Plays a playable id in place (UIDR-027); what stands in the way is flashed."
+  @doc "Plays a playable id in place (UIDR-027) as the socket's profile; what stands in the way is flashed."
   @spec play(socket(), Ecto.UUID.t()) :: socket()
   def play(socket, id) do
-    case Playback.play(id) do
+    case Playback.play(socket.assigns.profile.id, id) do
       :ok ->
         socket
 
@@ -77,12 +77,18 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
         %{"entity-id" => entity_id, "container-type" => container_type, "container-id" => container_id},
         socket
       ) do
-    toggle_watch_progress(entity_id, parse_container_type(container_type), container_id)
+    toggle_watch_progress(
+      socket.assigns.profile.id,
+      entity_id,
+      parse_container_type(container_type),
+      container_id
+    )
+
     socket
   end
 
   def handle("toggle_extra_watched", %{"extra-id" => extra_id, "entity-id" => entity_id}, socket) do
-    toggle_extra_watched(entity_id, extra_id)
+    toggle_extra_watched(socket.assigns.profile.id, entity_id, extra_id)
     socket
   end
 
@@ -190,10 +196,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   defp parse_container_type("episode"), do: :episode
   defp parse_container_type("video_object"), do: :video_object
 
-  defp toggle_watch_progress(entity_id, container_type, container_id) do
+  defp toggle_watch_progress(profile_id, entity_id, container_type, container_id) do
     progress = load_progress(container_type, container_id)
     changed_record = apply_progress_transition(progress, container_type, container_id)
-    ProgressBroadcaster.broadcast(entity_id, changed_record)
+    ProgressBroadcaster.broadcast(profile_id, entity_id, changed_record)
   end
 
   defp load_progress(_container_type, nil), do: nil
@@ -236,7 +242,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
   defp apply_progress_transition(nil, _container_type, nil), do: nil
 
-  defp toggle_extra_watched(entity_id, extra_id) do
+  defp toggle_extra_watched(profile_id, entity_id, extra_id) do
     case Library.ProgressRecords.fetch_for_extra(extra_id) do
       {:ok, %{completed: true} = progress} ->
         Log.info(:library, "extra toggled incomplete")
@@ -260,7 +266,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
         Library.ProgressRecords.mark_completed!(record)
     end
 
-    ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+    ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
   end
 
   # --- Artwork ---

@@ -17,7 +17,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   alias MediaCentaur.Playback.Events.{EntityProgressUpdated, ExtraProgressUpdated}
 
   @doc """
-  Loads entity progress and broadcasts an `:entity_progress_updated` message.
+  Loads entity progress and broadcasts an `:entity_progress_updated` message
+  naming `profile_id`, the profile the change was recorded under.
 
   `changed` identifies the `WatchProgress` whose change triggered this
   broadcast, in either of two forms:
@@ -44,7 +45,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   `nil` explicitly only when there genuinely is no single record (e.g. a
   bulk recomputation or an end-of-playback summary refresh).
   """
-  def broadcast(entity_id, changed) do
+  @spec broadcast(Ecto.UUID.t(), Ecto.UUID.t(), map() | String.t() | nil) :: :ok | {:error, term()}
+  def broadcast(profile_id, entity_id, changed) do
     case resolve_entity_with_progress(entity_id) do
       {:ok, entity, progress_records} ->
         summary = MediaCentaur.Library.ProgressSummary.compute(entity, progress_records)
@@ -54,6 +56,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
 
         Events.broadcast(%EntityProgressUpdated{
           entity_id: entity_id,
+          profile_id: profile_id,
           summary: summary,
           resume_target: resume_target,
           changed_record: select_changed_record(progress_records, changed),
@@ -139,12 +142,14 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   end
 
   @doc """
-  Broadcasts an `:extra_progress_updated` message for a specific extra.
+  Broadcasts an `:extra_progress_updated` message for a specific extra,
+  naming `profile_id`, the profile the change was recorded under.
 
   Simpler than entity broadcast — no summary/resume recomputation needed.
   Loads the current ExtraProgress record and broadcasts it.
   """
-  def broadcast_extra(entity_id, extra_id) do
+  @spec broadcast_extra(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, term()}
+  def broadcast_extra(profile_id, entity_id, extra_id) do
     progress =
       case MediaCentaur.Library.ProgressRecords.fetch_for_extra(extra_id) do
         {:ok, record} -> record
@@ -155,6 +160,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
 
     Events.broadcast(%ExtraProgressUpdated{
       entity_id: entity_id,
+      profile_id: profile_id,
       extra_id: extra_id,
       progress: progress
     })

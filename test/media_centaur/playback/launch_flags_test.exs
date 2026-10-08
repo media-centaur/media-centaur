@@ -11,7 +11,8 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
         language_flags: ["--alang=jpn,eng", "--slang=eng"],
         content_url: "/media/a.mkv",
         start_position: 0,
-        bundled_scripts_dir: "/opt/media-centaur/priv/mpv/scripts/media-centaur"
+        bundled_scripts_dir: "/opt/media-centaur/priv/mpv/scripts/media-centaur",
+        profile_id: "0f1e2d3c-aaaa-bbbb-cccc-123456789abc"
       },
       overrides
     )
@@ -25,6 +26,9 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
       assert "--resume-playback=no" in flags
       assert "--input-ipc-server=/tmp/media-centaur-entity.sock" in flags
       assert "--log-file=/tmp/media-centaur-abcd.log" in flags
+
+      assert "--script-opts-append=media_centaur_session-profile_id=0f1e2d3c-aaaa-bbbb-cccc-123456789abc" in flags
+
       assert "--fullscreen" in flags
       assert "--no-terminal" in flags
       assert "--force-window=immediate" in flags

@@ -5,7 +5,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
   alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Playback.ProgressBroadcaster
 
-  describe "broadcast/2" do
+  describe "broadcast/3" do
     # Reproduces the manual-completion-during-active-playback race: a user
     # finishes an episode at 89% (mpv never crosses its 90% auto-complete
     # bar, so its hot in-memory row stays completed:false) and clicks "mark
@@ -44,7 +44,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       {:ok, _completed} = ProgressRecords.mark_completed(record)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
-      ProgressBroadcaster.broadcast(tv_series.id, record)
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, record)
 
       assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
       assert changed_record.completed == true
@@ -70,7 +70,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(tv_series.id, nil)
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, nil)
 
       assert_receive {:entity_progress_updated,
                       %{
@@ -107,7 +107,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(tv_series.id, record)
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, record)
 
       assert_receive {:entity_progress_updated,
                       %{
@@ -130,7 +130,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
     end
 
     test "returns :ok for nonexistent entity" do
-      assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate(), nil)
+      assert :ok == ProgressBroadcaster.broadcast(owner_profile_id(), Ecto.UUID.generate(), nil)
     end
 
     test "changed_record in payload carries :playable_item container info" do
@@ -147,7 +147,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # Reproduces the real toggle path:
       # `fetch_watch_progress_by_fk/2` returns an un-preloaded record →
       # `mark_watch_completed!/1` preserves the un-preloaded shape →
-      # `ProgressBroadcaster.broadcast/2` must substitute a preloaded
+      # `ProgressBroadcaster.broadcast/3` must substitute a preloaded
       # version for the broadcast payload.
       tv_series = create_entity(%{type: :tv_series, name: "Toggle Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
@@ -180,7 +180,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(tv_series.id, raw_progress)
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, raw_progress)
 
       assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
 
@@ -222,7 +222,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(tv_series.id, record.playable_item_id)
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, record.playable_item_id)
 
       assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
 
@@ -238,7 +238,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
     # `LibraryProgress.record/3` hot-path writes to the in-memory ETS
     # table only; the debounced flush persists to disk on the next
     # interval (default ~5s). Before Phase 3 Task E,
-    # `ProgressBroadcaster.broadcast/1` re-read entity progress via
+    # `ProgressBroadcaster.broadcast/3` re-read entity progress via
     # `TypeResolver.resolve_container` + Repo preload — which would
     # see the *stale* persisted row, not the fresh in-memory state.
     # The fix overlays `Library.Progress.get/1` for every record's
@@ -284,7 +284,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(movie.id, nil)
+      ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
       assert_receive {:entity_progress_updated,
                       %{

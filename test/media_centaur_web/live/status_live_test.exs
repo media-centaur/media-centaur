@@ -161,6 +161,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         {:playback_state_changed,
          %PlaybackStateChanged{
            entity_id: movie_id,
+           profile_id: owner_profile_id(),
            state: :playing,
            now_playing: %{
              entity_id: movie_id,
@@ -169,7 +170,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
              position_seconds: 100.0,
              duration_seconds: 1000.0
            },
-           started_at: DateTime.utc_now()
+           started_at: System.monotonic_time(:millisecond)
          }}
       )
 
@@ -193,6 +194,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         {:playback_state_changed,
          %PlaybackStateChanged{
            entity_id: movie_id,
+           profile_id: owner_profile_id(),
            state: :playing,
            now_playing: %{
              entity_id: movie_id,
@@ -200,7 +202,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
              position_seconds: 100.0,
              duration_seconds: 1000.0
            },
-           started_at: DateTime.utc_now()
+           started_at: System.monotonic_time(:millisecond)
          }}
       )
 
@@ -242,6 +244,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         {:playback_state_changed,
          %PlaybackStateChanged{
            entity_id: movie_id,
+           profile_id: owner_profile_id(),
            state: :playing,
            now_playing: %{
              entity_id: movie_id,
@@ -249,7 +252,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
              position_seconds: 0.0,
              duration_seconds: 1000.0
            },
-           started_at: DateTime.utc_now()
+           started_at: System.monotonic_time(:millisecond)
          }}
       )
 
@@ -260,9 +263,10 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         {:playback_state_changed,
          %PlaybackStateChanged{
            entity_id: movie_id,
+           profile_id: owner_profile_id(),
            state: :stopped,
            now_playing: nil,
-           started_at: DateTime.utc_now()
+           started_at: System.monotonic_time(:millisecond)
          }}
       )
 

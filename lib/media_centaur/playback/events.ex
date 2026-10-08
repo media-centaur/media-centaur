@@ -37,23 +37,22 @@ defmodule MediaCentaur.Playback.Events do
   Pair with the `MC0012 PlaybackEventsContract` Credo check, which flags
   any direct `Phoenix.PubSub.broadcast/3` to this topic outside this
   module — the goal is that **every** message lands here first.
+
+  Every event about watching state names the `profile_id` it was recorded
+  under (ADR-078); a subscriber holding profile-scoped state compares it
+  with its own.
   """
 
   alias MediaCentaur.Topics
 
   defmodule EntityProgressUpdated do
-    @moduledoc "Persisted progress for an entity (movie / episode root) changed."
-    @enforce_keys [:entity_id, :summary, :resume_target, :changed_record, :last_activity_at]
-    defstruct [
-      :entity_id,
-      :summary,
-      :resume_target,
-      :changed_record,
-      :last_activity_at
-    ]
+    @moduledoc "Persisted progress for an entity (movie / episode root) changed, for one profile."
+    @enforce_keys [:entity_id, :profile_id, :summary, :resume_target, :changed_record, :last_activity_at]
+    defstruct [:entity_id, :profile_id, :summary, :resume_target, :changed_record, :last_activity_at]
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            profile_id: String.t(),
             summary: map(),
             resume_target: map() | nil,
             changed_record: map() | nil,
@@ -62,12 +61,13 @@ defmodule MediaCentaur.Playback.Events do
   end
 
   defmodule ExtraProgressUpdated do
-    @moduledoc "Persisted progress for an extra (bonus / behind-the-scenes) changed."
-    @enforce_keys [:entity_id, :extra_id, :progress]
-    defstruct [:entity_id, :extra_id, :progress]
+    @moduledoc "Persisted progress for an extra (bonus / behind-the-scenes) changed, for one profile."
+    @enforce_keys [:entity_id, :profile_id, :extra_id, :progress]
+    defstruct [:entity_id, :profile_id, :extra_id, :progress]
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            profile_id: String.t(),
             extra_id: String.t(),
             progress: map() | nil
           }
@@ -75,15 +75,16 @@ defmodule MediaCentaur.Playback.Events do
 
   defmodule PlaybackStateChanged do
     @moduledoc "MpvSession state moved to :playing, :paused, or :stopped."
-    @enforce_keys [:entity_id, :state, :now_playing, :started_at]
-    defstruct [:entity_id, :state, :now_playing, :started_at]
+    @enforce_keys [:entity_id, :profile_id, :state, :now_playing, :started_at]
+    defstruct [:entity_id, :profile_id, :state, :now_playing, :started_at]
 
     @type state :: :playing | :paused | :stopped
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            profile_id: String.t(),
             state: state(),
             now_playing: map() | nil,
-            started_at: DateTime.t()
+            started_at: integer()
           }
   end
 
@@ -107,15 +108,19 @@ defmodule MediaCentaur.Playback.Events do
     ended before any. An episode carries its season and episode numbers,
     so a subscriber can compare it with TMDB's numbering without a read.
     """
-    @enforce_keys [:entity_id, :completed]
-    defstruct [:entity_id, :completed]
+    @enforce_keys [:entity_id, :profile_id, :completed]
+    defstruct [:entity_id, :profile_id, :completed]
 
     @type item ::
             {:movie, String.t()}
             | {:episode, String.t(), integer() | nil, integer() | nil}
             | {:video_object, String.t()}
             | {:extra, String.t()}
-    @type t :: %__MODULE__{entity_id: String.t(), completed: MapSet.t(item())}
+    @type t :: %__MODULE__{
+            entity_id: String.t(),
+            profile_id: String.t(),
+            completed: MapSet.t(item())
+          }
   end
 
   defmodule TrackOverrideChanged do
@@ -124,10 +129,11 @@ defmodule MediaCentaur.Playback.Events do
     selection differs from the language policy's choice — captured as
     a per-entity override.
     """
-    @enforce_keys [:owner_type, :owner_id]
-    defstruct [:owner_type, :owner_id]
+    @enforce_keys [:profile_id, :owner_type, :owner_id]
+    defstruct [:profile_id, :owner_type, :owner_id]
 
     @type t :: %__MODULE__{
+            profile_id: String.t(),
             owner_type: :tv_series | :movie,
             owner_id: String.t()
           }

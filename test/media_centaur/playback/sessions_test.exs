@@ -16,6 +16,7 @@ defmodule MediaCentaur.Playback.SessionsTest do
       params = %{
         action: :play_next,
         entity_id: Ecto.UUID.generate(),
+        profile_id: Ecto.UUID.generate(),
         entity_name: "Ghost Movie",
         content_url: missing_path,
         start_position: 0.0

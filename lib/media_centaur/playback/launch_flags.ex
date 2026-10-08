@@ -27,10 +27,19 @@ defmodule MediaCentaur.Playback.LaunchFlags do
       Next Episode, the track menu) ship inside the release as one mpv
       directory script and load per launch, never copied into the user
       config. See `docs/mpv.md`.
+    * `--script-opts-append=media_centaur_session-profile_id=<id>` — the
+      profile the session records under (ADR-078) lives in the mpv process,
+      the one thing that survives a backend restart; `SessionRecovery` reads
+      it back over IPC. `-append`, never `--script-opts=`, so the user's own
+      script options in `mpv.conf` stay as they are. The identifier
+      `media_centaur_session` is not the bundled script's `media_centaur`, so
+      `mp.options.read_options` in `priv/mpv/scripts/media-centaur/main.lua`
+      never sees an unknown key.
   """
 
   @app :media_centaur
   @bundled_scripts_path "priv/mpv/scripts/media-centaur"
+  @profile_script_opt "media_centaur_session-profile_id"
 
   @typedoc "What one launch needs from the session."
   @type input :: %{
@@ -39,7 +48,8 @@ defmodule MediaCentaur.Playback.LaunchFlags do
           language_flags: [String.t()],
           content_url: String.t(),
           start_position: number(),
-          bundled_scripts_dir: Path.t()
+          bundled_scripts_dir: Path.t(),
+          profile_id: String.t()
         }
 
   @doc "The full argv, ending with the launch target."
@@ -54,7 +64,8 @@ defmodule MediaCentaur.Playback.LaunchFlags do
       "--resume-playback=no",
       "--input-ipc-server=#{input.socket_path}",
       "--log-file=#{input.log_file_path}",
-      "--script=#{input.bundled_scripts_dir}"
+      "--script=#{input.bundled_scripts_dir}",
+      "--script-opts-append=#{@profile_script_opt}=#{input.profile_id}"
     ] ++
       input.language_flags ++
       launch_target(input.content_url, input.start_position)
@@ -76,6 +87,10 @@ defmodule MediaCentaur.Playback.LaunchFlags do
   end
 
   def launch_target(url, _start_position), do: [url]
+
+  @doc "The script option key that carries the session's profile id, as mpv reports it in `script-opts`."
+  @spec profile_script_opt() :: String.t()
+  def profile_script_opt, do: @profile_script_opt
 
   @doc "The bundled scripts package inside this release (or the dev checkout's `priv/`)."
   @spec bundled_scripts_dir() :: Path.t()

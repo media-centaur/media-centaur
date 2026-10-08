@@ -479,9 +479,10 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       Events.broadcast(%PlaybackStateChanged{
         entity_id: movie.id,
+        profile_id: owner_profile_id(),
         state: :playing,
         now_playing: %{},
-        started_at: DateTime.utc_now()
+        started_at: System.monotonic_time(:millisecond)
       })
 
       # The now-playing movie floats into Continue Watching only after the
@@ -510,9 +511,34 @@ defmodule MediaCentaurWeb.HomeLiveTest do
         })
 
       Library.ProgressRecords.mark_completed!(progress)
-      ProgressBroadcaster.broadcast(movie.id, nil)
+      ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
       assert render(view) =~ "Watch again"
+    end
+
+    test "entity_progress_updated from another profile leaves the open detail alone", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      ana = create_profile(%{name: "Ana"})
+
+      # With two profiles a cookie-less conn lands on the picker, so the owner is picked.
+      {:ok, view, html} =
+        conn
+        |> with_profile(MediaCentaur.Profiles.get(owner_profile_id()))
+        |> live_async!("/?entity=#{movie.id}")
+
+      refute html =~ "Watch again"
+
+      {:ok, progress} =
+        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
+          position_seconds: 100.0,
+          duration_seconds: 100.0
+        })
+
+      Library.ProgressRecords.mark_completed!(progress)
+      ProgressBroadcaster.broadcast(ana.id, movie.id, nil)
+
+      refute render(view) =~ "Watch again"
     end
 
     test "playback_failed broadcast renders an error flash",
@@ -670,9 +696,10 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       %{movie: movie}
     end
 
-    defp finish(movie, completed \\ nil) do
+    defp finish(movie, profile_id, completed \\ nil) do
       Events.broadcast(%SessionEnded{
         entity_id: movie.id,
+        profile_id: profile_id,
         completed: MapSet.new(completed || [{:movie, movie.id}])
       })
     end
@@ -680,7 +707,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     test "opens the finished movie with the prompt", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
 
-      finish(movie)
+      finish(movie, owner_profile_id())
 
       assert_patch(view, "/?entity=#{movie.id}")
       assert render(view) =~ ~s|data-state="open"|
@@ -688,9 +715,22 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert render(view) =~ "You finished"
     end
 
+    test "a session another profile finished does not open the prompt here", %{conn: conn, movie: movie} do
+      ana = create_profile(%{name: "Ana"})
+
+      # With two profiles a cookie-less conn lands on the picker, so the owner is picked.
+      {:ok, view, _html} =
+        conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/")
+
+      finish(movie, ana.id)
+
+      refute has_element?(view, "#finish-prompt")
+      refute render(view) =~ ~s|data-state="open"|
+    end
+
     test "Done dismisses the prompt and leaves the modal open", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
-      finish(movie)
+      finish(movie, owner_profile_id())
       assert_patch(view, "/?entity=#{movie.id}")
 
       view |> element("#finish-prompt-done") |> render_click()
@@ -703,7 +743,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/?entity=#{movie.id}&view=info")
       assert has_element?(view, ~s|[data-role="manage-toolbar"]|)
 
-      finish(movie)
+      finish(movie, owner_profile_id())
 
       assert has_element?(view, "#finish-prompt")
       assert has_element?(view, ~s|[data-role="manage-toolbar"]|)
@@ -712,7 +752,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     test "a session that completed nothing opens nothing", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
 
-      finish(movie, [])
+      finish(movie, owner_profile_id(), [])
 
       refute render(view) =~ ~s|data-state="open"|
       refute has_element?(view, "#finish-prompt")
@@ -727,7 +767,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/")
 
-      finish(movie)
+      finish(movie, owner_profile_id())
 
       refute render(view) =~ ~s|data-state="open"|
       refute has_element?(view, "#finish-prompt")
@@ -735,7 +775,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
     test "closing the modal drops the prompt", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
-      finish(movie)
+      finish(movie, owner_profile_id())
       assert_patch(view, "/?entity=#{movie.id}")
 
       render_patch(view, "/")
@@ -746,7 +786,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
     test "the prompt's Delete arms the primary delete", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
-      finish(movie)
+      finish(movie, owner_profile_id())
       assert_patch(view, "/?entity=#{movie.id}")
       render_async(view)
 
@@ -784,7 +824,11 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     end
 
     defp finish_series(series, completed) do
-      Events.broadcast(%SessionEnded{entity_id: series.id, completed: MapSet.new(completed)})
+      Events.broadcast(%SessionEnded{
+        entity_id: series.id,
+        profile_id: owner_profile_id(),
+        completed: MapSet.new(completed)
+      })
     end
 
     test "the finale of an ended show opens it as finished, with the delete", %{
@@ -859,6 +903,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     defp finish_member(collection, movie) do
       Events.broadcast(%SessionEnded{
         entity_id: collection.id,
+        profile_id: owner_profile_id(),
         completed: MapSet.new([{:movie, movie.id}])
       })
     end

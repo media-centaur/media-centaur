@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.FinishTest do
   alias MediaCentaurWeb.Live.TitleDetailHost.Finish
 
   defp ended(entity_id, completed),
-    do: %SessionEnded{entity_id: entity_id, completed: MapSet.new(completed)}
+    do: %SessionEnded{entity_id: entity_id, profile_id: "p-1", completed: MapSet.new(completed)}
 
   describe "reaction/4 — a standalone movie" do
     test "opens a standalone movie the session completed" do

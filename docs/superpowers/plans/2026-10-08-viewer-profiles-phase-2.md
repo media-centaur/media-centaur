@@ -36,11 +36,11 @@
 | `WatchHistory.delete_event!/2`'s `reset_progress: true` option has no caller in `lib/`; only its own tests use it. | **Fix now (Task 6):** remove the option and `reset_watch_progress/1`, with its tests. No compatibility path. |
 | `Library.Views.ContinueWatching` is one rank-keyed ETS table built from a profile-less `list_in_progress/1`; `WatchHistory.Views.Summary` is one `:persistent_term` snapshot. | **Fix now (Tasks 3, 6):** Continue Watching becomes a `:set` of `{profile_id, items}`; Summary a `%{profile_id => SummaryData}` under its one key. Both rebuild whole, for the profile ids present in their source table (`ProgressRecords.profile_ids_with_progress/0`, `WatchHistory.profile_ids_with_events/0`). The derived messages are unchanged; a page re-reads for its own profile. `RankedProjection` keeps the three rank-keyed projections. |
 | `Library.Progress.Worker`'s ETS key is `playable_item_id`; `ProgressTicked` / `ProgressFlushed` name only the item. | **Fix now (Task 3):** key `{profile_id, playable_item_id}`; the row map and both events carry `profile_id`. |
-| `SessionRecovery` rebuilds a session from `media-centaur-<entity_id>.sock` alone; a profile would be lost across a backend restart. | **Fix now (Task 1):** the socket is `media-centaur-<entity_id>.<profile_id>.sock`. A socket in the old shape (an mpv started by the outgoing release and still running across the upgrade) is skipped with a log line rather than recovered under a guessed profile; no `Profiles` dependency in `Playback`. One-release edge. |
+| `SessionRecovery` rebuilds a session from `media-centaur-<entity_id>.sock` plus what mpv reports; a profile would be lost across a backend restart. | **Fix now (Task 1):** the profile is pinned as a launch flag, `--script-opts-append=media_centaur_session-profile_id=<id>`, so it lives in the mpv process — the one thing that survives a restart — and recovery reads it back with `get_property script-opts`, as it already reads `path` and `time-pos` (ADR-023). A running mpv without the option (started by the outgoing release) is skipped with a log line rather than recovered under a guessed profile; no `Profiles` dependency in `Playback`. One-release edge. (A first cut put both ids in the socket name; at 92 bytes that left 15 for `mpv_socket_dir` under the 107-byte Unix socket path limit, so it was dropped.) |
 | The Status page's `PlaybackActivity` (hours watched, titles, streak, recent five) is install-wide per the spec; the spec's text files it under "the History page" by mistake. The spec also lists `HeroCandidates` among the read models to key, but it never reads watching state. | **Record (Task 7):** spec amendments. `WatchHistory`'s readers take a `scope` of a profile id or `:all`; `PlaybackActivity` reads `:all`; `HeroCandidates` is untouched. |
 | `EntityView.watch_progress: []` and `DetailItem … watch_progress: []` are dead fields predating this campaign ("progress is an overlay"). | **Scheduled, not here:** named in the campaign file as a cleanup; not part of the profile sweep. |
 
-**Scope cost.** The `has_one` removal (Task 2) and the socket rename (Task 1) are the two pieces the spec did not list. Both are small and strictly simplifying; both are recorded in the campaign's Decisions for the owner.
+**Scope cost.** The `has_one` removal (Task 2) and the recovery launch flag (Task 1) are the two pieces the spec did not list. Both are small and strictly simplifying; both are recorded in the campaign's Decisions for the owner.
 
 ---
 
@@ -50,7 +50,7 @@
 |---|---|
 | **Watching scope** | What a `WatchHistory` reader is asked for: one profile's id, or `:all` for the install-wide view the Status page shows. Type `MediaCentaur.WatchHistory.scope()`. |
 | **Profile-keyed read model** | A projection whose snapshot is held per profile and read with the profile id: `Library.Views.ContinueWatching` (ETS `{profile_id, items}`), `WatchHistory.Views.Summary` (`%{profile_id => SummaryData}`). Rebuilt whole. |
-| **Legacy socket** | An mpv IPC socket named `media-centaur-<entity_id>.sock`, the shape before phase 2. Recovery skips it. |
+| **Legacy session** | A running mpv started by a release before phase 2: its `script-opts` carry no `media_centaur_session-profile_id`. Recovery skips it. |
 
 ---
 
@@ -69,7 +69,7 @@
 | `lib/media_centaur/library/views/continue_watching.ex`, `views.ex`, `views/ranked_projection.ex` | Profile-keyed Continue Watching; `Views.continue_watching(profile_id, opts)`. |
 | `lib/media_centaur/library/media_track_overrides.ex` | `get/3`, `upsert/4`, `clear/3`, `put_on_entity/2` take the profile first. |
 | `lib/media_centaur/library/entity_shape.ex`, `containers.ex`, `browser.ex`, `entity_cascade.ex`, `deletion.ex`, `type_resolver.ex`, `playable_item.ex`, `movie.ex`, `episode.ex`, `video_object.ex` | The `has_one :watch_progress` path removed. |
-| `lib/media_centaur/playback.ex`, `playback/resolver.ex`, `next_episode.ex`, `sessions.ex`, `mpv_session.ex`, `session_recovery.ex`, `language_context.ex`, `progress_broadcaster.ex`, `events.ex` | The profile rides play → params → session → writes → events; the socket name carries it. |
+| `lib/media_centaur/playback.ex`, `playback/resolver.ex`, `next_episode.ex`, `sessions.ex`, `mpv_session.ex`, `launch_flags.ex`, `session_recovery.ex`, `language_context.ex`, `progress_broadcaster.ex`, `events.ex` | The profile rides play → params → session → writes → events; the mpv launch flag carries it across a backend restart. |
 | `lib/media_centaur/watch_history.ex`, `watch_history/rewatch.ex`, `recorder.ex`, `views.ex`, `views/summary.ex`, `views/playback_activity.ex` | Scoped readers; the recorder writes the record's profile; Summary per profile; PlaybackActivity `:all`. |
 | `lib/media_centaur_web/live/title_detail_host.ex`, `title_detail_host/library_half.ex`, `library_events.ex`, `view_model/{series,collection,leaf}_detail.ex`, `lib/media_centaur/library/modal_entry.ex` | The open detail composes for the socket's profile; broadcasts from another profile are ignored. |
 | `lib/media_centaur_web/live/home_live.ex`, `library_live.ex`, `watch_history_live.ex` | Pages read for `socket.assigns.profile.id` in `handle_params`/`handle_info` (never `mount`, per `ProfileAware`). |
@@ -100,10 +100,12 @@ Expected: `0 failures` (a `Database busy` or a context-map timeout under load: r
 
 ### Task 1: Playback carries the profile
 
-The profile reaches playback at `Playback.play/2`, lives in the session struct and the socket name, and is named in every `playback:events` struct. Nothing in the data layer changes yet; the web layer passes `socket.assigns.profile.id` and ignores another profile's broadcasts.
+The profile reaches playback at `Playback.play/2`, lives in the session struct and in the mpv process (a pinned launch flag recovery reads back), and is named in every `playback:events` struct. Nothing in the data layer changes yet; the web layer passes `socket.assigns.profile.id` and ignores another profile's broadcasts.
+
+> **Amended during execution (2026-10-08).** The steps below first put both ids in the socket name. That name is 92 bytes and the Unix socket path limit is 107, leaving 15 for `mpv_socket_dir`; the implementer measured the failure under the recovery test's own directory. The profile now rides as `--script-opts-append=media_centaur_session-profile_id=<id>` in `LaunchFlags` (verified on mpv 0.41: `get_property script-opts` returns it; `-append` leaves the user's own `script-opts` intact), `SessionRecovery` reads that property, and the socket keeps its one-id name. Where the steps say "socket name", read "launch flag"; `socket_name/2` does not exist.
 
 **Files:**
-- Modify: `lib/media_centaur/playback.ex`, `lib/media_centaur/playback/sessions.ex`, `lib/media_centaur/playback/mpv_session.ex`, `lib/media_centaur/playback/session_recovery.ex`, `lib/media_centaur/playback/events.ex`, `lib/media_centaur/playback/progress_broadcaster.ex`
+- Modify: `lib/media_centaur/playback.ex`, `lib/media_centaur/playback/sessions.ex`, `lib/media_centaur/playback/mpv_session.ex`, `lib/media_centaur/playback/launch_flags.ex`, `lib/media_centaur/playback/session_recovery.ex`, `lib/media_centaur/playback/events.ex`, `lib/media_centaur/playback/progress_broadcaster.ex`
 - Modify: `lib/media_centaur_web/live/title_detail_host.ex`, `lib/media_centaur_web/live/title_detail_host/library_events.ex`, `lib/media_centaur_web/live/library_live.ex`
 - Test: `test/media_centaur/playback/mpv_session_test.exs`, `test/media_centaur/playback/session_recovery_test.exs`, `test/media_centaur/playback/sessions_test.exs`, `test/media_centaur_web/live/title_detail_host/finish_test.exs`, `test/media_centaur_web/live/home_live_test.exs`, `test/media_centaur_web/live/library_live_test.exs`, `test/media_centaur_web/live/status_live_test.exs`, `test/media_centaur/library/progress_test.exs` (event constructions)
 
@@ -1889,7 +1891,7 @@ Expected: PASS (the FKs do it). In `lib/media_centaur/profiles.ex`, `remove/1`'s
 
 - `lib/media_centaur/topics.ex` table: the `watch_history:events` row lists `{:watch_completed, playable_item_id}` too; the `playback:events` row reads "progress + state-change events, each naming its `profile_id`".
 - `docs/library.md` (file tracking / progress section): one paragraph — watching rows are per profile, keyed `(profile_id, …)`, read through `ProgressRecords` with the profile first; the `has_one :watch_progress` path is gone.
-- `docs/playback.md`: `Playback.play/2` takes the profile; the socket name carries it; a legacy socket is skipped on recovery.
+- `docs/playback.md`: `Playback.play/2` takes the profile; the launch flag carries it into mpv and recovery reads it back; a session without it is skipped on recovery.
 - Spec `docs/superpowers/specs/2026-10-06-viewer-profiles-design.md`, a dated amendment block under "Watching per profile (phase 2)":
 
 ```markdown
@@ -1900,8 +1902,9 @@ take a scope of a profile id or `:all`. The `has_one :watch_progress`
 associations and `EntityShape.extract_progress/2` are removed: a title's
 progress is read through `ProgressRecords.list_for_container/3` only.
 `WatchHistory.delete_event!/2`'s unused `reset_progress` option is removed.
-The mpv socket is `media-centaur-<entity_id>.<profile_id>.sock` so a
-recovered session keeps its profile; a socket in the old shape is skipped.
+The profile is pinned on the mpv command line
+(`--script-opts-append=media_centaur_session-profile_id=<id>`) so a
+recovered session keeps its profile; a running mpv without it is skipped.
 `Playback.play/2` takes the profile first. The backfill is the rebuild's
 `INSERT … SELECT`, so no `UPDATE` and no MC0015 carve-out.
 ```
