@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      {:ok, found} = Library.ProgressRecords.fetch_for_extra(extra.id)
+      {:ok, found} = Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra.id)
 
       assert found.extra_id == extra.id
       assert found.position_seconds == 45.0
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 120.0
       })
 
-      {:ok, found} = Library.ProgressRecords.fetch_for_extra(extra.id)
+      {:ok, found} = Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra.id)
       assert found.position_seconds == 80.0
     end
 
@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      {:ok, updated} = Library.ProgressRecords.fetch_for_extra(extra.id)
+      {:ok, updated} = Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra.id)
 
       assert updated.completed == true
       assert updated.position_seconds == 10.0
@@ -85,8 +85,8 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 180.0
       })
 
-      {:ok, found_1} = Library.ProgressRecords.fetch_for_extra(extra_1.id)
-      {:ok, found_2} = Library.ProgressRecords.fetch_for_extra(extra_2.id)
+      {:ok, found_1} = Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra_1.id)
+      {:ok, found_2} = Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra_2.id)
 
       assert found_1.position_seconds == 30.0
       assert found_2.position_seconds == 60.0
@@ -96,7 +96,8 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
       movie = create_entity(%{type: :movie, name: "Unwatched Extra Movie"})
       extra = create_extra(%{movie_id: movie.id, name: "Never Played"})
 
-      assert Library.ProgressRecords.fetch_for_extra(extra.id) == {:error, :not_found}
+      assert Library.ProgressRecords.fetch_for_extra(owner_profile_id(), extra.id) ==
+               {:error, :not_found}
     end
   end
 
@@ -156,6 +157,35 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
 
       assert incomplete.position_seconds == 0.0
       assert incomplete.duration_seconds == 300.0
+    end
+  end
+
+  describe "two profiles" do
+    test "each profile has its own row for the same extra; a profile without one reads not_found" do
+      movie = create_entity(%{type: :movie, name: "Sample Movie"})
+      extra = create_extra(%{movie_id: movie.id, name: "Behind the Scenes"})
+      me = owner_profile_id()
+      ana = create_profile(%{name: "Ana"}).id
+
+      create_extra_progress(%{
+        profile_id: me,
+        extra_id: extra.id,
+        position_seconds: 45.0,
+        duration_seconds: 300.0
+      })
+
+      assert {:ok, %{position_seconds: 45.0}} = Library.ProgressRecords.fetch_for_extra(me, extra.id)
+      assert {:error, :not_found} = Library.ProgressRecords.fetch_for_extra(ana, extra.id)
+
+      create_extra_progress(%{
+        profile_id: ana,
+        extra_id: extra.id,
+        position_seconds: 5.0,
+        duration_seconds: 300.0
+      })
+
+      assert {:ok, %{position_seconds: 5.0}} = Library.ProgressRecords.fetch_for_extra(ana, extra.id)
+      assert {:ok, %{position_seconds: 45.0}} = Library.ProgressRecords.fetch_for_extra(me, extra.id)
     end
   end
 end

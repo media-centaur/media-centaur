@@ -254,7 +254,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   defp apply_progress_transition(nil, _profile_id, _container_type, nil), do: nil
 
   defp toggle_extra_watched(profile_id, entity_id, extra_id) do
-    case Library.ProgressRecords.fetch_for_extra(extra_id) do
+    case Library.ProgressRecords.fetch_for_extra(profile_id, extra_id) do
       {:ok, %{completed: true} = progress} ->
         Log.info(:library, "extra toggled incomplete")
         Library.ProgressRecords.mark_incomplete!(progress)
@@ -268,6 +268,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
         {:ok, record} =
           Library.ProgressRecords.find_or_create_for_extra(%{
+            profile_id: profile_id,
             extra_id: extra_id,
             entity_id: entity_id,
             position_seconds: 0.0,
