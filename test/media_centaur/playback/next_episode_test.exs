@@ -49,7 +49,7 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
       %{episode_one: episode_one, episode_two: episode_two} =
         create_series_with_two_episodes(dir)
 
-      assert {:ok, item} = NextEpisode.resolve(episode_one.id)
+      assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
       assert item.episode_id == episode_two.id
       assert item.season_number == 1
       assert item.episode_number == 2
@@ -68,7 +68,7 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
         duration_seconds: 1800.0
       })
 
-      assert {:ok, item} = NextEpisode.resolve(episode_one.id)
+      assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
       assert item.episode_id == episode_two.id
       assert item.start_position == 300.0
     end
@@ -86,14 +86,14 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
 
       MediaCentaur.Library.ProgressRecords.mark_completed!(progress)
 
-      assert {:ok, item} = NextEpisode.resolve(episode_one.id)
+      assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
       assert item.start_position == 0.0
     end
 
     test "returns :none after the final episode", %{dir: dir} do
       %{episode_two: episode_two} = create_series_with_two_episodes(dir)
 
-      assert NextEpisode.resolve(episode_two.id) == :none
+      assert NextEpisode.resolve(owner_profile_id(), episode_two.id) == :none
     end
 
     test "returns :none when auto-play is disabled", %{dir: dir} do
@@ -104,7 +104,7 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
         value: %{"enabled" => false}
       })
 
-      assert NextEpisode.resolve(episode_one.id) == :none
+      assert NextEpisode.resolve(owner_profile_id(), episode_one.id) == :none
     end
 
     test "returns :none when the successor's file is gone from disk", %{dir: dir} do
@@ -113,11 +113,11 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
 
       File.rm!(episode_two.content_url)
 
-      assert NextEpisode.resolve(episode_one.id) == :none
+      assert NextEpisode.resolve(owner_profile_id(), episode_one.id) == :none
     end
 
     test "returns :none for an unknown id" do
-      assert NextEpisode.resolve(Ecto.UUID.generate()) == :none
+      assert NextEpisode.resolve(owner_profile_id(), Ecto.UUID.generate()) == :none
     end
   end
 

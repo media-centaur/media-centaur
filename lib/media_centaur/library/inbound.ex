@@ -43,7 +43,8 @@ defmodule MediaCentaur.Library.Inbound do
   leaf the rest of the system writes against:
 
     * `Library.WatchedFile` keys to `playable_item_id` (Task B).
-    * `Library.WatchProgress` keys to `playable_item_id` (Task C).
+    * `Library.WatchProgress` keys to `(profile_id, playable_item_id)`
+      (Task C; the profile since ADR-078).
 
   Container rows above the leaf (`TVSeries`, `MovieSeries`) never carry a
   PlayableItem of their own — their PlayableItems hang off the child

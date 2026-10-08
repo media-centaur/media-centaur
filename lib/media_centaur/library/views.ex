@@ -33,12 +33,9 @@ defmodule MediaCentaur.Library.Views do
     Topics.subscribe(Topics.library_views())
   end
 
-  @doc """
-  Returns up to `:limit` Continue Watching items in display order
-  (most-recently-watched first). Defaults to 12.
-  """
-  @spec continue_watching(keyword()) :: [ContinueWatchingItem.t()]
-  def continue_watching(opts \\ []), do: ContinueWatching.read(opts)
+  @doc "Up to `:limit` Continue Watching items for `profile_id`, most recently watched first. Defaults to 12."
+  @spec continue_watching(Ecto.UUID.t(), keyword()) :: [ContinueWatchingItem.t()]
+  def continue_watching(profile_id, opts \\ []), do: ContinueWatching.read(profile_id, opts)
 
   @doc """
   Returns up to `:limit` Hero Candidate items — entities suitable as

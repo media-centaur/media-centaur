@@ -429,7 +429,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :continue_items,
-      Logic.continue_watching_items(load_progress(), socket.assigns.playback)
+      Logic.continue_watching_items(load_progress(socket), socket.assigns.playback)
     )
   end
 
@@ -449,7 +449,7 @@ defmodule MediaCentaurWeb.HomeLive do
   # Each loader returns a list of plain maps in the shape Logic expects.
   # Loaders returning [] are intentional stubs — see WIRE(4.6) comments.
 
-  defp load_progress, do: Views.continue_watching(limit: 24)
+  defp load_progress(socket), do: Views.continue_watching(socket.assigns.profile.id, limit: 24)
 
   defp load_coming_up(today) do
     # Show all upcoming releases in the next 90 days. The row scrolls

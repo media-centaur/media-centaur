@@ -4,12 +4,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   identity, reloading it in place, merging the playback broadcasts into
   it without a read, and the deferred file-info load.
 
-  `load/1` resolves the owner the library has for a TMDB ref
+  `load/2` resolves the owner the library has for a TMDB ref
   (`Library.ExternalIds.tmdb_owners/1`) to its presentable container
   (`Library.Presentable.resolve/1`) and composes it by kind — a
   `SeriesDetail`, a `CollectionDetail` or a `LeafDetail` — into a
-  `Title.Detail.Library`; a collection speaks of the member the ref
-  names. `load_entity/1` does the same from an entity id — the residue's
+  `Title.Detail.Library`, carrying the profile's progress (ADR-078); a
+  collection speaks of the member the ref names. `load_entity/2` does
+  the same from an entity id — the residue's
   address, and what an entity emitter hands the host — selecting the
   member the id names. Both are projection reads, milliseconds
   (ADR-051), synchronous on open like every local fact. Nil when the
@@ -47,22 +48,22 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
 
   # --- Loading ---
 
-  @spec load(TitleRef.ref()) :: Half.t() | nil
-  def load({tmdb_id, _media_type} = ref) do
+  @spec load(Ecto.UUID.t(), TitleRef.ref()) :: Half.t() | nil
+  def load(profile_id, {tmdb_id, _media_type} = ref) do
     with owner_id when is_binary(owner_id) <- Map.get(ExternalIds.tmdb_owners([ref]), ref),
          {kind, id} <- Presentable.resolve(owner_id),
-         {:ok, entry} <- compose(kind, id) do
+         {:ok, entry} <- compose(profile_id, kind, id) do
       Half.new(entry, member_id(entry, tmdb_id), available: available?(entry))
     else
       _unowned -> nil
     end
   end
 
-  @doc "The half for an entity id; a member id selects that member of its collection."
-  @spec load_entity(Ecto.UUID.t()) :: Half.t() | nil
-  def load_entity(id) when is_binary(id) do
+  @doc "The half for an entity id with the profile's progress; a member id selects that member of its collection."
+  @spec load_entity(Ecto.UUID.t(), Ecto.UUID.t()) :: Half.t() | nil
+  def load_entity(profile_id, id) when is_binary(profile_id) and is_binary(id) do
     with {kind, resolved_id} <- Presentable.resolve(id),
-         {:ok, entry} <- compose(kind, resolved_id) do
+         {:ok, entry} <- compose(profile_id, kind, resolved_id) do
       member_id = if id != resolved_id, do: id
       Half.new(entry, member_id, available: available?(entry))
     else
@@ -75,10 +76,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   when the subject has a TMDB identity, the entity address for the
   residue, `:not_found` for an id the library has no present file for.
   """
-  @spec address(Ecto.UUID.t()) ::
+  @spec address(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:title, TitleRef.ref(), Half.t()} | {:entity, Ecto.UUID.t(), Half.t()} | :not_found
-  def address(id) do
-    case load_entity(id) do
+  def address(profile_id, id) do
+    case load_entity(profile_id, id) do
       nil -> :not_found
       %Half{subject: subject} = half -> subject_address(subject, id, half)
     end
@@ -91,12 +92,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
     end
   end
 
-  @doc "The same half re-read after a mutation, keeping its member and its files."
-  @spec reload(Half.t()) :: Half.t() | nil
-  def reload(%Half{entry: %{entity: %{id: container_id}}, member: member, files: files}) do
+  @doc "The same half re-read for the profile after a mutation, keeping its member and its files."
+  @spec reload(Ecto.UUID.t(), Half.t()) :: Half.t() | nil
+  def reload(profile_id, %Half{entry: %{entity: %{id: container_id}}, member: member, files: files}) do
     member_id = member && member.movie.id
 
-    case load_entity(member_id || container_id) do
+    case load_entity(profile_id, member_id || container_id) do
       nil -> nil
       half -> %{half | files: files}
     end
@@ -107,9 +108,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   def keep_files(%Half{} = fresh, %Half{files: files}), do: %{fresh | files: files}
   def keep_files(fresh, _open), do: fresh
 
-  defp compose(:tv_series, id), do: SeriesDetail.compose(id)
-  defp compose(:movie_series, id), do: CollectionDetail.compose(id)
-  defp compose(kind, id), do: LeafDetail.compose(kind, id)
+  defp compose(profile_id, :tv_series, id), do: SeriesDetail.compose(profile_id, id)
+  defp compose(profile_id, :movie_series, id), do: CollectionDetail.compose(profile_id, id)
+  defp compose(profile_id, kind, id), do: LeafDetail.compose(profile_id, kind, id)
 
   # The member the ref names, so a collection opened on a member's title
   # address speaks of that member (UIDR-023); nil lets the collection

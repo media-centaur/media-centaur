@@ -1850,7 +1850,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert entity_id == collection.id
 
       assert {:ok, %{completed: true}} =
-               MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, part_1.id)
+               MediaCentaur.Library.ProgressRecords.fetch_for_container(
+                 owner_profile_id(),
+                 :movie,
+                 part_1.id
+               )
 
       assert has_element?(view, "#rail-tile-#{part_1.id} [data-rail-state='watched']")
     end

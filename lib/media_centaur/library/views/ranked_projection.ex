@@ -1,12 +1,12 @@
 defmodule MediaCentaur.Library.Views.RankedProjection do
   @moduledoc """
   Shared skeleton for the rank-keyed, ETS-backed Library view projections
-  (ADR-041): `ContinueWatching`, `RecentlyAdded`, `HeroCandidates`, `Browse`.
+  (ADR-041): `RecentlyAdded`, `HeroCandidates`, `Browse`.
 
   Each mirrors a `Library.list_*` / `Browser.*` query into a named
   `:ordered_set` ETS table keyed by 0-based display rank, and reads bypass the
   owning `Cache.Worker` GenServer via `:ets.tab2list/1`. The storage, refresh,
-  and read *mechanics* are identical across all four; only the source query,
+  and read *mechanics* are identical across all three; only the source query,
   the view-model mapper, the subscribed topics, and the relevance filter differ
   per projection. This module owns those mechanics as plain functions the
   projections delegate to, so the duplicated `ensure_table` / replace / read /
@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.Views.RankedProjection do
 
   A `use`-macro was considered (it would also fold the per-projection
   `subscribe` / `relevant?` / `to_view_model`). Plain functions keep those
-  genuinely-different pieces explicit and avoid metaprogramming over four
+  genuinely-different pieces explicit and avoid metaprogramming over three
   shipped projections — elixir-thinking's "simplest abstraction wins."
   """
   alias MediaCentaur.Topics

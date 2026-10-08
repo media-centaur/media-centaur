@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.ModalEntry do
   @moduledoc """
   Builds the detail-modal entry for an entity id — the view-model the
-  detail UI opens onto.
+  detail UI opens onto, carrying one profile's progress (ADR-078).
 
   Reads the `Library.Views.Detail` projection rather than the tables, so
   opening a modal costs a cache read rather than a preload graph. The
@@ -30,9 +30,9 @@ defmodule MediaCentaur.Library.ModalEntry do
   projection, microsecond reads in production; live DB-fallback in test
   mode) — probes each container kind in turn and converts the first
   match's `DetailItem` to an `EntityView` via
-  `Views.DetailItem.to_entity_view/1`. Progress records come from
-  `list_progress_records_for_container/2`; the summary from
-  `ProgressSummary.compute/2`.
+  `Views.DetailItem.to_entity_view/1`. Progress records are the
+  profile's, from `ProgressRecords.list_for_container/3`; the summary
+  from `ProgressSummary.compute/2`.
 
   Returns `:not_found` when no container matches *and has at least one
   present file* — orphan entities (record exists, no `WatchedFile`)
@@ -44,17 +44,17 @@ defmodule MediaCentaur.Library.ModalEntry do
   `load_extras_for_entity/1` is retired — extras flow on the DetailItem
   now.
   """
-  @spec load(Ecto.UUID.t()) ::
+  @spec load(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
           | :not_found
-  def load(id) when is_binary(id) do
+  def load(profile_id, id) when is_binary(profile_id) and is_binary(id) do
     # Route through the single presentable authority: it applies the hoist
     # rule once (so opening a hoisted collection by its series id correctly
     # lands on the sole movie), then we build the view for the resolved
     # kind. `to_entity_view/1` keys off the projection's `presented_as`, so
     # the resolved kind and the built entity always agree.
     case Presentable.resolve(id) do
-      {kind, resolved_id} -> load_resolved(kind, resolved_id)
+      {kind, resolved_id} -> load_resolved(profile_id, kind, resolved_id)
       _ -> :not_found
     end
   end
@@ -67,13 +67,13 @@ defmodule MediaCentaur.Library.ModalEntry do
   once to dispatch between the per-kind composers, then calls this for the
   leaf kinds — re-resolving here would repeat those queries per open.
   """
-  @spec load_resolved(atom(), Ecto.UUID.t()) ::
+  @spec load_resolved(Ecto.UUID.t(), atom(), Ecto.UUID.t()) ::
           {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
           | :not_found
-  def load_resolved(kind, id) do
+  def load_resolved(profile_id, kind, id) when is_binary(profile_id) do
     case present_detail_for(kind, id) do
       nil -> :not_found
-      item -> {:ok, build_modal_entry(kind, item, id)}
+      item -> {:ok, build_modal_entry(profile_id, kind, item, id)}
     end
   end
 
@@ -99,9 +99,9 @@ defmodule MediaCentaur.Library.ModalEntry do
 
   defp any_present?(_type, %Views.DetailItem{present?: present}), do: present == true
 
-  defp build_modal_entry(container_type, item, id) do
+  defp build_modal_entry(profile_id, container_type, item, id) do
     entity = item |> Views.DetailItem.to_entity_view() |> MediaTrackOverrides.put_on_entity()
-    progress_records = ProgressRecords.list_for_container(container_type, id)
+    progress_records = ProgressRecords.list_for_container(profile_id, container_type, id)
     progress = ProgressSummary.compute(entity, progress_records)
 
     %{entity: entity, progress: progress, progress_records: progress_records}

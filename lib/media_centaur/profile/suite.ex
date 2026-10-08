@@ -37,12 +37,16 @@ defmodule MediaCentaur.Profile.Suite do
           "cold-fallback" => fn -> :ets.delete_all_objects(:library_view_continue_watching) end
         }
 
-        def scenarios, do: %{
-          "Views.continue_watching/1 (limit: 30)" =>
-            fn -> Views.continue_watching(limit: 30) end,
-          "Library.list_in_progress/1 (limit: 30)" =>
-            fn -> Library.list_in_progress(limit: 30) end
-        }
+        def scenarios do
+          owner_id = MediaCentaur.Profiles.owner().id
+
+          %{
+            "Views.continue_watching/2 (limit: 30)" =>
+              fn -> Views.continue_watching(owner_id, limit: 30) end,
+            "Library.list_in_progress/2 (limit: 30)" =>
+              fn -> Library.list_in_progress(owner_id, limit: 30) end
+          }
+        end
       end
   """
 

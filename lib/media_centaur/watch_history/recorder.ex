@@ -64,8 +64,8 @@ defmodule MediaCentaur.WatchHistory.Recorder do
     end
   end
 
-  # WatchProgress holds only `playable_item_id` since Library Schema v2
-  # Phase 2 Task C. The owning leaf is reached via the linked
+  # WatchProgress names its leaf only by `playable_item_id` (its key is
+  # `(profile_id, playable_item_id)`, ADR-078). The owning leaf is reached via the linked
   # `PlayableItem`'s `(container_type, container_id)` discriminator.
   # `Library.ProgressRecords.mark_completed/1` doesn't preload `:playable_item` —
   # we do it here so each clause can dispatch on container type.

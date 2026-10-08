@@ -1,11 +1,12 @@
 defmodule MediaCentaur.Playback.Resolver do
   @moduledoc """
-  Resolves a UUID into playback parameters.
+  Resolves a UUID into playback parameters for one profile.
 
   The UUID can identify any playable thing: a top-level Entity, an Episode,
   a child Movie, or an Extra. The resolver figures out what the UUID refers to,
-  loads the necessary context, applies smart resume logic, and returns a
-  `play_params` map suitable for `Sessions.play/1`.
+  loads the necessary context, applies smart resume logic against the
+  profile's own progress rows (ADR-078), and returns a `play_params` map
+  suitable for `Sessions.play/1` — the profile rides in it.
 
   UUID resolution order:
   1. Entity — if series, run `Resume.resolve`; if single item, check progress
@@ -24,6 +25,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
   @type play_params :: %{
           action: atom(),
+          profile_id: String.t(),
           entity_id: String.t(),
           entity_name: String.t(),
           season_number: integer() | nil,
@@ -38,31 +40,34 @@ defmodule MediaCentaur.Playback.Resolver do
         }
 
   @doc """
-  Resolves a UUID into playback parameters.
+  Resolves a UUID into playback parameters for `profile_id`.
 
   Returns `{:ok, play_params}` or `{:error, reason}`.
   """
-  @spec resolve(String.t()) :: {:ok, play_params()} | {:error, atom()}
-  def resolve(uuid) do
-    Log.info(:playback, "resolving #{Format.short_id(uuid)}")
+  @spec resolve(String.t(), String.t()) :: {:ok, play_params()} | {:error, atom()}
+  def resolve(profile_id, uuid) when is_binary(profile_id) and is_binary(uuid) do
+    Log.info(:playback, "resolving #{Format.short_id(uuid)} for #{Format.short_id(profile_id)}")
 
-    with {:error, :not_found} <- resolve_entity(uuid),
-         {:error, :not_found} <- resolve_episode(uuid),
-         {:error, :not_found} <- resolve_movie(uuid),
-         {:error, :not_found} <- resolve_extra(uuid) do
+    with {:error, :not_found} <- resolve_entity(profile_id, uuid),
+         {:error, :not_found} <- resolve_episode(profile_id, uuid),
+         {:error, :not_found} <- resolve_movie(profile_id, uuid),
+         {:error, :not_found} <- resolve_extra(profile_id, uuid) do
       Log.info(
         :playback,
         "resolve failed — #{Format.short_id(uuid)} not found as entity/episode/movie/extra"
       )
 
       {:error, :not_found}
+    else
+      {:ok, params} -> {:ok, Map.put(params, :profile_id, profile_id)}
+      {:error, _reason} = error -> error
     end
   end
 
   # --- Entity resolution ---
 
-  defp resolve_entity(uuid) do
-    case resolve_typed_entity(uuid) do
+  defp resolve_entity(profile_id, uuid) do
+    case resolve_typed_entity(profile_id, uuid) do
       {:ok, entity, progress_records} ->
         resolve_entity_playback(entity, progress_records)
 
@@ -71,11 +76,11 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_typed_entity(uuid) do
+  defp resolve_typed_entity(profile_id, uuid) do
     case TypeResolver.resolve_container(uuid, preload: Library.Containers.full_preloads_by_type()) do
       {:ok, type, record} ->
         {:ok, EntityShape.to_entity_view(record, type),
-         ProgressRecords.list_for_container(type, record.id)}
+         ProgressRecords.list_for_container(profile_id, type, record.id)}
 
       :not_found ->
         :not_found
@@ -118,27 +123,29 @@ defmodule MediaCentaur.Playback.Resolver do
 
   # --- Episode resolution ---
 
-  defp resolve_episode(uuid) do
+  defp resolve_episode(profile_id, uuid) do
     case Library.Episodes.fetch(uuid) do
       {:ok, episode} ->
-        resolve_episode_playback(episode)
+        resolve_episode_playback(profile_id, episode)
 
       {:error, _} ->
         {:error, :not_found}
     end
   end
 
-  defp resolve_episode_playback(%{content_url: nil} = episode) do
+  defp resolve_episode_playback(_profile_id, %{content_url: nil} = episode) do
     Log.info(:playback, "episode #{Format.short_id(episode.id)} has no content_url")
     {:error, :no_playable_content}
   end
 
-  defp resolve_episode_playback(episode) do
+  defp resolve_episode_playback(profile_id, episode) do
     with {:ok, season} <- Library.Seasons.fetch(episode.season_id),
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_entity_view(tv_series, :tv_series)
-      progress_records = ProgressRecords.list_for_container(:tv_series, season.tv_series_id)
+
+      progress_records =
+        ProgressRecords.list_for_container(profile_id, :tv_series, season.tv_series_id)
 
       progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
       position = resume_position(progress_by_key, episode.id)
@@ -175,23 +182,23 @@ defmodule MediaCentaur.Playback.Resolver do
 
   # --- Movie (child) resolution ---
 
-  defp resolve_movie(uuid) do
+  defp resolve_movie(profile_id, uuid) do
     case Library.Containers.fetch(:movie, uuid) do
       {:ok, movie} ->
-        resolve_movie_playback(movie)
+        resolve_movie_playback(profile_id, movie)
 
       {:error, _} ->
         {:error, :not_found}
     end
   end
 
-  defp resolve_movie_playback(%{content_url: nil} = movie) do
+  defp resolve_movie_playback(_profile_id, %{content_url: nil} = movie) do
     Log.info(:playback, "movie #{Format.short_id(movie.id)} has no content_url")
     {:error, :no_playable_content}
   end
 
-  defp resolve_movie_playback(movie) do
-    case resolve_movie_parent(movie) do
+  defp resolve_movie_playback(profile_id, movie) do
+    case resolve_movie_parent(profile_id, movie) do
       {:ok, entity, progress_records} ->
         available = MovieOrder.list_available(entity)
 
@@ -239,12 +246,15 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_movie_parent(movie) do
+  defp resolve_movie_parent(profile_id, movie) do
     if movie.movie_series_id do
       case Library.Containers.fetch_with_associations(:movie_series, movie.movie_series_id) do
         {:ok, ms} ->
           entity = EntityShape.to_entity_view(ms, :movie_series)
-          progress = ProgressRecords.list_for_container(:movie_series, movie.movie_series_id)
+
+          progress =
+            ProgressRecords.list_for_container(profile_id, :movie_series, movie.movie_series_id)
+
           {:ok, entity, progress}
 
         _ ->
@@ -254,7 +264,7 @@ defmodule MediaCentaur.Playback.Resolver do
       # Standalone movie — resolve as its own entity
       case Library.Containers.fetch_with_associations(:movie, movie.id) do
         {:ok, m} ->
-          progress = ProgressRecords.list_for_container(:movie, movie.id)
+          progress = ProgressRecords.list_for_container(profile_id, :movie, movie.id)
           {:ok, EntityShape.to_entity_view(m, :movie), progress}
 
         _ ->
@@ -265,23 +275,25 @@ defmodule MediaCentaur.Playback.Resolver do
 
   # --- Extra resolution ---
 
-  defp resolve_extra(uuid) do
+  defp resolve_extra(profile_id, uuid) do
     case Library.Extras.fetch(uuid) do
       {:ok, extra} ->
-        resolve_extra_playback(extra)
+        resolve_extra_playback(profile_id, extra)
 
       {:error, _} ->
         {:error, :not_found}
     end
   end
 
-  defp resolve_extra_playback(%{content_url: nil} = extra) do
+  defp resolve_extra_playback(_profile_id, %{content_url: nil} = extra) do
     Log.info(:playback, "extra #{Format.short_id(extra.id)} has no content_url")
     {:error, :no_playable_content}
   end
 
-  defp resolve_extra_playback(extra) do
-    {entity_id, entity_name} = resolve_extra_parent(extra)
+  # Extra progress is not yet per profile; `extra_resume_position/1`
+  # reads the one row.
+  defp resolve_extra_playback(profile_id, extra) do
+    {entity_id, entity_name} = resolve_extra_parent(profile_id, extra)
 
     position = extra_resume_position(extra.id)
     action = if position > 0.0, do: :resume, else: :play_extra
@@ -300,14 +312,14 @@ defmodule MediaCentaur.Playback.Resolver do
      }}
   end
 
-  defp resolve_extra_parent(extra) do
+  defp resolve_extra_parent(profile_id, extra) do
     # Resolve the Extra's container — `owner_type` is one of :movie,
     # :tv_series, :movie_series, :season. Seasons aren't directly
-    # resolvable by `resolve_typed_entity/1`; for season-owned extras we
+    # resolvable by `resolve_typed_entity/2`; for season-owned extras we
     # fall back to surfacing the season id without a name. The
     # parent-aware playback row carries enough context for the UI.
     if extra.owner_type in [:movie, :tv_series, :movie_series] do
-      case resolve_typed_entity(extra.owner_id) do
+      case resolve_typed_entity(profile_id, extra.owner_id) do
         {:ok, entity, _progress} -> {entity.id, entity.name}
         :not_found -> {extra.owner_id, nil}
       end

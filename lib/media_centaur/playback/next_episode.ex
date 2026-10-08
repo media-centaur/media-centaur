@@ -2,10 +2,10 @@ defmodule MediaCentaur.Playback.NextEpisode do
   @moduledoc """
   Resolves the episode to queue after the one currently playing (ADR-062).
 
-  `resolve/1` answers "what does the mpv playlist get appended after this
-  episode?" — the *literally next* episode in season/episode order
+  `resolve/2` answers "what does the mpv playlist get appended after this
+  episode?" for the session's profile — the *literally next* episode in season/episode order
   (`EpisodeOrder.next_episode_after/2` never skips a story-order gap),
-  carrying its own resume position. Returns `:none` when the chain ends:
+  carrying the profile's own resume position (ADR-078). Returns `:none` when the chain ends:
   auto-play is switched off, the episode is the last one, the successor
   isn't downloaded, or its file is missing from disk.
 
@@ -38,17 +38,20 @@ defmodule MediaCentaur.Playback.NextEpisode do
 
   @doc """
   Returns `{:ok, queue_item}` for the episode that should follow
-  `episode_id`, or `:none` when nothing should be queued.
+  `episode_id` for `profile_id`, or `:none` when nothing should be queued.
   """
-  @spec resolve(String.t()) :: {:ok, queue_item()} | :none
-  def resolve(episode_id) do
+  @spec resolve(String.t(), String.t()) :: {:ok, queue_item()} | :none
+  def resolve(profile_id, episode_id) when is_binary(profile_id) and is_binary(episode_id) do
     with true <- AutoPlayNextEpisode.enabled?(),
          {:ok, episode} <- Library.Episodes.fetch(episode_id),
          {:ok, season} <- Library.Seasons.fetch(episode.season_id),
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_entity_view(tv_series, :tv_series)
-      progress_records = ProgressRecords.list_for_container(:tv_series, season.tv_series_id)
+
+      progress_records =
+        ProgressRecords.list_for_container(profile_id, :tv_series, season.tv_series_id)
+
       successor(entity, progress_records, episode_id)
     else
       _ -> :none

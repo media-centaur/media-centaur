@@ -218,7 +218,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp open_title(socket, ref, params) do
     {page_snapshot, facts} = socket.view.page_facts(socket, ref, params)
-    library = LibraryHalf.load(ref)
+    library = LibraryHalf.load(socket.assigns.profile.id, ref)
     activity = activity_for(ref, params)
     facts = Map.merge(facts, %{library: library, activity: activity})
 
@@ -229,7 +229,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   defp open_entity(socket, id, params) do
-    case LibraryHalf.load_entity(id) do
+    case LibraryHalf.load_entity(socket.assigns.profile.id, id) do
       nil ->
         abandon_open(socket, "That title is no longer in the library.")
 
@@ -466,7 +466,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def refresh_title_detail(
         %{assigns: %{title_detail: %TitleDetail{ref: nil, library: library}}} = socket
       ) do
-    case LibraryHalf.reload(library) do
+    case LibraryHalf.reload(socket.assigns.profile.id, library) do
       nil -> close_title(socket)
       reloaded -> assign(socket, :title_detail, build_residue(socket, reloaded))
     end
@@ -475,7 +475,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def refresh_title_detail(%{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
     params = activity_params(detail)
     {_page_snapshot, facts} = socket.view.page_facts(socket, detail.ref, params)
-    library = detail.ref |> LibraryHalf.load() |> LibraryHalf.keep_files(detail.library)
+
+    library =
+      socket.assigns.profile.id |> LibraryHalf.load(detail.ref) |> LibraryHalf.keep_files(detail.library)
+
     facts = Map.merge(facts, %{library: library, activity: activity_for(detail.ref, params)})
     refreshed = build_detail(socket, detail.title, facts, detail.preview)
     socket = assign(socket, :title_detail, refreshed)
@@ -493,7 +496,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # snapshot's paths.
   defp build_detail(socket, %Title{} = title, given, preview) do
     ref = Title.ref(title)
-    library = Map.get_lazy(given, :library, fn -> LibraryHalf.load(ref) end)
+    library = Map.get_lazy(given, :library, fn -> LibraryHalf.load(socket.assigns.profile.id, ref) end)
     artwork = TitleArtwork.urls(title, library_images(library), :w92)
     acquisition? = Capabilities.acquisition_ready?()
     planning_mode = PlanningMode.value()
@@ -894,7 +897,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # residue. Opening the open subject again is a no-op patch.
   def handle_title_event("select_entity", %{"id" => id}, socket) do
     query =
-      case LibraryHalf.address(id) do
+      case LibraryHalf.address(socket.assigns.profile.id, id) do
         {:title, ref, half} -> [title: TitleRef.param(ref)] ++ kept_view(socket, half)
         {:entity, entity_id, half} -> [entity: entity_id] ++ kept_view(socket, half)
         :not_found -> []
@@ -1114,7 +1117,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     case TitleRef.parse(param) do
       {:ok, ref} ->
         {page_snapshot, _facts} = socket.view.page_facts(socket, ref, %{})
-        snapshot(socket, ref, LibraryHalf.load(ref), nil, page_snapshot)
+        snapshot(socket, ref, LibraryHalf.load(socket.assigns.profile.id, ref), nil, page_snapshot)
 
       :error ->
         nil

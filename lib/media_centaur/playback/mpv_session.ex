@@ -44,7 +44,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   ## Episode auto-advance (ADR-062)
 
   A TV episode session appends its successor to the mpv playlist
-  (`NextEpisode.resolve/1`), so end-of-episode rolls into the next file
+  (`NextEpisode.resolve/2`), so end-of-episode rolls into the next file
   inside the same mpv process — no window teardown, no HDR re-lock. The
   queueing decision runs off mpv's own `playlist-count`/`playlist-pos`
   properties: the successor is appended only while the current entry is
@@ -668,7 +668,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp queue_next(state) do
-    case NextEpisode.resolve(state.episode_id) do
+    case NextEpisode.resolve(state.profile_id, state.episode_id) do
       {:ok, item} ->
         send_mpv_command(state.socket, NextEpisode.loadfile_command(item))
 
@@ -1016,19 +1016,19 @@ defmodule MediaCentaur.Playback.MpvSession do
           # `library_watch_progress` on the next interval (default 5s)
           # or synchronously on clean shutdown (Library Schema v2
           # Phase 3 Task D).
-          :ok = LibraryProgress.record(playable_item_id, saveable, duration)
+          :ok = LibraryProgress.record(profile_id, playable_item_id, saveable, duration)
 
           Log.info(
             :playback,
             "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          maybe_mark_completed(playable_item_id, reason)
+          maybe_mark_completed(profile_id, playable_item_id, reason)
           # Preserve the rich `%EntityProgressUpdated{}` event for
           # consumers that need summary/resume_target/changed_record
           # (EntityModal, StatusLive, LibraryLive). The simpler
           # `{:entity_progress_updated, pi_id, pos}` tuple broadcast
-          # from Progress.record/3 is consumed by projections that
+          # from Progress.record/4 is consumed by projections that
           # only need the trigger.
           #
           # Thread `playable_item_id` so the payload carries the changed
@@ -1082,16 +1082,16 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp resolve_or_create_playable_item_id(_params), do: {:error, :no_fk_specified}
 
-  defp maybe_mark_completed(_playable_item_id, nil), do: :ok
+  defp maybe_mark_completed(_profile_id, _playable_item_id, nil), do: :ok
 
-  defp maybe_mark_completed(playable_item_id, reason) do
-    case LibraryProgress.get(playable_item_id) do
+  defp maybe_mark_completed(profile_id, playable_item_id, reason) do
+    case LibraryProgress.get(profile_id, playable_item_id) do
       %{completed: true} ->
         :ok
 
       _ ->
         Log.info(:playback, "marked completed — #{reason}")
-        :ok = LibraryProgress.complete(playable_item_id)
+        :ok = LibraryProgress.complete(profile_id, playable_item_id)
     end
   end
 

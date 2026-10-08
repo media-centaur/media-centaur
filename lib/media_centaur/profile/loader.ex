@@ -76,8 +76,9 @@ defmodule MediaCentaur.Profile.Loader do
     movie_ids = seed_movies(settings.movies)
     episode_ids = seed_series(settings.series, settings.episodes_per_series)
 
-    seed_in_progress_for_movies(movie_ids, settings.in_progress_movies)
-    seed_in_progress_for_episodes(episode_ids, settings.in_progress_episodes)
+    owner_id = MediaCentaur.Profiles.owner().id
+    seed_in_progress_for_movies(owner_id, movie_ids, settings.in_progress_movies)
+    seed_in_progress_for_episodes(owner_id, episode_ids, settings.in_progress_episodes)
 
     %{movies: movie_ids, episodes: episode_ids}
   end
@@ -157,13 +158,13 @@ defmodule MediaCentaur.Profile.Loader do
     end)
   end
 
-  defp seed_in_progress_for_movies(movie_ids, count) do
+  defp seed_in_progress_for_movies(owner_id, movie_ids, count) do
     movie_ids
     |> deterministic_sample(count)
     |> Enum.with_index()
     |> Enum.each(fn {movie_id, index} ->
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(:movie, movie_id, %{
+        Library.ProgressRecords.find_or_create_for_container(owner_id, :movie, movie_id, %{
           position_seconds: 30.0 + index * 1.5,
           duration_seconds: 100.0,
           completed: false
@@ -171,13 +172,13 @@ defmodule MediaCentaur.Profile.Loader do
     end)
   end
 
-  defp seed_in_progress_for_episodes(episode_ids, count) do
+  defp seed_in_progress_for_episodes(owner_id, episode_ids, count) do
     episode_ids
     |> deterministic_sample(count)
     |> Enum.with_index()
     |> Enum.each(fn {episode_id, index} ->
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(:episode, episode_id, %{
+        Library.ProgressRecords.find_or_create_for_container(owner_id, :episode, episode_id, %{
           position_seconds: 60.0 + index * 1.5,
           duration_seconds: 1000.0,
           completed: false

@@ -2,6 +2,7 @@ defmodule MediaCentaur.Profile do
   use Boundary,
     deps: [
       MediaCentaur.Library,
+      MediaCentaur.Profiles,
       MediaCentaur.ReleaseTracking,
       MediaCentaur.Settings,
       MediaCentaur.WatchHistory

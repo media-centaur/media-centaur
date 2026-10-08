@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :seasons, :list,
     required: true,
-    doc: "`[%MediaCentaurWeb.ViewModel.SeasonView{}]` from `SeriesDetail.compose/1`."
+    doc: "`[%MediaCentaurWeb.ViewModel.SeasonView{}]` from `SeriesDetail.compose/2`."
 
   attr :entity_id, :string, required: true
   attr :expanded_seasons, MapSet, required: true

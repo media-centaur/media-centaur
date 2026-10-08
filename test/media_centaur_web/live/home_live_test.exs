@@ -49,6 +49,28 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching"
   end
 
+  test "the Continue Watching shelf is the session's profile's", %{conn: conn} do
+    ana = create_profile(%{name: "Ana"})
+    hers = create_standalone_movie(%{name: "Hers Only"})
+    _ = create_linked_file(%{movie_id: hers.id})
+
+    create_watch_progress(%{
+      profile_id: ana.id,
+      movie_id: hers.id,
+      position_seconds: 30.0,
+      duration_seconds: 100.0
+    })
+
+    # The movie is on Recently Added for everyone; only Ana's shelf carries it.
+    {:ok, view, _html} =
+      conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/")
+
+    refute has_element?(view, "[data-row='continue-watching']")
+
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!("/")
+    assert has_element?(view, "[data-row='continue-watching']", "Hers Only")
+  end
+
   test "first paint (disconnected render) shows real sections, not the empty-state flash",
        %{conn: conn} do
     # Desktop first-paint correctness: the static HTTP render must already
@@ -505,7 +527,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       refute html =~ "Watch again"
 
       {:ok, progress} =
-        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
+        Library.ProgressRecords.find_or_create_for_container(owner_profile_id(), :movie, movie.id, %{
           position_seconds: 100.0,
           duration_seconds: 100.0
         })
@@ -529,8 +551,9 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       refute html =~ "Watch again"
 
+      # Ana finishes the movie; the owner's open detail is not hers.
       {:ok, progress} =
-        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
+        Library.ProgressRecords.find_or_create_for_container(ana.id, :movie, movie.id, %{
           position_seconds: 100.0,
           duration_seconds: 100.0
         })

@@ -10,7 +10,7 @@ defmodule MediaCentaur.Library.EntityShape do
   `MediaCentaur.Library.PlayableItem` is the write-side leaf identity that
   files and progress key against; this module operates one layer up, at
   the container the user sees. Progress is not read here: a title's
-  progress comes from `MediaCentaur.Library.ProgressRecords.list_for_container/2`.
+  progress comes from `MediaCentaur.Library.ProgressRecords.list_for_container/3`.
   """
 
   alias MediaCentaur.Library.EntityView

@@ -22,3 +22,5 @@ Before Schema v2 the supporting tables (`WatchedFile`, `WatchProgress`, `Image`,
 
 * The polymorphic tables have no database-level foreign key; integrity rests on the Library write paths.
 * Every Library projection fans out from `playable_item_id`, so a new container type is a new enum value, not a new set of nullable columns.
+
+**Amendment, 2026-10-08.** The `has_one :watch_progress` association was removed; a playable item has one progress row per profile, unique on `(profile_id, playable_item_id)`, read through `ProgressRecords` (ADR-078).

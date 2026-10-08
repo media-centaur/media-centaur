@@ -24,18 +24,19 @@ defmodule MediaCentaur.Library.Progress.Events do
 
   defmodule ProgressTicked do
     @moduledoc """
-    Hot-path position tick from `Library.Progress.record/3`. Carries
-    the `playable_item_id` and current `position_seconds`. No prod
+    Hot-path position tick from `Library.Progress.record/4`. Carries
+    the `profile_id`, the `playable_item_id` and current `position_seconds`. No prod
     subscriber today (the live progress bar is driven by
     `playback:events` `:entity_progress_updated`); the tick exists as a
     deterministic per-activity hook for tests and as the seam a future
     activity-only projection could refresh on without preloading the
     full entity.
     """
-    @enforce_keys [:playable_item_id, :position_seconds]
-    defstruct [:playable_item_id, :position_seconds]
+    @enforce_keys [:profile_id, :playable_item_id, :position_seconds]
+    defstruct [:profile_id, :playable_item_id, :position_seconds]
 
     @type t :: %__MODULE__{
+            profile_id: String.t(),
             playable_item_id: String.t(),
             position_seconds: float()
           }
@@ -43,15 +44,15 @@ defmodule MediaCentaur.Library.Progress.Events do
 
   defmodule ProgressFlushed do
     @moduledoc """
-    The `Library.Progress.Worker` flushed the dirty row for
-    `playable_item_id` to `library_watch_progress`. Deterministic
+    The `Library.Progress.Worker` flushed the dirty row of `profile_id`
+    for `playable_item_id` to `library_watch_progress`. Deterministic
     sync hook for tests and for projections that want to react only
     after persistence.
     """
-    @enforce_keys [:playable_item_id]
-    defstruct [:playable_item_id]
+    @enforce_keys [:profile_id, :playable_item_id]
+    defstruct [:profile_id, :playable_item_id]
 
-    @type t :: %__MODULE__{playable_item_id: String.t()}
+    @type t :: %__MODULE__{profile_id: String.t(), playable_item_id: String.t()}
   end
 
   defmodule ProgressHydrated do

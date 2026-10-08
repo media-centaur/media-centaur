@@ -10,7 +10,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
     Library.ProgressRecords.mark_completed!(progress)
   end
 
-  describe "resolve/1 with Entity UUID" do
+  describe "resolve/2 with Entity UUID" do
     test "movie entity resolves with resume when partially watched" do
       movie =
         create_entity(%{type: :movie, name: "Sample Movie", content_url: "/movies/sample.mkv"})
@@ -21,7 +21,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         duration_seconds: 7200.0
       })
 
-      assert {:ok, params} = Resolver.resolve(movie.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
       assert params.action == :resume
       assert params.entity_id == movie.id
       assert params.entity_name == "Sample Movie"
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
       movie =
         create_entity(%{type: :movie, name: "Other Movie", content_url: "/movies/other.mkv"})
 
-      assert {:ok, params} = Resolver.resolve(movie.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
       assert params.action == :play_next
       assert params.content_url == "/movies/other.mkv"
       assert params.start_position == 0.0
@@ -67,7 +67,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         })
       )
 
-      assert {:ok, params} = Resolver.resolve(tv_series.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), tv_series.id)
       assert params.action == :play_next
       assert params.content_url == "/tv/show/s01e02.mkv"
       assert params.start_position == 0.0
@@ -90,7 +90,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         position: 1
       })
 
-      assert {:ok, params} = Resolver.resolve(movie_series.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie_series.id)
       assert params.action == :play_next
       assert params.content_url == "/movies/movie1.mkv"
     end
@@ -98,11 +98,30 @@ defmodule MediaCentaur.Playback.ResolverTest do
     test "entity with no content returns error" do
       movie = create_entity(%{type: :movie, name: "No Content"})
 
-      assert {:error, :no_playable_content} = Resolver.resolve(movie.id)
+      assert {:error, :no_playable_content} = Resolver.resolve(owner_profile_id(), movie.id)
     end
   end
 
-  describe "resolve/1 with Episode UUID" do
+  describe "resolve/2 reads the profile's own row" do
+    test "resume position comes from the session's profile, not another's" do
+      movie = create_entity(%{type: :movie, name: "Sample Movie", content_url: "/movies/sample.mkv"})
+      me = owner_profile_id()
+      ana = create_profile(%{name: "Ana"}).id
+
+      create_watch_progress(%{
+        profile_id: ana,
+        movie_id: movie.id,
+        position_seconds: 600.0,
+        duration_seconds: 7200.0
+      })
+
+      assert {:ok, %{start_position: 600.0}} = Resolver.resolve(ana, movie.id)
+      assert {:ok, %{start_position: start}} = Resolver.resolve(me, movie.id)
+      assert start == 0.0
+    end
+  end
+
+  describe "resolve/2 with Episode UUID" do
     test "episode resolves with resume when partially watched" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
@@ -121,7 +140,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         duration_seconds: 3200.0
       })
 
-      assert {:ok, params} = Resolver.resolve(episode.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), episode.id)
       assert params.action == :resume
       assert params.entity_id == tv_series.id
       assert params.entity_name == "Sample Show"
@@ -145,7 +164,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
           content_url: "/tv/show/s02e01.mkv"
         })
 
-      assert {:ok, params} = Resolver.resolve(episode.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), episode.id)
       assert params.action == :play_episode
       assert params.content_url == "/tv/show/s02e01.mkv"
       assert params.start_position == 0.0
@@ -162,11 +181,11 @@ defmodule MediaCentaur.Playback.ResolverTest do
           name: "No File"
         })
 
-      assert {:error, :no_playable_content} = Resolver.resolve(episode.id)
+      assert {:error, :no_playable_content} = Resolver.resolve(owner_profile_id(), episode.id)
     end
   end
 
-  describe "resolve/1 with Movie (child) UUID" do
+  describe "resolve/2 with Movie (child) UUID" do
     test "child movie resolves with resume when partially watched" do
       movie_series = create_entity(%{type: :movie_series, name: "Sample Movie Series"})
 
@@ -185,7 +204,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         duration_seconds: 7000.0
       })
 
-      assert {:ok, params} = Resolver.resolve(movie.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
       assert params.action == :resume
       assert params.entity_id == movie_series.id
       assert params.entity_name == "Sample Movie Series"
@@ -207,7 +226,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
           position: 1
         })
 
-      assert {:ok, params} = Resolver.resolve(movie.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
       assert params.action == :play_movie
       assert params.content_url == "/movies/movie2.mkv"
       assert params.start_position == 0.0
@@ -217,11 +236,11 @@ defmodule MediaCentaur.Playback.ResolverTest do
       movie_series = create_entity(%{type: :movie_series, name: "Incomplete"})
       movie = create_movie(%{movie_series_id: movie_series.id, name: "No File", position: 0})
 
-      assert {:error, :no_playable_content} = Resolver.resolve(movie.id)
+      assert {:error, :no_playable_content} = Resolver.resolve(owner_profile_id(), movie.id)
     end
   end
 
-  describe "resolve/1 with Extra UUID" do
+  describe "resolve/2 with Extra UUID" do
     test "extra resolves, plays from beginning" do
       movie = create_entity(%{type: :movie, name: "Sample Movie"})
 
@@ -232,7 +251,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
           content_url: "/extras/making_of.mkv"
         })
 
-      assert {:ok, params} = Resolver.resolve(extra.id)
+      assert {:ok, params} = Resolver.resolve(owner_profile_id(), extra.id)
       assert params.action == :play_extra
       assert params.entity_id == movie.id
       assert params.entity_name == "Sample Movie"
@@ -245,13 +264,13 @@ defmodule MediaCentaur.Playback.ResolverTest do
       movie = create_entity(%{type: :movie, name: "Broken Extra"})
       extra = create_extra(%{movie_id: movie.id, name: "Missing", content_url: nil})
 
-      assert {:error, :no_playable_content} = Resolver.resolve(extra.id)
+      assert {:error, :no_playable_content} = Resolver.resolve(owner_profile_id(), extra.id)
     end
   end
 
-  describe "resolve/1 with unknown UUID" do
+  describe "resolve/2 with unknown UUID" do
     test "returns not_found" do
-      assert {:error, :not_found} = Resolver.resolve(Ecto.UUID.generate())
+      assert {:error, :not_found} = Resolver.resolve(owner_profile_id(), Ecto.UUID.generate())
     end
   end
 end

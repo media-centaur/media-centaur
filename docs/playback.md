@@ -82,7 +82,7 @@ flowchart TD
 #### Play Command
 
 1. UI calls `Sessions.play/1` with an entity UUID
-2. `Resolver.resolve/1` loads the entity and progress, then runs `Resume.resolve/2`
+2. `Resolver.resolve/2` loads the entity and the profile's progress, then runs `Resume.resolve/2`
 3. Sessions checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor`
 4. MpvSession registers in `SessionRegistry` by entity_id
 5. `DisplayEnv.resolve/1` builds the env list (WAYLAND_DISPLAY / DISPLAY, resolved from parent env or socket discovery); on `{:error, :no_display}` the session broadcasts `PlaybackFailed{reason: :no_display}` and stops
@@ -111,12 +111,12 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 
 | Event | Action |
 |-------|--------|
-| During active watching | Every position tick lands in memory via `Library.Progress.record/3`; `Library.Progress.Worker` flushes dirty rows every 5 s (`:library_progress_flush_interval_ms`) |
+| During active watching | Every position tick lands in memory via `Library.Progress.record/4`; `Library.Progress.Worker` flushes dirty rows every 5 s (`:library_progress_flush_interval_ms`) |
 | On pause | Save immediately |
 | On stop / EOF | Save immediately |
 | During seeking | No save |
 
-Each tick calls `Library.Progress.record/3` with the tracker's `saveable_position` (guards against seek corruption). When `Completion.reason/3` says the position completes the item, `LibraryProgress.complete/1` is called (monotonic).
+Each tick calls `Library.Progress.record/4` with the tracker's `saveable_position` (guards against seek corruption). When `Completion.reason/3` says the position completes the item, `LibraryProgress.complete/2` is called (monotonic).
 
 #### Progress Broadcasting
 

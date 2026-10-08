@@ -80,7 +80,7 @@ defmodule MediaCentaur.Cache do
 
   `cache_children/1` returns `[]` in `:test` env, so no Worker is
   started during ExUnit. Tests that exercise a cache call its
-  `refresh_cache/0` directly. Read functions (`Views.continue_watching/1`
+  `refresh_cache/0` directly. Read functions (`Views.continue_watching/2`
   etc.) detect a missing ETS table / unset `:persistent_term` key and
   fall through to the underlying DB query — same return shape, no
   branching at the call site.

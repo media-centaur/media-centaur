@@ -2,10 +2,13 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   @moduledoc """
   ETS-backed projection of Continue Watching rows (ADR-041).
 
-  The projection mirrors the output of `MediaCentaur.Library.list_in_progress/1`
-  into a named ETS table holding `ContinueWatchingItem` structs keyed
-  by display rank. Reads bypass the GenServer entirely — see
-  `MediaCentaur.Library.Views.continue_watching/1`.
+  Profile-keyed (ADR-078): the `:set` holds `{profile_id, items}` for
+  every profile with a progress row, rebuilt whole on every relevant
+  event — a household is a handful of profiles. The derived message is
+  unchanged; a page re-reads for its own profile. `items` is the output
+  of `MediaCentaur.Library.list_in_progress/2` as `ContinueWatchingItem`
+  structs in display order. Reads bypass the GenServer entirely — see
+  `MediaCentaur.Library.Views.continue_watching/2`.
 
   ## Refresh triggers
 
@@ -31,7 +34,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
       rebuild per few seconds during playback. Cheap; preserves the
       existing UX where the bar ticks forward without page reload.
     * `library:availability` — drive-mount and drive-unmount events.
-      The underlying `Library.list_in_progress/1` joins
+      The underlying `Library.list_in_progress/2` joins
       `library_watched_files`, whose FK to `library_file_presences`
       (cascade-delete) makes file presence equivalent to "currently
       on disk." When a drive disappears, in-progress rows for its
@@ -47,17 +50,17 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   ## Storage
 
-    * `:library_view_continue_watching` — `:ordered_set`, `:public`,
-      `:read_concurrency, true`. Keyed by display rank (`0..n-1`).
-      Owned by the Cache.Worker that drives this projection.
+    * `:library_view_continue_watching` — `:set`, `:public`,
+      `:read_concurrency, true`. One `{profile_id, items}` row per
+      profile. Owned by the Cache.Worker that drives this projection.
     * Refreshes replace every row in a single `:ets.delete_all_objects`
       + `:ets.insert` pair. Concurrent readers see either the previous
       snapshot or the new one, never a partial state.
 
   ## Refresh cap
 
-  The projection over-fetches up to `@max_items` rows so callers with
-  larger `:limit` values still see a complete list. Larger libraries
+  The projection over-fetches up to `@max_items` rows per profile so
+  callers with larger `:limit` values still see a complete list. Larger libraries
   with many in-progress entries truncate at this bound; a future
   refinement can lift the cap if real usage demands it.
   """
@@ -65,13 +68,14 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
+  alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.Views.ContinueWatchingItem
   alias MediaCentaur.Library.Views.ItemAvailability
-  alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
   @table :library_view_continue_watching
   @max_items 100
+  @ets_opts [:set, :public, :named_table, read_concurrency: true]
 
   @impl MediaCentaur.Cache
   def subscribe do
@@ -92,25 +96,51 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    RankedProjection.replace_rows(@table, :continue_watching, build(@max_items))
+    ensure_table()
+
+    rows =
+      for profile_id <- ProgressRecords.profile_ids_with_progress(),
+          do: {profile_id, build(profile_id, @max_items)}
+
+    :ets.delete_all_objects(@table)
+    :ets.insert(@table, rows)
+    Topics.publish(Topics.library_views(), {:library_view_updated, :continue_watching})
+    :ok
   end
 
   @doc """
-  Read the projection. Falls back to the underlying DB query when the
-  ETS table is absent — covers test mode (Cache.Worker not started)
-  and the brief window between boot and first refresh.
+  Read one profile's shelf. Falls back to the underlying query when the
+  ETS table is absent — test mode (no `Cache.Worker`) and the window
+  between boot and first refresh. A profile with no rows reads `[]`.
   """
-  @spec read(keyword()) :: [ContinueWatchingItem.t()]
-  def read(opts \\ []) do
+  @spec read(Ecto.UUID.t(), keyword()) :: [ContinueWatchingItem.t()]
+  def read(profile_id, opts \\ []) when is_binary(profile_id) do
     limit = Keyword.get(opts, :limit, 12)
-    RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
+
+    case :ets.whereis(@table) do
+      :undefined ->
+        build(profile_id, limit)
+
+      _ref ->
+        case :ets.lookup(@table, profile_id) do
+          [{^profile_id, items}] -> Enum.take(items, limit)
+          [] -> []
+        end
+    end
   end
 
-  defp read_from_db(limit), do: build(limit)
+  defp ensure_table do
+    case :ets.whereis(@table) do
+      :undefined -> :ets.new(@table, @ets_opts)
+      _ref -> :ok
+    end
 
-  defp build(limit) do
-    [limit: limit]
-    |> Library.list_in_progress()
+    :ok
+  end
+
+  defp build(profile_id, limit) do
+    profile_id
+    |> Library.list_in_progress(limit: limit)
     |> Enum.map(&to_view_model/1)
     |> ItemAvailability.resolve(id: :entity_id, artwork: [:backdrop_url, :logo_url])
   end

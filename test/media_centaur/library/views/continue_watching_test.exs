@@ -98,7 +98,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       assert :ok = ContinueWatching.refresh_cache()
 
-      items = Views.continue_watching(limit: 10)
+      items = Views.continue_watching(owner_profile_id(), limit: 10)
 
       assert length(items) == 3
       assert Enum.all?(items, &is_struct(&1, ContinueWatchingItem))
@@ -121,25 +121,25 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     test "is idempotent — repeat calls replace the snapshot, no leak" do
       seed_in_progress_movie("Movie A")
       assert :ok = ContinueWatching.refresh_cache()
-      assert length(Views.continue_watching(limit: 10)) == 1
+      assert length(Views.continue_watching(owner_profile_id(), limit: 10)) == 1
 
       seed_in_progress_movie("Movie B")
       assert :ok = ContinueWatching.refresh_cache()
-      assert length(Views.continue_watching(limit: 10)) == 2
+      assert length(Views.continue_watching(owner_profile_id(), limit: 10)) == 2
 
       # Refreshing without DB changes preserves the snapshot.
       assert :ok = ContinueWatching.refresh_cache()
-      assert length(Views.continue_watching(limit: 10)) == 2
+      assert length(Views.continue_watching(owner_profile_id(), limit: 10)) == 2
     end
   end
 
-  describe "Views.continue_watching/1 — ETS path vs DB fallback" do
+  describe "Views.continue_watching/2 — ETS path vs DB fallback" do
     test "falls back to DB query when the ETS table is absent" do
       seed_in_progress_movie("Cold Read")
 
       assert :undefined = :ets.whereis(@table)
 
-      [item] = Views.continue_watching(limit: 5)
+      [item] = Views.continue_watching(owner_profile_id(), limit: 5)
       assert item.entity_name == "Cold Read"
     end
 
@@ -147,8 +147,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       Enum.each(1..5, fn i -> seed_in_progress_movie("Movie #{i}") end)
       assert :ok = ContinueWatching.refresh_cache()
 
-      assert length(Views.continue_watching(limit: 3)) == 3
-      assert length(Views.continue_watching(limit: 100)) == 5
+      assert length(Views.continue_watching(owner_profile_id(), limit: 3)) == 3
+      assert length(Views.continue_watching(owner_profile_id(), limit: 100)) == 5
     end
 
     test "honours :limit on the DB-fallback path" do
@@ -156,11 +156,11 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       assert :undefined = :ets.whereis(@table)
 
-      assert length(Views.continue_watching(limit: 3)) == 3
+      assert length(Views.continue_watching(owner_profile_id(), limit: 3)) == 3
     end
   end
 
-  describe "equivalence with Library.list_in_progress/1" do
+  describe "equivalence with Library.list_in_progress/2" do
     # Until the legacy query path is removed (commit 3 of B), prove the
     # projection's view-model output mirrors the legacy map output for
     # representative DB state. A drift here would be a real regression.
@@ -173,8 +173,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       :ok = ContinueWatching.refresh_cache()
 
-      legacy = Library.list_in_progress(limit: 10)
-      cached = Views.continue_watching(limit: 10)
+      legacy = Library.list_in_progress(owner_profile_id(), limit: 10)
+      cached = Views.continue_watching(owner_profile_id(), limit: 10)
 
       assert length(legacy) == length(cached)
 
@@ -191,9 +191,9 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
   describe "stale-read window — refresh reflects in-memory progress" do
     # Regression for Library Schema v2 Phase 3 Task E I-2: the
-    # `MediaCentaur.Library.Progress.record/3` hot-path writes to the
+    # `MediaCentaur.Library.Progress.record/4` hot-path writes to the
     # in-memory ETS table only; the debounced flush lands seconds
-    # later. Before the fix, `list_in_progress/1` (and therefore
+    # later. Before the fix, `list_in_progress/2` (and therefore
     # `ContinueWatching.refresh_cache/0` and the DB-fallback path)
     # read straight from the persisted `library_watch_progress`
     # table, so the rendered progress bar lagged active playback by
@@ -219,7 +219,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       end
     end
 
-    test "Continue Watching reflects fresh in-memory position written via Progress.record/3" do
+    test "Continue Watching reflects fresh in-memory position written via Progress.record/4" do
       ensure_progress_worker!()
       Progress.reset_for_test!()
 
@@ -242,18 +242,18 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       # Write a fresh 80% position to in-memory state only. The
       # flush interval is 60s, so disk stays at 20% for the test.
-      :ok = Progress.record(playable_item_id, 80.0, 100.0)
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 80.0, 100.0)
 
       # Sanity: ensure the in-memory row carries the fresh 80s position
       # before the cache refresh reads it. Without this, a Progress
       # API regression could mask the projection-side regression.
-      hot = Progress.get(playable_item_id)
+      hot = Progress.get(owner_profile_id(), playable_item_id)
       assert hot.position_seconds == 80.0
       assert hot.playable_item_id == playable_item_id
 
       # Also check list_in_progress directly — bypasses the cache so
       # any DB-fallback path issues show up cleanly.
-      [row] = MediaCentaur.Library.list_in_progress(limit: 5)
+      [row] = MediaCentaur.Library.list_in_progress(owner_profile_id(), limit: 5)
       assert row.entity_id == movie.id
 
       assert row.progress_pct == 80,
@@ -261,11 +261,44 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       :ok = ContinueWatching.refresh_cache()
 
-      [item] = Views.continue_watching(limit: 5)
+      [item] = Views.continue_watching(owner_profile_id(), limit: 5)
       assert item.entity_id == movie.id
 
       # 80% from in-memory state, NOT 20% from disk. Pre-fix this was 20.
       assert item.progress_pct == 80
+    end
+  end
+
+  describe "per profile" do
+    test "each profile's shelf holds its own titles; the ETS snapshot and the fallback agree" do
+      me = owner_profile_id()
+      ana = create_profile(%{name: "Ana"}).id
+      mine = create_standalone_movie(%{name: "Mine"})
+      hers = create_standalone_movie(%{name: "Hers"})
+      record_present(create_linked_file(%{movie_id: mine.id}))
+      record_present(create_linked_file(%{movie_id: hers.id}))
+
+      create_watch_progress(%{
+        profile_id: me,
+        movie_id: mine.id,
+        position_seconds: 30.0,
+        duration_seconds: 100.0
+      })
+
+      create_watch_progress(%{
+        profile_id: ana,
+        movie_id: hers.id,
+        position_seconds: 30.0,
+        duration_seconds: 100.0
+      })
+
+      assert [%{entity_name: "Mine"}] = Views.continue_watching(me)
+      assert [%{entity_name: "Hers"}] = Views.continue_watching(ana)
+
+      assert :ok = ContinueWatching.refresh_cache()
+      assert [%{entity_name: "Mine"}] = Views.continue_watching(me)
+      assert [%{entity_name: "Hers"}] = Views.continue_watching(ana)
+      assert Views.continue_watching(Ecto.UUID.generate()) == []
     end
   end
 
@@ -311,7 +344,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       :ok = ContinueWatching.refresh_cache()
 
       assert [%ContinueWatchingItem{available?: false, backdrop_url: nil, logo_url: nil}] =
-               Views.continue_watching()
+               Views.continue_watching(owner_profile_id())
 
       :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :available})
       :ok = ContinueWatching.refresh_cache()
@@ -322,7 +355,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
                  backdrop_url: "/media-images/" <> _,
                  logo_url: "/media-images/" <> _
                }
-             ] = Views.continue_watching()
+             ] = Views.continue_watching(owner_profile_id())
     end
   end
 end

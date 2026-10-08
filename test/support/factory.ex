@@ -232,6 +232,7 @@ defmodule MediaCentaur.TestFactory do
       overrides[:playable_item_id] || container_id
 
     defaults = %{
+      profile_id: Ecto.UUID.generate(),
       playable_item_id: playable_item_id,
       playable_item: playable_item,
       position_seconds: 0.0,
@@ -518,7 +519,7 @@ defmodule MediaCentaur.TestFactory do
   and the default profile of the watching-row factories as phase 2 gives
   them one.
   """
-  def owner_profile_id, do: MediaCentaur.Profiles.list() |> hd() |> Map.fetch!(:id)
+  def owner_profile_id, do: MediaCentaur.Profiles.owner().id
 
   def create_tv_series(attrs \\ %{}) do
     create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs)
@@ -851,19 +852,24 @@ defmodule MediaCentaur.TestFactory do
     Review.create_pending_file!(Map.merge(defaults, attrs))
   end
 
+  @doc """
+  Persists a watch-progress row. Callers identify the row by its container
+  (`movie_id:`, `episode_id:`, `video_object_id:`) and, optionally, its
+  `profile_id:` — the owner profile when absent.
+  """
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
     merged = Map.merge(defaults, Map.new(attrs))
+    profile_id = Map.get_lazy(merged, :profile_id, &owner_profile_id/0)
 
-    # Callers identify the progress row by its container — `movie_id:`,
-    # `episode_id:`, `video_object_id:` — which the writer takes as an
-    # explicit `(type, id)` pair, so the key is translated here rather
-    # than smuggled through the attrs map.
+    # The writer takes the container as an explicit `(type, id)` pair, so
+    # the key is translated here rather than smuggled through the attrs map.
     {container_type, container_id} = container_ref(merged)
-    progress_attrs = Map.drop(merged, [:movie_id, :episode_id, :video_object_id])
+    progress_attrs = Map.drop(merged, [:movie_id, :episode_id, :video_object_id, :profile_id])
 
     result =
       Library.ProgressRecords.find_or_create_for_container(
+        profile_id,
         container_type,
         container_id,
         progress_attrs

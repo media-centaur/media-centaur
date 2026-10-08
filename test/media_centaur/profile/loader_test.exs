@@ -33,13 +33,15 @@ defmodule MediaCentaur.Profile.LoaderTest do
       settings = Loader.config(:small)
 
       results =
-        Library.list_in_progress(limit: settings.movies + settings.series * settings.episodes_per_series)
+        Library.list_in_progress(owner_profile_id(),
+          limit: settings.movies + settings.series * settings.episodes_per_series
+        )
 
       assert length(results) == settings.in_progress_movies + settings.in_progress_episodes
     end
 
     test "every in-progress row has a present file" do
-      results = Library.list_in_progress(limit: 200)
+      results = Library.list_in_progress(owner_profile_id(), limit: 200)
       # list_in_progress already filters to file-present entities — a non-empty
       # result is itself the proof. Guard against the regression where the
       # filter is dropped: every row must have an entity_id and a name.
@@ -52,7 +54,11 @@ defmodule MediaCentaur.Profile.LoaderTest do
   describe "amplify!/1 — determinism" do
     test "two runs at the same scale produce the same row counts" do
       Loader.amplify!(:small)
-      first = Library.list_in_progress(limit: 100) |> Enum.map(& &1.entity_id) |> Enum.sort()
+
+      first =
+        Library.list_in_progress(owner_profile_id(), limit: 100)
+        |> Enum.map(& &1.entity_id)
+        |> Enum.sort()
 
       # Reset DB via DataCase rollback by re-running the test setup logic.
       # We can't do that mid-test, so instead just assert that the *count*

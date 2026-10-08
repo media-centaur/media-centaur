@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
 
     * **Watch progress** — embedding it would invalidate the
       projection on every playback position-tick.
-      `Library.Progress.get/1` (Pillar-2 GenServer, ETS-backed,
+      `Library.Progress.get/2` (Pillar-2 GenServer, ETS-backed,
       microsecond reads) is the canonical hot read; consumers
       overlay it onto `DetailItem.Episode` / `DetailItem.MovieEntry`
       at render time (same pattern as `BrowseItem` in Phase 3.1).
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     @moduledoc """
     A TV-series season bucket inside `DetailItem.seasons`. Carries
     static season metadata + the `Episode` list. Per-episode watch
-    progress is overlaid at the consumer (`Library.Progress.get/1`).
+    progress is overlaid at the consumer (`Library.Progress.get/2`).
 
     `:episode_list` mirrors the Season schema field — TMDB's episodes for
     the season, including ones the library has no file for. Carried as

@@ -1,15 +1,9 @@
 defmodule MediaCentaur.Library.WatchProgress do
   @moduledoc """
-  Per-playable-item playback progress. Tracks position, duration, and
-  completion state keyed by a single `playable_item_id` FK pointing at
-  `MediaCentaur.Library.PlayableItem`.
-
-  Library Schema v2 Phase 2 Task C collapsed the previous three-FK
-  polymorphism (`movie_id` / `episode_id` / `video_object_id`) into
-  this single FK and added a DB-level `UNIQUE(playable_item_id)`
-  constraint enforcing "one progress row per playable item". Type
-  information now lives on the linked PlayableItem's
-  `(container_type, container_id)` discriminator.
+  A row is one profile's progress on one playable item (ADR-078), unique
+  on `(profile_id, playable_item_id)`; the profile is a plain id, not an
+  association — `Profiles` is another context. Type information lives on
+  the linked `PlayableItem`'s `(container_type, container_id)`.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -25,37 +19,32 @@ defmodule MediaCentaur.Library.WatchProgress do
     field :duration_seconds, :float, default: 0.0
     field :completed, :boolean, default: false
     field :last_watched_at, :utc_datetime
+    field :profile_id, Ecto.UUID
 
     belongs_to :playable_item, MediaCentaur.Library.PlayableItem
 
     timestamps()
   end
 
+  @type t :: %__MODULE__{}
+
   @impl true
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [
-      :playable_item_id,
-      :position_seconds,
-      :duration_seconds,
-      :completed
-    ])
-    |> validate_required([:playable_item_id])
+    |> cast(attrs, [:profile_id, :playable_item_id, :position_seconds, :duration_seconds, :completed])
+    |> validate_required([:profile_id, :playable_item_id])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
-    |> unique_constraint(:playable_item_id)
+    |> unique_constraint([:profile_id, :playable_item_id])
   end
 
+  # The key of a row does not move: neither `profile_id` nor
+  # `playable_item_id` is cast here.
   @impl true
   def update_changeset(record, attrs) do
     record
-    |> cast(attrs, [
-      :position_seconds,
-      :duration_seconds,
-      :completed,
-      :playable_item_id
-    ])
+    |> cast(attrs, [:position_seconds, :duration_seconds, :completed])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
-    |> unique_constraint(:playable_item_id)
+    |> unique_constraint([:profile_id, :playable_item_id])
   end
 
   @impl true
