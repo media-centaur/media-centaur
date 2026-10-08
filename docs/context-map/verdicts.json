@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "key": "R4|MediaCentaur.Library.WatchProgress|profile_id||unresolved",
+    "verdict": "allowed",
+    "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles."
+  },
+  {
+    "key": "R4|MediaCentaur.Library.ExtraProgress|profile_id||unresolved",
+    "verdict": "allowed",
+    "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles."
+  },
+  {
+    "key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||unresolved",
+    "verdict": "allowed",
+    "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles."
+  },
+  {
+    "key": "R4|MediaCentaur.WatchHistory.Event|profile_id||unresolved",
+    "verdict": "allowed",
+    "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so WatchHistory takes no Boundary dependency on Profiles."
+  }
+]

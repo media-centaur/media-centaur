@@ -81,12 +81,12 @@ flowchart TD
 
 #### Play Command
 
-1. UI calls `Sessions.play/1` with an entity UUID
-2. `Resolver.resolve/2` loads the entity and the profile's progress, then runs `Resume.resolve/2`
-3. Sessions checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor`
+1. UI calls `Playback.play/2` with the socket's profile id and an entity UUID; the profile is captured here and held by the `MpvSession` for its life (ADR-078) — a switch mid-film does not re-home the progress
+2. `Resolver.resolve/2` loads the entity and that profile's progress, then runs `Resume.resolve/2`
+3. `Sessions.play/1` checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor` with the params, `profile_id` among them
 4. MpvSession registers in `SessionRegistry` by entity_id
 5. `DisplayEnv.resolve/1` builds the env list (WAYLAND_DISPLAY / DISPLAY, resolved from parent env or socket discovery); on `{:error, :no_display}` the session broadcasts `PlaybackFailed{reason: :no_display}` and stops
-6. MpvSession launches mpv with the flags `Playback.LaunchFlags` builds (IPC socket, log file, `--keep-open=yes`, `--resume-playback=no`, the bundled scripts package, the language policy, and the per-file `--start` group) plus the resolved display env; see [`mpv.md`](mpv.md) for the full table
+6. MpvSession launches mpv with the flags `Playback.LaunchFlags` builds (IPC socket, log file, `--keep-open=yes`, `--resume-playback=no`, the bundled scripts package, the language policy, the per-file `--start` group, and `--script-opts-append=media_centaur_session-profile_id=<id>`, which pins the profile in the mpv process so recovery can read it back) plus the resolved display env; see [`mpv.md`](mpv.md) for the full table
 
 #### MPV IPC Protocol
 
@@ -125,6 +125,7 @@ Every save broadcasts to `"playback:events"`:
 ```elixir
 {:entity_progress_updated, %{
   entity_id: entity_id,
+  profile_id: profile_id,
   summary: summary,
   resume_target: resume_target,
   changed_record: changed_record,
@@ -132,25 +133,25 @@ Every save broadcasts to `"playback:events"`:
 }}
 ```
 
-State changes broadcast with entity_id:
+State changes broadcast with entity_id and profile_id:
 
 ```elixir
-{:playback_state_changed, %{entity_id: entity_id, state: state, now_playing: now_playing, started_at: started_at}}
+{:playback_state_changed, %{entity_id: entity_id, profile_id: profile_id, state: state, now_playing: now_playing, started_at: started_at}}
 ```
 
 Once per session, right after `:stopped`:
 
 ```elixir
-{:session_ended, %{entity_id: entity_id, completed: completed}}
+{:session_ended, %{entity_id: entity_id, profile_id: profile_id, completed: completed}}
 ```
 
 `completed` is a `MapSet` of `{:movie | :video_object | :extra, id}` and `{:episode, id, season_number, episode_number}` — every item the session completed, empty when it ended before any. Episodes carry their numbers so a subscriber can compare them with TMDB's numbering without a read.
 
-All three payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract).
+All three payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract). Every event about watching state names the `profile_id` the session records under — `PlaybackFailed`, which fires before any state exists, is the one exception — so a page whose socket holds another profile can ignore it; the finish prompt opens only in the watcher's session.
 
 #### Session Recovery (ADR-023)
 
-On startup, a one-shot Task scans the socket directory for `media-centaur-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
+On startup, a one-shot Task scans the socket directory for `media-centaur-*.sock` files. For each socket found, it probes mpv for the current path, position and `script-opts`, reads the profile id back from the `media_centaur_session-profile_id` option `LaunchFlags` pinned at launch, resolves the entity, and starts a reconnecting MpvSession under that profile. A running mpv whose `script-opts` carry no profile was started by the outgoing release: it is skipped with a log line rather than recovered under a guessed profile (mpv keeps playing; its socket goes when it exits). Dead socket files are cleaned up.
 
 #### WatchingTracker
 
