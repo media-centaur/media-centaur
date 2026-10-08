@@ -2558,13 +2558,13 @@
             {
               "name": "duration_seconds",
               "reads": {
-                "MediaCentaur.Library": 11,
+                "MediaCentaur.Library": 9,
                 "MediaCentaur.WatchHistory": 3
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 9,
+                "MediaCentaur.Library": 7,
                 "MediaCentaur.WatchHistory": 3
               }
             },
@@ -2594,7 +2594,7 @@
               "name": "season_id",
               "reads": {
                 "MediaCentaur.Activities": 1,
-                "MediaCentaur.Library": 27,
+                "MediaCentaur.Library": 26,
                 "MediaCentaur.Pipeline": 3,
                 "MediaCentaur.Playback": 2
               },
@@ -2856,45 +2856,56 @@
             {
               "name": "position_seconds",
               "reads": {
-                "MediaCentaur.Library": 6
+                "MediaCentaur.Library": 4
               },
               "type": ":float",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 3
+                "MediaCentaur.Library": 1
               }
             },
             {
               "name": "duration_seconds",
               "reads": {
-                "MediaCentaur.Library": 5
+                "MediaCentaur.Library": 3
               },
               "type": ":float",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 3
+                "MediaCentaur.Library": 1
               }
             },
             {
               "name": "completed",
               "reads": {
-                "MediaCentaur.Library": 7
+                "MediaCentaur.Library": 5
               },
               "type": ":boolean",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 3
+                "MediaCentaur.Library": 1
               }
             },
             {
               "name": "last_watched_at",
               "reads": {
-                "MediaCentaur.Library": 7
+                "MediaCentaur.Library": 5
               },
               "type": ":utc_datetime",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 6
+                "MediaCentaur.Library": 4
+              }
+            },
+            {
+              "name": "profile_id",
+              "reads": {
+                "MediaCentaur.Library": 13
+              },
+              "type": "Ecto.UUID",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Library": 2
               }
             },
             {
@@ -3128,6 +3139,18 @@
           "associations": [],
           "fields": [
             {
+              "name": "profile_id",
+              "reads": {
+                "MediaCentaur.Library": 1,
+                "MediaCentaur.Playback": 1
+              },
+              "type": "Ecto.UUID",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Library": 1
+              }
+            },
+            {
               "name": "owner_type",
               "reads": {
                 "MediaCentaur.Library": 5
@@ -3139,6 +3162,7 @@
                 "video_object"
               ],
               "writes": {
+                "MediaCentaur.Library": 1,
                 "MediaCentaur.Playback": 2
               }
             },
@@ -3150,6 +3174,7 @@
               "type": "Ecto.UUID",
               "values": null,
               "writes": {
+                "MediaCentaur.Library": 1,
                 "MediaCentaur.Playback": 2
               }
             },
@@ -3278,13 +3303,13 @@
             {
               "name": "duration_seconds",
               "reads": {
-                "MediaCentaur.Library": 11,
+                "MediaCentaur.Library": 9,
                 "MediaCentaur.WatchHistory": 3
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 9,
+                "MediaCentaur.Library": 7,
                 "MediaCentaur.WatchHistory": 3
               }
             },
@@ -3450,10 +3475,10 @@
             {
               "name": "movie_series_id",
               "reads": {
-                "MediaCentaur.Library": 31,
+                "MediaCentaur.Library": 30,
                 "MediaCentaur.Maintenance": 2,
                 "MediaCentaur.Pipeline": 1,
-                "MediaCentaur.Playback": 2
+                "MediaCentaur.Playback": 3
               },
               "type": "Ecto.UUID",
               "values": null,
@@ -3747,19 +3772,13 @@
               "kind": "has_many",
               "name": "watched_files",
               "target": "MediaCentaur.Library.WatchedFile"
-            },
-            {
-              "foreign_key": null,
-              "kind": "has_one",
-              "name": "watch_progress",
-              "target": "MediaCentaur.Library.WatchProgress"
             }
           ],
           "fields": [
             {
               "name": "container_type",
               "reads": {
-                "MediaCentaur.Library": 70,
+                "MediaCentaur.Library": 67,
                 "MediaCentaur.Maintenance": 1,
                 "MediaCentaur.Pipeline": 5
               },
@@ -3770,19 +3789,19 @@
                 "video_object"
               ],
               "writes": {
-                "MediaCentaur.Library": 8
+                "MediaCentaur.Library": 6
               }
             },
             {
               "name": "container_id",
               "reads": {
-                "MediaCentaur.Library": 74,
+                "MediaCentaur.Library": 70,
                 "MediaCentaur.Pipeline": 5
               },
               "type": "Ecto.UUID",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 11
+                "MediaCentaur.Library": 8
               }
             },
             {
@@ -3799,7 +3818,7 @@
             {
               "name": "duration_seconds",
               "reads": {
-                "MediaCentaur.Library": 11
+                "MediaCentaur.Library": 9
               },
               "type": ":integer",
               "values": null,
@@ -3882,7 +3901,7 @@
             {
               "name": "tv_series_id",
               "reads": {
-                "MediaCentaur.Library": 33,
+                "MediaCentaur.Library": 32,
                 "MediaCentaur.Pipeline": 4
               },
               "type": "Ecto.UUID",
@@ -4187,7 +4206,18 @@
             {
               "name": "position_seconds",
               "reads": {
-                "MediaCentaur.Library": 11
+                "MediaCentaur.Library": 9
+              },
+              "type": ":float",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Library": 8
+              }
+            },
+            {
+              "name": "duration_seconds",
+              "reads": {
+                "MediaCentaur.Library": 10
               },
               "type": ":float",
               "values": null,
@@ -4196,47 +4226,47 @@
               }
             },
             {
-              "name": "duration_seconds",
+              "name": "completed",
               "reads": {
-                "MediaCentaur.Library": 12
+                "MediaCentaur.Library": 13
               },
-              "type": ":float",
+              "type": ":boolean",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 14
+                "MediaCentaur.Library": 6
               }
             },
             {
-              "name": "completed",
+              "name": "last_watched_at",
               "reads": {
-                "MediaCentaur.Library": 15
+                "MediaCentaur.Library": 14
               },
-              "type": ":boolean",
+              "type": ":utc_datetime",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Library": 12
+              }
+            },
+            {
+              "name": "profile_id",
+              "reads": {
+                "MediaCentaur.Library": 26
+              },
+              "type": "Ecto.UUID",
               "values": null,
               "writes": {
                 "MediaCentaur.Library": 8
               }
             },
             {
-              "name": "last_watched_at",
-              "reads": {
-                "MediaCentaur.Library": 16
-              },
-              "type": ":utc_datetime",
-              "values": null,
-              "writes": {
-                "MediaCentaur.Library": 14
-              }
-            },
-            {
               "name": "playable_item_id",
               "reads": {
-                "MediaCentaur.Library": 25
+                "MediaCentaur.Library": 22
               },
               "type": "Ecto.UUID",
               "values": null,
               "writes": {
-                "MediaCentaur.Library": 7
+                "MediaCentaur.Library": 8
               }
             }
           ],
@@ -4491,6 +4521,7 @@
     {
       "deps": [
         "MediaCentaur.Library",
+        "MediaCentaur.Profiles",
         "MediaCentaur.ReleaseTracking",
         "MediaCentaur.Settings",
         "MediaCentaur.WatchHistory"
@@ -6028,6 +6059,15 @@
           ],
           "fields": [
             {
+              "name": "profile_id",
+              "reads": {
+                "MediaCentaur.WatchHistory": 3
+              },
+              "type": "Ecto.UUID",
+              "values": null,
+              "writes": {}
+            },
+            {
               "name": "entity_type",
               "reads": {
                 "MediaCentaur.Activities": 2,
@@ -6073,8 +6113,7 @@
             {
               "name": "movie_id",
               "reads": {
-                "MediaCentaur.Activities": 1,
-                "MediaCentaur.WatchHistory": 1
+                "MediaCentaur.Activities": 1
               },
               "type": "Ecto.UUID",
               "values": null,
@@ -6083,8 +6122,7 @@
             {
               "name": "episode_id",
               "reads": {
-                "MediaCentaur.Activities": 1,
-                "MediaCentaur.WatchHistory": 1
+                "MediaCentaur.Activities": 1
               },
               "type": "Ecto.UUID",
               "values": null,
@@ -6092,9 +6130,7 @@
             },
             {
               "name": "video_object_id",
-              "reads": {
-                "MediaCentaur.WatchHistory": 1
-              },
+              "reads": {},
               "type": "Ecto.UUID",
               "values": null,
               "writes": {}
@@ -6620,7 +6656,7 @@
       "field": "min_quality",
       "file": "lib/media_centaur_web/live/title_detail_host.ex",
       "key": "R1|MediaCentaur.Acquisition.DownloadParams|min_quality||foreign_write::web",
-      "line": 1026,
+      "line": 1042,
       "owner": "MediaCentaur.Acquisition",
       "reason": null,
       "rule": "R1",
@@ -7237,7 +7273,7 @@
       "field": "duration_seconds",
       "file": "lib/media_centaur/watch_history/recorder.ex",
       "key": "R1|MediaCentaur.Library.Episode|duration_seconds||foreign_write:MediaCentaur.WatchHistory",
-      "line": 88,
+      "line": 90,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
@@ -7287,7 +7323,7 @@
       "field": "episode_number",
       "file": "lib/media_centaur/watch_history/recorder.ex",
       "key": "R1|MediaCentaur.Library.Episode|episode_number||foreign_write:MediaCentaur.WatchHistory",
-      "line": 105,
+      "line": 107,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
@@ -7331,7 +7367,7 @@
       "field": "season_id",
       "file": "lib/media_centaur/profile/loader.ex",
       "key": "R1|MediaCentaur.Library.Episode|season_id||foreign_write:MediaCentaur.Profile",
-      "line": 137,
+      "line": 138,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
@@ -7441,7 +7477,7 @@
       "field": "audio_lang",
       "file": "lib/media_centaur/playback/language_context.ex",
       "key": "R1|MediaCentaur.Library.MediaTrackOverride|audio_lang||foreign_write:MediaCentaur.Playback",
-      "line": 186,
+      "line": 191,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
@@ -7573,7 +7609,7 @@
       "field": "duration_seconds",
       "file": "lib/media_centaur/watch_history/recorder.ex",
       "key": "R1|MediaCentaur.Library.Movie|duration_seconds||foreign_write:MediaCentaur.WatchHistory",
-      "line": 88,
+      "line": 90,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
@@ -7779,7 +7815,7 @@
       "field": "source_url",
       "file": "lib/media_centaur/library/inbound.ex",
       "key": "R1|MediaCentaur.Pipeline.ImageQueueEntry|source_url||foreign_write:MediaCentaur.Library",
-      "line": 748,
+      "line": 749,
       "owner": "MediaCentaur.Pipeline",
       "reason": null,
       "rule": "R1",
@@ -8943,7 +8979,73 @@
       "field": "duration_seconds",
       "file": "lib/media_centaur/watch_history/event.ex",
       "key": "R1|MediaCentaur.WatchHistory.Event|duration_seconds||owner_never_reads:MediaCentaur.WatchHistory",
-      "line": 19,
+      "line": 23,
+      "owner": "MediaCentaur.WatchHistory",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.WatchHistory.Event",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.WatchHistory.Event|episode_id||*",
+      "consumer": null,
+      "consumer_context": "MediaCentaur.WatchHistory",
+      "detail": {
+        "kind": "owner_never_reads"
+      },
+      "excerpt": "belongs_to :episode, MediaCentaur.Library.Episode",
+      "field": "episode_id",
+      "file": "lib/media_centaur/watch_history/event.ex",
+      "key": "R1|MediaCentaur.WatchHistory.Event|episode_id||owner_never_reads:MediaCentaur.WatchHistory",
+      "line": 27,
+      "owner": "MediaCentaur.WatchHistory",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.WatchHistory.Event",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.WatchHistory.Event|movie_id||*",
+      "consumer": null,
+      "consumer_context": "MediaCentaur.WatchHistory",
+      "detail": {
+        "kind": "owner_never_reads"
+      },
+      "excerpt": "belongs_to :movie, MediaCentaur.Library.Movie",
+      "field": "movie_id",
+      "file": "lib/media_centaur/watch_history/event.ex",
+      "key": "R1|MediaCentaur.WatchHistory.Event|movie_id||owner_never_reads:MediaCentaur.WatchHistory",
+      "line": 26,
+      "owner": "MediaCentaur.WatchHistory",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.WatchHistory.Event",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.WatchHistory.Event|video_object_id||*",
+      "consumer": null,
+      "consumer_context": "MediaCentaur.WatchHistory",
+      "detail": {
+        "kind": "owner_never_reads"
+      },
+      "excerpt": "belongs_to :video_object, MediaCentaur.Library.VideoObject",
+      "field": "video_object_id",
+      "file": "lib/media_centaur/watch_history/event.ex",
+      "key": "R1|MediaCentaur.WatchHistory.Event|video_object_id||owner_never_reads:MediaCentaur.WatchHistory",
+      "line": 28,
       "owner": "MediaCentaur.WatchHistory",
       "reason": null,
       "rule": "R1",
@@ -10343,7 +10445,7 @@
       "field": "kind",
       "file": "lib/media_centaur/library/progress_records.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|watched|MediaCentaur.Library.ProgressRecords",
-      "line": 72,
+      "line": 73,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10363,7 +10465,7 @@
       "field": "kind",
       "file": "lib/media_centaur/library/progress_records.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|watched|MediaCentaur.Library.ProgressRecords",
-      "line": 77,
+      "line": 78,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10897,7 +10999,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/library_live.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|watched|MediaCentaurWeb.LibraryLive",
-      "line": 554,
+      "line": 560,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -11951,7 +12053,7 @@
       "field": "level",
       "file": "lib/media_centaur_web/live/title_detail_host.ex",
       "key": "R3|MediaCentaur.ErrorReports.DiagnosticEvent|level|error|MediaCentaurWeb.Live.TitleDetailHost",
-      "line": 705,
+      "line": 708,
       "owner": "MediaCentaur.ErrorReports",
       "reason": null,
       "rule": "R3",
@@ -14034,7 +14136,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/title_detail_host.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaurWeb.Live.TitleDetailHost",
-      "line": 1113,
+      "line": 1129,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14443,7 +14545,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/title_detail_host.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|MediaCentaurWeb.Live.TitleDetailHost",
-      "line": 1114,
+      "line": 1130,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15318,7 +15420,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/title_detail_host.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaurWeb.Live.TitleDetailHost",
-      "line": 1112,
+      "line": 1128,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15798,6 +15900,72 @@
     },
     {
       "anchored": true,
+      "concept_key": "R4|MediaCentaur.Library.ExtraProgress|profile_id||*",
+      "consumer": null,
+      "consumer_context": null,
+      "detail": {
+        "unresolved": true
+      },
+      "excerpt": "field :profile_id, Ecto.UUID",
+      "field": "profile_id",
+      "file": "lib/media_centaur/library/extra_progress.ex",
+      "key": "R4|MediaCentaur.Library.ExtraProgress|profile_id||unresolved",
+      "line": 22,
+      "owner": "MediaCentaur.Library",
+      "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles.",
+      "rule": "R4",
+      "schema": "MediaCentaur.Library.ExtraProgress",
+      "surfaces": [],
+      "value": null,
+      "verdict": "allowed",
+      "verdict_key": "R4|MediaCentaur.Library.ExtraProgress|profile_id||unresolved"
+    },
+    {
+      "anchored": true,
+      "concept_key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||*",
+      "consumer": null,
+      "consumer_context": null,
+      "detail": {
+        "unresolved": true
+      },
+      "excerpt": "field :profile_id, Ecto.UUID",
+      "field": "profile_id",
+      "file": "lib/media_centaur/library/media_track_override.ex",
+      "key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||unresolved",
+      "line": 55,
+      "owner": "MediaCentaur.Library",
+      "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles.",
+      "rule": "R4",
+      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "surfaces": [],
+      "value": null,
+      "verdict": "allowed",
+      "verdict_key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||unresolved"
+    },
+    {
+      "anchored": true,
+      "concept_key": "R4|MediaCentaur.Library.WatchProgress|profile_id||*",
+      "consumer": null,
+      "consumer_context": null,
+      "detail": {
+        "unresolved": true
+      },
+      "excerpt": "field :profile_id, Ecto.UUID",
+      "field": "profile_id",
+      "file": "lib/media_centaur/library/watch_progress.ex",
+      "key": "R4|MediaCentaur.Library.WatchProgress|profile_id||unresolved",
+      "line": 22,
+      "owner": "MediaCentaur.Library",
+      "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles.",
+      "rule": "R4",
+      "schema": "MediaCentaur.Library.WatchProgress",
+      "surfaces": [],
+      "value": null,
+      "verdict": "allowed",
+      "verdict_key": "R4|MediaCentaur.Library.WatchProgress|profile_id||unresolved"
+    },
+    {
+      "anchored": true,
       "concept_key": "R4|MediaCentaur.Pipeline.ImageQueueEntry|entity_id||*",
       "consumer": null,
       "consumer_context": null,
@@ -15883,6 +16051,28 @@
       "value": null,
       "verdict": null,
       "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R4|MediaCentaur.WatchHistory.Event|profile_id||*",
+      "consumer": null,
+      "consumer_context": null,
+      "detail": {
+        "unresolved": true
+      },
+      "excerpt": "field :profile_id, Ecto.UUID",
+      "field": "profile_id",
+      "file": "lib/media_centaur/watch_history/event.ex",
+      "key": "R4|MediaCentaur.WatchHistory.Event|profile_id||unresolved",
+      "line": 20,
+      "owner": "MediaCentaur.WatchHistory",
+      "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so WatchHistory takes no Boundary dependency on Profiles.",
+      "rule": "R4",
+      "schema": "MediaCentaur.WatchHistory.Event",
+      "surfaces": [],
+      "value": null,
+      "verdict": "allowed",
+      "verdict_key": "R4|MediaCentaur.WatchHistory.Event|profile_id||unresolved"
     },
     {
       "anchored": true,

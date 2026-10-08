@@ -120,6 +120,30 @@ defmodule MediaCentaur.ProfilesTest do
     assert PictureStore.url(ana.id, 1) == nil
   end
 
+  test "remove takes the profile's watching rows with it and leaves the other profile's" do
+    movie = create_standalone_movie(%{name: "Sample Movie"})
+    [me] = Profiles.list()
+    {:ok, ana} = Profiles.add("Ana")
+
+    create_watch_progress(%{profile_id: ana.id, movie_id: movie.id, position_seconds: 10.0})
+    create_watch_progress(%{profile_id: me.id, movie_id: movie.id, position_seconds: 20.0})
+    create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Sample Movie"})
+
+    {:ok, _} =
+      MediaCentaur.Library.MediaTrackOverrides.upsert(ana.id, :movie, movie.id, %{audio_lang: "fra"})
+
+    assert :ok = Profiles.remove(ana)
+
+    assert {:error, :not_found} =
+             MediaCentaur.Library.ProgressRecords.fetch_for_container(ana.id, :movie, movie.id)
+
+    assert {:ok, %{position_seconds: 20.0}} =
+             MediaCentaur.Library.ProgressRecords.fetch_for_container(me.id, :movie, movie.id)
+
+    assert MediaCentaur.WatchHistory.list_events(ana.id) == []
+    assert MediaCentaur.Library.MediaTrackOverrides.get(ana.id, :movie, movie.id) == nil
+  end
+
   test "the social profile schema reads social_profiles and the table carries its unique key" do
     assert MediaCentaur.Social.Profile.__schema__(:source) == "social_profiles"
 

@@ -184,9 +184,11 @@ The scan's ledger of every path the watcher has seen under a media directory, an
 
 ### WatchProgress
 
-One profile's progress on one playable item, unique on `(profile_id, playable_item_id)` (ADR-078). Written by `Library.Progress` (in-memory hot state, flushed to rows by `Library.Progress.Worker`); read through `Library.Progress.get/2`.
+One profile's progress on one playable item, unique on `(profile_id, playable_item_id)` (ADR-078). Written by `Library.Progress` (in-memory hot state keyed `{profile_id, playable_item_id}`, flushed to rows by `Library.Progress.Worker`); read through `Library.Progress.get/2`.
 
 **Key attributes:** `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `profile_id`, `playable_item_id`
+
+Every watching row is a profile's: `WatchProgress`, `ExtraProgress` (unique on `(profile_id, extra_id)`) and `MediaTrackOverride` (unique on `(profile_id, owner_type, owner_id)`) carry `profile_id` as a plain column — no `belongs_to`, so `Library` takes no dependency on `Profiles`. They are read only through `Library.ProgressRecords` (`list_for_container/3`, `fetch_for_container/3`, `fetch_for_extra/2`) and `Library.MediaTrackOverrides` (`get/3`, `upsert/4`, `clear/3`), the profile id always first. No type record carries a `has_one :watch_progress` association: with a profile the cardinality is one-to-many, so a title's progress is loaded by `(profile_id, type, id)` and never preloaded. Removing a profile takes its rows with it by `ON DELETE CASCADE`; `EntityCascade` deletes them when their title goes.
 
 > Settings (the per-installation key/value store) is its own bounded context — `MediaCentaur.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
 
@@ -274,7 +276,7 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.ImageCache` | Where artwork files live on disk (per-media-dir cache, staging, path resolution) | `lib/media_centaur/library/image_cache.ex` |
 | `MediaCentaur.Library.Views.*` | ETS read projections (Browse, Detail, ContinueWatching, …; ADR-041) | `lib/media_centaur/library/views/` |
 | `MediaCentaur.Library.WatchedFile` | File → PlayableItem link | `lib/media_centaur/library/watched_file.ex` |
-| `MediaCentaur.Library.WatchProgress` | Playback progress per PlayableItem; `Library.Progress` is the API | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.WatchProgress` | One profile's playback progress on one PlayableItem; `Library.Progress` is the API | `lib/media_centaur/library/watch_progress.ex` |
 | `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |
 | `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
 | `MediaCentaur.Library.EntityCascade` | Cascade-deletion order | `lib/media_centaur/library/entity_cascade.ex` |

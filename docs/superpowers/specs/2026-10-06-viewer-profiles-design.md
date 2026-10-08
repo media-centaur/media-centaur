@@ -241,6 +241,29 @@ profile.
 Status page counts (items in progress, hours watched) are
 install-wide and sum across profiles.
 
+**Amendments, 2026-10-08 (phase 2 unify pass and execution).**
+`HeroCandidates` reads no watching state and is not keyed by profile.
+`PlaybackActivity` is the Status page's widget, install-wide, reading
+scope `:all`; `WatchHistory`'s readers take a scope of a profile id or
+`:all` (`get_event/2` takes a profile only: a delete is never
+install-wide). The `has_one :watch_progress` associations and
+`EntityShape.extract_progress/2` are removed: a title's progress is
+read through `ProgressRecords.list_for_container/3` only.
+`WatchHistory.delete_event!/2`'s unused `reset_progress` option is
+removed. The profile is pinned on the mpv command line
+(`--script-opts-append=media_centaur_session-profile_id=<id>`) so a
+recovered session keeps its profile; a running mpv without it is
+skipped. `Playback.play/2` takes the profile first. The backfill is the
+rebuild's `INSERT … SELECT`, so no `UPDATE` and no MC0015 carve-out.
+`Profiles.owner/0` names the oldest profile — the one the upgrade
+created and every pre-profile row was assigned to. `Continue Watching`
+is a `:set` of `{profile_id, items}`; `Summary` a map of profile to
+snapshot; both rebuilt whole for the profiles present in their source
+table. The extra-progress FK to `library_extras` now cascades;
+`MediaTrackOverride` joined the whole-library delete order. The
+`{:watch_completed, playable_item_id}` tuple stays a trigger-only
+message.
+
 ### Events and topics
 
 `profiles:updates` is a source topic declared in `MediaCentaur.Topics`

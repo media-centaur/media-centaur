@@ -149,8 +149,8 @@ defmodule MediaCentaur.Profiles do
   @doc """
   Removes a profile and its picture. Refuses the last one: the install
   always has someone to watch as. A profile already removed answers `:ok`
-  and broadcasts nothing. Phase 2 cascades the watching rows by foreign
-  key. Broadcasts `ProfileRemoved`.
+  and broadcasts nothing. The watching rows go with it by foreign key
+  (`ON DELETE CASCADE` on the four tables). Broadcasts `ProfileRemoved`.
   """
   @spec remove(Profile.t()) :: :ok | {:error, :last_profile}
   def remove(%Profile{} = profile) do
