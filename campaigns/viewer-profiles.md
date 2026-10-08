@@ -48,7 +48,11 @@ Phase 1 built and gated on branch `viewer-profiles` (worktree
 each reviewed for spec compliance and quality with the fixes landed;
 `mix precommit` clean on every static gate; the suite at 8398 with
 the three load flakes below passing alone. Not merged, not pushed.
-Owner's visual check and merge next; phase 2 plan after.
+Owner's visual check and merge next.
+
+Phase 2 planned, 2026-10-08: unify pass over the slice and the plan at
+`docs/superpowers/plans/2026-10-08-viewer-profiles-phase-2.md` (seven
+tasks). Execution follows on the same branch in the same worktree.
 
 **Hand-off for the next session (read before anything else).**
 
