@@ -233,7 +233,8 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
     test "movie session — owner_type = :movie, original_language from movie" do
       movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
 
-      context = LanguageContext.init(%{entity_id: movie.id, movie_id: movie.id})
+      context =
+        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
 
       assert context.owner_type == :movie
       assert context.owner_id == movie.id
@@ -247,7 +248,11 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       tv_series = create_tv_series(%{original_language: "kor"})
 
       context =
-        LanguageContext.init(%{entity_id: tv_series.id, episode_id: "fake-episode-uuid"})
+        LanguageContext.init(%{
+          profile_id: owner_profile_id(),
+          entity_id: tv_series.id,
+          episode_id: "fake-episode-uuid"
+        })
 
       assert context.owner_type == :tv_series
       assert context.owner_id == tv_series.id
@@ -259,7 +264,8 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       # so it matches mpv-reported track languages downstream.
       movie = create_movie(%{name: "Sample Movie", original_language: "ja"})
 
-      context = LanguageContext.init(%{entity_id: movie.id, movie_id: movie.id})
+      context =
+        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
 
       assert context.original_language == "jpn"
     end
@@ -268,17 +274,26 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
 
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "eng"})
+        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "eng"})
 
-      context = LanguageContext.init(%{entity_id: movie.id, movie_id: movie.id})
+      context =
+        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
 
       assert context.override.audio_lang == "eng"
       # Override prepends to priority list.
       assert hd(context.priority_args.alang) == "eng"
+
+      # Another profile's session does not see this profile's memory.
+      ana = create_profile(%{name: "Ana"}).id
+      context = LanguageContext.init(%{profile_id: ana, entity_id: movie.id, movie_id: movie.id})
+
+      assert context.override == nil
+      assert hd(context.priority_args.alang) == "jpn"
     end
 
     test "unsupported entity type (extra) — owner_type = nil, policy still applies" do
-      context = LanguageContext.init(%{entity_id: "any", extra_id: "some-extra"})
+      context =
+        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: "any", extra_id: "some-extra"})
 
       assert context.owner_type == nil
       assert context.owner_id == nil

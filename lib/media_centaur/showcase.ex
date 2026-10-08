@@ -121,11 +121,11 @@ defmodule MediaCentaur.Showcase do
   def seed! do
     assert_showcase_mode!()
     client = TMDB.Client.default_client()
+    owner_id = MediaCentaur.Profiles.owner().id
 
-    movies = Enum.map(Catalog.movies(), &seed_movie!(&1, client))
+    movies = Enum.map(Catalog.movies(), &seed_movie!(&1, owner_id, client))
     tv_series = Enum.map(Catalog.tv_series(), &seed_tv_series!(&1, client))
     video_objects = Enum.map(Catalog.video_objects(), &seed_video_object!/1)
-    owner_id = MediaCentaur.Profiles.owner().id
 
     counts = %{
       watch_progress: seed_watch_progress!(owner_id, movies, tv_series),
@@ -165,7 +165,7 @@ defmodule MediaCentaur.Showcase do
   # Movies
   # ---------------------------------------------------------------------------
 
-  defp seed_movie!(%{title: title, year: year} = entry, client) do
+  defp seed_movie!(%{title: title, year: year} = entry, owner_id, client) do
     with {:ok, tmdb_id} <- resolve_movie_id(entry, client),
          {:ok, movie_data} <- TMDB.Store.fetch_full({tmdb_id, :movie}, client: client) do
       movie =
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Showcase do
 
       seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
-      maybe_seed_track_override!(movie.id, entry)
+      maybe_seed_track_override!(owner_id, movie.id, entry)
 
       movie
     else
@@ -206,14 +206,14 @@ defmodule MediaCentaur.Showcase do
     end
   end
 
-  # Apply a catalog-declared per-entity audio/subtitle override so the
-  # detail modal's "remembered tracks" badge has real state to render.
-  # No-op for entries without one.
-  defp maybe_seed_track_override!(movie_id, %{track_override: attrs}) when is_map(attrs) do
-    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie_id, attrs)
+  # Apply a catalog-declared audio/subtitle override, as the owner
+  # profile's, so the detail modal's "remembered tracks" badge has real
+  # state to render. No-op for entries without one.
+  defp maybe_seed_track_override!(owner_id, movie_id, %{track_override: attrs}) when is_map(attrs) do
+    {:ok, _} = Library.MediaTrackOverrides.upsert(owner_id, :movie, movie_id, attrs)
   end
 
-  defp maybe_seed_track_override!(_movie_id, _entry), do: :ok
+  defp maybe_seed_track_override!(_owner_id, _movie_id, _entry), do: :ok
 
   # ---------------------------------------------------------------------------
   # TV Series

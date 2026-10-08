@@ -16,7 +16,9 @@ defmodule MediaCentaur.Library.EntityCascade do
               (Image / Extra / ExternalId) by `(owner_type, owner_id)`.
            b. Delete the leaf's PlayableItem rows by `(container_type, container_id)`.
               WatchedFiles and WatchProgress cascade automatically via their
-              `on_delete: :delete_all` FK to `library_playable_items`.
+              `on_delete: :delete_all` FK to `library_playable_items`, as
+              ExtraProgress does via its FK to `library_extras` when the
+              Extra goes in step a.
            c. Delete the leaf container row itself.
       2. Delete the parent container's own polymorphic supporting rows
          (Image / Extra / ExternalId by `(owner_type, owner_id)`, plus the
@@ -76,6 +78,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   @tables_in_delete_order [
     ExtraProgress,
     WatchProgress,
+    MediaTrackOverride,
     ExtraFile,
     Extra,
     Image,

@@ -24,7 +24,7 @@ defmodule MediaCentaur.Library.EntityView do
   `:type` is the presented kind (`:movie | :movie_series | :tv_series |
   :video_object`, ADR-050); `:collection` is the `%{id, name}` of the
   collection a hoisted movie belongs to, else nil; `:track_override` is
-  attached by `Library.MediaTrackOverrides.put_on_entity/1`.
+  attached by `Library.MediaTrackOverrides.put_on_entity/2`.
   `:available?` is whether the entity's media directory is reachable
   right now — the projection adapter carries it from `DetailItem`, and
   `MediaCentaurWeb.LiveHelpers.image_url/2` withholds every artwork URL

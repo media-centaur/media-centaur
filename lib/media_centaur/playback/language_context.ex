@@ -29,9 +29,11 @@ defmodule MediaCentaur.Playback.LanguageContext do
   Build the language context for a playback session. Returns a context
   map even when the entity type is unsupported (extras, video_objects)
   — in that case `owner_type` is `nil` and the override flow is skipped,
-  but the global policy still applies via `priority_args`.
+  but the global policy still applies via `priority_args`. The override
+  read is the session's profile's own (`profile_id`, ADR-078).
   """
   @spec init(%{
+          required(:profile_id) => String.t(),
           required(:entity_id) => String.t() | nil,
           optional(:movie_id) => String.t() | nil,
           optional(:episode_id) => String.t() | nil,
@@ -42,7 +44,10 @@ defmodule MediaCentaur.Playback.LanguageContext do
     {owner_type, owner_id, original_language} = resolve_owner(params)
 
     policy = LanguagePolicy.load()
-    override = if owner_type, do: Library.MediaTrackOverrides.get(owner_type, owner_id)
+
+    override =
+      if owner_type, do: Library.MediaTrackOverrides.get(params.profile_id, owner_type, owner_id)
+
     priority_args = TrackResolver.priority_args(policy, override, original_language)
 
     %{

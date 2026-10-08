@@ -148,12 +148,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     put_flash(socket, level, message)
   end
 
-  # Clears the per-entity track override and drops the *Remembered
-  # tracks* badge in place. Only a movie or a series owns one.
+  # Clears this profile's track override for the entity and drops the
+  # *Remembered tracks* badge in place. Only a movie or a series owns one.
   def handle("reset_track_override", _params, socket) do
     case socket.assigns.title_detail.library.entry.entity do
       %{id: id, type: type} when type in [:movie, :tv_series] and is_binary(id) ->
-        Library.MediaTrackOverrides.clear(type, id)
+        Library.MediaTrackOverrides.clear(socket.assigns.profile.id, type, id)
         update_half(socket, &LibraryHalf.put_track_override(&1, nil))
 
       _other ->

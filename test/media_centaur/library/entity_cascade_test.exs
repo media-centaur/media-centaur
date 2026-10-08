@@ -18,6 +18,9 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
         file_path: "/media/test/sample.mkv"
       })
 
+      {:ok, _} =
+        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "jpn"})
+
       assert Repo.aggregate(PlayableItem, :count) > 0
 
       assert :ok = EntityCascade.destroy_all!()
@@ -28,6 +31,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
             Library.ExternalId,
             Library.WatchedFile,
             Library.FilePresence,
+            Library.MediaTrackOverride,
             PlayableItem
           ] do
         assert Repo.aggregate(schema, :count) == 0, "#{inspect(schema)} not emptied"
@@ -104,11 +108,13 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+        Library.MediaTrackOverrides.upsert(owner_profile_id(), :tv_series, tv_series.id, %{
+          audio_lang: "jpn"
+        })
 
       EntityCascade.destroy!(tv_series.id)
 
-      assert Library.MediaTrackOverrides.get(:tv_series, tv_series.id) == nil
+      assert Library.MediaTrackOverrides.get(owner_profile_id(), :tv_series, tv_series.id) == nil
     end
 
     test "cascade deletes a movie with images and external IDs" do
