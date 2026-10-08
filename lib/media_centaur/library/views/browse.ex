@@ -101,9 +101,8 @@ defmodule MediaCentaur.Library.Views.Browse do
   defp filter_by_kind(items, nil), do: items
   defp filter_by_kind(items, kind), do: Enum.filter(items, &(&1.kind == kind))
 
-  # `entry` is the rich `%{entity:, progress:, progress_records:}` map
-  # produced by `Browser.fetch_all_typed_entries/0` — the entity is the
-  # `EntityView` from `EntityShape.to_entity_view/2`. The projection
+  # `entry` is `%{entity:}` from `Browser.fetch_all_typed_entries/0` —
+  # the entity is the `EntityView` from `EntityShape.to_entity_view/2`. The projection
   # collapses this into the minimal BrowseItem shape; consumers that
   # need progress / playback enrich per-row via their own LiveView
   # state (ADR-041). Availability is projection data — `build/0` sets

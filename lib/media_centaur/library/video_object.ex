@@ -57,15 +57,6 @@ defmodule MediaCentaur.Library.VideoObject do
     # (Library Schema v2 Phase 2 Task B).
     has_many :watched_files, through: [:playable_items, :watched_files]
 
-    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
-    # Task C). A VideoObject has at most one PlayableItem in current
-    # schema, so this preserves the historical `has_one` shape. If a
-    # VideoObject ever has multiple PlayableItems each with
-    # WatchProgress, `Repo.preload(video_object, :watch_progress)`
-    # silently returns the first PlayableItem's progress; the second
-    # cut would be invisible at this preload path.
-    has_one :watch_progress, through: [:playable_items, :watch_progress]
-
     timestamps()
   end
 

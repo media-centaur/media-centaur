@@ -1,9 +1,7 @@
 defmodule MediaCentaur.Library.ProgressRecordsTest do
-  use MediaCentaur.Case, async: true
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Library.ProgressRecords
-
-  import MediaCentaur.TestFactory
 
   describe "index_progress_by_key/1" do
     test "indexes by episode_id FK" do
@@ -37,6 +35,19 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
       assert index[movie_id_a] == progress_a
       assert index[movie_id_b] == progress_b
       assert map_size(index) == 2
+    end
+  end
+
+  describe "progress_by_leaf/2" do
+    test "one query maps each leaf container to its progress row; leaves without one are absent" do
+      watched = create_standalone_movie(%{name: "Watched"})
+      fresh = create_standalone_movie(%{name: "Fresh"})
+      create_watch_progress(%{movie_id: watched.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+      by_id = ProgressRecords.progress_by_leaf(:movie, [watched.id, fresh.id])
+
+      assert %{position_seconds: 30.0} = by_id[watched.id]
+      refute Map.has_key?(by_id, fresh.id)
     end
   end
 end

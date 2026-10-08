@@ -16,7 +16,7 @@ defmodule MediaCentaur.Library.BrowserTest do
 
       results = Browser.fetch_all_typed_entries()
 
-      assert [%{entity: fetched, progress: nil}] = results
+      assert [%{entity: fetched}] = results
       assert fetched.id == movie.id
       assert fetched.type == :movie
     end

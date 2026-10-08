@@ -59,9 +59,6 @@ defmodule MediaCentaur.Library.PlayableItem do
     field :name, :string
 
     has_many :watched_files, MediaCentaur.Library.WatchedFile
-    # `UNIQUE(playable_item_id)` on `library_watch_progress` guarantees
-    # the cardinality (Library Schema v2 Phase 2 Task C).
-    has_one :watch_progress, MediaCentaur.Library.WatchProgress
 
     timestamps()
   end

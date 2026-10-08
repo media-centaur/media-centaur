@@ -96,7 +96,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   # Every progress tick during playback hits this path; the previous
   # implementation issued up to 4 sequential `Repo.get` probes followed
   # by a deep `Repo.preload` (`seasons: [:extras, episodes: [:images,
-  # :watch_progress, playable_items: :watched_files]]`). The projection
+  # playable_items: :watched_files]]`). The projection
   # already holds the same shape consumers need; reads are microsecond
   # ETS lookups (with a DB fallback for test mode / pre-boot window —
   # `Views.detail_by_container/2` handles both).

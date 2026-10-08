@@ -48,7 +48,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_entity_view(tv_series, :tv_series)
-      progress_records = EntityShape.extract_progress(tv_series, :tv_series)
+      progress_records = ProgressRecords.list_for_container(:tv_series, season.tv_series_id)
       successor(entity, progress_records, episode_id)
     else
       _ -> :none

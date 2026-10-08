@@ -35,8 +35,8 @@ defmodule MediaCentaur.Playback.ResumeTest do
   end
 
   # Library Schema v2 Phase 2 Task C — WatchProgress is keyed by a
-  # single `playable_item_id`. The `EntityShape.extract_progress/2`
-  # call site at runtime synthesises `:playable_item` carrying the
+  # single `playable_item_id`. `ProgressRecords.list_for_container/2`
+  # at runtime synthesises `:playable_item` carrying the
   # `(container_type, container_id)` discriminator; we mirror that
   # shape here so `Resume.resolve/2` works against plain fixtures.
   defp progress(opts) do

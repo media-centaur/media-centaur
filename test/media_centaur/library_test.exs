@@ -1249,11 +1249,9 @@ defmodule MediaCentaur.LibraryTest do
 
   describe "list_progress_records_for_tv_series/1 (Phase 3.2 Task C.2)" do
     # Helper used by `SeriesDetail.compose/1` to thread per-episode
-    # WatchProgress to `build/4` after the projection flip. Returns the
-    # same shape `EntityShape.extract_progress(_, :tv_series)` produced
-    # for the legacy path — each record carries a synthesised
-    # `:playable_item` so `ProgressRecords.progress_container_id/1` resolves
-    # to the Episode UUID.
+    # WatchProgress to `build/4` after the projection flip. Each record
+    # carries a synthesised `:playable_item` so
+    # `ProgressRecords.progress_container_id/1` resolves to the Episode UUID.
 
     test "returns [] for a series with no episodes" do
       tv = create_tv_series(%{name: "Empty Series"})

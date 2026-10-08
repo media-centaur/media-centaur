@@ -141,20 +141,5 @@ defmodule MediaCentaur.Library.EntityTest do
       assert length(hd(loaded.seasons).episodes) == 1
       assert hd(hd(loaded.seasons).episodes).name == "Pilot"
     end
-
-    test "preloads watch_progress" do
-      movie = create_entity(%{type: :movie, name: "With Progress"})
-
-      create_watch_progress(%{
-        movie_id: movie.id,
-        position_seconds: 600.0,
-        duration_seconds: 7200.0
-      })
-
-      {:ok, loaded} = Library.Containers.fetch_with_associations(:movie, movie.id)
-
-      assert loaded.watch_progress != nil
-      assert loaded.watch_progress.position_seconds == 600.0
-    end
   end
 end

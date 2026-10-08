@@ -121,8 +121,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # WatchProgress is keyed by `playable_item_id` since Library Schema
       # v2 Phase 2 Task C; the linked PlayableItem carries the
       # `(container_type, container_id)` discriminator. The broadcaster
-      # substitutes a synthesised-`:playable_item` version (from
-      # `EntityShape.extract_progress/2`) so subscribers can key by
+      # substitutes a synthesised-`:playable_item` version (the shape
+      # `ProgressRecords.list_for_container/2` returns) so subscribers can key by
       # container id without an extra preload.
       assert changed_record.playable_item.container_type == :episode
       assert changed_record.playable_item.container_id == episode.id
