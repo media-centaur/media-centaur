@@ -374,6 +374,15 @@ three releases.
   * the bare `{:watch_completed, playable_item_id}` tuple stays a
     trigger-only message.
 
+* `2026-10-09` — **The switcher blends into the System group** (owner,
+  on first use): the first System entry, a person icon in the
+  profile's hue plus the name, no picture, instead of the 32px identity
+  tile above Watch. UIDR-053 rule 3 and the spec amended; the wiki's
+  Profiles page and Settings reference reworded. The branch was merged
+  into main on 2026-10-08 (fast-forward) and the dev server migrated
+  itself on the reload; the owner renamed Me to their own name and
+  added a second profile.
+
 ## Next steps
 
 1. Owner's check when home: the picker and Settings → Profiles (TV

@@ -198,7 +198,7 @@ The vocabulary of the viewer-profiles campaign (ADR-078, UIDR-053).
 | **Legacy session** | A running mpv started by a release before profiles reached playback: its `script-opts` carry no `media_centaur_session-profile_id` (`Playback.LaunchFlags.profile_script_opt/0`). `Playback.SessionRecovery` skips it rather than recover it under a guessed profile; mpv keeps playing untracked, and its socket goes when mpv exits. |
 | **Active profile** | The profile a browser session is using: the `"profile_id"` key of the signed session cookie, written by `ProfileController.activate/2`, read by `Live.ProfileAware` into `:profile`. With one profile the cookie is never consulted. |
 | **Picker** | `/profiles`, "Who's watching?": a tile per profile posting to the activate route, and an inline Add under the cap of eight. A session with no active profile is sent there with `return_to`. |
-| **Switcher** | The active profile's tile in the sidebar (`#sidebar-profile`), a link to the picker; present only with more than one profile. |
+| **Switcher** | The first entry of the sidebar's System group (`#sidebar-profile`): a person icon in the active profile's hue and its name, a link to the picker; present only with more than one profile. No picture — the tile is the picker's and Settings' (UIDR-053 rule 3, amended 2026-10-09). |
 | **Picture store** | `Profiles.PictureStore`: one 256×256 WebP per profile at `{data_dir}/images/profiles/<id>.webp`, over `ImageFiles`' `write_file/2`, `remove_file/1`, `url_if_present/2` — the primitives `Social.AvatarStore` shares. |
 
 ## Apps

@@ -32,6 +32,16 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     assert has_element?(view, "#sidebar-profile[data-nav-defer-activate]")
   end
 
+  test "the switcher is the first System entry, in the profile's hue, with no picture", %{
+    conn: conn
+  } do
+    ana = create_profile(name: "Ana", hue: 150)
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
+    assert has_element?(view, "#sidebar-system > #sidebar-profile:first-child")
+    assert has_element?(view, "#sidebar-profile[data-hue='150']")
+    refute has_element?(view, "#sidebar-profile img")
+  end
+
   test "a stale cookie asks again", %{conn: conn} do
     create_profile(name: "Ana")
     conn = Plug.Test.init_test_session(conn, %{"profile_id" => Ecto.UUID.generate()})

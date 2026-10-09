@@ -168,6 +168,13 @@ at the small size with its name, a link to `/profiles`. It is
 present only when the install has more than one profile, so a
 single-profile shell is unchanged.
 
+*Amended 2026-10-09 (owner, after seeing it run):* the switcher is
+not the tile. It is the first entry of the System group, drawn like
+the entries around it — a person icon and the name — with the icon in
+the profile's hue as its one accent, and no picture. The tile above
+the Watch group was a permanent saturated element on the shared rail
+for an action rarely taken. UIDR-053 rule 3 is amended the same way.
+
 The profile tile is the identity tile with its contract widened:
 `attr :name`, `attr :picture_url`, `attr :hue`, `attr :size`, and
 the social callers pass those from their `Person`. The marks stay
