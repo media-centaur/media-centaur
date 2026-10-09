@@ -511,14 +511,17 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
-/* The profile switcher: its 32px identity tile fills the 36px collapsed
-   rail cell (x=2..34, centred on the icon column) and keeps the 40px row
-   height of an icon link (0.5rem + the label's 24px line + 0.5rem).
-   Overflow stays visible so the tile's ring is not clipped; the label
-   truncates on its own. */
-.sidebar-link-profile {
-  padding: 0.25rem 0.125rem;
-  overflow: visible;
+/* The profile switcher (UIDR-053 rule 3): a System entry whose person
+   icon carries the profile's hue on the person ring (--hue from the
+   link's style attribute), damped to the rail's text opacity so it reads
+   as an accent, not a badge; hover lifts it with the label. */
+.sidebar-link-profile .sidebar-profile-mark {
+  color: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.7);
+  transition: color 0.15s;
+}
+
+.sidebar-link-profile:hover .sidebar-profile-mark {
+  color: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.95);
 }
 
 .sidebar-link-active {

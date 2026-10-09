@@ -11,7 +11,6 @@ defmodule MediaCentaurWeb.Layouts do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Profiles
   alias MediaCentaurWeb.Components.FollowUpPill
   alias MediaCentaurWeb.Components.Social.IdentityTile
 
@@ -126,32 +125,6 @@ defmodule MediaCentaurWeb.Layouts do
         data-nav-zone="sidebar"
         data-tip-placement="right"
       >
-        <%!-- The profile switcher (UIDR-053 rule 3): the active profile's
-              tile and name, a link to the picker; present only when there is
-              someone to switch to. data-nav-defer-activate: sidebar entries
-              activate on focus, but merely walking the cursor over the switcher
-              must not open the picker — only an explicit SELECT does. The
-              picker is in another live_session, so this navigate is a full
-              page load by design. --%>
-        <.link
-          :if={length(@profiles) > 1}
-          id="sidebar-profile"
-          navigate={~p"/profiles"}
-          class="sidebar-link sidebar-link-profile mb-3"
-          data-tip="Switch profile"
-          data-nav-item
-          data-nav-defer-activate
-          tabindex="0"
-        >
-          <IdentityTile.identity_tile
-            name={@profile.name}
-            picture_url={Profiles.picture_url(@profile)}
-            hue={@profile.hue}
-            own?
-            size={32}
-          />
-          <span class="sidebar-label min-w-0 truncate">{@profile.name}</span>
-        </.link>
         <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
           <.link
@@ -221,7 +194,30 @@ defmodule MediaCentaurWeb.Layouts do
         </nav>
 
         <div class="sidebar-group-label sidebar-label">System</div>
-        <nav class="flex flex-col gap-0.5">
+        <nav id="sidebar-system" class="flex flex-col gap-0.5">
+          <%!-- The profile switcher (UIDR-053 rule 3): a System entry like
+                the others, the active profile's name behind a person icon in
+                the profile's hue — no picture — linking to the picker; present
+                only when there is someone to switch to.
+                data-nav-defer-activate: sidebar entries activate on focus, but
+                merely walking the cursor over the switcher must not open the
+                picker — only an explicit SELECT does. The picker is in another
+                live_session, so this navigate is a full page load by design. --%>
+          <.link
+            :if={length(@profiles) > 1}
+            id="sidebar-profile"
+            navigate={~p"/profiles"}
+            class="sidebar-link sidebar-link-system sidebar-link-profile"
+            data-tip="Switch profile"
+            data-hue={@profile.hue}
+            data-nav-item
+            data-nav-defer-activate
+            tabindex="0"
+            {IdentityTile.hue_style(@profile.hue)}
+          >
+            <.icon name="hero-user-circle" class="size-5 flex-shrink-0 sidebar-profile-mark" />
+            <span class="sidebar-label min-w-0 truncate">{@profile.name}</span>
+          </.link>
           <.link
             navigate="/status"
             class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}
