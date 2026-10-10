@@ -383,6 +383,16 @@ three releases.
   itself on the reload; the owner renamed Me to their own name and
   added a second profile.
 
+* `2026-10-10` — **The picker opens inside the shell on a switch**
+  (owner): with an active profile, `/profiles` is a page of the shell
+  with the switcher entry current and the sidebar the way out; at the
+  door it stays full-screen. `/profiles` moved into `live_session
+  :default`; `ProfileAware` mounts it with `:profile` nil instead of
+  redirecting and owns its `:profiles`. Found on the way: the switcher's
+  `navigate` link across live sessions logged a LiveView warning on every
+  press (surfaced under Status → System); the move removes the second
+  live session, so the link is a live navigation again.
+
 ## Next steps
 
 1. Owner's check when home: the picker and Settings → Profiles (TV

@@ -42,6 +42,9 @@ defmodule MediaCentaurWeb.Router do
          {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}
       ] do
       live "/", HomeLive, :index
+      # The picker (UIDR-053): the one view ProfileAware mounts without an
+      # active profile instead of redirecting, so it can be the door.
+      live "/profiles", ProfilesLive, :index
       live "/apps", AppsLive, :index
       live "/console", ConsolePageLive, :index
       live "/social", SocialLive, :feed
@@ -56,12 +59,6 @@ defmodule MediaCentaurWeb.Router do
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index
       live "/status", StatusLive, :index
-    end
-
-    # The picker runs without ProfileAware: it is where a session with no
-    # active profile is sent, so it cannot require one.
-    live_session :profiles do
-      live "/profiles", ProfilesLive, :index
     end
 
     # The picker's tiles post here: a LiveView cannot write the session cookie.

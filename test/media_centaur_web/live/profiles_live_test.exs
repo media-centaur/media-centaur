@@ -45,6 +45,37 @@ defmodule MediaCentaurWeb.ProfilesLiveTest do
     refute has_element?(view, "#add-profile-form p")
   end
 
+  test "with an active profile the picker is a page of the shell, its switcher entry current", %{
+    conn: conn
+  } do
+    ana = create_profile(name: "Ana")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!("/profiles")
+    assert has_element?(view, "h1", "Who's watching?")
+    assert has_element?(view, "#sidebar")
+    assert has_element?(view, "#sidebar-profile.sidebar-link-active", "Ana")
+  end
+
+  test "at the door — no active profile — the picker is full-screen", %{conn: conn} do
+    create_profile(name: "Ana")
+    {:ok, view, _html} = live(conn, "/profiles?return_to=/library")
+    assert has_element?(view, "h1", "Who's watching?")
+    refute has_element?(view, "#sidebar")
+  end
+
+  test "removing the active profile on the picker drops the shell and keeps the page", %{
+    conn: conn
+  } do
+    ana = create_profile(name: "Ana")
+    create_profile(name: "Bea")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!("/profiles")
+    assert has_element?(view, "#sidebar")
+
+    :ok = Profiles.remove(ana)
+    render_until(view, fn _html -> not has_element?(view, "#sidebar") end)
+    assert has_element?(view, "h1", "Who's watching?")
+    refute has_element?(view, "#pick-#{ana.id}")
+  end
+
   test "at the cap there is no add form", %{conn: conn} do
     for n <- 2..Profiles.max_profiles(), do: create_profile(name: "Person #{n}")
     {:ok, view, _html} = live(conn, "/profiles")

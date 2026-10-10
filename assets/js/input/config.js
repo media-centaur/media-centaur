@@ -365,9 +365,12 @@ export const inputConfig = {
       grid: {},
     },
     // Profile picker: one geometry-resolved zone of tiles and the add
-    // form, no sidebar; nowhere else to go, so the zone has no edges.
+    // form. The sidebar node exists only on a switch (the picker inside
+    // the shell); at the door the page is sidebar-less, the node is absent
+    // from the DOM, and BACK is a no-op.
     profiles: {
       profile_picker: {},
+      sidebar:        { right: ["profile_picker"] },
     },
   },
 
@@ -387,7 +390,7 @@ export const inputConfig = {
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
-    profiles:  ["profile_picker"],
+    profiles:  ["profile_picker", "sidebar"],
   },
 
   // Always-populated contexts (skip item count check)

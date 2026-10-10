@@ -197,19 +197,20 @@ defmodule MediaCentaurWeb.Layouts do
         <nav id="sidebar-system" class="flex flex-col gap-0.5">
           <%!-- The profile switcher (UIDR-053 rule 3): a System entry like
                 the others, the active profile's name behind a person icon in
-                the profile's hue — no picture — linking to the picker; present
-                only when there is someone to switch to.
-                data-nav-defer-activate: sidebar entries activate on focus, but
-                merely walking the cursor over the switcher must not open the
-                picker — only an explicit SELECT does. The picker is in another
-                live_session, so this is a plain href: a live navigation across
-                live_sessions is refused with a logged warning on every press,
-                then falls back to the same full load. --%>
+                the profile's hue — no picture — linking to the picker, which
+                opens inside this shell and lights this entry; present only
+                when there is someone to switch to. data-nav-defer-activate:
+                sidebar entries activate on focus, but merely walking the
+                cursor over the switcher must not open the picker — only an
+                explicit SELECT does. --%>
           <.link
             :if={length(@profiles) > 1}
             id="sidebar-profile"
-            href={~p"/profiles"}
-            class="sidebar-link sidebar-link-system sidebar-link-profile"
+            navigate={~p"/profiles"}
+            class={
+              sidebar_link_class(@current_path, "/profiles") <>
+                " sidebar-link-system sidebar-link-profile"
+            }
             data-tip="Switch profile"
             data-hue={@profile.hue}
             data-nav-item

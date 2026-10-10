@@ -42,13 +42,16 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     refute has_element?(view, "#sidebar-profile img")
   end
 
-  test "the switcher is a plain link: the picker is another live_session", %{conn: conn} do
+  test "the switcher navigates live to the picker, which opens inside the shell", %{conn: conn} do
     ana = create_profile(name: "Ana")
-    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
-    # A live navigation across live_sessions is refused with a logged
-    # warning on every press, then falls back to the full load anyway.
-    assert has_element?(view, "#sidebar-profile[href='/profiles']")
-    refute has_element?(view, "#sidebar-profile[data-phx-link]")
+    conn = with_profile(conn, ana)
+    {:ok, view, _html} = live_async!(conn, @page)
+
+    {:ok, picker, _html} =
+      view |> element("#sidebar-profile") |> render_click() |> follow_redirect(conn, "/profiles")
+
+    assert has_element?(picker, "h1", "Who's watching?")
+    assert has_element?(picker, "#sidebar-profile.sidebar-link-active", "Ana")
   end
 
   test "a stale cookie asks again", %{conn: conn} do

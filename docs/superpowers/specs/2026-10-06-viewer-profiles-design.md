@@ -175,6 +175,16 @@ the profile's hue as its one accent, and no picture. The tile above
 the Watch group was a permanent saturated element on the shared rail
 for an action rarely taken. UIDR-053 rule 3 is amended the same way.
 
+*Amended 2026-10-10 (owner):* the picker is one surface in two
+situations. At the door (no active profile) it is full-screen as
+above. On a switch (an active profile exists) it is a page of the
+shell: the sidebar present, the switcher entry current, the sidebar
+the way out. `/profiles` therefore lives in `live_session :default`,
+and `ProfileAware` mounts it with `:profile` nil instead of
+redirecting; the picker no longer subscribes to `profiles:updates`
+itself, since the hook owns `:profiles`. UIDR-053 rule 1 is amended
+the same way.
+
 The profile tile is the identity tile with its contract widened:
 `attr :name`, `attr :picture_url`, `attr :hue`, `attr :size`, and
 the social callers pass those from their `Person`. The marks stay
