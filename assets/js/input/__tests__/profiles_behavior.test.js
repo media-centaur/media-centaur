@@ -7,7 +7,7 @@ describe("profiles behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("defines no onEscape — the picker has no sidebar to exit to", () => {
+  test("defines no onEscape — BACK is the state machine's (the sidebar, when the shell is present)", () => {
     const behavior = createProfilesBehavior()
     expect(behavior.onEscape).toBeUndefined()
   })

@@ -8,14 +8,21 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   the picker with the page's own URL as `return_to`. With one profile
   the cookie is never consulted and no picker exists.
 
-  Assigns `:profile` (the active `Profiles.Profile`) and `:profiles`
-  (every profile, for the switcher's presence and Settings → Profiles),
-  subscribes to `profiles:updates` through the subscribe door, and on
-  any profile event re-reads the list and resolves the active profile
-  again through `Logic.resolve/2`: a renamed one is re-assigned, a removed
-  one leaves the last remaining profile active or drops the page to the
-  picker, returning to it. The hook halts those messages — no page handles
-  them itself.
+  The picker itself (`ProfilesLive`) is the one view that tolerates
+  `:pick`: it is where a session with no active profile is sent, so it
+  mounts with `:profile` nil instead of redirecting, and renders as the
+  door. With an active profile it mounts like any page and renders inside
+  the shell.
+
+  Assigns `:profile` (the active `Profiles.Profile`, or nil on the picker
+  at the door) and `:profiles` (every profile, for the switcher's
+  presence, the picker's tiles and Settings → Profiles), subscribes to
+  `profiles:updates` through the subscribe door, and on any profile
+  event re-reads the list and resolves the active profile again through
+  `Logic.resolve/2`: a renamed one is re-assigned, a removed one leaves
+  the last remaining profile active or drops the page to the picker,
+  returning to it — the picker itself just loses its shell. The hook
+  halts those messages — no page handles them itself.
 
   A page's `mount/3` must not read `:profile`: on the pick path the
   redirect happens after mount, so profile-scoped loading belongs in
@@ -36,18 +43,24 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   def on_mount(:default, _params, session, socket) do
     profiles = Profiles.list()
 
-    case Logic.resolve(session["profile_id"], profiles) do
-      {:active, profile} ->
-        {:cont,
-         socket
-         |> assign(profile: profile, profiles: profiles)
-         |> Subscriptions.subscribe(Profiles)
-         |> attach_hook(:profile_aware, :handle_info, &on_profiles_event/2)
-         |> attach_hook(:profile_aware_return_to, :handle_params, &remember_return_to/3)}
+    case {Logic.resolve(session["profile_id"], profiles), picker?(socket)} do
+      {{:active, profile}, _} ->
+        {:cont, aware(socket, profile, profiles)}
 
-      :pick ->
+      {:pick, true} ->
+        {:cont, aware(socket, nil, profiles)}
+
+      {:pick, false} ->
         {:cont, attach_hook(socket, :profile_aware_pick, :handle_params, &redirect_to_picker/3)}
     end
+  end
+
+  defp aware(socket, profile, profiles) do
+    socket
+    |> assign(profile: profile, profiles: profiles)
+    |> Subscriptions.subscribe(Profiles)
+    |> attach_hook(:profile_aware, :handle_info, &on_profiles_event/2)
+    |> attach_hook(:profile_aware_return_to, :handle_params, &remember_return_to/3)
   end
 
   defp redirect_to_picker(_params, uri, socket) do
@@ -61,13 +74,20 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   defp on_profiles_event({tag, _event}, socket) when tag in @profile_events do
     profiles = Profiles.list()
 
-    case Logic.resolve(socket.assigns.profile.id, profiles) do
-      {:active, profile} -> {:halt, assign(socket, profile: profile, profiles: profiles)}
-      :pick -> {:halt, redirect(socket, to: picker_path(socket))}
+    case {Logic.resolve(active_id(socket), profiles), picker?(socket)} do
+      {{:active, profile}, _} -> {:halt, assign(socket, profile: profile, profiles: profiles)}
+      {:pick, true} -> {:halt, assign(socket, profile: nil, profiles: profiles)}
+      {:pick, false} -> {:halt, redirect(socket, to: picker_path(socket))}
     end
   end
 
   defp on_profiles_event(_message, socket), do: {:cont, socket}
+
+  defp active_id(%{assigns: %{profile: %{id: id}}}), do: id
+  defp active_id(_socket), do: nil
+
+  defp picker?(%{view: MediaCentaurWeb.ProfilesLive}), do: true
+  defp picker?(_socket), do: false
 
   defp picker_path(%{assigns: %{profile_aware_return_to: return_to}}),
     do: ~p"/profiles?return_to=#{return_to}"
