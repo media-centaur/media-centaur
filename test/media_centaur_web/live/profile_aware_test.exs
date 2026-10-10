@@ -42,6 +42,15 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     refute has_element?(view, "#sidebar-profile img")
   end
 
+  test "the switcher is a plain link: the picker is another live_session", %{conn: conn} do
+    ana = create_profile(name: "Ana")
+    {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
+    # A live navigation across live_sessions is refused with a logged
+    # warning on every press, then falls back to the full load anyway.
+    assert has_element?(view, "#sidebar-profile[href='/profiles']")
+    refute has_element?(view, "#sidebar-profile[data-phx-link]")
+  end
+
   test "a stale cookie asks again", %{conn: conn} do
     create_profile(name: "Ana")
     conn = Plug.Test.init_test_session(conn, %{"profile_id" => Ecto.UUID.generate()})

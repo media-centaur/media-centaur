@@ -202,11 +202,13 @@ defmodule MediaCentaurWeb.Layouts do
                 data-nav-defer-activate: sidebar entries activate on focus, but
                 merely walking the cursor over the switcher must not open the
                 picker — only an explicit SELECT does. The picker is in another
-                live_session, so this navigate is a full page load by design. --%>
+                live_session, so this is a plain href: a live navigation across
+                live_sessions is refused with a logged warning on every press,
+                then falls back to the same full load. --%>
           <.link
             :if={length(@profiles) > 1}
             id="sidebar-profile"
-            navigate={~p"/profiles"}
+            href={~p"/profiles"}
             class="sidebar-link sidebar-link-system sidebar-link-profile"
             data-tip="Switch profile"
             data-hue={@profile.hue}
