@@ -1,10 +1,12 @@
 defmodule MediaCentaurWeb.ProfilesLive do
   @moduledoc """
   The picker at `/profiles` (UIDR-053): "Who's watching?" over a tile
-  per profile and, under the cap, an inline Add. A tile is a plain form
-  posting to `ProfileController.activate/2` with `return_to`, since the
-  session cookie is the controller's to write; the input system
-  activates its button like any other on SELECT.
+  per profile and, under the cap, the add tile, which opens the name
+  field in its place; `adding?` is that one open state. A profile tile
+  is a plain form posting to `ProfileController.activate/2` with
+  `return_to`, since the session cookie is the controller's to write;
+  the input system activates its button like any other on SELECT. On a
+  switch the active profile's tile is marked current.
 
   One surface, two situations. At the door — a session with no active
   profile — it is full-screen: there is no one to show in the shell and
@@ -27,7 +29,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Who's watching?", return_to: "/", add_error: nil, added: 0)}
+    {:ok, assign(socket, page_title: "Who's watching?", return_to: "/", adding?: false, add_error: nil)}
   end
 
   @impl true
@@ -36,9 +38,15 @@ defmodule MediaCentaurWeb.ProfilesLive do
   end
 
   @impl true
+  def handle_event("open_add", _params, socket),
+    do: {:noreply, assign(socket, adding?: true, add_error: nil)}
+
+  def handle_event("cancel_add", _params, socket),
+    do: {:noreply, assign(socket, adding?: false, add_error: nil)}
+
   def handle_event("add_profile", %{"name" => name}, socket) do
     case Profiles.add(name) do
-      {:ok, _profile} -> {:noreply, assign(socket, added: socket.assigns.added + 1, add_error: nil)}
+      {:ok, _profile} -> {:noreply, assign(socket, adding?: false, add_error: nil)}
       {:error, reason} -> {:noreply, assign(socket, add_error: ProfileWords.error(reason))}
     end
   end
@@ -51,7 +59,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
       <.picker
         profiles={@profiles}
         return_to={@return_to}
-        added={@added}
+        adding?={@adding?}
         add_error={@add_error}
         class="min-h-viewport"
       />
@@ -74,8 +82,9 @@ defmodule MediaCentaurWeb.ProfilesLive do
             viewport centres the question as the door does. --%>
       <.picker
         profiles={@profiles}
+        current_id={@profile.id}
         return_to={@return_to}
-        added={@added}
+        adding?={@adding?}
         add_error={@add_error}
         class="min-h-[calc(100*var(--pvh)-3rem)]"
       />
@@ -84,12 +93,15 @@ defmodule MediaCentaurWeb.ProfilesLive do
   end
 
   attr :profiles, :list, required: true, doc: "every `Profiles.Profile`, from `ProfileAware`"
+  attr :current_id, :string, default: nil, doc: "the active profile's id on a switch; nil at the door"
   attr :return_to, :string, required: true
-  attr :added, :integer, required: true
+  attr :adding?, :boolean, required: true, doc: "the name field is open in the add tile's place"
   attr :add_error, :string, default: nil
   attr :class, :string, required: true, doc: "the height the question centres in"
 
   defp picker(assigns) do
+    assigns = assign(assigns, under_cap?: length(assigns.profiles) < Profiles.max_profiles())
+
     ~H"""
     <div
       class={["relative z-[1] flex flex-col items-center justify-center gap-12 px-4 py-16", @class]}
@@ -113,7 +125,8 @@ defmodule MediaCentaurWeb.ProfilesLive do
           <input type="hidden" name="return_to" value={@return_to} />
           <button
             type="submit"
-            class="cursor-pointer rounded-xl p-3"
+            class="profile-pick cursor-pointer rounded-xl p-3"
+            aria-current={if profile.id == @current_id, do: "true"}
             data-nav-item
             tabindex="0"
           >
@@ -121,41 +134,68 @@ defmodule MediaCentaurWeb.ProfilesLive do
               name={profile.name}
               picture_url={Profiles.picture_url(profile)}
               hue={profile.hue}
+              current?={profile.id == @current_id}
             />
           </button>
         </.form>
+        <button
+          :if={@under_cap? and not @adding?}
+          type="button"
+          id="add-profile"
+          class="profile-pick cursor-pointer rounded-xl p-3"
+          phx-click="open_add"
+          data-nav-item
+          tabindex="0"
+        >
+          <ProfileTile.add_tile />
+        </button>
         <form
-          :if={length(@profiles) < Profiles.max_profiles()}
+          :if={@under_cap? and @adding?}
           id="add-profile-form"
           phx-submit="add_profile"
           class="flex w-36 flex-col items-center gap-3 p-3"
         >
-          <%!-- The field and its button share one width, so geometry finds
-                them equally in line with a tile and document order sends
-                Right from a tile to the field; Down from the field reaches
-                the button. The field's id counts the adds: a success
-                replaces it with an empty field that takes the focus, since
-                the server never held the typed text to clear. A refusal
-                keeps it, and the text with it. --%>
+          <%!-- The field opens in the add tile's place and takes the focus;
+                it and the button row share the tile's width, so geometry
+                finds them in line with a tile and Down from the field
+                reaches Add and Cancel. A refusal keeps the field, and the
+                text with it; a success or Cancel closes it, and the server
+                never held the typed text to clear. Escape on the field is
+                Cancel for the keyboard. --%>
           <.settings_input
-            id={"add-profile-name-#{@added}"}
+            id="add-profile-name"
             name="name"
-            autofocus={@added > 0}
-            placeholder="Add profile"
+            autofocus
+            placeholder="Name"
             maxlength={DisplayName.max_length()}
             autocomplete="off"
             class="text-center"
+            phx-keydown="cancel_add"
+            phx-key="Escape"
           />
-          <.button
-            type="submit"
-            variant="neutral"
-            size="sm"
-            class="w-full"
-            data-nav-item
-            tabindex="0"
-          >
-            Add
-          </.button>
+          <div class="flex w-full gap-2">
+            <.button
+              type="submit"
+              variant="neutral"
+              size="sm"
+              class="flex-1"
+              data-nav-item
+              tabindex="0"
+            >
+              Add
+            </.button>
+            <.button
+              type="button"
+              variant="dismiss"
+              size="sm"
+              class="flex-1"
+              phx-click="cancel_add"
+              data-nav-item
+              tabindex="0"
+            >
+              Cancel
+            </.button>
+          </div>
           <p :if={@add_error} class="text-sm text-error">{@add_error}</p>
         </form>
       </div>

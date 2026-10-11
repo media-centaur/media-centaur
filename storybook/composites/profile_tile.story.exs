@@ -22,9 +22,14 @@ defmodule MediaCentaurWeb.Storybook.Composites.ProfileTile do
         attributes: %{name: "Ana", picture_url: "/images/storybook/sample-poster.jpg", hue: 150}
       },
       %Variation{
+        id: :current,
+        description: "The session's active profile, on a switch: the chosen outline a hue swatch wears",
+        attributes: %{name: "Ana", hue: 150, current?: true}
+      },
+      %Variation{
         id: :long_name,
         description: "A long name truncates to the tile's column",
-        attributes: %{name: "A Very Long Profile Name Indeed"}
+        attributes: %{name: "A Very Long Profile Name Indeed", hue: 45}
       }
     ]
   end

@@ -39,9 +39,20 @@ defmodule MediaCentaur.Hue do
   @spec palette() :: [{String.t(), t()}]
   def palette, do: @palette
 
-  @doc "A palette hue at random: the seed for a profile that has none yet."
+  @doc "A palette hue at random: the seed for a social profile that has none yet."
   @spec random() :: t()
   def random, do: @palette |> Enum.random() |> elem(1)
+
+  @doc """
+  The first palette hue, in swatch order, that no one in `taken` holds:
+  the hue a viewer profile is born with, so the people of one install
+  differ at a glance. An angle off the palette holds no swatch. Nil when
+  every swatch is taken, which the cap of eight profiles never allows.
+  """
+  @spec first_unused([t() | nil]) :: t() | nil
+  def first_unused(taken) do
+    Enum.find_value(@palette, fn {_name, hue} -> if hue not in taken, do: hue end)
+  end
 
   @doc "A form value as a hue: the angle, nil for empty or absent, `:error` for anything else."
   @spec parse(String.t() | nil) :: {:ok, t() | nil} | :error

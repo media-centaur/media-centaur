@@ -21,6 +21,15 @@ defmodule MediaCentaur.HueTest do
     assert Hue.random() in Enum.map(palette, &elem(&1, 1))
   end
 
+  test "first_unused/1 is the first palette hue, in swatch order, that no one holds" do
+    assert Hue.first_unused([]) == 12
+    assert Hue.first_unused([250]) == 12
+    assert Hue.first_unused([12, 45, 250]) == 80
+    # An angle off the palette holds no swatch.
+    assert Hue.first_unused([13]) == 12
+    assert Hue.first_unused(Enum.map(Hue.palette(), &elem(&1, 1))) == nil
+  end
+
   test "parse/1 reads a form value: an angle, empty for none, anything else refused" do
     assert Hue.parse("195") == {:ok, 195}
     assert Hue.parse("") == {:ok, nil}

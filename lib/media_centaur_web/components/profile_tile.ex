@@ -1,24 +1,47 @@
 defmodule MediaCentaurWeb.Components.ProfileTile do
   @moduledoc """
-  A profile on the "Who's watching?" picker (UIDR-053): the 96px identity
-  tile, filled as a person of this install, over the name, truncated to
-  the tile's column. Drawing only — the picker wraps it in the submit
-  button of the form that activates the profile.
+  A place in the "Who's watching?" picker's row (UIDR-053), one column
+  of two kinds. `profile_tile/1` is a person: the 96px identity tile,
+  filled as a person of this install, over the name, truncated to the
+  column; `current?` marks the session's active profile on a switch with
+  the chosen outline a hue swatch wears. `add_tile/1` is the place that
+  becomes a person: a dashed circle with a plus over "Add profile".
+  Drawing only — the picker wraps each in its button: the form that
+  activates the profile, or the press that opens the name field in the
+  add tile's place. `.profile-tile*` and `.profile-add-mark` in
+  `app.css`.
   """
 
   use Phoenix.Component
+
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaurWeb.Components.Social.IdentityTile
 
   attr :name, :string, required: true
   attr :picture_url, :string, default: nil
   attr :hue, :integer, default: nil
+  attr :current?, :boolean, default: false, doc: "the session's active profile, on a switch"
 
   def profile_tile(assigns) do
     ~H"""
-    <span class="flex w-36 flex-col items-center gap-3">
+    <span class={[
+      "profile-tile flex w-36 flex-col items-center gap-3",
+      @current? && "profile-tile-current"
+    ]}>
       <IdentityTile.identity_tile name={@name} picture_url={@picture_url} hue={@hue} own? size={96} />
-      <span class="max-w-full truncate text-base">{@name}</span>
+      <span class="max-w-full truncate text-base leading-tight">{@name}</span>
+    </span>
+    """
+  end
+
+  def add_tile(assigns) do
+    ~H"""
+    <span class="profile-tile flex w-36 flex-col items-center gap-3">
+      <span class="profile-add-mark grid size-24 place-items-center rounded-full" aria-hidden="true">
+        <.icon name="hero-plus" class="size-10" />
+      </span>
+      <span class="text-base leading-tight text-base-content/60">Add profile</span>
     </span>
     """
   end
