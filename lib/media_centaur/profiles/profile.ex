@@ -1,7 +1,8 @@
 defmodule MediaCentaur.Profiles.Profile do
   @moduledoc """
-  One person who watches on this install (ADR-078): a name, an optional
-  hue (`MediaCentaur.Hue`), and `picture_at` — when the picture file was
+  One person who watches on this install (ADR-078): a name, a hue
+  (`MediaCentaur.Hue`; given at birth by `Profiles.add/1`, never
+  none), and `picture_at` — when the picture file was
   last set, nil for none; the file itself is `PictureStore`'s and the
   time doubles as the URL's version. Phase 2 hangs the watching rows
   off `id`. Not `MediaCentaur.Social.Profile`, the published social
@@ -32,7 +33,7 @@ defmodule MediaCentaur.Profiles.Profile do
   def changeset(profile \\ %__MODULE__{}, attrs) do
     profile
     |> cast(attrs, [:name, :hue, :picture_at])
-    |> validate_required([:name])
+    |> validate_required([:name, :hue])
     |> validate_length(:name, max: DisplayName.max_length())
     |> validate_number(:hue, greater_than_or_equal_to: 0, less_than_or_equal_to: 359)
   end

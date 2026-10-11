@@ -72,7 +72,11 @@ defmodule MediaCentaur.Profiles do
   @spec count() :: non_neg_integer()
   def count, do: Repo.aggregate(Profile, :count)
 
-  @doc "Adds a profile under `DisplayName.check/1`, below the cap. Broadcasts `ProfileAdded`."
+  @doc """
+  Adds a profile under `DisplayName.check/1`, below the cap, born with
+  the first palette hue no profile holds (`Hue.first_unused/1`) so the
+  people of the install differ at a glance. Broadcasts `ProfileAdded`.
+  """
   @spec add(String.t()) ::
           {:ok, Profile.t()} | {:error, :name_required | :name_too_long | :too_many_profiles}
   def add(name) when is_binary(name) do
@@ -83,14 +87,20 @@ defmodule MediaCentaur.Profiles do
     end
   end
 
-  # The count and the insert share one immediate transaction, so two adds
-  # cannot both pass the cap check.
+  # The read of the others, the cap check and the insert share one
+  # immediate transaction, so two adds cannot both pass the cap or both
+  # take one hue.
   defp insert_under_cap(name) do
     Repo.transaction(
       fn ->
-        if count() < @max_profiles,
-          do: %Profile{} |> Profile.changeset(%{name: name}) |> Repo.insert!(),
-          else: Repo.rollback(:too_many_profiles)
+        others = list()
+
+        if length(others) < @max_profiles do
+          hue = Hue.first_unused(Enum.map(others, & &1.hue))
+          %Profile{} |> Profile.changeset(%{name: name, hue: hue}) |> Repo.insert!()
+        else
+          Repo.rollback(:too_many_profiles)
+        end
       end,
       mode: :immediate
     )
@@ -105,11 +115,8 @@ defmodule MediaCentaur.Profiles do
     end
   end
 
-  @doc "Sets the hue (UIDR-048), nil for none; out of range is refused. Broadcasts `ProfileChanged`."
-  @spec set_hue(Profile.t(), Hue.t() | nil) :: {:ok, Profile.t()} | {:error, :invalid_hue}
-  def set_hue(%Profile{} = profile, nil),
-    do: profile |> Profile.changeset(%{hue: nil}) |> update_and_broadcast()
-
+  @doc "Sets the hue (UIDR-048); out of range, or none, is refused. Broadcasts `ProfileChanged`."
+  @spec set_hue(Profile.t(), Hue.t()) :: {:ok, Profile.t()} | {:error, :invalid_hue}
   def set_hue(%Profile{} = profile, hue) do
     if Hue.valid?(hue),
       do: profile |> Profile.changeset(%{hue: hue}) |> update_and_broadcast(),

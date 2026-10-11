@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Storybook.Composites do
   def entry("hero_card"), do: [icon: {:fa, "id-card", :thin}, name: "Hero card"]
 
   def entry("profile_tile"), do: [icon: {:fa, "user-check", :thin}, name: "Profile tile"]
+  def entry("add_tile"), do: [icon: {:fa, "user-plus", :thin}, name: "Add tile"]
   def entry("progress_hairline"), do: [icon: {:fa, "wave-square", :thin}, name: "Progress hairline"]
   def entry("strip_chart"), do: [icon: {:fa, "chart-column", :thin}, name: "Strip chart"]
 end

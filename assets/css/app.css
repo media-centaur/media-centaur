@@ -3209,6 +3209,33 @@ body:has(.modal-backdrop[data-state="open"]) {
 .croppr-imageClipped { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .croppr-handle { border: calc(1px * var(--ui-scale, 1)) solid oklch(0% 0 0 / 0.6); background: var(--color-base-content); width: calc(10px * var(--ui-scale, 1)); height: calc(10px * var(--ui-scale, 1)); border-radius: calc(2px * var(--ui-scale, 1)); position: absolute; z-index: 4; top: 0; }
 
+/* The picker's row (UIDR-053): a pressable tile lifts on hover — the
+   transform alone, so the glass beneath never repaints; the active
+   profile's tile wears the chosen outline a hue swatch wears; the add
+   tile's mark is a dashed circle that brightens under the pointer. */
+.profile-pick {
+  transition: transform 150ms ease-out;
+}
+
+.profile-pick:hover {
+  transform: scale(1.05);
+}
+
+.profile-tile-current .identity-tile {
+  outline: 2px solid var(--color-base-content);
+  outline-offset: 3px;
+}
+
+.profile-add-mark {
+  border: 2px dashed oklch(from var(--color-base-content) l c h / 0.3);
+  color: oklch(from var(--color-base-content) l c h / 0.6);
+}
+
+.profile-pick:hover .profile-add-mark {
+  border-color: oklch(from var(--color-base-content) l c h / 0.6);
+  color: oklch(from var(--color-base-content) l c h / 0.9);
+}
+
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's
    row and the Friends page's card. Every size is a custom property of the
    width class; the text is Tailwind on top. The rail's card has no ground

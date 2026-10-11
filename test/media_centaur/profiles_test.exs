@@ -19,8 +19,8 @@ defmodule MediaCentaur.ProfilesTest do
     end
   end
 
-  test "the upgrade left one owner profile named Me" do
-    assert [%Profile{name: "Me", hue: nil, picture_at: nil}] = Profiles.list()
+  test "the upgrade left one owner profile named Me, in Blue" do
+    assert [%Profile{name: "Me", hue: 250, picture_at: nil}] = Profiles.list()
     assert Profiles.count() == 1
   end
 
@@ -37,6 +37,17 @@ defmodule MediaCentaur.ProfilesTest do
     for n <- 3..8, do: assert({:ok, _} = Profiles.add("Person #{n}"))
     assert {:error, :too_many_profiles} = Profiles.add("One too many")
     assert Profiles.count() == 8
+  end
+
+  test "a profile is born with the first palette hue no one holds; the owner's Blue is skipped" do
+    [me] = Profiles.list()
+    assert {:ok, %Profile{hue: 12}} = Profiles.add("Ana")
+    assert {:ok, %Profile{hue: 45}} = Profiles.add("Bea")
+    # A hue changed by hand frees its swatch for the next person.
+    assert {:ok, _} = Profiles.set_hue(me, 195)
+    assert {:ok, %Profile{hue: 80}} = Profiles.add("Cas")
+    assert {:ok, %Profile{hue: 150}} = Profiles.add("Dee")
+    assert {:ok, %Profile{hue: 250}} = Profiles.add("Eve")
   end
 
   test "get takes an id, and answers nil for an unknown or malformed one" do
@@ -58,7 +69,8 @@ defmodule MediaCentaur.ProfilesTest do
 
     assert {:ok, %Profile{hue: 195}} = Profiles.set_hue(me, 195)
     assert_receive {:profile_changed, %Events.ProfileChanged{profile: %Profile{hue: 195}}}
-    assert {:ok, %Profile{hue: nil}} = Profiles.set_hue(me, nil)
+    # A profile always has a hue: none is not a choice.
+    assert {:error, :invalid_hue} = Profiles.set_hue(me, nil)
     assert {:error, :invalid_hue} = Profiles.set_hue(me, 360)
   end
 

@@ -468,7 +468,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Home's Coming up shelf, over `ReleaseTracking.Views.ComingUp`; the only surface the words name (UIDR-050 §5) |
 | `identity_tile/1`, `crop_previews/1` | `social/identity_tile.ex` | The app's one drawing of a person from three facts — name, picture, hue — filled (`own?`) or tinted, at 32, 40, 48 or 96 (UIDR-047, UIDR-053); `person_attrs/1` turns a `Social.Person` into them; the crop stage's two preview frames | ✅ |
-| `profile_tile/1` | `profile_tile.ex` | A profile on the picker: the 96 tile over the truncated name (UIDR-053) | ✅ |
+| `profile_tile/1`, `add_tile/1` | `profile_tile.ex` | A place in the picker's row: a profile as the 96 tile over the truncated name, `current?` on a switch; the add tile, a dashed plus that opens the name field in its place (UIDR-053) | ✅ |
 | `feed_row/1` | `social/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
 | `person_card/1` | `social/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
 | `social_glyph/1`, `social_glyphs/1` | `title/social_glyph.ex` | One flag at its grade; a title's group (UIDR-049) | ✅ |
