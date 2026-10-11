@@ -22,8 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`viewer-profiles.md`](viewer-profiles.md) —
-  **phase 1 built 2026-10-07, on branch `viewer-profiles`; owner check
-  and merge next.** Who has watched what: each profile picked
+  **Shipped v1.55.0 on 2026-10-11; owner check open.** Who has watched what: each profile picked
   on the screen keeps its own progress, history, Continue Watching
   and resume. Nothing else splits — one library, one watchlist, one
   social setup, one set of settings. Decided: the word is *profile*

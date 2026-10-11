@@ -43,6 +43,13 @@ session with its own active profile.
 
 ## Status
 
+**Shipped v1.55.0 on 2026-10-11.** The branch was merged into main on
+2026-10-08 (fast-forward), the switcher redesigned as a System entry
+and the picker made a page of the shell on 2026-10-09 and 2026-10-10
+(Decisions below), then released with the five migrations and the
+seven wiki commits pushed. Open for the owner: the visual checks in
+Next steps, which were not done before the release.
+
 Phase 1 built and gated on branch `viewer-profiles` (worktree
 `../media-centaur-app-viewer-profiles`, 2026-10-07): fourteen tasks,
 each reviewed for spec compliance and quality with the fixes landed;
@@ -395,22 +402,17 @@ three releases.
 
 ## Next steps
 
-1. Owner's check when home: the picker and Settings → Profiles (TV
+1. Owner's check, on the released build: the picker inside the shell
+   and at the door, the switcher's accent, Settings → Profiles (TV
    sizing is open: 96 is the largest tile and the heading is 3xl); two
-   profiles watching the same title on the dev server (progress,
-   resume, Continue Watching, History, remembered tracks, the finish
-   prompt); the context-map R1 findings above; a read of the wiki
-   `Profiles.md` page and the README sentence for copy.
-2. The merge of `viewer-profiles` into main — discard the main
-   checkout's uncommitted older planning-doc copies first (hand-off
-   above) — then `/ship minor`, and with it the wiki push
-   (`cd ../media-centaur.wiki && git push`: five local commits,
-   `5b8ca60`..`893eaf2`). The site redeploys on its own from the
-   `docs-site/` change in the merge.
-3. **Skipped by decision (owner, 2026-10-08): screenshots.** The
+   profiles watching the same title (progress, resume, Continue
+   Watching, History, remembered tracks, the finish prompt); the
+   context-map R1 findings above; a read of the wiki `Profiles.md`
+   page and the README sentence for copy.
+2. **Skipped by decision (owner, 2026-10-08): screenshots.** The
    website and README screenshots are re-shot some day in the future,
    not in this campaign.
-4. Later, each on its own decision: a few settings per profile,
+3. Later, each on its own decision: a few settings per profile,
    watching together per title, restricted profiles. Cleanup candidate
    from phase 2: the dead `EntityView.watch_progress` and `DetailItem`
    `watch_progress` fields.
