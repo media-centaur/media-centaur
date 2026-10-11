@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.55.1 — 2026-10-11
+
+### Improved
+
+- **Every profile has its own colour from the start.** A new profile takes the first of the eight colours nobody on your install has yet, so the circles on **Who's watching?** differ at a glance instead of all starting blue. Profiles that had no colour get one in this update: **Me** keeps the blue it was drawn in, and the others take the next free colours in order. Change any of them under **Settings → Profiles**.
+- **Add profile is a circle in the row.** On **Who's watching?**, adding a person is now a dashed circle with a plus at the end of the row, in line with the others. Press it and the name field opens in its place, with **Add** and **Cancel**; Escape cancels too.
+- **The circle you are already using is marked.** When you open **Who's watching?** from the sidebar to switch, your current profile's circle has a ring around it.
+- **Circles respond to the pointer.** A profile circle lifts slightly under the mouse, so it reads as something to press.
+
+This update runs one database migration, which gives every profile without a colour one. It completes on its own.
+
 ## v1.55.0 — 2026-10-11
 
 ### New
