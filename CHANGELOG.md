@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.55.0 — 2026-10-11
+
+### New
+
+- **Profiles: one person, one set of watching.** Media Centaur now keeps watch progress, resume points, Continue Watching, the Watch History page and remembered audio and subtitle tracks per person. Add people under **Settings → Profiles**: each gets a name, an optional picture and a colour, and up to eight fit. Everything else stays the install's and is shared: the library, the watchlist, release tracking and downloads, Social, every setting and the Status page. A profile is not an account; there is no password, and every profile sees everything. An upgraded install has one profile, **Me**, which owns all the watching you already had, and behaves exactly as before until you add a second.
+- **Who's watching?** With two or more profiles, the app opens on a page of circles, one per person; pick yours and the page you were headed for opens as you. The choice lasts until the browser closes. The arrows and Enter, or the gamepad, work here like anywhere else, and **Add profile** adds a person without leaving the page.
+- **Switch from the sidebar.** The active profile's name heads the sidebar's **System** group, behind a person icon in that profile's colour. Press it and **Who's watching?** opens inside the app with the sidebar still there, so you can pick someone else or go anywhere else and stay who you are. A film already playing keeps recording under the person who started it until the player closes.
+- **Remove a profile and its watching goes with it.** **Settings → Profiles → Remove profile** (press twice to confirm) clears that person's progress, history and remembered tracks and nothing else. The last profile can't be removed. A browser that was using the removed profile goes back to **Who's watching?**.
+
+### Improved
+
+- **Tooltips match the app.** Every hover label, from the sidebar's icons to the filenames and buttons on title pages, is now drawn by the app instead of the browser. It uses the app's theme and scale, stays on screen at the window's edge, wraps long paths, and appears on keyboard and gamepad focus, not just on hover.
+
+### Fixed
+
+- **The cursor ring on a season heading has a box to sit in.** With a keyboard or controller, the ring around a season's name in a show's episode list used to hug the bare text. It now surrounds a padded row that lines up with the episodes below it.
+
+This update runs five database migrations. Your existing progress, history and track memory are moved to the **Me** profile; nothing is lost and the update completes on its own.
+
 ## v1.54.1 — 2026-10-05
 
 ### Improved
