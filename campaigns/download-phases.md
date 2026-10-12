@@ -40,12 +40,15 @@ becomes search only.
 
 ## Status
 
-**Designed and planned, nothing built.** The spec is approved by the
-owner with both extensions (both protocols grab directly; category is a
-field on each client slot). Two implementation plans are written, each
-task with its tests, code and commit. Execution has not started; the
-owner was asked subagent-driven vs inline and deferred to a new context.
-Working tree: the spec, the two plans and this file, committed together.
+**Plan 1 built on branch `download-phases` (2026-10-12), subagent-driven,
+every task spec- and quality-reviewed; precommit clean; not merged, not
+shipped.** Every surface on Incoming now draws a job through
+`download_strip/1` from `Downloads.Phase`; the pursuit row's footer, the
+Other downloads badge row and the modal's own bar are gone, as are
+`Logic.state_*` and `PursuitStatus.downloads_done`. Open before plan 2:
+the owner's look at Incoming with a usenet job in flight (the stage-line
+format is unverified against a live SABnzbd — the dev node had only
+completed jobs, and the headless probe cannot pass the profile picker).
 
 ## Principles
 
@@ -85,28 +88,38 @@ Working tree: the spec, the two plans and this file, committed together.
 * `2026-10-12` — Accepted hazard: targets grabbed before plan 2 ships
   carry no job id and stop pairing; the file still imports through the
   watcher. The CHANGELOG entry says so. (owner informed, not vetoed)
+* `2026-10-12` — A rung of a ladder is a *step*; the *phase* is the
+  job's position (step, condition, figure). Both SABnzbd "Queued"
+  sources draw as *queued* on *download*; the spec's "on verify" was
+  amended. (spec glossary, `54df0489`)
+* `2026-10-12` — The cell vocabulary gains `:underway` and `:ahead` for
+  the ladder; the strip's cancel event carries the release name when the
+  host gives no title (the handler requires one). (`0de031bd`)
+* `2026-10-12` — `PursuitStatus.downloads_done` removed: the modal's strip
+  reads no count, and the count lives in the composite sentence.
+  (`ccd84f72`)
 
 ## Next steps
 
-Execute the two plans in order, each on its own branch from `main`,
-test-first, one commit per task, `mix precommit` clean before the
-plan's last task. Subagent-driven development was recommended
-(a fresh subagent per task, review between tasks); inline execution
-is the alternative. Verified facts the plans rest on: Prowlarr's two
-download clients both use category `prowlarr`; SABnzbd history slots
-carry `action_line`, `postproc_time`, `nzo_id`, `url` (empty
-`action_line` on completed jobs; the live format is unverified until a
-job is mid-process — plan 1 Task 10 checks it).
+Plan 2 follows on its own branch, test-first, one commit per task,
+subagent-driven as plan 1 was (a fresh subagent per task, spec review
+then quality review between tasks — it caught a crash path and two
+stale premises plan 1's text carried). Verified facts the plans rest
+on: Prowlarr's two download clients both use category `prowlarr`;
+SABnzbd history slots carry `action_line`, `postproc_time`, `nzo_id`,
+`url` (empty `action_line` on completed jobs; the live format is
+unverified until a job is mid-process).
 
-1. **Plan 1** — `docs/superpowers/plans/2026-10-12-download-phases.md`,
-   10 tasks, branch `download-phases`: driver facts (stage line, zero
-   clock, placeholder name) → `Downloads.Phase` → `DownloadProgress.phase`
-   → `:underway` cell state → `download_strip/1` + CSS + story → pursuit
-   row composes it → Other downloads composes it (and `Logic.state_*`
-   deleted) → modal activity composes it → status sentence carries the
-   figure → precommit, docs, wiki.
-2. Owner looks at Incoming with a usenet download in flight; confirm the
-   stage-line format and extend `Phase.stage_figure/1` if it differs.
+1. ✅ **Plan 1** — `docs/superpowers/plans/2026-10-12-download-phases.md`,
+   branch `download-phases`, commits `33d9ee4d`…`ccd84f72` plus the docs
+   commit: driver facts → `Downloads.Phase` → `DownloadProgress.phase` →
+   `:underway`/`:ahead` → `download_strip/1` + CSS + story → pursuit row
+   → Other downloads (`Logic.state_*` deleted) → modal → status sentence
+   figure → `downloads_done` removed → precommit, docs, wiki.
+2. Owner looks at Incoming with a usenet download in flight (merge or
+   check out `download-phases`); confirm the stage-line format and extend
+   `Phase.stage_figure/1` plus `phase_test.exs` if it differs from
+   "Unpacking: 45%" / "Verifying: 14/56". Then merge to `main`.
 3. **Plan 2** — `docs/superpowers/plans/2026-10-12-app-owned-grabs.md`,
    9 tasks, branch `app-owned-grabs`: `Downloads.InfoHash` → `add/3` on
    both drivers → category on the slot → Settings field + Detect seeds it

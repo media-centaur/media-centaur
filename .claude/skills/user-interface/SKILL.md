@@ -463,6 +463,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
 | `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
+| `download_strip/1` | `acquisition/download_strip.ex` | The one drawing of a download-client job: phase ladder, phase word, figure bar, facts, cancel (the pursuit row, Other downloads, the pursuit modal) | ✅ |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
