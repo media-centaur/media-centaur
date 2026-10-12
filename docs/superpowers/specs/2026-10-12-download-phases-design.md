@@ -30,13 +30,21 @@ code.
 - **Job id** — the client's durable key for a job: the infohash for a torrent,
   the `nzo_id` for usenet. Today stored on `Target.torrent_hash`, which already
   holds nzo_ids (cancel routing relies on it) and is misnamed for them.
-- **Phase** — where a job is on its protocol's ladder. Usenet: *fetch* (the
-  client is pulling the NZB), *download*, *verify*, *repair*, *unpack*, *move*,
-  *done*. Torrent: *metadata*, *download*, *done*. A pure projection of the
-  job's state and protocol; never stored.
-- **Condition** — a qualifier on a phase, not a phase: *queued*, *paused*,
-  *stalled*, *failed*, or none. SABnzbd's history "Queued" is the condition
-  *queued* on the phase *verify*; its queue "Paused" is *paused* on *download*.
+- **Step** — one rung of a protocol's ladder. Usenet: *fetch* (the client
+  is pulling the NZB), *download*, *verify*, *repair*, *unpack*, *move*,
+  *done*. Torrent: *metadata*, *download*, *done*. (Added 2026-10-12 during
+  Task 2: the code names the rungs steps and the position the phase.)
+- **Phase** — where a job is on its protocol's ladder: the current step,
+  the condition on it, and the figure. A pure projection of the job's state
+  and protocol; never stored.
+- **Condition** — a qualifier on a step, not a step: *queued*, *paused*,
+  *stalled*, *failed*, or none. SABnzbd's queue "Paused" is *paused* on
+  *download*. *Amended 2026-10-12:* SABnzbd's history "Queued" (waiting for
+  post-processing) and its queue "Queued" both reach the driver as one
+  `:queued` atom, so both draw as *queued* on *download*; the lit step is
+  misplaced for the seconds a job waits for post-processing, and that is
+  accepted. The earlier text placed it on *verify*; the strip therefore never
+  says "Queued for unpacking".
 - **Stage line** — SABnzbd's `action_line` on a history slot, the live text of
   the post-processing stage ("Unpacking: 45%", "Verifying: 12/56"). Empty once
   the job completes. Not read today.
@@ -123,8 +131,8 @@ reach a view-model.
   (done steps filled, the current step lit, later steps dim, *repair* only
   when it happens). The shape of completion, not a percentage, as the unit
   segments already do (UIDR-014);
-- the phase word as plain colored text, with the condition folded in
-  ("Paused", "Queued for unpacking");
+- the phase word as plain colored text, the condition speaking before the
+  step ("Paused", "Queued");
 - the figure bar in the existing 3px slot: the known fraction when there is
   one, otherwise an indeterminate sliding highlight (transform-only, within
   the animation rules) so the row still reads alive;

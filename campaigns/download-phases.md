@@ -14,8 +14,9 @@ table and `docs/GLOSSARY.md` gets them at completion.
 |---|---|
 | **Job** | One entry in a download client: a torrent in qBittorrent, an NZO in SABnzbd. `Downloads.QueueItem`. Unchanged. |
 | **Job id** | The client's durable key for a job: the infohash for a torrent, the `nzo_id` for usenet. Today `Target.torrent_hash`, which already holds nzo_ids and is renamed `download_id`. |
-| **Phase** | Where a job is on its protocol's ladder. Usenet: *fetch* (the client pulls the NZB), *download*, *verify*, *repair* (only while it happens), *unpack*, *move*, *done*. Torrent: *metadata*, *download*, *done*. A pure projection (`Downloads.Phase`), never stored. |
-| **Condition** | A qualifier on a phase, not a phase: *queued*, *paused*, *stalled*, *failed*, or none. |
+| **Step** | One rung of a protocol's ladder. Usenet: *fetch* (the client pulls the NZB), *download*, *verify*, *repair* (only while it happens), *unpack*, *move*, *done*. Torrent: *metadata*, *download*, *done*. |
+| **Phase** | Where a job is on its protocol's ladder: the current step, the condition on it, and the figure. A pure projection (`Downloads.Phase`), never stored. |
+| **Condition** | A qualifier on a step, not a step: *queued*, *paused*, *stalled*, *failed*, or none. Both of SABnzbd's "Queued" sources arrive as one `:queued` and draw on *download*. |
 | **Stage line** | SABnzbd's `action_line` on a history slot, the live text of the post-processing stage ("Unpacking: 45%", "Verifying: 14/56"). Blank once the job completes. Not read today. |
 | **Phase figure** | How far through the current phase the job is, 0–1, or nil when the client gives no figure: `progress` in *download*, parsed from the stage line in post-processing, nil in *fetch*. |
 | **Download strip** | The one component that draws a job: phase ladder, phase word, figure bar, release name, size, client, telemetry age, cancel (`Components.Acquisition.DownloadStrip`). Today drawn three ways: the pursuit row's footer, the Other downloads row, the pursuit modal's activity block. |
