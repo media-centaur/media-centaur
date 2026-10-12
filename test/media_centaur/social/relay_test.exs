@@ -3,6 +3,7 @@ defmodule MediaCentaur.Social.RelayTest do
 
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Events.RelayAdded
+  alias MediaCentaur.Social.Events.RelayChanged
   alias MediaCentaur.Social.Events.RelayRemoved
   alias MediaCentaur.Social.Relay
 
@@ -45,6 +46,29 @@ defmodule MediaCentaur.Social.RelayTest do
       changeset = Relay.changeset(%{url: "wss://relay.example", follow: :public})
       refute changeset.valid?
       assert %{follow: ["is invalid"]} = errors_on(changeset)
+    end
+  end
+
+  describe "follow rule" do
+    test "a relay is added under a rule, added by default; the same URL keeps its rule" do
+      assert {:ok, %Relay{follow: :added}} = Social.add_relay("wss://relay.example")
+      assert {:ok, %Relay{follow: :members}} = Social.add_relay("wss://group.example", :members)
+      assert {:ok, %Relay{follow: :members}} = Social.add_relay("wss://group.example", :added)
+      assert %Relay{follow: :members} = Social.get_relay("WSS://group.example/")
+      assert Social.get_relay("wss://nowhere.example") == nil
+    end
+
+    test "set_follow/2 changes the rule and broadcasts once; the same rule again is silent; unknown is refused" do
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      Social.subscribe()
+
+      assert {:ok, %Relay{follow: :members}} = Social.set_follow("wss://relay.example", :members)
+      assert_receive {:relay_changed, %RelayChanged{url: "wss://relay.example/"}}, 500
+
+      assert {:ok, %Relay{follow: :members}} = Social.set_follow("wss://relay.example", :members)
+      refute_receive {:relay_changed, _event}, 100
+
+      assert {:error, :unknown_relay} = Social.set_follow("wss://nowhere.example", :members)
     end
   end
 

@@ -49,6 +49,7 @@ defmodule MediaCentaur.Social do
   alias MediaCentaur.Social.Profile
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Social.Relay
+  alias MediaCentaur.Social.RelayMember
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Repo
@@ -62,14 +63,45 @@ defmodule MediaCentaur.Social do
   @spec subscribe_connections() :: :ok | {:error, term()}
   def subscribe_connections, do: Topics.subscribe(Topics.social_connections())
 
-  @doc "Adds a relay URL (idempotent on the normalized URL)."
-  @spec add_relay(String.t()) :: {:ok, Relay.t()} | {:error, Ecto.Changeset.t()}
-  def add_relay(url) when is_binary(url) do
+  @doc """
+  Adds a relay URL under a follow rule (`Relay.follow/0`), added unless
+  given. Idempotent on the normalized URL: an existing relay keeps its rule
+  (`set_follow/2` changes it).
+  """
+  @spec add_relay(String.t(), Relay.follow()) :: {:ok, Relay.t()} | {:error, Ecto.Changeset.t()}
+  def add_relay(url, follow \\ :added) when is_binary(url) and follow in [:members, :added] do
     normalized = Relay.normalize(url)
 
     case Repo.get_by(Relay, url: normalized) do
       %Relay{} = existing -> {:ok, existing}
-      nil -> insert_relay(url, normalized)
+      nil -> insert_relay(url, normalized, follow)
+    end
+  end
+
+  @doc "One relay by URL (normalized first), or nil."
+  @spec get_relay(String.t()) :: Relay.t() | nil
+  def get_relay(url) when is_binary(url), do: Repo.get_by(Relay, url: Relay.normalize(url))
+
+  @doc """
+  Sets a relay's follow rule. Members → added forgets the relay's observed
+  members: a key followed only through it stops being followed and its
+  profile goes (`sweep_members/2` has the same rule). Broadcasts
+  `RelayChanged` when it changed; the same rule again is silent.
+  """
+  @spec set_follow(String.t(), Relay.follow()) :: {:ok, Relay.t()} | {:error, :unknown_relay}
+  def set_follow(url, follow) when is_binary(url) and follow in [:members, :added] do
+    case get_relay(url) do
+      nil ->
+        {:error, :unknown_relay}
+
+      %Relay{follow: ^follow} = relay ->
+        {:ok, relay}
+
+      relay ->
+        relay = Repo.update!(Relay.changeset(relay, %{follow: follow}))
+        if follow == :added, do: forget_members(relay)
+        Events.broadcast(%Events.RelayChanged{url: relay.url})
+        {:ok, relay}
     end
   end
 
@@ -491,8 +523,8 @@ defmodule MediaCentaur.Social do
     end
   end
 
-  defp insert_relay(url, normalized) do
-    case Repo.insert(Relay.changeset(%{url: url})) do
+  defp insert_relay(url, normalized, follow) do
+    case Repo.insert(Relay.changeset(%{url: url, follow: follow})) do
       {:ok, relay} ->
         Events.broadcast(%Events.RelayAdded{url: relay.url})
         {:ok, relay}
@@ -503,6 +535,14 @@ defmodule MediaCentaur.Social do
           do: {:ok, Repo.get_by!(Relay, url: normalized)},
           else: {:error, changeset}
     end
+  end
+
+  # Drops every membership row of a relay and prunes what the keys no
+  # longer earn (Task 4 adds `prune_if_unfollowed/1`; until then this
+  # deletes the rows only).
+  defp forget_members(%Relay{id: relay_id}) do
+    Repo.delete_all(from(member in RelayMember, where: member.relay_id == ^relay_id))
+    :ok
   end
 
   defp unique_violation?(%Ecto.Changeset{errors: errors}) do
