@@ -472,7 +472,8 @@ defmodule MediaCentaur.Activities do
 
   defp max_acted_at(query), do: query |> select([a], max(a.acted_at)) |> Repo.one()
 
-  defp known_author(pubkey), do: if(Social.known_key?(pubkey), do: :ok, else: {:error, :unknown_author})
+  defp known_author(pubkey),
+    do: if(Social.followed_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
   defp store_if_newer(attrs) do
     case upsert_if_newer(attrs) do

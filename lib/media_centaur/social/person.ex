@@ -9,15 +9,20 @@ defmodule MediaCentaur.Social.Person do
   switch; always true for the reader's own. `published_hue` is the hue
   the key published, `hue_override` the reader's for a friend
   (UIDR-048); `hue/1` resolves them, nil when neither, and CSS draws the
-  default. `own?` says whether the key is the reader's own. Built in the
-  app only by `Social.people/0` and `Social.own_person/0`; every surface
-  that draws a person takes one.
+  default. `own?` says whether the key is the reader's own; `friend?`
+  whether the reader added the key by hand. `hidden` is the reader's
+  switch keeping the person's activity off every surface but the Friends
+  tab's hidden group. `member_of` is the relays (URLs) the person is
+  followed through, `[]` for a friend added by key alone; `member_hosts/1`
+  gives their hosts for the card's foot. Built in the app only by
+  `Social.people/0` and `Social.own_person/0`; every surface that draws a
+  person takes one.
   "You" is `MediaCentaur.Format.person_name/1`'s word for `own?`, never
   data here.
 
   `pubkey` is nil for the reader before an identity exists: the review
   modal previews as the reader all the same. `added_on` is nil for the
-  reader's own.
+  reader's own and for a person followed only through a relay.
 
   Not `MediaCentaur.Library.Person`, which is a title's cast member.
   """
@@ -34,6 +39,9 @@ defmodule MediaCentaur.Social.Person do
     :short_npub,
     :added_on,
     own?: false,
+    friend?: false,
+    hidden: false,
+    member_of: [],
     show_avatar: true
   ]
 
@@ -46,9 +54,16 @@ defmodule MediaCentaur.Social.Person do
           hue_override: Hue.t() | nil,
           show_avatar: boolean(),
           own?: boolean(),
+          friend?: boolean(),
+          hidden: boolean(),
+          member_of: [String.t()],
           short_npub: String.t() | nil,
           added_on: Date.t() | nil
         }
+
+  @doc "The hosts of the relays the person is followed through, for the card's foot; `[]` for a friend added by key alone."
+  @spec member_hosts(t()) :: [String.t()]
+  def member_hosts(%__MODULE__{member_of: urls}), do: Enum.map(urls, &(URI.parse(&1).host || &1))
 
   @doc "The name the reader sees: the override, else the published name, else nil."
   @spec name(t()) :: String.t() | nil

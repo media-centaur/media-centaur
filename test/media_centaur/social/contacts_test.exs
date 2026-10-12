@@ -1,15 +1,27 @@
 defmodule MediaCentaur.Social.ContactsTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
+  alias MediaCentaur.Secret
   alias MediaCentaur.Social
-  alias MediaCentaur.Social.Events.FriendAdded
-  alias MediaCentaur.Social.Events.ContactChanged
-  alias MediaCentaur.Social.Events.FriendRemoved
   alias MediaCentaur.Social.Contact
+  alias MediaCentaur.Social.Events.ContactChanged
+  alias MediaCentaur.Social.Events.FriendAdded
+  alias MediaCentaur.Social.Events.FriendRemoved
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
 
-  @pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+  @secret Secret.wrap(String.duplicate("0", 63) <> "3")
+  @pubkey Keys.pubkey(@secret)
+
+  defp profile_event(name),
+    do:
+      Event.sign(
+        ProfileTranslation.to_event(%{name: name, avatar: nil, hue: nil}, @pubkey, 1_700_000_000),
+        @secret
+      )
 
   describe "add_friend/2" do
     test "accepts an npub, stores lowercase hex and the trimmed name, broadcasts" do
@@ -85,7 +97,7 @@ defmodule MediaCentaur.Social.ContactsTest do
     end
 
     test "refuses a key not on the roster" do
-      assert {:error, :not_a_friend} = Social.set_name_override(String.duplicate("a", 64), "X")
+      assert {:error, :not_a_contact} = Social.set_name_override(String.duplicate("a", 64), "X")
     end
   end
 
@@ -98,7 +110,7 @@ defmodule MediaCentaur.Social.ContactsTest do
       assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
       assert {:ok, %Contact{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
       refute_receive {:contact_changed, _event}, 100
-      assert {:error, :not_a_friend} = Social.set_show_avatar(String.duplicate("a", 64), true)
+      assert {:error, :not_a_contact} = Social.set_show_avatar(String.duplicate("a", 64), true)
     end
   end
 
@@ -116,7 +128,7 @@ defmodule MediaCentaur.Social.ContactsTest do
       assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
 
       assert {:error, :invalid_hue} = Social.set_hue_override(@pubkey, 360)
-      assert {:error, :not_a_friend} = Social.set_hue_override(String.duplicate("a", 64), 12)
+      assert {:error, :not_a_contact} = Social.set_hue_override(String.duplicate("a", 64), 12)
     end
   end
 
@@ -134,14 +146,94 @@ defmodule MediaCentaur.Social.ContactsTest do
     end
   end
 
-  describe "known_key?/1" do
-    test "the identity and every roster key are known; anything else is not" do
+  describe "followed_key?/1" do
+    test "the identity, every friend and every member of a members-rule relay are followed; anything else is not" do
+      refute Social.followed_key?(@pubkey)
+
       {:ok, _friend} = Social.add_friend(@pubkey, "Sample Friend")
-      refute Social.known_key?(String.duplicate("a", 64))
-      assert Social.known_key?(@pubkey)
+      assert Social.followed_key?(String.upcase(@pubkey))
+      :ok = Social.remove_friend(@pubkey)
+      refute Social.followed_key?(@pubkey)
+
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+      :ok = Social.note_member("wss://group.example", @pubkey)
+      assert Social.followed_key?(@pubkey)
+
+      {:ok, _relay} = Social.set_follow("wss://group.example", :added)
+      refute Social.followed_key?(@pubkey)
 
       Identity.ensure()
-      assert Social.known_key?(Identity.pubkey())
+      assert Social.followed_key?(Identity.pubkey())
+    end
+  end
+
+  describe "a member and a friend are one contact" do
+    setup do
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+      :ok = Social.note_member("wss://group.example", @pubkey)
+      :ok
+    end
+
+    test "adding a member as a friend promotes the row, keeping its overrides, and broadcasts FriendAdded" do
+      {:ok, _contact} = Social.set_name_override(@pubkey, "Nick")
+      Social.subscribe()
+
+      assert {:ok, %Contact{added_at: %DateTime{}, name_override: "Nick"}} = Social.add_friend(@pubkey)
+      assert_receive {:friend_added, %FriendAdded{pubkey: @pubkey}}, 500
+      assert [%Contact{pubkey: @pubkey}] = Social.list_friends()
+
+      assert {:ok, %Contact{name_override: "Nick"}} = Social.add_friend(@pubkey, "Given")
+      refute_receive {:friend_added, _event}, 100
+    end
+
+    test "removing a friend who is still a member keeps the row and the profile; the key stays followed" do
+      {:ok, _contact} = Social.add_friend(@pubkey, "Sample Friend")
+      {:ok, _profile} = Social.ingest_profile(profile_event("Published"))
+      Social.subscribe()
+
+      assert :ok = Social.remove_friend(@pubkey)
+      assert_receive {:friend_removed, %FriendRemoved{pubkey: @pubkey}}, 500
+      assert Social.list_friends() == []
+      assert Social.followed_key?(@pubkey)
+      assert %{@pubkey => %Person{published_name: "Published", friend?: false}} = Social.people()
+    end
+
+    test "a removed friend's choices wait for a return" do
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      other = "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
+      {:ok, _friend} = Social.add_friend(other, "Sample Friend")
+      {:ok, _contact} = Social.set_hidden(other, true)
+
+      :ok = Social.remove_friend(other)
+      refute Social.followed_key?(other)
+      refute Map.has_key?(Social.people(), other)
+
+      {:ok, %Contact{hidden: true, name_override: "Sample Friend"}} = Social.add_friend(other)
+      assert %{^other => %Person{hidden: true}} = Social.people()
+    end
+
+    test "removing a friend from the roster as a member only is a no-op" do
+      Social.subscribe()
+      assert :ok = Social.remove_friend(@pubkey)
+      refute_receive {:friend_removed, _event}, 100
+      assert Social.followed_key?(@pubkey)
+    end
+  end
+
+  describe "set_hidden/2" do
+    test "hides and shows, broadcasting ContactChanged once per flip; an unknown key is refused" do
+      {:ok, _contact} = Social.add_friend(@pubkey, "Sample Friend")
+      Social.subscribe()
+
+      assert {:ok, %Contact{hidden: true}} = Social.set_hidden(@pubkey, true)
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
+      assert %{@pubkey => %Person{hidden: true}} = Social.people()
+
+      assert {:ok, %Contact{hidden: true}} = Social.set_hidden(@pubkey, true)
+      refute_receive {:contact_changed, _event}, 100
+
+      assert {:ok, %Contact{hidden: false}} = Social.set_hidden(@pubkey, false)
+      assert {:error, :not_a_contact} = Social.set_hidden(String.duplicate("a", 64), true)
     end
   end
 end

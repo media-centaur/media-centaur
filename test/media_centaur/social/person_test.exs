@@ -39,7 +39,7 @@ defmodule MediaCentaur.Social.PersonTest do
              } = people[@friend]
 
       assert people[@friend].short_npub == Social.short_npub(@friend)
-      assert people[@friend].added_on == DateTime.to_date(friend.inserted_at)
+      assert people[@friend].added_on == DateTime.to_date(friend.added_at)
       assert %Person{name_override: "Cleo", own?: false} = people[@other]
     end
 
@@ -143,6 +143,12 @@ defmodule MediaCentaur.Social.PersonTest do
 
     assert Format.person_name(%Person{pubkey: @friend, published_name: "Nicholas"}) == "Nicholas"
     assert Format.person_name(%Person{pubkey: @friend}) == "Unnamed"
+  end
+
+  test "member_hosts/1 names the relays a person is followed through, by host" do
+    person = %Person{member_of: ["wss://group.example/", "ws://127.0.0.1:2173/"]}
+    assert Person.member_hosts(person) == ["group.example", "127.0.0.1"]
+    assert Person.member_hosts(%Person{}) == []
   end
 
   test "short_npub/1 elides the middle" do

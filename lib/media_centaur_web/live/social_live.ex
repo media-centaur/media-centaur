@@ -239,7 +239,7 @@ defmodule MediaCentaurWeb.SocialLive do
   def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
     case Social.set_name_override(pubkey, name) do
       {:ok, _friend} -> {:noreply, socket}
-      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
     end
   end
 
@@ -248,7 +248,7 @@ defmodule MediaCentaurWeb.SocialLive do
   def handle_event("set_show_avatar", %{"pubkey" => pubkey, "show" => show}, socket) do
     case Social.set_show_avatar(pubkey, show == "true") do
       {:ok, _friend} -> {:noreply, socket}
-      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
     end
   end
 
@@ -260,7 +260,7 @@ defmodule MediaCentaurWeb.SocialLive do
          {:ok, _friend} <- Social.set_hue_override(pubkey, hue) do
       {:noreply, socket}
     else
-      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
       :error -> {:noreply, socket}
     end
   end
