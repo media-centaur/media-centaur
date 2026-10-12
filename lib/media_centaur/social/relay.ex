@@ -1,7 +1,11 @@
 defmodule MediaCentaur.Social.Relay do
   @moduledoc """
   One configured relay: a `ws://` or `wss://` URL, normalized (trimmed,
-  lowercase scheme and host, no userinfo, path defaults to `/`).
+  lowercase scheme and host, no userinfo, path defaults to `/`), and the
+  reader's **follow rule** for it: `:members` follows everyone who
+  publishes on the relay (*Everyone on this relay*, for a friend group's own
+  allowlist relay); `:added` follows only the keys the reader added (*Only
+  people I add*, the default, for any larger or public relay).
   Connection state is runtime (`Social.Connections.status/0`), never
   stored, and neither is any sync position: every connect reads the relay
   from the start (`RelaySync`).
@@ -16,19 +20,22 @@ defmodule MediaCentaur.Social.Relay do
 
   schema "relays" do
     field :url, :string
+    field :follow, Ecto.Enum, values: [:members, :added], default: :added
 
     timestamps()
   end
 
   @type t :: %__MODULE__{}
+  @typedoc "Who the reader follows on a relay: everyone publishing on it, or only the keys they added."
+  @type follow :: :members | :added
 
   @doc "Changeset for a relay row; normalizes the URL, then validates the normalized form."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(relay \\ %__MODULE__{}, attrs) do
     relay
-    |> cast(attrs, [:url])
+    |> cast(attrs, [:url, :follow])
     |> update_change(:url, &normalize/1)
-    |> validate_required([:url])
+    |> validate_required([:url, :follow])
     |> validate_change(:url, fn :url, url ->
       if valid?(url), do: [], else: [url: "must start with wss:// or ws://"]
     end)

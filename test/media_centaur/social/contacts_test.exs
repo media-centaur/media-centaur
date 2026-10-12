@@ -1,12 +1,12 @@
-defmodule MediaCentaur.Social.FriendTest do
+defmodule MediaCentaur.Social.ContactsTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Events.FriendAdded
-  alias MediaCentaur.Social.Events.FriendChanged
+  alias MediaCentaur.Social.Events.ContactChanged
   alias MediaCentaur.Social.Events.FriendRemoved
-  alias MediaCentaur.Social.Friend
+  alias MediaCentaur.Social.Contact
   alias MediaCentaur.Social.Identity
 
   @pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
@@ -16,11 +16,11 @@ defmodule MediaCentaur.Social.FriendTest do
       Social.subscribe()
       npub = Keys.to_npub(@pubkey)
 
-      assert {:ok, %Friend{pubkey: @pubkey, name_override: "Sample Friend"}} =
+      assert {:ok, %Contact{pubkey: @pubkey, name_override: "Sample Friend"}} =
                Social.add_friend(npub, "  Sample Friend ")
 
       assert_receive {:friend_added, %FriendAdded{pubkey: @pubkey}}, 500
-      assert [%Friend{pubkey: @pubkey}] = Social.list_friends()
+      assert [%Contact{pubkey: @pubkey}] = Social.list_friends()
       assert Social.friend_pubkeys() == [@pubkey]
     end
 
@@ -34,16 +34,16 @@ defmodule MediaCentaur.Social.FriendTest do
       assert first.id == second.id
       assert second.name_override == "One"
       refute_receive {:friend_added, _event}, 100
-      refute_receive {:friend_changed, _event}, 100
+      refute_receive {:contact_changed, _event}, 100
       assert length(Social.list_friends()) == 1
     end
 
     test "the name is optional: none, or blank, is a friend without an override" do
-      assert {:ok, %Friend{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey)
+      assert {:ok, %Contact{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey)
       :ok = Social.remove_friend(@pubkey)
 
-      assert {:ok, %Friend{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey, "  ")
-      assert [%Friend{name_override: nil}] = Social.list_friends()
+      assert {:ok, %Contact{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey, "  ")
+      assert [%Contact{name_override: nil}] = Social.list_friends()
     end
 
     test "rejects a bad key and your own key" do
@@ -58,28 +58,28 @@ defmodule MediaCentaur.Social.FriendTest do
   end
 
   describe "set_name_override/2" do
-    test "renames and broadcasts FriendChanged once per change; the same name again is silent" do
+    test "renames and broadcasts ContactChanged once per change; the same name again is silent" do
       {:ok, _friend} = Social.add_friend(@pubkey, "One")
       Social.subscribe()
 
-      assert {:ok, %Friend{name_override: "Nick"}} = Social.set_name_override(@pubkey, " Nick ")
-      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Contact{name_override: "Nick"}} = Social.set_name_override(@pubkey, " Nick ")
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
 
-      assert {:ok, %Friend{name_override: "Nick"}} = Social.set_name_override(@pubkey, "Nick")
-      refute_receive {:friend_changed, _event}, 100
+      assert {:ok, %Contact{name_override: "Nick"}} = Social.set_name_override(@pubkey, "Nick")
+      refute_receive {:contact_changed, _event}, 100
     end
 
     test "a blank clears the override and broadcasts; nil on none is silent" do
       {:ok, _friend} = Social.add_friend(@pubkey, "One")
       Social.subscribe()
 
-      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, "")
-      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
-      assert Social.friend_by_pubkey(@pubkey).name_override == nil
+      assert {:ok, %Contact{name_override: nil}} = Social.set_name_override(@pubkey, "")
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
+      assert Social.contact_by_pubkey(@pubkey).name_override == nil
 
-      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, nil)
-      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, "   ")
-      refute_receive {:friend_changed, _event}, 100
+      assert {:ok, %Contact{name_override: nil}} = Social.set_name_override(@pubkey, nil)
+      assert {:ok, %Contact{name_override: nil}} = Social.set_name_override(@pubkey, "   ")
+      refute_receive {:contact_changed, _event}, 100
     end
 
     test "refuses a key not on the roster" do
@@ -88,30 +88,30 @@ defmodule MediaCentaur.Social.FriendTest do
   end
 
   describe "set_show_avatar/2" do
-    test "flips the switch and broadcasts FriendChanged once per change; an unknown key is refused" do
-      {:ok, %Friend{show_avatar: true}} = Social.add_friend(@pubkey, "One")
+    test "flips the switch and broadcasts ContactChanged once per change; an unknown key is refused" do
+      {:ok, %Contact{show_avatar: true}} = Social.add_friend(@pubkey, "One")
       Social.subscribe()
 
-      assert {:ok, %Friend{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
-      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
-      assert {:ok, %Friend{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
-      refute_receive {:friend_changed, _event}, 100
+      assert {:ok, %Contact{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Contact{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
+      refute_receive {:contact_changed, _event}, 100
       assert {:error, :not_a_friend} = Social.set_show_avatar(String.duplicate("a", 64), true)
     end
   end
 
   describe "set_hue_override/2" do
     test "sets the reader's hue, clears it with nil, broadcasts once per change; a bad hue or key is refused" do
-      {:ok, %Friend{hue_override: nil}} = Social.add_friend(@pubkey, "One")
+      {:ok, %Contact{hue_override: nil}} = Social.add_friend(@pubkey, "One")
       Social.subscribe()
 
-      assert {:ok, %Friend{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
-      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
-      assert {:ok, %Friend{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
-      refute_receive {:friend_changed, _event}, 100
+      assert {:ok, %Contact{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Contact{hue_override: 195}} = Social.set_hue_override(@pubkey, 195)
+      refute_receive {:contact_changed, _event}, 100
 
-      assert {:ok, %Friend{hue_override: nil}} = Social.set_hue_override(@pubkey, nil)
-      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Contact{hue_override: nil}} = Social.set_hue_override(@pubkey, nil)
+      assert_receive {:contact_changed, %ContactChanged{pubkey: @pubkey}}, 500
 
       assert {:error, :invalid_hue} = Social.set_hue_override(@pubkey, 360)
       assert {:error, :not_a_friend} = Social.set_hue_override(String.duplicate("a", 64), 12)
