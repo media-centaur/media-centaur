@@ -354,14 +354,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         context
       )
 
-    {current_action, downloads, downloads_done} =
+    {current_action, downloads} =
       PursuitStatus.compose_downloads(
         current_action,
         all_downloads(status.pursuit, status.target, queue_items)
       )
 
-    if status.download == download and status.downloads == downloads and
-         status.downloads_done == downloads_done do
+    if status.download == download and status.downloads == downloads do
       status
     else
       %{
@@ -371,8 +370,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
           next_step: next_step,
           available_actions: actions,
           download: download,
-          downloads: downloads,
-          downloads_done: downloads_done
+          downloads: downloads
       }
     end
   end
@@ -407,7 +405,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     {current_action, next_step, actions} =
       PursuitStatus.derive(pursuit, unit, target, queue_item, location, context)
 
-    {current_action, downloads, downloads_done} =
+    {current_action, downloads} =
       PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
 
     last_activity_at = latest_event_at(pursuit.id)
@@ -425,7 +423,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       next_step: next_step,
       download: QueueMatcher.to_download(queue_item),
       downloads: downloads,
-      downloads_done: downloads_done,
       staleness: staleness_for(last_activity_at),
       last_activity_at: last_activity_at,
       available_actions: actions,

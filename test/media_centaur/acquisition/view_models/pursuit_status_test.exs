@@ -604,20 +604,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       }
     end
 
-    test "finished entries leave the list and are counted" do
-      {_action, kept, done} =
+    test "finished entries leave the list and are counted in the header" do
+      {action, kept} =
         PursuitStatus.compose_downloads(downloading_action(), [
           entry(100.0, "Sample.Show.S01E01.x264"),
           entry(40.0, "Sample.Show.S01E02.x264"),
           entry(100.0, "Sample.Show.S01E03.x264")
         ])
 
-      assert done == 2
+      assert action.description == "2 of 3 finished • From SABnzbd"
       assert [%{release_title: "Sample.Show.S01E02.x264"}] = kept
     end
 
     test "a multi-file pursuit's header aggregates instead of narrating one file" do
-      {action, _kept, _done} =
+      {action, _kept} =
         PursuitStatus.compose_downloads(downloading_action(), [
           entry(100.0, "Sample.Show.S01E01.x264"),
           entry(40.0, "Sample.Show.S01E02.x264"),
@@ -628,39 +628,35 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
 
     test "all finished reads as done, list empties" do
-      {action, kept, done} =
+      {action, kept} =
         PursuitStatus.compose_downloads(downloading_action(), [
           entry(100.0, "Sample.Show.S01E01.x264"),
           entry(100.0, "Sample.Show.S01E02.x264")
         ])
 
       assert kept == []
-      assert done == 2
       assert action.description == "2 of 2 finished • From SABnzbd"
     end
 
     test "a single-download pursuit keeps the per-file description untouched" do
       action = downloading_action()
 
-      {composed, kept, done} =
-        PursuitStatus.compose_downloads(action, [entry(40.0)])
+      {composed, kept} = PursuitStatus.compose_downloads(action, [entry(40.0)])
 
       assert composed == action
-      assert done == 0
       assert [_one] = kept
 
       # And a finished single download still empties the list without
       # rewriting the verb's description (the header already says it).
-      {composed, kept, done} = PursuitStatus.compose_downloads(action, [entry(100.0)])
+      {composed, kept} = PursuitStatus.compose_downloads(action, [entry(100.0)])
       assert composed == action
       assert kept == []
-      assert done == 1
     end
 
     test "non-downloading actions never get rewritten" do
       action = %CurrentAction{verb: "Stalled", description: "No peers.", severity: :warning}
 
-      {composed, _kept, _done} =
+      {composed, _kept} =
         PursuitStatus.compose_downloads(action, [entry(100.0, "a"), entry(50.0, "b")])
 
       assert composed == action
