@@ -36,7 +36,7 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
 
   alias MediaCentaur.Acquisition.ViewModels.DownloadProgress
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow, PursuitWithDownload}
-  alias MediaCentaur.Downloads.QueueItem
+  alias MediaCentaur.Downloads.{Phase, QueueItem}
 
   # A release title must normalize to at least this many characters before
   # the containment fallback will fire — short titles ("moviea") are too
@@ -174,7 +174,8 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
       size_left_bytes: qi.size_left,
       eta: nil,
       client: qi.download_client,
-      protocol: qi.protocol
+      protocol: qi.protocol,
+      phase: Phase.of(qi)
     }
   end
 
@@ -191,7 +192,8 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
       size_left_bytes: qi.size_left,
       eta: qi.timeleft,
       client: qi.download_client,
-      protocol: qi.protocol
+      protocol: qi.protocol,
+      phase: Phase.of(qi)
     }
   end
 end

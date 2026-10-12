@@ -57,6 +57,28 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
   end
 
   describe "to_download/1" do
+    test "carries the job's phase" do
+      download = QueueMatcher.to_download(item("abc", "Sample.Movie", %{progress: 42.0}))
+
+      assert %MediaCentaur.Downloads.Phase{current: :download, figure: 0.42} = download.phase
+    end
+
+    test "a usenet job in post-processing reads its figure from the stage line" do
+      download =
+        QueueMatcher.to_download(
+          item("nzo", "Sample.Movie", %{
+            protocol: :usenet,
+            state: :extracting,
+            progress: nil,
+            stage_line: "Unpacking: 45%"
+          })
+        )
+
+      assert download.phase.current == :unpack
+      assert download.phase.figure == 0.45
+      assert download.progress_pct == nil
+    end
+
     test "nil queue item returns nil" do
       assert QueueMatcher.to_download(nil) == nil
     end
