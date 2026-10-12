@@ -30,12 +30,15 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   (`HueSwatches`, UIDR-048): Theirs, the friend's published hue, then
   the palette and the ring, saving on the act (`set_hue_override` with
   the key and the hue, empty for Theirs; the slider through the row's
-  own form); the key, the added date and Remove friend. A poster's press
-  opens the title modal speaking for the newest act on it.
+  own form); and the last line: the key, how the reader follows them —
+  *added* and the date for a friend, *on* the relay's host for a member —
+  **Hide**, which pushes `set_hidden` with the key and `hide` `"true"`,
+  and, for a friend only, Remove friend. A poster's press opens the
+  title modal speaking for the newest act on it.
 
-  Pure rendering of a `Social.Person` and their `Act`s. Every poster, row
-  and Remove friend is a nav item that bubbles `open_title` with the
-  title's ref *and* the activity, or `remove_friend`; the name form
+  Pure rendering of a `Social.Person` and their `Act`s. Every poster, row,
+  Hide and Remove friend is a nav item that bubbles `open_title` with the
+  title's ref *and* the activity, `set_hidden` or `remove_friend`; the name form
   submits `set_friend_name` with the key and the name, and swallows its
   clicks (`phx-click={%JS{}}`, the modal panel's idiom) so typing in it
   does not press the card; the avatar switch pushes `set_show_avatar`
@@ -226,20 +229,34 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
             aria-label="Colour"
           />
         </form>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
           <span class="text-sm text-base-content/65">
-            <code>{@person.short_npub}</code> · added {Calendar.strftime(@person.added_on, "%b %-d")}
+            <code>{@person.short_npub}</code> · {provenance(@person)}
           </span>
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="remove_friend"
-            phx-value-pubkey={@person.pubkey}
-            data-nav-item
-            tabindex="0"
-          >
-            Remove friend
-          </.button>
+          <span class="flex items-center gap-2">
+            <.button
+              variant="neutral"
+              size="sm"
+              phx-click="set_hidden"
+              phx-value-pubkey={@person.pubkey}
+              phx-value-hide="true"
+              data-nav-item
+              tabindex="0"
+            >
+              Hide
+            </.button>
+            <.button
+              :if={@person.friend?}
+              variant="dismiss"
+              size="sm"
+              phx-click="remove_friend"
+              phx-value-pubkey={@person.pubkey}
+              data-nav-item
+              tabindex="0"
+            >
+              Remove friend
+            </.button>
+          </span>
         </div>
       </footer>
     </section>
@@ -269,6 +286,16 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   # The name the override masks — the published one, else Unnamed — as
   # the foot's placeholder; never a literal here.
   defp masked_name(%Person{} = person), do: Format.person_name(%{person | name_override: nil})
+
+  # How the reader came to follow the person: the day they added them,
+  # else the relay whose members they follow. A friend without a date
+  # (none recorded) says "added" alone rather than naming a relay they
+  # were not followed through.
+  defp provenance(%Person{friend?: true, added_on: %Date{} = added_on}),
+    do: "added " <> Calendar.strftime(added_on, "%b %-d")
+
+  defp provenance(%Person{friend?: true}), do: "added"
+  defp provenance(%Person{} = person), do: "on " <> Enum.join(Person.member_hosts(person), ", ")
 
   defp newest(%Act{entries: [entry | _rest]}), do: entry
 
