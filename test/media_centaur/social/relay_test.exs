@@ -31,6 +31,23 @@ defmodule MediaCentaur.Social.RelayTest do
     end
   end
 
+  describe "changeset/2 follow rule" do
+    test "defaults to :added, accepts :members and refuses any other value" do
+      assert {:ok, %Relay{follow: :added}} =
+               Ecto.Changeset.apply_action(Relay.changeset(%{url: "wss://relay.example"}), :insert)
+
+      assert {:ok, %Relay{follow: :members}} =
+               Ecto.Changeset.apply_action(
+                 Relay.changeset(%{url: "wss://relay.example", follow: :members}),
+                 :insert
+               )
+
+      changeset = Relay.changeset(%{url: "wss://relay.example", follow: :public})
+      refute changeset.valid?
+      assert %{follow: ["is invalid"]} = errors_on(changeset)
+    end
+  end
+
   describe "normalize/1" do
     test "lowercases the scheme and the host" do
       assert Relay.normalize("WSS://Relay.Example") == "wss://relay.example/"
