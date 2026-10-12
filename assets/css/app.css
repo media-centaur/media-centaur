@@ -1812,6 +1812,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 @media (prefers-reduced-motion: reduce) {
   .btn[data-armed]::after { animation: none; }
+  .progress-indeterminate::after { animation: none; }
 }
 
 /* Icon-led button: a heroicon's box carries 2-4px of empty space around
@@ -1980,6 +1981,36 @@ body:has(.modal-backdrop[data-state="open"]) {
 /* 2. Progress bar smooth width transition */
 .progress-fill {
   transition: width 300ms ease-out;
+}
+
+/* Indeterminate figure bar — the download strip's "the client is working
+   but gives no figure" state (fetching an NZB, moving a finished file).
+   A highlight slides across the 3px slot; transform-only, so it never
+   touches layout or the blur layers (the Library Micro-Animations rule
+   above: transform and opacity only). */
+.progress-indeterminate {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-indeterminate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
 }
 
 /* 3. Poster card hover shadow */

@@ -67,11 +67,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
     end
   end
 
-  describe ":underway — the ladder step under way" do
-    test "is lit in the primary and pulses, at both sizes" do
+  describe ":underway and :ahead — the ladder's step states" do
+    test "underway is lit in the primary and pulses, at both sizes" do
       assert CellVocabulary.segment_treatment(:underway) =~ "bg-primary/80"
       assert CellVocabulary.segment_treatment(:underway) =~ "animate-pulse"
       assert CellVocabulary.cell_treatment(:underway) =~ "animate-pulse"
+    end
+
+    test "ahead is the muted default" do
+      assert CellVocabulary.segment_treatment(:ahead) == "bg-base-content/10"
     end
   end
 end
