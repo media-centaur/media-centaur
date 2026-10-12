@@ -7,9 +7,10 @@ defmodule MediaCentaurWeb.Components.Settings do
   are the rows, each saving on the act; `settings_list/1` is a
   string-list setting; `settings_field/1`, `settings_input/1` and
   `settings_select/1` are the label/control/help unit, the house input
-  and the house native select inside a connection row's or an add form; `path_status/1` is the glyph beside a path label. Rare
-  content hides behind `Components.Disclosure.disclosure/1`. The connection row lives in
-  `MediaCentaurWeb.Components.Settings.ConnectionRow`.
+  and the house native select inside a connection row's edit form or an
+  add form; `path_status/1` is the glyph beside a path label. Rare
+  content hides behind `Components.Disclosure.disclosure/1`. The
+  connection row lives in `MediaCentaurWeb.Components.Settings.ConnectionRow`.
 
   ## Narrow cards
 

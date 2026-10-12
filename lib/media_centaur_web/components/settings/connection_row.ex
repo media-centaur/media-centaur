@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Components.Settings.ConnectionRow do
               · tested {@age}
             </span>
           </div>
-          <div :if={!@editing && @actions != []} class="flex gap-1 shrink-0">
+          <div :if={!@editing && @actions != []} class="flex items-center gap-2 shrink-0">
             {render_slot(@actions)}
           </div>
         </div>

@@ -451,7 +451,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
 | `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
-| `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
+| `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_select/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
 | `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Identity and Episode mapping | ✅ |
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
@@ -526,6 +526,7 @@ Every Settings section is cards of rows, composed from `MediaCentaurWeb.Componen
 | Stepper | `settings_stepper/1` | A bounded number over a fixed ladder (`MediaCentaur.Settings.Ladder`); −/value/+/Reset carry absolute targets in `phx-value-choice`, `aria-disabled` at the bounds so the nav graph never shifts |
 | Choice | `settings_choice/1` | An enum of four or fewer on the house segmented pill; `aria-pressed` marks the chosen one |
 | Select | `settings_select_row/1` | An enum wider than the pill: a native select, saving on change |
+| Bare select | `settings_select/1` | The native select on its own, as a field of a form that saves on submit (the add-relay form's follow rule) |
 | Text | `settings_text_row/1` | Free text (a path) committing on Enter or blur with one payload (`name`, `value`) |
 | List | `settings_list/1` | A string list: rows with Remove, an inline input with Add, optional live validation |
 | Connection | `Settings.ConnectionRow.connection_row/1` | The readout for an external endpoint: state dot, name, address link, credential presence, state word with the test's age, actions; the form in its `edit` slot, one open at a time |
