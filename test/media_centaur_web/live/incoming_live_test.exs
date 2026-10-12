@@ -3770,6 +3770,30 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute html =~ "Finished"
     end
 
+    test "an unmatched job under Other downloads is drawn by the strip — phase word as text, no badge",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
+
+      fetching = %QueueItem{
+        id: "nzo-orphan-fetch",
+        title: "Fetching NZB…",
+        state: :fetching_nzb,
+        status: "Grabbing",
+        protocol: :usenet,
+        download_client: "SABnzbd"
+      }
+
+      send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [fetching]}})
+
+      html = render(view)
+      assert html =~ "Other downloads"
+      assert html =~ ~s|id="orphan-nzo-orphan-fetch"|
+      assert html =~ ~s|data-step="fetch" data-step-state="underway"|
+      assert html =~ "progress-indeterminate"
+      refute html =~ ~r/class="[^"]*badge[^"]*"[^>]*>\s*Fetching NZB/
+      refute html =~ "0:00:00"
+    end
+
     test "TV pursuits render an SxxExx suffix in the card title", %{conn: conn} do
       {_pursuit, _target} =
         create_pursuit_with_target(%{
