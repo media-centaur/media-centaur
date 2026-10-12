@@ -59,7 +59,7 @@ defmodule MediaCentaur.Social do
 
   @follow_rules Ecto.Enum.values(Relay, :follow)
 
-  @doc "Subscribe the caller to friends events."
+  @doc "Subscribe the caller to the social events (`Social.Events`)."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Topics.subscribe(Topics.social_updates())
 

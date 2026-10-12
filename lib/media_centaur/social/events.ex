@@ -43,7 +43,7 @@ defmodule MediaCentaur.Social.Events do
   end
 
   defmodule FriendAdded do
-    @moduledoc "A public key joined the roster."
+    @moduledoc "A public key became a friend: added by hand, or a member promoted."
     @enforce_keys [:pubkey]
     defstruct [:pubkey]
     @type t :: %__MODULE__{pubkey: String.t()}
@@ -57,7 +57,7 @@ defmodule MediaCentaur.Social.Events do
   end
 
   defmodule FriendRemoved do
-    @moduledoc "A public key left the roster."
+    @moduledoc "A public key stopped being a friend; it may still be followed as a member."
     @enforce_keys [:pubkey]
     defstruct [:pubkey]
     @type t :: %__MODULE__{pubkey: String.t()}
