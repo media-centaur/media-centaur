@@ -11,6 +11,7 @@ defmodule MediaCentaur.Downloads do
       HealthHistory,
       IncidentContext,
       Connectivity,
+      Phase,
       QueueItem,
       QueueMonitor,
       QueueState
