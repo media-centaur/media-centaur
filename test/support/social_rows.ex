@@ -37,6 +37,7 @@ defmodule MediaCentaur.SocialRows do
       published_hue: Keyword.get(opts, :published_hue),
       hue_override: Keyword.get(opts, :hue_override),
       own?: false,
+      friend?: true,
       short_npub: "npub1lyy9…8z4h",
       added_on: ~D[2026-08-30]
     }

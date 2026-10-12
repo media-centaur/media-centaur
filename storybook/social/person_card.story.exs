@@ -10,8 +10,9 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   page (900, a card on the inset tone, five acts, a press opens the card
   in place to every act, one row each, and the foot: your name for them,
   the switch showing or hiding their picture for you (UIDR-047), the
-  key, the date, Remove friend). A person with no acts is a tile and a
-  name; nothing says what a person withholds.
+  key, how you follow them — the date you added a friend, the relay a
+  member is on — Hide, and Remove friend for a friend). A person with no
+  acts is a tile and a name; nothing says what a person withholds.
   """
 
   use PhoenixStorybook.Story, :component
@@ -67,9 +68,22 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       name_override: "Sample Friend",
       own?: false,
       short_npub: "npub1lyy9…8z4h",
+      friend?: true,
       added_on: ~D[2026-08-30]
     }
   end
+
+  # A person followed through a relay set to Everyone on this relay: no
+  # date, the relay instead, and no Remove friend.
+  defp member,
+    do: %{
+      friend()
+      | friend?: false,
+        added_on: nil,
+        member_of: ["wss://group.example/"],
+        name_override: nil,
+        published_name: "Sample Member"
+    }
 
   # A friend whose published picture the reader shows: the tile's avatar
   # mark. A hidden picture has no URL at all — `Social` hands the card
@@ -203,13 +217,20 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       %Variation{
         id: :page_opened,
         description:
-          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on over the letter mark (the common state: nothing published yet), the key, the date and Remove friend",
+          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on over the letter mark (the common state: nothing published yet), the key, the date added, Hide and Remove friend",
         attributes: %{
           person: friend(),
           acts: seven_acts(),
           width: :page,
           opened?: true
         },
+        template: @page
+      },
+      %Variation{
+        id: :page_opened_member,
+        description:
+          "The opened card of a member followed through a relay set to Everyone on this relay: the foot says which relay, offers Hide, and no Remove friend",
+        attributes: %{person: member(), acts: seven_acts(), width: :page, opened?: true},
         template: @page
       },
       %Variation{
