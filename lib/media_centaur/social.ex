@@ -102,13 +102,14 @@ defmodule MediaCentaur.Social do
         {:ok, relay}
 
       relay ->
-        {:ok, relay} =
+        {:ok, {relay, pruned}} =
           Repo.transaction(fn ->
             relay = Repo.update!(Relay.changeset(relay, %{follow: follow}))
-            if follow == :added, do: forget_members(relay)
-            relay
+            pruned = if follow == :added, do: forget_members(relay), else: []
+            {relay, pruned}
           end)
 
+        delete_avatars(pruned)
         Events.broadcast(%Events.RelayChanged{url: relay.url})
         {:ok, relay}
     end
@@ -116,8 +117,8 @@ defmodule MediaCentaur.Social do
 
   @doc """
   Removes a relay by URL. Its observed members go with it (the rows by
-  cascade, the profiles by `prune_if_unfollowed/1`). Absent is a no-op —
-  and broadcasts nothing.
+  cascade, the profiles and avatars by `prune_if_unfollowed/1`). Absent is
+  a no-op — and broadcasts nothing.
   """
   @spec remove_relay(String.t()) :: :ok
   def remove_relay(url) when is_binary(url) do
@@ -126,7 +127,7 @@ defmodule MediaCentaur.Social do
         :ok
 
       relay ->
-        {:ok, :ok} =
+        {:ok, pruned} =
           Repo.transaction(fn ->
             pubkeys =
               Repo.all(
@@ -134,9 +135,10 @@ defmodule MediaCentaur.Social do
               )
 
             Repo.delete!(relay)
-            Enum.each(pubkeys, &prune_if_unfollowed/1)
+            prune_unfollowed(pubkeys)
           end)
 
+        delete_avatars(pruned)
         Events.broadcast(%Events.RelayRemoved{url: relay.url})
         :ok
     end
@@ -218,8 +220,13 @@ defmodule MediaCentaur.Social do
   def remove_friend(pubkey) when is_binary(pubkey) do
     case Repo.get_by(Contact, pubkey: String.downcase(pubkey)) do
       %Contact{added_at: added_at} = contact when added_at != nil ->
-        Repo.update!(Contact.changeset(contact, %{added_at: nil}))
-        prune_if_unfollowed(contact.pubkey)
+        {:ok, pruned} =
+          Repo.transaction(fn ->
+            Repo.update!(Contact.changeset(contact, %{added_at: nil}))
+            prune_unfollowed([contact.pubkey])
+          end)
+
+        delete_avatars(pruned)
         Events.broadcast(%Events.FriendRemoved{pubkey: contact.pubkey})
         :ok
 
@@ -518,9 +525,17 @@ defmodule MediaCentaur.Social do
   end
 
   defp delete_profile(pubkey) do
-    Repo.delete_all(from(profile in Profile, where: profile.pubkey == ^pubkey))
+    delete_profile_row(pubkey)
     AvatarStore.delete(pubkey)
   end
+
+  defp delete_profile_row(pubkey),
+    do: Repo.delete_all(from(profile in Profile, where: profile.pubkey == ^pubkey))
+
+  # The file half of a prune, after the transaction that dropped the rows
+  # committed: an unlink cannot be rolled back, and the write lock is not
+  # held over filesystem work.
+  defp delete_avatars(pubkeys), do: Enum.each(pubkeys, &AvatarStore.delete/1)
 
   defp followed_or_error(pubkey), do: if(followed_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
@@ -678,7 +693,7 @@ defmodule MediaCentaur.Social do
         :ignored
 
       relay ->
-        {:ok, swept} =
+        {:ok, {swept, pruned}} =
           Repo.transaction(fn ->
             stale =
               from(member in RelayMember,
@@ -687,20 +702,30 @@ defmodule MediaCentaur.Social do
 
             pubkeys = Repo.all(from(member in stale, select: member.pubkey))
             Repo.delete_all(stale)
-            Enum.each(pubkeys, &prune_if_unfollowed/1)
-            pubkeys
+            {pubkeys, prune_unfollowed(pubkeys)}
           end)
 
+        delete_avatars(pruned)
         if swept != [], do: Events.broadcast(%Events.MembersChanged{url: relay.url})
         :ok
     end
   end
 
+  # The common path — a key seen again — is the one write that moves
+  # `seen_at`; a miss is the first sight, which makes the rows and tells.
   defp record_member(%Relay{} = relay, pubkey) do
     seen_at = DateTime.utc_now()
 
-    case Repo.get_by(RelayMember, relay_id: relay.id, pubkey: pubkey) do
-      nil ->
+    seen =
+      from(member in RelayMember,
+        where: member.relay_id == ^relay.id and member.pubkey == ^pubkey
+      )
+
+    case Repo.update_all(seen, set: [seen_at: seen_at]) do
+      {1, _none} ->
+        :ok
+
+      {0, _none} ->
         Repo.insert!(Contact.changeset(%{pubkey: pubkey}),
           on_conflict: :nothing,
           conflict_target: :pubkey
@@ -708,29 +733,37 @@ defmodule MediaCentaur.Social do
 
         Repo.insert!(RelayMember.changeset(%{relay_id: relay.id, pubkey: pubkey, seen_at: seen_at}))
         Events.broadcast(%Events.MembersChanged{url: relay.url})
-
-      member ->
-        Repo.update!(Ecto.Changeset.change(member, seen_at: seen_at))
+        :ok
     end
-
-    :ok
   end
 
   # Drops every membership row of a relay and prunes what the keys no
-  # longer earn. Runs inside the caller's transaction.
+  # longer earn, returning the pruned keys. Runs inside the caller's
+  # transaction.
   defp forget_members(%Relay{id: relay_id}) do
     rows = from(member in RelayMember, where: member.relay_id == ^relay_id)
     pubkeys = Repo.all(from(member in rows, select: member.pubkey))
     Repo.delete_all(rows)
-    Enum.each(pubkeys, &prune_if_unfollowed/1)
-    :ok
+    prune_unfollowed(pubkeys)
   end
+
+  # The keys among `pubkeys` that `prune_if_unfollowed/1` pruned.
+  defp prune_unfollowed(pubkeys),
+    do: pubkeys |> Enum.map(&prune_if_unfollowed/1) |> Enum.reject(&is_nil/1)
 
   # A key followed neither by the reader's hand nor through any relay
   # keeps its contact row — its overrides and `hidden` wait for a return —
   # but not its profile and avatar, which `people/0` would never show and
-  # `ingest_profile/1` would refuse to refresh.
-  defp prune_if_unfollowed(pubkey), do: if(!followed_key?(pubkey), do: delete_profile(pubkey))
+  # `ingest_profile/1` would refuse to refresh. Drops the profile row
+  # only, inside the caller's transaction, and returns the key so the
+  # caller drops the avatar file once the transaction committed
+  # (`delete_avatars/1`); nil when the key is still followed.
+  defp prune_if_unfollowed(pubkey) do
+    if !followed_key?(pubkey) do
+      delete_profile_row(pubkey)
+      pubkey
+    end
+  end
 
   defp unique_violation?(%Ecto.Changeset{errors: errors}) do
     Enum.any?(errors, fn {_field, {_message, meta}} -> meta[:constraint] == :unique end)
