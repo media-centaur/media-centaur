@@ -210,6 +210,34 @@ defmodule MediaCentaur.RelaySyncTest do
     await_supervised_tasks()
   end
 
+  # The live re-issue carries `limit` too, so on a relay holding a full
+  # page it comes back full; its EOSE must not start paging again.
+  test "the live feed's EOSE neither pages nor re-issues" do
+    stop_supervised!(RelaySync)
+    start_supervised!({RelaySync, page_limit: 2})
+    now = System.os_time(:second)
+
+    relay =
+      FakeRelay.start(
+        events: [
+          friend_event_at(1, now - 30),
+          friend_event_at(2, now - 20),
+          friend_event_at(3, now - 10)
+        ]
+      )
+
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["REQ", "feed", %{"limit" => 2} = first]}, 5_000
+    refute Map.has_key?(first, "until")
+    assert_receive {:relay_in, ["REQ", "feed", %{"until" => _until}]}, 5_000
+    assert_receive {:relay_in, ["REQ", "feed", %{"limit" => 2} = live]}, 5_000
+    refute Map.has_key?(live, "until")
+
+    refute_receive {:relay_in, ["REQ", "feed", _filter]}, 500
+    await_supervised_tasks()
+  end
+
   test "own deletions the relay lacks are published after its EOSE" do
     {:ok, rec} = Activities.review(title(7), :like, "mine")
     {:ok, _gone} = Activities.delete(rec.id)
