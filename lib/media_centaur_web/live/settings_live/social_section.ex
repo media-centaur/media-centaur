@@ -18,13 +18,14 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   copy control, and behind a disclosure the secret key with reveal and
   copy plus the two-click import that replaces the identity. Relays —
   one connection row per relay (its live state from
-  `Social.Connections`, the last error on the detail line, Remove) and
-  the inline add-by-URL. Sharing — the toggles that decide which of the
+  `Social.Connections`, the last error on the detail line, the follow
+  rule select saving on change, Remove) and the inline add-by-URL with
+  the rule the relay starts under. Sharing — the toggles that decide which of the
   user's acts become activities for friends (watched, listed; reviewing
   always is). `SettingsLive` delegates to `render/1` and hosts the
   handlers: `validate_social_profile`, `set_social_profile_hue`, `remove_social_avatar`,
   `cancel_social_avatar`, `save_social_profile`, `reveal_nsec`, `hide_nsec`,
-  `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
+  `import_nsec`, `add_relay`, `set_relay_follow`, `remove_relay`, `toggle_share_watched`,
   `toggle_share_watchlist`. The friend roster stays on the Social
   page's Friends tab.
 
@@ -40,6 +41,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   import MediaCentaurWeb.Components.Settings.ConnectionRow
 
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Relay
   alias MediaCentaurWeb.Components.PictureField
   alias MediaCentaurWeb.Components.Social.HueSwatches
   alias MediaCentaurWeb.Components.Social.IdentityTile
@@ -255,7 +257,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
       <.settings_card
         :if={@npub}
         title="Relays"
-        description="The servers your activity is published to and read from. Your group's own relay first; public relays are more entries."
+        description="The servers your activity is published to and read from. On your group's own relay choose Everyone on this relay to follow every member; on a larger relay choose Only people I add."
       >
         <ul :if={@relays != []}>
           <.connection_row
@@ -268,6 +270,19 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             detail={last_error(@status[relay.url])}
           >
             <:actions>
+              <form
+                id={relay_dom_id(relay.url) <> "-follow"}
+                phx-change="set_relay_follow"
+                class="contents"
+              >
+                <input type="hidden" name="url" value={relay.url} />
+                <.settings_select
+                  name="follow"
+                  options={follow_options()}
+                  selected={Atom.to_string(relay.follow)}
+                  aria_label="Who to follow on this relay"
+                />
+              </form>
               <.button
                 variant="dismiss"
                 size="xs"
@@ -282,13 +297,23 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           </.connection_row>
         </ul>
 
-        <form id="add-relay-form" phx-submit="add_relay" class="flex items-center gap-2 pt-1">
+        <form
+          id="add-relay-form"
+          phx-submit="add_relay"
+          class="flex flex-wrap items-center gap-2 pt-1"
+        >
           <.settings_input
             name="url"
             placeholder="wss://relay.example"
             mono
             autocomplete="off"
             class="min-w-0 flex-1"
+          />
+          <.settings_select
+            name="follow"
+            options={follow_options()}
+            selected="added"
+            aria_label="Who to follow on this relay"
           />
           <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
             Add relay
@@ -329,6 +354,17 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     </div>
     """
   end
+
+  @follow_options [{"added", "Only people I add"}, {"members", "Everyone on this relay"}]
+
+  @doc "The follow rule control's options, added first: the two rules under the words the reader chooses between."
+  @spec follow_options() :: [{String.t(), String.t()}]
+  def follow_options, do: @follow_options
+
+  @doc "The rule a control's value names, read off `Relay`'s enum; anything else — a missing field included — is added."
+  @spec parse_follow(String.t() | nil) :: Relay.follow()
+  def parse_follow(value),
+    do: Enum.find(Ecto.Enum.values(Relay, :follow), :added, &(Atom.to_string(&1) == value))
 
   @doc "A DOM id for a relay URL."
   @spec relay_dom_id(String.t()) :: String.t()

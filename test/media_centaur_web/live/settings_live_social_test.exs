@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Relay
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings.Preferences.ShareWatchlist
@@ -476,6 +477,21 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       view |> element(relay_row() <> " button", "Remove") |> render_click()
       refute has_element?(view, relay_row())
       assert Social.list_relays() == []
+    end
+
+    test "a relay is added under a follow rule and its row changes it", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      view
+      |> form("#add-relay-form", %{"url" => "wss://group.example", "follow" => "members"})
+      |> render_submit()
+
+      assert %Relay{follow: :members} = Social.get_relay("wss://group.example")
+      assert has_element?(view, "#relay-wss-group-example-follow option[value='members'][selected]")
+
+      view |> form("#relay-wss-group-example-follow", %{"follow" => "added"}) |> render_change()
+      assert %Relay{follow: :added} = Social.get_relay("wss://group.example")
+      assert has_element?(view, "#relay-wss-group-example-follow option[value='added'][selected]")
     end
 
     test "an invalid relay address is refused with a flash", %{conn: conn} do

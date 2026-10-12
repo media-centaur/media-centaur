@@ -5,9 +5,9 @@ defmodule MediaCentaurWeb.Components.Settings do
   card; `settings_row/1` (toggle), `settings_stepper/1`,
   `settings_choice/1`, `settings_text_row/1` and `settings_select_row/1`
   are the rows, each saving on the act; `settings_list/1` is a
-  string-list setting; `settings_field/1` and `settings_input/1` are the
-  label/control/help unit and the house input inside a connection row's
-  edit form; `path_status/1` is the glyph beside a path label. Rare
+  string-list setting; `settings_field/1`, `settings_input/1` and
+  `settings_select/1` are the label/control/help unit, the house input
+  and the house native select inside a connection row's or an add form; `path_status/1` is the glyph beside a path label. Rare
   content hides behind `Components.Disclosure.disclosure/1`. The connection row lives in
   `MediaCentaurWeb.Components.Settings.ConnectionRow`.
 
@@ -357,6 +357,38 @@ defmodule MediaCentaurWeb.Components.Settings do
     """
   end
 
+  attr :name, :string, required: true
+  attr :options, :list, required: true, doc: "`[{value, label}]`."
+
+  attr :selected, :any,
+    required: true,
+    doc: "the current option value — a string or atom, whatever the owner stores. Compared with `==`."
+
+  attr :id, :string, default: nil
+  attr :aria_label, :string, default: nil, doc: "when no visible label names the control."
+
+  @doc """
+  The house native select (UIDR-041 §2), on its own: inside a form that
+  saves on change (`settings_select_row`) or on submit (a field of an add
+  form). Nav item; the chosen option carries `selected`.
+  """
+  def settings_select(assigns) do
+    ~H"""
+    <select
+      id={@id}
+      name={@name}
+      aria-label={@aria_label}
+      class="select select-bordered select-sm shrink-0 max-w-full text-sm"
+      data-nav-item
+      tabindex="0"
+    >
+      <option :for={{value, label} <- @options} value={value} selected={value == @selected}>
+        {label}
+      </option>
+    </select>
+    """
+  end
+
   attr :label, :string, required: true
   attr :description, :string, default: nil
   attr :name, :string, required: true
@@ -381,16 +413,7 @@ defmodule MediaCentaurWeb.Components.Settings do
         <span class="font-medium">{@label}</span>
         <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
-      <select
-        name={@name}
-        class="select select-bordered select-sm shrink-0 max-w-full text-sm"
-        data-nav-item
-        tabindex="0"
-      >
-        <option :for={{value, label} <- @options} value={value} selected={value == @selected}>
-          {label}
-        </option>
-      </select>
+      <.settings_select name={@name} options={@options} selected={@selected} />
     </form>
     """
   end
