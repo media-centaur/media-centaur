@@ -41,14 +41,21 @@ becomes search only.
 ## Status
 
 **Plan 1 built on branch `download-phases` (2026-10-12), subagent-driven,
-every task spec- and quality-reviewed; precommit clean; not merged, not
-shipped.** Every surface on Incoming now draws a job through
-`download_strip/1` from `Downloads.Phase`; the pursuit row's footer, the
-Other downloads badge row and the modal's own bar are gone, as are
-`Logic.state_*` and `PursuitStatus.downloads_done`. Open before plan 2:
-the owner's look at Incoming with a usenet job in flight (the stage-line
-format is unverified against a live SABnzbd — the dev node had only
-completed jobs, and the headless probe cannot pass the profile picker).
+every task spec- and quality-reviewed; precommit clean; verified against
+a live usenet download; not merged, not shipped.** Every surface on
+Incoming draws a job through `download_strip/1` from `Downloads.Phase`;
+the pursuit row's footer, the Other downloads badge row and the modal's
+own bar are gone, as are `Logic.state_*` and `PursuitStatus.downloads_done`.
+Live check (owner-authorised grab of a 10.6 GB bare-MKV release, raw
+SABnzbd polled at 2 s): no Grabbing slot was ever listed (the NZB fetch
+took under 2 s), the transfer ran 91 s, then one post-processing stage —
+*Moving*, 124 s, `action_line` "Moving: <file>.mkv", no figure — then
+Completed with a blank `action_line`. The app projected `:move` with a
+nil figure (indeterminate bar) and `:done` at 100%; the strip rendered
+from the captured records matches the story. Still unverified live: the
+Verifying/Repairing/Unpacking line formats (this release needed neither
+repair nor unpack); the parser's "n/m" and "%" shapes rest on SABnzbd's
+documented output. Open: merge, then plan 2.
 
 ## Principles
 
@@ -98,6 +105,9 @@ completed jobs, and the headless probe cannot pass the profile picker).
 * `2026-10-12` — `PursuitStatus.downloads_done` removed: the modal's strip
   reads no count, and the count lives in the composite sentence.
   (`ccd84f72`)
+* `2026-10-12` — SABnzbd's *Moving* stage line names the file, never a
+  figure; the indeterminate bar is its drawing. Observed live, pinned in
+  `phase_test.exs`.
 
 ## Next steps
 
@@ -116,10 +126,11 @@ unverified until a job is mid-process).
    `:underway`/`:ahead` → `download_strip/1` + CSS + story → pursuit row
    → Other downloads (`Logic.state_*` deleted) → modal → status sentence
    figure → `downloads_done` removed → precommit, docs, wiki.
-2. Owner looks at Incoming with a usenet download in flight (merge or
-   check out `download-phases`); confirm the stage-line format and extend
-   `Phase.stage_figure/1` plus `phase_test.exs` if it differs from
-   "Unpacking: 45%" / "Verifying: 14/56". Then merge to `main`.
+2. ✅ Live check done 2026-10-12 (see Status); the observed Moving line
+   is pinned in `phase_test.exs`. Verify/Unpack formats stay unverified
+   until a rar'd release passes through — extend `Phase.stage_figure/1`
+   if the first one differs. Owner merges `download-phases` to `main`
+   (or says to).
 3. **Plan 2** — `docs/superpowers/plans/2026-10-12-app-owned-grabs.md`,
    9 tasks, branch `app-owned-grabs`: `Downloads.InfoHash` → `add/3` on
    both drivers → category on the slot → Settings field + Detect seeds it
