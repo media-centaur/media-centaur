@@ -522,6 +522,20 @@ Replace the `known_key?/1` describe in `contacts_test.exs` and add the rest (ali
       assert %{@pubkey => %Person{published_name: "Published", friend?: false}} = Social.people()
     end
 
+    test "a removed friend's choices wait for a return" do
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      other = String.duplicate("c", 64)
+      {:ok, _friend} = Social.add_friend(other, "Sample Friend")
+      {:ok, _contact} = Social.set_hidden(other, true)
+
+      :ok = Social.remove_friend(other)
+      refute Social.followed_key?(other)
+      refute Map.has_key?(Social.people(), other)
+
+      {:ok, %Contact{hidden: true, name_override: "Sample Friend"}} = Social.add_friend(other)
+      assert %{^other => %Person{hidden: true}} = Social.people()
+    end
+
     test "removing a friend from the roster as a member only is a no-op" do
       Social.subscribe()
       assert :ok = Social.remove_friend(@pubkey)
@@ -548,7 +562,7 @@ Replace the `known_key?/1` describe in `contacts_test.exs` and add the rest (ali
   end
 ```
 
-Also change the existing `refuses a key not on the roster` and similar assertions from `{:error, :not_a_friend}` to `{:error, :not_a_contact}`, and `remove_friend/1`'s existing test keeps passing: a friend on no relay is deleted outright.
+Also change the existing `refuses a key not on the roster` and similar assertions from `{:error, :not_a_friend}` to `{:error, :not_a_contact}`, and `remove_friend/1`'s existing test keeps passing: the roster is empty though the row stays.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -582,22 +596,19 @@ In `lib/media_centaur/social.ex`:
   end
 
   @doc """
-  Removes a friend by public key: the added mark goes, and with it the row,
-  the profile and the avatar unless the key is still followed through a
-  members-rule relay. Broadcasts `FriendRemoved`. A key that is not a
-  friend is a no-op, and broadcasts nothing.
+  Removes a friend by public key: the added mark goes. The contact row
+  stays — the reader's overrides and `hidden` wait for a return — and the
+  profile and avatar go unless the key is still followed through a
+  members-rule relay (`prune_if_unfollowed/1`, the one rule for every way
+  a key stops being followed). Broadcasts `FriendRemoved`. A key that is
+  not a friend is a no-op, and broadcasts nothing.
   """
   @spec remove_friend(String.t()) :: :ok
   def remove_friend(pubkey) when is_binary(pubkey) do
     case Repo.get_by(Contact, pubkey: String.downcase(pubkey)) do
       %Contact{added_at: added_at} = contact when added_at != nil ->
-        if member_anywhere?(contact.pubkey) do
-          Repo.update!(Contact.changeset(contact, %{added_at: nil}))
-        else
-          Repo.delete!(contact)
-          delete_profile(contact.pubkey)
-        end
-
+        Repo.update!(Contact.changeset(contact, %{added_at: nil}))
+        prune_if_unfollowed(contact.pubkey)
         Events.broadcast(%Events.FriendRemoved{pubkey: contact.pubkey})
         :ok
 
@@ -670,16 +681,6 @@ Private helpers (replace `known_friend/1`, `insert_friend/2`, `known_key_or_erro
       select: member.pubkey
     )
   end
-
-  # Whether any members-rule relay has seen the key.
-  defp member_anywhere?(pubkey),
-    do:
-      Repo.exists?(
-        from(member in RelayMember,
-          join: relay in assoc(member, :relay),
-          where: relay.follow == ^:members and member.pubkey == ^pubkey
-        )
-      )
 
   defp followed_or_error(pubkey), do: if(followed_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
@@ -1060,6 +1061,10 @@ In `lib/media_centaur/social.ex` replace `people/0` and `person_for/2`:
       me -> Map.put(followed, me, own_person_for(me, Map.get(profiles, me)))
     end
   end
+
+  @doc "The followed people the surfaces draw: `people/0` less the hidden. The one place hidden is applied."
+  @spec visible_people() :: %{optional(String.t()) => Person.t()}
+  def visible_people, do: Map.reject(people(), fn {_pubkey, person} -> person.hidden end)
 ```
 
 ```elixir
@@ -1157,13 +1162,11 @@ Expected: FAIL — `Social.known_key?/1` undefined (compile error) — then the 
 ```elixir
   defp known_author(pubkey), do: if(Social.followed_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
-  # The people whose activity the surfaces draw: the followed, less the
-  # hidden. `get_row/1` keeps `Social.people/0`: a row reached by id is
-  # the reader's own choice.
-  defp visible_people, do: Map.reject(Social.people(), fn {_pubkey, person} -> person.hidden end)
+  # `get_row/1` keeps `Social.people/0`: a row reached by id is the
+  # reader's own choice.
 ```
 
-`list_activities/0` and `activity_for/1` call `visible_people()` where they called `Social.people()`. Update both `@doc`s: "A row whose author is not followed, or is hidden, is left out".
+`list_activities/0` and `activity_for/1` call `Social.visible_people()` where they called `Social.people()`. Update both `@doc`s: "A row whose author is not followed, or is hidden, is left out".
 
 - [ ] **Step 4: Run to verify they pass**
 
@@ -1514,10 +1517,10 @@ In `lib/media_centaur_web/live/settings_live/social_section.ex` add the public h
   @spec follow_options() :: [{String.t(), String.t()}]
   def follow_options, do: @follow_options
 
-  @doc "The rule a control's value names; anything else — a missing field included — is added."
+  @doc "The rule a control's value names, read off `Relay`'s enum; anything else — a missing field included — is added."
   @spec parse_follow(String.t() | nil) :: Relay.follow()
-  def parse_follow("members"), do: :members
-  def parse_follow(_other), do: :added
+  def parse_follow(value),
+    do: Enum.find(Ecto.Enum.values(Relay, :follow), :added, &(Atom.to_string(&1) == value))
 ```
 
 Relays card description: `"The servers your activity is published to and read from. On your group's own relay choose Everyone on this relay to follow every member; on a larger relay choose Only people I add."`
@@ -1775,6 +1778,7 @@ git commit -m "feat(ui): the person card's foot says how the reader follows them
 - Modify: `lib/media_centaur_web/live/social_live/people.ex`
 - Modify: `lib/media_centaur_web/live/social_live.ex`
 - Modify: `lib/media_centaur_web/live/social_live/feed_entries.ex` (doc only)
+- Modify: `lib/media_centaur_web/live/status_live.ex`, `lib/media_centaur_web/components/status_widgets/social.ex`
 - Test: `test/media_centaur_web/live/social_live/people_test.exs` (exists? if not, create `async: true`), `test/media_centaur_web/live/social_live_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1782,13 +1786,12 @@ git commit -m "feat(ui): the person card's foot says how the reader follows them
 `People` (pure):
 
 ```elixir
-  test "build/3 leaves hidden people out of the cards; hidden/1 lists them by name" do
+  test "hidden/1 lists the hidden people by name" do
     shown = %Person{pubkey: String.duplicate("a", 64), name_override: "Shown"}
     hidden_a = %Person{pubkey: String.duplicate("b", 64), name_override: "Zed", hidden: true}
     hidden_b = %Person{pubkey: String.duplicate("c", 64), name_override: "Amy", hidden: true}
     people = Map.new([shown, hidden_a, hidden_b], &{&1.pubkey, &1})
 
-    assert [%People.Card{person: ^shown}] = People.build([], people, now: ~U[2026-10-12 00:00:00Z])
     assert [^hidden_b, ^hidden_a] = People.hidden(people)
   end
 ```
@@ -1836,7 +1839,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: `People`**
 
-In `people.ex` `build/3`: `{me, friends} = people |> Map.values() |> Enum.reject(& &1.hidden) |> Enum.split_with(& &1.own?)`; add
+In `people.ex` add (`build/3` is handed `Social.visible_people/0`, so it never meets a hidden person):
 
 ```elixir
   @doc "The hidden people, by name: the Friends tab's hidden group, which `build/3` leaves out."
@@ -1845,13 +1848,27 @@ In `people.ex` `build/3`: `{me, friends} = people |> Map.values() |> Enum.reject
     do: people |> Map.values() |> Enum.filter(& &1.hidden) |> Enum.sort_by(&Format.person_name/1)
 ```
 
-Moduledoc: "then every followed person not hidden" in place of "then friends"; name the hidden group.
+Moduledoc: "then every followed person" in place of "then friends", and that the host hands it `Social.visible_people/0`; name the hidden group.
 
 - [ ] **Step 4: `SocialLive`**
 
 - mount assigns: add `hidden_people: []`.
 - `@people_tags [:friend_added, :friend_removed, :contact_changed, :members_changed, :identity_changed, :profile_updated]`.
-- `load_people/1`: `friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? and not person.hidden end)`; add `hidden_people: People.hidden(people)` to the same `assign`.
+- `load_people/1` reads the visible map for the cards, the feed's authors and the count, and the whole map for the hidden group:
+
+```elixir
+  defp load_people(socket) do
+    people = Social.visible_people()
+
+    assign(socket,
+      people_by_pubkey: people,
+      hidden_people: People.hidden(Social.people()),
+      friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
+    )
+  end
+```
+
+- Status tile: `lib/media_centaur_web/live/status_live.ex` line 211 becomes `friend_count: Enum.count(Social.visible_people(), fn {_pubkey, person} -> not person.own? end)`; in `lib/media_centaur_web/components/status_widgets/social.ex` the attr doc reads `"how many people the reader follows and shows"` and the line reads `{@friend_count} people · …`. Same count as the Friends tab's, from the same function.
 - Events: every `{:error, :not_a_friend}` becomes `{:error, :not_a_contact} -> {:noreply, flash_not_a_contact(socket)}`; rename the helper and its copy: `"That person is no longer on your list"`. Add:
 
 ```elixir

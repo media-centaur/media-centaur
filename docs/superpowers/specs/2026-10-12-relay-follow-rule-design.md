@@ -57,8 +57,11 @@ relay's `relay_members` rows; either way it broadcasts
 (`utc_datetime`, nil for a member-only contact) and `hidden` (boolean, default
 false). `add_friend/2` upserts a contact with `added_at` set (an existing
 member-only row is promoted, overrides kept). `remove_friend/1` clears
-`added_at`; the row, its profile and avatar are deleted only when the key is
-not a member of any relay either. `set_hidden/2` flips the flag and broadcasts `Events.ContactChanged`
+`added_at`. A contact row is never deleted by unfollowing: the reader's
+overrides and `hidden` wait for a return. The profile and avatar go when the
+key is followed no other way — one rule (`prune_if_unfollowed/1`) for every
+way a key stops being followed: removed, swept, its relay gone or its rule
+changed. `set_hidden/2` flips the flag and broadcasts `Events.ContactChanged`
 (`FriendChanged` renamed: it already fires for overrides, which now belong
 to any contact; `FriendAdded` and `FriendRemoved` keep their names).
 
@@ -77,9 +80,10 @@ to any contact; `FriendAdded` and `FriendRemoved` keep their names).
 
 **`Social.people/0`**: every followed key as a `Person`, hidden included,
 `friend?` set from `added_at`, `added_on` nil for a member-only contact.
-Hidden people are excluded by the two `Activities` readers
-(`list_activities/0`, `activities_for_refs/1`), not here: the Friends tab needs
-them.
+`Social.visible_people/0` is `people/0` less the hidden — the one place
+hidden is applied. The two `Activities` readers (`list_activities/0`,
+`activity_for/1`), the Social page's cards and counts and the Status tile
+take it; the Friends tab's hidden group alone takes `people/0`.
 
 ### Sync loop
 
@@ -135,7 +139,8 @@ and the app needs no change when it does.
 | `people/0` is the one place a row becomes a person | existing seam | reuse |
 | roster change resubscribes every relay | existing seam | extend to the relay rule |
 | overrides live on `friends` alone; a member has no row | one idea, two homes | fix now: `contacts` |
-| `remove_friend/1` deletes profile and avatar | wrong for a member | fix now: delete only when unfollowed |
+| `remove_friend/1` deletes the row, profile and avatar | one of four ways to stop following; the others keep the row | fix now: one rule, `prune_if_unfollowed/1`; rows stay |
+| hidden applied in each reader | four readers, four filters | fix now: `visible_people/0` |
 | former member's events still served by the relay | relay-side | fix now in the relay repo |
 | operator intent (NIP-11 hint preselecting the rule) | not needed yet | follow-up, out of scope |
 | member directory for a public relay | not needed yet | follow-up, out of scope |
