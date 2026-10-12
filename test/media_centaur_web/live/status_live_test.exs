@@ -451,7 +451,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "relay-two.example"
       assert html =~ "Connecting"
       assert html =~ "/settings?section=social"
-      assert html =~ "1 friends"
+      assert html =~ "1 people"
       assert html =~ "0 sent"
       assert html =~ "0 received"
       assert html =~ "/social/friends"
@@ -482,7 +482,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=social")
 
       assert html =~ "No relays configured"
-      assert html =~ "0 friends"
+      assert html =~ "0 people"
     end
   end
 

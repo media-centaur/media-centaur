@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   @moduledoc """
   Social subsystem Activity widget: one diagnostic row per configured
-  relay, then roster size and activity traffic.
+  relay, then how many people are followed and shown, and activity traffic.
 
   The rows are the *diagnostic* view of the relay list — state, how long,
   why, when it retries, when it was last heard (`RelayStatusRow`).
@@ -21,13 +21,13 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   alias MediaCentaur.Social.Connections
   alias MediaCentaurWeb.RelayStatusRow
 
-  @doc "Social subsystem Activity widget: per-relay diagnostic rows, friend count, sent/received traffic."
+  @doc "Social subsystem Activity widget: per-relay diagnostic rows, how many people are followed and shown, sent/received traffic."
   attr :relay_status, :map,
     required: true,
     doc:
       "one `Social.Connections.entry/0` per configured relay, keyed by URL (the host merges the relay rows with `Social.Connections.status/0`); empty when no relay is configured"
 
-  attr :friend_count, :integer, required: true, doc: "how many keys are on the roster"
+  attr :friend_count, :integer, required: true, doc: "how many people the reader follows and shows"
   attr :sent_count, :integer, required: true, doc: "activities this install has sent, every kind"
   attr :received_count, :integer, required: true, doc: "activities received from friends, every kind"
 
@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
         </ul>
 
         <div class="mt-3 space-y-0.5 text-xs text-base-content/55">
-          <p>{@friend_count} friends · {@sent_count} sent · {@received_count} received</p>
+          <p>{@friend_count} people · {@sent_count} sent · {@received_count} received</p>
           <p :if={@last_received_at}>Last received {Format.relative_ago(@last_received_at)}</p>
         </div>
 

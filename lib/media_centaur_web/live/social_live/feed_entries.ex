@@ -24,11 +24,12 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   new" until pressed. A head the list no longer holds is live again.
   The tab's count is the window's size under the current scope.
 
-  `empty_reason/3` is the empty state's diagnosis (UIDR-034): the You
-  scope needs no relay and no friend, since a review creates its row
-  locally; the other scopes ask for a relay first — Social is on by
-  default, so a person who never opted in reads why nothing arrives and
-  where the switch is — then for a friend.
+  `empty_reason/3` is the empty state's diagnosis (UIDR-034), given
+  whether a relay exists and how many people the reader follows and
+  shows: the You scope needs no relay and no friend, since a review
+  creates its row locally; the other scopes ask for a relay first —
+  Social is on by default, so a person who never opted in reads why
+  nothing arrives and where the switch is — then for a followed person.
 
   The toolbar's two resolved slots come from the same three facts the
   row markers read — the rung, library presence, the acquisition state —

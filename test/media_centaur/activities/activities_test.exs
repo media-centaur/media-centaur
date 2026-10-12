@@ -310,11 +310,13 @@ defmodule MediaCentaur.ActivitiesTest do
 
     test "a hidden person's activity is kept but shown by neither reader" do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, _activity} = Activities.ingest(friend_event(title(603), "x", 1_700_000_000))
+      {:ok, activity} = Activities.ingest(friend_event(title(603), "x", 1_700_000_000))
 
       {:ok, _contact} = Social.set_hidden(@friend_pubkey, true)
       assert Activities.list_activities() == []
       assert Activities.activity_for([{603, :movie}]) == %{}
+      # A row reached by id still shows: hidden is applied by the readers, not the record.
+      assert %{author: %Person{hidden: true}} = Activities.get_row(activity.id)
 
       {:ok, _contact} = Social.set_hidden(@friend_pubkey, false)
       assert [%{activity: %{tmdb_id: 603}}] = Activities.list_activities()

@@ -234,6 +234,15 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
     assert %{cards: [^you], hidden: 0} = People.rail([you])
   end
 
+  test "hidden/1 lists the hidden people by name" do
+    shown = %Person{pubkey: String.duplicate("a", 64), name_override: "Shown"}
+    hidden_a = %Person{pubkey: String.duplicate("b", 64), name_override: "Zed", hidden: true}
+    hidden_b = %Person{pubkey: String.duplicate("c", 64), name_override: "Amy", hidden: true}
+    people = Map.new([shown, hidden_a, hidden_b], &{&1.pubkey, &1})
+
+    assert [^hidden_b, ^hidden_a] = People.hidden(people)
+  end
+
   describe "empty_reason/2 — why the Friends tab has no friends" do
     test "no relay first, then no friends; nothing once a friend exists" do
       assert People.empty_reason(false, 0) == :no_relay

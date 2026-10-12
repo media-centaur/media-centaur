@@ -208,7 +208,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
     assign(socket,
       relay_status: relay_status(),
-      friend_count: length(Social.list_friends()),
+      friend_count: Enum.count(Social.visible_people(), fn {_pubkey, person} -> not person.own? end),
       sent_count: counts.sent,
       received_count: counts.received,
       last_received_at: counts.last_received_at

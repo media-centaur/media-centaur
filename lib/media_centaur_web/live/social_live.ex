@@ -40,14 +40,22 @@ defmodule MediaCentaurWeb.SocialLive do
   on a friend's row, `ignore_title` (the Ignored rung, with the Undo
   toast). An own row has neither Ignore nor Delete: it opens the modal
   speaking for its action, where Delete lives. Friends
-  (`/social/friends`) — a grid of page cards, one per friend and one
-  for You (`People`), each their latest acts as posters under act slots;
-  a press opens a card in place (`toggle_person`, the `opened_people`
+  (`/social/friends`) — a grid of page cards, one per person the
+  reader follows and shows (`Social.visible_people/0`: friends added by
+  key and the members of a relay followed whole) and one for You
+  (`People`), each their latest acts as posters under act slots; a
+  press opens a card in place (`toggle_person`, the `opened_people`
   set), and `?person=<card id>` — where a rail card's press lands
-  (`open_person`) — opens that card and hands it focus on mount; the
-  add-friend form below; identity and relays live on the Settings
-  page's Social section, which this tab points at. The watchlist itself
-  is Incoming's first tab (UIDR-050).
+  (`open_person`) — opens that card and hands it focus on mount. The
+  opened card's foot carries the reader's name, picture and colour for
+  the person (`set_friend_name`, `set_show_avatar`, `set_hue_override`),
+  **Hide** (`set_hidden`, the value to set) and, for a friend, Remove
+  friend. Under the grid, the **hidden group** (`#friends-hidden`,
+  `People.hidden/1` over `Social.people/0`): every hidden person as a
+  `HiddenPersonRow` with Show, the same `set_hidden`; then the
+  add-friend form; identity and relays live on the Settings page's
+  Social section, which this tab points at. The watchlist itself is
+  Incoming's first tab (UIDR-050).
 
   A listing or an ignore made from a row carries that row's activity
   as provenance (`TitleIntent.friend_provenance/2`), the way the
@@ -89,6 +97,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Social.FeedRow
+  alias MediaCentaurWeb.Components.Social.HiddenPersonRow
   alias MediaCentaurWeb.Components.Social.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -131,6 +140,7 @@ defmodule MediaCentaurWeb.SocialLive do
        rail: %{cards: [], hidden: 0},
        landed_person: nil,
        people: [],
+       hidden_people: [],
        opened_people: MapSet.new(),
        ignore_undo: nil,
        warmed_artwork: MapSet.new(),
@@ -239,7 +249,7 @@ defmodule MediaCentaurWeb.SocialLive do
   def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
     case Social.set_name_override(pubkey, name) do
       {:ok, _friend} -> {:noreply, socket}
-      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_contact(socket)}
     end
   end
 
@@ -248,7 +258,15 @@ defmodule MediaCentaurWeb.SocialLive do
   def handle_event("set_show_avatar", %{"pubkey" => pubkey, "show" => show}, socket) do
     case Social.set_show_avatar(pubkey, show == "true") do
       {:ok, _friend} -> {:noreply, socket}
-      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_contact(socket)}
+    end
+  end
+
+  # The opened card's foot and the hidden group: `hide` is the value to set.
+  def handle_event("set_hidden", %{"pubkey" => pubkey, "hide" => hide}, socket) do
+    case Social.set_hidden(pubkey, hide == "true") do
+      {:ok, _contact} -> {:noreply, socket}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_contact(socket)}
     end
   end
 
@@ -260,7 +278,7 @@ defmodule MediaCentaurWeb.SocialLive do
          {:ok, _friend} <- Social.set_hue_override(pubkey, hue) do
       {:noreply, socket}
     else
-      {:error, :not_a_contact} -> {:noreply, flash_not_a_friend(socket)}
+      {:error, :not_a_contact} -> {:noreply, flash_not_a_contact(socket)}
       :error -> {:noreply, socket}
     end
   end
@@ -382,10 +400,17 @@ defmodule MediaCentaurWeb.SocialLive do
     {:noreply, load_activities(socket)}
   end
 
-  @people_tags [:friend_added, :friend_removed, :contact_changed, :identity_changed, :profile_updated]
+  @people_tags [
+    :friend_added,
+    :friend_removed,
+    :contact_changed,
+    :members_changed,
+    :identity_changed,
+    :profile_updated
+  ]
 
-  # The roster, the identity or a published name changed: the people are
-  # reread and the rows redrawn under them.
+  # The roster, a relay's members, the identity or a published name
+  # changed: the people are reread and the rows redrawn under them.
   def handle_info({tag, _event}, socket) when tag in @people_tags do
     {:noreply, socket |> load_people() |> load_activities()}
   end
@@ -503,21 +528,24 @@ defmodule MediaCentaurWeb.SocialLive do
     )
   end
 
-  # The known people (`Social.people/0`), the reader included when an
-  # identity exists: the cards are built from the map, the tab's count
-  # and the feed's readiness are derived from it. The roster is held once.
+  # The people shown (`Social.visible_people/0`), the reader included
+  # when an identity exists: the cards are built from the map, the tab's
+  # count and the feed's readiness are derived from it. The hidden group
+  # is the rest of `Social.people/0`. The roster is held once.
   defp load_people(socket) do
-    people = Social.people()
+    people = Social.visible_people()
 
     assign(socket,
       people_by_pubkey: people,
+      hidden_people: People.hidden(Social.people()),
       friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
     )
   end
 
   # The foot acted on a key the roster no longer holds — removed in
   # another tab between the card's open and the click.
-  defp flash_not_a_friend(socket), do: put_flash(socket, :error, "That friend is no longer on your list")
+  defp flash_not_a_contact(socket),
+    do: put_flash(socket, :error, "That person is no longer on your list")
 
   defp tabs(feed, friend_count, scope),
     do: [
@@ -550,7 +578,7 @@ defmodule MediaCentaurWeb.SocialLive do
 
   defp feed_empty_body(:no_friends),
     do:
-      "You are on a relay. Add a friend by the public key they give you, and ask them to add yours on the same relay."
+      "You are on a relay. Add a friend by the public key they give you, or set your group's own relay to Everyone on this relay under Settings → Social."
 
   defp feed_empty_body(:quiet), do: "Each action is one row, newest first."
 
@@ -565,7 +593,8 @@ defmodule MediaCentaurWeb.SocialLive do
       "A friend is a key you add on a relay you share. Join a relay under Settings → Social — your identity is created there too — then paste the key they give you below."
 
   defp friends_empty_body(:no_friends),
-    do: "Paste the key they give you below, and ask them to add yours on the same relay."
+    do:
+      "Paste the key they give you below, or set your group's own relay to Everyone on this relay under Settings → Social."
 
   defp current_path(:friends), do: "/social/friends"
   defp current_path(_action), do: "/social"
@@ -795,6 +824,20 @@ defmodule MediaCentaurWeb.SocialLive do
                     opened?={MapSet.member?(@opened_people, PersonCard.dom_id(card.person))}
                     landed?={PersonCard.dom_id(card.person) == @landed_person}
                   />
+                </div>
+                <%!-- The hidden group: no nav zone until the hardening pass,
+                      like the rail and the card's root. --%>
+                <div :if={@hidden_people != []} id="friends-hidden" class="space-y-2">
+                  <h3 class="px-1 text-sm font-medium uppercase tracking-wider text-base-content/55">
+                    Hidden
+                  </h3>
+                  <ul class="space-y-1">
+                    <HiddenPersonRow.hidden_person_row
+                      :for={person <- @hidden_people}
+                      id={PersonCard.dom_id(person) <> "-hidden"}
+                      person={person}
+                    />
+                  </ul>
                 </div>
                 <AddFriendBlock.add_friend_block />
                 <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/55">
