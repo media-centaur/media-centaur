@@ -538,7 +538,7 @@ defmodule MediaCentaurWeb.SocialLive do
     assign(socket,
       people_by_pubkey: people,
       hidden_people: People.hidden(Social.people()),
-      friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
+      friend_count: Social.count_followed(people)
     )
   end
 

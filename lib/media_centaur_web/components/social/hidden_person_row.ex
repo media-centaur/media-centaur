@@ -4,7 +4,9 @@ defmodule MediaCentaurWeb.Components.Social.HiddenPersonRow do
   at 40, the name the reader sees (`Format.person_name/1`), and **Show**,
   which pushes `set_hidden` with the key and `hide` `"false"`. Pure
   rendering of a `Social.Person`; the acts are not drawn, since hidden
-  means unseen.
+  means unseen. Show is pre-marked `data-nav-item` for the Social page's
+  hardening pass, which registers the hidden group's zone; until then it
+  is reached by Tab and mouse.
   """
 
   use Phoenix.Component

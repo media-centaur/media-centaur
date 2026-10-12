@@ -21,6 +21,19 @@ defmodule MediaCentaur.Social.PersonTest do
   # Avatars are written under `{data_dir}/images/social/`.
   setup :setup_tmp_data_dir
 
+  describe "count_followed/1" do
+    test "counts everyone but the reader" do
+      me = %Person{pubkey: @signer, own?: true}
+      friend = %Person{pubkey: @friend, friend?: true}
+      member = %Person{pubkey: @other, member_of: ["wss://group.example"]}
+      people = Map.new([me, friend, member], &{&1.pubkey, &1})
+
+      assert Social.count_followed(people) == 2
+      assert Social.count_followed(%{@signer => me}) == 0
+      assert Social.count_followed(%{}) == 0
+    end
+  end
+
   describe "people/0" do
     test "the roster as people: the reader's name, no avatar" do
       {:ok, friend} = Social.add_friend(@friend, "Nick")

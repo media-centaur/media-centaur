@@ -313,12 +313,29 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_until(view, fn _html -> not has_element?(view, friend_card()) end)
       assert has_element?(view, "#friends-hidden [data-component='hidden-person-row']", "Sample Friend")
 
+      # The mounted feed dropped the row on the broadcast; a fresh mount agrees.
+      render_patch(view, "/social")
+      refute has_element?(view, "[data-component='feed-row']")
       {:ok, feed, _html} = live(conn, "/social")
       refute has_element?(feed, "[data-component='feed-row']")
 
+      render_patch(view, "/social/friends")
       view |> element("#friends-hidden button", "Show") |> render_click()
       render_until(view, fn _html -> has_element?(view, friend_card()) end)
       refute has_element?(view, "#friends-hidden")
+    end
+
+    test "the empty tab and feed name the relay rule as the other way to get people", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+
+      {:ok, view, _html} = live(conn, "/social/friends")
+      assert has_element?(view, "#friends-empty")
+      assert render(view) =~ "Everyone on this relay"
+
+      {:ok, feed, _html} = live(conn, "/social")
+      assert has_element?(feed, "#feed-empty")
+      assert render(feed) =~ "Everyone on this relay"
     end
 
     test "a member's card names the relay and offers Hide, not Remove friend", %{conn: conn} do
