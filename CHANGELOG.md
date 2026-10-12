@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.56.0 — 2026-10-12
+
+### New
+
+- **Follow everyone on your group's relay.** When you add a relay under **Settings → Social**, choose who to follow on it: **Everyone on this relay**, for a relay your group runs, or **Only people I add** (the default), for anything larger. On a relay set to Everyone, every member appears on your Friends tab and in your feed without anyone swapping keys. The select on the relay's row changes it later; switching a relay from Everyone to Only people I add drops the people you followed only through it.
+- **Hide anyone.** Open a person's card on the Friends tab and press **Hide**: their reviews and watchlist activity leave the feed, the rail and title pages, and their card moves to a **Hidden** group at the end of the tab, where **Show** brings them back. Hiding is yours alone; they are not told.
+
+### Improved
+
+- **The card says how you follow someone.** The opened card's foot reads *added* and the date for a friend you added by key, or *on* the relay for someone you follow through a relay set to Everyone on this relay. **Remove friend** is offered only for a friend.
+- **The Status page counts people.** The Social tile counts everyone you follow and show, friends and relay members alike.
+- **A relay operator can remove someone for good.** With social-relay 0.8.0 or later, removing a member from the relay also deletes what they published there, so the group stops seeing it. If they are let back in, their Media Centaur publishes it again.
+
+This update runs one database migration: your friends list becomes a contacts list that also holds hidden people and relay members, and every relay starts as **Only people I add**. Existing friends and relays behave exactly as before. It completes on its own.
+
 ## v1.55.1 — 2026-10-11
 
 ### Improved
