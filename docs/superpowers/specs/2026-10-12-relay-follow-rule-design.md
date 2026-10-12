@@ -26,7 +26,7 @@ no longer does.
   `known_key?/1`.
 - **Hidden** — a contact flag. A hidden person's activity makes no feed row,
   no glyph, no rail card; their profile is still ingested; their card sits in
-  a collapsed group at the end of the Friends grid with a *Show* action.
+  a group at the end of the Friends grid with a *Show* action.
 - **Person** — the read model (`Social.Person`, ADR-074). Gains `hidden` and
   `friend?`. Unchanged otherwise.
 
@@ -114,6 +114,9 @@ friend group's.
   (the relay host) in place of *Added 3 Oct*, and carries *Hide* in place of
   *Remove friend*. A friend's card carries both. Hidden people form a
   collapsed group after the grid, name and *Show* only.
+  *Amended 2026-10-12*: the group is an open list under a *Hidden* heading,
+  drawn only when non-empty; a collapse is a later refinement if the group
+  grows long.
 - **Feed, rail, glyphs, title view**: nothing new; hidden people fall out at
   the `Activities` seam.
 - `FeedEntries.empty_reason/3` counts followed people, not friends. The

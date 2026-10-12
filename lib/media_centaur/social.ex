@@ -326,6 +326,11 @@ defmodule MediaCentaur.Social do
   @spec visible_people() :: %{optional(String.t()) => Person.t()}
   def visible_people, do: Map.reject(people(), fn {_pubkey, person} -> person.hidden end)
 
+  @doc "How many of the given people the reader follows: everyone but themself."
+  @spec count_followed(%{optional(String.t()) => Person.t()}) :: non_neg_integer()
+  def count_followed(people) when is_map(people),
+    do: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
+
   @doc """
   The reader as a person, with or without an identity: the review modal
   previews as the reader before a key exists.
