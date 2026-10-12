@@ -26,7 +26,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     NextStep
   }
 
-  alias MediaCentaur.Downloads.QueueItem
+  alias MediaCentaur.Downloads.{Phase, QueueItem}
 
   @enforce_keys [
     :pursuit_id,
@@ -448,12 +448,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   # SABnzbd's post-download pipeline: verify → repair → unpack → move.
   # All healthy, all hands-off — offering change_target here invites
   # abandoning a download that is seconds-to-minutes from landing.
-  defp at_client_action(%QueueItem{state: state})
+  defp at_client_action(%QueueItem{state: state} = qi)
        when state in [:verifying, :repairing, :extracting, :moving] do
     {
       %CurrentAction{
         verb: postprocessing_verb(state),
-        description: "Post-processing at the download client.",
+        description: postprocessing_description(qi),
         severity: :info
       },
       %NextStep{description: "The finished file lands in the library when this completes."},
@@ -581,6 +581,16 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   defp describe_criterion({"max_quality", "hd_1080p"}), do: "up to 1080p"
   defp describe_criterion({"max_quality", "uhd_4k"}), do: "up to 4K"
   defp describe_criterion({key, value}), do: "#{key}: #{value}"
+
+  defp postprocessing_description(%QueueItem{} = qi) do
+    case Phase.of(qi).figure do
+      figure when is_number(figure) ->
+        "#{round(figure * 100)}% through this step at the download client."
+
+      nil ->
+        "Post-processing at the download client."
+    end
+  end
 
   defp postprocessing_verb(:verifying), do: "Verifying"
   defp postprocessing_verb(:repairing), do: "Repairing"

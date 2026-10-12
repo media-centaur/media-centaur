@@ -297,6 +297,35 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       end
     end
 
+    test "a post-processing step with a figure says how far along it is" do
+      {action, _next, _actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired),
+          queue_item(:extracting, %{
+            status: "Extracting",
+            protocol: :usenet,
+            stage_line: "Unpacking: 45%"
+          })
+        )
+
+      assert action.verb == "Unpacking"
+      assert action.description == "45% through this step at the download client."
+    end
+
+    test "a post-processing step without a figure keeps the plain sentence" do
+      {action, _next, _actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired),
+          queue_item(:moving, %{status: "Moving", protocol: :usenet, stage_line: nil})
+        )
+
+      assert action.description == "Post-processing at the download client."
+    end
+
     test "paused -> Paused" do
       {action, _next, actions} =
         derive(pursuit(:active), unit(), target(:acquired), queue_item(:paused))
