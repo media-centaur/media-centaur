@@ -35,9 +35,13 @@ defmodule MediaCentaur.Activities do
 
   `list_activities/0` includes this identity's own activities alongside
   received ones — each row's `author` is a `Social.Person`, whose `own?`
-  tells a row apart. Withdrawn rows (tombstones, see `Activity`) are
-  excluded everywhere except `own_events/0`, which republishes their
-  deletions.
+  tells a row apart. An inbound event is stored only when its author is
+  a followed key (`Social.followed_key?/1`: the identity, a friend, or a
+  member of a members-rule relay). A person the reader has hidden makes
+  no row in the readers (`list_activities/0`, `activity_for/1`): the
+  activity is kept, and `get_row/1` still reaches it by id. Withdrawn
+  rows (tombstones, see `Activity`) are excluded everywhere except
+  `own_events/0`, which republishes their deletions.
 
   Reviewing is an explicit act of sharing and always publishes.
   Watching and listing are published by `Activities.Publisher` only
@@ -68,7 +72,7 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.Topics
 
   # The author is nil from `get_row/1` alone: a watchlist row may still
-  # point at the activity of a friend who left the roster. The lists
+  # point at the activity of a person no longer followed. The lists
   # (`list_activities/0`, `activity_for/1`) never yield one.
   @type activity_row :: %{activity: Activity.t(), author: Person.t() | nil}
 
@@ -224,10 +228,11 @@ defmodule MediaCentaur.Activities do
 
   @doc """
   Stores a relay-delivered event: it must verify, and its author must be
-  a friend or this identity. An activity event is stored when newer than
-  the row — a tombstone included, which it revives. A deletion (kind 5)
-  tombstones the row it addresses when the row is not newer. `:ignored`
-  otherwise — including our own events coming back off a relay.
+  a followed key (`Social.followed_key?/1`). An activity event is stored
+  when newer than the row — a tombstone included, which it revives. A
+  deletion (kind 5) tombstones the row it addresses when the row is not
+  newer. `:ignored` otherwise — including our own events coming back off
+  a relay.
   """
   @spec ingest(Event.t()) :: {:ok, Activity.t()} | :ignored | {:error, term()}
   def ingest(%Event{kind: 5} = event) do
@@ -247,15 +252,15 @@ defmodule MediaCentaur.Activities do
   end
 
   @doc """
-  Every activity by a person this reader knows, newest first, each with
-  its author as the reader sees them (`Social.people/0`, ADR-074). A row
-  whose author is neither the identity nor on the roster is left out: a
-  former friend's activity is kept in the table and reached only by id
+  Every activity by a person this reader sees, newest first, each with
+  its author as the reader sees them (`Social.visible_people/0`,
+  ADR-074). A row whose author is not followed, or is hidden, is left
+  out: the activity is kept in the table and reached only by id
   (`get_row/1`). Before an identity exists nothing stored can be ours.
   """
   @spec list_activities() :: [activity_row()]
   def list_activities do
-    people = Social.people()
+    people = Social.visible_people()
 
     Activity
     |> live()
@@ -267,20 +272,21 @@ defmodule MediaCentaur.Activities do
 
   @doc """
   The live activity on the titles in `refs`, as `%{ref => [activity_row]}`
-  — every kind every known person has broadcast for the title (review,
+  — every kind every visible person has broadcast for the title (review,
   watched, listing), the reader's own included, each row with its
   author, in `list_activities/0`'s row shape, newest first, in one query
   plus one roster read. The same people `list_activities/0` holds, so a
   title's grade matches the person cards' (`Title.Grade`). Refs with no
-  activity are absent, and a former friend's is left out. What every
-  title surface's social glyphs are fed from.
+  activity are absent, and a row whose author is not followed, or is
+  hidden, is left out. What every title surface's social glyphs are fed
+  from.
   """
   @spec activity_for([{integer(), Title.media_type()}]) ::
           %{optional({integer(), Title.media_type()}) => [activity_row()]}
   def activity_for([]), do: %{}
 
   def activity_for(refs) when is_list(refs) do
-    people = Social.people()
+    people = Social.visible_people()
     tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
     wanted = MapSet.new(refs)
 
@@ -349,9 +355,11 @@ defmodule MediaCentaur.Activities do
 
   @doc """
   One live activity by id as the rows carry it, `%{activity, author}`,
-  the author nil for a person no longer known, or nil for an unknown,
+  the author nil for a person no longer followed, or nil for an unknown,
   malformed or withdrawn id. The title detail reads the
   activity it speaks for through this, by identity, on every page.
+  Keeps `Social.people/0` rather than `visible_people/0`: a row reached
+  by id is the reader's own choice, so a hidden author still shows.
   """
   @spec get_row(String.t()) :: activity_row() | nil
   def get_row(id) when is_binary(id) do

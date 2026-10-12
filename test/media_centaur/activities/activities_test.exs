@@ -297,6 +297,32 @@ defmodule MediaCentaur.ActivitiesTest do
       assert Activities.list_activities() == []
     end
 
+    test "a member of a members-rule relay is a known author" do
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+      :ok = Social.note_member("wss://group.example", @friend_pubkey)
+      event = friend_event(title(603), "x", 1_700_000_000)
+
+      assert {:ok, _activity} = Activities.ingest(event)
+      assert [%{author: %Person{friend?: false}}] = Activities.list_activities()
+
+      await_supervised_tasks()
+    end
+
+    test "a hidden person's activity is kept but shown by neither reader" do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _activity} = Activities.ingest(friend_event(title(603), "x", 1_700_000_000))
+
+      {:ok, _contact} = Social.set_hidden(@friend_pubkey, true)
+      assert Activities.list_activities() == []
+      assert Activities.activity_for([{603, :movie}]) == %{}
+
+      {:ok, _contact} = Social.set_hidden(@friend_pubkey, false)
+      assert [%{activity: %{tmdb_id: 603}}] = Activities.list_activities()
+      assert %{{603, :movie} => [_row]} = Activities.activity_for([{603, :movie}])
+
+      await_supervised_tasks()
+    end
+
     test "own events arriving from a relay are stored once and shown as own" do
       {:ok, rec} = Activities.review(title(), :like, "mine")
       [event] = Activities.own_events()
