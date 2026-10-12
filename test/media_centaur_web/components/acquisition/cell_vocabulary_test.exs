@@ -66,4 +66,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
       assert CellVocabulary.segment_treatment(:below_preference) =~ "bg-info"
     end
   end
+
+  describe ":underway — the ladder step under way" do
+    test "is lit in the primary and pulses, at both sizes" do
+      assert CellVocabulary.segment_treatment(:underway) =~ "bg-primary/80"
+      assert CellVocabulary.segment_treatment(:underway) =~ "animate-pulse"
+      assert CellVocabulary.cell_treatment(:underway) =~ "animate-pulse"
+    end
+  end
 end
