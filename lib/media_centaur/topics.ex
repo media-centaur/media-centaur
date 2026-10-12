@@ -58,7 +58,7 @@ defmodule MediaCentaur.Topics do
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
   | `watchlist:updates` | `Watchlist.Events` | `{:title_intent_changed, %RungChanged{}}` — one message: a rung moved (ADR-060 typed struct) |
-  | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}`, `{:profile_updated, _}` |
+  | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_changed, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:contact_changed, _}`, `{:friend_removed, _}`, `{:members_changed, _}`, `{:profile_updated, _}` |
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
   | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_changed, _}` — a role's art landed, was replaced or removed |

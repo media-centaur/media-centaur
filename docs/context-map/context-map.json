@@ -5388,20 +5388,23 @@
       ],
       "exports": [
         "MediaCentaur.Social.Connections",
+        "MediaCentaur.Social.Contact",
         "MediaCentaur.Social.Events",
+        "MediaCentaur.Social.Events.ContactChanged",
         "MediaCentaur.Social.Events.FriendAdded",
-        "MediaCentaur.Social.Events.FriendChanged",
         "MediaCentaur.Social.Events.FriendRemoved",
         "MediaCentaur.Social.Events.IdentityChanged",
+        "MediaCentaur.Social.Events.MembersChanged",
         "MediaCentaur.Social.Events.ProfileUpdated",
         "MediaCentaur.Social.Events.RelayAdded",
+        "MediaCentaur.Social.Events.RelayChanged",
         "MediaCentaur.Social.Events.RelayRemoved",
-        "MediaCentaur.Social.Friend",
         "MediaCentaur.Social.Identity",
         "MediaCentaur.Social.Person",
         "MediaCentaur.Social.Profile",
         "MediaCentaur.Social.Profile.Translation",
-        "MediaCentaur.Social.Relay"
+        "MediaCentaur.Social.Relay",
+        "MediaCentaur.Social.RelayMember"
       ],
       "kernel": false,
       "name": "MediaCentaur.Social",
@@ -5454,9 +5457,9 @@
               }
             }
           ],
-          "file": "lib/media_centaur/social/friend.ex",
-          "module": "MediaCentaur.Social.Friend",
-          "table": "friends"
+          "file": "lib/media_centaur/social/contact.ex",
+          "module": "MediaCentaur.Social.Contact",
+          "table": "contacts"
         },
         {
           "associations": [],
