@@ -5,13 +5,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
   variations are decoupled from any DB or LiveView state.
 
   Three surfaces per card: title (with TV S/E suffix), one
-  severity-colored status sentence, and an optional download footer
+  severity-colored status sentence, and an optional download strip
   when a queue item is paired.
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, DownloadProgress, PursuitRow}
+  alias MediaCentaur.Downloads.{Phase, QueueItem}
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitRow.pursuit_row/1
   def render_source, do: :function
@@ -172,9 +173,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
         ]
       },
       %VariationGroup{
-        id: :download_footer,
+        id: :download_strip,
         description:
-          "When a queue item is paired, the download footer renders and the status sentence is hidden — the live state speaks for itself.",
+          "When a job is paired, the download strip renders and the status sentence is hidden — the live phase speaks for itself. Every phase lives in the Download strip story; this group covers the row's framing.",
         variations: [
           %Variation{
             id: :matched_downloading,
@@ -184,15 +185,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                   release_title: "Sample.Movie.2010.1080p.WEB-DL",
                   status: any_action()
                 ),
-              download: %DownloadProgress{
-                state: :downloading,
-                title: "Sample.Movie.2010.1080p.WEB-DL",
-                progress_pct: 42.0,
-                size_bytes: 4_200_000_000,
-                size_left_bytes: 2_400_000_000,
-                eta: "12m",
-                client: "qBittorrent"
-              },
+              download:
+                progress(:downloading,
+                  title: "Sample.Movie.2010.1080p.WEB-DL",
+                  progress_pct: 42.0,
+                  size_bytes: 4_200_000_000,
+                  size_left_bytes: 2_400_000_000,
+                  eta: "12m",
+                  client: "qBittorrent"
+                ),
               queue_item_id: "hash-downloading"
             }
           },
@@ -206,38 +207,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                   release_title: "Sample.Movie.2010.1080p.WEB-DL",
                   status: any_action()
                 ),
-              download: %DownloadProgress{
-                state: :downloading,
-                title: "Sample.Movie.2010.1080p.WEB-DL",
-                progress_pct: 42.0,
-                size_bytes: 4_200_000_000,
-                size_left_bytes: 2_400_000_000,
-                eta: "12m",
-                client: "qBittorrent"
-              },
+              download:
+                progress(:downloading,
+                  title: "Sample.Movie.2010.1080p.WEB-DL",
+                  progress_pct: 42.0,
+                  size_bytes: 4_200_000_000,
+                  size_left_bytes: 2_400_000_000,
+                  eta: "12m",
+                  client: "qBittorrent"
+                ),
               queue_item_id: "hash-downloading-stale",
               telemetry_age: "last seen 4m ago"
-            }
-          },
-          %Variation{
-            id: :matched_fetching_nzb,
-            description:
-              "SABnzbd is still grabbing the .nzb from the indexer — content download hasn't started, so no progress bar or ETA is shown (they'd describe the tiny .nzb fetch, not the media).",
-            attributes: %{
-              vm:
-                row(:active, "Sample Movie",
-                  release_title: "Sample.Movie.2010.2160p.WEB-DL",
-                  status: any_action()
-                ),
-              download: %DownloadProgress{
-                state: :fetching_nzb,
-                title: "Sample.Movie.2010.2160p.WEB-DL",
-                progress_pct: nil,
-                size_bytes: 8_000_000_000,
-                eta: nil,
-                client: "SABnzbd"
-              },
-              queue_item_id: "nzo-fetching"
             }
           },
           %Variation{
@@ -253,75 +233,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                   release_title: "Sample.Movie.2010.1080p.WEB-DL",
                   status: any_action()
                 ),
-              download: %DownloadProgress{
-                state: :downloading,
-                title: "Sample.Movie.2010.1080p.WEB-DL",
-                progress_pct: 42.0,
-                size_bytes: 4_200_000_000,
-                size_left_bytes: 2_400_000_000,
-                eta: "12m",
-                client: "qBittorrent"
-              },
+              download:
+                progress(:downloading,
+                  title: "Sample.Movie.2010.1080p.WEB-DL",
+                  progress_pct: 42.0,
+                  size_bytes: 4_200_000_000,
+                  size_left_bytes: 2_400_000_000,
+                  eta: "12m",
+                  client: "qBittorrent"
+                ),
               queue_item_id: "hash-downloading",
               cancel_armed_id: "hash-downloading"
-            }
-          },
-          %Variation{
-            id: :matched_stalled,
-            attributes: %{
-              vm:
-                row(:active, "Sample Show",
-                  season: 1,
-                  episode: 3,
-                  release_title: "Sample.Show.S01E03.1080p.WEB-DL",
-                  status: any_action()
-                ),
-              download: %DownloadProgress{
-                state: :stalled,
-                title: "Sample.Show.S01E03.1080p.WEB-DL",
-                progress_pct: 18.0,
-                size_bytes: 2_100_000_000,
-                eta: nil,
-                client: "qBittorrent"
-              },
-              queue_item_id: "hash-stalled"
-            }
-          },
-          %Variation{
-            id: :matched_queued,
-            attributes: %{
-              vm:
-                row(:active, "Public Domain Film 1923",
-                  release_title: "Public.Domain.Film.1923.1080p",
-                  status: any_action()
-                ),
-              download: %DownloadProgress{
-                state: :queued,
-                title: "Public.Domain.Film.1923.1080p",
-                progress_pct: nil,
-                size_bytes: 1_400_000_000,
-                eta: nil,
-                client: "qBittorrent"
-              },
-              queue_item_id: "hash-queued"
-            }
-          },
-          %Variation{
-            id: :matched_error,
-            attributes: %{
-              vm:
-                row(:active, "Movie A",
-                  release_title: "Movie.A.1080p",
-                  status: any_action()
-                ),
-              download: %DownloadProgress{
-                state: :error,
-                title: "Movie.A.1080p",
-                progress_pct: 7.0,
-                eta: nil,
-                client: "qBittorrent"
-              },
-              queue_item_id: "hash-error"
             }
           },
           %Variation{
@@ -451,27 +373,27 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               downloads: [
                 %{
-                  download: %DownloadProgress{
-                    state: :downloading,
-                    title: "Sample.Show.S01.1080p.WEB-DL-GROUP",
-                    progress_pct: 76.0,
-                    size_bytes: 14_500_000_000,
-                    size_left_bytes: 3_500_000_000,
-                    eta: "9m",
-                    client: "qBittorrent"
-                  },
+                  download:
+                    progress(:downloading,
+                      title: "Sample.Show.S01.1080p.WEB-DL-GROUP",
+                      progress_pct: 76.0,
+                      size_bytes: 14_500_000_000,
+                      size_left_bytes: 3_500_000_000,
+                      eta: "9m",
+                      client: "qBittorrent"
+                    ),
                   queue_item_id: "hash-s1-pack"
                 },
                 %{
-                  download: %DownloadProgress{
-                    state: :downloading,
-                    title: "Sample.Show.S02.2160p.WEB-DL-GROUP",
-                    progress_pct: 18.0,
-                    size_bytes: 51_600_000_000,
-                    size_left_bytes: 42_300_000_000,
-                    eta: "1h 4m",
-                    client: "qBittorrent"
-                  },
+                  download:
+                    progress(:downloading,
+                      title: "Sample.Show.S02.2160p.WEB-DL-GROUP",
+                      progress_pct: 18.0,
+                      size_bytes: 51_600_000_000,
+                      size_left_bytes: 42_300_000_000,
+                      eta: "1h 4m",
+                      client: "qBittorrent"
+                    ),
                   queue_item_id: "hash-s2-pack"
                 }
               ],
@@ -706,10 +628,36 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
     }
   end
 
-  # Placeholder action for download-footer variations where the status
+  # Placeholder action for download-strip variations where the status
   # line is hidden anyway — keeps the VM enforce_keys satisfied without
   # implying anything about the status contents.
   defp any_action do
     %CurrentAction{verb: "Downloading", description: "—", severity: :info}
+  end
+
+  # A DownloadProgress the way `QueueMatcher.to_download/1` builds one.
+  defp progress(state, opts) do
+    item = %QueueItem{
+      id: "job",
+      title: Keyword.get(opts, :title),
+      status: Keyword.get(opts, :status),
+      state: state,
+      protocol: Keyword.get(opts, :protocol, :torrent),
+      progress: Keyword.get(opts, :progress_pct),
+      size: Keyword.get(opts, :size_bytes),
+      timeleft: Keyword.get(opts, :eta)
+    }
+
+    %DownloadProgress{
+      state: state,
+      title: item.title,
+      progress_pct: item.progress,
+      size_bytes: item.size,
+      size_left_bytes: Keyword.get(opts, :size_left_bytes),
+      eta: item.timeleft,
+      client: Keyword.get(opts, :client),
+      protocol: item.protocol,
+      phase: Phase.of(item)
+    }
   end
 end
