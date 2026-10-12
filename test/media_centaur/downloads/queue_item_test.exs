@@ -223,6 +223,52 @@ defmodule MediaCentaur.Downloads.QueueItemTest do
       assert item.state == :fetching_nzb
     end
 
+    test "a Grabbing slot is named by its URL (API key included) — substitute the placeholder, never show the URL" do
+      raw = %{
+        "nzo_id" => "nzo_grab",
+        "filename" => "Trying to fetch NZB from https://indexer.example/api?t=get&id=abc&apikey=SECRET",
+        "status" => "Grabbing",
+        "mb" => "0.00",
+        "mbleft" => "0.00",
+        "percentage" => "0",
+        "timeleft" => "0:00:00"
+      }
+
+      item = QueueItem.from_sabnzbd_queue(raw)
+
+      assert item.state == :fetching_nzb
+      assert item.title == "Fetching NZB…"
+      refute item.normalized_title =~ "secret"
+    end
+
+    test "the zero clock is not an ETA" do
+      raw = %{
+        "nzo_id" => "nzo_zero",
+        "filename" => "Sample.Show.S01E02.1080p.WEB-DL",
+        "status" => "Queued",
+        "mb" => "100.00",
+        "mbleft" => "100.00",
+        "percentage" => "0",
+        "timeleft" => "0:00:00"
+      }
+
+      assert QueueItem.from_sabnzbd_queue(raw).timeleft == nil
+    end
+
+    test "live queue slots carry no stage line" do
+      raw = %{
+        "nzo_id" => "nzo_live",
+        "filename" => "Sample.Show.S01E02.1080p.WEB-DL",
+        "status" => "Downloading",
+        "mb" => "100.00",
+        "mbleft" => "50.00",
+        "percentage" => "50",
+        "timeleft" => "0:01:00"
+      }
+
+      assert QueueItem.from_sabnzbd_queue(raw).stage_line == nil
+    end
+
     # "Fetching" is SABnzbd pulling extra par2 blocks to repair a damaged
     # download — a repair-phase activity, not content download.
     test "Fetching (extra repair blocks) maps to :repairing, not :downloading" do
@@ -299,6 +345,17 @@ defmodule MediaCentaur.Downloads.QueueItemTest do
       assert item.state == :error
       assert item.failure_message == "Repair failed, not enough repair blocks"
       assert item.content_path == nil, "failed storage points at cruft, never pin it"
+    end
+
+    test "a post-processing entry carries SABnzbd's stage line; a blank one is nil" do
+      unpacking = base_sab_history(%{"status" => "Extracting", "action_line" => "Unpacking: 45%"})
+      assert QueueItem.from_sabnzbd_history(unpacking).stage_line == "Unpacking: 45%"
+
+      done = base_sab_history(%{"status" => "Completed", "action_line" => ""})
+      assert QueueItem.from_sabnzbd_history(done).stage_line == nil
+
+      absent = base_sab_history(%{"status" => "Verifying"})
+      assert QueueItem.from_sabnzbd_history(absent).stage_line == nil
     end
 
     test "post-processing statuses map to their own states so the UI doesn't read them as stalled" do
