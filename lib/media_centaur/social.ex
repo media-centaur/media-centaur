@@ -461,7 +461,9 @@ defmodule MediaCentaur.Social do
   end
 
   defp insert_friend(pubkey, name) do
-    case Repo.insert(Contact.changeset(%{pubkey: pubkey, name_override: name})) do
+    added_at = DateTime.utc_now(:second)
+
+    case Repo.insert(Contact.changeset(%{pubkey: pubkey, name_override: name, added_at: added_at})) do
       {:ok, friend} ->
         Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
         {:ok, friend}

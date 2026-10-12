@@ -16,9 +16,11 @@ defmodule MediaCentaur.Social.ContactsTest do
       Social.subscribe()
       npub = Keys.to_npub(@pubkey)
 
-      assert {:ok, %Contact{pubkey: @pubkey, name_override: "Sample Friend"}} =
+      assert {:ok,
+              %Contact{pubkey: @pubkey, name_override: "Sample Friend", added_at: %DateTime{}} = contact} =
                Social.add_friend(npub, "  Sample Friend ")
 
+      assert Contact.friend?(contact)
       assert_receive {:friend_added, %FriendAdded{pubkey: @pubkey}}, 500
       assert [%Contact{pubkey: @pubkey}] = Social.list_friends()
       assert Social.friend_pubkeys() == [@pubkey]
