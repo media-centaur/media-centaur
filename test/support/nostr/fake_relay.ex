@@ -103,6 +103,10 @@ defmodule MediaCentaur.Nostr.FakeRelay do
     :ok
   end
 
+  @doc "Replaces the stored events new connections are served; open sockets keep what they had, so `drop/1` next."
+  @spec replace_events(t(), [Event.t()]) :: :ok
+  def replace_events(relay, events), do: Agent.update(relay.name, &Map.put(&1, :events, events))
+
   @doc "Closes every client socket (the relay stays up, so the client can reconnect)."
   @spec drop(t()) :: :ok
   def drop(relay) do
