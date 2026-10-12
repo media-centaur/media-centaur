@@ -8,7 +8,9 @@ defmodule MediaCentaur.RelaySyncTest do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Events.MembersChanged
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Relay
   alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
@@ -309,6 +311,62 @@ defmodule MediaCentaur.RelaySyncTest do
     assert_receive {:relay_in, ["EVENT", %{"kind" => 12_160, "content" => content}]}, 5_000
     assert Jason.decode!(content)["name"] == "Me"
     refute_receive {:relay_in, ["EVENT", %{"kind" => 12_160}]}, 300
+    await_supervised_tasks()
+  end
+
+  @member_secret Secret.wrap(String.duplicate("0", 63) <> "5")
+  @member_pubkey Keys.pubkey(Secret.wrap(String.duplicate("0", 63) <> "5"))
+
+  defp member_event(id, created_at),
+    do:
+      Event.sign(
+        %{
+          Translation.to_event(:review, title(id), [note: "from a member"], @member_pubkey)
+          | created_at: created_at
+        },
+        @member_secret
+      )
+
+  test "a members-rule relay is read without an author list and an unknown member's event is kept" do
+    Social.subscribe()
+    relay = FakeRelay.start(events: [member_event(1, System.os_time(:second) - 10)])
+    {:ok, _row} = Social.add_relay(relay.url, :members)
+
+    assert_receive {:relay_in, ["REQ", "feed", filter]}, 5_000
+    refute Map.has_key?(filter, "authors")
+    assert_receive {:members_changed, %MembersChanged{}}, 5_000
+    assert_receive {:activity_received, _event}, 5_000
+
+    assert [%{activity: %{tmdb_id: 1}, author: %Person{friend?: false, member_of: [_url]}}] =
+             Activities.list_activities()
+
+    await_supervised_tasks()
+  end
+
+  test "a member the relay stops serving is forgotten on the next read" do
+    Social.subscribe()
+    relay = FakeRelay.start(events: [member_event(1, System.os_time(:second) - 10)])
+    {:ok, _row} = Social.add_relay(relay.url, :members)
+    assert_receive {:members_changed, %MembersChanged{}}, 5_000
+    assert Social.followed_key?(@member_pubkey)
+
+    FakeRelay.replace_events(relay, [])
+    FakeRelay.drop(relay)
+
+    assert_receive {:members_changed, %MembersChanged{}}, 5_000
+    refute Social.followed_key?(@member_pubkey)
+    assert Activities.list_activities() == []
+    await_supervised_tasks()
+  end
+
+  test "changing a relay's follow rule re-issues the feed" do
+    relay = FakeRelay.start()
+    {:ok, _row} = Social.add_relay(relay.url)
+    assert_receive {:relay_in, ["REQ", "feed", %{"authors" => _authors}]}, 5_000
+
+    {:ok, %Relay{follow: :members}} = Social.set_follow(relay.url, :members)
+    assert_receive {:relay_in, ["REQ", "feed", filter]}, 5_000
+    refute Map.has_key?(filter, "authors")
     await_supervised_tasks()
   end
 

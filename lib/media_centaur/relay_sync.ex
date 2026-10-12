@@ -7,17 +7,22 @@ defmodule MediaCentaur.RelaySync do
   `docs/social-protocol.md`. Consumes `social:connections`:
 
     * `:connected` for a relay → subscribe `"feed"` (authors = friends ++
-      self, every activity kind, 5 and the profile's 12160, `limit` =
-      the page size) and
-      `"own:<url>"` (authors = [self], same kinds) on that relay; collect the event ids
-      the relay sends on the own sub.
-    * `{:event, "feed", event}` → by kind: 12160 to
-      `Social.ingest_profile/1`, every other kind to `Activities.ingest/1`
-      (verified, friend or self, newest wins; a deletion tombstones).
+      self on an added-rule relay, no author list on a members-rule one,
+      every activity kind, 5 and the profile's 12160, `limit` = the page
+      size) and `"own:<url>"` (authors = [self], same kinds) on that
+      relay; collect the event ids the relay sends on the own sub; keep
+      the connect time for the sweep below.
+    * `{:event, "feed", event}` → `Social.note_member/2` first, so a
+      member of a members-rule relay is followed before its event is
+      judged; then by kind: 12160 to `Social.ingest_profile/1`, every
+      other kind to `Activities.ingest/1` (verified, followed key, newest
+      wins; a deletion tombstones).
     * `{:eose, "feed"}` → if the page came back full, ask for the next
       one (`until` = one second before the oldest seen); after a short
       page that followed a full one, re-issue `"feed"` live (no `until`)
-      so new events keep arriving.
+      so new events keep arriving. A short page completes the read:
+      `Social.sweep_members/2` with the connect time forgets the members
+      the relay no longer serves.
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
       event it did not send — activities of live rows, deletions of
       withdrawn ones, the reader's profile. A per-relay diff, not a
@@ -28,8 +33,8 @@ defmodule MediaCentaur.RelaySync do
       carry the contract. The connection keeps the reason as the relay
       row's last error.
 
-  Consumes `social:updates`: a roster change re-issues `"feed"` on every
-  connected relay with the new author list.
+  Consumes `social:updates`: a roster change or a relay's follow rule
+  change re-issues `"feed"` on every connected relay.
 
   Every connect reads the relay from the start: no `since` cursor. A relay
   holds one record per signer per title (contract Deletion rule 3), so a
@@ -72,7 +77,7 @@ defmodule MediaCentaur.RelaySync do
     defstruct count: 0, oldest: nil, paging?: false
   end
 
-  defstruct seen: %{}, pages: %{}, page_limit: @default_page_limit
+  defstruct seen: %{}, pages: %{}, connected: %{}, page_limit: @default_page_limit
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -90,6 +95,7 @@ defmodule MediaCentaur.RelaySync do
     state =
       state
       |> put_in([Access.key(:seen), url], MapSet.new())
+      |> put_in([Access.key(:connected), url], DateTime.utc_now())
       |> subscribe_feed(url, nil, false)
 
     {:noreply, state}
@@ -98,6 +104,10 @@ defmodule MediaCentaur.RelaySync do
   def handle_info({:relay_connection, url, {:event, sub_id, event}}, state) do
     state = if sub_id == own_sub(url), do: mark_seen(state, url, event.id), else: state
     state = if sub_id == @feed, do: note_page_event(state, url, event), else: state
+
+    # Before the owner's ingest: on a members-rule relay the author becomes
+    # followed by being served, and the gate must already know.
+    if sub_id == @feed, do: Social.note_member(url, event.pubkey)
 
     case ingest(event) do
       {:ok, _rec} ->
@@ -131,6 +141,7 @@ defmodule MediaCentaur.RelaySync do
 
   def handle_info({:friend_added, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info({:friend_removed, _event}, state), do: {:noreply, resubscribe(state)}
+  def handle_info({:relay_changed, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info(_other, state), do: {:noreply, state}
 
   # Each context ingests its own kinds; the loop only routes.
@@ -143,7 +154,7 @@ defmodule MediaCentaur.RelaySync do
   # --- feed paging ---------------------------------------------------------
 
   defp subscribe_feed(state, url, until, paging?) do
-    Connections.subscribe(url, @feed, [feed_filter(until, state.page_limit)])
+    Connections.subscribe(url, @feed, [feed_filter(url, until, state.page_limit)])
     put_in(state, [Access.key(:pages), url], %Page{paging?: paging?})
   end
 
@@ -163,11 +174,23 @@ defmodule MediaCentaur.RelaySync do
         subscribe_feed(state, url, oldest - 1, true)
 
       %Page{paging?: true} ->
-        subscribe_feed(state, url, nil, false)
+        state |> sweep(url) |> subscribe_feed(url, nil, false)
 
       _short_first_page_or_unknown ->
-        state
+        sweep(state, url)
     end
+  end
+
+  # The read is complete: every member the relay still serves has been
+  # noted since the connect; the rest are forgotten (a no-op on an
+  # added-rule relay, which has none).
+  defp sweep(state, url) do
+    case Map.get(state.connected, url) do
+      nil -> :ok
+      connected_at -> Social.sweep_members(url, connected_at)
+    end
+
+    state
   end
 
   defp resubscribe(state) do
@@ -200,12 +223,21 @@ defmodule MediaCentaur.RelaySync do
 
   # --- filters ---------------------------------------------------------------
 
-  # Before an identity exists there is nothing to subscribe as — and no
-  # connection either, since `Connections` starts none — but the nil
-  # would still reach the wire as an author, so it is filtered out.
-  defp feed_filter(until, limit) do
-    authors = Enum.reject(Enum.uniq([Identity.pubkey() | Social.friend_pubkeys()]), &is_nil/1)
-    Filter.new(authors: authors, kinds: kinds(), until: until, limit: limit)
+  # On a members-rule relay the relay restricts the read to its members
+  # itself, so no author list goes out; on an added-rule relay the
+  # authors are the friends and the reader. Before an identity exists
+  # there is nothing to subscribe as — and no connection either, since
+  # `Connections` starts none — but the nil would still reach the wire
+  # as an author, so it is filtered out.
+  defp feed_filter(url, until, limit) do
+    case Social.get_relay(url) do
+      %{follow: :members} ->
+        Filter.new(kinds: kinds(), until: until, limit: limit)
+
+      _added_or_unknown ->
+        authors = Enum.reject(Enum.uniq([Identity.pubkey() | Social.friend_pubkeys()]), &is_nil/1)
+        Filter.new(authors: authors, kinds: kinds(), until: until, limit: limit)
+    end
   end
 
   defp own_filter, do: Filter.new(authors: Enum.reject([Identity.pubkey()], &is_nil/1), kinds: kinds())
