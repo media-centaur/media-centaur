@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("unit_board"), do: [icon: {:fa, "table-cells", :thin}, name: "Unit board"]
   def entry("timeline"), do: [icon: {:fa, "timeline", :thin}, name: "Pursuit timeline"]
   def entry("decision_card"), do: [icon: {:fa, "wand-magic-sparkles", :thin}, name: "Decision card"]
+  def entry("download_strip"), do: [icon: {:fa, "bars-progress", :thin}, name: "Download strip"]
 
   def entry("connectivity_badge"), do: [icon: {:fa, "signal-stream", :thin}, name: "Connectivity badge"]
 

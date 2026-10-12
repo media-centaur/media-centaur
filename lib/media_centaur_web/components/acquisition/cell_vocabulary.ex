@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
     * `:underway` — primary fill, pulsing. The ladder step a
       download-client job is working through right now (the download
       strip); past steps are `:landed`, later steps the muted default.
+    * `:ahead` — the muted default. A ladder step the job has not reached.
     * `:claimed_fused` — primary fill, no border. The capsule interior
       when one pack covers a run of cells (consolidation made visible).
     * `:landed` — success fill. Pursuit `satisfied`; the plan board
@@ -36,6 +37,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
           :searching
           | :claimed
           | :underway
+          | :ahead
           | :claimed_fused
           | :landed
           | :below_preference
@@ -67,6 +69,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   def segment_treatment(:landed), do: "bg-success/80"
   def segment_treatment(:claimed), do: "bg-primary/30"
   def segment_treatment(:underway), do: "bg-primary/80 animate-pulse"
+  def segment_treatment(:ahead), do: "bg-base-content/10"
   def segment_treatment(:below_preference), do: "bg-info/20"
   def segment_treatment(:gap), do: "border border-warning/50"
   def segment_treatment(_other), do: "bg-base-content/10"
