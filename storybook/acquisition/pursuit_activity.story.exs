@@ -12,6 +12,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
     PursuitStatus
   }
 
+  alias MediaCentaur.Downloads.{Phase, QueueItem}
+
+  @release "Sample.Movie.2010.1080p.WEB-DL"
+
   def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
   def render_source, do: :function
 
@@ -59,12 +63,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "From qBittorrent • 42% • ETA 8m",
                 severity: :info
               },
-              download: %DownloadProgress{
-                state: :downloading,
-                progress_pct: 42.0,
-                client: "qBittorrent",
-                eta: "8m"
-              },
+              downloads:
+                downloads(:downloading,
+                  progress_pct: 42.0,
+                  client: "qBittorrent",
+                  eta: "8m",
+                  size_bytes: 4_200_000_000
+                ),
               next_step: %NextStep{
                 description: "When complete, the file watcher matches the title."
               }
@@ -83,12 +88,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "From qBittorrent • 42% • ETA 8m",
                 severity: :info
               },
-              download: %DownloadProgress{
-                state: :downloading,
-                progress_pct: 42.0,
-                client: "qBittorrent",
-                eta: "8m"
-              },
+              downloads:
+                downloads(:downloading,
+                  progress_pct: 42.0,
+                  client: "qBittorrent",
+                  eta: "8m",
+                  size_bytes: 4_200_000_000
+                ),
               next_step: %NextStep{
                 description: "When complete, the file watcher matches the title."
               }
@@ -106,7 +112,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "Download client can't make progress.",
                 severity: :warning
               },
-              download: %DownloadProgress{state: :stalled, progress_pct: 12.0},
+              downloads: downloads(:stalled, progress_pct: 12.0, client: "qBittorrent"),
               next_step: %NextStep{description: "Re-search for a different release, or wait."},
               available_actions: [:cancel, :change_target, :request_decision]
             ),
@@ -125,7 +131,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "Paused at the download client.",
                 severity: :info
               },
-              download: %DownloadProgress{state: :paused, progress_pct: 67.0},
+              downloads: downloads(:paused, progress_pct: 67.0, client: "qBittorrent"),
               next_step: %NextStep{description: "Resume it in your download client."}
             ),
           on_cancel: "noop"
@@ -141,7 +147,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "Waiting for a slot at the download client.",
                 severity: :info
               },
-              download: %DownloadProgress{state: :queued},
+              downloads: downloads(:queued, client: "qBittorrent"),
               next_step: %NextStep{description: "Will start when a slot frees up."}
             ),
           on_cancel: "noop"
@@ -246,7 +252,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "Download finished — waiting for the file to be matched.",
                 severity: :info
               },
-              download: %DownloadProgress{state: :completed, progress_pct: 100.0},
+              downloads: downloads(:completed, progress_pct: 100.0, client: "qBittorrent"),
               next_step: %NextStep{description: "InboundListener picks it up next."}
             ),
           on_cancel: "noop"
@@ -263,7 +269,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "SABnzbd: Repair failed, not enough repair blocks",
                 severity: :error
               },
-              download: %DownloadProgress{state: :error, client: "SABnzbd", protocol: :usenet},
+              download: progress(:error, client: "SABnzbd", protocol: :usenet),
+              downloads: downloads(:error, client: "SABnzbd", protocol: :usenet),
               next_step: %NextStep{
                 description:
                   "A different release will be tried automatically — open SABnzbd for the job log."
@@ -340,5 +347,36 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
         }
       }
     ]
+  end
+
+  # One claimed job, the shape `Pursuits.all_downloads/3` builds.
+  defp downloads(state, opts) do
+    [%{download: progress(state, opts), release_title: @release}]
+  end
+
+  # A DownloadProgress the way `QueueMatcher.to_download/1` builds one.
+  defp progress(state, opts) do
+    item = %QueueItem{
+      id: "job",
+      title: @release,
+      status: Keyword.get(opts, :status),
+      state: state,
+      protocol: Keyword.get(opts, :protocol, :torrent),
+      progress: Keyword.get(opts, :progress_pct),
+      size: Keyword.get(opts, :size_bytes),
+      timeleft: Keyword.get(opts, :eta),
+      stage_line: Keyword.get(opts, :stage_line)
+    }
+
+    %DownloadProgress{
+      state: state,
+      title: item.title,
+      progress_pct: item.progress,
+      size_bytes: item.size,
+      eta: item.timeleft,
+      client: Keyword.get(opts, :client),
+      protocol: item.protocol,
+      phase: Phase.of(item)
+    }
   end
 end

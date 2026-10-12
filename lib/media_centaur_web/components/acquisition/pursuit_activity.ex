@@ -3,8 +3,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
   Live status card for the pursuit detail page.
 
   Renders the current_action verb + description, an optional download
-  progress bar, the next_step sentence, manual action buttons (driven by
-  `vm.available_actions`), and a staleness footnote.
+  strip per claimed job (`DownloadStrip.download_strip/1`; the modal
+  cancels the pursuit, so the strip draws no job cancel), the next_step
+  sentence, manual action buttons (driven by `vm.available_actions`), and
+  a staleness footnote.
   """
 
   use Phoenix.Component
@@ -12,6 +14,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1, armed_button: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
+  alias MediaCentaurWeb.Components.Acquisition.DownloadStrip
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
@@ -50,36 +53,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
         </ul>
       </div>
 
-      <div :if={@vm.downloads != []} class="space-y-3.5">
-        <div :for={entry <- @vm.downloads} class="space-y-1.5">
-          <div
-            :if={length(@vm.downloads) > 1 || @vm.downloads_done > 0}
-            class="flex items-baseline justify-between gap-3 text-xs"
-          >
-            <span
-              class="min-w-0 truncate font-mono text-base-content/55"
-              data-tip={entry.release_title}
-            >
-              {entry.release_title}
-            </span>
-            <span
-              :if={entry.download.progress_pct}
-              class="flex-shrink-0 text-base-content/60 tabular-nums"
-            >
-              {round(entry.download.progress_pct)}%{if entry.download.eta,
-                do: " · ETA #{entry.download.eta}"}
-            </span>
-          </div>
-          <div
-            :if={entry.download.progress_pct}
-            class="h-2 rounded-full bg-base-content/10 overflow-hidden"
-          >
-            <div
-              class="h-full bg-primary transition-all duration-300"
-              style={"width: #{progress_width(entry.download.progress_pct)}%"}
-            />
-          </div>
-        </div>
+      <div :if={@vm.downloads != []} class="space-y-3">
+        <%!-- No queue_item_id: the modal cancels the pursuit, not the job. --%>
+        <DownloadStrip.download_strip :for={entry <- @vm.downloads} download={entry.download} bare />
       </div>
 
       <div :if={@vm.next_step} class="text-xs text-base-content/60">
@@ -161,6 +137,4 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
       true -> "#{div(diff_seconds, 86_400)}d ago"
     end
   end
-
-  defp progress_width(pct) when is_number(pct), do: max(0, min(100, round(pct)))
 end

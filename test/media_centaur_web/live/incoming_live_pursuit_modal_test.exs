@@ -67,6 +67,42 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       refute html =~ "Cancel pursuit"
     end
 
+    test "the activity card draws the paired job with the download strip", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "tmdb-modal-strip",
+          tmdb_type: "movie",
+          title: "Sample Movie 2010",
+          origin: "auto",
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "acquired"
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
+
+      item = %MediaCentaur.Downloads.QueueItem{
+        id: "nzo-modal",
+        title: "sample movie 2010 1080p web dl",
+        state: :verifying,
+        status: "Verifying",
+        protocol: :usenet,
+        download_client: "SABnzbd",
+        stage_line: "Verifying: 14/56"
+      }
+
+      send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [item]}})
+
+      # The pursuit row behind the modal composes the same strip, so
+      # every assertion is scoped to the modal.
+      ladder = ~s|#pursuit-modal [data-step="verify"][data-step-state="underway"]|
+      render_until(view, fn _html -> has_element?(view, ladder) end)
+
+      modal = view |> element("#pursuit-modal") |> render()
+      assert modal =~ "Verifying"
+      assert modal =~ "25%"
+      refute modal =~ "transition-all"
+    end
+
     test "renders not-found inside the modal for an unknown id", %{conn: conn} do
       {:ok, view, html} = live_async!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
 
