@@ -21,6 +21,18 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`download-phases.md`](download-phases.md) —
+  **Designed and planned 2026-10-12; nothing built.** Every surface on
+  Incoming draws a download-client job as its phase on a short
+  protocol-specific ladder (usenet: fetch, download, verify, repair,
+  unpack, move, done; torrent: metadata, download, done) from one
+  `download_strip/1`, so the NZB-fetch and post-processing rows stop
+  being text dumps. The root cause, usenet identity arriving late, is
+  removed by the app owning every grab: it hands the payload to the
+  client itself and records the job id on the target at grab time;
+  Prowlarr becomes search only; `torrent_hash` becomes `download_id`;
+  title pairing retires; each client slot gains a category. Two plans
+  under `docs/superpowers/plans/2026-10-12-*`, execute in order.
 * [`viewer-profiles.md`](viewer-profiles.md) —
   **Shipped v1.55.0 on 2026-10-11; owner check open.** Who has watched what: each profile picked
   on the screen keeps its own progress, history, Continue Watching
