@@ -7,7 +7,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.DownloadProgress do
   # can link to the client's own web UI.
   # `title` is the client's release name — the identifying line when a
   # pursuit carries several otherwise-identical transfer strips.
-  defstruct [:state, :title, :progress_pct, :size_bytes, :size_left_bytes, :eta, :client, :protocol]
+  # `phase` is the job's position on its protocol's ladder
+  # (`Downloads.Phase`) — what the download strip draws. `state` stays
+  # the client's word for callers that route on it.
+  defstruct [
+    :state,
+    :title,
+    :progress_pct,
+    :size_bytes,
+    :size_left_bytes,
+    :eta,
+    :client,
+    :protocol,
+    :phase
+  ]
 
   # Mirrors the queue item's state exactly — `to_download/1` passes it
   # through unchanged, so any drift here is a lie about what can render.
@@ -30,6 +43,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.DownloadProgress do
           size_left_bytes: integer() | nil,
           eta: String.t() | nil,
           client: String.t() | nil,
-          protocol: :torrent | :usenet | nil
+          protocol: :torrent | :usenet | nil,
+          phase: MediaCentaur.Downloads.Phase.t() | nil
         }
 end
