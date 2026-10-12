@@ -13,6 +13,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
       `assigned`, pursuit `active`/downloading. The continuity state —
       a cell that was `:claimed` on the board stays visually `:claimed`
       on the pursuit card until it lands.
+    * `:underway` — primary fill, pulsing. The ladder step a
+      download-client job is working through right now (the download
+      strip); past steps are `:landed`, later steps the muted default.
     * `:claimed_fused` — primary fill, no border. The capsule interior
       when one pack covers a run of cells (consolidation made visible).
     * `:landed` — success fill. Pursuit `satisfied`; the plan board
@@ -30,7 +33,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   """
 
   @type state ::
-          :searching | :claimed | :claimed_fused | :landed | :below_preference | :gap | :excluded
+          :searching
+          | :claimed
+          | :underway
+          | :claimed_fused
+          | :landed
+          | :below_preference
+          | :gap
+          | :excluded
 
   @doc "Treatment classes for a full-size board cell (w-9 grid cell)."
   @spec cell_treatment(state()) :: String.t()
@@ -38,6 +48,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
     do: "border border-dashed border-base-content/25 text-base-content/55 animate-pulse"
 
   def cell_treatment(:claimed), do: "bg-primary/25 border border-primary/60 text-base-content/80"
+
+  def cell_treatment(:underway),
+    do: "bg-primary/40 border border-primary/80 text-base-content/80 animate-pulse"
+
   def cell_treatment(:claimed_fused), do: "bg-primary/20 text-base-content/80 rounded"
   def cell_treatment(:landed), do: "bg-success/25 border border-success/60 text-base-content/80"
   def cell_treatment(:below_preference), do: "border border-info/40 text-base-content/60"
@@ -52,6 +66,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   @spec segment_treatment(state()) :: String.t()
   def segment_treatment(:landed), do: "bg-success/80"
   def segment_treatment(:claimed), do: "bg-primary/30"
+  def segment_treatment(:underway), do: "bg-primary/80 animate-pulse"
   def segment_treatment(:below_preference), do: "bg-info/20"
   def segment_treatment(:gap), do: "border border-warning/50"
   def segment_treatment(_other), do: "bg-base-content/10"
