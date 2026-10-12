@@ -259,6 +259,40 @@ defmodule MediaCentaurWeb.Components.Social.PersonCardTest do
              []
   end
 
+  test "the opened foot says how the reader follows them: a friend is added on a date with Hide and Remove friend; a member is on the relay with Hide alone" do
+    friend = render(person: friend(), acts: acts_of(), width: :page, opened?: true)
+    friend_foot = friend |> LazyHTML.query("footer") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
+
+    assert friend_foot =~ "added Aug 30"
+    assert friend |> LazyHTML.query("footer button[phx-click='set_hidden']") |> Enum.count() == 1
+
+    assert friend
+           |> LazyHTML.query("footer button[phx-click='set_hidden']")
+           |> LazyHTML.attribute("phx-value-hide") == ["true"]
+
+    assert friend |> LazyHTML.query("footer button[phx-click='remove_friend']") |> Enum.count() == 1
+
+    member =
+      render(
+        person: %{
+          person("Sample Member")
+          | friend?: false,
+            added_on: nil,
+            member_of: ["wss://group.example/"]
+        },
+        acts: acts_of(),
+        width: :page,
+        opened?: true
+      )
+
+    member_foot = member |> LazyHTML.query("footer") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
+
+    assert member_foot =~ "on group.example"
+    refute member_foot =~ "added"
+    assert member |> LazyHTML.query("footer button[phx-click='set_hidden']") |> Enum.count() == 1
+    assert Enum.empty?(LazyHTML.query(member, "footer button[phx-click='remove_friend']"))
+  end
+
   test "a person with no acts is a tile and a name: no strip, no ago, no note of any kind" do
     html = render(person: friend(), acts: [], width: :rail)
 

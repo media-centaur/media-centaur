@@ -288,13 +288,11 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   defp masked_name(%Person{} = person), do: Format.person_name(%{person | name_override: nil})
 
   # How the reader came to follow the person: the day they added them,
-  # else the relay whose members they follow. A friend without a date
-  # (none recorded) says "added" alone rather than naming a relay they
-  # were not followed through.
+  # else the relay whose members they follow. `friend?` and `added_on`
+  # derive from the one `added_at`, so a friend always has the date.
   defp provenance(%Person{friend?: true, added_on: %Date{} = added_on}),
     do: "added " <> Calendar.strftime(added_on, "%b %-d")
 
-  defp provenance(%Person{friend?: true}), do: "added"
   defp provenance(%Person{} = person), do: "on " <> Enum.join(Person.member_hosts(person), ", ")
 
   defp newest(%Act{entries: [entry | _rest]}), do: entry
