@@ -600,44 +600,6 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
   end
 
-  describe "state_label/1" do
-    test "returns user-facing label per state atom" do
-      assert Logic.state_label(:downloading) == "Downloading"
-      assert Logic.state_label(:fetching_nzb) == "Fetching NZB…"
-      assert Logic.state_label(:queued) == "Queued"
-      assert Logic.state_label(:stalled) == "Stalled"
-      assert Logic.state_label(:paused) == "Paused"
-      assert Logic.state_label(:completed) == "Completed"
-      assert Logic.state_label(:error) == "Error"
-      assert Logic.state_label(:other) == "Other"
-    end
-
-    test "falls back to a generic label for nil or unknown" do
-      assert Logic.state_label(nil) == "Unknown"
-      assert Logic.state_label(:something_new) == "Unknown"
-    end
-  end
-
-  describe "state_badge_variant/1" do
-    test "returns a `<.badge>` variant per state" do
-      assert Logic.state_badge_variant(:downloading) == "info"
-      assert Logic.state_badge_variant(:fetching_nzb) == "info"
-      assert Logic.state_badge_variant(:completed) == "success"
-      assert Logic.state_badge_variant(:error) == "error"
-      assert Logic.state_badge_variant(:paused) == "warning"
-      assert Logic.state_badge_variant(:stalled) == "warning"
-    end
-
-    test ":queued uses ghost to read as passive waiting, not the warning yellow of :stalled" do
-      assert Logic.state_badge_variant(:queued) == "ghost"
-    end
-
-    test "returns the metric (default) variant for nil or unknown states" do
-      assert Logic.state_badge_variant(nil) == "metric"
-      assert Logic.state_badge_variant(:other) == "metric"
-    end
-  end
-
   describe "format_search_error/1" do
     test "explains :econnrefused as an unreachable Prowlarr" do
       assert Logic.format_search_error(%Req.TransportError{reason: :econnrefused}) ==

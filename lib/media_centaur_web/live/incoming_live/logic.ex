@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   The LiveView is thin wiring — mount, event dispatch, render. View-only
   helpers (group loading predicates, error formatting, result lookup, grab
-  message construction, queue-state labels) live here so they can be tested
+  message construction) live here so they can be tested
   without rendering or mounting a socket.
 
   Search session mutators (build/toggle/record/select) moved to
@@ -502,57 +502,6 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
       Enum.map(chunk, &{:item, &1})
     end
   end
-
-  @doc "User-facing label for a `QueueItem` state."
-  @spec state_label(QueueItem.state() | nil) :: String.t()
-  def state_label(:downloading), do: "Downloading"
-  def state_label(:fetching_nzb), do: "Fetching NZB…"
-  def state_label(:queued), do: "Queued"
-  def state_label(:stalled), do: "Stalled"
-  def state_label(:paused), do: "Paused"
-  def state_label(:verifying), do: "Verifying"
-  def state_label(:repairing), do: "Repairing"
-  def state_label(:extracting), do: "Unpacking"
-  def state_label(:moving), do: "Moving"
-  def state_label(:completed), do: "Completed"
-  def state_label(:error), do: "Error"
-  def state_label(:other), do: "Other"
-  def state_label(_), do: "Unknown"
-
-  @doc """
-  Maps a `QueueItem` state to a `<.badge>` variant (see
-  `MediaCentaurWeb.CoreComponents.badge/1`).
-  """
-  @spec state_badge_variant(QueueItem.state() | nil) :: String.t()
-  def state_badge_variant(:downloading), do: "info"
-
-  def state_badge_variant(state)
-      when state in [:fetching_nzb, :verifying, :repairing, :extracting, :moving], do: "info"
-
-  def state_badge_variant(:completed), do: "success"
-  def state_badge_variant(:error), do: "error"
-  def state_badge_variant(:paused), do: "warning"
-  def state_badge_variant(:stalled), do: "warning"
-  # :queued reads as passive "waiting in qBittorrent's queue" — neutral, not warning
-  def state_badge_variant(:queued), do: "ghost"
-  def state_badge_variant(_), do: "metric"
-
-  @doc """
-  Text-color class for a queue state rendered as plain colored text
-  (status labels are text, not chips).
-  """
-  @spec state_text_class(QueueItem.state() | nil) :: String.t()
-  def state_text_class(:downloading), do: "text-info/80"
-
-  def state_text_class(state)
-      when state in [:fetching_nzb, :verifying, :repairing, :extracting, :moving], do: "text-info/80"
-
-  def state_text_class(:completed), do: "text-success/80"
-  def state_text_class(:error), do: "text-error/80"
-  def state_text_class(:paused), do: "text-warning/80"
-  def state_text_class(:stalled), do: "text-warning/80"
-  def state_text_class(:queued), do: "text-base-content/55"
-  def state_text_class(_state), do: "text-base-content/60"
 
   @doc """
   Whether the Downloads page should render a health-secondary line for
