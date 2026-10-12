@@ -3688,7 +3688,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       pursuit
     end
 
-    test "a matched queue item renders as a footer under the right pursuit card",
+    test "a matched queue item renders as a download strip under the right pursuit card",
          %{conn: conn} do
       pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
@@ -3716,6 +3716,30 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ ~s|phx-value-id="hash-paired"|
       assert html =~ "ETA 10m"
       # Matched items don't surface in the "Other downloads" section.
+      refute html =~ "Other downloads"
+    end
+
+    test "a matched usenet job in post-processing draws its phase, not a text dump", %{conn: conn} do
+      pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
+
+      unpacking = %QueueItem{
+        id: "nzo-unpacking",
+        title: "sample movie 2010 1080p web dl",
+        state: :extracting,
+        status: "Extracting",
+        protocol: :usenet,
+        download_client: "SABnzbd",
+        stage_line: "Unpacking: 45%"
+      }
+
+      send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [unpacking]}})
+
+      html = render_until(view, ~s|data-pursuit-id="#{pursuit.id}"|)
+      assert html =~ ~s|data-step="unpack" data-step-state="underway"|
+      assert html =~ "Unpacking"
+      assert html =~ "45%"
       refute html =~ "Other downloads"
     end
 

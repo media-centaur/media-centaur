@@ -8,10 +8,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
      pursuits (`Format.episode_label/2`).
   2. **Status line** — one severity-colored sentence built from
      `vm.status` (`%CurrentAction{verb, description, severity}`).
-     Hidden when a download footer is attached — the live torrent
-     state already conveys "what's happening".
-  3. **Download footer** — progress bar, ETA, client, cancel button.
-     Only when `:download` is non-nil.
+     Hidden when a download strip is attached — the live phase already
+     conveys what is happening.
+  3. **Download strip** — `DownloadStrip.download_strip/1` per claimed
+     job: phase ladder, phase word, figure bar, facts, cancel. Only when
+     `:download` is non-nil.
 
   The whole card is a `phx-click="select_pursuit"` button-shaped div that
   opens the pursuit detail modal on `/download`. The cancel button is
@@ -26,12 +27,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
   import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
 
-  import MediaCentaurWeb.CoreComponents, only: [armed_button: 1, badge: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [badge: 1]
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
-  alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
+  alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.Format
-  alias MediaCentaurWeb.IncomingLive.Logic
+  alias MediaCentaurWeb.Components.Acquisition.DownloadStrip
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, PursuitRow, required: true
@@ -39,7 +40,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   attr :download, :any,
     default: nil,
     doc:
-      "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download footer renders instead. Forces `:full` density."
+      "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download strip renders instead. Forces `:full` density."
 
   attr :downloads, :list,
     default: [],
@@ -53,7 +54,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   attr :telemetry_age, :string,
     default: nil,
     doc:
-      "Staleness qualifier from `Logic.telemetry_age_label/1` (e.g. \"last seen 4m ago\"), or nil when telemetry is fresh. Appended to the download footer so its live figures aren't presented as current when the client is lagging/offline."
+      "Staleness qualifier from `Logic.telemetry_age_label/1` (e.g. \"last seen 4m ago\"), or nil when telemetry is fresh. Appended to the download strip so its live figures aren't presented as current when the client is lagging/offline."
 
   attr :cancel_armed_id, :string,
     default: nil,
@@ -64,7 +65,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     default: :full,
     values: [:full, :compact],
     doc:
-      "`:full` is the original two-line card with state badge and (optionally) a download footer. `:compact` collapses the row to a single dense line — title left, severity-colored status right, no badge. Compact is the default in Active Pursuits and History zones where no download is paired; full is used when a torrent is matched (so the download footer fits)."
+      "`:full` is the original two-line card with state badge and (optionally) a download strip. `:compact` collapses the row to a single dense line — title left, severity-colored status right, no badge. Compact is the default in Active Pursuits and History zones where no download is paired; full is used when a torrent is matched (so the download strip fits)."
 
   attr :framed, :boolean,
     default: true,
@@ -107,7 +108,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       </div>
 
       <div :if={@paired_downloads != []} class="identity-banner-strip px-4 pt-2 pb-3 space-y-2">
-        <.download_footer
+        <DownloadStrip.download_strip
           :for={paired <- @paired_downloads}
           download={paired.download}
           queue_item_id={paired.queue_item_id}
@@ -146,7 +147,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         {@vm.status.verb} — {@vm.status.description}
       </div>
 
-      <.download_footer
+      <DownloadStrip.download_strip
         :for={paired <- @paired_downloads}
         download={paired.download}
         queue_item_id={paired.queue_item_id}
@@ -237,95 +238,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
   defp segmented_units(assigns), do: ~H""
 
-  attr :download, DownloadProgress, required: true
-  attr :queue_item_id, :string, required: true
-  attr :cancel_title, :string, required: true
-  attr :cancel_armed_id, :string, default: nil
-  attr :telemetry_age, :string, default: nil
-
-  attr :bare, :boolean,
-    default: false,
-    doc: "Skips the top border/padding — the identity-banner strip provides its own framing."
-
-  defp download_footer(assigns) do
-    ~H"""
-    <div class={[@bare && "space-y-1.5", !@bare && "border-t border-base-content/5 pt-2 space-y-1.5"]}>
-      <div class="flex items-center gap-3">
-        <span class={[
-          "text-xs font-medium uppercase tracking-wider",
-          Logic.state_text_class(@download.state)
-        ]}>
-          {Logic.state_label(@download.state)}
-        </span>
-        <%!-- The release name is what tells three otherwise-identical
-              strips apart on a multi-download pursuit. --%>
-        <span :if={@download.title} class="min-w-0 truncate text-xs text-base-content/55">
-          {@download.title}
-        </span>
-        <%!-- Facts cluster right, beside the cancel affordance — a
-              left-glued cluster leaves the row's width as dead span on
-              wide viewports. --%>
-        <div class="flex-1" />
-        <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
-          {round(@download.progress_pct)}%
-        </span>
-        <span :if={@download.eta} class="text-xs text-base-content/55 tabular-nums">
-          ETA {@download.eta}
-        </span>
-        <span
-          :if={@download.size_bytes}
-          class="flex-shrink-0 text-xs text-base-content/55 tabular-nums"
-        >
-          {Format.format_size_decimal(@download.size_bytes)}
-        </span>
-        <span :if={@download.client} class="flex-shrink-0 text-xs text-base-content/55">
-          {@download.client}
-        </span>
-        <%!-- When the download client is lagging/offline these figures are
-              last-known, not live — qualify them so the user isn't misled
-              into thinking the bar is updating in real time. --%>
-        <span :if={@telemetry_age} class="text-xs text-warning/80 tabular-nums">
-          · {@telemetry_age}
-        </span>
-        <%!-- No `shape="circle"`: the armed state relabels the control,
-              and a fixed circle would clip the label it grows into. --%>
-        <.armed_button
-          :if={@queue_item_id}
-          armed={@cancel_armed_id == @queue_item_id}
-          event="cancel_download"
-          armed_label="Click again to cancel"
-          variant="destructive_inline"
-          size="xs"
-          class="text-base-content/55 hover:text-error"
-          phx-value-id={@queue_item_id}
-          phx-value-title={@cancel_title}
-          data-tip="Cancel and delete"
-          aria-label="Cancel download"
-        >
-          <.icon name="hero-x-mark-mini" class="size-4" />
-        </.armed_button>
-      </div>
-
-      <div
-        :if={@download.progress_pct}
-        class="h-[3px] bg-base-content/10 rounded-full overflow-hidden"
-      >
-        <div
-          class="progress-fill h-full bg-primary rounded-full"
-          style={"width: #{progress_width(@download.progress_pct)}%"}
-        >
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp progress_width(pct) when is_number(pct), do: max(0, min(100, round(pct)))
-  defp progress_width(_), do: 0
-
   # The LV passes every claimed torrent via `downloads`; single-download
   # callers (stories, older call sites) pass just `download` — normalize
-  # to one list so the footer renders identically either way.
+  # to one list so the strip renders identically either way.
   defp paired_downloads(%{downloads: [_ | _] = downloads}), do: downloads
 
   defp paired_downloads(%{download: %{} = download, queue_item_id: queue_item_id}),
