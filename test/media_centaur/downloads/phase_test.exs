@@ -107,6 +107,17 @@ defmodule MediaCentaur.Downloads.PhaseTest do
 
       assert Phase.of(usenet(:downloading, %{progress: 150.0})).figure == 1.0
     end
+
+    # Observed live 2026-10-12 on a bare-MKV release: SABnzbd's Moving stage
+    # names the file it is moving, never a figure, for the whole two-minute
+    # move — the indeterminate bar's case, not a parse failure.
+    test "the Moving stage names a file, which is no figure" do
+      phase = Phase.of(usenet(:moving, %{stage_line: "Moving: a1b2c3d4e5f6.mkv"}))
+
+      assert phase.current == :move
+      assert phase.figure == nil
+      assert Phase.working?(phase)
+    end
   end
 
   describe "word/1 and text_class/1" do
