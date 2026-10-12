@@ -2,10 +2,13 @@ defmodule MediaCentaurWeb.SocialLive.People do
   @moduledoc """
   Folds the page's enriched activity rows into person cards (ADR-030,
   ADR-074, UIDR-046): one `Card` — a `Social.Person` and their acts —
-  for the reader first when the known people include them, then friends
-  by their latest act of any kind, then friends with no acts by name.
-  The rows carry known people only (Activities drops a former friend's),
-  so every row lands on a card.
+  for the reader first when the known people include them, then every
+  followed person by their latest act of any kind, then those with no
+  acts by name. The host hands `build/3` `Social.visible_people/0`, so
+  it never meets a hidden person; the rows carry known people only
+  (Activities drops a former friend's and a hidden person's), so every
+  row lands on a card. `hidden/1` is the Friends tab's **hidden group**:
+  the hidden people from `Social.people/0`, by name, each with Show.
 
   A person's acts are one per title, newest first; each flies every act
   on that title in order, each at its grade (`Grade`: by how many
@@ -39,8 +42,8 @@ defmodule MediaCentaurWeb.SocialLive.People do
   @rail_cap 8
 
   @doc """
-  The cards for `people` (the `Social.people/0` map) from the enriched
-  activity rows. `now` anchors each act's relative time.
+  The cards for `people` (the `Social.visible_people/0` map) from the
+  enriched activity rows. `now` anchors each act's relative time.
   """
   @spec build([map()], %{optional(String.t()) => Person.t()}, now: DateTime.t()) :: [Card.t()]
   def build(rows, people, opts) do
@@ -56,6 +59,11 @@ defmodule MediaCentaurWeb.SocialLive.People do
     |> Enum.sort_by(&sort_key/1)
     |> then(&(you ++ &1))
   end
+
+  @doc "The hidden people, by name: the Friends tab's hidden group, which `build/3` leaves out."
+  @spec hidden(%{optional(String.t()) => Person.t()}) :: [Person.t()]
+  def hidden(people),
+    do: people |> Map.values() |> Enum.filter(& &1.hidden) |> Enum.sort_by(&Format.person_name/1)
 
   @doc "The Feed's rail: the first eight cards in `build/3`'s order, and how many the cap hid."
   @spec rail([Card.t()]) :: %{cards: [Card.t()], hidden: non_neg_integer()}

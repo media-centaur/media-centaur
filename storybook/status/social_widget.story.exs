@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SocialWidget do
   @moduledoc """
   Storybook coverage for the Social Activity widget — one diagnostic row
   per configured relay (state, how long, why, when it retries, when it was
-  last heard), then roster size and activity traffic.
+  last heard), then how many people are followed and shown, and activity traffic.
 
   The rows are the diagnostic view of the relay list; Settings → Social
   is the editing view. The two links at the foot go to each.

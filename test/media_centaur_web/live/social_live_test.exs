@@ -299,6 +299,40 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_until(view, fn _html -> not has_element?(view, friend_card()) end)
     end
 
+    test "Hide takes a friend off the tab and the feed; the hidden group shows them again", %{
+      conn: conn
+    } do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      movie = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"})
+      {:ok, _review} = Activities.ingest(signed(:review, movie, text: "words"))
+      {:ok, view, _html} = live(conn, "/social/friends")
+
+      view |> element(friend_card()) |> render_click()
+      view |> element(friend_card() <> " footer button", "Hide") |> render_click()
+      render_until(view, fn _html -> not has_element?(view, friend_card()) end)
+      assert has_element?(view, "#friends-hidden [data-component='hidden-person-row']", "Sample Friend")
+
+      {:ok, feed, _html} = live(conn, "/social")
+      refute has_element?(feed, "[data-component='feed-row']")
+
+      view |> element("#friends-hidden button", "Show") |> render_click()
+      render_until(view, fn _html -> has_element?(view, friend_card()) end)
+      refute has_element?(view, "#friends-hidden")
+    end
+
+    test "a member's card names the relay and offers Hide, not Remove friend", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+      :ok = Social.note_member("wss://group.example", @friend_pubkey)
+      {:ok, view, _html} = live(conn, "/social/friends")
+
+      view |> element(friend_card()) |> render_click()
+      assert has_element?(view, friend_card() <> " footer", "on group.example")
+      assert has_element?(view, friend_card() <> " footer button", "Hide")
+      refute has_element?(view, friend_card() <> " footer button", "Remove friend")
+    end
+
     test "a friend's card is their acts as posters under act slots; a poster opens the newest act; an opened row opens the act",
          %{conn: conn} do
       Identity.ensure()
