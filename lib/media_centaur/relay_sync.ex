@@ -22,7 +22,10 @@ defmodule MediaCentaur.RelaySync do
       page that followed a full one, re-issue `"feed"` live (no `until`)
       so new events keep arriving. A short page completes the read:
       `Social.sweep_members/2` with the connect time forgets the members
-      the relay no longer serves.
+      the relay no longer serves. The live subscription's own EOSE
+      neither pages nor sweeps — it carries `limit` too, so on a relay
+      holding a full page it comes back full, and paging it again would
+      never end.
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
       event it did not send — activities of live rows, deletions of
       withdrawn ones, the reader's profile. A per-relay diff, not a
@@ -34,7 +37,8 @@ defmodule MediaCentaur.RelaySync do
       row's last error.
 
   Consumes `social:updates`: a roster change or a relay's follow rule
-  change re-issues `"feed"` on every connected relay.
+  change re-issues `"feed"` on every connected relay — a fresh read, so
+  the connect time moves to now and the sweep at its end is against it.
 
   Every connect reads the relay from the start: no `since` cursor. A relay
   holds one record per signer per title (contract Deletion rule 3), so a
@@ -43,12 +47,15 @@ defmodule MediaCentaur.RelaySync do
   a withdrawal made offline. Re-reading is idempotent: ingest ignores
   what is not newer than the row.
 
-  On reconnect, `Connections.Owner` also re-applies the relay's
-  previously-registered subscriptions (its own job, independent of this
-  module), so `"feed"` and `"own:<url>"` each go out twice — this is
-  harmless (relays de-duplicate identical subs, and `seen` resets on
-  `:connected` here so the own-events diff still lands right) and left
-  alone rather than adding a seam to suppress one of the two senders.
+  On a socket-level reconnect, `Nostr.Connection` also re-applies its
+  stored subscriptions (its own job, independent of this module), so
+  `"feed"` and `"own:<url>"` each go out twice — this is harmless
+  (relays de-duplicate identical subs, and `seen` resets on `:connected`
+  here so the own-events diff still lands right) and left alone rather
+  than adding a seam to suppress one of the two senders. The sweep
+  therefore also runs twice per reconnect, which is safe: the stored
+  live filter serves the same member set, so the second sweep finds
+  nothing stale.
 
   Paging steps `until` back by one second, so more than `page_limit`
   events sharing one second lose the excess; the alternative is an
@@ -74,7 +81,7 @@ defmodule MediaCentaur.RelaySync do
 
   defmodule Page do
     @moduledoc false
-    defstruct count: 0, oldest: nil, paging?: false
+    defstruct count: 0, oldest: nil, paging?: false, live?: false
   end
 
   defstruct seen: %{}, pages: %{}, connected: %{}, page_limit: @default_page_limit
@@ -153,9 +160,9 @@ defmodule MediaCentaur.RelaySync do
 
   # --- feed paging ---------------------------------------------------------
 
-  defp subscribe_feed(state, url, until, paging?) do
+  defp subscribe_feed(state, url, until, paging?, live? \\ false) do
     Connections.subscribe(url, @feed, [feed_filter(url, until, state.page_limit)])
-    put_in(state, [Access.key(:pages), url], %Page{paging?: paging?})
+    put_in(state, [Access.key(:pages), url], %Page{paging?: paging?, live?: live?})
   end
 
   defp note_page_event(state, url, event) do
@@ -170,11 +177,14 @@ defmodule MediaCentaur.RelaySync do
 
   defp next_page(state, url) do
     case Map.get(state.pages, url) do
+      %Page{live?: true} ->
+        state
+
       %Page{count: count, oldest: oldest} when count >= state.page_limit and is_integer(oldest) ->
         subscribe_feed(state, url, oldest - 1, true)
 
       %Page{paging?: true} ->
-        state |> sweep(url) |> subscribe_feed(url, nil, false)
+        state |> sweep(url) |> subscribe_feed(url, nil, false, true)
 
       _short_first_page_or_unknown ->
         sweep(state, url)
@@ -193,10 +203,16 @@ defmodule MediaCentaur.RelaySync do
     state
   end
 
+  # A re-read is a full read: the connect time moves to now so the sweep
+  # at its end forgets what this read did not see.
   defp resubscribe(state) do
     Connections.status()
     |> Enum.filter(fn {_url, entry} -> Connections.connected?(entry) end)
-    |> Enum.reduce(state, fn {url, _entry}, acc -> subscribe_feed(acc, url, nil, false) end)
+    |> Enum.reduce(state, fn {url, _entry}, acc ->
+      acc
+      |> put_in([Access.key(:connected), url], DateTime.utc_now())
+      |> subscribe_feed(url, nil, false)
+    end)
   end
 
   # --- own events ------------------------------------------------------------
