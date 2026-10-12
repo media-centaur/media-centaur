@@ -27,3 +27,5 @@ Chosen option: one read model, one loop above both contexts.
 * Good, because the context named for content no longer carries the transport loop.
 * Bad, because a fifth social context exists for one GenServer and its tests.
 * Bad, because three component contracts and their stories, and five stories that build activity rows, are rewritten in the same change (MC0009).
+
+**Amendment 2026-10-12.** `Social.Friend` (`friends`) became `Social.Contact` (`contacts`) with the relay follow rule: one row per key the reader has a view of, a friend when `added_at` is set, with the reader's overrides and `hidden`; `Social.RelayMember` records the keys followed through a members-rule relay, and `Social.people/0` builds every followed key (`Social.followed_key?/1` is the one ingest gate). `FriendChanged` became `ContactChanged`; `RelayChanged` and `MembersChanged` were added. Design: `docs/superpowers/specs/2026-10-12-relay-follow-rule-design.md`.
