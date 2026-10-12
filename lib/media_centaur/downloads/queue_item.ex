@@ -57,7 +57,12 @@ defmodule MediaCentaur.Downloads.QueueItem do
     # render-hot pairing in `QueueMatcher.match/2` reads `Map.get/2`
     # instead of running `String.downcase/1` + a regex over every queue
     # item on every render.
-    :normalized_title
+    :normalized_title,
+    # SABnzbd's `action_line` on a history slot — the live text of the
+    # post-processing stage ("Unpacking: 45%", "Verifying: 12/56"). Nil for
+    # live-queue slots, torrents, and completed jobs (SABnzbd blanks it).
+    # `Downloads.Phase` parses the figure out of it.
+    :stage_line
   ]
 
   @type state ::
@@ -89,7 +94,8 @@ defmodule MediaCentaur.Downloads.QueueItem do
           health: MediaCentaur.Downloads.Health.status() | nil,
           failure_message: String.t() | nil,
           content_path: String.t() | nil,
-          normalized_title: String.t() | nil
+          normalized_title: String.t() | nil,
+          stage_line: String.t() | nil
         }
 
   @qbit_infinite_eta 8_640_000
@@ -130,7 +136,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
   """
   @spec from_sabnzbd_queue(map()) :: t()
   def from_sabnzbd_queue(raw) when is_map(raw) do
-    title = raw["filename"] || ""
+    title = title_from_sabnzbd(raw["filename"], raw["status"])
 
     %__MODULE__{
       id: raw["nzo_id"],
@@ -143,7 +149,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
       size: megabytes_to_bytes(raw["mb"]),
       size_left: megabytes_to_bytes(raw["mbleft"]),
       progress: parse_progress_percent(raw["percentage"]),
-      timeleft: blank_to_nil(raw["timeleft"]),
+      timeleft: timeleft_from_sabnzbd(raw["timeleft"]),
       normalized_title: normalize_title(title)
     }
   end
@@ -176,6 +182,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
       progress: if(state == :completed, do: 100.0),
       failure_message: if(state == :error, do: blank_to_nil(raw["fail_message"])),
       content_path: if(state == :completed, do: blank_to_nil(raw["storage"])),
+      stage_line: blank_to_nil(raw["action_line"]),
       normalized_title: normalize_title(title)
     }
   end
@@ -248,6 +255,20 @@ defmodule MediaCentaur.Downloads.QueueItem do
 
   defp title_from_qbittorrent(name, _hash) when is_binary(name), do: name
   defp title_from_qbittorrent(_name, _hash), do: ""
+
+  # While SABnzbd is fetching the NZB it names the slot after the URL it is
+  # fetching — "Trying to fetch NZB from https://…&apikey=…". That is an
+  # unnamed job: the URL is meaningless as a title and carries the indexer
+  # key, so it never reaches a view-model. Same placeholder rule as a
+  # qBittorrent torrent before its metadata arrives.
+  defp title_from_sabnzbd(_filename, "Grabbing"), do: "Fetching NZB…"
+  defp title_from_sabnzbd(filename, _status) when is_binary(filename), do: filename
+  defp title_from_sabnzbd(_filename, _status), do: ""
+
+  # SABnzbd reports "0:00:00" for a job with nothing to estimate (grabbing,
+  # queued, paused). A zero clock is the absence of an ETA, not an ETA.
+  defp timeleft_from_sabnzbd("0:00:00"), do: nil
+  defp timeleft_from_sabnzbd(value), do: blank_to_nil(value)
 
   defp state_from_qbittorrent(state)
        when state in ~w(downloading metaDL forcedDL allocating checkingResumeData checkingDL),
