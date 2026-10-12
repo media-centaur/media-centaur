@@ -61,7 +61,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :context,
     available_actions: [],
     downloads: [],
-    downloads_done: 0,
     search_queries: []
   ]
 
@@ -80,7 +79,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           next_step: NextStep.t() | nil,
           download: DownloadProgress.t() | nil,
           downloads: [%{download: DownloadProgress.t(), release_title: String.t() | nil}],
-          downloads_done: non_neg_integer(),
           staleness: staleness(),
           last_activity_at: DateTime.t() | nil,
           available_actions: [action()],
@@ -525,10 +523,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   count — and a multi-file "Downloading" header aggregates ("N of M
   finished • From <client>") instead of narrating one file's telemetry.
   Single-download pursuits keep their per-file description; non-download
-  verbs are never rewritten. Returns `{action, active_entries, done}`.
+  verbs are never rewritten. Returns `{action, active_entries}`.
   """
   @spec compose_downloads(CurrentAction.t(), [map()]) ::
-          {CurrentAction.t(), [map()], non_neg_integer()}
+          {CurrentAction.t(), [map()]}
   def compose_downloads(%CurrentAction{} = action, downloads) when is_list(downloads) do
     {done, active} = Enum.split_with(downloads, &finished_entry?/1)
     total = length(downloads)
@@ -540,7 +538,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         action
       end
 
-    {action, active, length(done)}
+    {action, active}
   end
 
   defp finished_entry?(%{download: download}), do: DownloadProgress.finished?(download)
