@@ -4552,7 +4552,7 @@
             {
               "name": "name",
               "reads": {
-                "web": 7
+                "web": 6
               },
               "type": ":string",
               "values": null,
@@ -4564,7 +4564,8 @@
             {
               "name": "hue",
               "reads": {
-                "web": 3
+                "MediaCentaur.Profiles": 1,
+                "web": 4
               },
               "type": ":integer",
               "values": null,
@@ -5415,12 +5416,23 @@
             {
               "name": "pubkey",
               "reads": {
-                "MediaCentaur.Social": 36
+                "MediaCentaur.Social": 48
               },
               "type": ":string",
               "values": null,
               "writes": {
+                "MediaCentaur.Social": 11
+              }
+            },
+            {
+              "name": "added_at",
+              "reads": {
                 "MediaCentaur.Social": 8
+              },
+              "type": ":utc_datetime",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Social": 4
               }
             },
             {
@@ -5431,7 +5443,7 @@
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Social": 3
+                "MediaCentaur.Social": 4
               }
             },
             {
@@ -5455,6 +5467,17 @@
               "writes": {
                 "MediaCentaur.Social": 2
               }
+            },
+            {
+              "name": "hidden",
+              "reads": {
+                "MediaCentaur.Social": 2
+              },
+              "type": ":boolean",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Social": 2
+              }
             }
           ],
           "file": "lib/media_centaur/social/contact.ex",
@@ -5467,12 +5490,12 @@
             {
               "name": "pubkey",
               "reads": {
-                "MediaCentaur.Social": 36
+                "MediaCentaur.Social": 48
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Social": 8
+                "MediaCentaur.Social": 11
               }
             },
             {
@@ -5537,18 +5560,83 @@
             {
               "name": "url",
               "reads": {
-                "MediaCentaur.Social": 6
+                "MediaCentaur.Social": 10,
+                "web": 8
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Social": 3
+                "MediaCentaur.Social": 6
+              }
+            },
+            {
+              "name": "follow",
+              "reads": {
+                "MediaCentaur.RelaySync": 1,
+                "MediaCentaur.Social": 6,
+                "web": 2
+              },
+              "type": "Ecto.Enum",
+              "values": [
+                "members",
+                "added"
+              ],
+              "writes": {
+                "MediaCentaur.Social": 2
               }
             }
           ],
           "file": "lib/media_centaur/social/relay.ex",
           "module": "MediaCentaur.Social.Relay",
           "table": "relays"
+        },
+        {
+          "associations": [
+            {
+              "foreign_key": "relay_id",
+              "kind": "belongs_to",
+              "name": "relay",
+              "target": "MediaCentaur.Social.Relay"
+            }
+          ],
+          "fields": [
+            {
+              "name": "relay_id",
+              "reads": {
+                "MediaCentaur.Social": 4
+              },
+              "type": "Ecto.UUID",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Social": 1
+              }
+            },
+            {
+              "name": "pubkey",
+              "reads": {
+                "MediaCentaur.Social": 48
+              },
+              "type": ":string",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Social": 11
+              }
+            },
+            {
+              "name": "seen_at",
+              "reads": {
+                "MediaCentaur.Social": 2
+              },
+              "type": ":utc_datetime_usec",
+              "values": null,
+              "writes": {
+                "MediaCentaur.Social": 1
+              }
+            }
+          ],
+          "file": "lib/media_centaur/social/relay_member.ex",
+          "module": "MediaCentaur.Social.RelayMember",
+          "table": "relay_members"
         }
       ]
     },
@@ -7830,28 +7918,6 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Profiles.Profile|hue||*",
-      "consumer": null,
-      "consumer_context": "MediaCentaur.Profiles",
-      "detail": {
-        "kind": "owner_never_reads"
-      },
-      "excerpt": "field :hue, :integer",
-      "field": "hue",
-      "file": "lib/media_centaur/profiles/profile.ex",
-      "key": "R1|MediaCentaur.Profiles.Profile|hue||owner_never_reads:MediaCentaur.Profiles",
-      "line": 22,
-      "owner": "MediaCentaur.Profiles",
-      "reason": null,
-      "rule": "R1",
-      "schema": "MediaCentaur.Profiles.Profile",
-      "surfaces": [],
-      "value": null,
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": true,
       "concept_key": "R1|MediaCentaur.Profiles.Profile|name||*",
       "consumer": "MediaCentaurWeb.SettingsLive",
       "consumer_context": "web",
@@ -7886,7 +7952,7 @@
       "field": "name",
       "file": "lib/media_centaur/profiles/profile.ex",
       "key": "R1|MediaCentaur.Profiles.Profile|name||owner_never_reads:MediaCentaur.Profiles",
-      "line": 21,
+      "line": 22,
       "owner": "MediaCentaur.Profiles",
       "reason": null,
       "rule": "R1",
@@ -8534,7 +8600,7 @@
       "field": "media_type",
       "file": "lib/media_centaur/activities.ex",
       "key": "R1|MediaCentaur.TMDB.Title|media_type||foreign_write:MediaCentaur.Activities",
-      "line": 119,
+      "line": 123,
       "owner": "MediaCentaur.TMDB",
       "reason": null,
       "rule": "R1",
@@ -8844,7 +8910,7 @@
       "field": "tmdb_id",
       "file": "lib/media_centaur/activities.ex",
       "key": "R1|MediaCentaur.TMDB.Title|tmdb_id||foreign_write:MediaCentaur.Activities",
-      "line": 119,
+      "line": 123,
       "owner": "MediaCentaur.TMDB",
       "reason": null,
       "rule": "R1",
@@ -9144,7 +9210,7 @@
       "field": "media_type",
       "file": "lib/media_centaur/activities.ex",
       "key": "R1|MediaCentaur.Watchlist.TitleIntent|media_type||foreign_write:MediaCentaur.Activities",
-      "line": 119,
+      "line": 123,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R1",
@@ -9311,7 +9377,7 @@
       "field": "tmdb_id",
       "file": "lib/media_centaur/activities.ex",
       "key": "R1|MediaCentaur.Watchlist.TitleIntent|tmdb_id||foreign_write:MediaCentaur.Activities",
-      "line": 119,
+      "line": 123,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R1",
@@ -9353,7 +9419,7 @@
       "field": "kind",
       "file": "lib/media_centaur/relay_sync.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|listing|MediaCentaur.RelaySync",
-      "line": 183,
+      "line": 222,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -9651,7 +9717,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|listing|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 47,
+      "line": 48,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -9673,7 +9739,7 @@
       "field": "kind",
       "file": "lib/media_centaur/relay_sync.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|review|MediaCentaur.RelaySync",
-      "line": 181,
+      "line": 220,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10310,7 +10376,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/social_live.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|review|MediaCentaurWeb.SocialLive",
-      "line": 196,
+      "line": 206,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10382,7 +10448,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|review|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 47,
+      "line": 48,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10404,7 +10470,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|review|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 145,
+      "line": 146,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10426,7 +10492,7 @@
       "field": "kind",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|review|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 146,
+      "line": 147,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -10488,7 +10554,7 @@
       "field": "kind",
       "file": "lib/media_centaur/relay_sync.ex",
       "key": "R3|MediaCentaur.Activities.Activity|kind|watched|MediaCentaur.RelaySync",
-      "line": 182,
+      "line": 221,
       "owner": "MediaCentaur.Activities",
       "reason": null,
       "rule": "R3",
@@ -13915,6 +13981,26 @@
     },
     {
       "anchored": true,
+      "concept_key": "R3|MediaCentaur.Social.Relay|follow|members|*",
+      "consumer": "MediaCentaur.RelaySync",
+      "consumer_context": "MediaCentaur.RelaySync",
+      "detail": null,
+      "excerpt": "%{follow: :members} ->",
+      "field": "follow",
+      "file": "lib/media_centaur/relay_sync.ex",
+      "key": "R3|MediaCentaur.Social.Relay|follow|members|MediaCentaur.RelaySync",
+      "line": 250,
+      "owner": "MediaCentaur.Social",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Social.Relay",
+      "surfaces": [],
+      "value": "members",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
       "concept_key": "R3|MediaCentaur.Subtitles.Track|kind|embedded|*",
       "consumer": "MediaCentaur.Library.Views.DetailItem",
       "consumer_context": "MediaCentaur.Library",
@@ -13950,6 +14036,86 @@
       "schema": "MediaCentaur.Subtitles.Track",
       "surfaces": [],
       "value": "sidecar",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "@follow_rules Ecto.Enum.values(Relay, :follow)",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaur.Social",
+      "line": 60,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "follow",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaur.Social.Relay",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "field :follow, Ecto.Enum, values: [:members, :added], default: :added",
+      "field": "rung",
+      "file": "lib/media_centaur/social/relay.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaur.Social.Relay",
+      "line": 23,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "follow",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaur.Social.Relay",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "|> cast(attrs, [:url, :follow])",
+      "field": "rung",
+      "file": "lib/media_centaur/social/relay.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaur.Social.Relay",
+      "line": 36,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "follow",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaur.Social.Relay",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "|> validate_required([:url, :follow])",
+      "field": "rung",
+      "file": "lib/media_centaur/social/relay.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaur.Social.Relay",
+      "line": 38,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "follow",
       "verdict": null,
       "verdict_key": null
     },
@@ -14149,6 +14315,28 @@
         "MediaCentaurWeb.IncomingLive",
         "MediaCentaurWeb.LibraryLive",
         "MediaCentaurWeb.SocialLive"
+      ],
+      "value": "follow",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaurWeb.SettingsLive.SocialSection",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "do: Enum.find(Ecto.Enum.values(Relay, :follow), :added, &(Atom.to_string(&1) == value))",
+      "field": "rung",
+      "file": "lib/media_centaur_web/live/settings_live/social_section.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaurWeb.SettingsLive.SocialSection",
+      "line": 367,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [
+        "MediaCentaurWeb.SettingsLive"
       ],
       "value": "follow",
       "verdict": null,
@@ -14573,7 +14761,7 @@
       "field": "rung",
       "file": "lib/media_centaur/activities.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Activities",
-      "line": 232,
+      "line": 237,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14593,7 +14781,7 @@
       "field": "rung",
       "file": "lib/media_centaur/activities.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Activities",
-      "line": 518,
+      "line": 527,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14613,7 +14801,7 @@
       "field": "rung",
       "file": "lib/media_centaur/activities.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Activities",
-      "line": 528,
+      "line": 537,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14633,7 +14821,7 @@
       "field": "rung",
       "file": "lib/media_centaur/activities.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Activities",
-      "line": 531,
+      "line": 540,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14693,7 +14881,7 @@
       "field": "rung",
       "file": "lib/media_centaur/relay_sync.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.RelaySync",
-      "line": 106,
+      "line": 123,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14713,7 +14901,7 @@
       "field": "rung",
       "file": "lib/media_centaur/social.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
-      "line": 293,
+      "line": 415,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -14733,7 +14921,107 @@
       "field": "rung",
       "file": "lib/media_centaur/social.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
-      "line": 308,
+      "line": 430,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "@spec note_member(String.t(), String.t()) :: :ok | :ignored",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
+      "line": 674,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "if pubkey == Identity.pubkey(), do: :ignored, else: record_member(relay, pubkey)",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
+      "line": 680,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": ":ignored",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
+      "line": 683,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": "@spec sweep_members(String.t(), DateTime.t()) :: :ok | :ignored",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
+      "line": 694,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaur.Social",
+      "consumer_context": "MediaCentaur.Social",
+      "detail": null,
+      "excerpt": ":ignored",
+      "field": "rung",
+      "file": "lib/media_centaur/social.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaur.Social",
+      "line": 698,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15032,7 +15320,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.SocialLive",
-      "line": 345,
+      "line": 363,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15054,7 +15342,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 130,
+      "line": 131,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15076,7 +15364,7 @@
       "field": "rung",
       "file": "lib/media_centaur/activities.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaur.Activities",
-      "line": 193,
+      "line": 197,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15448,7 +15736,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaurWeb.SocialLive",
-      "line": 305,
+      "line": 323,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15470,7 +15758,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaurWeb.SocialLive",
-      "line": 306,
+      "line": 324,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15492,7 +15780,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 159,
+      "line": 160,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -15514,7 +15802,7 @@
       "field": "rung",
       "file": "lib/media_centaur_web/live/social_live/feed_entries.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|list|MediaCentaurWeb.SocialLive.FeedEntries",
-      "line": 162,
+      "line": 163,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
