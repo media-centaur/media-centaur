@@ -1210,14 +1210,20 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("add_relay", %{"url" => url}, socket) do
-    case Social.add_relay(url) do
+  def handle_event("add_relay", %{"url" => url} = params, socket) do
+    case Social.add_relay(url, SocialSection.parse_follow(params["follow"])) do
       {:ok, _relay} ->
         {:noreply, load_relays(socket)}
 
       {:error, %Ecto.Changeset{}} ->
         {:noreply, put_flash(socket, :error, "Relay addresses start with wss:// or ws://")}
     end
+  end
+
+  # The relay row's select; an unknown URL (removed in another tab) just reloads the rows.
+  def handle_event("set_relay_follow", %{"url" => url, "follow" => follow}, socket) do
+    _result = Social.set_follow(url, SocialSection.parse_follow(follow))
+    {:noreply, load_relays(socket)}
   end
 
   def handle_event("remove_relay", %{"url" => url}, socket) do
@@ -1817,7 +1823,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      )}
   end
 
-  def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
+  def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed, :relay_changed] do
     {:noreply, load_relays(socket)}
   end
 
