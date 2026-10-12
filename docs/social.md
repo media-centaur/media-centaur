@@ -540,7 +540,7 @@ preference that gates the sidebar entry.
 ## Health
 
 `Social.IncidentContext` is the `assess/0` the `ErrorReports.Evaluator` polls
-(ADR-054), owning one `:subsystem` incident for the `friends` component. Its
+(ADR-054), owning one `:subsystem` incident for the `social` component. Its
 faults are `:relay_auth_failed` (error, no grace), `:relays_unreachable` (error,
 after a 180 s grace) and `:relay_degraded` (warning). No relays configured is
 never a fault. The decision is the pure `decide/3`; `assess/0` is the shell.
