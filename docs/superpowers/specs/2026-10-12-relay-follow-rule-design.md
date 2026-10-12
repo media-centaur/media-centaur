@@ -1,6 +1,6 @@
 # Relay follow rule — design
 
-Status: proposed, 2026-10-12. Supersedes one line of
+Status: implemented (see docs/superpowers/plans/2026-10-12-relay-follow-rule.md). Supersedes one line of
 [`2026-09-02-friends-recommendations-design.md`](2026-09-02-friends-recommendations-design.md):
 "The app treats both [a private relay and a public relay] identically." It
 no longer does.
