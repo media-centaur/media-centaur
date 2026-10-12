@@ -28,6 +28,20 @@ defmodule MediaCentaur.Social.Events do
     @type t :: %__MODULE__{url: String.t()}
   end
 
+  defmodule RelayChanged do
+    @moduledoc "A relay's follow rule changed."
+    @enforce_keys [:url]
+    defstruct [:url]
+    @type t :: %__MODULE__{url: String.t()}
+  end
+
+  defmodule MembersChanged do
+    @moduledoc "A members-rule relay's observed members changed: a key was seen on it for the first time, or a read ended without one."
+    @enforce_keys [:url]
+    defstruct [:url]
+    @type t :: %__MODULE__{url: String.t()}
+  end
+
   defmodule FriendAdded do
     @moduledoc "A public key joined the roster."
     @enforce_keys [:pubkey]
@@ -35,8 +49,8 @@ defmodule MediaCentaur.Social.Events do
     @type t :: %__MODULE__{pubkey: String.t()}
   end
 
-  defmodule FriendChanged do
-    @moduledoc "The reader's choices for a roster key changed: the name override or the avatar switch."
+  defmodule ContactChanged do
+    @moduledoc "The reader's choices for a contact changed: the name override, the avatar switch, the hue override or hidden."
     @enforce_keys [:pubkey]
     defstruct [:pubkey]
     @type t :: %__MODULE__{pubkey: String.t()}
@@ -60,8 +74,10 @@ defmodule MediaCentaur.Social.Events do
           IdentityChanged.t()
           | RelayAdded.t()
           | RelayRemoved.t()
+          | RelayChanged.t()
+          | MembersChanged.t()
           | FriendAdded.t()
-          | FriendChanged.t()
+          | ContactChanged.t()
           | FriendRemoved.t()
           | ProfileUpdated.t()
 
@@ -69,8 +85,10 @@ defmodule MediaCentaur.Social.Events do
   def broadcast(%IdentityChanged{} = event), do: publish({:identity_changed, event})
   def broadcast(%RelayAdded{} = event), do: publish({:relay_added, event})
   def broadcast(%RelayRemoved{} = event), do: publish({:relay_removed, event})
+  def broadcast(%RelayChanged{} = event), do: publish({:relay_changed, event})
+  def broadcast(%MembersChanged{} = event), do: publish({:members_changed, event})
   def broadcast(%FriendAdded{} = event), do: publish({:friend_added, event})
-  def broadcast(%FriendChanged{} = event), do: publish({:friend_changed, event})
+  def broadcast(%ContactChanged{} = event), do: publish({:contact_changed, event})
   def broadcast(%FriendRemoved{} = event), do: publish({:friend_removed, event})
   def broadcast(%ProfileUpdated{} = event), do: publish({:profile_updated, event})
 

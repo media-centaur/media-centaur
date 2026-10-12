@@ -231,12 +231,12 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element(switch) |> render_click()
       assert has_element?(view, tile <> "[data-mark='letter']")
       assert has_element?(view, switch <> "[aria-checked='false']")
-      assert %{show_avatar: false} = Social.friend_by_pubkey(@friend_pubkey)
+      assert %{show_avatar: false} = Social.contact_by_pubkey(@friend_pubkey)
 
       view |> element(switch) |> render_click()
       assert has_element?(view, tile <> "[data-mark='avatar']")
       assert has_element?(view, switch <> "[aria-checked='true']")
-      assert %{show_avatar: true} = Social.friend_by_pubkey(@friend_pubkey)
+      assert %{show_avatar: true} = Social.contact_by_pubkey(@friend_pubkey)
     end
 
     test "the foot's Colour row saves on the act: a swatch overrides the published hue, Theirs clears it, the slider sets any angle",
@@ -254,15 +254,15 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element(form <> " button[data-hue='195']") |> render_click()
       assert has_element?(view, tile <> "[data-hue='195']")
-      assert %{hue_override: 195} = Social.friend_by_pubkey(@friend_pubkey)
+      assert %{hue_override: 195} = Social.contact_by_pubkey(@friend_pubkey)
 
       view |> form(form, %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
       assert has_element?(view, tile <> "[data-hue='100']")
-      assert %{hue_override: 100} = Social.friend_by_pubkey(@friend_pubkey)
+      assert %{hue_override: 100} = Social.contact_by_pubkey(@friend_pubkey)
 
       view |> element(form <> " button[data-role='theirs']") |> render_click()
       assert has_element?(view, tile <> "[data-hue='12']")
-      assert %{hue_override: nil} = Social.friend_by_pubkey(@friend_pubkey)
+      assert %{hue_override: nil} = Social.contact_by_pubkey(@friend_pubkey)
     end
 
     test "refuses a bad key and your own key with flashes", %{conn: conn} do

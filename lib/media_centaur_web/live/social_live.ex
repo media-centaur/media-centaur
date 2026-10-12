@@ -218,7 +218,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # --- the roster: the add form and the opened card's foot ---
   #
   # None of these reloads the people on success. `Social` broadcasts the
-  # change (`FriendAdded`, `FriendChanged`, `FriendRemoved`) over local
+  # change (`FriendAdded`, `ContactChanged`, `FriendRemoved`) over local
   # PubSub, synchronously, so the message is in this LiveView's mailbox
   # before the handler returns, and the `@people_tags` `handle_info` does
   # the one reload — the same path a change from another tab takes. A
@@ -382,7 +382,7 @@ defmodule MediaCentaurWeb.SocialLive do
     {:noreply, load_activities(socket)}
   end
 
-  @people_tags [:friend_added, :friend_removed, :friend_changed, :identity_changed, :profile_updated]
+  @people_tags [:friend_added, :friend_removed, :contact_changed, :identity_changed, :profile_updated]
 
   # The roster, the identity or a published name changed: the people are
   # reread and the rows redrawn under them.

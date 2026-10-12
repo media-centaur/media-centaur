@@ -3,27 +3,30 @@ defmodule MediaCentaur.Social do
     deps: [MediaCentaur.ErrorReports, MediaCentaur.Nostr],
     exports: [
       Connections,
+      Contact,
       Events,
+      Events.ContactChanged,
       Events.FriendAdded,
-      Events.FriendChanged,
       Events.FriendRemoved,
       Events.IdentityChanged,
+      Events.MembersChanged,
       Events.ProfileUpdated,
       Events.RelayAdded,
+      Events.RelayChanged,
       Events.RelayRemoved,
-      Friend,
       Identity,
       Person,
       Profile,
       Profile.Translation,
-      Relay
+      Relay,
+      RelayMember
     ]
 
   @moduledoc """
   Bounded context for the friend network's configuration: this install's
   identity (`Social.Identity`), the relay list (`Social.Relay`), the
   live connections keyed by it (`Social.Connections`) and the roster of
-  followed keys, each under an optional name of the reader's (`Social.Friend`),
+  followed keys, each under an optional name of the reader's (`Social.Contact`),
   and each key's published profile (`Social.Profile`), saved by the
   reader for their own key and ingested for a friend's.
   `people/0` reads the identity and the roster as `Social.Person`, the
@@ -40,7 +43,7 @@ defmodule MediaCentaur.Social do
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
-  alias MediaCentaur.Social.Friend
+  alias MediaCentaur.Social.Contact
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
   alias MediaCentaur.Social.Profile
@@ -97,12 +100,12 @@ defmodule MediaCentaur.Social do
   `set_name_override/2`.
   """
   @spec add_friend(String.t(), String.t() | nil) ::
-          {:ok, Friend.t()} | {:error, :invalid_pubkey | :own_key | Ecto.Changeset.t()}
+          {:ok, Contact.t()} | {:error, :invalid_pubkey | :own_key | Ecto.Changeset.t()}
   def add_friend(key, name \\ nil) when is_binary(key) and (is_binary(name) or is_nil(name)) do
     with {:ok, pubkey} <- Keys.parse_pubkey(String.trim(key)),
          :ok <- not_own_key(pubkey) do
-      case Repo.get_by(Friend, pubkey: pubkey) do
-        %Friend{} = existing -> {:ok, existing}
+      case Repo.get_by(Contact, pubkey: pubkey) do
+        %Contact{} = existing -> {:ok, existing}
         nil -> insert_friend(pubkey, name)
       end
     end
@@ -111,18 +114,18 @@ defmodule MediaCentaur.Social do
   @doc """
   Sets the reader's optional name for a friend; nil or blank clears it,
   and the published name, else Unnamed, stands in. Broadcasts
-  `FriendChanged` when it changed; the same name again is silent.
+  `ContactChanged` when it changed; the same name again is silent.
   """
   @spec set_name_override(String.t(), String.t() | nil) ::
-          {:ok, Friend.t()} | {:error, :not_a_friend}
+          {:ok, Contact.t()} | {:error, :not_a_friend}
   def set_name_override(pubkey, name) when is_binary(pubkey) and (is_binary(name) or is_nil(name)) do
     with {:ok, friend} <- known_friend(pubkey) do
       apply_change(friend, %{name_override: name})
     end
   end
 
-  @doc "Shows or hides a friend's avatar for this reader. Broadcasts `FriendChanged` when it flipped."
-  @spec set_show_avatar(String.t(), boolean()) :: {:ok, Friend.t()} | {:error, :not_a_friend}
+  @doc "Shows or hides a friend's avatar for this reader. Broadcasts `ContactChanged` when it flipped."
+  @spec set_show_avatar(String.t(), boolean()) :: {:ok, Contact.t()} | {:error, :not_a_friend}
   def set_show_avatar(pubkey, show?) when is_binary(pubkey) and is_boolean(show?) do
     with {:ok, friend} <- known_friend(pubkey), do: apply_change(friend, %{show_avatar: show?})
   end
@@ -130,10 +133,10 @@ defmodule MediaCentaur.Social do
   @doc """
   Sets the reader's hue for a friend (UIDR-048), masking the one the
   friend published; nil clears it and the published hue, else the
-  default, stands in. Broadcasts `FriendChanged` when it changed.
+  default, stands in. Broadcasts `ContactChanged` when it changed.
   """
   @spec set_hue_override(String.t(), Hue.t() | nil) ::
-          {:ok, Friend.t()} | {:error, :not_a_friend | :invalid_hue}
+          {:ok, Contact.t()} | {:error, :not_a_friend | :invalid_hue}
   def set_hue_override(pubkey, hue) when is_binary(pubkey) do
     with :ok <- valid_hue(hue),
          {:ok, friend} <- known_friend(pubkey) do
@@ -144,7 +147,7 @@ defmodule MediaCentaur.Social do
   @doc "Removes a friend by public key. Absent is a no-op, and broadcasts nothing."
   @spec remove_friend(String.t()) :: :ok
   def remove_friend(pubkey) when is_binary(pubkey) do
-    case Repo.get_by(Friend, pubkey: String.downcase(pubkey)) do
+    case Repo.get_by(Contact, pubkey: String.downcase(pubkey)) do
       nil ->
         :ok
 
@@ -157,13 +160,13 @@ defmodule MediaCentaur.Social do
   end
 
   @doc "The roster, oldest first."
-  @spec list_friends() :: [Friend.t()]
-  def list_friends, do: Repo.all(from(friend in Friend, order_by: [friend.inserted_at, friend.pubkey]))
+  @spec list_friends() :: [Contact.t()]
+  def list_friends, do: Repo.all(from(friend in Contact, order_by: [friend.inserted_at, friend.pubkey]))
 
   @doc "One friend by public key, or nil."
-  @spec friend_by_pubkey(String.t()) :: Friend.t() | nil
-  def friend_by_pubkey(pubkey) when is_binary(pubkey),
-    do: Repo.get_by(Friend, pubkey: String.downcase(pubkey))
+  @spec contact_by_pubkey(String.t()) :: Contact.t() | nil
+  def contact_by_pubkey(pubkey) when is_binary(pubkey),
+    do: Repo.get_by(Contact, pubkey: String.downcase(pubkey))
 
   @doc """
   The NIP-19 `npub` form of a public key. The context owns the key
@@ -175,13 +178,13 @@ defmodule MediaCentaur.Social do
   @doc "Every followed pubkey — the authors the activities feed subscribes to."
   @spec friend_pubkeys() :: [String.t()]
   def friend_pubkeys,
-    do: Repo.all(from(friend in Friend, select: friend.pubkey, order_by: friend.pubkey))
+    do: Repo.all(from(friend in Contact, select: friend.pubkey, order_by: friend.pubkey))
 
   @doc "Whether a public key is this identity's or on the roster: the keys whose events a reader keeps. Hex in any case."
   @spec known_key?(String.t()) :: boolean()
   def known_key?(pubkey) when is_binary(pubkey) do
     pubkey = String.downcase(pubkey)
-    pubkey == Identity.pubkey() or friend_by_pubkey(pubkey) != nil
+    pubkey == Identity.pubkey() or contact_by_pubkey(pubkey) != nil
   end
 
   @doc """
@@ -425,7 +428,7 @@ defmodule MediaCentaur.Social do
     }
   end
 
-  defp person_for(%Friend{} = friend, profile) do
+  defp person_for(%Contact{} = friend, profile) do
     %Person{
       pubkey: friend.pubkey,
       name_override: friend.name_override,
@@ -451,14 +454,14 @@ defmodule MediaCentaur.Social do
   defp valid_hue(hue), do: if(Hue.valid?(hue), do: :ok, else: {:error, :invalid_hue})
 
   defp known_friend(pubkey) do
-    case friend_by_pubkey(pubkey) do
+    case contact_by_pubkey(pubkey) do
       nil -> {:error, :not_a_friend}
       friend -> {:ok, friend}
     end
   end
 
   defp insert_friend(pubkey, name) do
-    case Repo.insert(Friend.changeset(%{pubkey: pubkey, name_override: name})) do
+    case Repo.insert(Contact.changeset(%{pubkey: pubkey, name_override: name})) do
       {:ok, friend} ->
         Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
         {:ok, friend}
@@ -466,7 +469,7 @@ defmodule MediaCentaur.Social do
       {:error, changeset} ->
         # A concurrent insert of the same key is the re-add case, not a failure.
         if unique_violation?(changeset),
-          do: {:ok, Repo.get_by!(Friend, pubkey: pubkey)},
+          do: {:ok, Repo.get_by!(Contact, pubkey: pubkey)},
           else: {:error, changeset}
     end
   end
@@ -474,14 +477,14 @@ defmodule MediaCentaur.Social do
   # No change is no broadcast. The changeset cannot fail here: the name
   # is optional, the switch is a boolean by guard, the hue is checked by
   # `valid_hue/1` and the key is unchanged, so a failure is a bug.
-  defp apply_change(%Friend{} = existing, attrs) do
-    changeset = Friend.changeset(existing, attrs)
+  defp apply_change(%Contact{} = existing, attrs) do
+    changeset = Contact.changeset(existing, attrs)
 
     if changeset.changes == %{} do
       {:ok, existing}
     else
       friend = Repo.update!(changeset)
-      Events.broadcast(%Events.FriendChanged{pubkey: friend.pubkey})
+      Events.broadcast(%Events.ContactChanged{pubkey: friend.pubkey})
       {:ok, friend}
     end
   end
