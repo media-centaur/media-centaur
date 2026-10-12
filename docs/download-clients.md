@@ -23,7 +23,8 @@ MC's drivers exist for the *queue view*, in-app cancel, and pursuit matching.
 | Drivers | `DownloadClient.QBittorrent` (torrent), `DownloadClient.SABnzbd` (usenet) |
 | Merged polling, per-slot connectivity | `Downloads.QueueMonitor`, `Downloads.QueueState` |
 | Per-slot readiness gating | `MediaCentaur.Capabilities` (`client_ready?/1`; subjects `:download_client`, `:usenet_download_client`) |
-| Client-neutral queue entry | `Downloads.QueueItem` (protocol tag, state enum, `failure_message`, `content_path`) |
+| Client-neutral queue entry | `Downloads.QueueItem` (protocol tag, state enum, `failure_message`, `content_path`, SABnzbd's post-processing `stage_line`) |
+| Phase projection | `Downloads.Phase` — a job's step on its protocol's ladder (usenet: fetch, download, verify, repair while it happens, unpack, move, done; torrent: metadata, download, done), the condition on it (queued, paused, stalled, failed) and the figure through the step; the one place the ladder is known. Pure, never stored. Every surface draws a job from it through `Components.Acquisition.DownloadStrip`. |
 
 Config storage is flat keys in the Settings DB, set in-app only (never TOML —
 credentials must not land in dotfiles or backups): `download_client_*` is the
