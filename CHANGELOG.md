@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.57.0 — 2026-10-13
+
+### New
+
+- **Every download on Incoming is drawn by where it is.** A usenet download shows its steps — fetch, download, verify, repair, unpack, move, done — and a torrent shows metadata, download, done. Finished steps are filled, the current one is lit, and the step's word sits beside a thin bar: a real fraction when your download client reports one, a moving highlight while it is working without a figure, so unpacking and moving no longer look stuck.
+
+### Improved
+
+- **Post-processing shows progress.** While SABnzbd verifies, repairs, unpacks or moves a download, the row and the pursuit card read the stage and its figure, for example *Unpacking · 45%*, instead of a bare state beside a filename.
+- **One drawing of a download everywhere.** The pursuit row, **Other downloads** and the pursuit card now draw the same strip, so a download looks the same wherever you meet it.
+
+### Fixed
+
+- **A download SABnzbd is still fetching no longer shows a URL.** It reads *Fetching NZB…* until SABnzbd names it; the indexer link and its key never appear on the page.
+- **No more "0:00:00" time left.** A download with nothing to estimate shows no time instead of a zero clock.
+
 ## v1.56.0 — 2026-10-12
 
 ### New
