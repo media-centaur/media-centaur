@@ -1,6 +1,13 @@
 # Download phases — design
 
 Status: approved 2026-10-12, the coherent path with both extensions below.
+*Amended 2026-10-13:* only the strip (plan 1) shipped. The grab change
+(plan 2, "identity at grab") was built in full on branch `app-owned-grabs`,
+verified live, and withdrawn by the owner as too much re-engineering of
+the grab path for a visual aim; see `campaigns/download-phases.md`
+(Decisions made) for what was learned. The "cheap path" below is the one
+in effect: Prowlarr grabs, pairing stays by title, and a fetching job is
+hidden behind the "Fetching NZB…" placeholder.
 
 Owner decisions (2026-10-12):
 

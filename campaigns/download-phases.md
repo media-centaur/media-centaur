@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-10-12
-last_updated: 2026-10-12
+last_updated: 2026-10-13
 ---
 # Download phases and app-owned grabs
 
@@ -40,22 +40,30 @@ becomes search only.
 
 ## Status
 
-**Plan 1 built on branch `download-phases` (2026-10-12), subagent-driven,
-every task spec- and quality-reviewed; precommit clean; verified against
-a live usenet download; not merged, not shipped.** Every surface on
-Incoming draws a job through `download_strip/1` from `Downloads.Phase`;
+**Plan 1 merged to `main` at `b0843f10` (2026-10-12), not yet shipped.
+Plan 2 withdrawn by the owner on 2026-10-13: built in full on branch
+`app-owned-grabs`, exercised live, then dropped unmerged.** Every surface
+on Incoming draws a job through `download_strip/1` from `Downloads.Phase`;
 the pursuit row's footer, the Other downloads badge row and the modal's
 own bar are gone, as are `Logic.state_*` and `PursuitStatus.downloads_done`.
-Live check (owner-authorised grab of a 10.6 GB bare-MKV release, raw
-SABnzbd polled at 2 s): no Grabbing slot was ever listed (the NZB fetch
-took under 2 s), the transfer ran 91 s, then one post-processing stage —
-*Moving*, 124 s, `action_line` "Moving: <file>.mkv", no figure — then
-Completed with a blank `action_line`. The app projected `:move` with a
-nil figure (indeterminate bar) and `:done` at 100%; the strip rendered
-from the captured records matches the story. Still unverified live: the
-Verifying/Repairing/Unpacking line formats (this release needed neither
-repair nor unpack); the parser's "n/m" and "%" shapes rest on SABnzbd's
-documented output. Open: merge, then plan 2.
+Live check 2026-10-12 (one 10.6 GB bare-MKV release): *Moving* with a
+file name and no figure, then Completed; the strip matched the story.
+Still unverified live: the Verifying/Repairing/Unpacking line formats.
+
+Plan 2 was the "coherent path" of the spec: the app fetches the release
+through Prowlarr's download link and submits it to SABnzbd/qBittorrent
+itself, so the client's job id is known at grab. Building and running it
+live showed what it costs: a Category setting per client, two
+migrations and a backfill, the plan-unit fix the review found, and
+Prowlarr's per-indexer **Redirect** setting must stay off or the link
+answers a redirect instead of the release (following it would reach the
+indexer from the app's host, outside Prowlarr's VPN/proxy/Byparr path,
+so it was refused). The owner judged that re-engineering the grab path
+for a visual aim, and the campaign's visible symptom — a usenet job
+listed under Other downloads as "Fetching NZB…" for the seconds before
+SABnzbd names it, plus title-match edge cases — is not worth it. Prowlarr
+keeps grabbing; pairing stays by title; the branch, its wiki edits and
+its two dev-database migrations were all reverted. Open: ship.
 
 ## Principles
 
@@ -108,38 +116,35 @@ documented output. Open: merge, then plan 2.
 * `2026-10-12` — SABnzbd's *Moving* stage line names the file, never a
   figure; the indeterminate bar is its drawing. Observed live, pinned in
   `phase_test.exs`.
+* `2026-10-13` — **Plan 2 withdrawn.** The app-owned grab path was built
+  on `app-owned-grabs` (identity at grab, category per client, hand-off
+  availability in Downloads, plan units storing their release) and
+  verified live against SABnzbd, then dropped unmerged on the owner's
+  call: it re-engineers the grab path and adds owner-facing constraints
+  (Category per client; Prowlarr's per-indexer Redirect must be off) to
+  cure a few seconds of "Fetching NZB…" under Other downloads. Prowlarr
+  keeps grabbing and pairing stays by title. Learned on the way, for
+  whoever revisits it: Prowlarr records a hit on its download link as a
+  grab in its History (so that cost never existed); Prowlarr does not
+  expose the client's job id anywhere; an indexer with Redirect on
+  answers `301` to its own NZB link; a job added by `addfile` is
+  *Downloading* from its first poll, so SABnzbd's Grabbing state never
+  occurs on that path. Branch deleted; wiki reverted to `5861974`;
+  the two migrations rolled back on the dev database.
 
 ## Next steps
 
-Plan 2 follows on its own branch, test-first, one commit per task,
-subagent-driven as plan 1 was (a fresh subagent per task, spec review
-then quality review between tasks — it caught a crash path and two
-stale premises plan 1's text carried). Verified facts the plans rest
-on: Prowlarr's two download clients both use category `prowlarr`;
-SABnzbd history slots carry `action_line`, `postproc_time`, `nzo_id`,
-`url` (empty `action_line` on completed jobs; the live format is
-unverified until a job is mid-process).
-
-1. ✅ **Plan 1** — `docs/superpowers/plans/2026-10-12-download-phases.md`,
-   branch `download-phases`, commits `33d9ee4d`…`ccd84f72` plus the docs
-   commit: driver facts → `Downloads.Phase` → `DownloadProgress.phase` →
-   `:underway`/`:ahead` → `download_strip/1` + CSS + story → pursuit row
-   → Other downloads (`Logic.state_*` deleted) → modal → status sentence
-   figure → `downloads_done` removed → precommit, docs, wiki.
+1. ✅ **Plan 1** — merged to `main` at `b0843f10`.
 2. ✅ Live check done 2026-10-12 (see Status); the observed Moving line
    is pinned in `phase_test.exs`. Verify/Unpack formats stay unverified
    until a rar'd release passes through — extend `Phase.stage_figure/1`
-   if the first one differs. Owner merges `download-phases` to `main`
-   (or says to).
-3. **Plan 2** — `docs/superpowers/plans/2026-10-12-app-owned-grabs.md`,
-   9 tasks, branch `app-owned-grabs`: `Downloads.InfoHash` → `add/3` on
-   both drivers → category on the slot → Settings field + Detect seeds it
-   → `Downloads.HandoffAvailability` (Boundary cycle check inside) →
-   `Acquisition.ReleasePayload` → `Acquisition.Grab` + the two jobs →
-   column rename + id-only pairing → copy, ADR, wiki, CHANGELOG note.
-4. Ship (`/ship minor`), then retire this file and open the scheduled
-   follow-up (hand-off into Connectivity) only if it still qualifies as a
-   campaign; otherwise do it as one change.
+   if the first one differs.
+3. ✗ **Plan 2** — withdrawn 2026-10-13 (see Decisions made). The plan
+   file stays under `docs/superpowers/plans/` as history, headed as
+   withdrawn.
+4. Ship (`/ship minor`), then retire this file. The scheduled follow-up
+   from the spec (hand-off availability into Connectivity) falls with
+   plan 2.
 
 ## Completion criteria
 
@@ -150,17 +155,12 @@ unverified until a job is mid-process).
   are gone.
 * No URL and no API key from a client's job name reaches a view-model;
   a `Grabbing` slot renders as "Fetching NZB…".
-* Every grab (auto and manual, both protocols) records `download_id` on
-  the target before the first poll; `QueueMatcher` has no title path;
-  `QueueItem.normalized_title` is gone.
-* Category is a field on both client forms, seeded by Detect, sent with
-  every grab.
-* `{:handoff, slot}` is written by `Downloads.HandoffAvailability` from
-  the driver's answers; `Prowlarr.grab/2`, `grab_outage?/1`,
-  `download_client_unavailable?/1`, `test_download_clients/1` are gone.
-* ADR for app-owned grabs indexed; wiki (`Prowlarr-Integration.md`,
-  `Download-Clients.md`, `Settings-Reference.md`, the Incoming page)
-  updated; `mix precommit` clean; shipped.
+* ~~Every grab records `download_id` on the target before the first
+  poll; pairing by id only; Category per client; hand-off availability
+  written by the drivers; ADR for app-owned grabs~~ — plan 2, withdrawn
+  2026-10-13.
+* Wiki (the Incoming page) updated for the strip; `mix precommit` clean;
+  shipped.
 
 ## Pointers
 

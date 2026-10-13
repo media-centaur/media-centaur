@@ -22,40 +22,14 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`download-phases.md`](download-phases.md) —
-  **Plan 1 built on branch `download-phases` 2026-10-12, unmerged; plan 2
-  open.** Every surface on Incoming draws a download-client job as its
-  phase on a short protocol-specific ladder (usenet: fetch, download,
+  **Plan 1 merged to `main` 2026-10-12, unshipped; plan 2 withdrawn
+  2026-10-13.** Every surface on Incoming draws a download-client job as
+  its phase on a short protocol-specific ladder (usenet: fetch, download,
   verify, repair, unpack, move, done; torrent: metadata, download, done)
   from one `download_strip/1` over `Downloads.Phase`, so the NZB-fetch
-  and post-processing rows stop being text dumps. Open: the owner's look
-  with a usenet job in flight (stage-line format unverified live), then
-  plan 2 — the app owns every grab: it hands the payload to the client
-  itself and records the job id on the target at grab time; Prowlarr
-  becomes search only; `torrent_hash` becomes `download_id`; title
-  pairing retires; each client slot gains a category. Plans under
-  `docs/superpowers/plans/2026-10-12-*`.
-* [`viewer-profiles.md`](viewer-profiles.md) —
-  **Shipped v1.55.0 on 2026-10-11; owner check open.** Who has watched what: each profile picked
-  on the screen keeps its own progress, history, Continue Watching
-  and resume. Nothing else splits — one library, one watchlist, one
-  social setup, one set of settings. Decided: the word is *profile*
-  (the social kind is always *social profile*), the active profile
-  is per browser session so a second device is just another session,
-  every profile's completions publish under the one identity.
-  Later, on their own decisions: a few settings per profile,
-  watching together per title, restricted profiles.
-* [`social-and-watchlist.md`](social-and-watchlist.md) —
-  **Shipped v1.49.0 on 2026-10-03; owner check open.** Two sidebar groups by purpose: **Social** (the
-  Feed and Friends — the Discovery page renamed, with its route, LiveView,
-  components and `show_discovery` → `show_social`) and **Incoming** (the
-  watchlist, search, downloads, history). Watchlist and Coming up become
-  one list on Incoming — every listed title once, a followed title's row
-  carrying its next release and status; the Coming up tab and marquee go,
-  Home's shelf stays. The `Discovery` context is `Watchlist`
-  (ADR-075 rule 3; done 2026-10-03). `:ignored` stays on the ladder; its search-result
-  marker goes and the detail modal gains un-ignore. Phases 1–2 (the
-  watchlist on Incoming, UIDR-050; the Social page, UIDR-051) are on
-  branch `social-and-watchlist`.
+  and post-processing rows stop being text dumps. Plan 2 (the app owns
+  every grab) was built, run live and dropped unmerged as too much
+  re-engineering for the visible symptom. Open: ship, then retire.
 
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:

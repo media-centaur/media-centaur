@@ -1,5 +1,11 @@
 # App-owned grabs — Implementation Plan
 
+> **Withdrawn 2026-10-13.** Built in full on branch `app-owned-grabs`
+> (plus one fix the review found), verified live against SABnzbd, and
+> dropped unmerged on the owner's call: too much re-engineering of the
+> grab path for a visual aim. Kept as history; see the design spec's
+> amendment and `campaigns/download-phases.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The app submits every grab to the download client itself and records the client's job id on the target at grab time, so a pursuit pairs with its job exactly from the first poll; Prowlarr is search only.
