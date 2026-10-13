@@ -21,16 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`download-phases.md`](download-phases.md) —
-  **Plan 1 merged to `main` 2026-10-12, unshipped; plan 2 withdrawn
-  2026-10-13.** Every surface on Incoming draws a download-client job as
-  its phase on a short protocol-specific ladder (usenet: fetch, download,
-  verify, repair, unpack, move, done; torrent: metadata, download, done)
-  from one `download_strip/1` over `Downloads.Phase`, so the NZB-fetch
-  and post-processing rows stop being text dumps. Plan 2 (the app owns
-  every grab) was built, run live and dropped unmerged as too much
-  re-engineering for the visible symptom. Open: ship, then retire.
-
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
@@ -155,6 +145,21 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
+* **Download phases** — **shipped v1.57.0 2026-10-13; file retired
+  (git history holds it: `campaigns/download-phases.md` at `208e5783`).**
+  Every surface on Incoming draws a download-client job as its phase on a
+  short protocol-specific ladder (usenet: fetch, download, verify, repair,
+  unpack, move, done; torrent: metadata, download, done) from one
+  `download_strip/1` over `Downloads.Phase`, with the stage figure read
+  from SABnzbd's stage line, the zero clock dropped, and a fetching job
+  hidden behind "Fetching NZB…". Plan 2 of the design (the app owns every
+  grab) was built in full, run live and withdrawn unmerged on
+  2026-10-13 as too much re-engineering of the grab path for a visual
+  aim; the spec and plan file carry the amendment and what was learned.
+  Leftovers: the Verifying/Repairing/Unpacking stage-line formats are
+  unverified live until a rar'd release passes through (extend
+  `Phase.stage_figure/1` if the first one differs); the hand-off
+  availability fold-in scheduled by the spec fell with plan 2.
 * **The watchlist is the single entry point** — **shipped v1.22.0
   2026-09-11; file retired 2026-10-02 (absorbed into
   [`social-and-watchlist`](social-and-watchlist.md) 2026-10-02; its owner
