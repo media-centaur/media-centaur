@@ -163,6 +163,27 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
 
       assert MediaCentaur.Repo.reload!(target).prowlarr_guid == "many-grabs"
     end
+
+    test "never grabs a cam, even one whose title claims 1080p" do
+      stub_movie_queries(%{
+        "Sample Movie 2005" => [
+          movie_release("Sample.Movie.2005.CAM-Rip-GRP.1080p-Korean", "cam-copy", %{grabs: 900})
+        ],
+        "Sample Movie" => []
+      })
+
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          state: "seeking",
+          status: "seeking",
+          title: "Sample Movie",
+          year: 2005
+        })
+
+      PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      assert MediaCentaur.Repo.reload!(target).prowlarr_guid == nil
+    end
   end
 
   describe "the attempt cap is the Settings value, not a constant" do

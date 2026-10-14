@@ -248,6 +248,30 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
       assert want.satisfied_quality == "hd_1080p"
     end
 
+    test "a transport-stream file's .ts extension does not read as a telesync" do
+      tv_series = create_tv_series(%{name: "Sample Show"})
+
+      item =
+        create_tv_item(%{
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id
+        })
+
+      create_episode_release(item, %{season_number: 1, episode_number: 3, air_date: @last_month})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 3, name: "Third"})
+
+      create_linked_file(%{
+        playable_item: %{id: playable_item_id_for_episode(episode)},
+        file_path: "/media/test/Sample.Show.S01E03.1080p.HDTV.ts"
+      })
+
+      :ok = ReleaseTracking.sync_wants(item)
+
+      [want] = all_wants_for_item(item.id)
+      assert want.satisfied_quality == "hd_1080p"
+    end
+
     test "satisfies a movie want when a library movie carries the matching tmdb id" do
       movie_series = create_movie_series(%{name: "Sample Saga"})
       movie = create_movie(%{movie_series_id: movie_series.id, name: "Sample Saga Part II"})

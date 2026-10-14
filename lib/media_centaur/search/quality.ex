@@ -6,9 +6,25 @@ defmodule MediaCentaur.Search.Quality do
   - `:uhd_4k` — 2160p, 4K, or UHD markers (preferred)
   - `:hd_1080p` — 1080p markers (acceptable)
   - `nil` — unknown or below-threshold quality (filtered out in automated grabs)
+  - `:pre_release` — a cinema recording or pre-retail copy (see below)
+
 
   Manual search shows all results regardless of quality; automated grabs only
   proceed when `acceptable?/1` returns true.
+
+  ## Pre-release sources
+
+  A cam, telesync, telecine, screener or workprint is a copy made before
+  the retail release, and its title's resolution token describes the
+  encode, not the picture (`Sample.Movie.CAM-Rip.1080p`). `parse/1`
+  checks for these source tokens before any resolution token and returns
+  `:pre_release`. That tier is never acceptable to an automated grab,
+  not even under a title's `"any"` minimum, so the owner never receives
+  one without choosing it. It ranks with the unranked tier, so it still
+  counts toward "lower quality available" and stays choosable by hand.
+  Tokens match whole and delimited: `CAM` trips, `Camera` does not.
+  Pass a release title or a file name without its extension, because a
+  `.ts` container extension reads as a telesync.
 
   ## Source ladder (ADR-061)
 
@@ -25,7 +41,7 @@ defmodule MediaCentaur.Search.Quality do
   rejection. File size is neither a gate nor a ranking signal.
   """
 
-  @type t :: :uhd_4k | :hd_1080p | nil
+  @type t :: :uhd_4k | :hd_1080p | :pre_release | nil
   @type source :: :remux | :web_dl | :bluray_encode | :webrip | :hdtv | :unknown
   @type size_preference :: String.t()
 
@@ -34,12 +50,26 @@ defmodule MediaCentaur.Search.Quality do
     "space" => %{bluray_encode: 4, dvdrip: 4, web_dl: 3, webrip: 2, hdtv: 2, remux: 1, unknown: 0}
   }
 
+  # Pre-release source tokens, matched as whole delimited tokens, grouped
+  # by the display label each family reads as. `HD-CAM` and `CAM-Rip`
+  # split on the hyphen, so the bare `cam` token covers them.
+  @pre_release_sources [
+    {"Cam", ~w(cam camrip hdcam hqcam)},
+    {"Telesync", ~w(ts hdts telesync)},
+    {"Telecine", ~w(tc hdtc telecine)},
+    {"Screener", ~w(scr dvdscr bdscr screener pdvd predvd)},
+    {"Workprint", ~w(workprint)}
+  ]
+
+  @token_delimiters ~r/[\s._\-\[\]\(\)]+/
+
   @doc "Parses a quality tier from a release title string."
   @spec parse(String.t()) :: t()
   def parse(title) do
     downcased = String.downcase(title)
 
     cond do
+      pre_release_label(downcased) -> :pre_release
       uhd_4k?(downcased) -> :uhd_4k
       hd_1080p?(downcased) -> :hd_1080p
       true -> nil
@@ -50,12 +80,14 @@ defmodule MediaCentaur.Search.Quality do
   @spec rank(t()) :: non_neg_integer()
   def rank(:uhd_4k), do: 2
   def rank(:hd_1080p), do: 1
+  def rank(:pre_release), do: 0
   def rank(nil), do: 0
 
   @doc "Returns true when the quality meets the minimum threshold for automated grabs."
   @spec acceptable?(t()) :: boolean()
   def acceptable?(:uhd_4k), do: true
   def acceptable?(:hd_1080p), do: true
+  def acceptable?(:pre_release), do: false
   def acceptable?(nil), do: false
 
   @doc """
@@ -69,9 +101,11 @@ defmodule MediaCentaur.Search.Quality do
 
   `nil` quality (an unparseable release title) is never acceptable —
   except under the `"any"` minimum (a per-title "best available"
-  acceptance, ADR-063 §2), which admits unranked releases.
+  acceptance, ADR-063 §2), which admits unranked releases. A
+  `:pre_release` copy is never acceptable, under any bounds.
   """
   @spec acceptable?(t(), String.t(), String.t()) :: boolean()
+  def acceptable?(:pre_release, _min, _max), do: false
   def acceptable?(nil, "any", _max), do: true
   def acceptable?(nil, _min, _max), do: false
 
@@ -96,6 +130,7 @@ defmodule MediaCentaur.Search.Quality do
   @spec label(t()) :: String.t()
   def label(:uhd_4k), do: "4K"
   def label(:hd_1080p), do: "1080p"
+  def label(:pre_release), do: "Cam"
   def label(nil), do: "Unknown"
 
   @doc """
@@ -103,8 +138,9 @@ defmodule MediaCentaur.Search.Quality do
 
   Unlike the two-tier ladder (`parse/1`), this also names the
   below-floor resolutions (`720p`, `576p`, `480p`) and a DVD rip with
-  no resolution token — so a below-floor candidate reads as what it is
-  instead of "Unknown". It never ranks: acceptability and sorting stay
+  no resolution token, and a pre-release copy by its source (`Cam`,
+  `Telesync`, `Telecine`, `Screener`, `Workprint`) — so a below-floor
+  candidate reads as what it is instead of "Unknown". It never ranks: acceptability and sorting stay
   on the ladder. Returns `nil` when the title carries no quality
   signal at all (the caller labels that "Quality unknown").
   """
@@ -113,6 +149,7 @@ defmodule MediaCentaur.Search.Quality do
     downcased = String.downcase(title)
 
     cond do
+      label = pre_release_label(downcased) -> label
       uhd_4k?(downcased) -> "4K"
       String.contains?(downcased, "1080p") -> "1080p"
       String.contains?(downcased, "720p") -> "720p"
@@ -176,6 +213,14 @@ defmodule MediaCentaur.Search.Quality do
       :dvdrip -> nil
       :unknown -> nil
     end
+  end
+
+  defp pre_release_label(downcased) do
+    tokens = downcased |> String.split(@token_delimiters, trim: true) |> MapSet.new()
+
+    Enum.find_value(@pre_release_sources, fn {label, source_tokens} ->
+      if Enum.any?(source_tokens, &MapSet.member?(tokens, &1)), do: label
+    end)
   end
 
   defp uhd_4k?(downcased) do

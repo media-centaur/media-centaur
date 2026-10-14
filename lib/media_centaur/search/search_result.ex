@@ -126,14 +126,16 @@ defmodule MediaCentaur.Search.SearchResult do
     })
   end
 
-  # Quality atoms are a closed two-value set (`Search.Quality.t()`) —
+  # Quality atoms are a closed set (`Search.Quality.t()`) —
   # explicit clauses both ways so a bad row can never mint an atom.
   defp quality_to_string(:uhd_4k), do: "uhd_4k"
   defp quality_to_string(:hd_1080p), do: "hd_1080p"
+  defp quality_to_string(:pre_release), do: "pre_release"
   defp quality_to_string(_quality), do: nil
 
   defp quality_from_string("uhd_4k"), do: :uhd_4k
   defp quality_from_string("hd_1080p"), do: :hd_1080p
+  defp quality_from_string("pre_release"), do: :pre_release
   defp quality_from_string(_quality), do: nil
 
   defp protocol_to_string(:torrent), do: "torrent"
