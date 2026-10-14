@@ -268,4 +268,70 @@ defmodule MediaCentaur.Search.QualityTest do
       assert Quality.source_label("Sample.Show.S01E09.DVDRip.x264") == nil
     end
   end
+
+  describe "pre-release sources — cam, telesync, telecine, screener" do
+    # A cinema recording or pre-retail copy carries a resolution token
+    # it does not deliver ("CAM-Rip ... 1080p"). It parses to its own
+    # tier, never acceptable to an automated grab — not even under a
+    # title's "any" minimum.
+
+    @pre_release_titles [
+      "Sample.Movie.2026.CAM-Rip-GROUP.1080p-Korean",
+      "Sample.Movie.2026.1080p.HDCAM.x264-GROUP",
+      "Sample.Movie.2026.HD-CAM.x264",
+      "Sample Movie 2026 CAMRip 720p",
+      "Sample.Movie.2026.1080p.TS.x264-GROUP",
+      "Sample.Movie.2026.HDTS.1080p",
+      "Sample.Movie.2026.HD-TS.x264",
+      "Sample.Movie.2026.TELESYNC.1080p",
+      "Sample.Movie.2026.1080p.TC.x264",
+      "Sample.Movie.2026.HDTC.x264",
+      "Sample.Movie.2026.TELECINE.x264",
+      "Sample.Movie.2026.DVDSCR.x264",
+      "Sample.Movie.2026.1080p.SCR.x264",
+      "Sample.Movie.2026.SCREENER.1080p",
+      "Sample.Movie.2026.PDVD.x264",
+      "Sample.Movie.2026.PreDVD.x264",
+      "Sample.Movie.2026.2160p.WORKPRINT.x265",
+      "Sample Movie (2026) [CAM]"
+    ]
+
+    test "a pre-release source outranks any resolution token" do
+      for title <- @pre_release_titles do
+        assert Quality.parse(title) == :pre_release, title
+      end
+    end
+
+    test "is never acceptable, under any bounds" do
+      refute Quality.acceptable?(:pre_release)
+      refute Quality.acceptable?(:pre_release, "hd_1080p", "uhd_4k")
+      refute Quality.acceptable?(:pre_release, "any", "uhd_4k")
+    end
+
+    test "ranks with the unranked tier, below the floor" do
+      assert Quality.rank(:pre_release) == 0
+      assert Quality.rank(:pre_release) < Quality.label_rank("hd_1080p")
+    end
+
+    test "labels name the copy for what it is" do
+      assert Quality.label(:pre_release) == "Cam"
+      assert Quality.display_label("Sample.Movie.2026.CAM-Rip-GROUP.1080p-Korean") == "Cam"
+      assert Quality.display_label("Sample.Movie.2026.HDTS.1080p") == "Telesync"
+      assert Quality.display_label("Sample.Movie.2026.HDTC.x264") == "Telecine"
+      assert Quality.display_label("Sample.Movie.2026.DVDSCR.x264") == "Screener"
+      assert Quality.display_label("Sample.Movie.2026.2160p.WORKPRINT.x265") == "Workprint"
+    end
+
+    test "words that merely contain a pre-release token are not pre-release" do
+      for title <- [
+            "Sample.Camera.Movie.2026.1080p.WEB-DL.H.264",
+            "Cats.And.Dogs.2026.1080p.BluRay.x264",
+            "Sample.Movie.2026.1080p.WEB-DL.DDP5.1.H.264-TSX",
+            "Sample.Scream.2026.1080p.BluRay.x264",
+            "Sample.Movie.2026.1080p.BluRay.DTS-HD.MA.5.1.x264"
+          ] do
+        refute Quality.parse(title) == :pre_release, title
+      end
+    end
+  end
 end

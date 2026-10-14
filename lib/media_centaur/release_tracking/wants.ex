@@ -378,9 +378,10 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   # Best-effort quality of the file that satisfied the unit, read off
-  # the playable chain and classified from the filename. Nil when the
-  # chain is incomplete or the name carries no quality marker — the
-  # column is a hook for the future upgrades campaign, not a guarantee.
+  # the playable chain and classified from the filename without its
+  # extension (`.ts` would read as a telesync). Nil when the chain is
+  # incomplete or the name carries no quality marker — the column is a
+  # hook for the future upgrades campaign, not a guarantee.
   defp quality_for_container(container_type, container_id) do
     first_playable_item =
       container_type
@@ -389,7 +390,8 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
 
     with %{id: id} <- first_playable_item,
          path when is_binary(path) <- Library.Files.playable_file_path(id),
-         quality when not is_nil(quality) <- Quality.parse(Path.basename(path)) do
+         quality when not is_nil(quality) <-
+           path |> Path.basename() |> Path.rootname() |> Quality.parse() do
       Atom.to_string(quality)
     else
       _ -> nil

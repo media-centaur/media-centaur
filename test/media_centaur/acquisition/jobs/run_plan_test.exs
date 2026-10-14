@@ -726,6 +726,25 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.below_floor_count == 3
     end
 
+    test "a cam claiming 1080p is below the floor, never assigned" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.CAM-Rip-GRP.1080p-Korean", "cam-copy", %{
+            seeders: 90,
+            size: 3_200_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.assigned_guid == nil
+      assert unit.below_floor_count == 1
+    end
+
     test "an acceptable release wins outright — no below-floor stamp" do
       stub_recording_searches(%{
         "Sample Movie 2005" => [

@@ -31,6 +31,12 @@ defmodule MediaCentaur.Search.SearchResultTest do
       assert stored.protocol == "torrent"
     end
 
+    test "a pre-release quality survives storage — a cam must not read back as unranked" do
+      cam = %{@result | title: "Sample.Movie.2026.HDCAM.1080p", quality: :pre_release}
+
+      assert cam |> SearchResult.to_map() |> SearchResult.from_map() == cam
+    end
+
     test "a stored result reads back unchanged" do
       assert @result |> SearchResult.to_map() |> SearchResult.from_map() == @result
     end
