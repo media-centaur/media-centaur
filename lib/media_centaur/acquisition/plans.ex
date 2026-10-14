@@ -401,6 +401,23 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   @doc """
+  How many units each of the given plans has found a release for, keyed
+  by plan id. A plan with no found unit is absent from the map — its
+  board is empty (`PlanBoard.empty?/1`), with nothing to approve.
+  """
+  @spec found_unit_counts([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => pos_integer()}
+  def found_unit_counts([]), do: %{}
+
+  def found_unit_counts(plan_ids) do
+    PlanUnit
+    |> where([u], u.plan_id in ^plan_ids and u.status == "found")
+    |> group_by([u], u.plan_id)
+    |> select([u], {u.plan_id, count(u.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   How many plans are waiting on a person: status `ready`, any origin.
   The Incoming follow-up pill's source (`MediaCentaurWeb.ShellBadges`).
   """

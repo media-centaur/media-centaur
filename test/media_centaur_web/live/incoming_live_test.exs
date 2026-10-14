@@ -1250,6 +1250,35 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "not needed — already covered"
     end
 
+    test "a draft whose search found nothing says so instead of asking for approval", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+
+      # Default Prowlarr stub returns nothing — the board is empty, and
+      # the modal offers no Approve, so the card must not promise one.
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
+
+      assert has_element?(view, "#plan-draft-#{plan.id}", "Nothing found")
+      refute has_element?(view, "#plan-draft-#{plan.id}", "review and approve")
+    end
+
+    test "a draft with releases asks for review and approval", %{conn: conn} do
+      stub_plan_tmdb()
+      stub_plan_prowlarr()
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
+
+      assert has_element?(view, "#plan-draft-#{plan.id}", "review and approve")
+      refute has_element?(view, "#plan-draft-#{plan.id}", "Nothing found")
+    end
+
     test "a draft plan resumes from the page and can be discarded", %{conn: conn} do
       stub_plan_tmdb()
 
