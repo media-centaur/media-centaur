@@ -823,6 +823,26 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
   end
 
+  describe "draft_status_line/1" do
+    # The Activity draft card's subline. It names what the plan modal
+    # will offer: an empty board carries no Approve, so the card must
+    # not promise one.
+
+    test "a plan still being solved" do
+      assert Logic.draft_status_line(%{status: "planning", empty?: false}) == "Planning…"
+    end
+
+    test "a ready plan whose search found nothing" do
+      assert Logic.draft_status_line(%{status: "ready", empty?: true}) ==
+               "Nothing found — search again or add to watchlist"
+    end
+
+    test "a ready plan with releases to approve" do
+      assert Logic.draft_status_line(%{status: "ready", empty?: false}) ==
+               "Plan ready — review and approve"
+    end
+  end
+
   describe "pursuit_summary/2" do
     # Page-header subtitle — mirrors the library header's
     # "X movies · Y shows" vocabulary.

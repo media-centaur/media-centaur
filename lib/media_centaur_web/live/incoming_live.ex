@@ -1042,9 +1042,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 <div class="min-w-0 flex-1 pt-3 relative z-[1]">
                   <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
                   <p class="text-xs text-info/90 mt-1 text-on-image">
-                    {if draft.status == "planning",
-                      do: "Planning…",
-                      else: "Plan ready — review and approve"}
+                    {Logic.draft_status_line(draft)}
                   </p>
                 </div>
                 <.icon
@@ -2497,11 +2495,18 @@ defmodule MediaCentaurWeb.IncomingLive do
   # cache has it (`TmdbArtwork.urls/2` — DB + disk only, no network); the
   # synthetic hue gradient stays the fallback.
   defp load_drafts do
-    Enum.map(Plans.list_drafts(), fn plan ->
+    drafts = Plans.list_drafts()
+    found_counts = Plans.found_unit_counts(Enum.map(drafts, & &1.id))
+
+    Enum.map(drafts, fn plan ->
       %{
         id: plan.id,
         title: plan.title,
         status: plan.status,
+        # The board's own emptiness (`PlanBoard.empty?/1`): ready with no
+        # release found. The card's subline must not promise an Approve
+        # the modal will not offer.
+        empty?: plan.status == "ready" and not Map.has_key?(found_counts, plan.id),
         backdrop_url: MediaCentaur.TmdbArtwork.urls(plan.tmdb_type, plan.tmdb_id).backdrop_url
       }
     end)

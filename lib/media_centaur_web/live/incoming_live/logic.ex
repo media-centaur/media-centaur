@@ -105,6 +105,17 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   end
 
   @doc """
+  The Activity draft card's subline: what the plan modal will offer when
+  opened. An empty board (`PlanBoard.empty?/1` — ready, nothing found)
+  carries no Approve, so the card names the empty board's remedies
+  instead: search again, or the watchlist.
+  """
+  @spec draft_status_line(%{status: String.t(), empty?: boolean()}) :: String.t()
+  def draft_status_line(%{status: "planning"}), do: "Planning…"
+  def draft_status_line(%{empty?: true}), do: "Nothing found — search again or add to watchlist"
+  def draft_status_line(_draft), do: "Plan ready — review and approve"
+
+  @doc """
   One-line page-header subtitle for the Downloads page — mirrors the
   library header's "X movies · Y shows" vocabulary. Counts arrive
   pre-derived from the render-time `QueueMatcher.match/2` partition:
