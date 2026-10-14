@@ -44,7 +44,10 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
 
   describe "record!/3 + candidates_for/2" do
     test "round-trips search results through the durable corpus" do
-      results = [result("guid-1"), result("guid-2", %{quality: :uhd_4k, seeders: 99})]
+      results = [
+        result("guid-1"),
+        result("guid-2", %{title: "Sample.Show.S01E01.2160p.WEB-DL", quality: :uhd_4k, seeders: 99})
+      ]
 
       Corpus.record!("Sample Show S01E01", [], results)
 

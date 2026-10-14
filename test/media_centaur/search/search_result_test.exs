@@ -24,11 +24,20 @@ defmodule MediaCentaur.Search.SearchResultTest do
       download_url: "http://prowlarr.test/download/1"
     }
 
-    test "quality and protocol are stored as strings" do
-      stored = SearchResult.to_map(@result)
+    test "protocol is stored as a string" do
+      assert SearchResult.to_map(@result).protocol == "torrent"
+    end
 
-      assert stored.quality == "hd_1080p"
-      assert stored.protocol == "torrent"
+    test "quality is read from the title, never from storage" do
+      # A row stored before the pre-release tier existed says 1080p for
+      # a cam. Quality is a pure function of the title, so the read
+      # re-derives it rather than trusting what was saved.
+      stored =
+        %{@result | title: "Sample.Movie.2005.CAM-Rip-GRP.1080p", quality: :hd_1080p}
+        |> SearchResult.to_map()
+        |> Map.put(:quality, "hd_1080p")
+
+      assert SearchResult.from_map(stored).quality == :pre_release
     end
 
     test "a pre-release quality survives storage — a cam must not read back as unranked" do

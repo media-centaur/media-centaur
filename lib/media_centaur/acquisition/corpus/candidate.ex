@@ -4,8 +4,9 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
   durable so pivots can re-resolve among already-known alternatives
   without re-hitting indexers (the living-intent fallback, ADR-055).
 
-  Carries every `Search.SearchResult` field so a candidate can be
-  rehydrated into the exact struct `Prowlarr.grab/1` accepts. Mutable
+  Carries every stored `Search.SearchResult` field so a candidate can be
+  rehydrated into the exact struct `Prowlarr.grab/1` accepts. Quality
+  is not a column: it is derived from the title on read. Mutable
   health facts (`seeders`, `leechers`, `grabs`, `size_bytes`) refresh on
   every re-observation; `first_seen_at` is write-once provenance.
   """
@@ -23,7 +24,6 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
     field :title, :string
     field :indexer_id, :integer
     field :indexer_name, :string
-    field :quality, :string
     field :size_bytes, :integer
     field :seeders, :integer
     field :leechers, :integer
@@ -45,7 +45,7 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
   @type t :: %__MODULE__{}
 
   @cast_fields ~w(
-    search_key guid title indexer_id indexer_name quality size_bytes
+    search_key guid title indexer_id indexer_name size_bytes
     seeders leechers grabs publish_date protocol imdb_id tmdb_id tvdb_id
     info_hash magnet_url download_url first_seen_at last_seen_at
   )a
