@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.58.0 — 2026-10-14
+
+### Fixed
+
+- **Automatic grabs never take a cam.** A cam, telesync, telecine, screener or workprint is a copy made before the retail release, and the resolution in its name, such as *CAM-Rip 1080p*, describes the file, not the picture. These copies passed the 1080p check before. Now they are never grabbed automatically, even for a title set to take lower quality. When one is the only release, the plan board reports the movie as available only in lower quality and labels the copy *Cam*, *Telesync* and so on, so you can still choose it by hand.
+- **Releases found before this update follow the new rule too.** Saved search results now take their quality from the release name each time they are read, so a cam found earlier is not picked up later as a 1080p copy. The update runs a small database migration on first start to remove the old saved quality.
+
 ## v1.57.0 — 2026-10-13
 
 ### New
