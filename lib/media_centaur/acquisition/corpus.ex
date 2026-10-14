@@ -142,7 +142,6 @@ defmodule MediaCentaur.Acquisition.Corpus do
              :title,
              :indexer_id,
              :indexer_name,
-             :quality,
              :size_bytes,
              :seeders,
              :leechers,

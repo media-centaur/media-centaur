@@ -2,8 +2,10 @@ defmodule MediaCentaur.Search.SearchResult do
   @moduledoc """
   A single result returned by a search provider.
 
-  `quality` is parsed from the title via `Acquisition.Quality.parse/1` at
+  `quality` is parsed from the title via `Search.Quality.parse/1` at
   construction time so callers can rank and filter without re-parsing.
+  It is never stored: a stored result re-derives it from the title on
+  read, so a change to the quality rules applies to every known release.
   """
 
   alias MediaCentaur.Search.Quality
@@ -79,7 +81,6 @@ defmodule MediaCentaur.Search.SearchResult do
     :title,
     :guid,
     :indexer_id,
-    :quality,
     :size_bytes,
     :seeders,
     :leechers,
@@ -96,15 +97,14 @@ defmodule MediaCentaur.Search.SearchResult do
   ]
 
   @doc """
-  The result as a plain map for storage, `quality` and `protocol` as
-  strings. The corpus stores it as columns; a grabbing target stores it as
-  a JSON map (`Acquisition.Target.release`). `from_map/1` reads either back.
+  The result as a plain map for storage, `protocol` as a string and
+  `quality` left out (it is derived from the title on read). The corpus
+  stores it as columns; a grabbing target stores it as a JSON map (`Acquisition.Target.release`). `from_map/1` reads either back.
   """
   @spec to_map(t()) :: %{atom() => term()}
   def to_map(%__MODULE__{} = result) do
     result
     |> Map.take(@stored_fields)
-    |> Map.update!(:quality, &quality_to_string/1)
     |> Map.update!(:protocol, &protocol_to_string/1)
   end
 
@@ -119,24 +119,14 @@ defmodule MediaCentaur.Search.SearchResult do
         {field, Map.get(stored, field, Map.get(stored, Atom.to_string(field)))}
       end)
 
-    struct!(__MODULE__, %{
-      fields
-      | quality: quality_from_string(fields.quality),
+    struct!(
+      __MODULE__,
+      Map.merge(fields, %{
+        quality: Quality.parse(fields.title),
         protocol: parse_protocol(fields.protocol)
-    })
+      })
+    )
   end
-
-  # Quality atoms are a closed set (`Search.Quality.t()`) —
-  # explicit clauses both ways so a bad row can never mint an atom.
-  defp quality_to_string(:uhd_4k), do: "uhd_4k"
-  defp quality_to_string(:hd_1080p), do: "hd_1080p"
-  defp quality_to_string(:pre_release), do: "pre_release"
-  defp quality_to_string(_quality), do: nil
-
-  defp quality_from_string("uhd_4k"), do: :uhd_4k
-  defp quality_from_string("hd_1080p"), do: :hd_1080p
-  defp quality_from_string("pre_release"), do: :pre_release
-  defp quality_from_string(_quality), do: nil
 
   defp protocol_to_string(:torrent), do: "torrent"
   defp protocol_to_string(:usenet), do: "usenet"
