@@ -8,7 +8,8 @@ defmodule MediaCentaur.ErrorReports.Bucket do
   parameters, and users. `count`/`first_seen`/`last_seen` mirror the durable
   incident; `severity` (`:warning | :error | :critical`) lets the UI rank and
   colour by health; `sample_entries` carries up to the last 5 redacted log
-  lines for developer context.
+  lines for developer context; a `:subsystem` fault has none, and carries the
+  probe's account of the condition as `detail` instead.
   """
   alias MediaCentaur.Console
   alias MediaCentaur.ErrorReports.Contributors
@@ -38,7 +39,9 @@ defmodule MediaCentaur.ErrorReports.Bucket do
     :sample_entries,
     # Derived display facet (Headline.derive/1 over the normalized
     # message), not part of the bucket's identity — hence not enforced.
-    headline: ""
+    headline: "",
+    # A fault's evidence; nil on a `:log` bucket.
+    detail: nil
   ]
 
   @type sample_entry :: %{timestamp: DateTime.t(), message: binary()}
@@ -53,7 +56,8 @@ defmodule MediaCentaur.ErrorReports.Bucket do
           first_seen: DateTime.t(),
           last_seen: DateTime.t(),
           sample_entries: [sample_entry()],
-          headline: binary()
+          headline: binary(),
+          detail: binary() | nil
         }
 
   @doc """
@@ -68,6 +72,7 @@ defmodule MediaCentaur.ErrorReports.Bucket do
       normalized_message: incident.message || "",
       display_title: incident.display_title || "",
       headline: headline(incident),
+      detail: incident.detail,
       severity: incident.severity,
       count: incident.count,
       first_seen: incident.first_seen,

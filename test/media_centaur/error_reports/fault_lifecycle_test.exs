@@ -41,6 +41,16 @@ defmodule MediaCentaur.ErrorReports.FaultLifecycleTest do
       assert incident.message == "No relay reachable"
     end
 
+    test "the fault's detail is stored and refreshed on every re-raise" do
+      {:ok, incident} = Store.raise_fault(fault(occurred_at: at(0), detail: "wss://a/ — down for 4 min"))
+      assert incident.detail == "wss://a/ — down for 4 min"
+
+      {:ok, incident} =
+        Store.raise_fault(fault(occurred_at: at(300), detail: "wss://a/ — down for 9 min"))
+
+      assert incident.detail == "wss://a/ — down for 9 min"
+    end
+
     test "re-raising while open keeps one incident, advancing last_seen and count" do
       {:ok, _} = Store.raise_fault(fault(occurred_at: at(0)))
       {:ok, incident} = Store.raise_fault(fault(occurred_at: at(30)))

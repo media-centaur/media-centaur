@@ -55,10 +55,16 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
   defp reconcile(component, assessment) do
     %{raises: raises, resolves: resolves} = plan(assessment, Store.open_subsystem_kinds(component))
     headline = headline(assessment)
+    detail = detail(assessment)
 
     Enum.each(raises, fn {kind, severity} ->
       title = headline || humanize(kind)
-      ErrorReports.raise_fault(component, kind, severity, message: title, display_title: title)
+
+      ErrorReports.raise_fault(component, kind, severity,
+        message: title,
+        display_title: title,
+        detail: detail
+      )
     end)
 
     Enum.each(resolves, fn kind -> ErrorReports.resolve_fault(component, kind) end)
@@ -69,6 +75,11 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
   # buckets untitled.
   defp headline({:fault, _kind, _severity, %{headline: headline}}) when is_binary(headline), do: headline
   defp headline(_assessment), do: nil
+
+  # The assessor's account of what it saw (`detail:`) — the fault's evidence,
+  # refreshed on every poll so it never goes staler than one cycle.
+  defp detail({:fault, _kind, _severity, %{detail: detail}}) when is_binary(detail), do: detail
+  defp detail(_assessment), do: nil
 
   defp humanize(kind), do: kind |> to_string() |> String.replace("_", " ") |> String.capitalize()
 

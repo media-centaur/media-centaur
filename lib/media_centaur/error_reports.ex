@@ -79,7 +79,8 @@ defmodule MediaCentaur.ErrorReports do
              severity: severity,
              occurred_at: opts[:occurred_at] || DateTime.utc_now(),
              message: opts[:message],
-             display_title: opts[:display_title]
+             display_title: opts[:display_title],
+             detail: opts[:detail]
            }) do
       Buckets.fault_raised(incident)
       {:ok, incident}

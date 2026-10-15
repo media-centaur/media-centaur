@@ -31,6 +31,10 @@ defmodule MediaCentaur.Social.IncidentContext do
   (whose entries carry `since`, the onset of their current state);
   `assess/0` is the thin shell that reads the status map and the current
   time, then defers to it.
+
+  Every fault carries a `detail:` — one line per relay with its state, how
+  long it has been in it, and its last error — the evidence the issue view
+  shows in place of log lines.
   """
   @behaviour MediaCentaur.ErrorReports.IncidentContext
 
@@ -71,16 +75,51 @@ defmodule MediaCentaur.Social.IncidentContext do
         :ok
 
       Enum.any?(entries, &(&1.state == :auth_failed)) ->
-        {:fault, :relay_auth_failed, :error, %{headline: "Relay rejected this identity"}}
+        fault(:relay_auth_failed, :error, "Relay rejected this identity", status, now)
 
       down == [] ->
         :ok
 
       length(down) == length(entries) ->
-        {:fault, :relays_unreachable, :error, %{headline: "No relay reachable"}}
+        fault(:relays_unreachable, :error, "No relay reachable", status, now)
 
       true ->
-        {:fault, :relay_degraded, :warning, %{headline: "A relay is unreachable"}}
+        fault(:relay_degraded, :warning, "A relay is unreachable", status, now)
+    end
+  end
+
+  defp fault(kind, severity, headline, status, now) do
+    {:fault, kind, severity, %{headline: headline, detail: detail(status, now)}}
+  end
+
+  # One line per relay, in URL order so the text is stable across polls.
+  defp detail(status, now) do
+    status
+    |> Enum.sort_by(fn {url, _entry} -> url end)
+    |> Enum.map_join("\n", fn {url, entry} -> "#{url} — #{describe(entry, now)}" end)
+  end
+
+  defp describe(%{state: :disconnected} = entry, now),
+    do: "disconnected for #{duration(entry.since, now)}" <> error_suffix(entry)
+
+  defp describe(%{state: :auth_failed} = entry, now),
+    do: "rejected this identity #{duration(entry.since, now)} ago" <> error_suffix(entry)
+
+  defp describe(%{state: :connecting} = entry, now),
+    do: "connecting for #{duration(entry.since, now)}" <> error_suffix(entry)
+
+  defp describe(_connected_or_synced, _now), do: "connected"
+
+  defp error_suffix(%{last_error: error}) when is_binary(error) and error != "", do: " (#{error})"
+  defp error_suffix(_entry), do: ""
+
+  defp duration(%DateTime{} = since, now) do
+    seconds = max(DateTime.diff(now, since, :second), 0)
+
+    cond do
+      seconds < 60 -> "#{seconds} s"
+      seconds < 3600 -> "#{div(seconds, 60)} min"
+      true -> "#{div(seconds, 3600)} h"
     end
   end
 

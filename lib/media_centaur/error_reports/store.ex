@@ -484,6 +484,7 @@ defmodule MediaCentaur.ErrorReports.Store do
       |> put_latest(:fingerprint, attrs)
       |> put_latest(:message, attrs)
       |> put_latest(:display_title, attrs)
+      |> put_latest(:detail, attrs)
       |> put_latest(:severity, attrs)
     )
     |> Repo.update()

@@ -22,6 +22,15 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
     def assess, do: {:fault, :queue_stalled, :error, %{headline: "Import queue has stalled"}}
   end
 
+  defmodule Detailed do
+    @behaviour MediaCentaur.ErrorReports.IncidentContext
+    @impl true
+    def assess do
+      {:fault, :relays_unreachable, :error,
+       %{headline: "No relay reachable", detail: "wss://a/ — disconnected for 12 min"}}
+    end
+  end
+
   defmodule Crasher do
     @behaviour MediaCentaur.ErrorReports.IncidentContext
     @impl true
@@ -70,6 +79,13 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
                Store.get_open_subsystem_incident(:pipeline, :queue_stalled)
 
       assert %{display_title: "Stalled"} = Store.get_open_subsystem_incident(:tmdb, :stalled)
+    end
+
+    test "the fault's detail is carried onto the incident" do
+      Evaluator.run(%{social: Detailed})
+
+      assert %{detail: "wss://a/ — disconnected for 12 min"} =
+               Store.get_open_subsystem_incident(:social, :relays_unreachable)
     end
 
     test "a healthy assessor with nothing open does nothing" do
