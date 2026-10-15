@@ -25,6 +25,8 @@ defmodule MediaCentaur.Library.Episode do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "library_episodes" do
     field :episode_number, :integer
     field :name, :string

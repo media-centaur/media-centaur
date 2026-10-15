@@ -35,6 +35,7 @@ defmodule MediaCentaurWeb.ProfileWords do
 
   def error(:last_profile), do: "The last profile can't be removed"
 
+  # Spelled for the one value `Profiles.max_profiles/0` has; a new maximum
+  # gets its word here.
   defp number_word(8), do: "Eight"
-  defp number_word(number), do: Integer.to_string(number)
 end

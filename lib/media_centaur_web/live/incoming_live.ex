@@ -1773,13 +1773,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
                 # "Search Prowlarr again" is the user-initiated refresh —
                 # it bypasses the corpus freshness gate (ADR-055).
-                build_decision(
-                  pursuit,
-                  header.awaiting_decision?,
-                  header.search_queries,
-                  nil,
-                  force: true
-                )
+                build_decision(pursuit, header.awaiting_decision?, header.search_queries, force: true)
 
               _ ->
                 %{card: nil, results_by_guid: %{}}
@@ -2446,7 +2440,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         case Pursuits.fetch(pursuit_id) do
           {:ok, pursuit} ->
             header = Pursuits.header_from(pursuit)
-            build_decision(pursuit, header.awaiting_decision?, header.search_queries, nil)
+            build_decision(pursuit, header.awaiting_decision?, header.search_queries)
 
           _ ->
             %{card: nil, results_by_guid: %{}}
@@ -2810,41 +2804,32 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Reuse the cached decision card while the pursuit is awaiting a
-  # decision — the alternatives don't refresh until the user acts or
-  # the pursuit's `awaiting_decision_at` clears. This caps Prowlarr
-  # load at one search per "awaiting decision" period rather than one
-  # per queue snapshot.
+  # Builds the decision card for a pursuit awaiting a decision. Prowlarr
+  # load is capped by the corpus freshness gate inside
+  # `Acquisition.list_alternatives_for/2` (ADR-055), not here.
   #
   # Returns both the display VM (`card`) and the raw `[SearchResult.t()]`
   # keyed by guid (`results_by_guid`). The LV stores both so
   # `handle_event("pick_alternative", ...)` can pass the cached struct
   # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
   # mandatory Prowlarr round-trip to look the result up by guid.
-  defp build_decision(pursuit, awaiting?, search_queries, cached, search_opts \\ [])
+  defp build_decision(pursuit, awaiting?, search_queries, search_opts \\ [])
 
-  defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, cached, search_opts) do
-    case cached do
-      %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
-      when id == pursuit.id ->
-        %{card: vm, results_by_guid: results}
+  defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, search_opts) do
+    results = Acquisition.list_alternatives_for(pursuit, search_opts)
 
-      _ ->
-        results = Acquisition.list_alternatives_for(pursuit, search_opts)
+    card = %ViewModels.DecisionCard{
+      pursuit_id: pursuit.id,
+      prompt: decision_prompt(pursuit),
+      alternatives: Enum.map(results, &Alternative.from/1),
+      loading?: false,
+      search_queries: search_queries
+    }
 
-        card = %ViewModels.DecisionCard{
-          pursuit_id: pursuit.id,
-          prompt: decision_prompt(pursuit),
-          alternatives: Enum.map(results, &Alternative.from/1),
-          loading?: false,
-          search_queries: search_queries
-        }
-
-        %{card: card, results_by_guid: Map.new(results, &{&1.guid, &1})}
-    end
+    %{card: card, results_by_guid: Map.new(results, &{&1.guid, &1})}
   end
 
-  defp build_decision(_pursuit, _awaiting?, _search_queries, _cached, _search_opts),
+  defp build_decision(_pursuit, _awaiting?, _search_queries, _search_opts),
     do: %{card: nil, results_by_guid: %{}}
 
   defp load_history(socket) do

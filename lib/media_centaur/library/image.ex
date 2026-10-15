@@ -25,6 +25,8 @@ defmodule MediaCentaur.Library.Image do
 
   @owner_types [:movie, :episode, :tv_series, :movie_series, :video_object]
 
+  @type t :: %__MODULE__{}
+
   schema "library_images" do
     field :role, :string
     field :content_url, :string

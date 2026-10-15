@@ -43,9 +43,11 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
         }
 
   @typedoc "The fit inputs: the plan's span sizes and the pack threshold as a fraction (nil = not judged)."
+  # Open map: runners carry their quality bounds in the same map.
   @type prefs :: %{
           optional(:span_sizes) => Fit.span_sizes(),
-          optional(:pack_min_fit) => number() | nil
+          optional(:pack_min_fit) => number() | nil,
+          optional(atom()) => term()
         }
 
   @doc """
@@ -117,7 +119,8 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
   captured no span sizes (movies, and a tracking plan whose item has no
   season sizes yet), which turns judging off.
   """
-  @spec fit_prefs(Plan.t(), %{pack_min_fit: number()}) :: prefs()
+  @spec fit_prefs(Plan.t(), %{required(:pack_min_fit) => number(), optional(atom()) => term()}) ::
+          prefs()
   def fit_prefs(%Plan{} = plan, %{pack_min_fit: percent}) do
     span_sizes = plan.span_sizes || %{}
     %{span_sizes: span_sizes, pack_min_fit: if(span_sizes != %{}, do: percent / 100)}

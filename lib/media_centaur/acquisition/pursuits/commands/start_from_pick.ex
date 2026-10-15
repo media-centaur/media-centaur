@@ -54,10 +54,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
 
   `:origin` defaults to `"manual"` in both shapes.
   """
-  @spec execute(%{result: SearchResult.t(), manual_query: String.t() | nil}) ::
-          {:ok, Pursuit.t()} | {:error, Ecto.Changeset.t()}
-  @spec execute(%{picks: [pick()], manual_query: String.t() | nil}) ::
-          {:ok, %{pursuit: Pursuit.t(), targets: [Target.t()]}} | {:error, Ecto.Changeset.t()}
+  @spec execute(%{
+          required(:result) => SearchResult.t(),
+          required(:manual_query) => String.t() | nil,
+          optional(:origin) => String.t()
+        }) :: {:ok, Pursuit.t()} | {:error, Ecto.Changeset.t()}
+  @spec execute(%{
+          required(:picks) => [pick()],
+          required(:manual_query) => String.t() | nil,
+          optional(:origin) => String.t()
+        }) :: {:ok, %{pursuit: Pursuit.t(), targets: [Target.t()]}} | {:error, Ecto.Changeset.t()}
   def execute(%{result: %SearchResult{} = result, manual_query: manual_query} = args) do
     batch_args = %{
       picks: [%{term: manual_query, result: result}],

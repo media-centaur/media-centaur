@@ -43,7 +43,7 @@ defmodule MediaCentaur.Credo.Checks.PlanDoorRegistered do
       source_file
       |> Credo.Code.ast()
       |> doors_in()
-      |> Enum.reject(fn {function, _line} -> MapSet.member?(registered, {module, function}) end)
+      |> Enum.reject(fn {function, _line} -> {module, function} in registered end)
       |> Enum.map(fn {function, line} -> issue_for(issue_meta, module, function, line) end)
     else
       []
@@ -115,14 +115,14 @@ defmodule MediaCentaur.Credo.Checks.PlanDoorRegistered do
   defp registered_doors do
     case File.read(@registry_file) do
       {:ok, contents} -> parse_registry(contents)
-      {:error, _reason} -> MapSet.new()
+      {:error, _reason} -> []
     end
   end
 
   defp parse_registry(contents) do
     ~r/module:\s*([A-Za-z0-9_.]+),\s*function:\s*:([a-z_0-9!?]+)/
     |> Regex.scan(contents)
-    |> MapSet.new(fn [_all, module, function] ->
+    |> Enum.map(fn [_all, module, function] ->
       {String.replace_prefix(module, "MediaCentaur.", ""), String.to_atom(function)}
     end)
   end

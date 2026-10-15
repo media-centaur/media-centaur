@@ -35,6 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   @container_types [:movie, :tv_series, :movie_series, :video_object]
 
   @type t :: %__MODULE__{}
+  @type media_type :: :movie | :tv_series
 
   schema "release_tracking_items" do
     field :tmdb_id, :integer

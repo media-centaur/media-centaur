@@ -126,8 +126,10 @@ defmodule MediaCentaur.EpisodeMapping.Engine do
     end)
   end
 
+  defp unplaced(nil, artifacts), do: Enum.map(artifacts, & &1.id)
+
   defp unplaced(recommended, artifacts) do
-    placed = if recommended, do: MapSet.new(recommended.placements, & &1.artifact_id), else: MapSet.new()
+    placed = MapSet.new(recommended.placements, & &1.artifact_id)
 
     artifacts
     |> Enum.map(& &1.id)

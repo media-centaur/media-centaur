@@ -17,6 +17,8 @@ defmodule MediaCentaur.Library.Season do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "library_seasons" do
     field :season_number, :integer
     field :name, :string

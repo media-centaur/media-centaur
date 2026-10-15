@@ -28,6 +28,8 @@ defmodule MediaCentaur.Library.Extra do
 
   @owner_types [:movie, :tv_series, :movie_series, :season]
 
+  @type t :: %__MODULE__{}
+
   schema "library_extras" do
     field :name, :string
     field :content_url, :string

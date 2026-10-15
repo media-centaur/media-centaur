@@ -755,17 +755,22 @@ defmodule MediaCentaur.Library.Views.Detail do
   # `{:movie_series, _}` — the same rule `collection_multi_present?`
   # encoded per movie, now resolved for every collection in one query.
   defp multi_present_series_set(series_by_movie) do
-    movie_series_ids = series_by_movie |> Map.values() |> Enum.reject(&is_nil/1) |> Enum.uniq()
+    series_by_movie
+    |> Map.values()
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> multi_present_series_ids()
+    |> MapSet.new()
+  end
 
-    if movie_series_ids == [] do
-      MapSet.new()
-    else
-      movie_series_ids
-      |> PresentableQueries.present_movie_counts()
-      |> Repo.all()
-      |> Enum.filter(fn {_ms_id, count} -> count >= 2 end)
-      |> MapSet.new(fn {ms_id, _count} -> ms_id end)
-    end
+  defp multi_present_series_ids([]), do: []
+
+  defp multi_present_series_ids(movie_series_ids) do
+    movie_series_ids
+    |> PresentableQueries.present_movie_counts()
+    |> Repo.all()
+    |> Enum.filter(fn {_ms_id, count} -> count >= 2 end)
+    |> Enum.map(fn {ms_id, _count} -> ms_id end)
   end
 
   defp compute_grouping_key(

@@ -156,7 +156,8 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   end
 
   @doc "What the List position holds: the verb below the list, Listed on it, Following above it."
-  @spec list_slot(%{rung: TitleIntent.rung() | nil}) :: FeedEntry.list_slot()
+  @spec list_slot(%{required(:rung) => TitleIntent.rung() | nil, optional(atom()) => term()}) ::
+          FeedEntry.list_slot()
   def list_slot(%{rung: :list}), do: :listed
 
   def list_slot(%{rung: rung}) do
@@ -164,8 +165,11 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   end
 
   @doc "What the Download position holds: In library, the acquisition marker while a plan runs, else the verb."
-  @spec download_slot(%{library_owner_id: term() | nil, acquisition_state: atom() | nil}) ::
-          FeedEntry.download_slot()
+  @spec download_slot(%{
+          required(:library_owner_id) => term() | nil,
+          required(:acquisition_state) => atom() | nil,
+          optional(atom()) => term()
+        }) :: FeedEntry.download_slot()
   def download_slot(%{library_owner_id: owner}) when not is_nil(owner), do: {:state, "In library"}
 
   def download_slot(%{acquisition_state: state}) do

@@ -14,6 +14,8 @@ defmodule MediaCentaur.ReleaseTracking.Release do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "release_tracking_releases" do
     field :air_date, :date
     field :title, :string

@@ -36,6 +36,8 @@ defmodule MediaCentaur.Library.Movie do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "library_movies" do
     field :name, :string
     field :description, :string

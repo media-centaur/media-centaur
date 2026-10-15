@@ -1031,17 +1031,15 @@ defmodule MediaCentaur.Showcase do
   # short) returns "Spring Breakers" first. See `Showcase.CatalogMatch`.
   defp search_movie(title, year, client) do
     case TMDB.Client.search_movie(title, year, client: client) do
-      {:ok, results} when is_list(results) -> CatalogMatch.pick(results, title, year, "title")
+      {:ok, results} -> CatalogMatch.pick(results, title, year, "title")
       {:error, _} = err -> err
-      {:ok, _} -> {:error, :unexpected_shape}
     end
   end
 
   defp search_tv(title, year, client) do
     case TMDB.Client.search_tv(title, year, client: client) do
-      {:ok, results} when is_list(results) -> CatalogMatch.pick(results, title, year, "name")
+      {:ok, results} -> CatalogMatch.pick(results, title, year, "name")
       {:error, _} = err -> err
-      {:ok, _} -> {:error, :unexpected_shape}
     end
   end
 

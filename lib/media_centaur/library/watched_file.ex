@@ -24,6 +24,8 @@ defmodule MediaCentaur.Library.WatchedFile do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "library_watched_files" do
     field :file_path, :string
     field :media_dir, :string

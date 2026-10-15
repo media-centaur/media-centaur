@@ -33,7 +33,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Finish do
   series or TMDB has none on record).
   """
   @spec reaction(
-          %{entity_id: String.t(), completed: MapSet.t()},
+          %{
+            required(:entity_id) => String.t(),
+            required(:completed) => MapSet.t(),
+            optional(atom()) => term()
+          },
           String.t() | nil,
           boolean(),
           {integer(), integer()} | nil
@@ -48,7 +52,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Finish do
   end
 
   @doc "Whether the session completed any episode — the case the host reads the TMDB record for."
-  @spec episodes?(%{completed: MapSet.t()}) :: boolean()
+  @spec episodes?(%{required(:completed) => MapSet.t(), optional(atom()) => term()}) :: boolean()
   def episodes?(%{completed: completed}),
     do: Enum.any?(completed, &match?({:episode, _id, _season, _episode}, &1))
 

@@ -134,7 +134,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   prefer `state/0` and read `state.items` so it can reason about
   connectivity alongside the data.
   """
-  @spec snapshot() :: [Acquisition.QueueItem.t()]
+  @spec snapshot() :: [MediaCentaur.Downloads.QueueItem.t()]
   def snapshot, do: state().items
 
   @doc """
@@ -382,9 +382,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp poll_line(grade, protocol, reason),
     do: "queue monitor (#{protocol}): #{grade_phrase(grade)} — #{inspect(reason)}"
 
+  # Only grades a poll can produce — never `:initializing` / `:not_configured`.
   defp grade_phrase(:live), do: "answering again"
-  defp grade_phrase(:initializing), do: "starting up"
-  defp grade_phrase(:not_configured), do: "not configured"
   defp grade_phrase(:auth_failed), do: "rejected our credentials"
   defp grade_phrase({:transient_failure, _since}), do: "did not answer"
   defp grade_phrase({:offline, _since}), do: "offline"

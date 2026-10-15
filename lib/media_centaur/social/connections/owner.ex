@@ -131,8 +131,8 @@ defmodule MediaCentaur.Social.Connections.Owner do
   # --- reconcile ---------------------------------------------------------
 
   defp reconcile(state) do
-    wanted =
-      if Identity.present?(), do: MapSet.new(Social.list_relays(), & &1.url), else: MapSet.new()
+    relays = if Identity.present?(), do: Social.list_relays(), else: []
+    wanted = MapSet.new(relays, & &1.url)
 
     running = MapSet.new(running_urls())
 

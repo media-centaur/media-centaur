@@ -136,7 +136,6 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
 
   defp versioned?(query) do
     query
-    |> Kernel.||("")
     |> URI.decode_query()
     |> Map.has_key?("v")
   end
