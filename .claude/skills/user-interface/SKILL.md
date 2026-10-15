@@ -452,6 +452,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
 | `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
 | `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_select/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
+| `binding_row/1` | `settings/binding_row.ex` | One binding's keycaps and Unbinds (Settings → Controls); the row is the nav item, its controls sub-items | ✅ |
 | `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Identity and Episode mapping | ✅ |
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
@@ -531,6 +532,7 @@ Every Settings section is cards of rows, composed from `MediaCentaurWeb.Componen
 | Bare select | `settings_select/1` | The native select on its own, as a field of a form that saves on submit (the add-relay form's follow rule) |
 | Text | `settings_text_row/1` | Free text (a path) committing on Enter or blur with one payload (`name`, `value`) |
 | List | `settings_list/1` | A string list: rows with Remove, an inline input with Add, optional live validation |
+| Binding | `Settings.BindingRow.binding_row/1` | One action's key and gamepad button as keycaps — press a keycap to rebind its slot, Unbind beside each; the row is a nav item and its controls are sub-items, the table a `bindings` tree zone |
 | Connection | `Settings.ConnectionRow.connection_row/1` | The readout for an external endpoint: state dot, name, address link, credential presence, state word with the test's age, actions; the form in its `edit` slot, one open at a time |
 
 `settings_field/1` and `settings_input/1` are the label/control unit and the house input inside a connection row's form; rare content hides behind `Components.Disclosure.disclosure/1`. Rows are wrapping flex lines: the text block asks for a 16rem measure and a control that no longer fits beside it drops beneath, left-aligned; a card action or a connection row's state and actions drop right-aligned. Each row story carries a `:narrow` variation at the width a half-width window leaves at 2× UI scale. Readiness has one owner, `MediaCentaur.IntegrationHealth`: Test and Save and test call `verify/1` and the row follows its broadcasts; `SettingsLive.ConnectionState` is the pure projection the row draws.

@@ -1,0 +1,85 @@
+/*
+ * Keycap — the drawing of a key or gamepad button in Settings → Controls
+ * (`Components.Settings.BindingRow`). A keycap is a button: hovering lifts
+ * it, pressing it starts listening for the slot's next value, and the
+ * listening keycap pulses. The look is parameterized by the custom props
+ * under :root; colours otherwise come from the daisyUI tokens.
+ */
+
+:root {
+  --keycap-top: oklch(34% 0.018 264);
+  --keycap-face: oklch(27% 0.019 264);
+  --keycap-edge: oklch(15% 0.013 264);
+  --keycap-glow: oklch(62% 0.16 250);
+}
+
+.keycap-label {
+  color: oklch(from var(--color-base-content) l a b / 0.6);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* One width for every keycap — the widest glyph the catalog ships
+ * ("Backspace") fits in 6.25rem — so the slots line up down a card without
+ * a shared grid. A longer custom key widens its own keycap only. */
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  min-width: 6.25rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border-radius: 0.4375rem;
+  background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-face) 100%);
+  border: 1px solid var(--keycap-edge);
+  box-shadow: 0 2px 0 var(--keycap-edge), 0 6px 12px rgba(0, 0, 0, 0.5);
+  font: 600 0.8125rem/1 "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+  color: var(--color-base-content);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.keycap:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 var(--keycap-edge), 0 8px 14px rgba(0, 0, 0, 0.5);
+}
+
+.keycap:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--keycap-edge), 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.keycap-unbound {
+  background: transparent;
+  box-shadow: none;
+  border-style: dashed;
+  color: oklch(from var(--color-base-content) l a b / 0.55);
+  font-style: italic;
+}
+
+.keycap-listening {
+  border-color: var(--keycap-glow);
+  color: var(--keycap-glow);
+  animation: keycap-pulse 1.2s ease-in-out infinite;
+  background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-face) 100%);
+}
+
+@keyframes keycap-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(from var(--keycap-glow) l a b / 0.35),
+                0 2px 0 var(--keycap-edge), 0 6px 12px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px oklch(from var(--keycap-glow) l a b / 0),
+                0 2px 0 var(--keycap-edge), 0 6px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* The sub-item ring rule (app.css) rounds its subject to a pill; a keycap
+ * keeps its own corners under the ring. */
+button.keycap[data-nav-sub-item]:focus {
+  border-radius: 0.4375rem;
+}
