@@ -708,11 +708,13 @@ A per-zone priority list determines the initial focus context. Walked in order; 
 ```
 watching:  grid → zone_tabs → sidebar
 library:   grid → toolbar → zone_tabs → sidebar
-settings:  sections → grid → sidebar
+settings:  sections → grid → bindings → sidebar
 home:      hero → continue → recently → coming_up → sidebar
 ```
 
 Sidebar and sections are always populated (static content), guaranteeing a viable terminal.
+
+`bindings` is the Controls section's binding table: a TREE zone nested in the settings grid, in the DOM only on that section. Each row (`Components.Settings.BindingRow`) is the item and its two keycaps and two Unbind buttons are its `[data-nav-sub-item]` controls, so UP/DOWN walk rows, RIGHT steps into a row and LEFT back out. The grid's `down` edge enters it and its `up` edge returns; on every other section the candidate is empty and DOWN off the grid stays a wall. The kit's other rows (stepper, choice, list) keep the flat walk — each of their controls is its own item — because each control has its own SELECT and the rows are few; the binding table is ten homogeneous rows with four controls each, the shape the detail modal's episode list already navigates as a tree.
 
 ## Design Rules
 

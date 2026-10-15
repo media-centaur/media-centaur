@@ -1491,10 +1491,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("controls:clear", %{"id" => id, "kind" => kind}, socket) do
+  def handle_event("controls:unbind", %{"id" => id, "kind" => kind}, socket) do
     with id_atom when not is_nil(id_atom) <- safe_existing_atom(id),
          kind_atom when not is_nil(kind_atom) <- safe_existing_atom(kind) do
-      :ok = Controls.clear(id_atom, kind_atom)
+      :ok = Controls.unbind(id_atom, kind_atom)
       {:noreply, socket}
     else
       _ -> {:noreply, socket}

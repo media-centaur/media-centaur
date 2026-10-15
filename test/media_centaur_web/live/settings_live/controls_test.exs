@@ -19,6 +19,72 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
     end
   end
 
+  describe "the binding table" do
+    test "is a tree zone whose rows are the items and whose keycaps are their controls", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      assert has_element?(view, "[data-nav-zone='bindings'] [data-nav-item]#binding-navigate_up")
+
+      assert has_element?(
+               view,
+               "#binding-navigate_up [data-nav-sub-item][phx-click='controls:listen'][phx-value-kind='keyboard']"
+             )
+
+      assert has_element?(
+               view,
+               "#binding-navigate_up [data-nav-sub-item][phx-click='controls:listen'][phx-value-kind='gamepad']"
+             )
+
+      # Each category's Reset walks with the rows.
+      assert has_element?(
+               view,
+               "[data-nav-zone='bindings'] [data-nav-item][phx-click='controls:reset_category']"
+             )
+    end
+
+    test "SELECT on the row itself rebinds the key — the row is the control", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      view |> element("#binding-select") |> render_click()
+
+      assert_push_event(view, "controls:listen", %{kind: "keyboard", id: "select"})
+      assert has_element?(view, "#binding-select[data-listening='keyboard']")
+    end
+
+    test "a gamepad keycap listens for a button", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      view
+      |> element(
+        ~s|button[phx-click="controls:listen"][phx-value-id="select"][phx-value-kind="gamepad"]|
+      )
+      |> render_click()
+
+      assert_push_event(view, "controls:listen", %{kind: "gamepad", id: "select"})
+      assert has_element?(view, "#binding-select[data-listening='gamepad']")
+    end
+
+    test "an unbound slot's Unbind is inert but keeps its place", %{conn: conn} do
+      :ok = Controls.unbind(:back, :keyboard)
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
+
+      assert has_element?(
+               view,
+               "#binding-back [data-nav-sub-item][aria-label='Unbind the key for Back'][aria-disabled='true']"
+             )
+
+      refute has_element?(
+               view,
+               "#binding-back [phx-click='controls:unbind'][phx-value-kind='keyboard']"
+             )
+
+      assert has_element?(
+               view,
+               "#binding-back [phx-click='controls:unbind'][phx-value-kind='gamepad']"
+             )
+    end
+  end
+
   describe "remap flow" do
     test "clicking remap enters listening state", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
@@ -29,7 +95,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       )
       |> render_click()
 
-      assert has_element?(view, "[data-listening='true']")
+      assert has_element?(view, "[data-listening='keyboard']")
     end
 
     test "controls:bind event persists and broadcasts", %{conn: conn} do
@@ -77,17 +143,17 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       |> render_click()
 
       render_hook(view, "controls:cancel", %{})
-      refute has_element?(view, "[data-listening='true']")
+      refute has_element?(view, "[data-listening]")
     end
   end
 
-  describe "clear and reset" do
-    test "clicking clear unsets the binding", %{conn: conn} do
+  describe "unbind and reset" do
+    test "clicking Unbind leaves the slot empty", %{conn: conn} do
       :ok = Controls.subscribe()
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
-      |> element(~s|button[phx-click="controls:clear"][phx-value-id="back"][phx-value-kind="keyboard"]|)
+      |> element(~s|button[phx-click="controls:unbind"][phx-value-id="back"][phx-value-kind="keyboard"]|)
       |> render_click()
 
       assert_receive {:controls_changed, map}

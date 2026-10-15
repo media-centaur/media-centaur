@@ -43,6 +43,10 @@ export const inputConfig = {
     library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
+    // Settings → Controls: the binding table. A row is the item; its keycaps
+    // and unbind buttons are its `[data-nav-sub-item]` controls, so RIGHT
+    // steps into a row and UP/DOWN walk rows, not every control in turn.
+    bindings: "[data-nav-zone='bindings'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     // Social's Friends tab: person cards, each a poster strip over text
     // rows over a footer — arrangement carries the meaning, so geometry
@@ -82,6 +86,7 @@ export const inputConfig = {
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
+    bindings: Context.TREE,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
     "episode-mapping-list": Context.MENU,
@@ -260,7 +265,12 @@ export const inputConfig = {
     },
     settings: {
       sections:  { right: ["grid"] },
-      grid:      { left: ["sections"] },
+      // The Controls section nests a bindings tree under the grid's last
+      // control (the glyph choice); every other section leaves it empty, so
+      // the candidate list makes DOWN a wall there. No left edge: LEFT in a
+      // tree is depth (back out of a row's controls), never lateral.
+      grid:      { left: ["sections"], down: ["bindings"] },
+      bindings:  { up: ["grid"] },
       sidebar:   { right: ["sections", "grid"] },
     },
     // Guide: chapter list (left) → reading pane (not navigable — prose) →
@@ -378,7 +388,7 @@ export const inputConfig = {
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "sidebar"],
-    settings:  ["sections", "grid", "sidebar"],
+    settings:  ["sections", "grid", "bindings", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],

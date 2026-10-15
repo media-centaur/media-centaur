@@ -27,3 +27,8 @@ Settings carried four visual idioms. Acquisition showed five forms and five Save
 ## Anti-patterns
 
 The form as the resting state; Save in the header; the one-option select; vanishing gated features; three ways to add an entry (rows plus inline Add; the media-directory dialog is the one exception).
+
+## Amendment 2026-10-15 — the binding row
+
+Settings → Controls was the one section outside the kit: a hand-rolled subgrid table whose Remap and Clear icon buttons appeared only on hover, so the keyboard cursor walked controls nobody could see. It is now a kit row, `Components.Settings.BindingRow.binding_row/1`: the keycap is the control (press it, then the key or button), Unbind beside each keycap is inert while the slot is already empty, and the page-level Reset all sits on the first card's title line like every other card action. "Clear" became "unbind" throughout, since Clear is itself a binding on the page. The table navigates as a nested `bindings` TREE zone — row = item, controls = sub-items — rather than the kit's flat walk; see `docs/input-system.md`.
+

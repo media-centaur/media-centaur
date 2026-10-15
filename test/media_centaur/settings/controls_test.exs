@@ -13,8 +13,8 @@ defmodule MediaCentaur.Settings.ControlsTest do
       assert resolved[:play].button == 9
     end
 
-    test "explicit nil override is preserved (user cleared the slot)" do
-      :ok = Controls.clear(:back, :keyboard)
+    test "explicit nil override is preserved (user unbound the slot)" do
+      :ok = Controls.unbind(:back, :keyboard)
       assert Controls.get()[:back].key == nil
     end
 
@@ -69,7 +69,7 @@ defmodule MediaCentaur.Settings.ControlsTest do
 
   describe "clear/2" do
     test "sets slot to nil without swap" do
-      :ok = Controls.clear(:back, :keyboard)
+      :ok = Controls.unbind(:back, :keyboard)
       resolved = Controls.get()
       assert resolved[:back].key == nil
       # No other binding was disturbed
@@ -109,7 +109,7 @@ defmodule MediaCentaur.Settings.ControlsTest do
 
     test "clear/2 broadcasts" do
       :ok = Controls.subscribe()
-      :ok = Controls.clear(:back, :keyboard)
+      :ok = Controls.unbind(:back, :keyboard)
       assert_receive {:controls_changed, map}
       assert map[:back].key == nil
     end

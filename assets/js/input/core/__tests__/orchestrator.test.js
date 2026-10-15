@@ -2027,6 +2027,67 @@ describe("Orchestrator", () => {
     })
   })
 
+  describe("Settings → Controls: the bindings tree under the grid", () => {
+    // The Controls section's binding table is a TREE zone nested under the
+    // settings grid: DOWN off the grid's last control enters it, UP off its
+    // first row returns, and LEFT inside it is depth, not a way to sections.
+    const controlsConfig = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        bindings: "[data-nav-zone='bindings'] [data-nav-item]",
+      },
+      instanceTypes: { ...TEST_CONFIG.instanceTypes, bindings: "tree" },
+      layouts: {
+        ...TEST_LAYOUTS,
+        settings: {
+          sections: { right: ["grid"] },
+          grid:     { left: ["sections"], down: ["bindings"] },
+          bindings: { up: ["grid"] },
+          sidebar:  { right: ["sections", "grid"] },
+        },
+      },
+      cursorStartPriority: { ...TEST_CONFIG.cursorStartPriority, settings: ["sections", "grid", "bindings", "sidebar"] },
+    }
+
+    function controlsPage(focused) {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getItemCount: (ctx) => ({ grid: 4, bindings: 13, sections: 14, sidebar: 8 })[ctx] ?? 0,
+        getFocusedIndex: (ctx) => ctx in focused ? focused[ctx] : -1,
+        getGridColumnCount: () => 1,
+        getActiveItemIndex: () => -1,
+      }, {
+        ...controlsConfig,
+        sources: [(callbacks) => { onActionCallback = callbacks.onAction; return mockSource }],
+      })
+      system.start({})
+      return { system, calls, press: (a) => onActionCallback(a) }
+    }
+
+    test("DOWN at the grid's last control enters the bindings tree", () => {
+      const { system, press } = controlsPage({ grid: 3 })
+      system.focusMachine.forceContext("grid")
+      press(Action.NAVIGATE_DOWN)
+      expect(system.focusMachine.context).toBe("bindings")
+    })
+
+    test("UP at the first binding row returns to the grid", () => {
+      const { system, press } = controlsPage({ bindings: 0 })
+      system.focusMachine.forceContext("bindings")
+      press(Action.NAVIGATE_UP)
+      expect(system.focusMachine.context).toBe("grid")
+    })
+
+    test("LEFT on a binding row stays in the tree — it is depth, not a way to the sections menu", () => {
+      const { system, press } = controlsPage({ bindings: 5 })
+      system.focusMachine.forceContext("bindings")
+      press(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe("bindings")
+    })
+  })
+
   describe("sub-focus fallback", () => {
     test("RIGHT in modal falls back to linear nav when no sub-item exists", () => {
       let onActionCallback = null

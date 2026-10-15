@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Storybook.Settings do
   def entry("settings_select_row"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Select row"]
   def entry("settings_select"), do: [icon: {:fa, "caret-down", :thin}, name: "Select"]
   def entry("settings_list"), do: [icon: {:fa, "list", :thin}, name: "List setting"]
+  def entry("binding_row"), do: [icon: {:fa, "keyboard", :thin}, name: "Binding row"]
   def entry("settings_field"), do: [icon: {:fa, "rectangle-list", :thin}, name: "Field"]
   def entry("settings_input"), do: [icon: {:fa, "i-cursor", :thin}, name: "Input"]
   def entry("path_status"), do: [icon: {:fa, "circle-check", :thin}, name: "Path status"]

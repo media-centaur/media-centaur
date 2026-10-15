@@ -24,7 +24,8 @@ const TEST_LAYOUTS = {
   },
   settings: {
     sections:  { right: ["grid"],            left: ["sidebar"] },
-    grid:      { left: ["sections"] },
+    grid:      { left: ["sections"], down: ["bindings"] },
+    bindings:  { up: ["grid"] },
     sidebar:   { right: ["sections", "grid"] },
   },
   status: {
@@ -338,6 +339,32 @@ describe("buildNavGraph", () => {
     test("no zone_tabs or toolbar in settings layout", () => {
       expect(graph.zone_tabs).toBeUndefined()
       expect(graph.toolbar).toBeUndefined()
+    })
+  })
+
+  describe("settings zone, the Controls section (a bindings tree under the grid)", () => {
+    const counts = { grid: 4, bindings: 13, sections: 4, sidebar: 4 }
+    const graph = buildNavGraph("settings", counts, CONFIG)
+
+    test("grid down enters the bindings tree", () => {
+      expect(graph.grid.down).toBe("bindings")
+    })
+
+    test("bindings up returns to the grid", () => {
+      expect(graph.bindings.up).toBe("grid")
+    })
+
+    test("bindings has no left edge — LEFT is depth in a tree, never lateral", () => {
+      expect(graph.bindings.left).toBeUndefined()
+    })
+  })
+
+  describe("settings zone, any other section (no bindings in the DOM)", () => {
+    const counts = { grid: 6, bindings: 0, sections: 4, sidebar: 4 }
+    const graph = buildNavGraph("settings", counts, CONFIG)
+
+    test("grid down is a wall", () => {
+      expect(graph.grid.down).toBeUndefined()
     })
   })
 

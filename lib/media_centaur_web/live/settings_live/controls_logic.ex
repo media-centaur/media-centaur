@@ -39,6 +39,13 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
     end)
   end
 
+  @doc """
+  Which of a binding's slots is listening — `:keyboard`, `:gamepad` or nil —
+  given the view's `{kind, id}` listening state.
+  """
+  def listening_kind({kind, id}, id), do: kind
+  def listening_kind(_listening, _id), do: nil
+
   @doc "Human label for a category atom."
   def category_label(category), do: Map.fetch!(@category_labels, category)
 

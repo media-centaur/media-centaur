@@ -16,7 +16,7 @@ defmodule MediaCentaur.Settings.Controls do
   overrides live in three `Settings.Entry` rows (see `Controls.Store`).
   `get/0` resolves the full map by overlaying overrides on catalog defaults.
 
-  Writes go through `put/3` or `clear/2`, which handle conflict detection
+  Writes go through `put/3` or `unbind/2`, which handle conflict detection
   and (for put) auto-swap. Every successful write broadcasts
   `{:controls_changed, resolved_map}` on the `controls:updates` topic.
   """
@@ -109,10 +109,14 @@ defmodule MediaCentaur.Settings.Controls do
     do_put(id, :gamepad, value, &Store.read_gamepad/0, &Store.write_gamepad/1, & &1.button)
   end
 
-  @doc "Clear a slot — user-intentional un-binding. Does not swap."
-  @spec clear(atom(), kind()) :: :ok | {:error, :unknown_id}
-  def clear(id, :keyboard), do: do_clear(id, &Store.read_keyboard/0, &Store.write_keyboard/1)
-  def clear(id, :gamepad), do: do_clear(id, &Store.read_gamepad/0, &Store.write_gamepad/1)
+  @doc """
+  Unbind a slot — leave the action with no key (or no button) on purpose.
+  Does not swap. Not "clear": `:clear` is itself a binding in the catalog,
+  and one context cannot carry both meanings of the word.
+  """
+  @spec unbind(atom(), kind()) :: :ok | {:error, :unknown_id}
+  def unbind(id, :keyboard), do: do_unbind(id, &Store.read_keyboard/0, &Store.write_keyboard/1)
+  def unbind(id, :gamepad), do: do_unbind(id, &Store.read_gamepad/0, &Store.write_gamepad/1)
 
   @doc "Remove every user override in a category; fall back to catalog defaults."
   @spec reset_category(atom()) :: :ok
@@ -171,7 +175,7 @@ defmodule MediaCentaur.Settings.Controls do
     Map.put(overrides, Atom.to_string(displaced_id), previous_value)
   end
 
-  defp do_clear(id, reader, writer) do
+  defp do_unbind(id, reader, writer) do
     case Catalog.get(id) do
       nil ->
         {:error, :unknown_id}
