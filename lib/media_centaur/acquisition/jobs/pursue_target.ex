@@ -393,7 +393,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         MapSet.member?(excluded, result.guid) ->
           acc
 
-        is_nil(criteria) or not TitleMatcher.matches?(result, criteria) ->
+        not TitleMatcher.matches?(result, criteria) ->
           acc
 
         not Quality.acceptable?(result.quality, prefs.min_quality, prefs.max_quality) ->

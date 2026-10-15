@@ -969,7 +969,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
 
   defp gap_verdict(:searching) do
     GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.SearchProgress{
-      plan_id: "story",
+      plan_id: "00000000-0000-0000-0000-00000000c0de",
       wanted: 6,
       steps: [
         %{scope: :series, kind: :primary, state: :done, term_count: 1, residual_after: 2},
@@ -981,7 +981,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
 
   defp gap_verdict(:searching_fallback) do
     GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.SearchProgress{
-      plan_id: "story",
+      plan_id: "00000000-0000-0000-0000-00000000c0de",
       wanted: 1,
       steps: [
         %{scope: :episode, kind: :primary, state: :done, term_count: 1, residual_after: 1},

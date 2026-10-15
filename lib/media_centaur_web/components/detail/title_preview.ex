@@ -188,8 +188,6 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
     end)
   end
 
-  defp top_cast(_cast), do: []
-
   defp presence(value) when is_binary(value) and value != "", do: value
   defp presence(_value), do: nil
 end

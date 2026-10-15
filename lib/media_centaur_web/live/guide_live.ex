@@ -32,11 +32,10 @@ defmodule MediaCentaurWeb.GuideLive do
     end
   end
 
+  # The guide is compiled in; it always has a first chapter.
   defp default_slug do
-    case Guide.chapters() do
-      [first | _] -> first.slug
-      [] -> ""
-    end
+    [first | _] = Guide.chapters()
+    first.slug
   end
 
   @impl true

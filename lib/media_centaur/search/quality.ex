@@ -42,7 +42,7 @@ defmodule MediaCentaur.Search.Quality do
   """
 
   @type t :: :uhd_4k | :hd_1080p | :pre_release | nil
-  @type source :: :remux | :web_dl | :bluray_encode | :webrip | :hdtv | :unknown
+  @type source :: :remux | :web_dl | :bluray_encode | :webrip | :dvdrip | :hdtv | :unknown
   @type size_preference :: String.t()
 
   @source_ladders %{

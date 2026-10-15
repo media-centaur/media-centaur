@@ -12,6 +12,8 @@ defmodule MediaCentaur.Pipeline.ImageQueueEntry do
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "pipeline_image_queue" do
     field :owner_id, :string
     field :owner_type, :string

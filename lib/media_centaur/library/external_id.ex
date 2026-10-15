@@ -19,6 +19,8 @@ defmodule MediaCentaur.Library.ExternalId do
 
   @owner_types [:movie, :tv_series, :movie_series, :video_object]
 
+  @type t :: %__MODULE__{}
+
   schema "library_external_ids" do
     field :source, :string
     field :external_id, :string

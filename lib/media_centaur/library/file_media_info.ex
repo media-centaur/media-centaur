@@ -24,6 +24,8 @@ defmodule MediaCentaur.Library.FileMediaInfo do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @type t :: %__MODULE__{}
+
   schema "library_file_media_infos" do
     field :container_title, :string
     field :duration_seconds, :integer

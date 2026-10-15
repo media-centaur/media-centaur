@@ -62,7 +62,11 @@ defmodule MediaCentaur.Playback.NextEpisode do
   Builds the mpv IPC `loadfile` command that appends a queue item to the
   playlist.
   """
-  @spec loadfile_command(%{content_url: String.t(), start_position: float()}) :: list()
+  @spec loadfile_command(%{
+          required(:content_url) => String.t(),
+          required(:start_position) => float(),
+          optional(atom()) => term()
+        }) :: list()
   def loadfile_command(%{content_url: url, start_position: start}) when start > 0 do
     ["loadfile", url, "append", -1, "start=#{start}"]
   end

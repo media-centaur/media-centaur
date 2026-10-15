@@ -149,8 +149,11 @@ defmodule MediaCentaur.Activities.Activity do
   end
 
   @doc "Marks the row withdrawn by a deletion event: its time and its signed wire form."
-  @spec tombstone_changeset(%__MODULE__{}, %{deleted_at: DateTime.t(), deletion_event: map()}) ::
-          Ecto.Changeset.t()
+  @spec tombstone_changeset(%__MODULE__{}, %{
+          required(:deleted_at) => DateTime.t(),
+          required(:deletion_event) => map(),
+          optional(atom()) => term()
+        }) :: Ecto.Changeset.t()
   def tombstone_changeset(%__MODULE__{} = activity, attrs) do
     activity
     |> cast(attrs, [:deleted_at, :deletion_event])

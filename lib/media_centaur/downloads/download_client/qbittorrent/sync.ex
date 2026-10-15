@@ -133,7 +133,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync do
           required(:full?) => boolean(),
           required(:added) => non_neg_integer(),
           required(:removed) => non_neg_integer(),
-          required(:changed) => non_neg_integer()
+          required(:changed) => non_neg_integer(),
+          optional(atom()) => term()
         }) :: boolean()
   def movement?(%{full?: full?, added: added, removed: removed, changed: changed}) do
     added > 0 or removed > 0 or (not full? and changed > 0)

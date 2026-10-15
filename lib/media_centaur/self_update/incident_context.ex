@@ -94,7 +94,6 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
     }
   end
 
-  defp classification_label({:error, _reason}), do: "error"
   defp classification_label(classification), do: to_string(classification)
 
   defp last_check_iso(:none), do: nil

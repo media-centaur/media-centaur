@@ -38,6 +38,8 @@ defmodule MediaCentaur.ReleaseTracking.Want do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{}
+
   schema "release_tracking_wants" do
     field :unit_key, :string
     field :season_number, :integer

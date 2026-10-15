@@ -375,16 +375,18 @@ defmodule MediaCentaur.Nostr.Connection do
 
   defp send_raw(%{websocket: nil} = state, _frame), do: state
 
+  # Two three-tuples that differ only in the opaque middle element, so each
+  # call is matched on its own rather than telling them apart by struct.
   defp send_raw(state, frame) do
-    with {:ok, websocket, data} <- Mint.WebSocket.encode(state.websocket, frame),
-         {:ok, conn} <- Mint.WebSocket.stream_request_body(state.conn, state.ref, data) do
-      %{state | websocket: websocket, conn: conn}
-    else
-      {:error, %Mint.WebSocket{} = websocket, reason} ->
-        lost(%{state | websocket: websocket}, reason)
+    case Mint.WebSocket.encode(state.websocket, frame) do
+      {:ok, websocket, data} ->
+        case Mint.WebSocket.stream_request_body(state.conn, state.ref, data) do
+          {:ok, conn} -> %{state | websocket: websocket, conn: conn}
+          {:error, conn, reason} -> lost(%{state | websocket: websocket, conn: conn}, reason)
+        end
 
-      {:error, conn, reason} ->
-        lost(%{state | conn: conn}, reason)
+      {:error, websocket, reason} ->
+        lost(%{state | websocket: websocket}, reason)
     end
   end
 

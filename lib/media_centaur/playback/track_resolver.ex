@@ -195,7 +195,10 @@ defmodule MediaCentaur.Playback.TrackResolver do
   Audio enforcement (`aid`) would be the symmetric helper — deliberately
   out of scope for v1 (the reported bug is subtitle-only).
   """
-  @spec sid_enforcement(%{sub_index: non_neg_integer() | nil}, [Track.t()]) :: sid_action()
+  @spec sid_enforcement(
+          %{required(:sub_index) => non_neg_integer() | nil, optional(atom()) => term()},
+          [Track.t()]
+        ) :: sid_action()
   def sid_enforcement(_resolution, []), do: :skip
   def sid_enforcement(%{sub_index: nil}, _subtitle_tracks), do: {:set, "no"}
   def sid_enforcement(%{sub_index: index}, _subtitle_tracks), do: {:set, index}
