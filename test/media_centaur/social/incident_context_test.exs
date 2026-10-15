@@ -7,9 +7,50 @@ defmodule MediaCentaur.Social.IncidentContextTest do
   @grace 180
 
   defp status(entries) do
-    Map.new(entries, fn {url, state, since} ->
-      {url, %{state: state, last_error: nil, since: since}}
+    Map.new(entries, fn
+      {url, state, since} -> {url, %{state: state, last_error: nil, since: since}}
+      {url, state, since, error} -> {url, %{state: state, last_error: error, since: since}}
     end)
+  end
+
+  describe "detail" do
+    test "lists every relay with its state, how long it has been there, and its last error" do
+      old = DateTime.add(@now, -720, :second)
+
+      assert {:fault, :relay_degraded, :warning, %{detail: detail}} =
+               IncidentContext.decide(
+                 status([
+                   {"wss://b/", :connected, @now},
+                   {"wss://a/", :disconnected, old, "connection refused"}
+                 ]),
+                 @now,
+                 @grace
+               )
+
+      assert detail == "wss://a/ — disconnected for 12 min (connection refused)\nwss://b/ — connected"
+    end
+
+    test "an auth failure names the relay that rejected the identity" do
+      assert {:fault, :relay_auth_failed, :error, %{detail: detail}} =
+               IncidentContext.decide(
+                 status([{"wss://a/", :auth_failed, DateTime.add(@now, -90, :second), "restricted"}]),
+                 @now,
+                 @grace
+               )
+
+      assert detail == "wss://a/ — rejected this identity 1 min ago (restricted)"
+    end
+
+    test "durations read in seconds, minutes or hours" do
+      for {offset, expected} <- [{40, "40 s"}, {600, "10 min"}, {7_800, "2 h"}] do
+        since = DateTime.add(@now, -offset, :second)
+
+        assert {:fault, :relays_unreachable, :error, %{detail: detail}} =
+                 IncidentContext.decide(status([{"wss://a/", :disconnected, since}]), @now, 30)
+
+        assert detail == "wss://a/ — disconnected for #{expected}"
+      end
+    end
   end
 
   test "no relays is healthy" do

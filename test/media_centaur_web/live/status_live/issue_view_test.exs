@@ -8,18 +8,22 @@ defmodule MediaCentaurWeb.StatusLive.IssueViewTest do
 
   import Phoenix.LiveViewTest
 
-  defp seed_bucket(fingerprint) do
-    bucket = %MediaCentaur.ErrorReports.Bucket{
-      fingerprint: fingerprint,
-      component: :pipeline,
-      normalized_message: "image download failed",
-      display_title: "Image downloads failing for 11 items",
-      severity: :error,
-      count: 11,
-      first_seen: ~U[2026-06-01 14:02:00Z],
-      last_seen: ~U[2026-06-01 15:00:00Z],
-      sample_entries: [%{timestamp: ~U[2026-06-01 14:02:00Z], message: "TMDB image 503"}]
-    }
+  defp seed_bucket(fingerprint, overrides) do
+    bucket =
+      struct!(
+        %MediaCentaur.ErrorReports.Bucket{
+          fingerprint: fingerprint,
+          component: :pipeline,
+          normalized_message: "image download failed",
+          display_title: "Image downloads failing for 11 items",
+          severity: :error,
+          count: 11,
+          first_seen: ~U[2026-06-01 14:02:00Z],
+          last_seen: ~U[2026-06-01 15:00:00Z],
+          sample_entries: [%{timestamp: ~U[2026-06-01 14:02:00Z], message: "TMDB image 503"}]
+        },
+        overrides
+      )
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -30,11 +34,17 @@ defmodule MediaCentaurWeb.StatusLive.IssueViewTest do
     bucket
   end
 
-  defp open_issue_view(conn, fingerprint) do
-    {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
-    seed_bucket(fingerprint)
+  defp open_issue_view(conn, fingerprint, overrides \\ %{}) do
+    subsystem = Map.get(overrides, :component, :pipeline)
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=#{subsystem}")
+    seed_bucket(fingerprint, overrides)
     render(view)
-    view |> element("#incident-#{fingerprint} button[phx-click=select_incident]") |> render_click()
+    # Attribute selector: a fault's fingerprint carries colons, which a CSS id
+    # selector would need escaping.
+    view
+    |> element("[id='incident-#{fingerprint}'] button[phx-click=select_incident]")
+    |> render_click()
+
     view
   end
 
@@ -50,6 +60,21 @@ defmodule MediaCentaurWeb.StatusLive.IssueViewTest do
     # The subsystem briefing belongs to the drill-in (rendered once at its
     # top); the incident modal identifies the subsystem by name + glyph only.
     refute view |> element("#issue-view") |> render() =~ "Turns raw files into library entries"
+  end
+
+  test "a subsystem fault opens to the probe's detail instead of log lines", %{conn: conn} do
+    view =
+      open_issue_view(conn, "subsystem:social:relays_unreachable", %{
+        component: :social,
+        normalized_message: "No relay reachable",
+        display_title: "No relay reachable",
+        sample_entries: [],
+        detail: "wss://relay.example/ — disconnected for 12 min (connection refused)"
+      })
+
+    html = view |> element("#issue-view") |> render()
+    assert html =~ "wss://relay.example/ — disconnected for 12 min (connection refused)"
+    refute html =~ "Recent log lines"
   end
 
   test "Report this hands off from the issue view to the persistent report wizard",

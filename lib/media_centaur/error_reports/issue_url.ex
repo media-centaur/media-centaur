@@ -66,10 +66,19 @@ defmodule MediaCentaur.ErrorReports.IssueUrl do
       recurrences_block(bucket),
       "\nNormalized message:\n\n",
       indent(bucket.normalized_message),
-      "\n\n## Recent log context (normalized)\n\n",
-      format_samples(sample_entries),
+      evidence_block(bucket.detail, sample_entries),
       "\n\n---\nReported via Media Centaur's in-app error reporter.\n"
     ])
+  end
+
+  # A fault's evidence is the probe's detail; a log incident's is its sample
+  # lines. The two never coexist on one bucket.
+  defp evidence_block(detail, _sample_entries) when is_binary(detail) and detail != "" do
+    ["\n\n## Details\n\n", indent(detail)]
+  end
+
+  defp evidence_block(_detail, sample_entries) do
+    ["\n\n## Recent log context (normalized)\n\n", format_samples(sample_entries)]
   end
 
   defp recurrences_block(bucket) do

@@ -2,7 +2,8 @@ defmodule MediaCentaurWeb.Storybook.Status.IssueView do
   @moduledoc """
   Ephemeral incident issue view — opened from a Status incident row. Shows the
   incident's title, subsystem (name + glyph), severity, occurrence range, and
-  the raw sample log lines, then hands off to the report wizard. The subsystem
+  its evidence (sample log lines, or a subsystem fault's probe detail), then
+  hands off to the report wizard. The subsystem
   briefing stays on the drill-in this opens from — the modal is about the
   incident, not the subsystem.
 
@@ -44,6 +45,22 @@ defmodule MediaCentaurWeb.Storybook.Status.IssueView do
     }
   end
 
+  defp fault do
+    %Bucket{
+      fingerprint: "subsystem:social:relays_unreachable",
+      component: :social,
+      normalized_message: "No relay reachable",
+      display_title: "No relay reachable",
+      severity: :error,
+      count: 3,
+      first_seen: ~U[2026-06-01 14:55:00Z],
+      last_seen: ~U[2026-06-01 15:05:00Z],
+      sample_entries: [],
+      detail:
+        "wss://relay.example/ — disconnected for 12 min (connection refused)\nwss://relay.other/ — disconnected for 11 min"
+    }
+  end
+
   defp samples do
     [
       %{timestamp: ~U[2026-06-01 14:02:00Z], message: "GET poster 503 (attempt 1)"},
@@ -65,8 +82,13 @@ defmodule MediaCentaurWeb.Storybook.Status.IssueView do
       },
       %Variation{
         id: :warning_no_logs,
-        description: "Warning severity, no sample log lines.",
+        description: "Warning severity, no sample log lines — the body collapses.",
         attributes: %{bucket: bucket(:warning, [])}
+      },
+      %Variation{
+        id: :subsystem_fault,
+        description: "A probe-raised fault: no log lines, the probe's detail instead.",
+        attributes: %{bucket: fault()}
       }
     ]
   end

@@ -2,7 +2,8 @@ defmodule MediaCentaurWeb.Components.IssueView do
   @moduledoc """
   Ephemeral modal showing everything known about one `ErrorReports.Bucket`:
   title, subsystem (name + glyph), severity, occurrence count + time range, and
-  the raw sample log lines. The footer hands off to the persistent report
+  its evidence — the raw sample log lines of a log incident, or the probe's
+  detail of a subsystem fault. The footer hands off to the persistent report
   wizard (`on_report`). The subsystem's plain-language briefing is deliberately
   *not* repeated here — it lives at the top of the drill-in this modal opens
   from; the incident modal stays about the incident.
@@ -51,7 +52,18 @@ defmodule MediaCentaurWeb.Components.IssueView do
           </div>
         </div>
 
-        <div class="px-6 py-4 flex-1 min-h-0 overflow-y-auto space-y-4">
+        <div
+          :if={@bucket.sample_entries != [] or evidence?(@bucket.detail)}
+          class="px-6 py-4 flex-1 min-h-0 overflow-y-auto space-y-4"
+        >
+          <div :if={evidence?(@bucket.detail)} class="space-y-1.5">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
+              Details
+            </h3>
+            <p class="glass-inset rounded-lg px-3 py-2 text-xs font-mono text-base-content/60 whitespace-pre-line">
+              {@bucket.detail}
+            </p>
+          </div>
           <div :if={@bucket.sample_entries != []} class="space-y-1.5">
             <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Recent log lines
@@ -95,4 +107,6 @@ defmodule MediaCentaurWeb.Components.IssueView do
     </.modal>
     """
   end
+
+  defp evidence?(detail), do: is_binary(detail) and detail != ""
 end

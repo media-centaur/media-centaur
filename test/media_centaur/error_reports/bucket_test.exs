@@ -31,6 +31,12 @@ defmodule MediaCentaur.ErrorReports.BucketTest do
       assert bucket.headline == "PendingMigrationError: migrations are pending"
     end
 
+    test "carries the incident's detail" do
+      bucket = Bucket.from_incident(incident(detail: "wss://a/ — disconnected for 12 min"), [])
+
+      assert bucket.detail == "wss://a/ — disconnected for 12 min"
+    end
+
     test "headline falls back to the stored display title when the incident has no message" do
       bucket = Bucket.from_incident(incident(message: nil), [])
 

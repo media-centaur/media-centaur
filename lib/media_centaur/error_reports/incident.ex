@@ -32,6 +32,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
           component: String.t(),
           message: String.t() | nil,
           display_title: String.t() | nil,
+          detail: String.t() | nil,
           fingerprint: String.t() | nil,
           severity: :warning | :error | :critical,
           status: :open | :acknowledged | :resolved,
@@ -53,6 +54,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
     field :component, :string
     field :message, :string
     field :display_title, :string
+    field :detail, :string
     field :fingerprint, :string
     field :severity, Ecto.Enum, values: @severities
     field :status, Ecto.Enum, values: @statuses, default: :open
@@ -101,6 +103,8 @@ defmodule MediaCentaur.ErrorReports.Incident do
   Insert changeset for a freshly-raised `:subsystem` fault.
 
   Forces `origin: :subsystem`. Grouped by `{component, kind}` (no fingerprint).
+  `detail` is the probe's account of the condition — the fault's evidence,
+  since it has no log lines.
   """
   @spec subsystem_changeset(map()) :: Ecto.Changeset.t()
   def subsystem_changeset(attrs) do
@@ -111,6 +115,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
       :fingerprint,
       :message,
       :display_title,
+      :detail,
       :severity,
       :status,
       :count,
@@ -164,6 +169,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
       :last_seen,
       :message,
       :display_title,
+      :detail,
       :severity,
       :status,
       :resolved_at,

@@ -41,6 +41,19 @@ defmodule MediaCentaur.ErrorReports.IssueUrlTest do
       assert body =~ "First seen:"
     end
 
+    test "includes a fault's detail in place of log context" do
+      bucket =
+        sample_bucket(%{
+          detail: "wss://a/ — disconnected for 12 min\nwss://b/ — connected",
+          sample_entries: []
+        })
+
+      body = IssueUrl.format_body(bucket, sample_env(), [])
+      assert body =~ "## Details"
+      assert body =~ "wss://a/ — disconnected for 12 min"
+      refute body =~ "no log context included"
+    end
+
     test "includes the redacted log sample lines" do
       entries = [%{timestamp: ~U[2026-04-24 14:00:00Z], message: "no such file <path>"}]
       body = IssueUrl.format_body(sample_bucket(), sample_env(), entries)
