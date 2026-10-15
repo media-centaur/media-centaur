@@ -78,6 +78,81 @@ describe("ControlsBridge", () => {
     expect(bindCalls.length).toBe(0)
   })
 
+  describe("listenGamepad", () => {
+    let captures, capture
+
+    beforeEach(() => {
+      captures = []
+      capture = mock((fn) => {
+        const entry = { fn, cancelled: false }
+        captures.push(entry)
+        return () => { entry.cancelled = true }
+      })
+      bridge = new ControlsBridge({ window, pushEvent, captureGamepadButton: capture })
+    })
+
+    test("hands the next button to the source's capture and pushes it as the bind", () => {
+      bridge.listenGamepad({ id: "play" })
+      expect(capture).toHaveBeenCalledTimes(1)
+
+      captures[0].fn(9)
+
+      expect(pushEvent).toHaveBeenCalledWith("controls:bind", {
+        id: "play",
+        kind: "gamepad",
+        value: 9,
+      })
+    })
+
+    test("Escape on the keyboard cancels the capture and pushes controls:cancel", () => {
+      bridge.listenGamepad({ id: "play" })
+      const event = makeEvent("Escape")
+      window.dispatch("keydown", event)
+
+      expect(captures[0].cancelled).toBe(true)
+      expect(event.stopPropagation).toHaveBeenCalled()
+      expect(pushEvent).toHaveBeenCalledWith("controls:cancel", {})
+      const bindCalls = pushEvent.mock.calls.filter((c) => c[0] === "controls:bind")
+      expect(bindCalls.length).toBe(0)
+    })
+
+    test("other keys keep navigating while a pad slot listens", () => {
+      bridge.listenGamepad({ id: "play" })
+      const event = makeEvent("ArrowDown")
+      window.dispatch("keydown", event)
+
+      expect(event.stopPropagation).not.toHaveBeenCalled()
+      expect(captures[0].cancelled).toBe(false)
+    })
+
+    test("once the button lands, Escape is no longer swallowed", () => {
+      bridge.listenGamepad({ id: "play" })
+      captures[0].fn(9)
+      const event = makeEvent("Escape")
+      window.dispatch("keydown", event)
+
+      expect(event.stopPropagation).not.toHaveBeenCalled()
+      const cancelCalls = pushEvent.mock.calls.filter((c) => c[0] === "controls:cancel")
+      expect(cancelCalls.length).toBe(0)
+    })
+
+    test("a new listen supersedes a pending one; cancel() drops it", () => {
+      bridge.listenGamepad({ id: "play" })
+      bridge.listenGamepad({ id: "back" })
+      expect(captures[0].cancelled).toBe(true)
+      expect(captures[1].cancelled).toBe(false)
+
+      bridge.cancel()
+      expect(captures[1].cancelled).toBe(true)
+    })
+
+    test("without a gamepad source a pad listen waits for nothing", () => {
+      bridge = new ControlsBridge({ window, pushEvent })
+      bridge.listenGamepad({ id: "play" })
+      expect(window.addEventListener).not.toHaveBeenCalled()
+    })
+  })
+
   test("updateMaps emits a window event for the input system to consume", () => {
     const listener = mock(() => {})
     window.addEventListener("input:rebindMaps", listener)

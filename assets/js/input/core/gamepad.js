@@ -76,6 +76,9 @@ export class GamepadSource {
     this._rafId = null
     this._lastGamepadId = null
     this._running = false
+    // A pending one-shot capture (see captureNext): the next rising edge
+    // goes here as a raw button index instead of through the button map.
+    this._capture = null
     // True while the gate is suppressing input (surface unfocused, hidden, or
     // automation). Tracked only to emit a single debug line on each transition.
     this._inputGateActive = false
@@ -86,6 +89,20 @@ export class GamepadSource {
     this._onConnected = this._onConnected.bind(this)
     this._onDisconnected = this._onDisconnected.bind(this)
     this._poll = this._poll.bind(this)
+  }
+
+  /**
+   * Hand the next button press to `fn(buttonIndex)` instead of the button
+   * map — Settings → Controls listening for a gamepad slot's new value. The
+   * press is consumed: no action fires for it and no repeat starts. Returns
+   * a function that cancels the capture while it is still pending.
+   *
+   * @param {(button: number) => void} fn
+   * @returns {() => void}
+   */
+  captureNext(fn) {
+    this._capture = fn
+    return () => { if (this._capture === fn) this._capture = null }
   }
 
   start() {
@@ -294,9 +311,14 @@ export class GamepadSource {
       const wasPressed = this._prevButtons[i]
 
       if (pressed && !wasPressed) {
-        // Rising edge — button just pressed
-        const action = buttonToAction(i, this._buttonMap)
-        if (action) {
+        // Rising edge — button just pressed. A pending capture takes it raw.
+        const capture = this._capture
+        const action = capture ? null : buttonToAction(i, this._buttonMap)
+        if (capture) {
+          this._capture = null
+          this._onInputDetected("gamepadbutton")
+          capture(i)
+        } else if (action) {
           this._onInputDetected("gamepadbutton")
           this._onAction(action)
           // Start repeat timer for navigation buttons

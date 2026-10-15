@@ -132,6 +132,7 @@ export function createInputHook() {
       this.bridge = new ControlsBridge({
         window,
         pushEvent: (ev, payload) => this.pushEvent(ev, payload),
+        captureGamepadButton: (fn) => gamepadSource.captureNext(fn),
       })
 
       this.handleEvent("controls:listen", ({ kind, id }) => {
@@ -153,6 +154,7 @@ export function createInputHook() {
     },
 
     destroyed() {
+      this.bridge?.cancel()
       window.removeEventListener("input:rebindMaps", handleRebind)
       orchestrator?.destroy()
       orchestrator = null

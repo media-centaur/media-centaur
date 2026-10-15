@@ -259,6 +259,84 @@ describe("GamepadSource", () => {
     })
   })
 
+  describe("captureNext (Settings → Controls listening for a pad slot)", () => {
+    function connected() {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      env._tickRAF()
+      return gamepad
+    }
+
+    test("the next press goes to the capture as a raw index and fires no action", () => {
+      const gamepad = connected()
+      const captured = []
+      source.captureNext((button) => captured.push(button))
+
+      gamepad.buttons[9] = { pressed: true }
+      env._tickRAF()
+
+      expect(captured).toEqual([9])
+      expect(actions).toEqual([])
+    })
+
+    test("a captured navigation button starts no repeat", () => {
+      const gamepad = connected()
+      source.captureNext(() => {})
+      source._now = () => 0
+
+      gamepad.buttons[13] = { pressed: true }
+      env._tickRAF()
+      source._now = () => 1000
+      env._tickRAF()
+
+      expect(actions).toEqual([])
+    })
+
+    test("the capture is one-shot: the press after it acts as usual", () => {
+      const gamepad = connected()
+      source.captureNext(() => {})
+
+      gamepad.buttons[9] = { pressed: true }
+      env._tickRAF()
+      gamepad.buttons[9] = { pressed: false }
+      env._tickRAF()
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+
+      expect(actions).toEqual([Action.SELECT])
+    })
+
+    test("a cancelled capture lets the press act as usual", () => {
+      const gamepad = connected()
+      const captured = []
+      const cancel = source.captureNext((button) => captured.push(button))
+      cancel()
+
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+
+      expect(captured).toEqual([])
+      expect(actions).toEqual([Action.SELECT])
+    })
+
+    test("cancelling a superseded capture leaves the newer one in place", () => {
+      const gamepad = connected()
+      const first = []
+      const second = []
+      const cancelFirst = source.captureNext((button) => first.push(button))
+      source.captureNext((button) => second.push(button))
+      cancelFirst()
+
+      gamepad.buttons[2] = { pressed: true }
+      env._tickRAF()
+
+      expect(first).toEqual([])
+      expect(second).toEqual([2])
+    })
+  })
+
   describe("D-pad repeat timing", () => {
     test("D-pad tap fires once, held does not repeat within delay", () => {
       const now = Date.now()
