@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       `:series_all_seasons`, `:series_planning` — the Download split
       control and the series scope select, their menus and the pending
       state.
-    * `:from_friend`, `:every_flag`, `:social_open`, `:own_note`,
+    * `:from_friend`, `:from_friend_long`, `:every_flag`, `:social_open`, `:own_note`,
       `:own_review`, `:own_listing` — the social capsule and its panel,
       the lead review, your own note, and Delete <noun> on an own
       activity.
@@ -501,6 +501,30 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
                 ),
               rung: :follow,
               social_activity: [act(777, :movie, "Sample Friend", :review, :love)]
+            })
+        }
+      },
+      %Variation{
+        id: :from_friend_long,
+        description:
+          "A lead review of several lines: the first line sits level with the tile, " <>
+            "the rest wrap beneath it — the one-line review above sits level the same way.",
+        attributes: %{
+          detail:
+            unowned(movie(), %{
+              activity:
+                act(
+                  777,
+                  :movie,
+                  "Sample Friend",
+                  :review,
+                  :dislike,
+                  "Finished the book and wanted to see how they filmed it. They kept the mood " <>
+                    "and almost none of the plot, and the last act is its own story entirely. " <>
+                    "Worth it for the score alone."
+                ),
+              rung: :follow,
+              social_activity: [act(777, :movie, "Sample Friend", :review, :dislike)]
             })
         }
       },
