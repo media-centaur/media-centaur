@@ -23,6 +23,19 @@ defmodule MediaCentaur.Search.TitleFormTest do
       assert TitleForm.query("Sample's Movie") == "Samples Movie"
     end
 
+    test "reads punctuation as a separator — some indexers return nothing for it" do
+      # Measured against a live indexer: a comma, `!`, `&`, `?` or `/` in
+      # the query returned 0 results where the same title without it
+      # returned 60+.
+      assert TitleForm.query("Sample, I Shrunk the Movie") == "Sample I Shrunk the Movie"
+      assert TitleForm.query("Sample!") == "Sample"
+      assert TitleForm.query("Sample & Show") == "Sample Show"
+      assert TitleForm.query("Who Sampled the Movie?") == "Who Sampled the Movie"
+      assert TitleForm.query("9 1/2 Samples") == "9 1 2 Samples"
+      assert TitleForm.query("Sample: The Movie") == "Sample The Movie"
+      assert TitleForm.query("Sample-Man") == "Sample Man"
+    end
+
     test "collapses whitespace and trims" do
       assert TitleForm.query("  Sample   Movie  ") == "Sample Movie"
     end
