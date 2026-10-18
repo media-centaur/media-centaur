@@ -709,7 +709,10 @@ defmodule MediaCentaurWeb.SocialLive do
                     <.icon name="hero-arrow-up" class="size-4" /> {@feed_queued} new
                   </button>
                 </div>
-                <div class="space-y-2">
+                <%!-- The `feed` nav tree: the rows (each with its verbs as
+                      sub-items), Show older under them, or the empty
+                      state's actions. --%>
+                <div class="space-y-2" data-nav-zone="feed">
                   <.empty_state
                     :if={@feed == []}
                     id="feed-empty"
@@ -773,6 +776,9 @@ defmodule MediaCentaurWeb.SocialLive do
                       variant="dismiss"
                       size="sm"
                       phx-click="feed_show_older"
+                      data-nav-item
+                      data-nav-return-focus
+                      tabindex="0"
                     >
                       Show older
                     </.button>

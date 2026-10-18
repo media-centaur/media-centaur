@@ -52,6 +52,7 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
+    feed: "[data-nav-zone='feed'] [data-nav-item]",
     profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
     // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
@@ -109,6 +110,9 @@ export const inputConfig = {
     guide_outline: Context.MENU,
     console_footer: Context.TOOLBAR,
     people: Context.SHELF,
+    // The Feed: a vertical list of rows, each with its verbs (List,
+    // Download, Ignore) as sub-items — the bindings table's shape.
+    feed: Context.TREE,
     // The profile picker: tiles in a wrapping row plus the Add input over its button, so geometry answers adjacency.
     profile_picker: Context.SHELF,
     // The detail modal: a horizontal command row over a nesting list. The
@@ -337,13 +341,14 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    // Social: the zone-tabs strip above one body zone — the person cards
-    // on Friends; the Feed's rows and rail are not nav items until the
-    // hardening pass.
+    // Social: the zone-tabs strip above one body zone — the Feed's rows
+    // on Feed, the person cards on Friends. The Feed's rail of people is
+    // not a nav zone.
     social: {
-      zone_tabs:  { down: ["people"] },
+      zone_tabs:  { down: ["feed", "people"] },
+      feed:       { up: ["zone_tabs"] },
       people:     { up: ["zone_tabs"] },
-      sidebar:    { right: ["people", "zone_tabs"] },
+      sidebar:    { right: ["feed", "people", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -395,7 +400,7 @@ export const inputConfig = {
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     incoming:  ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
-    social: ["people", "zone_tabs", "sidebar"],
+    social: ["feed", "people", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],

@@ -15,18 +15,29 @@ describe("social behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the person cards are the one body zone under the zone tabs; the title rows belong to Incoming", () => {
+  test("the body under the zone tabs is the Feed's rows or the person cards; the title rows belong to Incoming", () => {
     expect(inputConfig.layouts.social).toEqual({
-      zone_tabs: { down: ["people"] },
+      zone_tabs: { down: ["feed", "people"] },
+      feed: { up: ["zone_tabs"] },
       people: { up: ["zone_tabs"] },
-      sidebar: { right: ["people", "zone_tabs"] },
+      sidebar: { right: ["feed", "people", "zone_tabs"] },
     })
-    expect(inputConfig.cursorStartPriority.social).toEqual(["people", "zone_tabs", "sidebar"])
+    expect(inputConfig.cursorStartPriority.social).toEqual(["feed", "people", "zone_tabs", "sidebar"])
 
     // A stray title_rows zone in the DOM is ignored: nothing routes to it.
-    const graph = buildNavGraph("social", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
-    expect(graph.zone_tabs.down).toBe("people")
-    expect(graph.sidebar.right).toBe("people")
+    const friends = buildNavGraph("social", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
+    expect(friends.zone_tabs.down).toBe("people")
+    expect(friends.sidebar.right).toBe("people")
+
+    const feed = buildNavGraph("social", { zone_tabs: 2, feed: 20, sidebar: 4 }, inputConfig)
+    expect(feed.zone_tabs.down).toBe("feed")
+    expect(feed.feed.up).toBe("zone_tabs")
+    expect(feed.sidebar.right).toBe("feed")
+  })
+
+  test("the Feed is a tree: rows walk up and down, a row's verbs are its sub-items", () => {
+    expect(inputConfig.instanceTypes.feed).toBe("tree")
+    expect(inputConfig.contextSelectors.feed).toBe("[data-nav-zone='feed'] [data-nav-item]")
   })
 
   test("a title opened on Social navigates as the one detail overlay: the action row over an open menu over the tracking card (UIDR-043)", () => {
