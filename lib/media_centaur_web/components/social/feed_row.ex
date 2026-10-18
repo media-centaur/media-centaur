@@ -5,8 +5,11 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
   80×120 beside it, then the words — who did what (`Nick reviewed ♥`,
   `You want to watch`; the sentiment glyph after the verb when the
   review gives one, nothing when it gives none), which title (name and
-  year), and the review's words at two lines at most — and the relative
-  time at the row's right edge, all hung from the row's top line. The
+  year), and the review's words in full — and the relative time at the
+  row's right edge, all hung from the row's top line. The words are
+  never clipped: the protocol caps a review at 500 characters, about
+  seven lines here, and a review of two lines or fewer sits beside the
+  120px poster, so only a long review makes its row taller. The
   poster is the row's one picture; a title without one shows the empty
   slot. An own row is the filled own tile and the second-person verb;
   nothing else marks it. The type is the app's: 16px words, an 18px
@@ -104,7 +107,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
         </p>
         <p
           :if={@entry.text}
-          class="mt-1 line-clamp-2 max-w-[40rem] text-base leading-6 text-base-content/80"
+          class="mt-1 max-w-[40rem] text-base leading-6 text-base-content/80"
           data-role="text"
         >
           {@entry.text}

@@ -85,10 +85,24 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
       },
       %Variation{
         id: :review_like_with_text,
-        description:
-          "Like is the thumbs up after the verb; the review is the third line, two lines at most.",
+        description: "Like is the thumbs up after the verb; the review is the third line.",
         attributes: %{
           entry: entry("like", %{kind: :review, sentiment: :like, text: @review_text, ago: "2h ago"})
+        }
+      },
+      %Variation{
+        id: :review_long,
+        description:
+          "A review near the protocol's 500-character cap: shown in full, and only this row grows.",
+        attributes: %{
+          entry:
+            entry("long", %{
+              kind: :review,
+              sentiment: :love,
+              text:
+                "Watched it again after finishing the book. The film keeps the mood and drops almost every plot point, which works better than it should. The lighthouse sequence is still the strangest thing I have seen on a screen, and the score carries the last act. Slow in the middle, and two of the characters never get a scene of their own. I would still put it near the top of the year, and I will watch it a third time.",
+              ago: "3h ago"
+            })
         }
       },
       %Variation{
