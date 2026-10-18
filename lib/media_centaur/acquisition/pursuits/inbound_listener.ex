@@ -82,6 +82,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
     %{tmdb_id: to_string(id), tmdb_type: "movie"}
   end
 
+  # A movie in a TMDB collection publishes as the collection; the film
+  # the file belongs to is the child movie.
+  defp target_for(%{
+         entity_type: :movie_series,
+         child_movie: %{identifier: %{source: "tmdb", external_id: id}}
+       })
+       when not is_nil(id) do
+    %{tmdb_id: to_string(id), tmdb_type: "movie"}
+  end
+
   defp target_for(%{
          entity_type: :tv_series,
          identifier: %{source: "tmdb", external_id: id},
