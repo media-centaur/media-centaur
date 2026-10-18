@@ -628,7 +628,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # The words above the synopsis. The lead review — the one the modal was
   # opened from — is its author's tile, name and glyph, then the words;
-  # the watchlist note is the reader's own, a plain line.
+  # the watchlist note is the reader's own, a plain line. The words' first
+  # line is centred on the 32px tile (4px over a 24px line), so a one-line
+  # review sits level with the tile and a longer one wraps beneath it.
   defp note_line(%{note: nil} = assigns), do: ~H""
 
   defp note_line(%{note: %{author: nil}} = assigns) do
@@ -641,7 +643,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div id="detail-note" class="mb-3 flex max-w-[760px] items-start gap-2.5" data-role="lead-review">
       <IdentityTile.identity_tile {IdentityTile.person_attrs(@note.author)} size={32} />
-      <p class="text-[15px] leading-relaxed text-base-content/85">
+      <p class="pt-1 text-[15px] leading-6 text-base-content/85">
         <span class="font-semibold text-base-content/95">{Format.person_name(@note.author)}</span>
         <SocialGlyph.social_glyph
           flag={@note.flag}
