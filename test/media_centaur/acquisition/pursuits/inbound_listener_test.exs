@@ -40,6 +40,26 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListenerTest do
       assert job.queue == "acquisition"
     end
 
+    test "enqueues IdentityVerifier for a movie that lands inside its collection" do
+      # A movie in a TMDB collection publishes as the collection, with
+      # the film itself as the child movie.
+      pursuit = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie", title: "Movie A"})
+
+      event = %{
+        entity_type: :movie_series,
+        identifier: %{source: "tmdb_collection", external_id: "4400"},
+        child_movie: %{identifier: %{source: "tmdb", external_id: "555"}},
+        season: nil,
+        file_path: "/watch/Movie.A.2024.1080p.WEB-DL.mkv"
+      }
+
+      assert 1 = run(event)
+
+      [job] = enqueued_jobs()
+      assert job.args["pursuit_id"] == pursuit.id
+      assert job.args["file_path"] == "/watch/Movie.A.2024.1080p.WEB-DL.mkv"
+    end
+
     test "ignores events with no matching active pursuit" do
       _other = insert_pursuit(%{tmdb_id: "999", tmdb_type: "movie"})
 
