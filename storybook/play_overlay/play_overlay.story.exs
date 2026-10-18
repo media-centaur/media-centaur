@@ -17,7 +17,9 @@ defmodule MediaCentaurWeb.Storybook.PlayOverlay.PlayOverlay do
   One variation per size the app ships. The overlay is invisible at
   rest by design — **hover the framed area and wait out the
   hover-intent delay** to reveal it (the reveal is pointer-hover-only,
-  so keyboard/gamepad focus never surfaces it).
+  so keyboard/gamepad focus never surfaces it). Press it: the disc
+  sinks while held, springs back on release, and a ring leaves its
+  edge (the `"play"` event has no handler here, so nothing else moves).
   """
 
   use PhoenixStorybook.Story, :component

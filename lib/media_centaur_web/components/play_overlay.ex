@@ -12,6 +12,11 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   the shared `"play"` event (`MediaCentaur.Playback.play/2` in place —
   no detail modal).
 
+  The press answers on the spot, in CSS alone (`.play-overlay-btn` in
+  `app.css`): the disc sinks while the pointer is down, springs back on
+  release, and a ring leaves its edge — the player's window takes a
+  moment to appear, and without this the click reads as dropped.
+
   Deliberately outside the input system: `tabindex="-1"`, no
   `data-nav-item`. Clicks on the button never reach the card's
   `select_entity` — LiveView dispatches to the closest `phx-click`
