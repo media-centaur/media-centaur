@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.59.0 — 2026-10-18
+
+### New
+
+- **Rebind a gamepad button.** In **Settings → Controls**, press the Pad keycap on a row, then press the button you want; that button now does the action. Press Escape to stop without changing anything.
+
+### Improved
+
+- **The Controls page works with the keyboard and gamepad.** Each binding is a row: press its keycap, then the key or button, to rebind it, or press **Unbind** beside it to clear it. **Reset all** sits at the top of the first card. Down moves between rows and Right steps into a row's controls. The edit buttons are always shown; they used to be invisible until you hovered a row.
+- **The play button answers when you press it.** The button shrinks while held, springs back when you let go, and a ring fades from its edge, so you can tell the click landed while the player window opens.
+- **Health-check issues show what the check found.** An issue raised by a health check on the Status page now opens to the check's findings instead of an empty box. The Social check lists every relay with its state, how long it has been in that state and its last error.
+
+### Fixed
+
+- **Titles with punctuation find releases.** A comma, `!`, `&`, `?` or `/` in a title made the indexer search return nothing, so a title like *Sample, the Movie* had no releases. Searches now drop the punctuation.
+- **A movie in a collection finishes downloading as soon as it is imported.** A movie that belongs to a collection stayed at *Downloaded* for up to 15 minutes after it reached your library. It is now marked done when the import finishes.
+- **A plan with no releases no longer asks for approval.** The Activity card said *Plan ready — review and approve* even when the search found nothing to approve. It now says the search came up empty and what you can do next.
+
 ## v1.58.0 — 2026-10-14
 
 ### Fixed
