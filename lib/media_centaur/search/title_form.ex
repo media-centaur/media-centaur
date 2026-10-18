@@ -11,7 +11,8 @@ defmodule MediaCentaur.Search.TitleForm do
   did return, because the accented letter is not the same token.
 
   Apostrophes go the same way (`Sample's Movie` is released as
-  `Samples.Movie`), which is why both forms live here rather than one in
+  `Samples.Movie`), and the rest of the punctuation is read as a
+  separator in both forms. That is why both forms live here rather than one in
   the query builder and one in the matcher: the two must agree, and a
   rule written twice is a rule that drifts.
 
@@ -44,17 +45,21 @@ defmodule MediaCentaur.Search.TitleForm do
 
   @doc """
   The form sent to an indexer: folded to ASCII, apostrophes removed,
-  whitespace collapsed. Keeps the title's own casing and punctuation —
-  indexers tokenize those away themselves (a colon changes nothing,
-  measured), and preserving them keeps a search term readable in the
-  console and the corpus key.
+  and every run of anything other than a letter or digit read as a
+  single space. Keeps the title's own casing.
+
+  Punctuation goes because indexers do not treat it alike. Measured
+  against a live indexer, a colon, period, hyphen or parenthesis
+  changed nothing, but a comma, `!`, `&`, `?` or `/` returned 0 results
+  where the same title without it returned 60+. Release names carry
+  none of it, so dropping all of it costs nothing.
   """
   @spec query(String.t()) :: String.t()
   def query(title) do
     title
     |> fold()
     |> String.replace(@apostrophes, "")
-    |> String.replace(~r/\s+/, " ")
+    |> String.replace(~r/[^A-Za-z0-9]+/, " ")
     |> String.trim()
   end
 
