@@ -30,10 +30,12 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
   tests hold on to. The whole row bubbles `open_title` with the ref and
   the activity; the verbs bubble `feed_list`, `feed_download` and
   `ignore_title` with the activity id. A `div[role=button]` because a
-  button may not contain controls. Ships mouse-only: no nav items until
-  the hardening pass. The rows sit in a column with a hairline between
-  them and no ground of their own; the catalog pins the hovered seat with
-  `.feed-hover-pin`, since a story cannot hover.
+  button may not contain controls. The row is a nav item of the page's
+  `feed` tree and its verbs are `data-nav-sub-item`s: UP and DOWN walk
+  the rows, SELECT opens the title, RIGHT steps along the verbs. Focus
+  shows the toolbar the way hover does. The rows sit in a column with a
+  hairline between them and no ground of their own; the catalog pins the
+  hovered seat with `.feed-hover-pin`, since a story cannot hover.
   """
 
   use Phoenix.Component
@@ -70,6 +72,8 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
       phx-value-ref={TitleRef.param(@entry.ref)}
       phx-value-activity={@entry.activity_id}
       data-entity-id={TitleRef.param(@entry.ref)}
+      data-nav-item
+      tabindex="0"
     >
       <IdentityTile.identity_tile {IdentityTile.person_attrs(@entry.author)} size={40} />
 
@@ -122,6 +126,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             id={"#{@entry.id}-list"}
             type="button"
             class={@verb_class}
+            data-nav-sub-item
             phx-click="feed_list"
             phx-value-activity={@entry.activity_id}
           >
@@ -132,6 +137,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             id={"#{@entry.id}-list"}
             type="button"
             class={[@verb_class, "text-base-content/90"]}
+            data-nav-sub-item
             phx-click="feed_list"
             phx-value-activity={@entry.activity_id}
           >
@@ -144,6 +150,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             id={"#{@entry.id}-download"}
             type="button"
             class={@verb_class}
+            data-nav-sub-item
             phx-click="feed_download"
             phx-value-activity={@entry.activity_id}
           >
@@ -164,6 +171,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             id={"#{@entry.id}-ignore"}
             type="button"
             class={[@verb_class, "ml-2.5"]}
+            data-nav-sub-item
             phx-click="ignore_title"
             phx-value-activity={@entry.activity_id}
           >
