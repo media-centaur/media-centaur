@@ -1962,6 +1962,29 @@ body:has(.modal-backdrop[data-state="open"]) {
   border-radius: 9999px;
 }
 
+/* Cursor ring on a split button segment. The generic ring forces a 0.5rem
+   radius onto the focused segment, rounding off the edge it shares with its
+   neighbour, and its 2px offset carries the ring across the seam into the
+   other segment. Draw it inside the segment instead, keeping the segment's
+   joined shape. Inset on a primary fill, the primary ring would vanish, so
+   it takes the base content colour — set on the unfocused segments too, so
+   the button's colour transition never fades it in. */
+[data-input=keyboard] .glass-menu-split > [data-nav-item],
+[data-input=gamepad] .glass-menu-split > [data-nav-item] {
+  outline-color: var(--color-base-content);
+}
+
+[data-input=keyboard] .glass-menu-split > [data-nav-item]:focus,
+[data-input=gamepad] .glass-menu-split > [data-nav-item]:focus {
+  outline-offset: -4px;
+  border-radius: var(--radius-field) 0 0 var(--radius-field);
+}
+
+[data-input=keyboard] .glass-menu-split > [data-nav-item] + [data-nav-item]:focus,
+[data-input=gamepad] .glass-menu-split > [data-nav-item] + [data-nav-item]:focus {
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+}
+
 /* Text-input edit-mode cue. Driven by data-input-editing on <html> — set
    by KeyboardSource when arrow keys start typing instead of navigating.
    A brighter ring + inner rim tells the user their keystrokes will land
