@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
     ~H"""
     <div
       id={@id <> "-split"}
-      class={["glass-menu inline-flex", @class]}
+      class={["glass-menu glass-menu-split inline-flex", @class]}
       phx-click-away={@open && @on_close}
     >
       <.button
