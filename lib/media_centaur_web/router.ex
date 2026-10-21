@@ -49,6 +49,7 @@ defmodule MediaCentaurWeb.Router do
       live "/console", ConsolePageLive, :index
       live "/social", SocialLive, :feed
       live "/social/friends", SocialLive, :friends
+      live "/social/friends/:key", SocialLive, :person
       live "/guide", GuideLive, :index
       live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index
