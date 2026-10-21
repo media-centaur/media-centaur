@@ -53,6 +53,8 @@ export const inputConfig = {
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
     feed: "[data-nav-zone='feed'] [data-nav-item]",
+    person_rows: "[data-nav-zone='person_rows'] [data-nav-item]",
+    person_view: "[data-nav-zone='person_view'] [data-nav-item]",
     profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
     // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
@@ -113,6 +115,10 @@ export const inputConfig = {
     // The Feed: a vertical list of rows, each with its verbs (List,
     // Download, Ignore) as sub-items — the bindings table's shape.
     feed: Context.TREE,
+    // The person page: the back row and the rows as a tree (a row's verbs
+    // are its sub-items), the reader's view a vertical walk of its controls.
+    person_rows: Context.TREE,
+    person_view: Context.GRID,
     // The profile picker: tiles in a wrapping row plus the Add input over its button, so geometry answers adjacency.
     profile_picker: Context.SHELF,
     // The detail modal: a horizontal command row over a nesting list. The
@@ -341,14 +347,16 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    // Social: the zone-tabs strip above one body zone — the Feed's rows
-    // on Feed, the person cards on Friends. The Feed's rail of people is
-    // not a nav zone.
+    // Social: the zone-tabs strip above one body — the Feed's rows on Feed,
+    // the person cards on Friends, the person page's rows over its card. The
+    // Feed's rail of people is not a nav zone.
     social: {
-      zone_tabs:  { down: ["feed", "people"] },
-      feed:       { up: ["zone_tabs"] },
-      people:     { up: ["zone_tabs"] },
-      sidebar:    { right: ["feed", "people", "zone_tabs"] },
+      zone_tabs:   { down: ["feed", "people", "person_rows", "person_view"] },
+      feed:        { up: ["zone_tabs"] },
+      people:      { up: ["zone_tabs"] },
+      person_rows: { up: ["zone_tabs"], down: ["person_view"] },
+      person_view: { up: ["person_rows", "zone_tabs"] },
+      sidebar:     { right: ["feed", "people", "person_rows", "person_view", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -400,7 +408,7 @@ export const inputConfig = {
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     incoming:  ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
-    social: ["feed", "people", "zone_tabs", "sidebar"],
+    social: ["feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
