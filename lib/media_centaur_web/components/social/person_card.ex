@@ -36,7 +36,8 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   and, for a friend only, Remove friend. A poster's press opens the
   title modal speaking for the newest act on it.
 
-  Pure rendering of a `Social.Person` and their `Act`s. Every poster, row,
+  Pure rendering of a `Social.Person` and their rows (`FeedEntry`, one
+  per title, `SocialLive.People`). Every poster, row,
   Hide and Remove friend is a nav item that bubbles `open_title` with the
   title's ref *and* the activity, `set_hidden` or `remove_friend`; the name form
   submits `set_friend_name` with the key and the name, and swallows its
@@ -57,7 +58,7 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
-  alias MediaCentaurWeb.Components.Social.Act
+  alias MediaCentaurWeb.Components.Social.FeedEntry
   alias MediaCentaurWeb.Components.Social.HueSwatches
   alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.Components.Switch
@@ -69,7 +70,11 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   @cap %{rail: 3, page: 5}
 
   attr :person, Person, required: true, doc: "the person as the reader sees them"
-  attr :acts, :list, required: true, doc: "the person's `Act`s, newest first; `[]` for a quiet person"
+
+  attr :acts, :list,
+    required: true,
+    doc: "the person's rows (`FeedEntry`, one per title), newest first; `[]` for a quiet person"
+
   attr :width, :atom, required: true, values: [:rail, :page]
   attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"
   attr :landed?, :boolean, default: false, doc: "the card the address names takes focus on mount"
@@ -117,64 +122,64 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
         data-role="acts"
       >
         <button
-          :for={act <- @shown}
-          id={"#{@id}-act-#{TitleRef.param(act.ref)}"}
+          :for={row <- @shown}
+          id={"#{@id}-act-#{TitleRef.param(row.ref)}"}
           type="button"
           class="act"
-          data-tip={tip(@name, act, @subject)}
-          aria-label={tip(@name, act, @subject)}
+          data-tip={tip(@name, row, @subject)}
+          aria-label={tip(@name, row, @subject)}
           phx-click="open_title"
-          phx-value-ref={TitleRef.param(act.ref)}
-          phx-value-activity={act.activity_id}
-          data-entity-id={TitleRef.param(act.ref)}
-          data-flags={Enum.join(act.flags, " ")}
+          phx-value-ref={TitleRef.param(row.ref)}
+          phx-value-activity={row.activity_id}
+          data-entity-id={TitleRef.param(row.ref)}
+          data-flags={Enum.map_join(row.glyphs, " ", &elem(&1, 0))}
           data-nav-item
           tabindex="0"
         >
           <SocialGlyph.social_glyphs
-            flags={act.flags}
-            grades={act.grades}
+            flags={flags(row)}
+            grades={Map.new(row.glyphs)}
             class="act-slots"
             aria-hidden="true"
           />
           <img
-            :if={act.poster_url}
-            src={act_poster_src(act.poster_url, @width)}
-            alt={act.title.name}
+            :if={row.poster_url}
+            src={act_poster_src(row.poster_url, @width)}
+            alt={row.title.name}
             loading="eager"
             decoding="sync"
           />
-          <span :if={!act.poster_url} class="act-empty text-sm leading-tight text-base-content/65">
-            {act.title.name}
+          <span :if={!row.poster_url} class="act-empty text-sm leading-tight text-base-content/65">
+            {row.title.name}
           </span>
         </button>
       </div>
 
       <div :if={@opened?} class="mt-5 space-y-1" data-role="act-rows">
         <button
-          :for={act <- @acts}
-          id={"#{@id}-#{act.activity_id}"}
+          :for={row <- @acts}
+          id={"#{@id}-#{row.activity_id}"}
           type="button"
           class="flex w-full cursor-pointer items-baseline gap-3 rounded-md px-2 py-1 text-left text-base leading-6 hover:bg-base-content/5"
           data-role="act-row"
           phx-click="open_title"
-          phx-value-ref={TitleRef.param(act.ref)}
-          phx-value-activity={act.activity_id}
-          data-entity-id={TitleRef.param(act.ref)}
+          phx-value-ref={TitleRef.param(row.ref)}
+          phx-value-activity={row.activity_id}
+          data-entity-id={TitleRef.param(row.ref)}
           data-nav-item
           tabindex="0"
         >
           <span class="min-w-0 flex-1 truncate text-base-content/80">
-            {ActivityWords.verb_phrase(newest(act).kind, act.episode, @subject)}
-            <span class="font-medium text-base-content/95">{act.title.name}</span>
+            {ActivityWords.verb_phrase(row.kind, row.episode, @subject)}
+            <span class="font-medium text-base-content/95">{row.title.name}</span>
             <SocialGlyph.social_glyph
-              :for={flag <- act.flags}
+              :for={{flag, grade} <- row.glyphs}
               flag={flag}
-              grade={act.grades[flag]}
+              grade={grade}
               class="ml-1 size-4 align-middle"
             />
           </span>
-          <span class="shrink-0 text-sm text-base-content/65">{act.ago}</span>
+          <span class="shrink-0 text-sm text-base-content/65">{row.ago}</span>
         </button>
       </div>
 
@@ -295,10 +300,10 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
 
   defp provenance(%Person{} = person), do: "on " <> Enum.join(Person.member_hosts(person), ", ")
 
-  defp newest(%Act{entries: [entry | _rest]}), do: entry
+  defp flags(%FeedEntry{glyphs: glyphs}), do: Enum.map(glyphs, &elem(&1, 0))
 
   defp tip(name, act, subject), do: name <> " " <> sentence(act, subject)
 
-  defp sentence(%Act{} = act, subject),
-    do: ActivityWords.sentence(newest(act).kind, act.episode, act.title.name, subject)
+  defp sentence(%FeedEntry{} = row, subject),
+    do: ActivityWords.sentence(row.kind, row.episode, row.title.name, subject)
 end

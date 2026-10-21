@@ -10,33 +10,35 @@ defmodule MediaCentaurWeb.SocialLive.People do
   row lands on a card. `hidden/1` is the Friends tab's **hidden group**:
   the hidden people from `Social.people/0`, by name, each with Show.
 
-  A person's acts are one per title, newest first; each flies every act
-  on that title in order, each at its grade (`Grade`: by how many
-  people flew that flag on that title) — counted once over the rows this
-  fold already holds, one count per person per title and flag, the
-  reader included. `rail/1` is the Feed's rail: the first
+  A person's acts are one row per title (`FeedEntry`, the person page's
+  row: the newest act's verb, every flag on the title at its grade —
+  `Grade`, one count per person per title and flag over the rows this
+  fold holds, the reader included — the review's words, the title's
+  toolbar slots), newest first; the person card's strip and the person
+  page's list are both this fold. `rail/1` is the Feed's rail: the first
   eight of that order and how many the cap hid.
   """
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
-  alias MediaCentaurWeb.Components.Social.Act
-  alias MediaCentaurWeb.Components.Social.Act.Entry
+  alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.Grade
+  alias MediaCentaurWeb.SocialLive.ActivityWords
 
   defmodule Card do
     @moduledoc """
     One person card's content: the person as the reader sees them and
-    their acts, newest first. `PersonCard` renders it from the two
+    their acts, newest first — one `FeedEntry` per title acted on. `PersonCard` renders it from the two
     attrs; `PersonCard.dom_id/1` names it.
     """
 
     @enforce_keys [:person]
     defstruct [:person, acts: []]
 
-    @type t :: %__MODULE__{person: Person.t(), acts: [Act.t()]}
+    @type t :: %__MODULE__{person: Person.t(), acts: [FeedEntry.t()]}
   end
 
   @rail_cap 8
@@ -80,50 +82,52 @@ defmodule MediaCentaurWeb.SocialLive.People do
   # Latest act first; the quiet ones after, by name.
   defp sort_key(%Card{acts: [], person: person}), do: {1, 0, Format.person_name(person)}
 
-  defp sort_key(%Card{acts: [%Act{acted_at: at} | _rest], person: person}),
+  defp sort_key(%Card{acts: [%FeedEntry{acted_at: at} | _rest], person: person}),
     do: {0, -DateTime.to_unix(at), Format.person_name(person)}
 
   defp card(%Person{} = person, rows, now, grades) do
     sorted = Enum.sort_by(rows, & &1.activity.acted_at, {:desc, DateTime})
-    %Card{person: person, acts: acts(sorted, grades, now)}
+    %Card{person: person, acts: acts(sorted, person, grades, now)}
   end
 
-  # One act per title in the order the titles first appear — newest
-  # first, since the rows are sorted — with every row behind it.
-  defp acts(sorted, grades, now) do
+  # One row per title in the order the titles first appear — newest
+  # first, since the rows are sorted — with every act on it behind it.
+  defp acts(sorted, person, grades, now) do
     by_ref = Enum.group_by(sorted, &ref/1)
 
     sorted
     |> Enum.map(&ref/1)
     |> Enum.uniq()
-    |> Enum.map(&act(&1, Map.fetch!(by_ref, &1), grades, now))
+    |> Enum.map(&act(&1, Map.fetch!(by_ref, &1), person, grades, now))
   end
 
-  defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, grades, now) do
+  defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, person, grades, now) do
     flags = rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort()
 
-    %Act{
+    %FeedEntry{
+      id: "person-row-" <> newest.id,
+      activity_id: newest.id,
       ref: ref,
       title: newest.title,
       poster_url: first.poster_url,
-      activity_id: newest.id,
+      author: nil,
+      subject: ActivityWords.subject(person),
+      kind: newest.kind,
+      episode: newest.episode,
+      glyphs: Enum.map(flags, &{&1, Map.fetch!(grades, {ref, &1})}),
+      text: review_text(rows),
       acted_at: newest.acted_at,
       ago: Format.relative_ago(newest.acted_at, now: now, sub_minute: :just_now),
-      episode: newest.episode,
-      flags: flags,
-      grades: Map.new(flags, &{&1, Map.fetch!(grades, {ref, &1})}),
-      entries: Enum.map(rows, &entry/1)
+      slots: ToolbarSlots.resolve(first)
     }
   end
 
-  defp entry(%{activity: %Activity{} = activity}) do
-    %Entry{
-      activity_id: activity.id,
-      kind: activity.kind,
-      flag: Flag.flag(activity),
-      episode: activity.episode,
-      acted_at: activity.acted_at
-    }
+  # The review's words on the title, whichever act is newest.
+  defp review_text(rows) do
+    Enum.find_value(rows, fn
+      %{activity: %Activity{kind: :review, text: text}} -> text
+      _other -> nil
+    end)
   end
 
   defp ref(%{activity: %Activity{tmdb_id: tmdb_id, media_type: media_type}}), do: {tmdb_id, media_type}

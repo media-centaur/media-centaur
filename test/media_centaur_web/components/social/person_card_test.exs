@@ -5,35 +5,40 @@ defmodule MediaCentaurWeb.Components.Social.PersonCardTest do
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Social.Act
-  alias MediaCentaurWeb.Components.Social.Act.Entry
+  alias MediaCentaurWeb.Components.Social.FeedEntry
   alias MediaCentaurWeb.Components.Social.PersonCard
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+
+  @slots %ToolbarSlots{
+    rung: nil,
+    library_owner_id: nil,
+    acquisition_state: nil,
+    list: :list,
+    download: :download
+  }
 
   defp render(attrs), do: LazyHTML.from_fragment(render_component(&PersonCard.person_card/1, attrs))
 
   defp act(tmdb_id, flags, opts) do
-    %Act{
+    grades = Keyword.get(opts, :grades, Map.new(flags, &{&1, :plain}))
+
+    %FeedEntry{
+      id: "person-row-#{tmdb_id}",
+      activity_id: Keyword.fetch!(opts, :id),
       ref: {tmdb_id, :movie},
       title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"}),
       poster_url: Keyword.get(opts, :poster_url, "/media-images/#{tmdb_id}/poster.jpg"),
-      activity_id: Keyword.fetch!(opts, :id),
+      author: nil,
+      subject: :friend,
+      kind: :review,
+      episode: nil,
+      glyphs: Enum.map(flags, &{&1, grades[&1]}),
+      text: nil,
       acted_at: ~U[2026-09-01 12:00:00Z],
       ago: "2h ago",
-      episode: nil,
-      flags: flags,
-      grades: Keyword.get(opts, :grades, Map.new(flags, &{&1, :plain})),
-      entries: Enum.map(flags, &entry(&1, Keyword.fetch!(opts, :id)))
+      slots: @slots
     }
   end
-
-  defp entry(flag, id),
-    do: %Entry{
-      activity_id: id,
-      kind: :review,
-      flag: flag,
-      episode: nil,
-      acted_at: ~U[2026-09-01 12:00:00Z]
-    }
 
   defp friend, do: person("Sample Friend")
 
