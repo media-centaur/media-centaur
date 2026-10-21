@@ -15,14 +15,18 @@ describe("social behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the body under the zone tabs is the Feed's rows or the person cards; the title rows belong to Incoming", () => {
+  test("the body under the zone tabs is the Feed's rows, the person cards, or the person page's rows over its card", () => {
     expect(inputConfig.layouts.social).toEqual({
-      zone_tabs: { down: ["feed", "people"] },
+      zone_tabs: { down: ["feed", "people", "person_rows", "person_view"] },
       feed: { up: ["zone_tabs"] },
       people: { up: ["zone_tabs"] },
-      sidebar: { right: ["feed", "people", "zone_tabs"] },
+      person_rows: { up: ["zone_tabs"], down: ["person_view"] },
+      person_view: { up: ["person_rows", "zone_tabs"] },
+      sidebar: { right: ["feed", "people", "person_rows", "person_view", "zone_tabs"] },
     })
-    expect(inputConfig.cursorStartPriority.social).toEqual(["feed", "people", "zone_tabs", "sidebar"])
+    expect(inputConfig.cursorStartPriority.social).toEqual([
+      "feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar",
+    ])
 
     // A stray title_rows zone in the DOM is ignored: nothing routes to it.
     const friends = buildNavGraph("social", { zone_tabs: 2, title_rows: 6, people: 3, sidebar: 4 }, inputConfig)
@@ -33,6 +37,24 @@ describe("social behavior", () => {
     expect(feed.zone_tabs.down).toBe("feed")
     expect(feed.feed.up).toBe("zone_tabs")
     expect(feed.sidebar.right).toBe("feed")
+
+    // The person page: DOWN past the last row enters the card; UP from the card's top returns to the rows.
+    const person = buildNavGraph("social", { zone_tabs: 2, person_rows: 5, person_view: 14, sidebar: 4 }, inputConfig)
+    expect(person.zone_tabs.down).toBe("person_rows")
+    expect(person.person_rows.down).toBe("person_view")
+    expect(person.person_view.up).toBe("person_rows")
+    expect(person.sidebar.right).toBe("person_rows")
+
+    // The reader's own page has no card: DOWN at the last row is a wall.
+    const own = buildNavGraph("social", { zone_tabs: 2, person_rows: 3, sidebar: 4 }, inputConfig)
+    expect(own.person_rows.down).toBeUndefined()
+  })
+
+  test("the person page's rows are a tree like the Feed's; its card walks like a Settings card", () => {
+    expect(inputConfig.instanceTypes.person_rows).toBe("tree")
+    expect(inputConfig.instanceTypes.person_view).toBe("grid")
+    expect(inputConfig.contextSelectors.person_rows).toBe("[data-nav-zone='person_rows'] [data-nav-item]")
+    expect(inputConfig.contextSelectors.person_view).toBe("[data-nav-zone='person_view'] [data-nav-item]")
   })
 
   test("the Feed is a tree: rows walk up and down, a row's verbs are its sub-items", () => {
