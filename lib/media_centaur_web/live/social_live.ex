@@ -102,6 +102,8 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.SocialLive.ActivityArtwork
   alias MediaCentaurWeb.SocialLive.AddFriendBlock
@@ -320,11 +322,11 @@ defmodule MediaCentaurWeb.SocialLive do
   # in the modal for that.
   def handle_event("feed_list", %{"activity" => id}, socket) do
     case feed_entry(socket, id) do
-      %FeedEntry{list_slot: :list} = entry ->
+      %FeedEntry{slots: %ToolbarSlots{list: :list}} = entry ->
         {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :list, entry_provenance(entry))
         {:noreply, socket}
 
-      %FeedEntry{list_slot: :listed} = entry ->
+      %FeedEntry{slots: %ToolbarSlots{list: :listed}} = entry ->
         {:ok, nil} = ReleaseTracking.set_rung(entry.title, :off)
         {:noreply, socket}
 
@@ -338,7 +340,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # modal. The host's acquisition module owns the two paths.
   def handle_event("feed_download", %{"activity" => id}, socket) do
     case feed_entry(socket, id) do
-      %FeedEntry{download_slot: :download} = entry ->
+      %FeedEntry{slots: %ToolbarSlots{download: :download}} = entry ->
         scope = if entry.title.media_type == :tv_series, do: :first_season
 
         {:noreply,
@@ -363,7 +365,7 @@ defmodule MediaCentaurWeb.SocialLive do
         {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :ignored, entry_provenance(entry))
 
         {:noreply,
-         assign(socket, :ignore_undo, %{title: entry.title, previous_rung: entry.rung || :off})}
+         assign(socket, :ignore_undo, %{title: entry.title, previous_rung: entry.slots.rung || :off})}
 
       nil ->
         {:noreply, socket}
@@ -500,16 +502,22 @@ defmodule MediaCentaurWeb.SocialLive do
 
   defp project(socket) do
     now = DateTime.utc_now()
+    grades = Grade.grades(socket.assigns.activities)
 
     %{entries: entries, has_older?: has_older?, at_cap?: at_cap?, queued: queued} =
       FeedEntries.build(socket.assigns.activities,
         now: now,
         window: socket.assigns.feed_window,
         scope: socket.assigns.feed_scope,
-        head: socket.assigns.feed_head
+        head: socket.assigns.feed_head,
+        grades: grades
       )
 
-    people = People.build(socket.assigns.activities, socket.assigns.people_by_pubkey, now: now)
+    people =
+      People.build(socket.assigns.activities, socket.assigns.people_by_pubkey,
+        now: now,
+        grades: grades
+      )
 
     assign(socket,
       feed: entries,

@@ -1,10 +1,12 @@
 defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.SocialRows, only: [activity_row: 1, person: 1, own_person: 0]
+  import MediaCentaur.SocialRows, only: [activity_row: 1, own_person: 0, person: 1, person: 2]
 
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.SocialLive.FeedEntries
 
   @now ~U[2026-09-01 14:00:00Z]
@@ -20,7 +22,16 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
   defp build(rows, opts \\ []) do
     FeedEntries.build(
       rows,
-      Keyword.merge([now: @now, window: FeedEntries.page_size(), scope: :everyone, head: nil], opts)
+      Keyword.merge(
+        [
+          now: @now,
+          window: FeedEntries.page_size(),
+          scope: :everyone,
+          head: nil,
+          grades: Grade.grades(rows)
+        ],
+        opts
+      )
     )
   end
 
@@ -184,32 +195,39 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
                activity_id: "nick-recs-9",
                ref: {9, :movie},
                author: %Person{name_override: "Nick", own?: false},
+               subject: :friend,
                kind: :review,
-               sentiment: :love,
+               episode: nil,
+               glyphs: [{:love, :plain}],
                text: "Saw it twice.",
                ago: "2h ago",
                poster_url: "/p.jpg",
-               rung: :list,
-               library_owner_id: "owner",
-               acquisition_state: :downloading,
-               list_slot: :listed,
-               download_slot: {:state, "In library"}
+               slots: %ToolbarSlots{
+                 rung: :list,
+                 library_owner_id: "owner",
+                 acquisition_state: :downloading,
+                 list: :listed,
+                 download: {:state, "In library"}
+               }
              } = review
 
       assert review.title.name == "Sample Movie 9"
 
-      assert %FeedEntry{author: %Person{own?: true}, kind: :listing, list_slot: :listed} = own
+      assert %FeedEntry{
+               author: %Person{own?: true},
+               subject: :you,
+               kind: :listing,
+               slots: %ToolbarSlots{list: :listed}
+             } = own
 
       assert %FeedEntry{
                author: %Person{name_override: "Cleo", own?: false},
                kind: :listing,
-               sentiment: nil,
+               glyphs: [],
                text: nil,
                ago: "1d ago",
                poster_url: nil,
-               rung: nil,
-               list_slot: :list,
-               download_slot: :download
+               slots: %ToolbarSlots{rung: nil, list: :list, download: :download}
              } = listing
     end
   end
@@ -248,32 +266,28 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
     end
   end
 
-  describe "list_slot/1" do
-    test "List below the list, Listed on it, Following above it" do
-      assert FeedEntries.list_slot(%{rung: nil}) == :list
-      assert FeedEntries.list_slot(%{rung: :ignored}) == :list
-      assert FeedEntries.list_slot(%{rung: :list}) == :listed
+  describe "the glyph" do
+    test "the Feed's one glyph is the review's sentiment at its grade; a listing and a bare review carry none" do
+      rows = [
+        row("Cleo", %{tmdb_id: 1, kind: :review, sentiment: :love, id: "cleo"}),
+        row("Nick", %{tmdb_id: 1, kind: :review, sentiment: :love, id: "nick"}, %{
+          author:
+            person("Nick", pubkey: "e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13")
+        }),
+        own(%{tmdb_id: 1, kind: :review, sentiment: :love, id: "mine"}),
+        row("Sam", %{tmdb_id: 2, kind: :review, sentiment: nil, text: "words", id: "sam"}),
+        row("Sam", %{tmdb_id: 3, kind: :listing, id: "sam-lists"})
+      ]
 
-      for rung <- [:follow, :grab],
-          do: assert(FeedEntries.list_slot(%{rung: rung}) == :following)
-    end
-  end
+      by_id = Map.new(build(rows).entries, &{&1.activity_id, &1})
 
-  describe "download_slot/1" do
-    test "the library wins, then the acquisition state, else the verb" do
-      assert FeedEntries.download_slot(%{library_owner_id: "x", acquisition_state: :downloading}) ==
-               {:state, "In library"}
-
-      assert FeedEntries.download_slot(%{library_owner_id: nil, acquisition_state: :downloading}) ==
-               {:state, "Downloading"}
-
-      assert FeedEntries.download_slot(%{library_owner_id: nil, acquisition_state: :planning}) ==
-               {:state, "Planning"}
-
-      assert FeedEntries.download_slot(%{library_owner_id: nil, acquisition_state: :needs_review}) ==
-               {:state, "Needs review"}
-
-      assert FeedEntries.download_slot(%{library_owner_id: nil, acquisition_state: nil}) == :download
+      assert by_id["cleo"].glyphs == [{:love, :gold}]
+      assert by_id["mine"].glyphs == [{:love, :gold}]
+      assert by_id["mine"].subject == :you
+      assert by_id["sam"].glyphs == []
+      assert by_id["sam-lists"].glyphs == []
+      assert by_id["sam-lists"].subject == :friend
+      assert %Person{} = by_id["cleo"].author
     end
   end
 end

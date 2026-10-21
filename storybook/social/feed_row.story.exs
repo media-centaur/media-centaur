@@ -1,10 +1,11 @@
 defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
   @moduledoc """
-  One Feed row (UIDR-046): one author's action on one title as the app
-  draws a list row — the identity tile at 40, the poster at 80×120, then
-  who did what (the sentiment glyph after the verb when the review gives
-  one), the title and year, the review's words at two lines, and the
-  time at the row's right edge, all hung from the row's top line. No
+  One row on the Feed and on the person page (UIDR-046, UIDR-054): one
+  author's action on one title, or one person's acts on one title, as
+  the app draws a list row — the identity tile at 40 when the row names
+  its author, the poster at 80×120, then the verb with every glyph at
+  its grade, the title and year, the episode's name on a series, the
+  review's words in full, and the time at the row's right edge. No
   still: the poster is the row's one picture. The toolbar seat is empty
   at rest and shows on hover; the variations cover every state the two
   resolved slots can hold, both authors, the artwork states, and the
@@ -14,9 +15,11 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
 
   def function, do: &MediaCentaurWeb.Components.Social.FeedRow.feed_row/1
   def render_source, do: :function
@@ -38,6 +41,14 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
 
   @review_text "Saw it twice. The last twenty minutes are the whole film, and the score does most of the work."
 
+  @slots %ToolbarSlots{
+    rung: nil,
+    library_owner_id: nil,
+    acquisition_state: nil,
+    list: :list,
+    download: :download
+  }
+
   defp entry(id, overrides) do
     tmdb_id = Map.get(overrides, :tmdb_id, 777)
 
@@ -49,16 +60,14 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/images/storybook/sample-poster.jpg",
         author: friend(),
+        subject: :friend,
         kind: :listing,
-        sentiment: nil,
+        episode: nil,
+        glyphs: [],
         text: nil,
         acted_at: ~U[2026-09-01 12:00:00Z],
         ago: "12m ago",
-        rung: nil,
-        library_owner_id: nil,
-        acquisition_state: nil,
-        list_slot: :list,
-        download_slot: :download
+        slots: @slots
       },
       overrides
     )
@@ -87,7 +96,8 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
         id: :review_like_with_text,
         description: "Like is the thumbs up after the verb; the review is the third line.",
         attributes: %{
-          entry: entry("like", %{kind: :review, sentiment: :like, text: @review_text, ago: "2h ago"})
+          entry:
+            entry("like", %{kind: :review, glyphs: [{:like, :plain}], text: @review_text, ago: "2h ago"})
         }
       },
       %Variation{
@@ -98,7 +108,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
           entry:
             entry("long", %{
               kind: :review,
-              sentiment: :love,
+              glyphs: [{:love, :plain}],
               text:
                 "Watched it again after finishing the book. The film keeps the mood and drops almost every plot point, which works better than it should. The lighthouse sequence is still the strangest thing I have seen on a screen, and the score carries the last act. Slow in the middle, and two of the characters never get a scene of their own. I would still put it near the top of the year, and I will watch it a third time.",
               ago: "3h ago"
@@ -109,7 +119,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
         id: :review_love,
         description: "Love: the heart in rose, the one warm hue outside the health palette.",
         attributes: %{
-          entry: entry("love", %{kind: :review, sentiment: :love, text: "Yes.", ago: "1d ago"})
+          entry: entry("love", %{kind: :review, glyphs: [{:love, :plain}], text: "Yes.", ago: "1d ago"})
         }
       },
       %Variation{
@@ -119,7 +129,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
           entry:
             entry("dislike", %{
               kind: :review,
-              sentiment: :dislike,
+              glyphs: [{:dislike, :plain}],
               text: "Not for me. The score does all the work the script should.",
               ago: "3d ago"
             })
@@ -132,7 +142,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
           entry:
             entry("text-only", %{
               kind: :review,
-              sentiment: nil,
+              glyphs: [],
               text: "Slow start, give it three episodes."
             })
         }
@@ -140,7 +150,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
       %Variation{
         id: :review_bare,
         description: "A review with neither words nor sentiment: two lines, like a listing.",
-        attributes: %{entry: entry("bare", %{kind: :review, sentiment: nil, text: nil})}
+        attributes: %{entry: entry("bare", %{kind: :review, glyphs: [], text: nil})}
       },
       %Variation{
         id: :unnamed_listing,
@@ -153,7 +163,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
       %Variation{
         id: :own_listing,
         description: "The reader's own listing: the filled own tile, the second-person verb, no Ignore.",
-        attributes: %{entry: entry("own", %{author: you(), ago: "1h ago"})}
+        attributes: %{entry: entry("own", %{author: you(), subject: :you, ago: "1h ago"})}
       },
       %Variation{
         id: :own_review,
@@ -162,8 +172,9 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
           entry:
             entry("own-review", %{
               author: you(),
+              subject: :you,
               kind: :review,
-              sentiment: :love,
+              glyphs: [{:love, :plain}],
               text: @review_text,
               ago: "1h ago"
             })
@@ -172,18 +183,21 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
       %Variation{
         id: :listed_title,
         description: "The title is on the reader's list: Listed, filled, in the seat (hover to see it).",
-        attributes: %{entry: entry("listed", %{rung: :list, list_slot: :listed})}
+        attributes: %{entry: entry("listed", %{slots: %{@slots | rung: :list, list: :listed}})}
       },
       %Variation{
         id: :following_title,
         description: "The title is tracked: Tracking as plain state in the List slot.",
-        attributes: %{entry: entry("following", %{rung: :follow, list_slot: :following})}
+        attributes: %{entry: entry("following", %{slots: %{@slots | rung: :follow, list: :following}})}
       },
       %Variation{
         id: :in_library,
         description: "In library as plain state in the Download slot.",
         attributes: %{
-          entry: entry("owned", %{library_owner_id: "owner", download_slot: {:state, "In library"}})
+          entry:
+            entry("owned", %{
+              slots: %{@slots | library_owner_id: "owner", download: {:state, "In library"}}
+            })
         }
       },
       %Variation{
@@ -192,8 +206,7 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
         attributes: %{
           entry:
             entry("downloading", %{
-              acquisition_state: :downloading,
-              download_slot: {:state, "Downloading"}
+              slots: %{@slots | acquisition_state: :downloading, download: {:state, "Downloading"}}
             })
         }
       },
@@ -206,7 +219,13 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
         id: :hovered,
         description: "A friend's row hovered: List · Download · Ignore in the seat.",
         attributes: %{
-          entry: entry("hovered", %{kind: :review, sentiment: :like, text: @review_text, ago: "2h ago"})
+          entry:
+            entry("hovered", %{
+              kind: :review,
+              glyphs: [{:like, :plain}],
+              text: @review_text,
+              ago: "2h ago"
+            })
         },
         template: @hover_pinned
       },
@@ -217,16 +236,64 @@ defmodule MediaCentaurWeb.Storybook.Social.FeedRow do
           entry:
             entry("own-hovered", %{
               author: you(),
+              subject: :you,
               kind: :review,
-              sentiment: :love,
+              glyphs: [{:love, :plain}],
               text: "Saw it twice.",
-              rung: :list,
-              list_slot: :listed,
-              library_owner_id: "owner",
-              download_slot: {:state, "In library"}
+              slots: %{
+                @slots
+                | rung: :list,
+                  list: :listed,
+                  library_owner_id: "owner",
+                  download: {:state, "In library"}
+              }
             })
         },
         template: @hover_pinned
+      },
+      %Variation{
+        id: :graded,
+        description:
+          "A love three friends share: the heart in gold, as on a card (the Feed's glyph takes its grade).",
+        attributes: %{
+          entry: entry("graded", %{kind: :review, glyphs: [{:love, :gold}], text: "Yes.", ago: "1d ago"})
+        }
+      },
+      %Variation{
+        id: :person_page_row,
+        description:
+          "The person page's row: no tile and no name (the page is one person), every act on the title after the verb — reviewed, love and watched — and the review's words.",
+        attributes: %{
+          entry:
+            entry("page", %{
+              id: "person-row-page",
+              author: nil,
+              kind: :review,
+              glyphs: [{:love, :gold}, {:watched, :silver}],
+              text: @review_text,
+              ago: "1w ago"
+            })
+        }
+      },
+      %Variation{
+        id: :person_page_series,
+        description:
+          "A series on the person page: watched at its latest episode, the episode's name in the words slot; reviewed earlier, so the opinion glyph follows the eye and the review's words sit under the name.",
+        attributes: %{
+          entry:
+            entry("series", %{
+              id: "person-row-series",
+              ref: {1399, :tv_series},
+              title:
+                Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show", year: "1959"}),
+              author: nil,
+              kind: :watched,
+              episode: %Episode{season_number: 1, episode_number: 7, name: "Sample Episode"},
+              glyphs: [{:watched, :plain}, {:review, :plain}],
+              text: "Slow, but it earns the slowness.",
+              ago: "2d ago"
+            })
+        }
       }
     ]
   end

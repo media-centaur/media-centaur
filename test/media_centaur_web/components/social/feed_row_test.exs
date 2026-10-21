@@ -4,9 +4,19 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
   import MediaCentaur.SocialRows, only: [person: 1, own_person: 0]
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Social.FeedEntry
   alias MediaCentaurWeb.Components.Social.FeedRow
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+
+  @slots %ToolbarSlots{
+    rung: nil,
+    library_owner_id: nil,
+    acquisition_state: nil,
+    list: :list,
+    download: :download
+  }
 
   defp entry(overrides) do
     struct!(
@@ -17,16 +27,14 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
         title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/media-images/x/poster.jpg",
         author: person("Sample Friend"),
+        subject: :friend,
         kind: :listing,
-        sentiment: nil,
+        episode: nil,
+        glyphs: [],
         text: nil,
         acted_at: ~U[2026-09-01 12:00:00Z],
         ago: "12m ago",
-        rung: nil,
-        library_owner_id: nil,
-        acquisition_state: nil,
-        list_slot: :list,
-        download_slot: :download
+        slots: @slots
       },
       overrides
     )
@@ -48,7 +56,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
   end
 
   test "the row's contract holds: the id, the component name, the kind, the slots, the press" do
-    root = root(render(%{kind: :review, sentiment: :love, text: "Yes."}))
+    root = root(render(%{kind: :review, glyphs: [{:love, :plain}], text: "Yes."}))
 
     assert LazyHTML.attribute(root, "id") == ["feed-row-a"]
     assert LazyHTML.attribute(root, "data-kind") == ["review"]
@@ -59,7 +67,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
   end
 
   test "the words: who did what with the sentiment after the verb, the title and year, the review, the time" do
-    html = render(%{kind: :review, sentiment: :love, text: "Saw it twice."})
+    html = render(%{kind: :review, glyphs: [{:love, :plain}], text: "Saw it twice."})
 
     who = html |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
     assert who =~ "Sample Friend reviewed"
@@ -88,7 +96,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
   end
 
   test "the author is the identity tile at 40: filled on an own row, with the second-person verb and no Ignore" do
-    own = render(%{author: own_person()})
+    own = render(%{author: own_person(), subject: :you})
 
     assert own
            |> LazyHTML.query("[data-component='identity-tile'][data-size='40'][data-own]")
@@ -118,5 +126,54 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
     assert html
            |> LazyHTML.query("[data-component='identity-tile'][data-size='40']")
            |> LazyHTML.attribute("data-mark") == ["glyph"]
+  end
+
+  test "without an author the row draws no tile and no name: the person page's row" do
+    html =
+      render(%{author: nil, kind: :review, glyphs: [{:love, :gold}, {:watched, :silver}], text: "Yes."})
+
+    assert Enum.empty?(LazyHTML.query(html, "[data-component='identity-tile']"))
+    who = html |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
+    assert String.trim(who) == "reviewed"
+    refute who =~ "Sample Friend"
+
+    glyphs = LazyHTML.query(html, "[data-role='who'] .social-glyph")
+    assert LazyHTML.attribute(glyphs, "data-flag") == ["love", "watched"]
+    assert LazyHTML.attribute(glyphs, "data-grade") == ["gold", "silver"]
+    assert html |> LazyHTML.query("[data-role='text']") |> LazyHTML.text() |> String.trim() == "Yes."
+  end
+
+  test "a series row: the episode's verb and its name in the words slot, with the review's words under it" do
+    episode = %Episode{season_number: 1, episode_number: 7, name: "Sample Episode"}
+
+    html =
+      render(%{
+        author: nil,
+        kind: :watched,
+        episode: episode,
+        glyphs: [{:watched, :plain}, {:review, :plain}],
+        text: "Slow."
+      })
+
+    assert html |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.trim() =~
+             "watched S01E07 of"
+
+    assert html |> LazyHTML.query("[data-role='episode']") |> LazyHTML.text() |> String.trim() ==
+             "Sample Episode"
+
+    assert html |> LazyHTML.query("[data-role='text']") |> LazyHTML.text() |> String.trim() == "Slow."
+
+    nameless = render(%{author: nil, kind: :watched, episode: %{episode | name: nil}})
+    assert Enum.empty?(LazyHTML.query(nameless, "[data-role='episode']"))
+  end
+
+  test "Ignore follows the subject, not the author: none when the subject is You" do
+    assert Enum.empty?(
+             LazyHTML.query(render(%{author: nil, subject: :you}), "button[phx-click='ignore_title']")
+           )
+
+    assert render(%{author: nil, subject: :friend})
+           |> LazyHTML.query("button[phx-click='ignore_title']")
+           |> Enum.count() == 1
   end
 end
