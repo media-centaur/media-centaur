@@ -3360,7 +3360,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   position: relative;
   border-radius: 8px;
   padding: var(--pad);
-  cursor: pointer;
 }
 
 .person-card-page {
@@ -3373,14 +3372,12 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 .person-card:hover,
-.person-card:focus-within,
-.person-card-opened {
+.person-card:focus-within {
   background: oklch(from var(--color-base-content) l c h / 0.05);
 }
 
 .person-card-page:hover,
-.person-card-page:focus-within,
-.person-card-page.person-card-opened {
+.person-card-page:focus-within {
   background: oklch(from var(--color-base-content) l c h / 0.08);
 }
 

@@ -44,13 +44,8 @@ defmodule MediaCentaurWeb.SocialLive do
   reader follows and shows (`Social.visible_people/0`: friends added by
   key and the members of a relay followed whole) and one for You
   (`People`), each their latest acts as posters under act slots; a
-  press opens a card in place (`toggle_person`, the `opened_people`
-  set), and `?person=<card id>` — where a rail card's press lands
-  (`open_person`) — opens that card and hands it focus on mount. The
-  opened card's foot carries the reader's name, picture and colour for
-  the person (`set_friend_name`, `set_show_avatar`, `set_hue_override`),
-  **Hide** (`set_hidden`, the value to set) and, for a friend, Remove
-  friend. Under the grid, the **hidden group** (`#friends-hidden`,
+  card's head links to the person's page (UIDR-054), as the rail's
+  does. Under the grid, the **hidden group** (`#friends-hidden`,
   `People.hidden/1` over `Social.people/0`): every hidden person as a
   `HiddenPersonRow` with Show, the same `set_hidden`; then the
   add-friend form; identity and relays live on the Settings page's
@@ -150,13 +145,11 @@ defmodule MediaCentaurWeb.SocialLive do
        feed_queued: 0,
        feed_at_cap?: false,
        rail: %{cards: [], hidden: 0},
-       landed_person: nil,
        person: nil,
        person_card: nil,
        person_key: nil,
        people: [],
        hidden_people: [],
-       opened_people: MapSet.new(),
        ignore_undo: nil,
        warmed_artwork: MapSet.new(),
        today: Date.utc_today()
@@ -172,13 +165,11 @@ defmodule MediaCentaurWeb.SocialLive do
   @impl true
   def handle_params(params, _uri, socket) do
     scope = FeedEntries.parse_scope(params["scope"])
-    landed = if socket.assigns.live_action == :friends, do: params["person"]
 
     {:noreply,
      socket
      |> reset_head_on_scope_change(scope)
-     |> assign(feed_scope: scope, landed_person: landed, person_key: params["key"])
-     |> open_landed(landed)
+     |> assign(feed_scope: scope, person_key: params["key"])
      |> project()
      |> leave_if_gone()
      |> canonical_address()}
@@ -207,9 +198,6 @@ defmodule MediaCentaurWeb.SocialLive do
   # A new scope is a new column: the reader is at its top.
   defp reset_head_on_scope_change(%{assigns: %{feed_scope: scope}} = socket, scope), do: socket
   defp reset_head_on_scope_change(socket, _scope), do: assign(socket, :feed_head, nil)
-
-  defp open_landed(socket, nil), do: socket
-  defp open_landed(socket, id), do: update(socket, :opened_people, &MapSet.put(&1, id))
 
   # --- TitleDetailHost ---
 
@@ -250,19 +238,7 @@ defmodule MediaCentaurWeb.SocialLive do
   defp activity_ref(%{activity: activity}), do: {activity.tmdb_id, activity.media_type}
 
   @impl true
-  # The page card's press opens it in place; the same press closes it.
-  def handle_event("toggle_person", %{"id" => id}, socket) do
-    {:noreply,
-     update(socket, :opened_people, fn opened ->
-       if MapSet.member?(opened, id), do: MapSet.delete(opened, id), else: MapSet.put(opened, id)
-     end)}
-  end
-
-  # The rail card's press goes to the person on the Friends page.
-  def handle_event("open_person", %{"id" => id}, socket),
-    do: {:noreply, push_navigate(socket, to: ~p"/social/friends?person=#{id}")}
-
-  # --- the roster: the add form and the opened card's foot ---
+  # --- the roster: the add form and the reader's view ---
   #
   # None of these reloads the people on success. `Social` broadcasts the
   # change (`FriendAdded`, `ContactChanged`, `FriendRemoved`) over local
@@ -282,7 +258,7 @@ defmodule MediaCentaurWeb.SocialLive do
     end
   end
 
-  # The opened card's foot: the reader's name for the friend; a blank clears it.
+  # The reader's view: the reader's name for the friend; a blank clears it.
   def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
     case Social.set_name_override(pubkey, name) do
       {:ok, _friend} -> {:noreply, socket}
@@ -290,7 +266,7 @@ defmodule MediaCentaurWeb.SocialLive do
     end
   end
 
-  # The opened card's foot: whether this reader shows the friend's
+  # The reader's view: whether this reader shows the friend's
   # published picture; `show` is the value to set.
   def handle_event("set_show_avatar", %{"pubkey" => pubkey, "show" => show}, socket) do
     case Social.set_show_avatar(pubkey, show == "true") do
@@ -299,7 +275,7 @@ defmodule MediaCentaurWeb.SocialLive do
     end
   end
 
-  # The opened card's foot and the hidden group: `hide` is the value to set.
+  # The reader's view and the hidden group: `hide` is the value to set.
   def handle_event("set_hidden", %{"pubkey" => pubkey, "hide" => hide}, socket) do
     case Social.set_hidden(pubkey, hide == "true") do
       {:ok, _contact} -> {:noreply, socket}
@@ -307,7 +283,7 @@ defmodule MediaCentaurWeb.SocialLive do
     end
   end
 
-  # The opened card's foot: the reader's hue for the friend; empty is
+  # The reader's view: the reader's hue for the friend; empty is
   # Theirs, clearing it. A swatch's click and the slider's change carry
   # the same two keys.
   def handle_event("set_hue_override", %{"pubkey" => pubkey, "hue" => hue}, socket) do
@@ -904,8 +880,7 @@ defmodule MediaCentaurWeb.SocialLive do
                     person={card.person}
                     acts={card.acts}
                     width={:page}
-                    opened?={MapSet.member?(@opened_people, PersonCard.dom_id(card.person))}
-                    landed?={PersonCard.dom_id(card.person) == @landed_person}
+                    patch={PersonPage.path(card.person)}
                   />
                 </div>
                 <%!-- The hidden group: no nav zone until the hardening pass,
@@ -949,8 +924,9 @@ defmodule MediaCentaurWeb.SocialLive do
 
   # The rail (UIDR-046): the roster's summary beside the Feed — You
   # first, then the seven most recent, and "All N friends" when the cap
-  # hides anyone. Page composition, not a reusable component; nothing
-  # here is a nav item until the hardening pass.
+  # hides anyone. A card's head links to the person's page. Page
+  # composition, not a reusable component; nothing here is a nav item
+  # until the hardening pass.
   attr :rail, :map, required: true, doc: "`People.rail/1`: the cards shown and how many the cap hid"
   attr :friend_count, :integer, required: true, doc: "for All N friends"
 
@@ -966,6 +942,7 @@ defmodule MediaCentaurWeb.SocialLive do
         person={card.person}
         acts={card.acts}
         width={:rail}
+        patch={PersonPage.path(card.person)}
       />
       <.link
         :if={@rail.hidden > 0}
