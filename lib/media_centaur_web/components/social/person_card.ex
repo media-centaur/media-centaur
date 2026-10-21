@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
     >
       <.link
         patch={@patch}
-        class="flex items-center gap-3 rounded-md"
+        class="inline-flex max-w-full items-center gap-3 rounded-md pr-2"
         data-role="head"
         data-nav-item
         tabindex="0"
