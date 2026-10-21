@@ -4,7 +4,7 @@
 
 **Goal:** One page per known person at `/social/friends/<npub>` and `/social/friends/you`: their activity folded one row per title on the left, the reader's view of them (name, picture, colour, hide, remove) on the right; the grid and rail cards link to it and the opened-in-place card is retired.
 
-**Architecture:** The Social page has two projections of one activity list: by action over time (the Feed) and by person folded per title (the person card). The person page is the second projection in full for one person. One fold (`SocialLive.People`) yields both the card's strip item (`Act`) and the page's row; one row component (`FeedRow`) draws the Feed's per-action row and the page's per-title row from one widened view-model (`FeedEntry`); the toolbar's resolved slots become one value (`ToolbarSlots`). The reader's view is a Settings-kit card (`ReaderView`). The route is a third live action on `SocialLive`.
+**Architecture:** The Social page has two projections of one activity list: by action over time (the Feed) and by person folded per title (the person card). The person page is the second projection in full for one person. One fold (`SocialLive.People`) yields one row per title, which is both the card's strip item and the page's row (`Act` is deleted); one row component (`FeedRow`) draws the Feed's per-action row and the page's per-title row from one widened view-model (`FeedEntry`); the toolbar's resolved slots become one value (`ToolbarSlots`). The reader's view is a Settings-kit card (`ReaderView`). The route is a third live action on `SocialLive`.
 
 **Tech Stack:** Phoenix LiveView, Phoenix Storybook, ExUnit + LazyHTML, the input system (`assets/js/input`, bun tests), Tailwind + `assets/css/app.css`.
 
@@ -17,7 +17,7 @@
 - No real titles anywhere: `Sample Movie`, `Sample Show`.
 - Commit after each task with a conventional message.
 
-**Task order and why:** 1–2 widen the row so the page can use it; 3 gives the web layer a key parser; 4 makes the fold carry the page's row; 5 draws the reader's view; 6 adds the route and the page; 7 wires keyboard and gamepad; 8 retires the opened card last, so every behaviour stays covered at every commit; 9 is the records and docs; 10 is precommit and the visual check.
+**Task order and why:** 1–2 widen the row so the page can use it; 3 gives the web layer a key parser; 4 makes the fold yield the row and deletes `Act`; 5 draws the reader's view; 6 adds the route and the page; 7 wires keyboard and gamepad; 8 retires the opened card last, so every behaviour stays covered at every commit; 9 is the records and docs; 10 is precommit and the visual check.
 
 ---
 
@@ -29,8 +29,8 @@
 | `lib/media_centaur_web/components/social/feed_entry.ex` | The row's view-model, widened: optional author, subject, glyphs at grade, episode, slots |
 | `lib/media_centaur_web/components/social/feed_row.ex` | The one row component: tile and name only with an author; every glyph; the episode name; the toolbar from `slots` |
 | `lib/media_centaur_web/live/social_live/feed_entries.ex` | The Feed's per-action builder; glyph at grade |
-| `lib/media_centaur_web/live/social_live/people.ex` | The fold; each `Act` carries its page row |
-| `lib/media_centaur_web/components/social/act.ex` | Strip item: gains `kind` and `row`, loses `entries` |
+| `lib/media_centaur_web/live/social_live/people.ex` | The fold: one `FeedEntry` per title per person |
+| `lib/media_centaur_web/components/social/act.ex` | Deleted: the strip item is the row |
 | `lib/media_centaur/social.ex` | `parse_pubkey/1`, the web layer's key parser |
 | `lib/media_centaur_web/components/social/reader_view.ex` (new) | The reader's view card, from the Settings kit |
 | `lib/media_centaur_web/live/social_live/person_page.ex` (new) | `path/1`, `find/2`, and the page composition |
@@ -424,10 +424,10 @@ In `lib/media_centaur_web/live/social_live/people.ex` change `build/3`:
   def build(rows, people, opts) do
     now = Keyword.fetch!(opts, :now)
     by_author = Enum.group_by(rows, & &1.activity.author_pubkey)
-    grades = Keyword.get_lazy(opts, :grades, fn -> Grade.grades(rows) end)
+    grades = Keyword.fetch!(opts, :grades)
 ```
 
-and add to the `@doc`: "`grades:` is `Title.Grade.grades/1` over the same rows; the host computes it once for the cards and the Feed, and a caller that gives none gets it computed here."
+and add to the `@doc`: "`grades:` is `Title.Grade.grades/1` over the same rows; the host computes it once for the cards and the Feed." In `people_test.exs` add `alias MediaCentaurWeb.Components.Title.Grade` and `defp build(rows, people), do: People.build(rows, people, now: @now, grades: Grade.grades(rows))`, and replace every `People.build(rows, people, now: @now)`-shaped call with `build(rows, people)`.
 
 - [ ] **Step 5: The row component**
 
@@ -697,21 +697,21 @@ git commit -m "feat(social): parse_pubkey/1 is the web layer's key parser"
 
 ---
 
-### Task 4: The fold carries the page's row
+### Task 4: The fold yields the row; `Act` goes
 
-`Act` gains `kind` (the newest act's) and `row` (the page's `FeedEntry` for the title) and loses `entries`, which only the opened card's rows read.
+The strip item and the page's row are one idea: one person's acts on one title. `Act` is deleted; a card's `acts` are `FeedEntry` rows (id `person-row-<newest activity id>`), and the strip reads the poster, the title, the newest activity and the glyphs at grade off the row.
 
 **Files:**
-- Modify: `lib/media_centaur_web/components/social/act.ex`
+- Delete: `lib/media_centaur_web/components/social/act.ex`
 - Modify: `lib/media_centaur_web/live/social_live/people.ex`
-- Modify: `lib/media_centaur_web/components/social/person_card.ex` (`newest/1` → `act.kind`)
+- Modify: `lib/media_centaur_web/components/social/person_card.ex`
 - Modify: `storybook/social/person_card.story.exs`
 - Test: `test/media_centaur_web/live/social_live/people_test.exs`, `test/media_centaur_web/components/social/person_card_test.exs`
 
-- [ ] **Step 1: Write the failing test** in `people_test.exs` (append):
+- [ ] **Step 1: Write the failing test** in `people_test.exs` (append; add `alias MediaCentaurWeb.Components.Social.FeedEntry` and `alias MediaCentaurWeb.Components.Social.ToolbarSlots`, remove the `Act.Entry` alias):
 
 ```elixir
-  test "each act carries the page's row: one per title, the newest act's verb, every flag at its grade, the review's words, the title's slots" do
+  test "an act is the page's row: one per title, the newest act's verb, every flag at its grade, the review's words, the title's slots" do
     rows = [
       activity("Bob", @bob, %{tmdb_id: 7, kind: :watched, id: "bob-watched-7", acted_at: ~U[2026-09-02 12:00:00Z]}),
       activity("Bob", @bob, %{tmdb_id: 7, kind: :review, sentiment: :love, text: "Yes.", id: "bob-loves-7", acted_at: ~U[2026-09-01 12:00:00Z]}),
@@ -720,80 +720,42 @@ git commit -m "feat(social): parse_pubkey/1 is the web layer's key parser"
       activity("Bob", @bob, %{tmdb_id: 1399, media_type: :tv_series, kind: :watched, episode: %Episode{season_number: 1, episode_number: 7, name: "Sample Episode"}, id: "bob-watched-show", acted_at: ~U[2026-09-03 11:00:00Z]})
     ]
 
-    [_you, %Card{person: %Person{pubkey: @bob}, acts: [show, movie]} | _rest] =
-      People.build(rows, people(true), now: @now)
+    [_you, %Card{person: %Person{pubkey: @bob}, acts: [show, movie]} | _rest] = build(rows, people(true))
 
-    assert %FeedEntry{id: "person-row-bob-watched-show", activity_id: "bob-watched-show", author: nil, subject: :friend, kind: :watched} = show.row
-    assert show.row.episode.name == "Sample Episode"
-    assert show.row.glyphs == [{:review, :plain}, {:watched, :plain}]
-    assert show.row.text == "Slow."
-    assert show.kind == :watched
+    assert %FeedEntry{id: "person-row-bob-watched-show", activity_id: "bob-watched-show", author: nil, subject: :friend, kind: :watched} = show
+    assert show.episode.name == "Sample Episode"
+    assert show.glyphs == [{:review, :plain}, {:watched, :plain}]
+    assert show.text == "Slow."
 
-    assert %FeedEntry{id: "person-row-bob-watched-7", kind: :watched, episode: nil} = movie.row
-    assert movie.row.glyphs == [{:love, :silver}, {:watched, :plain}]
-    assert movie.row.text == "Yes."
-    assert %ToolbarSlots{list: :list, download: :download} = movie.row.slots
-    assert movie.row.ago == movie.ago
+    assert %FeedEntry{id: "person-row-bob-watched-7", kind: :watched, episode: nil} = movie
+    assert movie.glyphs == [{:love, :silver}, {:watched, :plain}]
+    assert movie.text == "Yes."
+    assert %ToolbarSlots{list: :list, download: :download} = movie.slots
   end
 
-  test "the reader's own acts carry rows in the second person" do
-    [%Card{person: %Person{own?: true}, acts: [act]} | _friends] =
-      People.build([own(%{tmdb_id: 3, kind: :listing})], people(true), now: @now)
-
-    assert act.row.subject == :you
-    assert act.row.author == nil
+  test "the reader's own acts are rows in the second person" do
+    [%Card{person: %Person{own?: true}, acts: [act]} | _friends] = build([own(%{tmdb_id: 3, kind: :listing})], people(true))
+    assert act.subject == :you
+    assert act.author == nil
   end
 ```
 
-Add `alias MediaCentaurWeb.Components.Social.FeedEntry` and `alias MediaCentaurWeb.Components.Social.ToolbarSlots`; remove `alias MediaCentaurWeb.Components.Social.Act.Entry`. Any existing assertion on `act.entries` becomes the same assertion on `act.row.glyphs` (the flags in order) or `act.kind` (the newest kind); grep `entries` in the file and convert each.
+Add the helper the whole file now uses, and replace every `People.build(rows, people, now: @now)` call with `build(rows, people)` (the grades are the host's, computed once, so the test computes them the way the host does):
+
+```elixir
+  alias MediaCentaurWeb.Components.Title.Grade
+
+  defp build(rows, people), do: People.build(rows, people, now: @now, grades: Grade.grades(rows))
+```
+
+Existing assertions convert as: `act.flags` → `Enum.map(act.glyphs, &elem(&1, 0))`; `act.grades` → `Map.new(act.glyphs)`; `act.entries` (the acts behind a title in order) → `act.glyphs` (the flags in order) or `act.kind` (the newest kind); `%Act{...}` → `%FeedEntry{...}`. Grep: `grep -n "Act\b\|entries\|\.flags\|\.grades" test/media_centaur_web/live/social_live/people_test.exs`.
 
 - [ ] **Step 2: Run to see it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/people_test.exs`
-Expected: `KeyError` / `undefined field row`.
+Expected: `KeyError` on a row field, or a pattern mismatch against `%Act{}`.
 
-- [ ] **Step 3: `Act`** — replace the struct section of `act.ex`:
-
-```elixir
-  alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Activities.Activity.Episode
-  alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Title.Flag
-  alias MediaCentaurWeb.Components.Title.Grade
-
-  defstruct [
-    :ref,
-    :title,
-    :poster_url,
-    :activity_id,
-    :acted_at,
-    :ago,
-    :kind,
-    :episode,
-    :row,
-    flags: [],
-    grades: %{}
-  ]
-
-  @type t :: %__MODULE__{
-          ref: {integer(), Title.media_type()},
-          title: Title.t(),
-          poster_url: String.t() | nil,
-          activity_id: String.t(),
-          acted_at: DateTime.t(),
-          ago: String.t(),
-          kind: Activity.kind(),
-          episode: Episode.t() | nil,
-          row: FeedEntry.t(),
-          flags: [Flag.flag()],
-          grades: %{Flag.flag() => Grade.t()}
-        }
-```
-
-Delete the `Entry` submodule. Moduledoc: "One title a person acted on (UIDR-046, UIDR-054): what the person card's strip shows for it — the poster under its flags, in order, `grades` giving each flag's grade (`Title.Grade`) — and `row`, the person page's row for the title (`FeedEntry`, one per title: the newest act's verb, every flag at its grade, the review's words). The newest activity's id, kind, time, ago and episode are the act's: the strip's press opens it, the tooltip speaks it. Built by `SocialLive.People`, rendered by `PersonCard` and the person page; a view-model, neither decides anything."
-
-- [ ] **Step 4: `People`** — replace `card/4`, `acts/3`, `act/4` and `entry/1`:
+- [ ] **Step 3: `People`** — delete `act.ex`; in `people.ex` replace `card/4`, `acts/3`, `act/4` and `entry/1`:
 
 ```elixir
   defp card(%Person{} = person, rows, now, grades) do
@@ -801,8 +763,8 @@ Delete the `Entry` submodule. Moduledoc: "One title a person acted on (UIDR-046,
     %Card{person: person, acts: acts(sorted, person, grades, now)}
   end
 
-  # One act per title in the order the titles first appear — newest
-  # first, since the rows are sorted — with the page's row for it.
+  # One row per title in the order the titles first appear — newest
+  # first, since the rows are sorted — with every act on it behind it.
   defp acts(sorted, person, grades, now) do
     by_ref = Enum.group_by(sorted, &ref/1)
 
@@ -814,36 +776,22 @@ Delete the `Entry` submodule. Moduledoc: "One title a person acted on (UIDR-046,
 
   defp act(ref, [%{activity: %Activity{} = newest} = first | _rest] = rows, person, grades, now) do
     flags = rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort()
-    act_grades = Map.new(flags, &{&1, Map.fetch!(grades, {ref, &1})})
-    ago = Format.relative_ago(newest.acted_at, now: now, sub_minute: :just_now)
 
-    %Act{
+    %FeedEntry{
+      id: "person-row-" <> newest.id,
+      activity_id: newest.id,
       ref: ref,
       title: newest.title,
       poster_url: first.poster_url,
-      activity_id: newest.id,
-      acted_at: newest.acted_at,
-      ago: ago,
+      author: nil,
+      subject: ActivityWords.subject(person),
       kind: newest.kind,
       episode: newest.episode,
-      flags: flags,
-      grades: act_grades,
-      row: %FeedEntry{
-        id: "person-row-" <> newest.id,
-        activity_id: newest.id,
-        ref: ref,
-        title: newest.title,
-        poster_url: first.poster_url,
-        author: nil,
-        subject: ActivityWords.subject(person),
-        kind: newest.kind,
-        episode: newest.episode,
-        glyphs: Enum.map(flags, &{&1, act_grades[&1]}),
-        text: review_text(rows),
-        acted_at: newest.acted_at,
-        ago: ago,
-        slots: ToolbarSlots.resolve(first)
-      }
+      glyphs: Enum.map(flags, &{&1, Map.fetch!(grades, {ref, &1})}),
+      text: review_text(rows),
+      acted_at: newest.acted_at,
+      ago: Format.relative_ago(newest.acted_at, now: now, sub_minute: :just_now),
+      slots: ToolbarSlots.resolve(first)
     }
   end
 
@@ -856,13 +804,20 @@ Delete the `Entry` submodule. Moduledoc: "One title a person acted on (UIDR-046,
   end
 ```
 
-Aliases: add `FeedEntry`, `ToolbarSlots` (both `MediaCentaurWeb.Components.Social.*`) and `alias MediaCentaurWeb.SocialLive.ActivityWords`; remove `Act.Entry`. Moduledoc: replace "each flies every act on that title in order, each at its grade" with "each carrying every flag on that title at its grade and the page's row for it (`Act.row`: the newest act's verb, every flag, the review's words, the title's toolbar slots)".
+`build/3`: `grades = Keyword.fetch!(opts, :grades)` (required; the `@doc` says the host computes it once for the cards and the Feed). `sort_key/1`: `%Card{acts: [%FeedEntry{acted_at: at} | _rest], person: person}`. `Card`'s type: `acts: [FeedEntry.t()]`, its doc "their acts, newest first — one `FeedEntry` per title acted on". Aliases: add `FeedEntry`, `ToolbarSlots` (`MediaCentaurWeb.Components.Social.*`) and `alias MediaCentaurWeb.SocialLive.ActivityWords`; remove `Act` and `Act.Entry`. Moduledoc: "A person's acts are one row per title (`FeedEntry`, the person page's row: the newest act's verb, every flag on the title at its grade — one count per person per title and flag over the rows this fold holds, the reader included — the review's words, the title's toolbar slots), newest first."
 
-- [ ] **Step 5: `PersonCard`** — replace `newest(act).kind` with `act.kind` in the opened rows' verb and in `sentence/2`; delete `newest/1`.
+- [ ] **Step 4: `PersonCard` reads rows** — `attr :acts, :list, required: true, doc: "the person's rows (`FeedEntry`), newest first; `[]` for a quiet person"`. In the strip: `:for={row <- @shown}`, `TitleRef.param(row.ref)`, `tip(@name, row, @subject)`, `phx-value-activity={row.activity_id}`, `data-flags={Enum.map_join(row.glyphs, " ", &elem(&1, 0))}`, `<SocialGlyph.social_glyphs flags={flags(row)} grades={Map.new(row.glyphs)} class="act-slots" aria-hidden="true" />`, `act_poster_src(row.poster_url, @width)`, `row.title.name`. In the opened rows (retired in Task 8): `:for={row <- @acts}`, `id={"#{@id}-#{row.activity_id}"}`, `TitleRef.param(row.ref)`, `row.activity_id`, `ActivityWords.verb_phrase(row.kind, row.episode, @subject)`, `row.title.name`, `<SocialGlyph.social_glyph :for={{flag, grade} <- row.glyphs} flag={flag} grade={grade} class="ml-1 size-4 align-middle" />`, `row.ago`. Replace `sentence/2`, `tip/3` and `newest/1` with:
 
-- [ ] **Step 6: Story and component test fixtures**
+```elixir
+  defp flags(%FeedEntry{glyphs: glyphs}), do: Enum.map(glyphs, &elem(&1, 0))
 
-`storybook/social/person_card.story.exs`: replace `act/4`:
+  defp tip(name, %FeedEntry{} = row, subject),
+    do: name <> " " <> ActivityWords.sentence(row.kind, row.episode, row.title.name, subject)
+```
+
+Alias `FeedEntry` instead of `Act`. Moduledoc: "Pure rendering of a `Social.Person` and their rows (`FeedEntry`, one per title, `SocialLive.People`)".
+
+- [ ] **Step 5: Story and component test fixtures** — in `storybook/social/person_card.story.exs` replace `act/4` (and the `Act`/`Entry` aliases) with:
 
 ```elixir
   alias MediaCentaurWeb.Components.Social.FeedEntry
@@ -872,56 +827,39 @@ Aliases: add `FeedEntry`, `ToolbarSlots` (both `MediaCentaurWeb.Components.Socia
 
   defp act(tmdb_id, name, flags, opts \\ []) do
     media_type = Keyword.get(opts, :media_type, :movie)
-    episode = Keyword.get(opts, :episode)
-    title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
-    kind = kind(hd(flags))
     grades = Map.merge(Map.new(flags, &{&1, :plain}), Keyword.get(opts, :grades, %{}))
-    ago = Keyword.get(opts, :ago, "2h ago")
-    poster_url = Keyword.get(opts, :poster_url, @poster)
 
-    %Act{
-      ref: {tmdb_id, media_type},
-      title: title,
-      poster_url: poster_url,
+    %FeedEntry{
+      id: "person-row-#{tmdb_id}",
       activity_id: "activity-#{tmdb_id}-#{hd(flags)}",
+      ref: {tmdb_id, media_type},
+      title: Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
+      poster_url: Keyword.get(opts, :poster_url, @poster),
+      author: nil,
+      subject: :friend,
+      kind: kind(hd(flags)),
+      episode: Keyword.get(opts, :episode),
+      glyphs: Enum.map(flags, &{&1, grades[&1]}),
+      text: nil,
       acted_at: ~U[2026-09-01 12:00:00Z],
-      ago: ago,
-      kind: kind,
-      episode: episode,
-      flags: flags,
-      grades: grades,
-      row: %FeedEntry{
-        id: "person-row-#{tmdb_id}",
-        activity_id: "activity-#{tmdb_id}-#{hd(flags)}",
-        ref: {tmdb_id, media_type},
-        title: title,
-        poster_url: poster_url,
-        author: nil,
-        subject: :friend,
-        kind: kind,
-        episode: episode,
-        glyphs: Enum.map(flags, &{&1, grades[&1]}),
-        text: nil,
-        acted_at: ~U[2026-09-01 12:00:00Z],
-        ago: ago,
-        slots: @slots
-      }
+      ago: Keyword.get(opts, :ago, "2h ago"),
+      slots: @slots
     }
   end
 ```
 
-Remove the `Entry` alias. `test/media_centaur_web/components/social/person_card_test.exs`: the same shape for its `act/3` (`kind: :review`, `episode: nil`, `row:` as above with `activity_id: Keyword.fetch!(opts, :id)`); delete `entry/2` and the `Entry` alias.
+`test/media_centaur_web/components/social/person_card_test.exs`: the same shape for `act/3` (`activity_id: Keyword.fetch!(opts, :id)`, `kind: :review`, `glyphs: Enum.map(flags, &{&1, grades[&1]})` with `grades = Keyword.get(opts, :grades, Map.new(flags, &{&1, :plain}))`); delete `entry/2`, alias `FeedEntry` and `ToolbarSlots` instead of `Act` and `Entry`.
 
-- [ ] **Step 7: Run**
+- [ ] **Step 6: Run**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/people_test.exs test/media_centaur_web/components/social/person_card_test.exs test/media_centaur_web/live/social_live_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add -A lib/media_centaur_web/components/social lib/media_centaur_web/live/social_live storybook/social test/media_centaur_web
-git commit -m "refactor(social): the fold carries the person page's row on each act"
+git commit -m "refactor(social): the fold yields the row; Act is gone"
 ```
 
 ---
@@ -1398,7 +1336,7 @@ defmodule MediaCentaurWeb.SocialLive.PersonPage do
         </header>
 
         <div :if={@acts != []} id="person-rows" class="mt-3 divide-y divide-base-content/10">
-          <FeedRow.feed_row :for={act <- @acts} entry={act.row} />
+          <FeedRow.feed_row :for={act <- @acts} entry={act} />
         </div>
         <p
           :if={@acts == [] and not @person.hidden}
@@ -1599,6 +1537,14 @@ Expected: 2 tests, 0 failures.
       :ok = Social.remove_friend(@friend_pubkey)
       assert_redirect(view, "/social/friends")
     end
+
+    test "a hex key resolves and patches to the one address, the npub", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+      {:ok, view, _html} = live(conn, "/social/friends/" <> @friend_pubkey)
+      assert_patch(view, friend_path())
+      assert has_element?(view, "#person-page [data-role='head'] h2", "Nick")
+    end
   end
 ```
 
@@ -1608,7 +1554,7 @@ Replace the smoke test's entry `{"/social/friends?person=person-you", "social fr
 
 - [ ] **Step 8: `SocialLive`**
 
-Aliases: `alias MediaCentaurWeb.SocialLive.PersonPage`.
+Aliases: `alias MediaCentaurWeb.SocialLive.PersonPage` and `alias MediaCentaur.Social.Person`.
 
 Mount assigns: add `person: nil, person_card: nil, person_key: nil`.
 
@@ -1626,8 +1572,17 @@ Mount assigns: add `person: nil, person_card: nil, person_key: nil`.
      |> assign(feed_scope: scope, landed_person: landed, person_key: params["key"])
      |> open_landed(landed)
      |> project()
-     |> leave_if_gone()}
+     |> leave_if_gone()
+     |> canonical_address()}
   end
+
+  # A person page has one address: a key that resolved by hex patches to the npub.
+  defp canonical_address(%{assigns: %{live_action: :person, person: %Person{} = person, person_key: key}} = socket) do
+    path = PersonPage.path(person)
+    if path == ~p"/social/friends/#{key}", do: socket, else: push_patch(socket, to: path)
+  end
+
+  defp canonical_address(socket), do: socket
 
   # A person page whose key nobody known holds — a bad address, or the
   # friend removed meanwhile — returns to Friends.
@@ -1694,7 +1649,7 @@ The toolbar's lookup serves both lists — rename `feed_entry/2` to `shown_entry
     do: Enum.find(socket.assigns.feed, &(&1.activity_id == id)) || person_row(socket, id)
 
   defp person_row(%{assigns: %{person_card: %People.Card{acts: acts}}}, id),
-    do: Enum.find_value(acts, &(&1.row.activity_id == id && &1.row))
+    do: Enum.find(acts, &(&1.activity_id == id))
 
   defp person_row(_socket, _id), do: nil
 ```
@@ -1912,7 +1867,7 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
 
 ```elixir
   attr :person, Person, required: true, doc: "the person as the reader sees them"
-  attr :acts, :list, required: true, doc: "the person's `Act`s, newest first; `[]` for a quiet person"
+  attr :acts, :list, required: true, doc: "the person's rows (`FeedEntry`, one per title), newest first; `[]` for a quiet person"
   attr :width, :atom, required: true, values: [:rail, :page]
   attr :patch, :string, required: true, doc: "the person page's address (`PersonPage.path/1`); the head links to it"
 
@@ -1959,30 +1914,30 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
         data-role="acts"
       >
         <button
-          :for={act <- @shown}
-          id={"#{@id}-act-#{TitleRef.param(act.ref)}"}
+          :for={row <- @shown}
+          id={"#{@id}-act-#{TitleRef.param(row.ref)}"}
           type="button"
           class="act"
-          data-tip={tip(@name, act, @subject)}
-          aria-label={tip(@name, act, @subject)}
+          data-tip={tip(@name, row, @subject)}
+          aria-label={tip(@name, row, @subject)}
           phx-click="open_title"
-          phx-value-ref={TitleRef.param(act.ref)}
-          phx-value-activity={act.activity_id}
-          data-entity-id={TitleRef.param(act.ref)}
-          data-flags={Enum.join(act.flags, " ")}
+          phx-value-ref={TitleRef.param(row.ref)}
+          phx-value-activity={row.activity_id}
+          data-entity-id={TitleRef.param(row.ref)}
+          data-flags={Enum.map_join(row.glyphs, " ", &elem(&1, 0))}
           data-nav-item
           tabindex="0"
         >
-          <SocialGlyph.social_glyphs flags={act.flags} grades={act.grades} class="act-slots" aria-hidden="true" />
+          <SocialGlyph.social_glyphs flags={flags(row)} grades={Map.new(row.glyphs)} class="act-slots" aria-hidden="true" />
           <img
-            :if={act.poster_url}
-            src={act_poster_src(act.poster_url, @width)}
-            alt={act.title.name}
+            :if={row.poster_url}
+            src={act_poster_src(row.poster_url, @width)}
+            alt={row.title.name}
             loading="eager"
             decoding="sync"
           />
-          <span :if={!act.poster_url} class="act-empty text-sm leading-tight text-base-content/65">
-            {act.title.name}
+          <span :if={!row.poster_url} class="act-empty text-sm leading-tight text-base-content/65">
+            {row.title.name}
           </span>
         </button>
       </div>
@@ -1991,7 +1946,7 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
   end
 ```
 
-Delete `shown/3`, `masked_name/1`, `provenance/1`, the `button`, `HueSwatches`, `Switch` and `JS` imports/aliases; keep `dom_id/1` (its doc becomes "The card's DOM id: `person-you` for the reader, else `person-` and the key's first eight hex digits; the hidden group's rows derive theirs from it."), `act_poster_src/2`, `tile_size/1`, `tip/3`, `sentence/2`. Moduledoc: cut everything from "Its press opens the card in place" to the end of the foot's description and write: "Its head is a link to the person's page (`patch`, UIDR-054), where every act is a row and the reader's view lives. Pure rendering of a `Social.Person` and their `Act`s: the head and every poster are nav items; a poster bubbles `open_title` with the title's ref and the activity."
+Delete `shown/3`, `masked_name/1`, `provenance/1`, the `button`, `HueSwatches`, `Switch` and `JS` imports/aliases; keep `dom_id/1` (its doc becomes "The card's DOM id: `person-you` for the reader, else `person-` and the key's first eight hex digits; the hidden group's rows derive theirs from it."), `act_poster_src/2`, `tile_size/1`, `tip/3`, `flags/1`. Moduledoc: cut everything from "Its press opens the card in place" to the end of the foot's description and write: "Its head is a link to the person's page (`patch`, UIDR-054), where every act is a row and the reader's view lives. Pure rendering of a `Social.Person` and their rows: the head and every poster are nav items; a poster bubbles `open_title` with the title's ref and the activity."
 
 - [ ] **Step 4: The page** — in `social_live.ex`:
   - delete the `toggle_person` and `open_person` handlers, `open_landed/2`, the `landed_person` and `opened_people` assigns and `landed` in `handle_params` (the `assign` there becomes `assign(feed_scope: scope, person_key: params["key"])`);
@@ -2158,4 +2113,4 @@ git add -A && git commit -m "fix(social): person page visual pass"
 
 **Placeholders.** None; every code step carries its code. Step 8 of Task 2 and Step 6 of Task 8 name existing tests to edit by their titles, with the replacement given.
 
-**Type consistency.** `FeedEntry` fields `author | subject | kind | episode | glyphs | text | slots` are used by the same names in `FeedEntries` (Task 2), `People` (Task 4), `FeedRow` (Task 2), `PersonPage` (Task 6) and every test and story. `Act.row` and `Act.kind` (Task 4) are what `PersonCard.tip/3` and `PersonPage` read. `PersonPage.path/1` and `find/2` (Task 6) are what `SocialLive` (6, 8) calls. `ToolbarSlots.resolve/1` (Task 1) is called in Tasks 2 and 4.
+**Type consistency.** `FeedEntry` fields `author | subject | kind | episode | glyphs | text | slots` are used by the same names in `FeedEntries` (Task 2), `People` (Task 4), `FeedRow` (Task 2), `PersonPage` (Task 6) and every test and story. A card's `acts` are `FeedEntry` rows (Task 4), which `PersonCard` and `PersonPage` both read. `PersonPage.path/1` and `find/2` (Task 6) are what `SocialLive` (6, 8) calls. `ToolbarSlots.resolve/1` (Task 1) is called in Tasks 2 and 4.
