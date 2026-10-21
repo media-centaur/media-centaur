@@ -229,7 +229,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/social?scope=friends", "social feed, friends scope"},
           {"/social?scope=you", "social feed, you scope"},
           {"/social/friends", "social friends"},
-          {"/social/friends?person=person-you", "social friends, a card opened"}
+          {"/social/friends/you", "the reader's person page"},
+          {"/social/friends/#{Social.to_npub(@smoke_friend_pubkey)}", "a friend's person page"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
         assert {:ok, _view, html} = smoke!(conn, unquote(path))

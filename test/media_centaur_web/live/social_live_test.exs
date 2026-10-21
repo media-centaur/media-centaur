@@ -564,6 +564,222 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     end
   end
 
+  describe "person page" do
+    @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    defp friend_path, do: "/social/friends/" <> Social.to_npub(@friend_pubkey)
+
+    defp signed_by_friend(kind, title, opts),
+      do: Event.sign(Translation.to_event(kind, title, opts, @friend_pubkey), @friend_secret)
+
+    defp friend_profile_event(name, hue),
+      do:
+        Event.sign(
+          ProfileTranslation.to_event(
+            %{name: name, avatar: nil, hue: hue},
+            @friend_pubkey,
+            1_700_000_000
+          ),
+          @friend_secret
+        )
+
+    test "a friend's page: the head, one row per title with every act's glyph and the review's words, the reader's view; a series at its latest episode",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+      movie = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"})
+      show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+
+      {:ok, watched} = Activities.ingest(signed_by_friend(:watched, movie, []))
+
+      {:ok, reviewed} =
+        Activities.ingest(signed_by_friend(:review, movie, text: "Yes.", sentiment: :love))
+
+      {:ok, _show_review} =
+        Activities.ingest(signed_by_friend(:review, show, text: "Slow.", sentiment: nil))
+
+      {:ok, episode_watched} =
+        Activities.ingest(
+          signed_by_friend(:watched, show,
+            episode: %Episode{season_number: 1, episode_number: 7, name: "Sample Episode"}
+          )
+        )
+
+      backdate(watched, :acted_at, ~U[2026-09-01 09:00:00Z])
+      backdate(reviewed, :acted_at, ~U[2026-09-01 10:00:00Z])
+
+      {:ok, view, _html} = live(conn, friend_path())
+
+      assert has_element?(view, "#person-page [data-role='head'] h2", "Nick")
+      assert has_element?(view, "#person-page [data-component='identity-tile'][data-size='48']")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
+      assert has_element?(view, "#person-page-back[href='/social/friends']", "Friends")
+
+      # Two titles, two rows, the series first (newest act); no identity tile on a row.
+      assert ids(view, "#person-rows [data-component='feed-row']") == [
+               "person-row-#{episode_watched.id}",
+               "person-row-#{reviewed.id}"
+             ]
+
+      refute has_element?(view, "#person-rows [data-component='identity-tile']")
+
+      show_row = "#person-row-#{episode_watched.id}"
+      assert has_element?(view, show_row <> " [data-role='who']", "watched S01E07 of")
+      assert has_element?(view, show_row <> " [data-role='episode']", "Sample Episode")
+      assert has_element?(view, show_row <> " [data-role='text']", "Slow.")
+      assert has_element?(view, show_row <> " [data-role='who'] .social-glyph[data-flag='review']")
+      assert has_element?(view, show_row <> " [data-role='who'] .social-glyph[data-flag='watched']")
+
+      movie_row = "#person-row-#{reviewed.id}"
+      assert has_element?(view, movie_row <> " [data-role='who']", "reviewed")
+      assert has_element?(view, movie_row <> " [data-role='who'] .social-glyph[data-flag='love']")
+      assert has_element?(view, movie_row <> " [data-role='who'] .social-glyph[data-flag='watched']")
+      assert has_element?(view, movie_row <> " [data-role='text']", "Yes.")
+      assert has_element?(view, movie_row <> " button", "Ignore")
+
+      # The card beside the rows.
+      assert has_element?(
+               view,
+               "[data-nav-zone='person_view'] [data-component='reader-view'] h3",
+               "Your view of Nick"
+             )
+
+      assert has_element?(view, "[data-component='reader-view'] button", "Remove friend")
+
+      # A row's press opens the modal speaking for the newest act on the title.
+      view |> element(movie_row) |> render_click()
+      assert_patch(view, friend_path() <> "?title=movie-777&activity=#{reviewed.id}")
+      assert has_element?(view, "#detail-note", "Yes.")
+      render_hook(view, "close_title", %{})
+      assert_patch(view, friend_path())
+
+      await_supervised_tasks()
+    end
+
+    test "the controls on the page: rename, picture, colour and hide take effect without leaving; Remove friend returns to Friends",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+      {:ok, _profile} = Social.ingest_profile(friend_profile_event("Ada", 12))
+      {:ok, view, _html} = live(conn, friend_path())
+      tile = "#person-page [data-role='head'] [data-component='identity-tile']"
+
+      view |> form("#reader-view-name-form", %{"name" => "Nicholas"}) |> render_submit()
+      assert has_element?(view, "#person-page [data-role='head'] h2", "Nicholas")
+      assert has_element?(view, "#reader-view-name-form input[name='name'][value='Nicholas']")
+
+      view |> form("#reader-view-name-form", %{"name" => ""}) |> render_submit()
+      assert has_element?(view, "#person-page [data-role='head'] h2", "Ada")
+      assert has_element?(view, "#reader-view-name-form input[name='name'][placeholder='Ada']")
+
+      view
+      |> element("[data-component='reader-view'] [role='switch'][phx-click='set_show_avatar']")
+      |> render_click()
+
+      assert %{show_avatar: false} = Social.contact_by_pubkey(@friend_pubkey)
+      assert has_element?(view, "[role='switch'][phx-click='set_show_avatar'][aria-checked='false']")
+
+      assert has_element?(view, tile <> "[data-hue='12']")
+      view |> element("#reader-view-hue-form button[data-hue='195']") |> render_click()
+      assert has_element?(view, tile <> "[data-hue='195']")
+      view |> form("#reader-view-hue-form", %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
+      assert has_element?(view, tile <> "[data-hue='100']")
+      view |> element("#reader-view-hue-form button[data-role='theirs']") |> render_click()
+      assert has_element?(view, tile <> "[data-hue='12']")
+
+      view
+      |> element("[data-component='reader-view'] [role='switch'][phx-click='set_hidden']")
+      |> render_click()
+
+      render_until(view, fn _html -> has_element?(view, "#person-rows-hidden") end)
+      assert has_element?(view, "#person-page[data-hidden]")
+      assert has_element?(view, "[role='switch'][phx-click='set_hidden'][aria-checked='true']")
+
+      view
+      |> element("[data-component='reader-view'] [role='switch'][phx-click='set_hidden']")
+      |> render_click()
+
+      render_until(view, fn _html -> not has_element?(view, "#person-rows-hidden") end)
+      assert has_element?(view, "#person-rows-empty", "Nothing yet.")
+
+      view |> element("[data-component='reader-view'] button", "Remove friend") |> render_click()
+      assert_redirect(view, "/social/friends")
+      assert Social.list_friends() == []
+    end
+
+    test "a member's page has the card without Remove friend; a hidden person's page shows the hidden state",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, _relay} = Social.add_relay("wss://group.example", :members)
+      :ok = Social.note_member("wss://group.example", @friend_pubkey)
+
+      {:ok, _} =
+        Activities.ingest(
+          signed_by_friend(
+            :listing,
+            Title.new!(%{tmdb_id: 5, media_type: :movie, name: "Sample Movie 5"}),
+            []
+          )
+        )
+
+      {:ok, view, _html} = live(conn, friend_path())
+      assert has_element?(view, "[data-component='reader-view'] [data-role='foot']", "on group.example")
+      refute has_element?(view, "[data-component='reader-view'] button", "Remove friend")
+      assert has_element?(view, "#person-rows [data-component='feed-row']")
+
+      {:ok, _contact} = Social.set_hidden(@friend_pubkey, true)
+      {:ok, hidden, _html} = live(conn, friend_path())
+      assert has_element?(hidden, "#person-rows-hidden")
+      refute has_element?(hidden, "#person-rows")
+      assert has_element?(hidden, "[role='switch'][phx-click='set_hidden'][aria-checked='true']")
+    end
+
+    test "the reader's own page: own acts in the second person, no card, the pointer to Settings", %{
+      conn: conn
+    } do
+      {:ok, _review} =
+        Activities.review(
+          Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"}),
+          :like,
+          "mine"
+        )
+
+      {:ok, view, _html} = live(conn, "/social/friends/you")
+
+      assert has_element?(view, "#person-page[data-own] [data-role='head'] h2", "You")
+      assert has_element?(view, "#person-rows [data-role='who']", "reviewed")
+      refute has_element?(view, "#person-rows button", "Ignore")
+      refute has_element?(view, "[data-component='reader-view']")
+      assert has_element?(view, "#person-settings-pointer a[href='/settings?section=social']")
+    end
+
+    test "a key nobody known holds returns to Friends with a flash; so does a friend removed in another tab",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+
+      {:error, {:live_redirect, %{to: "/social/friends", flash: flash}}} =
+        live(conn, "/social/friends/npub1nope")
+
+      assert flash["error"] =~ "No one by that key"
+
+      {:ok, view, _html} = live(conn, friend_path())
+      :ok = Social.remove_friend(@friend_pubkey)
+      assert_redirect(view, "/social/friends")
+    end
+
+    test "a hex key resolves and patches to the one address, the npub", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+      # The patch lands during mount, which the client follows as a redirect.
+      {:error, {:live_redirect, %{to: to}}} = live(conn, "/social/friends/" <> @friend_pubkey)
+      assert to == friend_path()
+      {:ok, view, _html} = live(conn, to)
+      assert has_element?(view, "#person-page [data-role='head'] h2", "Nick")
+    end
+  end
+
   describe "feed tab" do
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"

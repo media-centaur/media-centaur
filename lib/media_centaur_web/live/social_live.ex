@@ -55,7 +55,15 @@ defmodule MediaCentaurWeb.SocialLive do
   `HiddenPersonRow` with Show, the same `set_hidden`; then the
   add-friend form; identity and relays live on the Settings page's
   Social section, which this tab points at. The watchlist itself is
-  Incoming's first tab (UIDR-050).
+  Incoming's first tab (UIDR-050). **The person page**
+  (`/social/friends/<npub>`, `/social/friends/you`; `SocialLive.PersonPage`,
+  UIDR-054) — one person's acts as the Feed's rows folded one per title
+  (`People`'s acts) beside the reader's view of them (`ReaderView`:
+  `set_friend_name`, `set_show_avatar`, `set_hue_override`, `set_hidden`,
+  `remove_friend`, which returns to Friends). The key is read off the
+  address in `handle_params` and resolved on every projection
+  (`PersonPage.find/2` over the known people, the hidden included); a key
+  nobody holds returns to Friends, and a hex key patches to the npub.
 
   A listing or an ignore made from a row carries that row's activity
   as provenance (`TitleIntent.friend_provenance/2`), the way the
@@ -94,6 +102,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Hue
   alias MediaCentaur.Social
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Social.FeedRow
@@ -110,6 +119,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.SocialLive.FeedEntries
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.SocialLive.People
+  alias MediaCentaurWeb.SocialLive.PersonPage
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
 
@@ -141,6 +151,9 @@ defmodule MediaCentaurWeb.SocialLive do
        feed_at_cap?: false,
        rail: %{cards: [], hidden: 0},
        landed_person: nil,
+       person: nil,
+       person_card: nil,
+       person_key: nil,
        people: [],
        hidden_people: [],
        opened_people: MapSet.new(),
@@ -164,10 +177,32 @@ defmodule MediaCentaurWeb.SocialLive do
     {:noreply,
      socket
      |> reset_head_on_scope_change(scope)
-     |> assign(feed_scope: scope, landed_person: landed)
+     |> assign(feed_scope: scope, landed_person: landed, person_key: params["key"])
      |> open_landed(landed)
-     |> project()}
+     |> project()
+     |> leave_if_gone()
+     |> canonical_address()}
   end
+
+  # A person page whose key nobody known holds — a bad address, or the
+  # friend removed meanwhile — returns to Friends.
+  defp leave_if_gone(%{assigns: %{live_action: :person, person: nil}} = socket) do
+    socket
+    |> put_flash(:error, "No one by that key is on your list")
+    |> push_navigate(to: ~p"/social/friends")
+  end
+
+  defp leave_if_gone(socket), do: socket
+
+  # A person page has one address: a key that resolved by hex patches to the npub.
+  defp canonical_address(
+         %{assigns: %{live_action: :person, person: %Person{} = person, person_key: key}} = socket
+       ) do
+    path = PersonPage.path(person)
+    if path == ~p"/social/friends/#{key}", do: socket, else: push_patch(socket, to: path)
+  end
+
+  defp canonical_address(socket), do: socket
 
   # A new scope is a new column: the reader is at its top.
   defp reset_head_on_scope_change(%{assigns: %{feed_scope: scope}} = socket, scope), do: socket
@@ -287,7 +322,10 @@ defmodule MediaCentaurWeb.SocialLive do
 
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
     :ok = Social.remove_friend(pubkey)
-    {:noreply, socket}
+
+    if socket.assigns.live_action == :person,
+      do: {:noreply, push_navigate(socket, to: ~p"/social/friends")},
+      else: {:noreply, socket}
   end
 
   # --- the Feed's toolbar — see the moduledoc ---
@@ -321,7 +359,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # The bottom rung as a toggle. Following is plain state: the ladder is
   # in the modal for that.
   def handle_event("feed_list", %{"activity" => id}, socket) do
-    case feed_entry(socket, id) do
+    case shown_entry(socket, id) do
       %FeedEntry{slots: %ToolbarSlots{list: :list}} = entry ->
         {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :list, entry_provenance(entry))
         {:noreply, socket}
@@ -339,7 +377,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # default scope (season 1 for a series); the full control is in the
   # modal. The host's acquisition module owns the two paths.
   def handle_event("feed_download", %{"activity" => id}, socket) do
-    case feed_entry(socket, id) do
+    case shown_entry(socket, id) do
       %FeedEntry{slots: %ToolbarSlots{download: :download}} = entry ->
         scope = if entry.title.media_type == :tv_series, do: :first_season
 
@@ -360,7 +398,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # The rung the title had is kept for Undo; nil is Off, which
   # set_rung/2 spells as such.
   def handle_event("ignore_title", %{"activity" => id}, socket) do
-    case feed_entry(socket, id) do
+    case shown_entry(socket, id) do
       %FeedEntry{} = entry ->
         {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :ignored, entry_provenance(entry))
 
@@ -382,7 +420,14 @@ defmodule MediaCentaurWeb.SocialLive do
   def handle_event("ignore_undo_dismiss", _params, socket),
     do: {:noreply, assign(socket, :ignore_undo, nil)}
 
-  defp feed_entry(socket, id), do: Enum.find(socket.assigns.feed, &(&1.activity_id == id))
+  # The row a toolbar verb names: on the Feed, or on the person page.
+  defp shown_entry(socket, id),
+    do: Enum.find(socket.assigns.feed, &(&1.activity_id == id)) || person_row(socket, id)
+
+  defp person_row(%{assigns: %{person_card: %People.Card{acts: acts}}}, id),
+    do: Enum.find(acts, &(&1.activity_id == id))
+
+  defp person_row(_socket, _id), do: nil
 
   defp entry_provenance(%FeedEntry{activity_id: id, text: text}),
     do: TitleIntent.friend_provenance(id, text)
@@ -414,7 +459,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # The roster, a relay's members, the identity or a published name
   # changed: the people are reread and the rows redrawn under them.
   def handle_info({tag, _event}, socket) when tag in @people_tags do
-    {:noreply, socket |> load_people() |> load_activities()}
+    {:noreply, socket |> load_people() |> load_activities() |> leave_if_gone()}
   end
 
   def handle_info(%PlanEvents.Changed{}, socket), do: {:noreply, stamp_acquisition_states(socket)}
@@ -519,7 +564,8 @@ defmodule MediaCentaurWeb.SocialLive do
         grades: grades
       )
 
-    assign(socket,
+    socket
+    |> assign(
       feed: entries,
       feed_has_older?: has_older?,
       feed_at_cap?: at_cap?,
@@ -534,18 +580,33 @@ defmodule MediaCentaurWeb.SocialLive do
       friends_empty_reason: People.empty_reason(socket.assigns.relay?, socket.assigns.friend_count),
       rail: People.rail(people)
     )
+    |> assign_person(people)
   end
+
+  # The person page's person and card, re-resolved on every projection so
+  # a change in another tab lands: hidden takes their card away (the rows
+  # are never loaded), removed leaves nobody holding the key.
+  defp assign_person(%{assigns: %{live_action: :person, person_key: key}} = socket, cards)
+       when is_binary(key) do
+    person = PersonPage.find(key, socket.assigns.known_people)
+    card = person && Enum.find(cards, &(&1.person.pubkey == person.pubkey))
+    assign(socket, person: person, person_card: card)
+  end
+
+  defp assign_person(socket, _cards), do: assign(socket, person: nil, person_card: nil)
 
   # The people shown (`Social.visible_people/0`), the reader included
   # when an identity exists: the cards are built from the map, the tab's
   # count and the feed's readiness are derived from it. The hidden group
   # is the rest of `Social.people/0`. The roster is held once.
   defp load_people(socket) do
-    people = Social.visible_people()
+    known = Social.people()
+    people = Map.reject(known, fn {_pubkey, person} -> person.hidden end)
 
     assign(socket,
+      known_people: known,
       people_by_pubkey: people,
-      hidden_people: People.hidden(Social.people()),
+      hidden_people: People.hidden(known),
       friend_count: Social.count_followed(people)
     )
   end
@@ -560,6 +621,10 @@ defmodule MediaCentaurWeb.SocialLive do
       %Tab{id: :feed, label: "Feed", navigate: feed_path(scope), count: length(feed)},
       %Tab{id: :friends, label: "Friends", navigate: "/social/friends", count: friend_count}
     ]
+
+  # The person page sits under Friends.
+  defp tab_for(:person), do: :friends
+  defp tab_for(action), do: action
 
   # The Feed under a scope, Everyone being the bare address.
   defp feed_path(scope), do: ~p"/social?#{FeedEntries.scope_query(scope)}"
@@ -605,6 +670,7 @@ defmodule MediaCentaurWeb.SocialLive do
       "Paste the key they give you below, or set your group's own relay to Everyone on this relay under Settings → Social."
 
   defp current_path(:friends), do: "/social/friends"
+  defp current_path(:person), do: "/social/friends"
   defp current_path(_action), do: "/social"
 
   # Path back to the current tab; every modal open/close patch routes
@@ -618,6 +684,9 @@ defmodule MediaCentaurWeb.SocialLive do
 
   defp social_path(%{assigns: %{live_action: :friends}}, params), do: ~p"/social/friends?#{params}"
 
+  defp social_path(%{assigns: %{live_action: :person, person_key: key}}, params),
+    do: ~p"/social/friends/#{key}?#{params}"
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -629,7 +698,7 @@ defmodule MediaCentaurWeb.SocialLive do
       flash={@flash}
       current_path={current_path(@live_action)}
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
-      full_width={@live_action == :friends}
+      full_width={@live_action in [:friends, :person]}
     >
       <:overlays>
         <DetailPanel.detail_panel
@@ -678,7 +747,7 @@ defmodule MediaCentaurWeb.SocialLive do
             <div class="social-head-cell">
               <.tab_strip
                 tabs={tabs(@feed, @friend_count, @feed_scope)}
-                active={@live_action}
+                active={tab_for(@live_action)}
               />
               <.segmented_control
                 :if={@live_action == :feed}
@@ -863,6 +932,12 @@ defmodule MediaCentaurWeb.SocialLive do
               </.link>.
                 </p>
               </div>
+
+              <PersonPage.person_page
+                :if={@live_action == :person and @person}
+                person={@person}
+                card={@person_card}
+              />
             </div>
             <.rail :if={@live_action == :feed} rail={@rail} friend_count={@friend_count} />
           </div>

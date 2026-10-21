@@ -3627,6 +3627,27 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 }
 
+/* ── The person page (UIDR-054) ── the rows beside the reader's view on
+   the Friends tab's full width: one column, the card under the rows,
+   until the grid's own fold; past it the card at 440, sticky. */
+.person-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px 32px;
+  align-items: start;
+}
+
+@container social (min-width: 1700px) {
+  .person-page {
+    grid-template-columns: minmax(0, 1fr) 440px;
+  }
+
+  .person-page-side {
+    position: sticky;
+    top: 24px;
+  }
+}
+
 /* ── Guide book prose ──
    Reading typography for the in-app guide (/guide). A coordinated multi-element
    system (headings, lists, tables, code, callouts), so it lives in CSS rather than
