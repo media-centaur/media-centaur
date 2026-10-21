@@ -6,12 +6,9 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   opinion, the eye, the bookmark), each at its grade — a white line
   drawing, silver, or gold. One
   component at two widths: the Feed's rail (480, a row in the rail's
-  list, three acts, a press navigates to the person) and the Friends
-  page (900, a card on the inset tone, five acts, a press opens the card
-  in place to every act, one row each, and the foot: your name for them,
-  the switch showing or hiding their picture for you (UIDR-047), the
-  key, how you follow them — the date you added a friend, the relay a
-  member is on — Hide, and Remove friend for a friend). A person with no
+  list, three acts) and the Friends page (900, a card on the inset
+  tone, five acts). The head is a link to the person's page (UIDR-054);
+  a poster opens the title with the newest act on it. A person with no
   acts is a tile and a name; nothing says what a person withholds.
   """
 
@@ -28,6 +25,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   def layout, do: :one_column
 
   @poster "/images/storybook/sample-poster.jpg"
+  @patch "/social/friends/npub1lyy9kqv0jtcg9fy5fzlmt8e5whmr7d8evdw6a9f4j0ldrq3upkgqe2z8kh"
   @rail ~s(<div class="w-[480px]"><.psb-variation/></div>)
   @page ~s(<div class="w-[900px]"><.psb-variation/></div>)
 
@@ -75,18 +73,6 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       added_on: ~D[2026-08-30]
     }
   end
-
-  # A person followed through a relay set to Everyone on this relay: no
-  # date, the relay instead, and no Remove friend.
-  defp member,
-    do: %{
-      friend()
-      | friend?: false,
-        added_on: nil,
-        member_of: ["wss://group.example/"],
-        name_override: nil,
-        published_name: "Sample Member"
-    }
 
   # A friend whose published picture the reader shows: the tile's avatar
   # mark. A hidden picture has no URL at all — `Social` hands the card
@@ -136,7 +122,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       %Variation{
         id: flag,
         description: "#{flag}: the glyph alone, centred over the poster",
-        attributes: %{person: friend(), acts: [act(31, "Movie K", [flag])], width: width}
+        attributes: %{patch: @patch, person: friend(), acts: [act(31, "Movie K", [flag])], width: width}
       }
     end
   end
@@ -146,20 +132,21 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       %Variation{
         id: :rail_friend,
         description: "The rail's card: three acts; the second flies love and watched as a centred pair",
-        attributes: %{person: friend(), acts: three_acts(), width: :rail},
+        attributes: %{patch: @patch, person: friend(), acts: three_acts(), width: :rail},
         template: @rail
       },
       %Variation{
         id: :rail_friend_avatar,
         description:
           "A friend whose picture you show: the tile carries the avatar inside a neutral ring",
-        attributes: %{person: friend_with_avatar(), acts: three_acts(), width: :rail},
+        attributes: %{patch: @patch, person: friend_with_avatar(), acts: three_acts(), width: :rail},
         template: @rail
       },
       %Variation{
         id: :rail_no_artwork,
         description: "An act whose title has no poster: the slot names it",
         attributes: %{
+          patch: @patch,
           person: friend(),
           acts: [act(41, "Movie L", [:watched], poster_url: nil) | tl(three_acts())],
           width: :rail
@@ -168,8 +155,9 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       },
       %Variation{
         id: :rail_you,
-        description: "The reader on the rail: the filled own tile, own acts, no foot ever",
+        description: "The reader on the rail: the filled own tile, own acts",
         attributes: %{
+          patch: @patch,
           person: you(),
           acts: [act(11, "Movie A", [:love]), act(12, "Movie B", [:listing], ago: "3d ago")],
           width: :rail
@@ -179,13 +167,18 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       %Variation{
         id: :rail_quiet,
         description: "A friend with no acts: a tile and a name, nothing about sharing",
-        attributes: %{person: friend(), acts: [], width: :rail},
+        attributes: %{patch: @patch, person: friend(), acts: [], width: :rail},
         template: @rail
       },
       %Variation{
         id: :rail_unnamed,
         description: "A friend with no name at all: the person glyph and Unnamed, no note about it",
-        attributes: %{person: %{friend() | name_override: nil}, acts: three_acts(), width: :rail},
+        attributes: %{
+          patch: @patch,
+          person: %{friend() | name_override: nil},
+          acts: three_acts(),
+          width: :rail
+        },
         template: @rail
       },
       %VariationGroup{
@@ -198,6 +191,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
         id: :rail_all_slots,
         description: "One act flying love, watched and listing: the three across",
         attributes: %{
+          patch: @patch,
           person: friend(),
           acts: [act(51, "Movie M", [:love, :watched, :listing])],
           width: :rail
@@ -208,86 +202,25 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
         id: :rail_graded,
         description:
           "The grade's three tiers: a gold heart alone; a silver eye beside a plain bookmark; a plain thumb up",
-        attributes: %{person: friend(), acts: graded_acts(), width: :rail},
+        attributes: %{patch: @patch, person: friend(), acts: graded_acts(), width: :rail},
         template: @rail
       },
       %Variation{
         id: :page_friend,
         description: "The Friends page's card: five of seven acts, the strip at the card's left",
-        attributes: %{person: friend(), acts: seven_acts(), width: :page},
-        template: @page
-      },
-      %Variation{
-        id: :page_opened,
-        description:
-          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on over the letter mark (the common state: nothing published yet), the key, the date added, Hide and Remove friend",
-        attributes: %{
-          person: friend(),
-          acts: seven_acts(),
-          width: :page,
-          opened?: true
-        },
-        template: @page
-      },
-      %Variation{
-        id: :page_opened_member,
-        description:
-          "The opened card of a member followed through a relay set to Everyone on this relay: the foot says which relay, offers Hide, and no Remove friend",
-        attributes: %{person: member(), acts: seven_acts(), width: :page, opened?: true},
-        template: @page
-      },
-      %Variation{
-        id: :page_opened_avatar,
-        description:
-          "The opened card of a friend whose picture you show: the tile carries the avatar, the switch is on",
-        attributes: %{
-          person: friend_with_avatar(),
-          acts: seven_acts(),
-          width: :page,
-          opened?: true
-        },
-        template: @page
-      },
-      %Variation{
-        id: :page_opened_avatar_hidden,
-        description:
-          "The opened card with the picture switch off: the tile falls back to the letter, since a hidden picture has no URL",
-        attributes: %{
-          person: %{friend() | show_avatar: false},
-          acts: seven_acts(),
-          width: :page,
-          opened?: true
-        },
-        template: @page
-      },
-      %Variation{
-        id: :page_opened_hue,
-        description:
-          "The opened card of a friend who published Rose, which the reader overrode with Teal: the tile in Teal, Theirs in Rose, Teal pressed",
-        attributes: %{
-          person: %{friend() | published_hue: 12, hue_override: 195},
-          acts: seven_acts(),
-          width: :page,
-          opened?: true
-        },
+        attributes: %{patch: @patch, person: friend(), acts: seven_acts(), width: :page},
         template: @page
       },
       %Variation{
         id: :page_you,
         description: "The reader's page card: own acts",
-        attributes: %{person: you(), acts: three_acts(), width: :page},
-        template: @page
-      },
-      %Variation{
-        id: :page_you_opened,
-        description: "The reader's card opened: the rows, no foot",
-        attributes: %{person: you(), acts: three_acts(), width: :page, opened?: true},
+        attributes: %{patch: @patch, person: you(), acts: three_acts(), width: :page},
         template: @page
       },
       %Variation{
         id: :page_quiet,
         description: "A friend with no acts at the page width",
-        attributes: %{person: friend(), acts: [], width: :page},
+        attributes: %{patch: @patch, person: friend(), acts: [], width: :page},
         template: @page
       },
       %VariationGroup{
@@ -300,6 +233,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
         id: :page_all_slots,
         description: "One act flying all three, at the page width",
         attributes: %{
+          patch: @patch,
           person: friend(),
           acts: [act(51, "Movie M", [:love, :watched, :listing])],
           width: :page
@@ -309,7 +243,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
       %Variation{
         id: :page_graded,
         description: "The grade at the page width: every tier on every glyph kind in the five acts",
-        attributes: %{person: friend(), acts: graded_acts(), width: :page},
+        attributes: %{patch: @patch, person: friend(), acts: graded_acts(), width: :page},
         template: @page
       }
     ]

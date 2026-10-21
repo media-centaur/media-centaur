@@ -4,7 +4,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   import MediaCentaur.ReferencedArtwork
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
-  import MediaCentaur.TmpDataDir, only: [setup_tmp_data_dir: 0]
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
@@ -131,9 +130,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#add-relay-form")
     end
 
-    test "adds a friend by npub and name, shows their card, renames from the foot, and removes", %{
-      conn: conn
-    } do
+    test "adds a friend by npub and name; their card's head links to their page", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/social/friends")
       npub = Keys.to_npub(@friend_pubkey)
 
@@ -147,32 +144,13 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
       assert [%{name_override: "Sample Friend"}] = Social.list_friends()
 
-      # The foot is behind the card's press: your name for them, and the key.
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, friend_card() <> " footer", Social.short_npub(@friend_pubkey))
-
-      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "Nick"}) |> render_submit()
-      assert has_element?(view, friend_card() <> " h2", "Nick")
-
       assert has_element?(
                view,
-               friend_card() <> " [data-role='name-form'] input[name='name'][value='Nick']"
+               friend_card() <> " a[data-role='head'][href='/social/friends/" <> npub <> "']"
              )
-
-      assert [%{name_override: "Nick"}] = Social.list_friends()
-
-      # A blank clears the override; with nothing published, the friend is Unnamed.
-      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "  "}) |> render_submit()
-      assert has_element?(view, friend_card() <> " h2", "Unnamed")
-      assert has_element?(view, friend_card() <> " [data-component='identity-tile'][data-mark='glyph']")
-      assert [%{name_override: nil}] = Social.list_friends()
-
-      view |> element(friend_card() <> " button", "Remove friend") |> render_click()
-      refute has_element?(view, friend_card())
-      assert Social.list_friends() == []
     end
 
-    test "adds a friend without a name: Unnamed until they publish one; the foot's placeholder is the published name and a blank shows it",
+    test "adds a friend without a name: Unnamed until they publish one",
          %{conn: conn} do
       {:ok, view, _html} = live(conn, "/social/friends")
 
@@ -188,81 +166,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_until(view, fn _html -> has_element?(view, friend_card() <> " h2", "Ada") end)
       assert has_element?(view, friend_card() <> " [data-component='identity-tile'][data-mark='letter']")
 
-      view |> element(friend_card()) |> render_click()
-
-      assert has_element?(
-               view,
-               friend_card() <> " [data-role='name-form'] input[name='name'][placeholder='Ada']"
-             )
-
-      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "Nick"}) |> render_submit()
-      assert has_element?(view, friend_card() <> " h2", "Nick")
-
-      assert has_element?(
-               view,
-               friend_card() <> " [data-role='name-form'] input[name='name'][placeholder='Ada']"
-             )
-
-      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => ""}) |> render_submit()
-      assert has_element?(view, friend_card() <> " h2", "Ada")
       assert [%{name_override: nil}] = Social.list_friends()
-    end
-
-    test "the opened foot's switch hides a friend's picture for this reader, and shows it again",
-         %{conn: conn} do
-      # The friend's avatar file lands under `{data_dir}/images/social/`.
-      setup_tmp_data_dir()
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      webp = <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
-
-      {:ok, _profile} =
-        Social.ingest_profile(friend_profile("Ada", 1_700_000_000, %{type: "image/webp", bytes: webp}))
-
-      {:ok, view, _html} = live(conn, "/social/friends")
-      tile = friend_card() <> " [data-component='identity-tile']"
-      switch = friend_card() <> " footer [data-role='avatar-switch']"
-      assert has_element?(view, tile <> "[data-mark='avatar']")
-
-      # The switch is in the foot, behind the card's press, on by default.
-      refute has_element?(view, switch)
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, switch <> "[aria-checked='true']", "Show their picture")
-
-      view |> element(switch) |> render_click()
-      assert has_element?(view, tile <> "[data-mark='letter']")
-      assert has_element?(view, switch <> "[aria-checked='false']")
-      assert %{show_avatar: false} = Social.contact_by_pubkey(@friend_pubkey)
-
-      view |> element(switch) |> render_click()
-      assert has_element?(view, tile <> "[data-mark='avatar']")
-      assert has_element?(view, switch <> "[aria-checked='true']")
-      assert %{show_avatar: true} = Social.contact_by_pubkey(@friend_pubkey)
-    end
-
-    test "the foot's Colour row saves on the act: a swatch overrides the published hue, Theirs clears it, the slider sets any angle",
-         %{conn: conn} do
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Ada")
-      {:ok, _profile} = Social.ingest_profile(friend_profile("Ada", 1_700_000_000, nil, 12))
-
-      {:ok, view, _html} = live(conn, "/social/friends")
-      tile = friend_card() <> " [data-component='identity-tile']"
-      form = friend_card() <> " footer form[data-role='hue-form']"
-      assert has_element?(view, tile <> "[data-hue='12']")
-
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, form <> " button[data-role='theirs'][aria-pressed='true']")
-
-      view |> element(form <> " button[data-hue='195']") |> render_click()
-      assert has_element?(view, tile <> "[data-hue='195']")
-      assert %{hue_override: 195} = Social.contact_by_pubkey(@friend_pubkey)
-
-      view |> form(form, %{"hue" => "100"}) |> render_change(%{"_target" => ["hue"]})
-      assert has_element?(view, tile <> "[data-hue='100']")
-      assert %{hue_override: 100} = Social.contact_by_pubkey(@friend_pubkey)
-
-      view |> element(form <> " button[data-role='theirs']") |> render_click()
-      assert has_element?(view, tile <> "[data-hue='12']")
-      assert %{hue_override: nil} = Social.contact_by_pubkey(@friend_pubkey)
     end
 
     test "refuses a bad key and your own key with flashes", %{conn: conn} do
@@ -308,8 +212,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _review} = Activities.ingest(signed(:review, movie, text: "words"))
       {:ok, view, _html} = live(conn, "/social/friends")
 
-      view |> element(friend_card()) |> render_click()
-      view |> element(friend_card() <> " footer button", "Hide") |> render_click()
+      {:ok, _contact} = Social.set_hidden(@friend_pubkey, true)
       render_until(view, fn _html -> not has_element?(view, friend_card()) end)
       assert has_element?(view, "#friends-hidden [data-component='hidden-person-row']", "Sample Friend")
 
@@ -338,19 +241,22 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert render(feed) =~ "Everyone on this relay"
     end
 
-    test "a member's card names the relay and offers Hide, not Remove friend", %{conn: conn} do
+    test "a member's card is the head and the strip, its head linking to their page", %{conn: conn} do
       Identity.ensure()
       {:ok, _relay} = Social.add_relay("wss://group.example", :members)
       :ok = Social.note_member("wss://group.example", @friend_pubkey)
       {:ok, view, _html} = live(conn, "/social/friends")
 
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, friend_card() <> " footer", "on group.example")
-      assert has_element?(view, friend_card() <> " footer button", "Hide")
-      refute has_element?(view, friend_card() <> " footer button", "Remove friend")
+      assert has_element?(
+               view,
+               friend_card() <>
+                 " a[data-role='head'][href='/social/friends/" <> Social.to_npub(@friend_pubkey) <> "']"
+             )
+
+      refute has_element?(view, friend_card() <> " footer")
     end
 
-    test "a friend's card is their acts as posters under act slots; a poster opens the newest act; an opened row opens the act",
+    test "a friend's card is their acts as posters under act slots; a poster opens the newest act",
          %{conn: conn} do
       Identity.ensure()
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
@@ -395,33 +301,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#detail-activity-delete")
       render_hook(view, "close_title", %{})
 
-      # The opened card: one row per title; the review's row opens with its note.
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, friend_card() <> "[data-opened]")
-
-      assert has_element?(
-               view,
-               friend_card() <> "-#{reviewed.id}[data-role='act-row']",
-               "Sample Movie 777"
-             )
-
-      assert has_element?(view, friend_card() <> "-#{reviewed.id} [data-flag='love']")
-
-      assert has_element?(
-               view,
-               friend_card() <> "-#{watched.id}[data-role='act-row']",
-               "watched S02E05 of"
-             )
-
-      view |> element(friend_card() <> "-#{reviewed.id}") |> render_click()
-      assert has_element?(view, "#detail-note", "Sample Friend")
-      assert has_element?(view, "#detail-note", "Watch it.")
-
-      assert has_element?(
-               view,
-               "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']"
-             )
-
       await_supervised_tasks()
     end
 
@@ -453,13 +332,13 @@ defmodule MediaCentaurWeb.SocialLiveTest do
                "#person-you-act-movie-99 .social-glyph[data-flag='like']"
              )
 
-      # The rows are behind the card's press, in the second person.
-      refute has_element?(view, "#person-you-#{rec.id}")
-      view |> element("#person-you") |> render_click()
-      assert has_element?(view, "#person-you-#{mine.id}[data-role='act-row']", "want to watch")
-      refute has_element?(view, "#person-you-#{mine.id}", "wants to watch")
+      # The rows are on the reader's page, in the second person.
+      assert has_element?(view, "#person-you a[data-role='head'][href='/social/friends/you']")
+      render_patch(view, "/social/friends/you")
+      assert has_element?(view, "#person-row-#{mine.id} [data-role='who']", "want to watch")
+      refute has_element?(view, "#person-row-#{mine.id}", "wants to watch")
 
-      view |> element("#person-you-#{rec.id}") |> render_click()
+      view |> element("#person-row-#{rec.id}") |> render_click()
       assert has_element?(view, "#detail-activity-delete", "Delete review")
       # Your own review alone draws no social capsule.
       refute has_element?(view, "#detail-social")
@@ -467,10 +346,11 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert Watchlist.listed?(99, :movie)
       render_hook(view, "close_title", %{})
 
-      view |> element("#person-you-#{mine.id}") |> render_click()
+      view |> element("#person-row-#{mine.id}") |> render_click()
       view |> element("#detail-activity-delete", "Delete listing") |> render_click()
       assert render(view) =~ "Listing withdrawn"
-      refute has_element?(view, "#person-you-#{mine.id}")
+      refute has_element?(view, "#person-row-#{mine.id}")
+      render_patch(view, "/social/friends")
       refute has_element?(view, "#person-you-act-movie-42")
       assert Enum.map(Activities.list_sent(), & &1.kind) == [:review]
 
@@ -515,52 +395,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#person-you [data-role='acts']")
       assert has_element?(view, "#person-you [data-component='identity-tile'][data-own]")
       assert has_element?(view, "#person-you [data-role='name']", "You")
-    end
-
-    test "a press opens the card: every act, one row each, the foot; the same press closes it",
-         %{conn: conn} do
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-
-      for tmdb_id <- 1..7 do
-        {:ok, _} =
-          Activities.ingest(
-            signed(
-              :watched,
-              Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"}),
-              []
-            )
-          )
-      end
-
-      {:ok, view, _html} = live(conn, "/social/friends")
-      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 5
-      refute has_element?(view, friend_card() <> " footer")
-
-      view |> element(friend_card()) |> render_click()
-      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 7
-      assert length(ids(view, friend_card() <> " [data-role='act-row']")) == 7
-      assert has_element?(view, friend_card() <> " footer button", "Remove friend")
-
-      view |> element(friend_card()) |> render_click()
-      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 5
-      refute has_element?(view, friend_card() <> " footer")
-    end
-
-    test "?person= opens that card and lands on it; the grid holds every person", %{conn: conn} do
-      Identity.ensure()
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-
-      {:ok, view, _html} =
-        live(conn, "/social/friends?person=" <> String.replace(friend_card(), "#", ""))
-
-      assert has_element?(view, friend_card() <> "[data-opened]")
-      assert has_element?(view, friend_card() <> "[phx-mounted]")
-      refute has_element?(view, "#person-you[data-opened]")
-
-      assert ids(view, "#friends-grid [data-component='person-card']") == [
-               "person-you",
-               String.replace(friend_card(), "#", "")
-             ]
     end
   end
 
@@ -1483,7 +1317,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       await_supervised_tasks()
     end
 
-    test "the rail is You first then friends by latest act, capped at eight with All N friends; a card opens the Friends tab at the person",
+    test "the rail is You first then friends by latest act, capped at eight with All N friends; a card's head links to the person's page",
          %{conn: conn} do
       now = System.os_time(:second)
 
@@ -1502,8 +1336,13 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "#feed-rail-all", "All 10 friends")
 
       card = "#feed-rail #person-" <> String.slice(roster_pubkey(1), 0, 8)
-      view |> element(card) |> render_click()
-      assert_redirect(view, "/social/friends?person=person-" <> String.slice(roster_pubkey(1), 0, 8))
+
+      assert has_element?(
+               view,
+               card <>
+                 " a[data-role='head'][href='/social/friends/" <>
+                 Social.to_npub(roster_pubkey(1)) <> "']"
+             )
 
       await_supervised_tasks()
     end

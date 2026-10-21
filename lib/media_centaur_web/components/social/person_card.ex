@@ -15,57 +15,30 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   the filled own tile its only mark.
 
   The rail's card (`width: :rail`) is a row in the rail's list — no
-  ground of its own, a hairline between cards — showing three acts; its
-  press navigates to the person on the Friends page. The page's card
-  (`:page`) is a card in the Friends grid on the inset tone, showing
-  five acts. Its press opens the card in place (`opened?`, the host's
-  set): every act, one row per poster in `ActivityWords`' sentence with
-  the act's flags after the title, then a friend's foot. The foot is the
-  reader's name for the friend, ready to change, over the name it masks
-  as the field's placeholder (the published name, else Unnamed;
-  UIDR-047); the **avatar switch**, *Show their picture*
-  (`Components.Switch`), on while the reader shows the friend's
-  published picture in every identity tile (`Person.show_avatar`) and
-  off when the letter stands in for it; the **Colour** row
-  (`HueSwatches`, UIDR-048): Theirs, the friend's published hue, then
-  the palette and the ring, saving on the act (`set_hue_override` with
-  the key and the hue, empty for Theirs; the slider through the row's
-  own form); and the last line: the key, how the reader follows them —
-  *added* and the date for a friend, *on* the relay's host for a member —
-  **Hide**, which pushes `set_hidden` with the key and `hide` `"true"`,
-  and, for a friend only, Remove friend. A poster's press opens the
-  title modal speaking for the newest act on it.
+  ground of its own, a hairline between cards — showing three acts. The
+  page's card (`:page`) is a card in the Friends grid on the inset tone,
+  showing five acts. At both widths the head is a link to the person's
+  page (`patch`, UIDR-054), where every act is a row and the reader's
+  view lives; a poster's press opens the title modal speaking for the
+  newest act on it.
 
   Pure rendering of a `Social.Person` and their rows (`FeedEntry`, one
-  per title, `SocialLive.People`). Every poster, row,
-  Hide and Remove friend is a nav item that bubbles `open_title` with the
-  title's ref *and* the activity, `set_hidden` or `remove_friend`; the name form
-  submits `set_friend_name` with the key and the name, and swallows its
-  clicks (`phx-click={%JS{}}`, the modal panel's idiom) so typing in it
-  does not press the card; the avatar switch pushes `set_show_avatar`
-  with the key and the value to set — the opposite of the current — and
-  its own `phx-click` is what keeps the card's press from it;
-  the hue form swallows its clicks the same way, so a drag on the
-  slider does not toggle the card; `open_person` and `toggle_person` are
-  the card's own presses. The root
-  gets no nav wiring until the hardening pass.
+  per title, `SocialLive.People`): the head and every poster are nav
+  items; a poster bubbles `open_title` with the title's ref and the
+  activity.
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Social.HueSwatches
   alias MediaCentaurWeb.Components.Social.IdentityTile
-  alias MediaCentaurWeb.Components.Switch
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.SocialLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
-  alias Phoenix.LiveView.JS
 
   @cap %{rail: 3, page: 5}
 
@@ -76,15 +49,17 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
     doc: "the person's rows (`FeedEntry`, one per title), newest first; `[]` for a quiet person"
 
   attr :width, :atom, required: true, values: [:rail, :page]
-  attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"
-  attr :landed?, :boolean, default: false, doc: "the card the address names takes focus on mount"
+
+  attr :patch, :string,
+    required: true,
+    doc: "the person page's address (`PersonPage.path/1`); the head links to it"
 
   def person_card(assigns) do
     assigns =
       assign(assigns,
         id: dom_id(assigns.person),
         name: Format.person_name(assigns.person),
-        shown: shown(assigns.acts, assigns.width, assigns.opened?),
+        shown: Enum.take(assigns.acts, @cap[assigns.width]),
         subject: ActivityWords.subject(assigns.person),
         page?: assigns.width == :page
       )
@@ -92,18 +67,18 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
     ~H"""
     <section
       id={@id}
-      role="button"
-      tabindex="-1"
-      class={["person-card", @page? && "person-card-page", @opened? && "person-card-opened"]}
+      class={["person-card", @page? && "person-card-page"]}
       data-component="person-card"
       data-width={@width}
       data-own={@person.own?}
-      data-opened={@opened?}
-      phx-click={if @page?, do: "toggle_person", else: "open_person"}
-      phx-value-id={@id}
-      phx-mounted={@landed? && JS.focus()}
     >
-      <header class="flex items-center gap-3">
+      <.link
+        patch={@patch}
+        class="flex items-center gap-3 rounded-md"
+        data-role="head"
+        data-nav-item
+        tabindex="0"
+      >
         <IdentityTile.identity_tile {IdentityTile.person_attrs(@person)} size={tile_size(@width)} />
         <h2
           class={[
@@ -114,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
         >
           {@name}
         </h2>
-      </header>
+      </.link>
 
       <div
         :if={@acts != []}
@@ -154,124 +129,14 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
           </span>
         </button>
       </div>
-
-      <div :if={@opened?} class="mt-5 space-y-1" data-role="act-rows">
-        <button
-          :for={row <- @acts}
-          id={"#{@id}-#{row.activity_id}"}
-          type="button"
-          class="flex w-full cursor-pointer items-baseline gap-3 rounded-md px-2 py-1 text-left text-base leading-6 hover:bg-base-content/5"
-          data-role="act-row"
-          phx-click="open_title"
-          phx-value-ref={TitleRef.param(row.ref)}
-          phx-value-activity={row.activity_id}
-          data-entity-id={TitleRef.param(row.ref)}
-          data-nav-item
-          tabindex="0"
-        >
-          <span class="min-w-0 flex-1 truncate text-base-content/80">
-            {ActivityWords.verb_phrase(row.kind, row.episode, @subject)}
-            <span class="font-medium text-base-content/95">{row.title.name}</span>
-            <SocialGlyph.social_glyph
-              :for={{flag, grade} <- row.glyphs}
-              flag={flag}
-              grade={grade}
-              class="ml-1 size-4 align-middle"
-            />
-          </span>
-          <span class="shrink-0 text-sm text-base-content/65">{row.ago}</span>
-        </button>
-      </div>
-
-      <footer
-        :if={@opened? and not @person.own?}
-        class="mt-5 space-y-3 border-t border-base-content/10 pt-4"
-      >
-        <form
-          id={"#{@id}-name-form"}
-          class="flex items-center gap-2"
-          phx-submit="set_friend_name"
-          phx-click={%JS{}}
-          data-role="name-form"
-        >
-          <input type="hidden" name="pubkey" value={@person.pubkey} />
-          <input
-            type="text"
-            name="name"
-            value={@person.name_override}
-            placeholder={masked_name(@person)}
-            class="library-filter basis-64 grow-0 shrink-0"
-            autocomplete="off"
-            aria-label="Your name for this friend"
-          />
-          <.button type="submit" variant="neutral" size="sm">Rename</.button>
-        </form>
-        <Switch.switch
-          id={"#{@id}-avatar-switch"}
-          label="Show their picture"
-          checked={@person.show_avatar}
-          event="set_show_avatar"
-          values={%{"pubkey" => @person.pubkey, "show" => to_string(not @person.show_avatar)}}
-          class="-mx-2 px-2 py-1.5"
-          data-role="avatar-switch"
-        />
-        <form
-          id={"#{@id}-hue-form"}
-          phx-change="set_hue_override"
-          phx-click={%JS{}}
-          class="space-y-1"
-          data-role="hue-form"
-        >
-          <input type="hidden" name="pubkey" value={@person.pubkey} />
-          <span class="block text-sm">Colour</span>
-          <HueSwatches.hue_swatches
-            id={"#{@id}-hues"}
-            selected={@person.hue_override}
-            theirs?
-            theirs_hue={@person.published_hue}
-            event="set_hue_override"
-            values={%{"pubkey" => @person.pubkey}}
-            aria-label="Colour"
-          />
-        </form>
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-sm text-base-content/65">
-            <code>{@person.short_npub}</code> · {provenance(@person)}
-          </span>
-          <span class="flex items-center gap-2">
-            <.button
-              variant="neutral"
-              size="sm"
-              phx-click="set_hidden"
-              phx-value-pubkey={@person.pubkey}
-              phx-value-hide="true"
-              data-nav-item
-              tabindex="0"
-            >
-              Hide
-            </.button>
-            <.button
-              :if={@person.friend?}
-              variant="dismiss"
-              size="sm"
-              phx-click="remove_friend"
-              phx-value-pubkey={@person.pubkey}
-              data-nav-item
-              tabindex="0"
-            >
-              Remove friend
-            </.button>
-          </span>
-        </div>
-      </footer>
     </section>
     """
   end
 
   @doc """
   The card's DOM id: `person-you` for the reader, else `person-` and the
-  key's first eight hex digits. The host's opened set and the address's
-  `person=` speak it.
+  key's first eight hex digits; the hidden group's rows derive theirs
+  from it.
   """
   @spec dom_id(Person.t()) :: String.t()
   def dom_id(%Person{own?: true}), do: "person-you"
@@ -282,23 +147,8 @@ defmodule MediaCentaurWeb.Components.Social.PersonCard do
   def act_poster_src(url, :rail), do: sized_image_url(url, 240)
   def act_poster_src(url, :page), do: sized_image_url(url, 320)
 
-  defp shown(acts, _width, true), do: acts
-  defp shown(acts, width, false), do: Enum.take(acts, @cap[width])
-
   defp tile_size(:rail), do: 40
   defp tile_size(:page), do: 48
-
-  # The name the override masks — the published one, else Unnamed — as
-  # the foot's placeholder; never a literal here.
-  defp masked_name(%Person{} = person), do: Format.person_name(%{person | name_override: nil})
-
-  # How the reader came to follow the person: the day they added them,
-  # else the relay whose members they follow. `friend?` and `added_on`
-  # derive from the one `added_at`, so a friend always has the date.
-  defp provenance(%Person{friend?: true, added_on: %Date{} = added_on}),
-    do: "added " <> Calendar.strftime(added_on, "%b %-d")
-
-  defp provenance(%Person{} = person), do: "on " <> Enum.join(Person.member_hosts(person), ", ")
 
   defp flags(%FeedEntry{glyphs: glyphs}), do: Enum.map(glyphs, &elem(&1, 0))
 
