@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             :for={{flag, grade} <- @entry.glyphs}
             flag={flag}
             grade={grade}
-            class="size-4 align-middle"
+            class="ml-1 size-4 align-middle"
           />
         </p>
         <p class="flex items-baseline gap-2 text-lg font-semibold leading-7" data-role="title">
