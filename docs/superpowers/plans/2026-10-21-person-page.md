@@ -50,7 +50,7 @@
 - Create: `lib/media_centaur_web/components/social/toolbar_slots.ex`
 - Test: `test/media_centaur_web/components/social/toolbar_slots_test.exs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Social.ToolbarSlotsTest do
@@ -83,12 +83,12 @@ defmodule MediaCentaurWeb.Components.Social.ToolbarSlotsTest do
 end
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/toolbar_slots_test.exs`
 Expected: compile error, `ToolbarSlots` undefined.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Social.ToolbarSlots do
@@ -155,12 +155,12 @@ defmodule MediaCentaurWeb.Components.Social.ToolbarSlots do
 end
 ```
 
-- [ ] **Step 4: Run the test; it passes**
+- [x] **Step 4: Run the test; it passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/toolbar_slots_test.exs`
 Expected: 3 tests, 0 failures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/social/toolbar_slots.ex test/media_centaur_web/components/social/toolbar_slots_test.exs
@@ -182,7 +182,7 @@ One commit: the struct, the builder, the component, its test, its story and the 
 - Modify: `storybook/social/feed_row.story.exs`
 - Test: `test/media_centaur_web/components/social/feed_row_test.exs`, `test/media_centaur_web/live/social_live/feed_entries_test.exs`
 
-- [ ] **Step 1: The story first — rewrite the fixture and add the page's variations**
+- [x] **Step 1: The story first — rewrite the fixture and add the page's variations**
 
 In `storybook/social/feed_row.story.exs` replace `entry/2` with:
 
@@ -281,7 +281,7 @@ Append three variations:
 
 Update the story's moduledoc first sentence to: "One row on the Feed and on the person page (UIDR-046, UIDR-054): one author's action on one title, or one person's acts on one title, as the app draws a list row — the identity tile at 40 when the row names its author, the poster at 80×120, then the verb with every glyph at its grade, the title and year, the episode's name on a series, the review's words in full, and the time at the row's right edge."
 
-- [ ] **Step 2: Widen `FeedEntry`**
+- [x] **Step 2: Widen `FeedEntry`**
 
 Replace the whole of `lib/media_centaur_web/components/social/feed_entry.ex`:
 
@@ -353,7 +353,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedEntry do
 end
 ```
 
-- [ ] **Step 3: The Feed builder**
+- [x] **Step 3: The Feed builder**
 
 In `lib/media_centaur_web/live/social_live/feed_entries.ex`:
 
@@ -412,7 +412,7 @@ Change the `build/2` spec and body:
   defp glyphs(_activity, _ref, _grades), do: []
 ```
 
-- [ ] **Step 4: `People.build/3` takes the grades the host computed**
+- [x] **Step 4: `People.build/3` takes the grades the host computed**
 
 In `lib/media_centaur_web/live/social_live/people.ex` change `build/3`:
 
@@ -429,7 +429,7 @@ In `lib/media_centaur_web/live/social_live/people.ex` change `build/3`:
 
 and add to the `@doc`: "`grades:` is `Title.Grade.grades/1` over the same rows; the host computes it once for the cards and the Feed." In `people_test.exs` add `alias MediaCentaurWeb.Components.Title.Grade` and `defp build(rows, people), do: People.build(rows, people, now: @now, grades: Grade.grades(rows))`, and replace every `People.build(rows, people, now: @now)`-shaped call with `build(rows, people)`.
 
-- [ ] **Step 5: The row component**
+- [x] **Step 5: The row component**
 
 Replace the `~H` body of `feed_row/1` in `lib/media_centaur_web/components/social/feed_row.ex` from `<IdentityTile.identity_tile` through the end of the `<p ... data-role="text">` block, and the Ignore button's `:if`:
 
@@ -495,7 +495,7 @@ The root's attributes change to `data-own={@entry.subject == :you}`, `data-list-
 
 Moduledoc: replace the first paragraph's opening with "One row on the Feed and on the person page (UIDR-046, UIDR-054): one author's action on one title, or one person's acts on one title, as the app draws a list row. The identity tile at 40 and the name when the row has an author — never on the person page, which is one person — the poster at 80×120 beside it, then the words: the verb (`Nick reviewed`, `watched S02E05 of`, `You want to watch`) with every glyph after it at its grade (the review's sentiment on the Feed; every act on the title on the person page; nothing when there is none), which title (name and year), the episode's name on a series, and the review's words in full — and the relative time at the row's right edge, all hung from the row's top line." Keep the rest; change "Ignore on a friend's row only" to "Ignore when the subject is a friend".
 
-- [ ] **Step 6: The page's handlers and `project/1`**
+- [x] **Step 6: The page's handlers and `project/1`**
 
 In `lib/media_centaur_web/live/social_live.ex`:
 
@@ -529,7 +529,7 @@ Add aliases `alias MediaCentaurWeb.Components.Social.ToolbarSlots` and `alias Me
       People.build(socket.assigns.activities, socket.assigns.people_by_pubkey, now: now, grades: grades)
 ```
 
-- [ ] **Step 7: Update the row's component test**
+- [x] **Step 7: Update the row's component test**
 
 In `test/media_centaur_web/components/social/feed_row_test.exs` replace the fixture:
 
@@ -599,7 +599,7 @@ Apply the Step 1 mapping to every existing test's overrides (`sentiment: :love` 
   end
 ```
 
-- [ ] **Step 8: Update the Feed builder's test**
+- [x] **Step 8: Update the Feed builder's test**
 
 In `test/media_centaur_web/live/social_live/feed_entries_test.exs` add `alias MediaCentaurWeb.Components.Title.Grade` and change the helper:
 
@@ -639,12 +639,12 @@ Grep the file for `list_slot`, `download_slot`, `sentiment:` and `rung:` asserti
     end
 ```
 
-- [ ] **Step 9: Run the three test files and the Social page's tests**
+- [x] **Step 9: Run the three test files and the Social page's tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/feed_row_test.exs test/media_centaur_web/live/social_live/feed_entries_test.exs test/media_centaur_web/live/social_live/people_test.exs test/media_centaur_web/live/social_live_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures. A `social_live_test` assertion on a Feed glyph's grade (e.g. `[data-grade='plain']`) that now reads gold or silver is a correct change in behaviour: three people on one title give gold; update the assertion to the count the test seeds.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A lib/media_centaur_web/components/social lib/media_centaur_web/live/social_live.ex lib/media_centaur_web/live/social_live storybook/social/feed_row.story.exs test/media_centaur_web
@@ -661,7 +661,7 @@ The web layer never reaches `Nostr.Keys` (the Social moduledoc's rule); the page
 - Modify: `lib/media_centaur/social.ex` (beside `to_npub/1`, line ~258)
 - Test: `test/media_centaur/social/contacts_test.exs`
 
-- [ ] **Step 1: Write the failing test** (append inside the module)
+- [x] **Step 1: Write the failing test** (append inside the module)
 
 ```elixir
   test "parse_pubkey/1 takes an npub or a 64-hex key, trimmed, as lowercase hex, and refuses anything else" do
@@ -672,12 +672,12 @@ The web layer never reaches `Nostr.Keys` (the Social moduledoc's rule); the page
   end
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur/social/contacts_test.exs`
 Expected: `UndefinedFunctionError` for `Social.parse_pubkey/1`.
 
-- [ ] **Step 3: Add the function** after `to_npub/1`:
+- [x] **Step 3: Add the function** after `to_npub/1`:
 
 ```elixir
   @doc """
@@ -688,7 +688,7 @@ Expected: `UndefinedFunctionError` for `Social.parse_pubkey/1`.
   def parse_pubkey(key) when is_binary(key), do: Keys.parse_pubkey(String.trim(key))
 ```
 
-- [ ] **Step 4: Run; passes. Commit**
+- [x] **Step 4: Run; passes. Commit**
 
 ```bash
 git add lib/media_centaur/social.ex test/media_centaur/social/contacts_test.exs
@@ -708,7 +708,7 @@ The strip item and the page's row are one idea: one person's acts on one title. 
 - Modify: `storybook/social/person_card.story.exs`
 - Test: `test/media_centaur_web/live/social_live/people_test.exs`, `test/media_centaur_web/components/social/person_card_test.exs`
 
-- [ ] **Step 1: Write the failing test** in `people_test.exs` (append; add `alias MediaCentaurWeb.Components.Social.FeedEntry` and `alias MediaCentaurWeb.Components.Social.ToolbarSlots`, remove the `Act.Entry` alias):
+- [x] **Step 1: Write the failing test** in `people_test.exs` (append; add `alias MediaCentaurWeb.Components.Social.FeedEntry` and `alias MediaCentaurWeb.Components.Social.ToolbarSlots`, remove the `Act.Entry` alias):
 
 ```elixir
   test "an act is the page's row: one per title, the newest act's verb, every flag at its grade, the review's words, the title's slots" do
@@ -750,12 +750,12 @@ Add the helper the whole file now uses, and replace every `People.build(rows, pe
 
 Existing assertions convert as: `act.flags` → `Enum.map(act.glyphs, &elem(&1, 0))`; `act.grades` → `Map.new(act.glyphs)`; `act.entries` (the acts behind a title in order) → `act.glyphs` (the flags in order) or `act.kind` (the newest kind); `%Act{...}` → `%FeedEntry{...}`. Grep: `grep -n "Act\b\|entries\|\.flags\|\.grades" test/media_centaur_web/live/social_live/people_test.exs`.
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/people_test.exs`
 Expected: `KeyError` on a row field, or a pattern mismatch against `%Act{}`.
 
-- [ ] **Step 3: `People`** — delete `act.ex`; in `people.ex` replace `card/4`, `acts/3`, `act/4` and `entry/1`:
+- [x] **Step 3: `People`** — delete `act.ex`; in `people.ex` replace `card/4`, `acts/3`, `act/4` and `entry/1`:
 
 ```elixir
   defp card(%Person{} = person, rows, now, grades) do
@@ -806,7 +806,7 @@ Expected: `KeyError` on a row field, or a pattern mismatch against `%Act{}`.
 
 `build/3`: `grades = Keyword.fetch!(opts, :grades)` (required; the `@doc` says the host computes it once for the cards and the Feed). `sort_key/1`: `%Card{acts: [%FeedEntry{acted_at: at} | _rest], person: person}`. `Card`'s type: `acts: [FeedEntry.t()]`, its doc "their acts, newest first — one `FeedEntry` per title acted on". Aliases: add `FeedEntry`, `ToolbarSlots` (`MediaCentaurWeb.Components.Social.*`) and `alias MediaCentaurWeb.SocialLive.ActivityWords`; remove `Act` and `Act.Entry`. Moduledoc: "A person's acts are one row per title (`FeedEntry`, the person page's row: the newest act's verb, every flag on the title at its grade — one count per person per title and flag over the rows this fold holds, the reader included — the review's words, the title's toolbar slots), newest first."
 
-- [ ] **Step 4: `PersonCard` reads rows** — `attr :acts, :list, required: true, doc: "the person's rows (`FeedEntry`), newest first; `[]` for a quiet person"`. In the strip: `:for={row <- @shown}`, `TitleRef.param(row.ref)`, `tip(@name, row, @subject)`, `phx-value-activity={row.activity_id}`, `data-flags={Enum.map_join(row.glyphs, " ", &elem(&1, 0))}`, `<SocialGlyph.social_glyphs flags={flags(row)} grades={Map.new(row.glyphs)} class="act-slots" aria-hidden="true" />`, `act_poster_src(row.poster_url, @width)`, `row.title.name`. In the opened rows (retired in Task 8): `:for={row <- @acts}`, `id={"#{@id}-#{row.activity_id}"}`, `TitleRef.param(row.ref)`, `row.activity_id`, `ActivityWords.verb_phrase(row.kind, row.episode, @subject)`, `row.title.name`, `<SocialGlyph.social_glyph :for={{flag, grade} <- row.glyphs} flag={flag} grade={grade} class="ml-1 size-4 align-middle" />`, `row.ago`. Replace `sentence/2`, `tip/3` and `newest/1` with:
+- [x] **Step 4: `PersonCard` reads rows** — `attr :acts, :list, required: true, doc: "the person's rows (`FeedEntry`), newest first; `[]` for a quiet person"`. In the strip: `:for={row <- @shown}`, `TitleRef.param(row.ref)`, `tip(@name, row, @subject)`, `phx-value-activity={row.activity_id}`, `data-flags={Enum.map_join(row.glyphs, " ", &elem(&1, 0))}`, `<SocialGlyph.social_glyphs flags={flags(row)} grades={Map.new(row.glyphs)} class="act-slots" aria-hidden="true" />`, `act_poster_src(row.poster_url, @width)`, `row.title.name`. In the opened rows (retired in Task 8): `:for={row <- @acts}`, `id={"#{@id}-#{row.activity_id}"}`, `TitleRef.param(row.ref)`, `row.activity_id`, `ActivityWords.verb_phrase(row.kind, row.episode, @subject)`, `row.title.name`, `<SocialGlyph.social_glyph :for={{flag, grade} <- row.glyphs} flag={flag} grade={grade} class="ml-1 size-4 align-middle" />`, `row.ago`. Replace `sentence/2`, `tip/3` and `newest/1` with:
 
 ```elixir
   defp flags(%FeedEntry{glyphs: glyphs}), do: Enum.map(glyphs, &elem(&1, 0))
@@ -817,7 +817,7 @@ Expected: `KeyError` on a row field, or a pattern mismatch against `%Act{}`.
 
 Alias `FeedEntry` instead of `Act`. Moduledoc: "Pure rendering of a `Social.Person` and their rows (`FeedEntry`, one per title, `SocialLive.People`)".
 
-- [ ] **Step 5: Story and component test fixtures** — in `storybook/social/person_card.story.exs` replace `act/4` (and the `Act`/`Entry` aliases) with:
+- [x] **Step 5: Story and component test fixtures** — in `storybook/social/person_card.story.exs` replace `act/4` (and the `Act`/`Entry` aliases) with:
 
 ```elixir
   alias MediaCentaurWeb.Components.Social.FeedEntry
@@ -850,12 +850,12 @@ Alias `FeedEntry` instead of `Act`. Moduledoc: "Pure rendering of a `Social.Pers
 
 `test/media_centaur_web/components/social/person_card_test.exs`: the same shape for `act/3` (`activity_id: Keyword.fetch!(opts, :id)`, `kind: :review`, `glyphs: Enum.map(flags, &{&1, grades[&1]})` with `grades = Keyword.get(opts, :grades, Map.new(flags, &{&1, :plain}))`); delete `entry/2`, alias `FeedEntry` and `ToolbarSlots` instead of `Act` and `Entry`.
 
-- [ ] **Step 6: Run**
+- [x] **Step 6: Run**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/people_test.exs test/media_centaur_web/components/social/person_card_test.exs test/media_centaur_web/live/social_live_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A lib/media_centaur_web/components/social lib/media_centaur_web/live/social_live storybook/social test/media_centaur_web
@@ -871,7 +871,7 @@ git commit -m "refactor(social): the fold yields the row; Act is gone"
 - Create: `storybook/social/reader_view.story.exs`; modify `storybook/social/_social.index.exs`
 - Test: `test/media_centaur_web/components/social/reader_view_test.exs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Social.ReaderViewTest do
@@ -956,12 +956,12 @@ defmodule MediaCentaurWeb.Components.Social.ReaderViewTest do
 end
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/reader_view_test.exs`
 Expected: compile error, `ReaderView` undefined.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Social.ReaderView do
@@ -1099,12 +1099,12 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
 end
 ```
 
-- [ ] **Step 4: Run; passes**
+- [x] **Step 4: Run; passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/reader_view_test.exs`
 Expected: 6 tests, 0 failures.
 
-- [ ] **Step 5: The story**
+- [x] **Step 5: The story**
 
 `storybook/social/reader_view.story.exs`:
 
@@ -1180,7 +1180,7 @@ end
 
 Add to `storybook/social/_social.index.exs`: `def entry("reader_view"), do: [icon: {:fa, "sliders", :thin}, name: "Reader's view"]`.
 
-- [ ] **Step 6: Run the story tests; commit**
+- [x] **Step 6: Run the story tests; commit**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/storybook_compile_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures.
@@ -1201,7 +1201,7 @@ git commit -m "feat(social): the reader's view of a person, from the Settings ki
 - Modify: `assets/css/app.css` (after `.friends-grid`)
 - Test: `test/media_centaur_web/live/social_live/person_page_test.exs` (new), `test/media_centaur_web/live/social_live_test.exs`, `test/media_centaur_web/page_smoke_test.exs`
 
-- [ ] **Step 1: The pure half's failing test**
+- [x] **Step 1: The pure half's failing test**
 
 ```elixir
 defmodule MediaCentaurWeb.SocialLive.PersonPageTest do
@@ -1232,11 +1232,11 @@ defmodule MediaCentaurWeb.SocialLive.PersonPageTest do
 end
 ```
 
-- [ ] **Step 2: Run; fails (`PersonPage` undefined)**
+- [x] **Step 2: Run; fails (`PersonPage` undefined)**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/person_page_test.exs`
 
-- [ ] **Step 3: The route**
+- [x] **Step 3: The route**
 
 In `lib/media_centaur_web/router.ex` after `live "/social/friends", SocialLive, :friends` add:
 
@@ -1244,7 +1244,7 @@ In `lib/media_centaur_web/router.ex` after `live "/social/friends", SocialLive, 
       live "/social/friends/:key", SocialLive, :person
 ```
 
-- [ ] **Step 4: `PersonPage`**
+- [x] **Step 4: `PersonPage`**
 
 ```elixir
 defmodule MediaCentaurWeb.SocialLive.PersonPage do
@@ -1369,12 +1369,12 @@ defmodule MediaCentaurWeb.SocialLive.PersonPage do
 end
 ```
 
-- [ ] **Step 5: Run the pure test; passes**
+- [x] **Step 5: Run the pure test; passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live/person_page_test.exs`
 Expected: 2 tests, 0 failures.
 
-- [ ] **Step 6: The page tests, failing first** — append a `describe "person page"` to `test/media_centaur_web/live/social_live_test.exs` (inside the module, after the friends-tab describe; it reuses `@friend_secret`, `@friend_pubkey`, `signed/3` and `friend_profile/4`, so copy those four definitions into this describe as the feed-tab describe does):
+- [x] **Step 6: The page tests, failing first** — append a `describe "person page"` to `test/media_centaur_web/live/social_live_test.exs` (inside the module, after the friends-tab describe; it reuses `@friend_secret`, `@friend_pubkey`, `signed/3` and `friend_profile/4`, so copy those four definitions into this describe as the feed-tab describe does):
 
 ```elixir
   describe "person page" do
@@ -1550,9 +1550,9 @@ Expected: 2 tests, 0 failures.
 
 Replace the smoke test's entry `{"/social/friends?person=person-you", "social friends, a card opened"}` with `{"/social/friends/you", "the reader's person page"}` and add `{"/social/friends/#{Social.to_npub(@smoke_friend_pubkey)}", "a friend's person page"}` — the `for` runs at compile time, so interpolate with `Social.to_npub(@smoke_friend_pubkey)` directly in the list (add `alias MediaCentaur.Social` at the top if the file lacks it).
 
-- [ ] **Step 7: Run; the page tests fail** (the route resolves but `person_page` is not rendered and `person` is unassigned).
+- [x] **Step 7: Run; the page tests fail** (the route resolves but `person_page` is not rendered and `person` is unassigned).
 
-- [ ] **Step 8: `SocialLive`**
+- [x] **Step 8: `SocialLive`**
 
 Aliases: `alias MediaCentaurWeb.SocialLive.PersonPage` and `alias MediaCentaur.Social.Person`.
 
@@ -1681,7 +1681,7 @@ Render: after the `:friends` block's closing `</div>` and before the rail, add
 
 Moduledoc: after the Friends paragraph add "**The person page** (`/social/friends/<npub>`, `/social/friends/you`; `SocialLive.PersonPage`, UIDR-054) — one person's acts as the Feed's rows folded one per title (`People`'s acts, each with its `row`) beside the reader's view of them (`ReaderView`: `set_friend_name`, `set_show_avatar`, `set_hue_override`, `set_hidden`, `remove_friend`, which returns to Friends). The key is read off the address in `handle_params` and resolved on every projection (`PersonPage.find/2` over the known people, the hidden included); a key nobody holds returns to Friends."
 
-- [ ] **Step 9: CSS** — after the `.friends-grid` container query in `assets/css/app.css`:
+- [x] **Step 9: CSS** — after the `.friends-grid` container query in `assets/css/app.css`:
 
 ```css
 /* ── The person page (UIDR-054) ── the rows beside the reader's view on
@@ -1706,12 +1706,12 @@ Moduledoc: after the Friends paragraph add "**The person page** (`/social/friend
 }
 ```
 
-- [ ] **Step 10: Run the page, smoke and Social tests**
+- [x] **Step 10: Run the page, smoke and Social tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/social_live_test.exs test/media_centaur_web/page_smoke_test.exs test/media_centaur_web/live/social_live`
 Expected: 0 failures. If the Social page test's "a friend's withdrawal removes the entry without a reload" or any `?person=` test fails on `known_people`, it is the mount path: `load_people` must run before `load_activities` (it does in `mount/3`; keep that order).
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add lib/media_centaur_web/router.ex lib/media_centaur_web/live/social_live.ex lib/media_centaur_web/live/social_live/person_page.ex assets/css/app.css test/media_centaur_web
@@ -1727,7 +1727,7 @@ git commit -m "feat(social): the person page at /social/friends/<key>"
 - Modify: `assets/js/input/social_behavior.js` (the comment)
 - Test: `assets/js/input/__tests__/social_behavior.test.js`
 
-- [ ] **Step 1: The failing test** — replace the layout test in `social_behavior.test.js`:
+- [x] **Step 1: The failing test** — replace the layout test in `social_behavior.test.js`:
 
 ```js
   test("the body under the zone tabs is the Feed's rows, the person cards, or the person page's rows over its card", () => {
@@ -1772,12 +1772,12 @@ git commit -m "feat(social): the person page at /social/friends/<key>"
   })
 ```
 
-- [ ] **Step 2: Run; fails**
+- [x] **Step 2: Run; fails**
 
 Run: `bun test assets/js/input/__tests__/social_behavior.test.js`
 Expected: the layout `toEqual` fails.
 
-- [ ] **Step 3: Config**
+- [x] **Step 3: Config**
 
 In `contextSelectors` after the `feed` line:
 ```js
@@ -1809,17 +1809,17 @@ In `instanceTypes` after `feed: Context.TREE,`:
 
 `social_behavior.js` comment: "Layout: the zone-tabs strip above one body — the `feed` tree of rows on Feed, the `people` shelf of person cards on Friends, the `person_rows` tree over the `person_view` card on a person page (the Feed's rail is not a nav zone)."
 
-- [ ] **Step 4: Run all input tests; pass**
+- [x] **Step 4: Run all input tests; pass**
 
 Run: `bun test assets/js/input/`
 Expected: 0 failures.
 
-- [ ] **Step 5: Trace it on the dev server** (the dev server reloads the checkout's code; the profile gate passes for headless tools):
+- [x] **Step 5: Trace it on the dev server** (the dev server reloads the checkout's code; the profile gate passes for headless tools):
 
 Run: `~/scripts/agents/mc-nav-trace --url http://127.0.0.1:2160/social/friends/you 'Down Down'`
 Expected: focus lands on the back row, then the first row; no clipped focus reported. Then on a friend's page (`/social/friends/<npub>` of a dev friend) `Down Down Down Down Down Down`: after the last row, focus enters the card's Name field.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add assets/js/input
@@ -1837,9 +1837,9 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
 - Modify: `storybook/social/person_card.story.exs`
 - Test: `test/media_centaur_web/components/social/person_card_test.exs`, `test/media_centaur_web/live/social_live_test.exs`
 
-- [ ] **Step 1: Story first** — in `person_card.story.exs` delete the variations `:page_opened`, `:page_opened_member`, `:page_opened_avatar`, `:page_opened_avatar_hidden`, `:page_opened_hue`, `:page_you_opened`; add `patch: "/social/friends/npub1lyy9kqv0jtcg9fy5fzlmt8e5whmr7d8evdw6a9f4j0ldrq3upkgqe2z8kh"` to every remaining variation's `attributes` map (the `one_flag_each/1` helper included). Moduledoc: "... (900, a card on the inset tone, five acts). The head is a link to the person's page (UIDR-054); a poster opens the title with the newest act on it. A person with no acts is a tile and a name; nothing says what a person withholds."
+- [x] **Step 1: Story first** — in `person_card.story.exs` delete the variations `:page_opened`, `:page_opened_member`, `:page_opened_avatar`, `:page_opened_avatar_hidden`, `:page_opened_hue`, `:page_you_opened`; add `patch: "/social/friends/npub1lyy9kqv0jtcg9fy5fzlmt8e5whmr7d8evdw6a9f4j0ldrq3upkgqe2z8kh"` to every remaining variation's `attributes` map (the `one_flag_each/1` helper included). Moduledoc: "... (900, a card on the inset tone, five acts). The head is a link to the person's page (UIDR-054); a poster opens the title with the newest act on it. A person with no acts is a tile and a name; nothing says what a person withholds."
 
-- [ ] **Step 2: Component tests** — in `person_card_test.exs` delete the tests "an opened page card shows every act...", "the opened foot carries your name...", "the opened foot carries the avatar switch...", "the foot's Colour row...", "the foot's placeholder is the published name...", "the card the address names takes focus on mount...", "the opened foot says how the reader follows them...". Add `patch: "/social/friends/you"` to every `render(...)` call's attrs. Replace "the rail shows three acts and navigates; the page shows five and opens in place" with:
+- [x] **Step 2: Component tests** — in `person_card_test.exs` delete the tests "an opened page card shows every act...", "the opened foot carries your name...", "the opened foot carries the avatar switch...", "the foot's Colour row...", "the foot's placeholder is the published name...", "the card the address names takes focus on mount...", "the opened foot says how the reader follows them...". Add `patch: "/social/friends/you"` to every `render(...)` call's attrs. Replace "the rail shows three acts and navigates; the page shows five and opens in place" with:
 
 ```elixir
   test "the rail shows three acts and the page five; the head is a link to the person's page, the root presses nothing" do
@@ -1863,7 +1863,7 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
   end
 ```
 
-- [ ] **Step 3: The component** — rewrite `person_card/1`'s attrs and body:
+- [x] **Step 3: The component** — rewrite `person_card/1`'s attrs and body:
 
 ```elixir
   attr :person, Person, required: true, doc: "the person as the reader sees them"
@@ -1948,16 +1948,16 @@ git commit -m "feat(social): the person page navigates by keyboard and gamepad"
 
 Delete `shown/3`, `masked_name/1`, `provenance/1`, the `button`, `HueSwatches`, `Switch` and `JS` imports/aliases; keep `dom_id/1` (its doc becomes "The card's DOM id: `person-you` for the reader, else `person-` and the key's first eight hex digits; the hidden group's rows derive theirs from it."), `act_poster_src/2`, `tile_size/1`, `tip/3`, `flags/1`. Moduledoc: cut everything from "Its press opens the card in place" to the end of the foot's description and write: "Its head is a link to the person's page (`patch`, UIDR-054), where every act is a row and the reader's view lives. Pure rendering of a `Social.Person` and their rows: the head and every poster are nav items; a poster bubbles `open_title` with the title's ref and the activity."
 
-- [ ] **Step 4: The page** — in `social_live.ex`:
+- [x] **Step 4: The page** — in `social_live.ex`:
   - delete the `toggle_person` and `open_person` handlers, `open_landed/2`, the `landed_person` and `opened_people` assigns and `landed` in `handle_params` (the `assign` there becomes `assign(feed_scope: scope, person_key: params["key"])`);
   - the grid: `<PersonCard.person_card :for={card <- @people} person={card.person} acts={card.acts} width={:page} patch={PersonPage.path(card.person)} />`;
   - the rail: `<PersonCard.person_card :for={card <- @rail.cards} person={card.person} acts={card.acts} width={:rail} patch={PersonPage.path(card.person)} />`;
   - moduledoc: replace "a press opens a card in place (`toggle_person`, the `opened_people` set), and `?person=<card id>` — where a rail card's press lands (`open_person`) — opens that card and hands it focus on mount. The opened card's foot carries ... Remove friend." with "a card's head links to the person's page (UIDR-054), as the rail's does."
   - the rail's comment: "A card's head links to the person's page."
 
-- [ ] **Step 5: CSS** — in `app.css` remove `cursor: pointer;` from `.person-card`, and remove `.person-card-opened` and `.person-card-page.person-card-opened` from the two hover selectors (leave `:hover` and `:focus-within`).
+- [x] **Step 5: CSS** — in `app.css` remove `cursor: pointer;` from `.person-card`, and remove `.person-card-opened` and `.person-card-page.person-card-opened` from the two hover selectors (leave `:hover` and `:focus-within`).
 
-- [ ] **Step 6: The Social page tests** — in `social_live_test.exs`:
+- [x] **Step 6: The Social page tests** — in `social_live_test.exs`:
   - "adds a friend by npub and name, shows their card, renames from the foot, and removes": cut from `# The foot is behind the card's press` to the end; append `assert has_element?(view, friend_card() <> " a[data-role='head'][href='" <> "/social/friends/" <> npub <> "']")`.
   - "adds a friend without a name ...": keep the add and Unnamed assertions; delete the foot's placeholder part (the page test covers it).
   - delete "the opened foot's switch hides a friend's picture...", "the foot's Colour row saves on the act...", "a press opens the card: every act...", "?person= opens that card...".
@@ -1966,12 +1966,12 @@ Delete `shown/3`, `masked_name/1`, `provenance/1`, the `button`, `HueSwatches`, 
   - "a friend's card is their acts as posters...": cut from `# The opened card: one row per title` to `assert has_element?(view, "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']")` inclusive, keeping `await_supervised_tasks()`; rename the test to drop "; an opened row opens the act".
   - the rail test: replace `view |> element(card) |> render_click()` and the `assert_redirect` with `assert has_element?(view, card <> " a[data-role='head'][href='/social/friends/" <> Social.to_npub(roster_pubkey(1)) <> "']")`.
 
-- [ ] **Step 7: Run**
+- [x] **Step 7: Run**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/social/person_card_test.exs test/media_centaur_web/live/social_live_test.exs test/media_centaur_web/page_smoke_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A lib/media_centaur_web assets/css/app.css storybook/social test/media_centaur_web
@@ -1988,7 +1988,7 @@ git commit -m "refactor(social): the person card is its head and strip; the head
 - Modify: `docs/GLOSSARY.md`, `docs/social.md`, `docs/storybook.md`, `../media-centaur.wiki/Social.md`
 - Run: `scripts/gen-decisions-index`
 
-- [ ] **Step 1: UIDR-054**
+- [x] **Step 1: UIDR-054**
 
 ```markdown
 ---
@@ -2030,7 +2030,7 @@ The Social page has two projections of one activity list: by action over time (t
 * **A second row builder** — a copy of the row that pattern-matches the strip item.
 ```
 
-- [ ] **Step 2: Amend UIDR-046** — set `amended: 2026-10-21` in the frontmatter and append:
+- [x] **Step 2: Amend UIDR-046** — set `amended: 2026-10-21` in the frontmatter and append:
 
 ```markdown
 ## Amendment 2026-10-21 — the page card links; the Feed's glyph takes its grade (UIDR-054)
@@ -2040,7 +2040,7 @@ Rule 5's "on the Friends page a press on the card opens it in place to every act
 
 Then `scripts/gen-decisions-index`.
 
-- [ ] **Step 3: Glossary** — under `## Social` in `docs/GLOSSARY.md` add rows:
+- [x] **Step 3: Glossary** — under `## Social` in `docs/GLOSSARY.md` add rows:
 
 ```markdown
 | **Person page** | One page per known person, the reader included, at `/social/friends/<npub>` or `/social/friends/you` (`SocialLive.PersonPage`): their activity folded one row per title on the left, the reader's view of them on the right. Not "profile", which within Social is the published profile and at the front door a viewer profile. UIDR-054. |
@@ -2049,11 +2049,11 @@ Then `scripts/gen-decisions-index`.
 | **Toolbar slots** | The two resolved positions of a row's toolbar, List and Download, and the three facts they come from (the rung, library ownership, the acquisition state): facts about the reader and a title, one value per title (`Components.Social.ToolbarSlots`). UIDR-054. |
 ```
 
-- [ ] **Step 4: `docs/social.md`** — in the Friends bullet, replace from "Every poster and opened-card row opens the title modal" to the end of that bullet with:
+- [x] **Step 4: `docs/social.md`** — in the Friends bullet, replace from "Every poster and opened-card row opens the title modal" to the end of that bullet with:
 
 "Every poster opens the title modal with `?title=<ref>&activity=<id>` so the modal speaks for that act; a card's head links to the **person page** (`/social/friends/<npub>`, `/social/friends/you`; `SocialLive.PersonPage`, UIDR-054): the person's acts as Feed rows folded one per title (`People`'s rows, `FeedEntry`, drawn by `FeedRow` without the identity tile — the newest act's verb, every flag at its grade, the episode's name on a series, the review's words) beside the reader's view (`Components.Social.ReaderView`, from the Settings kit): the reader's name for them (`Social.set_name_override/2`, `set_friend_name`), **Show their picture** (`Social.set_show_avatar/2`), **Colour** (`HueSwatches`, `Social.set_hue_override/2`), **Hide** as a switch (`Social.set_hidden/2`, which the hidden group's Show also sends), the key and provenance, and Remove friend for a friend (`Social.remove_friend/1`, which returns to Friends). A hidden person's page loads no rows. Delete on an own activity → `Activities.delete/1` lives in the modal."
 
-- [ ] **Step 5: `docs/storybook.md`** — replace the two rows:
+- [x] **Step 5: `docs/storybook.md`** — replace the two rows:
 
 ```markdown
 | `social.feed_row/1` | ✅ covered | Every slot state, both subjects, the grade, no artwork, the person page's row and a series row, the hovered seat pinned |
@@ -2061,7 +2061,7 @@ Then `scripts/gen-decisions-index`.
 | `social.reader_view/1` | ✅ covered | A friend, a published name, the picture off, a hue override, a member, hidden |
 ```
 
-- [ ] **Step 6: Wiki** — in `../media-centaur.wiki/Social.md`:
+- [x] **Step 6: Wiki** — in `../media-centaur.wiki/Social.md`:
   - Feed section, last sentence: "Beside the Feed, a rail shows the same person cards the Friends tab has, three titles each, newest activity first; press a name to open that person's page."
   - Friends section: replace the paragraph beginning "Press a card to open it in place" with:
 
@@ -2074,7 +2074,7 @@ Then `scripts/gen-decisions-index`.
 cd ~/src/media-centaur/media-centaur.wiki && git add -A && git commit -m "wiki: the person page" && git push
 ```
 
-- [ ] **Step 7: Commit the records**
+- [x] **Step 7: Commit the records**
 
 ```bash
 git add decisions docs/GLOSSARY.md docs/social.md docs/storybook.md
@@ -2085,12 +2085,12 @@ git commit -m "docs(social): UIDR-054 the person page; UIDR-046 amended"
 
 ### Task 10: Precommit and the visual check
 
-- [ ] **Step 1: Precommit**
+- [x] **Step 1: Precommit**
 
 Run: `~/scripts/agents/agent-mix precommit`
 Expected: clean. Fix every warning and Credo finding (MC0009 wants a story for every component under `components/**`: `ToolbarSlots` has no `~H` so it is not a component; if the check flags it anyway, add the four `@storybook_status :skip` lines with reason "View-model struct, not a function component").
 
-- [ ] **Step 2: Shoot the pages on the dev server**
+- [x] **Step 2: Shoot the pages on the dev server**
 
 ```bash
 ~/scripts/agents/page-shot --url http://127.0.0.1:2160/social/friends/you --viewport 1920x1080 --wait-ms 3000 -o /tmp/person-you.png
@@ -2099,7 +2099,7 @@ Expected: clean. Fix every warning and Credo finding (MC0009 wants a story for e
 
 Then a friend's page: take the first `a[data-role='head']` href under `#friends-grid` that is not `/social/friends/you` (`chromium-probe http://127.0.0.1:2160/social/friends "[...document.querySelectorAll('#friends-grid a[data-role=head]')].map(a => a.getAttribute('href'))"`) and shoot it. Read the three PNGs. Check against the mockup: the rows carry no identity tile, a series row shows the episode's name, the card sits at 440 on the right at 1920, the grid card has no foot. A hover state cannot be captured; the story's `:hovered` variation covers the seat.
 
-- [ ] **Step 3: Final commit if the check changed anything**
+- [x] **Step 3: Final commit if the check changed anything**
 
 ```bash
 git add -A && git commit -m "fix(social): person page visual pass"
