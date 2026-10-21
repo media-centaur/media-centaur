@@ -258,6 +258,13 @@ defmodule MediaCentaur.Social do
   @spec to_npub(String.t()) :: String.t()
   def to_npub(pubkey) when is_binary(pubkey), do: Keys.to_npub(pubkey)
 
+  @doc """
+  An npub or 64-hex key, trimmed, as lowercase hex — the one key parser
+  the web layer uses (an address, the add-friend form's key).
+  """
+  @spec parse_pubkey(String.t()) :: {:ok, String.t()} | {:error, :invalid_pubkey}
+  def parse_pubkey(key) when is_binary(key), do: Keys.parse_pubkey(String.trim(key))
+
   @doc "Every friend's pubkey — the authors an added-rule relay's feed subscribes to."
   @spec friend_pubkeys() :: [String.t()]
   def friend_pubkeys,
