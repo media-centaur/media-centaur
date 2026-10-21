@@ -430,53 +430,23 @@ project one enriched list — every live activity with its actor
   first, then by latest act, eight at most) and the Friends grid — as
   the tile, the name and the acts strip of posters under their centred
   glyphs; no clock, no presence line, nothing about what a person
-  withholds (UIDR-046). Every poster and opened-card row opens the title
-  modal with `?title=<ref>&activity=<id>` so the modal speaks for that
-  act; Delete on an own activity → `Activities.delete/1` lives there.
-  The opened card's foot carries the reader's name for the friend
-  (`Social.set_name_override/2`, the `set_friend_name` event; a blank
-  clears it back to the published name) over the name it masks as the
-  field's placeholder (`Format.person_name/1` of the person without the
-  override: the published name, else Unnamed), the **Show their picture**
-  switch (`Social.set_show_avatar/2`, the `set_show_avatar` event;
-  `Contact.show_avatar`, on by default), the **Colour** row
-  (`Components.Social.HueSwatches`: Theirs, the friend's published hue,
-  then the palette and the ring slider; `Social.set_hue_override/2`, the
-  `set_hue_override` event with the key and the hue, empty for Theirs;
-  `Contact.hue_override`), and the last line: the key, then *added* and
-  the date for a friend or *on <host>* for a member, **Hide** and, for a
-  friend, Remove friend. **Hide** (`Social.set_hidden/2`, the
-  `set_hidden` event with `hide`) keeps the person's activity off every
-  surface (`Social.visible_people/0`, read by both `Activities` readers
-  and the page); hidden people form the tab's hidden group
-  (`Components.Social.HiddenPersonRow`, **Show**). A member followed
-  through a members-rule relay has a card like a friend's; its foot says
-  *on <host>* and carries no Remove friend. `SocialLive.AddFriendBlock`,
-  the add-friend form
-  (still an iteration-phase component under `live/social_live/`),
-  takes an npub and an optional name (`Social.add_friend/2`; placeholder
-  "Name (optional)"); re-adding a key changes nothing, and adding a member
-  promotes them to a friend, keeping the overrides. A rename, a switch or
-  Hide broadcasts `Social.Events.ContactChanged`, and the page rebuilds
-  its people from `Social.visible_people/0` and `Social.people/0` (the
-  hidden group).
-
-What people did with a title — reviewed and with what sentiment, watched,
-or listed — is drawn as social glyphs (`Components.Title.SocialGlyph`,
-each flag at its grade, UIDR-049) from one feed,
-`Activities.activity_for/1`: every followed, shown person's live acts on the
-given titles, the reader's included, so a title's grade matches the
-person cards'. A flag is drawn only when a friend did it
-(`Components.Title.SocialWords.drawn_flags/1`). Title rows (the
-watchlist, Incoming's search results) show the glyphs at their right;
-the title detail shows them in the social capsule, which opens the
-social panel — the reviews, then a sentence per wordless act
-(`Components.Title.Social`). A feed row shows only its own sentiment:
-each action is its own row there. The pennant this replaced (UIDR-037)
-is superseded.
-
-The joins the contexts may not make happen here:
-
+  withholds (UIDR-046). Every poster opens the title modal with
+  `?title=<ref>&activity=<id>` so the modal speaks for that act; a
+  card's head links to the **person page** (`/social/friends/<npub>`,
+  `/social/friends/you`; `SocialLive.PersonPage`, UIDR-054): the person's
+  acts as Feed rows folded one per title (`People`'s rows, `FeedEntry`,
+  drawn by `FeedRow` without the identity tile — the newest act's verb,
+  every flag at its grade, the episode's name on a series, the review's
+  words) beside the reader's view (`Components.Social.ReaderView`, from
+  the Settings kit): the reader's name for them
+  (`Social.set_name_override/2`, `set_friend_name`), **Show their
+  picture** (`Social.set_show_avatar/2`), **Colour** (`HueSwatches`,
+  `Social.set_hue_override/2`), **Hide** as a switch
+  (`Social.set_hidden/2`, which the hidden group's Show also sends), the
+  key and provenance, and Remove friend for a friend
+  (`Social.remove_friend/1`, which returns to Friends). A hidden person's
+  page loads no rows. Delete on an own activity → `Activities.delete/1`
+  lives in the modal.
 - **Activity rows** — `Activities.list_activities/0` returns the record plus
   its `author`, a `Social.Person`, for authors the reader follows and
   shows; an unfollowed or hidden person's rows are left out. `SocialLive`

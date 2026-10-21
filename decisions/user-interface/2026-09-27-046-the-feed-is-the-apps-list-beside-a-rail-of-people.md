@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-09-27
-amended: 2026-10-03
+amended: 2026-10-21
 ---
 # The Feed is the app's list, beside a rail of people
 
@@ -60,3 +60,7 @@ The act glyph is renamed the **social glyph** (`Title.SocialGlyph`), and `Discov
 ## Amendment 2026-09-28 — the metals are smooth
 
 The grain is removed: silver and gold are the three-stop sweep alone, with no noise over it. Lowered to a faint texture, the grain still read as rough, so the owner dropped it. `.social-glyph` in `app.css` is the authority.
+
+## Amendment 2026-10-21 — the page card links; the Feed's glyph takes its grade (UIDR-054)
+
+Rule 5's "on the Friends page a press on the card opens it in place to every act as a row ... and, for a friend, the foot with the key, the added date and Remove friend" is retired: the card is the head and the strip at both widths, and the head links to the person's page, where every act is a row (the Feed row, folded one per title) and the reader's view lives. Rule 1's "the sentiment glyph after the verb" is now drawn at its grade like every other social glyph; the Feed was the one surface that drew a glyph plain regardless of count.
