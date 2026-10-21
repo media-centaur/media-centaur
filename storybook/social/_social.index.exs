@@ -10,4 +10,5 @@ defmodule MediaCentaurWeb.Storybook.Social do
   def entry("hue_swatches"), do: [icon: {:fa, "palette", :thin}, name: "Hue swatches"]
   def entry("identity_tile"), do: [icon: {:fa, "circle-user", :thin}, name: "Identity tile"]
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
+  def entry("reader_view"), do: [icon: {:fa, "sliders", :thin}, name: "Reader's view"]
 end
