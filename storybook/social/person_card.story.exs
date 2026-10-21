@@ -20,8 +20,8 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Social.Act
-  alias MediaCentaurWeb.Components.Social.Act.Entry
+  alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
 
   def function, do: &MediaCentaurWeb.Components.Social.PersonCard.person_card/1
   def render_source, do: :function
@@ -31,30 +31,33 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   @rail ~s(<div class="w-[480px]"><.psb-variation/></div>)
   @page ~s(<div class="w-[900px]"><.psb-variation/></div>)
 
+  @slots %ToolbarSlots{
+    rung: nil,
+    library_owner_id: nil,
+    acquisition_state: nil,
+    list: :list,
+    download: :download
+  }
+
   defp act(tmdb_id, name, flags, opts \\ []) do
     media_type = Keyword.get(opts, :media_type, :movie)
-    episode = Keyword.get(opts, :episode)
+    grades = Map.merge(Map.new(flags, &{&1, :plain}), Keyword.get(opts, :grades, %{}))
 
-    %Act{
+    %FeedEntry{
+      id: "person-row-#{tmdb_id}",
+      activity_id: "activity-#{tmdb_id}-#{hd(flags)}",
       ref: {tmdb_id, media_type},
       title: Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
       poster_url: Keyword.get(opts, :poster_url, @poster),
-      activity_id: "activity-#{tmdb_id}-#{hd(flags)}",
+      author: nil,
+      subject: :friend,
+      kind: kind(hd(flags)),
+      episode: Keyword.get(opts, :episode),
+      glyphs: Enum.map(flags, &{&1, grades[&1]}),
+      text: nil,
       acted_at: ~U[2026-09-01 12:00:00Z],
       ago: Keyword.get(opts, :ago, "2h ago"),
-      episode: episode,
-      flags: flags,
-      grades: Map.merge(Map.new(flags, &{&1, :plain}), Keyword.get(opts, :grades, %{})),
-      entries:
-        for flag <- flags do
-          %Entry{
-            activity_id: "activity-#{tmdb_id}-#{flag}",
-            kind: kind(flag),
-            flag: flag,
-            episode: if(flag == :watched, do: episode),
-            acted_at: ~U[2026-09-01 12:00:00Z]
-          }
-        end
+      slots: @slots
     }
   end
 

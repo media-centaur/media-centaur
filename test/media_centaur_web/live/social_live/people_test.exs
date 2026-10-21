@@ -6,7 +6,8 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
-  alias MediaCentaurWeb.Components.Social.Act.Entry
+  alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.SocialLive.People
   alias MediaCentaurWeb.SocialLive.People.Card
@@ -112,18 +113,18 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
         %{@bob => friend(@bob, "Bob", ~D[2026-08-30])}
       )
 
-    assert Enum.map(bob.acts, &{&1.ref, &1.flags, &1.activity_id}) == [
+    assert Enum.map(
+             bob.acts,
+             &{&1.ref, Enum.map(&1.glyphs, fn {flag, _grade} -> flag end), &1.activity_id}
+           ) == [
              {{7, :movie}, [:love, :watched], "w7"},
              {{9, :tv_series}, [:watched], "w9a"},
              {{11, :movie}, [:listing], "l11"}
            ]
 
-    # A binge is one poster with one eye; the episodes are the opened card's rows.
-    assert Enum.map(Enum.at(bob.acts, 1).entries, & &1.activity_id) == ["w9a", "w9b"]
-    assert Enum.at(bob.acts, 1).episode == episode
-
-    assert [%Entry{kind: :watched, flag: :watched}, %Entry{kind: :review, flag: :love}] =
-             hd(bob.acts).entries
+    # A binge is one poster with one eye, at the latest episode.
+    assert %FeedEntry{id: "person-row-w9a", kind: :watched, episode: ^episode} = Enum.at(bob.acts, 1)
+    assert %FeedEntry{kind: :watched, glyphs: [love: :plain, watched: :plain]} = hd(bob.acts)
 
     assert hd(bob.acts).acted_at == ~U[2026-09-03 10:00:00Z]
     assert Enum.map(bob.acts, & &1.ago) == ["2h ago", "1d ago", "2d ago"]
@@ -187,7 +188,13 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
       )
 
     by_name = Map.new(people, &{Format.person_name(&1.person), &1})
-    acts = fn card -> Map.new(card.acts, &{&1.ref, {&1.flags, &1.grades}}) end
+
+    acts = fn card ->
+      Map.new(
+        card.acts,
+        &{&1.ref, {Enum.map(&1.glyphs, fn {flag, _grade} -> flag end), Map.new(&1.glyphs)}}
+      )
+    end
 
     # On 7 Alice and Bob love it — two people, silver — and the reader's
     # like is one person, plain. Alice and Cleo watched it — Cleo once
@@ -250,5 +257,69 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
       assert People.empty_reason(true, 0) == :no_friends
       assert People.empty_reason(true, 1) == nil
     end
+  end
+
+  test "an act is the page's row: one per title, the newest act's verb, every flag at its grade, the review's words, the title's slots" do
+    rows = [
+      activity("Bob", @bob, %{
+        tmdb_id: 7,
+        kind: :watched,
+        id: "bob-watched-7",
+        acted_at: ~U[2026-09-02 12:00:00Z]
+      }),
+      activity("Bob", @bob, %{
+        tmdb_id: 7,
+        kind: :review,
+        sentiment: :love,
+        text: "Yes.",
+        id: "bob-loves-7",
+        acted_at: ~U[2026-09-01 12:00:00Z]
+      }),
+      activity("Alice", @alice, %{tmdb_id: 7, kind: :review, sentiment: :love, id: "alice-loves-7"}),
+      activity("Bob", @bob, %{
+        tmdb_id: 1399,
+        media_type: :tv_series,
+        kind: :review,
+        sentiment: nil,
+        text: "Slow.",
+        id: "bob-reviews-show",
+        acted_at: ~U[2026-08-30 12:00:00Z]
+      }),
+      activity("Bob", @bob, %{
+        tmdb_id: 1399,
+        media_type: :tv_series,
+        kind: :watched,
+        episode: %Episode{season_number: 1, episode_number: 7, name: "Sample Episode"},
+        id: "bob-watched-show",
+        acted_at: ~U[2026-09-03 11:00:00Z]
+      })
+    ]
+
+    [_you, %Card{person: %Person{pubkey: @bob}, acts: [show, movie]} | _rest] = build(rows, people(true))
+
+    assert %FeedEntry{
+             id: "person-row-bob-watched-show",
+             activity_id: "bob-watched-show",
+             author: nil,
+             subject: :friend,
+             kind: :watched
+           } = show
+
+    assert show.episode.name == "Sample Episode"
+    assert show.glyphs == [{:review, :plain}, {:watched, :plain}]
+    assert show.text == "Slow."
+
+    assert %FeedEntry{id: "person-row-bob-watched-7", kind: :watched, episode: nil} = movie
+    assert movie.glyphs == [{:love, :silver}, {:watched, :plain}]
+    assert movie.text == "Yes."
+    assert %ToolbarSlots{list: :list, download: :download} = movie.slots
+  end
+
+  test "the reader's own acts are rows in the second person" do
+    [%Card{person: %Person{own?: true}, acts: [act]} | _friends] =
+      build([own(%{tmdb_id: 3, kind: :listing})], people(true))
+
+    assert act.subject == :you
+    assert act.author == nil
   end
 end
