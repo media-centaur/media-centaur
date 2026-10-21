@@ -31,17 +31,20 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   Social is on by default, so a person who never opted in reads why
   nothing arrives and where the switch is — then for a followed person.
 
-  The toolbar's two resolved slots come from the same three facts the
-  row markers read — the rung, library presence, the acquisition state —
-  with `Logic.acquisition_marker/1` supplying the acquisition words so
-  no state is spelled twice.
+  Every row's toolbar is its title's `ToolbarSlots`. The Feed's one
+  glyph is the review's sentiment at its grade — the host hands
+  `grades:` (`Title.Grade.grades/1` over the page's rows) so the count
+  is the one the cards draw.
   """
 
-  alias MediaCentaur.Watchlist.TitleIntent
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.Flag
+  alias MediaCentaurWeb.Components.Title.Grade
+  alias MediaCentaurWeb.SocialLive.ActivityWords
 
   @page_size 20
   @cap 60
@@ -85,7 +88,8 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
           now: DateTime.t(),
           window: pos_integer(),
           scope: scope(),
-          head: String.t() | nil
+          head: String.t() | nil,
+          grades: %{{Grade.ref(), Flag.flag()} => Grade.t()}
         ) ::
           %{
             entries: [FeedEntry.t()],
@@ -97,6 +101,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
     now = Keyword.fetch!(opts, :now)
     window = min(Keyword.fetch!(opts, :window), @cap)
     scope = Keyword.fetch!(opts, :scope)
+    grades = Keyword.fetch!(opts, :grades)
 
     sorted =
       rows
@@ -106,7 +111,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
     {queued, visible} = split_at_head(sorted, Keyword.get(opts, :head))
 
     %{
-      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now)),
+      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now, grades)),
       has_older?: length(visible) > window and window < @cap,
       at_cap?: window == @cap and length(visible) > @cap,
       queued: length(queued)
@@ -134,48 +139,31 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   defp in_scope?(%{author: %Person{own?: own?}}, :friends), do: not own?
   defp in_scope?(%{author: %Person{own?: own?}}, :you), do: own?
 
-  defp entry(%{activity: activity} = row, now) do
+  defp entry(%{activity: activity} = row, now, grades) do
+    ref = {activity.tmdb_id, activity.media_type}
+
     %FeedEntry{
       id: "feed-row-" <> activity.id,
       activity_id: activity.id,
-      ref: {activity.tmdb_id, activity.media_type},
+      ref: ref,
       title: activity.title,
       poster_url: row.poster_url,
       author: row.author,
+      subject: ActivityWords.subject(row.author),
       kind: activity.kind,
-      sentiment: if(activity.kind == :review, do: activity.sentiment),
+      episode: nil,
+      glyphs: glyphs(activity, ref, grades),
       text: if(activity.kind == :review, do: activity.text),
       acted_at: activity.acted_at,
       ago: Format.relative_ago(activity.acted_at, now: now, sub_minute: :just_now),
-      rung: row.rung,
-      library_owner_id: row.library_owner_id,
-      acquisition_state: row.acquisition_state,
-      list_slot: list_slot(row),
-      download_slot: download_slot(row)
+      slots: ToolbarSlots.resolve(row)
     }
   end
 
-  @doc "What the List position holds: the verb below the list, Listed on it, Following above it."
-  @spec list_slot(%{required(:rung) => TitleIntent.rung() | nil, optional(atom()) => term()}) ::
-          FeedEntry.list_slot()
-  def list_slot(%{rung: :list}), do: :listed
+  # The Feed's one glyph: the review's sentiment at its grade; none for
+  # a review without one or a listing (UIDR-046).
+  defp glyphs(%Activity{kind: :review, sentiment: sentiment}, ref, grades) when not is_nil(sentiment),
+    do: [{sentiment, Map.fetch!(grades, {ref, sentiment})}]
 
-  def list_slot(%{rung: rung}) do
-    if TitleIntent.follows_releases?(rung), do: :following, else: :list
-  end
-
-  @doc "What the Download position holds: In library, the acquisition marker while a plan runs, else the verb."
-  @spec download_slot(%{
-          required(:library_owner_id) => term() | nil,
-          required(:acquisition_state) => atom() | nil,
-          optional(atom()) => term()
-        }) :: FeedEntry.download_slot()
-  def download_slot(%{library_owner_id: owner}) when not is_nil(owner), do: {:state, "In library"}
-
-  def download_slot(%{acquisition_state: state}) do
-    case Logic.acquisition_marker(state) do
-      nil -> :download
-      word -> {:state, word}
-    end
-  end
+  defp glyphs(_activity, _ref, _grades), do: []
 end

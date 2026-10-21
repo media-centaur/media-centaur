@@ -1,12 +1,16 @@
 defmodule MediaCentaurWeb.Components.Social.FeedRow do
   @moduledoc """
-  One row on the Feed (UIDR-046): one author's action on one title, as
-  the app draws a list row. The identity tile at 40, the poster at
-  80×120 beside it, then the words — who did what (`Nick reviewed ♥`,
-  `You want to watch`; the sentiment glyph after the verb when the
-  review gives one, nothing when it gives none), which title (name and
-  year), and the review's words in full — and the relative time at the
-  row's right edge, all hung from the row's top line. The words are
+  One row on the Feed and on the person page (UIDR-046, UIDR-054): one
+  author's action on one title, or one person's acts on one title, as
+  the app draws a list row. The identity tile at 40 and the name when
+  the row has an author — never on the person page, which is one
+  person — the poster at 80×120 beside it, then the words: the verb
+  (`Nick reviewed`, `watched S02E05 of`, `You want to watch`) with every
+  glyph after it at its grade (the review's sentiment on the Feed; every
+  act on the title on the person page; nothing when there is none),
+  which title (name and year), the episode's name on a series, and the
+  review's words in full — and the relative time at the row's right
+  edge, all hung from the row's top line. The words are
   never clipped: the protocol caps a review at 500 characters, about
   seven lines here, and a review of two lines or fewer sits beside the
   120px poster, so only a long review makes its row taller. The
@@ -20,7 +24,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
   the row's height. Left to right: the List slot (the bookmark verb,
   "Listed" filled, or "Tracking" as plain state), the Download slot (the
   verb, or plain state text — "Downloading" with a hairline, "In
-  library"), and Ignore on a friend's row only. State and verb are one
+  library"), and Ignore when the subject is a friend. State and verb are one
   control. An own row has no Ignore and no Delete: withdrawing is the
   modal's Delete, and the row opens the modal speaking for its action.
 
@@ -65,9 +69,9 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
       class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5"
       data-component="feed-row"
       data-kind={@entry.kind}
-      data-own={@entry.author.own?}
-      data-list-slot={@entry.list_slot}
-      data-download-slot={slot_name(@entry.download_slot)}
+      data-own={@entry.subject == :you}
+      data-list-slot={@entry.slots.list}
+      data-download-slot={slot_name(@entry.slots.download)}
       phx-click="open_title"
       phx-value-ref={TitleRef.param(@entry.ref)}
       phx-value-activity={@entry.activity_id}
@@ -75,7 +79,11 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
       data-nav-item
       tabindex="0"
     >
-      <IdentityTile.identity_tile {IdentityTile.person_attrs(@entry.author)} size={40} />
+      <IdentityTile.identity_tile
+        :if={@entry.author}
+        {IdentityTile.person_attrs(@entry.author)}
+        size={40}
+      />
 
       <img
         :if={@entry.poster_url}
@@ -95,11 +103,14 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
 
       <div class="min-w-0 flex-1">
         <p class="truncate text-base leading-6 text-base-content/80" data-role="who">
-          <span class="font-medium text-base-content/95">{Format.person_name(@entry.author)}</span>
-          {ActivityWords.verb(@entry.kind, nil, ActivityWords.subject(@entry.author))}
+          <span :if={@entry.author} class="font-medium text-base-content/95">
+            {Format.person_name(@entry.author)}
+          </span>
+          {ActivityWords.verb_phrase(@entry.kind, @entry.episode, @entry.subject)}
           <SocialGlyph.social_glyph
-            :if={@entry.sentiment}
-            flag={@entry.sentiment}
+            :for={{flag, grade} <- @entry.glyphs}
+            flag={flag}
+            grade={grade}
             class="size-4 align-middle"
           />
         </p>
@@ -108,6 +119,13 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
           <span :if={@entry.title.year} class="shrink-0 text-sm font-normal text-base-content/60">
             {@entry.title.year}
           </span>
+        </p>
+        <p
+          :if={@entry.episode && @entry.episode.name}
+          class="mt-1 text-base leading-6 text-base-content/80"
+          data-role="episode"
+        >
+          {@entry.episode.name}
         </p>
         <p
           :if={@entry.text}
@@ -122,7 +140,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
           data-role="toolbar"
         >
           <button
-            :if={@entry.list_slot == :list}
+            :if={@entry.slots.list == :list}
             id={"#{@entry.id}-list"}
             type="button"
             class={@verb_class}
@@ -133,7 +151,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             <.icon name="hero-bookmark" class="size-4" /> List
           </button>
           <button
-            :if={@entry.list_slot == :listed}
+            :if={@entry.slots.list == :listed}
             id={"#{@entry.id}-list"}
             type="button"
             class={[@verb_class, "text-base-content/90"]}
@@ -143,10 +161,10 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
           >
             <.icon name="hero-bookmark-solid" class="size-4" /> Listed
           </button>
-          <span :if={@entry.list_slot == :following} class={@state_class}>Tracking</span>
+          <span :if={@entry.slots.list == :following} class={@state_class}>Tracking</span>
 
           <button
-            :if={@entry.download_slot == :download}
+            :if={@entry.slots.download == :download}
             id={"#{@entry.id}-download"}
             type="button"
             class={@verb_class}
@@ -156,18 +174,18 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
           >
             <.icon name="hero-arrow-down-tray" class="size-4" /> Download
           </button>
-          <span :if={match?({:state, _}, @entry.download_slot)} class={@state_class}>
+          <span :if={match?({:state, _}, @entry.slots.download)} class={@state_class}>
             <span class={[
               "relative",
-              @entry.acquisition_state == :downloading &&
+              @entry.slots.acquisition_state == :downloading &&
                 "after:absolute after:inset-x-0 after:-bottom-[3px] after:h-[3px] after:rounded-sm after:bg-base-content/40"
             ]}>
-              {elem(@entry.download_slot, 1)}
+              {elem(@entry.slots.download, 1)}
             </span>
           </span>
 
           <button
-            :if={not @entry.author.own?}
+            :if={@entry.subject == :friend}
             id={"#{@entry.id}-ignore"}
             type="button"
             class={[@verb_class, "ml-2.5"]}

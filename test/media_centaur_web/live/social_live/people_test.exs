@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.Act.Entry
+  alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.SocialLive.People
   alias MediaCentaurWeb.SocialLive.People.Card
 
@@ -44,16 +45,17 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
 
   defp names(cards), do: Enum.map(cards, &Format.person_name(&1.person))
 
+  defp build(rows, people), do: People.build(rows, people, now: @now, grades: Grade.grades(rows))
+
   test "You first, then friends by latest act, the quiet ones last by name" do
     people =
-      People.build(
+      build(
         [
           activity("Alice", @alice, %{tmdb_id: 1, acted_at: ~U[2026-09-01 12:00:00Z]}),
           activity("Bob", @bob, %{tmdb_id: 2, kind: :watched, acted_at: ~U[2026-09-03 10:00:00Z]}),
           own(%{tmdb_id: 3})
         ],
-        people(true),
-        now: @now
+        people(true)
       )
 
     assert names(people) == ["You", "Bob", "Alice", "Cleo"]
@@ -61,15 +63,15 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
   end
 
   test "without an identity there is no You card" do
-    assert ["Alice" | _rest] = names(People.build([], people(false), now: @now))
-    assert length(People.build([], people(false), now: @now)) == 3
+    assert ["Alice" | _rest] = names(build([], people(false)))
+    assert length(build([], people(false))) == 3
   end
 
   test "a person's acts are one per title, newest first, showing every act on it in order" do
     episode = %Episode{season_number: 1, episode_number: 3}
 
     [bob | _rest] =
-      People.build(
+      build(
         [
           activity("Bob", @bob, %{
             tmdb_id: 7,
@@ -107,8 +109,7 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
             acted_at: ~U[2026-09-01 10:00:00Z]
           })
         ],
-        %{@bob => friend(@bob, "Bob", ~D[2026-08-30])},
-        now: @now
+        %{@bob => friend(@bob, "Bob", ~D[2026-08-30])}
       )
 
     assert Enum.map(bob.acts, &{&1.ref, &1.flags, &1.activity_id}) == [
@@ -133,7 +134,7 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
 
   test "each flag on an act carries its grade, counted over every person's acts on that title, the reader's included" do
     people =
-      People.build(
+      build(
         [
           activity("Alice", @alice, %{
             tmdb_id: 7,
@@ -182,8 +183,7 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
           }),
           own(%{tmdb_id: 11, kind: :listing, id: "me11", acted_at: ~U[2026-09-02 11:00:00Z]})
         ],
-        people(true),
-        now: @now
+        people(true)
       )
 
     by_name = Map.new(people, &{Format.person_name(&1.person), &1})
@@ -210,7 +210,7 @@ defmodule MediaCentaurWeb.SocialLive.PeopleTest do
   end
 
   test "a quiet friend is a card with no acts" do
-    people = People.build([], %{@cleo => friend(@cleo, "Cleo", ~D[2026-09-02])}, now: @now)
+    people = build([], %{@cleo => friend(@cleo, "Cleo", ~D[2026-09-02])})
 
     assert [%Card{person: %Person{name_override: "Cleo"}, acts: []}] = people
   end

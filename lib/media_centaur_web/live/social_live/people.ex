@@ -43,13 +43,18 @@ defmodule MediaCentaurWeb.SocialLive.People do
 
   @doc """
   The cards for `people` (the `Social.visible_people/0` map) from the
-  enriched activity rows. `now` anchors each act's relative time.
+  enriched activity rows. `now` anchors each act's relative time;
+  `grades:` is `Title.Grade.grades/1` over the same rows — the host
+  computes it once for the cards and the Feed.
   """
-  @spec build([map()], %{optional(String.t()) => Person.t()}, now: DateTime.t()) :: [Card.t()]
+  @spec build([map()], %{optional(String.t()) => Person.t()},
+          now: DateTime.t(),
+          grades: %{{Grade.ref(), Flag.flag()} => Grade.t()}
+        ) :: [Card.t()]
   def build(rows, people, opts) do
     now = Keyword.fetch!(opts, :now)
     by_author = Enum.group_by(rows, & &1.activity.author_pubkey)
-    grades = Grade.grades(rows)
+    grades = Keyword.fetch!(opts, :grades)
     {me, friends} = people |> Map.values() |> Enum.split_with(& &1.own?)
 
     you = Enum.map(me, &card(&1, Map.get(by_author, &1.pubkey, []), now, grades))
