@@ -108,7 +108,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted, amended 2026-10-03 |
 | 044 | 2026-09-20 | [One control to ask TMDB again: Refresh from TMDB](user-interface/2026-09-20-044-refresh-from-tmdb.md) | accepted |
 | 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-10-03 |
-| 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted, amended 2026-10-03 |
+| 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted, amended 2026-10-21 |
 | 047 | 2026-09-27 | [What a reader sees of a person: their published name under your override, or Unnamed](user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md) | accepted |
 | 048 | 2026-09-28 | [A person's colour is a hue on the app's ring](user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md) | accepted |
 | 049 | 2026-09-28 | [What people did with a title is the social capsule](user-interface/2026-09-28-049-what-people-did-with-a-title-is-the-social-capsule.md) | accepted |
@@ -116,3 +116,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 051 | 2026-10-03 | [The Discovery page is the Social page](user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md) | accepted, amended 2026-10-03 |
 | 052 | 2026-10-05 | [A completed movie opens its title](user-interface/2026-10-05-052-a-completed-movie-opens-its-title.md) | accepted, amended 2026-10-05 |
 | 053 | 2026-10-06 | [A profile is picked at the front door and drawn as the identity tile](user-interface/2026-10-06-053-a-profile-is-picked-at-the-front-door.md) | accepted |
+| 054 | 2026-10-21 | [A person has a page](user-interface/2026-10-21-054-the-person-page.md) | accepted |

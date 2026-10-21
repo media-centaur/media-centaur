@@ -125,8 +125,9 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `settings.connection_row/1` | ✅ covered | Every readout state (not configured, not tested, testing, connected, unreachable, detected, editing) + relay rows |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
 | `social.identity_tile/1` | ✅ covered | Monogram, own, photo at 40 and 48 |
-| `social.feed_row/1` | ✅ covered | Every slot state, both authors, no artwork, the hovered seat pinned |
-| `social.person_card/1` | ✅ covered | Rail and page widths, each flag alone and together, the grade, opened, quiet; the opened member's foot (on a relay, Hide, no Remove friend) |
+| `social.feed_row/1` | ✅ covered | Every slot state, both subjects, the grade, no artwork, the person page's row and a series row, the hovered seat pinned |
+| `social.person_card/1` | ✅ covered | Rail and page widths, each flag alone and together, the grade, quiet; the head links to the person page |
+| `social.reader_view/1` | ✅ covered | A friend, a published name, the picture off, a hue override, a member, hidden |
 | `social.hidden_person_row/1` | ✅ covered | A hidden friend with a name; a hidden member with none (the person glyph, Unnamed) |
 | `title/flag.ex` | ⚠️ skip | Pure vocabulary (flags, glyph names, mast order), not a function component |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
