@@ -1,0 +1,223 @@
+---
+status: planning
+started: 2026-10-22
+last_updated: 2026-10-22
+---
+# Remote players
+
+## Goal
+
+Make the Media Centaur UI and video playback available on a Google TV on
+the same network as the host, with the fidelity the host has today: any
+file in the library direct-plays, progress, completion, auto-advance and
+the finish prompt all work, and the active profile is chosen on the TV.
+This is the first feature of the roadmap's third era (streaming to the
+user's other devices) and it sets the shape every later player follows:
+the host's mpv becomes one player among several.
+
+## Glossary
+
+Defined before use; refine as the campaign proceeds, elevate to
+`docs/GLOSSARY.md` at completion.
+
+| Term | Meaning |
+|---|---|
+| **Player** | A machine that renders a viewing. Two kinds now: the **host player** (mpv spawned on the computer running the app, "this computer") and a **remote player** (the paired TV app). |
+| **Pairing** | How a remote player joins the install: Settings → Players shows a one-time code, the player sends the code with its name, and receives a player token. |
+| **Player token** | The credential a paired player sends on every request to the host: UI pages, media files, the player channel. Issued at pairing, revocable in Settings. |
+| **Player channel** | The remote player's WebSocket to the host, carrying mpv IPC JSON in both directions. The remote equivalent of the Unix domain socket. |
+| **Transport** | How a playback session reaches an mpv and how that mpv gets its file: Unix socket to a spawned process with a host path, or the player channel with a media URL. The one thing that varies per player kind. |
+| **Playback session** | `Playback.MpvSession`: one profile watching one title chain on one player. Not the **browser session**, the signed cookie that holds the active profile (ADR-078). |
+| **Media endpoint** | The HTTP route that serves a playable file by identity with Range support, authorised by a player token. |
+| **TV app** | The Android TV application: a WebView shell showing the host's UI plus embedded libmpv bridged to the player channel. |
+| **Access plug** | The web-layer plug that lets loopback requests through and requires a player token from every other address, otherwise serving the pairing page. |
+
+## Status
+
+**Planning 2026-10-22.** Design agreed in conversation (core idea and
+the word *player*); nothing built. Owner wants this recorded, not
+started. The design below is the unify pass; the spec and the first
+milestone's plan are still to be written when work begins.
+
+## Design (unify pass, 2026-10-22)
+
+**Core idea: the TV is mpv on another machine.** The TV app embeds
+libmpv, and libmpv exposes the same property and command model that
+mpv's JSON IPC already serialises. So the TV app speaks the *existing*
+IPC protocol to the host over a WebSocket instead of a Unix socket.
+`MpvSession` keeps its name and its observation logic, auto-advance
+(ADR-062), track enforcement, completion and recovery semantics. The
+only thing that varies per player is the transport. The bundled Lua
+scripts (ADR-072) ride along if the libmpv build carries Lua.
+
+One sentence: *a playback session is one profile watching one title on
+one player, and the app observes it over mpv IPC whichever machine runs
+the mpv.*
+
+**Every browser session plays on the player it is on.** The TV app's
+WebView carries the player token, so Play there starts a session on that
+TV; a loopback browser plays on the host. No player picker in this
+campaign. Casting from the host browser to a TV is a later feature with
+its own picker. Per-device state stays browser-session state, per the
+roadmap rule and ADR-078.
+
+**A new context, `MediaCentaur.Players`**, owns the paired players and
+their tokens: no deps, its own topic, modelled on `Profiles`. Playback
+takes a player as a parameter and never depends on Players, the same way
+it takes a profile id.
+
+**Content for a remote player is a URL** served by the media endpoint;
+the URL encodes the playable file's identity, not a host path.
+
+**Rejected alternatives**, so they are not re-litigated: a sideloaded
+browser on the TV (owner declined); browser HTML5 playback with ffmpeg
+remux/transcode on the host (a media-server rebuild, loses fidelity);
+a Chromecast Web Receiver (must be served over HTTPS from a trusted
+certificate and then cannot reach a plain-HTTP LAN host; also makes the
+TV a dumb screen driven from a phone).
+
+### Incoherences found and their dispositions
+
+1. **Transport is interleaved with observation in `MpvSession`** (Port
+   spawn, socket retry, log file, `MpvExitClassifier`, `DisplayEnv`
+   beside the IPC handlers). Fix in M2: lift the host transport behind
+   one small interface. Not speculative: the second transport lands in
+   M3.
+2. **`content_url` is the file's identity.** `advance_to/2` compares
+   mpv's reported `path` with the host path; a remote mpv reports the
+   URL. Fix in M2: the transport maps a reported path back to the
+   playable file and the session compares identities.
+3. **`LaunchFlags` renders command-line strings.** libmpv takes the same
+   options as structured pairs. Fix in M2: build option pairs, render
+   CLI for the host and JSON for the player. One representation.
+4. **`SessionRegistry` is keyed by entity id alone**, so "already
+   playing" is install-wide; wrong with two players. Fix in M3: key by
+   player and entity.
+5. **`Playback.Events` name a profile but not a player.** Fix in M3,
+   with item 4: every event about a viewing names its player, so the UI
+   can say where it is playing.
+6. **`SessionRecovery` scans a socket directory**, which is host
+   recovery only. A remote player recovers by reconnecting its channel
+   and the session reattaching; both are "a transport re-offers a live
+   mpv". Fix in M3: recovery becomes per-transport, entity and profile
+   resolution stays shared.
+7. **No access layer exists**; the endpoint binds loopback with no
+   authentication. Fix in M1: the bind address becomes a bootstrap TOML
+   key defaulting to loopback, and the access plug gates every
+   non-loopback request on a player token.
+
+### Seams that already fit
+
+Typed `Playback.Events` structs (MC0012); `Resolver.play_params`; the
+pure `WatchingTracker`, `Completion`, `NextEpisode`; the `ProfileAware`
+on_mount pattern (for a `PlayerAware` sibling); the `ImageServer` plug
+pattern (for the media endpoint); the bootstrap TOML tier in
+`Settings.Config` (for the bind address); Boundary.
+
+## Decisions made
+
+* `2026-10-22` — The TV runs a native Android TV app, not a browser; the owner declined a sideloaded browser. (conversation)
+* `2026-10-22` — The TV app embeds libmpv and speaks mpv's IPC protocol to the host over a WebSocket; `MpvSession` is the one session type for every player. (conversation; unify pass above)
+* `2026-10-22` — The thing a viewing shows on is called a **player**. (conversation)
+* `2026-10-22` — Each browser session plays on the player it is on; no picker, no casting, in this campaign. (conversation)
+* `2026-10-22` — Distribution through Google Play's internal testing track, so installing on the TV is a Play Store install with no public listing. (conversation)
+
+## Open decisions
+
+1. **Where the TV app's code lives** — a sibling repository
+   (`../media-centaur-tv`, like `contrib` and the wiki) or a directory in
+   this one. Recommendation: sibling repository; it has its own toolchain,
+   signing and release cadence, and `mix precommit` has nothing to say
+   about Kotlin.
+2. **Whether the bind address is a TOML key or a Settings row.** The
+   endpoint listens before the database is reachable, so it is bootstrap
+   state by the `Settings.Config` rule. Recommendation: TOML key `bind`,
+   default `127.0.0.1`, shown commented in `defaults/media-centaur.toml`.
+3. **How the media endpoint names a file.** By `PlayableItem` id, by
+   `WatchedFile`/`ExtraFile` id, or by a signed token over the host path.
+   Recommendation: the file row's id, since that is the identity item 2
+   above needs the transport to map back to.
+
+## Next steps
+
+Milestones in order; each lands on its own and leaves the host working.
+Every milestone that changes an existing system runs the campaign
+procedure (scope, research, decisions, `unify_design` on the design,
+plan, `unify_design` on the plan, execution) and records each step here.
+
+1. **M1 — Reachable and closed.** Bind-address bootstrap key; `Players`
+   context (paired players, tokens, `players:updates`); Settings →
+   Players section with pairing code and revoke; access plug with the
+   pairing page. A laptop browser can pair and browse, which is also how
+   the TV layout gets checked before the app exists. Wiki:
+   `Configuration-File.md`, `Settings-Reference.md`.
+2. **M2 — Transport extraction.** Pure refactor behind existing tests:
+   host transport out of `MpvSession`; `LaunchFlags` as option pairs;
+   playable-file identity in place of `content_url` comparison.
+3. **M3 — Remote transport.** Player channel speaking mpv IPC over a
+   WebSocket; media endpoint with Range; `Playback.play/3` taking the
+   player; `PlayerAware` on_mount; registry keyed by player and entity;
+   player on every viewing event; per-transport recovery. Verifiable
+   from the host with a desktop mpv driven through the channel before
+   any Android code exists.
+4. **M4 — TV app.** Kotlin, Android TV: pairing screen (host address +
+   code), WebView shell with the player token cookie, libmpv with the
+   IPC bridge, native Back-key handling, release signing in CI, Play
+   internal testing track. The largest milestone and the one with the
+   open verification items below.
+5. **M5 — Owner checks on the TV.** D-pad through every page, profile
+   picker, play, pause, resume after a host restart, auto-advance, the
+   finish prompt, HDR output, audio passthrough.
+
+### Verification items (research before M4)
+
+* Whether the published libmpv artifact (`dev.jdtech.mpv:libmpv`, the
+  Findroid build on Maven Central) includes Lua, so the bundled scripts
+  load. If not: build libmpv with Lua, or accept no in-player pills on
+  the TV and say so in the wiki.
+* D-pad focus entering an Android System WebView on Google TV, and
+  whether the remote's Back reaches the app before the WebView.
+* HDR passthrough and multichannel audio passthrough through libmpv on
+  a Chromecast with Google TV.
+* Whether libmpv's `script-opts` survives for `SessionRecovery` to read
+  the profile id back the same way it does on the host.
+
+## Completion criteria
+
+* A Google TV on the LAN, with only the TV app installed from the Play
+  Store internal track, pairs with the host from Settings → Players and
+  shows the Media Centaur UI driven by its remote.
+* On that TV, every playable file in the library direct-plays with
+  libmpv; progress, completion, next-episode auto-advance and the finish
+  prompt behave as on the host, recorded under the profile picked on the
+  TV.
+* A host restart during TV playback leaves the TV playing and the
+  session reattaches, as ADR-023 guarantees for the host.
+* Only loopback and paired players can reach the endpoint; revoking a
+  player in Settings cuts it off.
+* The host's playback path is unchanged for a user with no paired
+  player, and `mix precommit` is green with zero warnings.
+* Wiki pages updated: Configuration-File, Settings-Reference, Playback,
+  Troubleshooting; a new page for the TV app.
+* Glossary terms elevated to `docs/GLOSSARY.md`; an ADR records the one
+  session type over two transports.
+
+## Pointers
+
+* `docs/playback.md`, `docs/mpv.md` — session internals, IPC protocol,
+  launch flags, bundled scripts.
+* `lib/media_centaur/playback/mpv_session.ex`, `launch_flags.ex`,
+  `session_recovery.ex`, `events.ex`, `resolver.ex`, `sessions.ex`.
+* `lib/media_centaur_web/live/profile_aware.ex` — the on_mount pattern
+  the player equivalent follows.
+* `lib/media_centaur_web/plugs/image_server.ex` — the file-serving plug
+  pattern.
+* `lib/media_centaur/settings/config.ex` — the bootstrap/runtime split
+  the bind address joins.
+* ADR-023 (durable process design), ADR-062 (playlist auto-advance),
+  ADR-072 (bundled mpv scripts), ADR-075 (context naming), ADR-078
+  (profile held by the browser session).
+* mpv JSON IPC: <https://mpv.io/manual/stable/#json-ipc>; libmpv client
+  API: `libmpv/client.h` in the mpv repository.
+* mpv-android: <https://github.com/mpv-android/mpv-android>; Findroid's
+  libmpv artifact: <https://github.com/jarnedemeulemeester/findroid>.

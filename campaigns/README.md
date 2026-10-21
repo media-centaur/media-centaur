@@ -21,6 +21,14 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`remote-players.md`](remote-players.md) —
+  **planning 2026-10-22; not started.** The UI and playback on a Google TV
+  on the same network, at host fidelity. The TV runs a native Android TV
+  app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
+  over a WebSocket, so `MpvSession` stays the one session type and only
+  the transport varies per player. Milestones: bind address + `Players`
+  context + pairing and access plug; transport extraction; remote
+  transport + media endpoint; the TV app; owner checks on the TV.
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
