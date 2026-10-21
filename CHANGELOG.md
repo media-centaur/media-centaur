@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.60.0 — 2026-10-21
+
+### New
+
+- **Every friend has a page.** Select a friend's name on the Social page to open their page: one row per title they have acted on, newest first, with the review's words in full, their rating and the episode on a series. Titles they are watching are there too, which the Feed leaves out. Beside the rows, **Your view of** a friend holds the settings that used to sit at the foot of their card: rename them, show their picture, pick their colour, hide them, and remove them. Your own page lists your activity. Each page has its own address, so the back button and a bookmark both work.
+- **The Feed and a friend's page work with the keyboard and gamepad.** Up and Down move between rows, Select opens the title, and Right steps along a row's List, Download and Ignore buttons. On a friend's page, Down past the last row moves into the settings card.
+
+### Improved
+
+- **A Feed review shows all its words.** A review was cut off after two lines; it is now shown in full, and only a long review makes its row taller.
+- **The Feed's review icon shows its grade.** The icon beside a review on the Feed is now drawn plain, silver or gold, as it is everywhere else in the app.
+- **Security updates.** The built-in web server and its supporting libraries are updated to versions that fix several published security advisories.
+
+### Fixed
+
+- **A one-line review sits level with its author.** On a title's page, a short lead review sat higher than its author's picture; it is now centred beside it.
+- **The selection ring fits a split button.** When a split button is selected with the keyboard or gamepad, the ring now outlines only the part that is selected.
+
 ## v1.59.0 — 2026-10-18
 
 ### New
