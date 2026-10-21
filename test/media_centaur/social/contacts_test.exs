@@ -236,4 +236,11 @@ defmodule MediaCentaur.Social.ContactsTest do
       assert {:error, :not_a_contact} = Social.set_hidden(String.duplicate("a", 64), true)
     end
   end
+
+  test "parse_pubkey/1 takes an npub or a 64-hex key, trimmed, as lowercase hex, and refuses anything else" do
+    assert {:ok, @pubkey} = Social.parse_pubkey(Keys.to_npub(@pubkey))
+    assert {:ok, @pubkey} = Social.parse_pubkey("  " <> @pubkey <> "\n")
+    assert {:error, :invalid_pubkey} = Social.parse_pubkey("you")
+    assert {:error, :invalid_pubkey} = Social.parse_pubkey("npub1nope")
+  end
 end
