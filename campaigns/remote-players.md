@@ -33,8 +33,8 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M5 stages 1–4 done 2026-10-22; stage 5 (records and docs) is next**
-(branch `remote-players`; `android-app` at `3df9251`). The whole OSD
+**M5 done 2026-10-22 (stages 1–5); M6, hardening, is next**
+(branch `remote-players`; `android-app` at `3df9251`; UIDR-055). The whole OSD
 check passes on the Sony (`mc-tv-flow osd tv`, record below): the layer
 over native 4K video, the Skip Intro pill taken by SELECT, SELECT
 pausing and resuming, arrows seeking, the track menu on MENU opening on
@@ -344,10 +344,10 @@ first, then iteration. The contract both codebases follow is
    plays one file, reports progress, auto-advances an episode, ends on
    eof or Back, on the Sony Bravia. The finish prompt and a
    real-length file move to M5's first item.
-5. **M5 — The native path and the page as OSD.** Measurements and
-   decisions done 2026-10-22 (record below); the procedure's steps 1–7
-   are next, plan before code. What the milestone must deliver, from
-   the decisions: the TV plays on `vo=mediacodec_embed` (native 4K
+5. ✅ **M5 — The native path and the page as OSD.** Built and verified
+   on the Sony 2026-10-22 (record below; UIDR-055; the Sound column,
+   sidecar subtitles and the stage-4 owner items went to M6). What the
+   milestone had to deliver, from the decisions: the TV plays on `vo=mediacodec_embed` (native 4K
    HDR10; mpv draws nothing); the host's page stays over the video,
    transparent, and is the TV's OSD; everything the bundled scripts
    draw on the desktop exists on the TV as host UI in the page; text
@@ -1091,6 +1091,21 @@ list follows what the owner picks. Execution has not started.
   film must play ≥10 s continuously for completion (the tracker's rule),
   which the finish check now does; the bar's DOM is patched at 1 Hz
   while hidden (cheap, but the hidden bar could skip its clock).
+* *Stage 5 (records and docs) — done 2026-10-22.* UIDR-055, *A remote
+  player's OSD is the host's page* (the layer and its parts, the 1 Hz
+  rule, keys to the page, the menu as the page's and nested, text
+  subtitles only; anti-patterns), `decisions/README.md` regenerated;
+  the protocol spec amended (the Boundaries row for local input, the
+  `player` row, launch, the viewing stream, the shell's forwarded keys);
+  `docs/mpv.md` says for each of the three scripts what the remote
+  player shows instead; `docs/playback.md` already carried the viewing
+  and the command door from stage 1; the input-system doc and skill
+  carry the overlay rules from stage 4. Wiki, committed locally and
+  unpushed (`de4868e`, after M1's `9df804c`): `Playback.md` *On a
+  paired TV*, `Keyboard-and-Gamepad.md` *On a paired TV (during
+  playback)* with the remote's keys as they stand (open decision 8 may
+  change the menu key), `Troubleshooting.md` *Playback on a TV* (image
+  subtitles, no surround passthrough). ADR-080 was amended in stage 1.
 
 ### M4 — TV app skeleton (procedure record)
 
@@ -1983,13 +1998,13 @@ TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
 each window to a minute, always end with `mc-tv hdmi`.
 
-**The next session's agenda: stage 5 (records and docs), then M6.**
-Stage 4 is green on the TV (2026-10-22, second sitting). Stage 5 as
-planned in step 5: ADR-080 is amended already; the UIDR for the layer
-(*A remote player's OSD is the host's page*); the protocol spec
-amendment; `docs/playback.md`, `docs/mpv.md`; the wiki pages (local
-commits, unpushed); `decisions/README.md`. Open decision 8 (the menu
-key) waits on the owner saying which keys the Sony remote has. For any
+**The next session's agenda: M6, hardening.** M5 is done (2026-10-22,
+stages 1–5; UIDR-055; wiki commits `9df804c` and `de4868e` local,
+unpushed). M6 runs the campaign procedure on the deferred list under M5
+in Next steps (step 1, scope), plus the stage-4 owner items (the TV's
+UI scale a little smaller, a seek past the end, the hidden bar's clock)
+and the Sound column. Open decision 8 (the menu key) waits on the owner
+saying which keys the Sony remote has. For any
 TV window: `mc-sim-host start` (it serves the branch and rebuilds
 `app.js` on change — confirm a changed symbol with `grep` in
 `priv/static/assets/js/app.js`), `mc-tv connect`, wake the TV if needed

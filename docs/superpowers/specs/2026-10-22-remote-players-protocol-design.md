@@ -201,6 +201,26 @@ scalars (`aid`, `sid`); `time-pos`, `duration` are observed as doubles,
 `pause`, `eof-reached` as flags, `playlist-count`, `playlist-pos` as
 integers.
 
+**2026-10-22 — the page is the OSD (M5, UIDR-055).** Three rows above
+no longer hold. *Local input* (Boundaries): the remote's keys go to the
+page, not to mpv; the page's viewing behaviour turns them into
+`Playback.Command`s the host renders to IPC and sends down the channel
+(page → host → channel → mpv ≈10 ms, measured on the Sony). No
+`input.conf`, no `keypress`, no bundled scripts on the player. *The
+`player` row* (TV app architecture): `script=` is gone and `vo=gpu-next`
+is `vo=mediacodec_embed` — the decoder writes straight to the surface for
+native 3840×2160 HDR10 and mpv draws nothing; the WebView stays visible
+over the surface for the whole viewing. *Launch*: every `loadfile`
+carries the session options as per-file options (ADR-080's amendment),
+the language policy and the profile included, and the TV app ships no
+scripts package. The host keeps a per-player **viewing stream**
+(`Playback.subscribe_viewing/1`: the viewing on attach, on every
+discrete change, position once a second) from which the page draws the
+layer; `sub-text` and `chapter` join the observed set. The shell forwards
+Back and Menu to the page as `Escape` and `ContextMenu` keydowns on the
+focused element — never on the document, whose target the page's
+keyboard source cannot read; every other key the WebView delivers as is.
+
 ## The end-to-end skeleton
 
 The smallest vertical slice that exercises every boundary, built before anything is hardened:
