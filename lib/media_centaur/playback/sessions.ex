@@ -41,6 +41,14 @@ defmodule MediaCentaur.Playback.Sessions do
     end
   end
 
+  @doc """
+  Reattaches a session to an mpv that outlived its last one (`SessionRecovery`):
+  the params already name the file, the position and the profile, and
+  `reattach?: true` tells the transport to observe rather than load.
+  """
+  @spec resume(map(), player()) :: :ok | {:error, term()}
+  def resume(params, player), do: start(Map.put(params, :reattach?, true), player)
+
   defp start(params, player) do
     with {:ok, transport} <- transport_for(params, player) do
       Log.info(

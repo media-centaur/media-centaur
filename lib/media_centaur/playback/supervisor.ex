@@ -38,18 +38,12 @@ defmodule MediaCentaur.Playback.Supervisor do
   end
 
   defp recover_sessions do
-    alias MediaCentaur.Playback.{SessionRecovery, SessionSupervisor}
+    alias MediaCentaur.Playback.SessionRecovery
     require MediaCentaur.Log, as: Log
 
     for params <- SessionRecovery.recover_all() do
-      params =
-        Map.merge(params, %{
-          player: :host,
-          transport: MediaCentaur.Playback.Transport.Local.new(params.entity_id)
-        })
-
-      case SessionSupervisor.start_session(params) do
-        {:ok, _pid} ->
+      case MediaCentaur.Playback.Sessions.resume(params, :host) do
+        :ok ->
           Log.info(:playback, "recovered session — #{params[:entity_name] || params.entity_id}")
 
         {:error, reason} ->
