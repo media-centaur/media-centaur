@@ -33,17 +33,18 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M4 built and verified on the TV 2026-10-22, on branch
-`remote-players` and in `~/src/media-centaur/android-app`**: the TV
-app pairs, browses with the D-pad, plays over the media endpoint,
-reports progress, auto-advances an episode, ends on `eof-reached` or
-Back, and stays paired across restarts, all against a simulated host.
-M1–M3 are built and verified; nothing merges to main before the
-owner's sign-off at the campaign's end; the wiki edits are committed
-locally in the wiki repo and not pushed. The owner's computer shows
-through the TV's HDMI 4, so TV tests are short scripted windows ending
-with `mc-tv hdmi`. Next: M5, hardening, starting with the finish
-prompt on a real-length file.
+**M4 built and verified on the TV 2026-10-22** (branch `remote-players`
+and `~/src/media-centaur/android-app` at `2ad7dda`): the TV app pairs,
+browses with the D-pad, plays over the media endpoint, reports
+progress, auto-advances an episode, ends on `eof-reached` or Back, and
+stays paired across restarts, all against a simulated host
+(`mc-sim-host`). M1–M3 are built and verified; nothing merges to main
+before the owner's sign-off at the campaign's end; the wiki edits are
+committed locally in the wiki repo and not pushed. **The next session
+opens with a conversation, not code**: the owner's concern about
+playback performance on large, high-bitrate releases, and the
+"speed test" the product should offer (open decisions 2 and 3). Then
+M5, hardening, with those two items at its head.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -146,6 +147,37 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    "Media Centaur" are provisional in the app repository. An id cannot
    change after the first Play upload, so the owner confirms both
    before M6. Recommendation: keep them.
+2. **Playback performance on large, high-bitrate releases** (owner's
+   concern, 2026-10-22). What is known: the spec's throughput budget
+   (1080p remux 25–40 Mbit/s; 4K HDR remux 60–100 Mbit/s; the host's
+   `sendfile` is not the limit, the device's link is); the Sony is a
+   32-bit Android 12 panel on WiFi with MediaCodec decode; the app's
+   cache is 150 MiB / 20 s readahead; the only file played so far is a
+   2 MB 720p test pattern. What is unknown, and measurable before any
+   design: the Sony's real WiFi throughput from the host (a timed
+   fetch of a large file through the media endpoint), MediaCodec's
+   HEVC 10-bit 4K decode on this panel, whether libmpv's cache rides
+   out WiFi jitter at 60+ Mbit/s, HDR and audio passthrough. Levers if
+   it falls short: wired Ethernet on the TV, cache size and readahead,
+   `hwdec` variants, and as a last resort a host-side remux or
+   transcode, which the design rejected for fidelity and would reopen
+   the media-server question. Recommendation: measure first on the
+   owner's real library (one 1080p remux, one 4K HDR remux), in a TV
+   window, before deciding anything; the numbers decide M5's order.
+3. **A "speed test" for the user** (owner, 2026-10-22): something that
+   gives real clarity, practically and in plain terms, about what a
+   player can play. Shape to design with the owner: Settings → Players
+   (or the player's row) runs a timed transfer from the media endpoint
+   to that player and reports a verdict in the user's terms — "this TV
+   can play 1080p releases; 4K releases will buffer" — rather than a
+   number alone, with the number beside it; a per-title hint before
+   Play (the file's bitrate against the player's measured rate) is the
+   natural follow-on. The measurement itself can be one channel
+   command (the bridge fetches N MB of a known file and reports
+   elapsed), or mpv's own `cache-speed` while playing. Which
+   milestone: M5 if measurement shows a real limit, M6 otherwise.
+   Recommendation: design it with the owner at the start of the next
+   session, after the measurements of item 2.
 
 ## Next steps
 
@@ -183,7 +215,9 @@ first, then iteration. The contract both codebases follow is
    plays one file, reports progress, auto-advances an episode, ends on
    eof or Back, on the Sony Bravia. The finish prompt and a
    real-length file move to M5's first item.
-5. **M5 — Hardening.** The finish prompt and a real-length viewing on
+5. **M5 — Hardening.** First: playback performance measured on the
+   owner's real library (open decision 2) and the speed test designed
+   (open decision 3); the finish prompt and a real-length viewing on
    the device (completion recorded, the prompt shown in the WebView);
    the pairing page's Code field size in the WebView; the WebView's
    960×540 layout scale (measure first); the audio underrun at start;
@@ -1070,34 +1104,34 @@ Advanced → CPU Configuration) is optional and makes it fast. The
 source-address check is done: an app on the emulator must dial the
 host's LAN address, never `10.0.2.2`.
 
-**Running the branch as a host (the end-to-end rig).**
-* Scratch config: `/tmp/claude-1000/-home-shawn-src-media-centaur-media-centaur-app/4804e16b-c167-4c22-8eb8-6d5631bc6c6f/scratchpad/sim/media-centaur-sim.toml`
-  — `bind = "0.0.0.0"`, port 4003, its own database and a media dir
-  holding one generated 90 s MKV under `Sample Movie (2010)/`. The
-  scratchpad is per session: a new session recreates it (ffmpeg
-  `testsrc`/`sine` to make the file; `agent-mix ecto.create`/`ecto.migrate`
-  under `MEDIA_CENTAUR_CONFIG_OVERRIDE`; the seed snippet is in the
-  commit `7d2a74e7` conversation record below).
-* Seed: `Library.Containers.create!(:movie, …)`, `Library.PlayableItems.find_or_create(:movie, id, 1)`,
-  `Library.Files.link!(%{file_path, media_dir, playable_item_id})`,
-  `Settings.Config.update(:setup_wizard_dismissed, true)`, run with
-  `MEDIA_CENTAUR_CONFIG_OVERRIDE=<toml> agent-mix run -e '…'`.
-* Server: from the worktree,
-  `MEDIA_CENTAUR_CONFIG_OVERRIDE=<toml> MIX_BUILD_ROOT=~/.cache/agent-mix-build/media-centaur-app-remote-players mise exec -- elixir --sname mc_sim -S mix phx.server`,
-  ready line "Running MediaCentaurWeb.Endpoint … 0.0.0.0:4003".
-* Driving it: `elixir --sname probe_$$ --cookie "$(cat ~/.erlang.cookie)" --rpc-eval mc_sim@<short hostname> '<code>'`
-  from a cwd outside the checkout (`uname -n | cut -d. -f1` is the host;
-  `hostname` is not installed). `Players.start_pairing()`, `Players.list()`,
-  `Playback.play(profile_id, uuid, player_id)`, `Sessions.stop/2`,
-  `Sessions.list/0`, `Remote.PlayerRegistry.connected/0`.
-* The device stand-in: `~/scripts/agents/mc-player-sim --host http://<LAN ip>:4003 --code <6 digits>`
-  (or `--cookie <value>` once paired). It must dial the LAN address
-  (`ip -4 -o addr show scope global`), never loopback, or the gate treats
-  it as the host. It logs every frame (`>>` host→mpv, `<<` mpv→host) and
-  maps `quit` to `stop`.
-* Shut the host down with `spawn(fn -> Process.sleep(200); System.stop() end)`
-  over RPC; the simulator's mpv keeps playing and recovery reattaches on
-  the next start.
+**Running the branch as a host (the end-to-end rig).** Two scripts
+replace the per-session recipe: `~/scripts/agents/mc-sim-host`
+(`setup` once — media, TOML, database, seed under `~/.cache/mc-sim-host`;
+`start`, `stop`, `status`, `rpc '<elixir>'`, `ids`, `pairing`; bound
+to every address on 4003, a device dials the LAN URL `status` prints)
+and `~/scripts/agents/mc-tv-flow` (`pair`, `play`, `finish`, each one
+short TV window ending with `mc-tv hdmi`; reads ids from
+`mc-sim-host ids`). The simulated host's database was recreated on
+2026-10-22 when the script was written, so **the TV must pair again**
+(`mc-tv-flow pair tv`) before `play` or `finish`. `mc-player-sim`
+remains the desktop stand-in for host-side work. Run every `mix`
+through `agent-mix`; the dev TOML's database is the owner's.
+
+**The owner's screen.** The owner's computer is displayed through the
+TV's HDMI 4. Any TV window takes it away; the owner has allowed
+automatic switching, asking that screen time be minimised: batch, keep
+each window to a minute, always end with `mc-tv hdmi`.
+
+**The next session's agenda.** (1) Talk with the owner about playback
+performance and the speed test (open decisions 2 and 3) before writing
+code. (2) Measure on the owner's real library: pick a 1080p remux and
+a 4K HDR remux, play each on the Sony in one window, read mpv's
+`cache-speed`, `demuxer-cache-duration`, dropped frames, and whether
+it stutters; a timed `curl` of the same file from a LAN machine gives
+the link's ceiling. The real library is the owner's dev server on
+2160 (loopback) — reaching it from the TV needs `bind` opened on that
+install or a copy of the files into the simulated host's media dir;
+ask the owner which. (3) Then M5 in the order the numbers dictate.
 
 **What is proven end to end** (2026-10-22, M2 record step 7): pairing by
 code; channel up; `play/3`; options and `loadfile` with a tokenised media
@@ -1120,6 +1154,12 @@ back from libmpv, the WebView's cost on a Chromecast with Google TV.
 * `~/scripts/agents/mc-player-sim` — the device stand-in: pairs, opens the
   channel, bridges a desktop mpv; the end-to-end check for any host-side
   change.
+* `~/scripts/agents/mc-sim-host`, `~/scripts/agents/mc-tv-flow`,
+  `~/scripts/agents/mc-tv` — the simulated host, the TV verification
+  windows, the device rig (run each with no arguments for usage).
+* `~/src/media-centaur/android-app` — the TV app: `README.md` is its
+  contributor guide; `bridge/Ipc.kt` and `player/Player.kt` carry the
+  protocol decisions in their docs.
 * `dev.jdtech.mpv:libmpv` 1.0.0 (Maven Central; source
   <https://github.com/jarnedemeulemeester/libmpv-android>, `MPVLib.kt`)
   — the libmpv the TV app embeds.
