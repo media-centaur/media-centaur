@@ -35,7 +35,7 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 **M4 built and verified on the TV 2026-10-22; M5's first measurements
 taken the same day** (branch `remote-players`;
-`~/src/media-centaur/android-app` at `e46cd1b`). The TV app pairs,
+`~/src/media-centaur/android-app` at `6e2ea71`). The TV app pairs,
 browses with the D-pad, plays over the media endpoint, reports
 progress, auto-advances an episode, ends on `eof-reached` or Back, and
 stays paired across restarts, against a simulated host (`mc-sim-host`).
@@ -149,6 +149,10 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The owner's TV is a Sony Bravia XR-42A90K at `192.168.68.63`: Android 12 (API 31), 32-bit only (`armeabi-v7a`), adb over the network on 5555 once ADB debugging is on. (M3 hardware checks)
 * `2026-10-22` — The bridge's `set_property` keeps the JSON value's type (boolean, integer, double, string), as mpv's own JSON IPC does; a boolean sent as the string `"false"` is rejected by libmpv with error -4, which had left every viewing on the TV paused. (`android-app` `e46cd1b`)
 * `2026-10-22` — Throughput needs no design work on this TV: measured 210–220 Mbit/s through the media endpoint over WiFi against a 95 Mbit/s ceiling in the owner's library; no transcode or remux path is opened. The speed test (open decision 3) remains a product question, not a rescue. (M5 measurement)
+* `2026-10-22` — Full fidelity is the target of this software; the TV never drops picture quality to gain a feature. (owner)
+* `2026-10-22` — The TV renders video on the native path (`vo=mediacodec_embed`: the decoder writes to the surface, the panel gets native resolution and HDR10); mpv draws nothing on the TV. PGS (bitmap) subtitles are unsupported on the TV rather than served through the GPU path at 1080p SDR. (owner; evidence in `android-app` `docs/playback-on-android.md`)
+* `2026-10-22` — The host's page is the TV's OSD: it stays over the video, transparent, and the host renders the pills, track menu, finish prompt and text subtitles into it; the bundled Lua scripts stay the desktop mpv's. Verified on the panel that a transparent page over the native HDR video shows the video, both layers hardware-composited. (owner: "probably makes sense"; agent recommendation; `android-app` `c1ad83f` and after)
+* `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
 
 ## Open decisions
 
@@ -194,11 +198,20 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    3840×2160 layer with dataspace `BT2020_ITU_PQ` and HDR metadata on
    both the DV remux and a plain HDR10 remux, zero dropped frames, `vo`
    switched at runtime over the channel; Dolby Vision is not signalled
-   on either path (base layer, HDR10). Recommendation now: (c) with
-   the WebView as the OSD — the native path by default, the host UI
-   drawing the pills, track menu and text subtitles (`sub-text`) in the
-   WebView, and the GPU path only while a bitmap subtitle track (PGS)
-   is selected. Audio passthrough is a separate, untested item.
+   on either path (base layer, HDR10). Also verified, the owner
+   watching the panel: a transparent page with a label over the native
+   HDR video shows the video playing under it, both layers
+   hardware-composited, once the app's three opaque backgrounds were
+   removed (`android-app` `docs/playback-on-android.md`). **Owner's
+   calls, 2026-10-22:** dropping quality is not acceptable, so there is
+   no GPU-path fallback; PGS is unsupported on the TV; full fidelity is
+   the target. Decision taken: (b) with the WebView as the OSD — the
+   native path always, the host UI drawing the pills, track menu,
+   finish prompt and text subtitles (`sub-text`) in the WebView, and
+   PGS-only files saying so plainly. Audio: bitstream passthrough
+   (`audio-spdif`) is the fidelity path; optical carries AC3 and the
+   DTS core, eARC would carry DTS-HD MA and TrueHD; untested on the
+   panel, an M5 item.
 5. **Per-viewing state on a long-lived libmpv** (found 2026-10-22). The
    host's mpv is a fresh process per viewing, so every option starts at
    its default; the TV's one libmpv keeps the previous viewing's
