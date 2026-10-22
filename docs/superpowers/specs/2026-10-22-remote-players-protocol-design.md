@@ -175,7 +175,31 @@ The app has no model of titles, profiles or progress. Its persistent state is th
 | mpv IPC: one JSON object per message, `request_id` correlation, events may interleave with replies | Verified 2026-10-22 (`DOCS/man/ipc.rst`) |
 | D-pad focus into an Android System WebView on Google TV; Back key dispatch order | Open; first thing the TV skeleton tests on hardware |
 | HDR passthrough and multichannel audio passthrough through libmpv on a Chromecast with Google TV | Open; hardening milestone |
-| `script-opts` readable back from libmpv for recovery | Open; the skeleton's recovery test |
+| `script-opts` readable back from libmpv for recovery | Verified 2026-10-22 on the Sony: the bridge answers `get_property script-opts` as a map parsed from libmpv's `k=v,…` string (amendment below) |
+| D-pad focus into the WebView on the Sony; Back reaches the app first | Verified 2026-10-22: arrow keys move the page's focus; the activity intercepts Back before the WebView |
+| libmpv plays over the media endpoint on a 32-bit Sony Bravia (Android 12) | Verified 2026-10-22: `hwdec=mediacodec`, `vo=gpu`, full screen |
+| The session cookie survives the app's process restarts | Verified 2026-10-22: paired across three reinstalls |
+
+## Amendments
+
+**2026-10-22 — the `end-file` reason.** `dev.jdtech.mpv:libmpv` 1.0.0
+forwards only the event id for `MPV_EVENT_END_FILE` (`event.cpp`), not
+`mpv_event_end_file.reason`. The bridge supplies the reason: `stop`
+when a stop was asked for since the last `loadfile` (the host's `quit`,
+or Back on the remote), `eof` otherwise. `error` is never sent; mpv
+does not set `eof-reached` when it moves straight into the next
+playlist entry, and the host treats every reason but `stop`/`quit`
+alike. The sentence "mpv then reports `end-file` with reason `stop`"
+above holds of mpv, not of the binding.
+
+**2026-10-22 — rendering rules.** "Node-valued properties observed as
+`MPV_FORMAT_STRING` and parsed" is one case of a table in the bridge
+(`PropertyFormat`): JSON-text properties (`track-list`, `chapter-list`,
+`playlist`, …) are parsed; key-value lists (`script-opts`) become an
+object, which recovery requires; `yes`/`no` and numerals become their
+scalars (`aid`, `sid`); `time-pos`, `duration` are observed as doubles,
+`pause`, `eof-reached` as flags, `playlist-count`, `playlist-pos` as
+integers.
 
 ## The end-to-end skeleton
 

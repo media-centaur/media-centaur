@@ -33,17 +33,17 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M3 built and checked on hardware 2026-10-22 on branch
-`remote-players`**: the Android rig (SDK, JDK pin, `mc-tv`, AVD, the
-app repository's empty shell) builds, installs, launches, drives and
-observes the app on the owner's Sony Bravia XR-42A90K
-(`192.168.68.63`, Android 12, 32-bit). The emulator runs unaccelerated
-(AMD-V is off in the BIOS); SVM Mode would make it fast. M1 and M2 are built
-and verified against the simulator; nothing merges to main before the
+**M4 built and verified on the TV 2026-10-22, on branch
+`remote-players` and in `~/src/media-centaur/android-app`**: the TV
+app pairs, browses with the D-pad, plays over the media endpoint,
+reports progress, auto-advances an episode, ends on `eof-reached` or
+Back, and stays paired across restarts, all against a simulated host.
+M1–M3 are built and verified; nothing merges to main before the
 owner's sign-off at the campaign's end; the wiki edits are committed
-locally in the wiki repo and not pushed. Next: M4, the TV app skeleton —
-scope, research, decisions and the design pass recorded; the plan and
-execution follow the owner's word on the design.
+locally in the wiki repo and not pushed. The owner's computer shows
+through the TV's HDMI 4, so TV tests are short scripted windows ending
+with `mc-tv hdmi`. Next: M5, hardening, starting with the finish
+prompt on a real-length file.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -178,13 +178,16 @@ first, then iteration. The contract both codebases follow is
    press verified on the TV and on the emulator the same day; the
    emulator reaches the host as a device only via the LAN address.
    Left for M4: the WebView DevTools forward (needs a WebView).
-4. **M4 — TV app skeleton** (`~/src/media-centaur/android-app`).
-   Pairing screen, WebView shell, one libmpv instance on a surface, the
-   bridge with reconnect and `time-pos` coalesced to 1 Hz, the bundled
-   scripts in assets. Pairs, browses, plays one file, reports progress,
-   auto-advances an episode on a real Chromecast with Google TV.
-   Verification items below are answered here on hardware.
-5. **M5 — Hardening.** Detach/reattach end to end on the device;
+4. ✅ **M4 — TV app skeleton.** Built 2026-10-22 (record below):
+   `android-app` at `2ad7dda` — shell, player, bridge; pairs, browses,
+   plays one file, reports progress, auto-advances an episode, ends on
+   eof or Back, on the Sony Bravia. The finish prompt and a
+   real-length file move to M5's first item.
+5. **M5 — Hardening.** The finish prompt and a real-length viewing on
+   the device (completion recorded, the prompt shown in the WebView);
+   the pairing page's Code field size in the WebView; the WebView's
+   960×540 layout scale (measure first); the audio underrun at start;
+   detach/reattach end to end on the device;
    host-restart recovery on the device; sidecar subtitles over the media
    endpoint; HDR and audio passthrough options; Back-key and D-pad
    behaviour in the WebView; WebView rendering cost of the glass UI on
@@ -383,6 +386,51 @@ name is not restated in the app (the jar forwards whatever the host
 set); the key table exists once (`RemoteKeys`) and the policy once
 (`input.conf`). No old path kept, no constant copied, one commit per
 landable piece.
+
+**7. Execution (2026-10-22).** Built in `android-app` (commits
+`b72c549`, `2ad7dda`): `Log.kt`; `shell/` (`HostAddress`, `Shell`,
+`MainActivity`); `player/` (`Mpv`, `Player`, `RemoteKeys`, `Assets`);
+`bridge/` (`PropertyFormat`, `Ipc`, `Channel` with the WebView cookie
+jar); `assets/mpv/input.conf`; the scripts copy task; 11 JUnit tests
+on `Ipc` against a fake `Mpv`, green. Rig additions: `mc-tv launch
+--host <url>` (an intent extra sets the address, no typing on screen),
+`mc-tv eval '<js>'` over the WebView's DevTools socket (`_cdp.js`
+gained `connectPage(wsUrl)`, so `evaluate` drives a WebView as it
+drives a desktop page), `mc-tv hdmi`. Verified on the Sony against a
+simulated host on `0.0.0.0:4003` (scratch TOML, three 90 s test files,
+a movie and a two-episode series): the app loads the host, is sent to
+the pairing page, the form submitted through `mc-tv eval` pairs it,
+Home loads, the channel comes up with the WebView's cookie and host
+recovery queries it; `Playback.play/3` on the player sends the session
+options and `loadfile` with a tokenised media URL, libmpv plays it
+full screen over HTTP Range with `time-pos` at 1 Hz, the host's
+session is `:playing` on that player; a seek to 80 s of 90 ends the
+file and mpv moves into the appended next episode (`playlist-pos` 1);
+`eof-reached` on the chain's last file brings the host's `quit`, the
+bridge's `stop`, `end-file reason=stop`, the session ends and the page
+returns; Back on the remote does the same from the player; D-pad keys
+in the WebView move the page's focus (the input system's rings show);
+the cookie survived three process restarts (reinstalls), so a paired
+TV stays paired. Not exercised: the finish prompt — the host records
+completion only for a viewing its tracker counts as watched, which a
+seek to the end of a 90 s file is not; it is the first item of M5's
+owner walk with a real-length file. Found on the way, for M5: the
+pairing page's Code field renders at a fraction of the name field's
+size in the WebView (a host CSS question); the WebView lays the UI out
+at 960×540 CSS px on the 1080p override (scale 2, looks like a TV
+layout; measure before changing); mpv logs an audio underrun at each
+start; `eof-reached` is not set when mpv moves straight to the next
+playlist entry, so the synthesised reason is `stop` or `eof` and never
+`error`; the emulator's WebView renderer crashes without a GPU, so the
+emulator covers the player and the bridge only, never the shell.
+
+**The owner's screen.** The owner's computer is displayed through the
+TV's HDMI 4, so putting the app on the TV takes their display away.
+Rule from 2026-10-22, with the owner's leave to switch automatically:
+every TV test is one scripted window as short as it can be (the flow
+script in the scratchpad, ~1 min), and ends with `mc-tv hdmi`, which
+starts the TV's passthrough input for HDMI 4
+(`com.sony.dtv.tvinput.external/.ExternalTvInputService/HW5`).
 
 ### M3 — Android automation rig (objectives, recorded 2026-10-22)
 
@@ -998,8 +1046,11 @@ against `git log remote-players` first (the reconciliation rule).
   database is the owner's.
 * Wiki edits for M1 are committed locally in `~/src/media-centaur/media-centaur.wiki`
   (`9df804c`), not pushed; push with the release that carries the campaign.
-* The TV app: `~/src/media-centaur/android-app`, first commit `98800d9`,
-  no remote yet. Its toolchain is its `mise.toml`; the rig is
+* The TV app: `~/src/media-centaur/android-app` at `2ad7dda` (shell,
+  player, bridge; 11 JUnit tests), no remote yet. Each session: `mc-tv
+  connect`, `mc-tv build`, `mc-tv install`; `mc-tv launch --host
+  http://<LAN ip>:<port>` points it at a host; `mc-tv eval` drives the
+  WebView; every TV window ends with `mc-tv hdmi` (the owner's screen). Its toolchain is its `mise.toml`; the rig is
   `~/scripts/agents/mc-tv` (run it with no arguments for usage).
 
 **The TV (as of 2026-10-22).** Sony Bravia XR-42A90K at
