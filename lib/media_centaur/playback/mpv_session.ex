@@ -3,10 +3,12 @@ defmodule MediaCentaur.Playback.MpvSession do
   Per-session GenServer observing one mpv through a `Playback.Transport`.
 
   Each session tracks one entity's *viewing chain*, identified by entity_id,
-  and holds the profile it was started for (`profile_id`, ADR-078) for its
-  whole life — progress, track memory and every event it broadcasts are
-  that profile's, and a switch mid-film does not re-home them. Sessions
-  register in `SessionRegistry` by entity_id for lookup and enumeration.
+  on one **player** (`:host`, or a paired player's id), and holds the
+  profile it was started for (`profile_id`, ADR-078) for its whole life —
+  progress, track memory and every event it broadcasts are that profile's,
+  and a switch mid-film does not re-home them. Every event names the
+  player too. Sessions register in `SessionRegistry` by
+  `{player, entity_id}` for lookup and enumeration.
 
   This is an observation-only tracker — the user controls mpv directly.
   The session observes position/duration/pause/eof over IPC, persists
@@ -70,6 +72,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defstruct [
     :entity_id,
+    :player,
     :profile_id,
     :entity_name,
     :season_number,
@@ -129,23 +132,29 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- Public API ---
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params, name: SessionRegistry.via(params.entity_id))
+    GenServer.start_link(__MODULE__, params,
+      name: SessionRegistry.via({params.player, params.entity_id})
+    )
   end
 
   def child_spec(params) do
     %{
-      id: {__MODULE__, params.entity_id},
+      id: {__MODULE__, params.player, params.entity_id},
       start: {__MODULE__, :start_link, [params]},
       restart: :temporary
     }
   end
 
-  @doc "Returns a read-only snapshot of the session's current state."
-  def get_state(entity_id) do
-    case SessionRegistry.lookup(entity_id) do
+  @doc "Returns a read-only snapshot of the session's current state, by `{player, entity_id}`."
+  def get_state(key) do
+    case SessionRegistry.lookup(key) do
       nil -> nil
       pid -> GenServer.call(pid, :get_state)
     end
+  catch
+    # The session ended between the lookup and the call; the registry
+    # drops the key a moment after the process.
+    :exit, _gone -> nil
   end
 
   # --- Callbacks ---
@@ -158,6 +167,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     state = %__MODULE__{
       entity_id: params.entity_id,
+      player: params.player,
       profile_id: params.profile_id,
       entity_name: params[:entity_name],
       season_number: params[:season_number],
@@ -779,6 +789,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   def session_ended(state) do
     %Events.SessionEnded{
       entity_id: state.entity_id,
+      player: state.player,
       profile_id: state.profile_id,
       completed: state.completed
     }
@@ -939,6 +950,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     Events.broadcast(%Events.PlaybackStateChanged{
       entity_id: session.entity_id,
+      player: session.player,
       profile_id: session.profile_id,
       state: new_state,
       now_playing: now_playing,
@@ -968,6 +980,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp broadcast_playback_failed(session, reason, message) do
     Events.broadcast(%Events.PlaybackFailed{
       entity_id: session.entity_id,
+      player: session.player,
       reason: reason,
       payload: %{
         message: message,

@@ -36,12 +36,19 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     }
 
     Playback.subscribe()
+
+    # A session this test leaves running would show on the next test's
+    # Status page as "1 active"; end every session through the public door.
+    on_exit(fn ->
+      for {{player, entity_id}, _pid} <- SessionRegistry.list(), do: Sessions.stop(player, entity_id)
+    end)
+
     %{params: params, path: path, entity_id: movie.id}
   end
 
   defp start!(params) do
-    :ok = Sessions.play(params)
-    pid = SessionRegistry.lookup(params.entity_id)
+    :ok = Sessions.play(params, :host)
+    pid = SessionRegistry.lookup({:host, params.entity_id})
     assert is_pid(pid)
     pid
   end
@@ -75,9 +82,9 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     )
 
     assert_receive {:playback_state_changed,
-                    %Events.PlaybackStateChanged{state: :paused, entity_id: ^entity_id}}
+                    %Events.PlaybackStateChanged{state: :paused, entity_id: ^entity_id, player: :host}}
 
-    assert %{state: :paused} = Sessions.get(entity_id)
+    assert %{state: :paused, player: :host} = Sessions.get(:host, entity_id)
   end
 
   test "end of the playlist quits mpv and ends the session; the transport is closed for good",
@@ -93,12 +100,12 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
 
     assert_receive {:mpv_command, ["quit"]}
     assert_receive {:playback_state_changed, %Events.PlaybackStateChanged{state: :stopped}}
-    assert_receive {:session_ended, %Events.SessionEnded{entity_id: ^entity_id}}
+    assert_receive {:session_ended, %Events.SessionEnded{entity_id: ^entity_id, player: :host}}
 
     FakeTransport.emit(pid, {:closed, {:ok, :ended}})
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
     assert_receive {:transport_closed, true}
-    assert Sessions.get(entity_id) == nil
+    assert Sessions.get(:host, entity_id) == nil
   end
 
   test "a detached transport that comes back is re-observed; nothing ends", %{params: params} do

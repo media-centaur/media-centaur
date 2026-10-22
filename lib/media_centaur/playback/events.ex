@@ -40,7 +40,9 @@ defmodule MediaCentaur.Playback.Events do
 
   Every event about watching state names the `profile_id` it was recorded
   under (ADR-078); a subscriber holding profile-scoped state compares it
-  with its own.
+  with its own. Every event about a viewing names its `player` too
+  (`:host`, or a paired player's id — `campaigns/remote-players.md`), so a
+  subscriber can say where it plays.
   """
 
   alias MediaCentaur.Topics
@@ -75,12 +77,13 @@ defmodule MediaCentaur.Playback.Events do
 
   defmodule PlaybackStateChanged do
     @moduledoc "MpvSession state moved to :playing, :paused, or :stopped."
-    @enforce_keys [:entity_id, :profile_id, :state, :now_playing, :started_at]
-    defstruct [:entity_id, :profile_id, :state, :now_playing, :started_at]
+    @enforce_keys [:entity_id, :player, :profile_id, :state, :now_playing, :started_at]
+    defstruct [:entity_id, :player, :profile_id, :state, :now_playing, :started_at]
 
     @type state :: :playing | :paused | :stopped
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            player: :host | String.t(),
             profile_id: String.t(),
             state: state(),
             now_playing: map() | nil,
@@ -90,11 +93,12 @@ defmodule MediaCentaur.Playback.Events do
 
   defmodule PlaybackFailed do
     @moduledoc "MpvSession could not start or crashed during startup."
-    @enforce_keys [:entity_id, :reason, :payload]
-    defstruct [:entity_id, :reason, :payload]
+    @enforce_keys [:entity_id, :player, :reason, :payload]
+    defstruct [:entity_id, :player, :reason, :payload]
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            player: :host | String.t(),
             reason: atom(),
             payload: map()
           }
@@ -108,8 +112,8 @@ defmodule MediaCentaur.Playback.Events do
     ended before any. An episode carries its season and episode numbers,
     so a subscriber can compare it with TMDB's numbering without a read.
     """
-    @enforce_keys [:entity_id, :profile_id, :completed]
-    defstruct [:entity_id, :profile_id, :completed]
+    @enforce_keys [:entity_id, :player, :profile_id, :completed]
+    defstruct [:entity_id, :player, :profile_id, :completed]
 
     @type item ::
             {:movie, String.t()}
@@ -118,6 +122,7 @@ defmodule MediaCentaur.Playback.Events do
             | {:extra, String.t()}
     @type t :: %__MODULE__{
             entity_id: String.t(),
+            player: :host | String.t(),
             profile_id: String.t(),
             completed: MapSet.t(item())
           }

@@ -621,6 +621,7 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       msg =
         {:playback_state_changed,
          %MediaCentaur.Playback.Events.PlaybackStateChanged{
+           player: :host,
            entity_id: "abc",
            profile_id: "p-1",
            state: :playing,

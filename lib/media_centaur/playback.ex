@@ -28,18 +28,26 @@ defmodule MediaCentaur.Playback do
     Topics.subscribe(Topics.playback_events())
   end
 
+  @typedoc "Where a viewing shows: this computer's mpv, or a paired player by id."
+  @type player :: Sessions.player()
+
   @doc """
   Starts playback of `uuid` for `profile_id`, the session's active profile
-  (ADR-078). The profile is captured here and held by the session for its
-  life: a switch mid-film does not re-home the progress.
+  (ADR-078), on `player`: `:host` for an mpv this computer spawns, or a
+  paired player's id for the mpv on that device. The profile is captured
+  here and held by the session for its life: a switch mid-film does not
+  re-home the progress.
   """
-  @spec play(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, atom()}
-  def play(profile_id, uuid) when is_binary(profile_id) and is_binary(uuid) do
-    Log.info(:playback, "play requested — #{Format.short_id(uuid)} for #{Format.short_id(profile_id)}")
+  @spec play(Ecto.UUID.t(), Ecto.UUID.t(), player()) :: :ok | {:error, atom()}
+  def play(profile_id, uuid, player) when is_binary(profile_id) and is_binary(uuid) do
+    Log.info(
+      :playback,
+      "play requested — #{Format.short_id(uuid)} for #{Format.short_id(profile_id)} on #{inspect(player)}"
+    )
 
     case Resolver.resolve(profile_id, uuid) do
       {:ok, play_params} ->
-        Sessions.play(play_params)
+        Sessions.play(play_params, player)
 
       {:error, reason} ->
         Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")

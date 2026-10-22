@@ -500,6 +500,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       })
 
       Events.broadcast(%PlaybackStateChanged{
+        player: :host,
         entity_id: movie.id,
         profile_id: owner_profile_id(),
         state: :playing,
@@ -569,6 +570,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
 
       Events.broadcast(%PlaybackFailed{
+        player: :host,
         entity_id: Ecto.UUID.generate(),
         reason: :file_not_found,
         payload: %{reason: :file_not_found, file_path: "/missing.mkv"}
@@ -721,6 +723,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
     defp finish(movie, profile_id, completed \\ nil) do
       Events.broadcast(%SessionEnded{
+        player: :host,
         entity_id: movie.id,
         profile_id: profile_id,
         completed: MapSet.new(completed || [{:movie, movie.id}])
@@ -848,6 +851,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
     defp finish_series(series, completed) do
       Events.broadcast(%SessionEnded{
+        player: :host,
         entity_id: series.id,
         profile_id: owner_profile_id(),
         completed: MapSet.new(completed)
@@ -925,6 +929,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
     defp finish_member(collection, movie) do
       Events.broadcast(%SessionEnded{
+        player: :host,
         entity_id: collection.id,
         profile_id: owner_profile_id(),
         completed: MapSet.new([{:movie, movie.id}])

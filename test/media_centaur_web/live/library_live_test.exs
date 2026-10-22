@@ -1622,6 +1622,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ "animate-pulse"
 
       Events.broadcast(%PlaybackStateChanged{
+        player: :host,
         entity_id: movie.id,
         profile_id: owner_profile_id(),
         state: :playing,
@@ -1637,6 +1638,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, "/library")
 
       Events.broadcast(%PlaybackFailed{
+        player: :host,
         entity_id: movie.id,
         reason: :file_not_found,
         payload: %{reason: :file_not_found, file_path: "/missing.mkv"}
