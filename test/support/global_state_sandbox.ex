@@ -103,6 +103,9 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Watcher.Supervisor =>
       {:reset, {MediaCentaur.Watcher.Supervisor, :stop_watchers, []},
        "a test that calls start_watchers/0 leaves watcher children running; the flag is a :persistent_term"},
+    MediaCentaur.Players.Pairing =>
+      {:reset, {MediaCentaur.Players.Pairing, :cancel, []},
+       "the one open pairing code; a test that starts pairing would leave the next test's pairing page able to pair"},
     MediaCentaur.SelfUpdate.Updater =>
       {:probe, {MediaCentaur.SelfUpdate.Updater, :status, []},
        "download/apply state the Settings page reads; tests drive named instances, so the singleton stays at rest"},
