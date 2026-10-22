@@ -33,14 +33,15 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M2 built 2026-10-22 on branch `remote-players`**, end to end with a
-simulated player: pairing, channel, media over HTTP, progress, stop,
-host-restart recovery all verified against a desktop mpv
-(`scripts/agents/mc-player-sim`). M1 and M2 wait for the owner's
-sign-off at the campaign's end; nothing merges to main before. The wiki
-edits are committed locally in the wiki repo and not pushed. Next: M3,
-the Android automation rig (toolchain, device access, `mc-tv`, emulator,
-the empty app repository), then M4, the TV app skeleton.
+**M3 built 2026-10-22 on branch `remote-players`**: the Android rig
+(SDK, JDK pin, `mc-tv`, AVD, the app repository's empty shell) builds
+the debug APK; nothing has reached a device yet. Two owner steps
+unblock the hardware checks: wireless debugging on the TV (Sony Bravia
+XR-42A90K, `192.168.68.63`) and a reboot for KVM. M1 and M2 are built
+and verified against the simulator; nothing merges to main before the
+owner's sign-off at the campaign's end; the wiki edits are committed
+locally in the wiki repo and not pushed. Next: the hardware checks of
+M3, then M4, the TV app skeleton.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -133,10 +134,16 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — Media requests carry a capability token: the host signs `{player_id, presence_id}` (`Phoenix.Token`, 12 h) into each media URL it composes, and the gate admits `/media/*` by that token alone. Rejected: the session cookie in libmpv's HTTP headers (the device's whole identity on every byte-range request). (owner)
 * `2026-10-22` — One branch, `remote-players`, for the whole campaign; nothing merges to main until the owner signs off at the campaign's end. The branch is not pushed. Main's M1 status in the index is therefore "built on the branch", not shipped. (owner)
 * `2026-10-22` — The TV app ships `priv/mpv/scripts/media-centaur` in its assets and points libmpv at it; verified that the `dev.jdtech.mpv:libmpv` 1.0.0 artifact builds mpv 0.41 with Lua enabled. (spec, verified)
+* `2026-10-22` — The Android toolchain is owned by the app repository's `mise.toml` (Temurin 21, `ANDROID_HOME=~/Android/Sdk`, SDK tools on `PATH`); `mc-tv` runs every tool through `mise -C <repo> exec`; nothing goes in a shell profile. SDK licences accepted on the owner's behalf. (M3 record; agent, owner absent)
+* `2026-10-22` — The TV app targets compileSdk and targetSdk 36 on AGP 9.4.0 with built-in Kotlin, Gradle 9.6.0, minSdk 26. (M3 research)
+* `2026-10-22` — The owner's TV is a Sony Bravia XR-42A90K at `192.168.68.63`. (mDNS, M3)
 
 ## Open decisions
 
-None.
+1. **Application id and display name** — `app.mediacentaur.tv` and
+   "Media Centaur" are provisional in the app repository. An id cannot
+   change after the first Play upload, so the owner confirms both
+   before M6. Recommendation: keep them.
 
 ## Next steps
 
@@ -163,12 +170,12 @@ first, then iteration. The contract both codebases follow is
    with no Android code. Detach/reattach window and host-restart
    recovery over the channel are in scope here only as far as the sim
    proves them; hardening is M4.
-3. **M3 — Android automation rig.** Added 2026-10-22 at the owner's
-   direction, before any app code: everything needed so the agent can
-   build, install, launch, drive and observe the TV app on the owner's
-   Google TV (and an emulator when the TV is off) with no manual step
-   beyond the one-time device setup. Objectives and open decisions in
-   the M3 section below. Starts in the next session.
+3. ✅ **M3 — Android automation rig.** Built 2026-10-22 (record
+   below): SDK, JDK pin, `mc-tv`, AVD, the app repository's empty
+   shell, the debug APK. Its hardware checks (pair, install, launch,
+   screencap, D-pad, WebView DevTools, the emulator's source address)
+   run at the start of M4, once the TV is in developer mode and the
+   machine has rebooted.
 4. **M4 — TV app skeleton** (`~/src/media-centaur/android-app`).
    Pairing screen, WebView shell, one libmpv instance on a surface, the
    bridge with reconnect and `time-pos` coalesced to 1 Hz, the bundled
@@ -188,10 +195,7 @@ first, then iteration. The contract both codebases follow is
 
 ### M3 — Android automation rig (objectives, recorded 2026-10-22)
 
-The next order of business. Nothing here is built yet; this section is
-the brief for the session that starts it, which runs the milestone
-procedure (scope, research, decisions, design unification, plan, plan
-unification, execution) and records each step here.
+The brief the milestone was built from; the procedure record follows it.
 
 **Goal.** The agent develops the TV app the way it develops the host:
 build from the command line, install on the device, launch, press keys,
@@ -266,6 +270,128 @@ and surviving a TV sleep; `screencap` of the Leanback launcher; a
 D-pad `keyevent` moving focus; the WebView's DevTools socket exposed
 and `chromium-probe` evaluating in it; the emulator's source address as
 the gate sees it.
+
+### M3 — Android automation rig (procedure record)
+
+**1. Scope (2026-10-22).** In: the SDK under `~/Android/Sdk` with
+`adb`, build tools, the platform and the emulator; a JDK pinned per
+repository with `mise`; `~/scripts/agents/mc-tv`; the Android TV AVD;
+the `~/src/media-centaur/android-app` repository as an empty shell that
+builds, installs and launches; a log tag and filter the agent reads.
+Dropped: USB debugging (the TV is on the LAN; adb over the network is
+the only path, so no udev rules and no root). Moved to M4: everything
+the app does beyond launching, and every check that needs the TV or a
+booted emulator (both are blocked this session, see research).
+
+**2. Research (2026-10-22).**
+* Toolchain versions, from the vendors' pages: AGP 9.4.0 (September
+  2026; Gradle 9.6.0 minimum and default, SDK Build Tools 36.0.0, JDK
+  17 minimum, API 37 maximum); Kotlin is built into AGP since 9.0, so
+  no `org.jetbrains.kotlin.android` plugin; command-line tools build
+  `15859902` (sha256 `4e4c464f…df583`); Gradle 9.6 runs on JDK 17–26
+  (JDK 27 needs Gradle 9.8); `dev.jdtech.mpv:libmpv` 1.0.0 (2026-04-06,
+  Kotlin stdlib 2.2.10); OkHttp 5.4.0 (2026-06-08); Kotlin 2.4.0.
+* This machine: `openjdk 27` system JDK, no Android SDK, no `adb`, no
+  Gradle, no `ANDROID_HOME`; `mise` offers Temurin 21.0.12 LTS;
+  175 GB free. `/dev/kvm` is absent because the running kernel
+  (7.2.9) was replaced on disk by 7.2.11 and `/lib/modules/7.2.9-arch1-1`
+  is gone: the kvm modules cannot load until the machine reboots. The
+  emulator is therefore installable this session but not bootable.
+* The LAN (`192.168.68.0/22`, host `192.168.68.67`): mDNS shows four
+  Nest speakers and a Nest Hub, no Google TV, nothing advertising
+  `_adb-tls-connect._tcp` or `_adb-tls-pairing._tcp`; no host on the
+  /22 answers on 5555. The TV is off or not yet in developer mode. Its
+  address is still a fact to record.
+* `adb` comes from the SDK's `platform-tools` package, so no system
+  package (`android-tools`) and no `sudo` are needed.
+* An emulator guest dialling the host's LAN address arrives from that
+  address, not loopback (the guest's NAT connects from the host's own
+  interface), so the gate should treat the emulator as a device; the
+  guest's `10.0.2.2` alias would arrive from loopback and make it the
+  host. To be verified once the emulator boots.
+
+**3. Decisions (2026-10-22).** Taken as the campaign's recommendations
+stood, the owner being absent this session; each is reversible with
+one `rm -rf` and none touches the host. The SDK lives under
+`~/Android/Sdk`, licences accepted on the owner's behalf (the decision
+to build an Android app distributed through Play implies the SDK terms).
+JDK 21 LTS pinned by the app repository's `mise.toml`, Gradle 9.6.0 by
+its wrapper. The emulator is installed (API 35 Android TV, x86_64) for
+TV-off runs. Provisional, for the owner before anything reaches Play:
+the application id `app.mediacentaur.tv` (an id cannot change after
+the first Play upload) and the app's display name "Media Centaur".
+
+**4. Design unification (2026-10-22).** Core idea: *the agent develops
+the TV app through the loop it already has for the host — build,
+install, launch, drive, observe — and every fact that loop needs lives
+in one place.* Greenfield owners: the app repository's `mise.toml` owns
+the toolchain facts (the JDK pin, `ANDROID_HOME`, the SDK tools on
+`PATH`), so a contributor's shell and the script see the same
+environment and nothing lands in a shell profile; `mc-tv` owns the
+rig's facts (the repository path, the device address file under
+`~/.config/mc-tv/`, the AVD name) and runs every tool through
+`mise -C <repo> exec`, so it never restates the toolchain; the
+application id and log tag are the app's published interface, which
+the script names as a client. Seams already fitting: `~/scripts/agents/`
+with the `mc-*` names and the `agent-mix` precedent of a script that
+carries one environment rule; `_cdp.js`, `chromium-probe` and
+`page-shot` drive the WebView unchanged once its DevTools socket is
+forwarded, so no TV-specific probe tooling is written. Incoherences:
+the M3 brief's `ANDROID_HOME` in the shell profile → the repository's
+`mise.toml` instead (decided above); the brief's `platforms;android-35`
+→ 36, the platform AGP 9.4's build tools target. Coherence cost: one
+`mise` hop per `mc-tv` command, ~100 ms. No duplication found to
+collapse; the host and TV loops share no type.
+
+**5. Plan (2026-10-22).** In order: (1) unpack the command-line tools
+to `~/Android/Sdk/cmdline-tools/latest`, accept the licences, install
+`platform-tools`, `build-tools;36.0.0`, `platforms;android-36`,
+`emulator` and the Android TV x86_64 image `sdkmanager --list` offers
+for the newest API with one; (2) the repository: `mise.toml`,
+`.gitignore`, Gradle 9.6.0 wrapper (jar and script from the Gradle tag),
+`settings.gradle.kts`, root `build.gradle.kts`, `gradle/libs.versions.toml`
+(AGP 9.4.0, libmpv 1.0.0, OkHttp 5.4.0), `gradle.properties`,
+`app/build.gradle.kts` (minSdk 26, compileSdk and targetSdk 36),
+the manifest with the Leanback launcher category and banner,
+`MainActivity.kt` showing the app's name, `README.md` as the
+contributor guide, first commit; (3) `~/scripts/agents/mc-tv` with
+`setup`, `connect`, `pair`, `build`, `install`, `launch`, `key`, `text`,
+`shot`, `log`, `webview`, `emulator`, `status`; (4) the AVD `mc-tv`
+on the TV image; (5) checks: `mc-tv build` produces the debug APK,
+`adb` runs, `avdmanager list avd` shows the AVD; (6) campaign record
+and commit on the branch. Checks needing the TV in developer mode or a
+rebooted kernel are listed under the milestone's verification items.
+
+**6. Plan unification (2026-10-22).** One finding: `setup` would have
+restated the SDK path that `mise.toml` owns; now `setup` asks
+`mise -C <repo> exec` for `ANDROID_HOME`, so the path has one
+representation. No old path is kept, no constant copied, no shim: the
+rig is greenfield.
+
+**7. Execution (2026-10-22).** Built: the SDK under `~/Android/Sdk`
+(9.5 GB: command-line tools 15859902, platform-tools 37.0.1, build
+tools 36.0.0, platform 36, emulator 37.2.12, `system-images;android-36;android-tv;x86_64`);
+Temurin 21.0.12 through `mise`, pinned by the app repository's
+`mise.toml` together with `ANDROID_HOME` and the SDK tools on `PATH`;
+`~/src/media-centaur/android-app` at its first commit `98800d9`
+(Gradle 9.6.0 wrapper, AGP 9.4.0 with built-in Kotlin, libmpv 1.0.0
+and OkHttp 5.4.0 declared, minSdk 26, compileSdk and targetSdk 36,
+the Leanback launcher activity showing the app's name, vector banner
+and icon placeholders, README as the contributor guide);
+`~/scripts/agents/mc-tv` with `setup`, `pair`, `connect`, `build`,
+`install`, `launch`, `stop`, `key`, `text`, `shot`, `log`, `webview`,
+`emulator create|start|stop|status`, `status`, `adb`, and `-e` for the
+emulator; the AVD `mc-tv` (tv_1080p, 1920×1080) on the TV image.
+Checked: `mc-tv build` produces `app-debug.apk` (107 MB, libmpv for
+every ABI) with no warnings; `adb` 1.0.41 runs through the repository's
+toolchain; `mc-tv status` and `mc-tv emulator status` report the rig.
+Not checked, and why: nothing on the TV — it came onto the LAN during
+the session (Sony Bravia XR-42A90K, `192.168.68.63`, advertising the
+Android TV remote service on 6466) but has no developer mode yet, so
+`pair`, `connect`, `install`, `launch`, `key`, `shot`, `log` and
+`webview` are untried against hardware; nothing on the emulator, which
+cannot boot until the machine reboots into the kernel whose modules are
+installed (KVM). The owner's two steps are below under *Resuming*.
 
 ### M1 — Reachable and closed (procedure record)
 
@@ -651,14 +777,32 @@ against `git log remote-players` first (the reconciliation rule).
   Main's checkout (`~/src/media-centaur/media-centaur-app`) runs the
   owner's dev server and stays on main; never build or edit there. The
   branch is not pushed; nothing merges until the owner signs off at the
-  campaign's end. 16 commits so far, `50908397` … `8ca33875`.
+  campaign's end.
 * `mix precommit` is green on the branch (8644 tests, 2026-10-22). Run
   everything through `~/scripts/agents/agent-mix` from the worktree.
   Test env only for `mix` tasks that touch a database: the dev TOML's
   database is the owner's.
 * Wiki edits for M1 are committed locally in `~/src/media-centaur/media-centaur.wiki`
   (`9df804c`), not pushed; push with the release that carries the campaign.
-* The TV app's repository does not exist yet: `~/src/media-centaur/android-app`.
+* The TV app: `~/src/media-centaur/android-app`, first commit `98800d9`,
+  no remote yet. Its toolchain is its `mise.toml`; the rig is
+  `~/scripts/agents/mc-tv` (run it with no arguments for usage).
+
+**The TV and the two owner steps (as of 2026-10-22).** Sony Bravia
+XR-42A90K at `192.168.68.63` (mDNS `_androidtvremote2._tcp`, port
+6466); no adb service advertised, port 5555 closed. Step one, on the
+TV: Settings → System → About → tap Build seven times; Developer
+options → Wireless debugging → on → "Pair device with pairing code"
+gives `<ip:port>` and a code for `mc-tv pair <ip:port> <code>`, then
+`mc-tv connect <ip:port>` with the connect port from the same screen
+(the address is remembered under `~/.config/mc-tv/device`). Step two,
+on this machine: reboot, so the installed kernel's `kvm` modules load
+and `/dev/kvm` appears for `mc-tv emulator start`. Then the M3
+hardware checks: `mc-tv install && mc-tv launch`, `mc-tv shot` of the
+app's name on screen, `mc-tv key DPAD_DOWN` moving focus on the
+launcher, `mc-tv log` showing "MainActivity created", and on the
+emulator the source address the gate sees when the guest dials the
+host's LAN IP.
 
 **Running the branch as a host (the end-to-end rig).**
 * Scratch config: `/tmp/claude-1000/-home-shawn-src-media-centaur-media-centaur-app/4804e16b-c167-4c22-8eb8-6d5631bc6c6f/scratchpad/sim/media-centaur-sim.toml`
