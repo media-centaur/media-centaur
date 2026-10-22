@@ -963,6 +963,40 @@ list follows what the owner picks. Execution has not started.
   frame with no `eof-reached`, so the viewing does not end until Back —
   the host should clamp a seek to the duration, or treat paused-at-end
   as the end.
+* *Stage 2 (web) — built 2026-10-22, evening.* `Live.ViewingAware`
+  (on_mount after `PlayerAware`; subscribes to the player's stream through
+  `Subscriptions`, which now takes `{module, function, args}`; seeds the
+  layer from `Sessions.list/0`; hooks for the stream and the layer's six
+  events; a 4 s bar timer), `Live.ViewingAware.Logic` (the layer's state
+  transitions, the payload parsers), `Components.ViewingLayer`
+  (direction 3: scrim, title and episode line, seek bar with chapter
+  ticks and handle, clocks, the paused state and centre glyph, the prompt
+  pill as the one nav item, the subtitle line, the track menu as two
+  `GlassMenu.menu_list` columns in a centred glass modal rendered before
+  the OSD so it is the active overlay while open; `menu_list` gained a
+  `disabled` item), its story (nine states at 960×540) and index,
+  `Layouts.app`'s `viewing_layer` attr on all fourteen pages, the CSS
+  (the html and body transparent and the shell hidden under a viewing;
+  only opacity transitions), the input system (`PLAY_PAUSE`,
+  `SEEK_FORWARD`, `SEEK_BACK`, `MENU` and the WebView's media keys;
+  `viewing_behavior.js` wrapping the page's behaviour while
+  `[data-viewing]` is present, keyed in `_detectBehavior`; the reader's
+  `hasViewing`/`isViewingMenuOpen`; the `viewing_menu` overlay regions
+  as MENUs). Tests: `viewing_aware_test` (the host never draws it; a
+  device draws, updates from the stream, hides at the end; commands
+  reach the player as IPC; the menu opens and Back closes it first, then
+  stops), `viewing_aware/logic_test`, `viewing_behavior.test.js`, the
+  menu-list story's disabled variation. **Checked on the desk, no TV:**
+  `_cdp.js` learned `MC_COOKIE` (a paired device's session cookie, the
+  value `mc-player-sim` prints), so `page-shot` and `mc-nav-trace` see
+  the page as the device: over a transparent body the layer showed the
+  Skip Intro pill with its focus ring, the pause glyph, the subtitle
+  line lifted above the bar, and the bar with the title, PAUSED, the
+  amber fill, chapter ticks and both clocks; Left, Right and Enter
+  arrived at the simulator's mpv as `seek -10`, `seek 10` and
+  `cycle pause`; Escape (Back) arrived as `quit` and the session ended.
+  The menu's keys are covered by the behaviour's unit tests only until
+  the TV check.
 
 ### M4 — TV app skeleton (procedure record)
 

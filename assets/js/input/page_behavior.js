@@ -28,6 +28,7 @@ import { createSetupBehavior } from "./setup_behavior"
 import { createProfilesBehavior } from "./profiles_behavior"
 import { createGuideBehavior } from "./guide_behavior"
 import { withWipNotice } from "./wip_notice"
+import { withViewing } from "./viewing_behavior"
 
 // Pages still mid-redesign carry the "UI overhaul in progress" notice via
 // withWipNotice (see wip_notice.js). The set of wrapped entries below is the
@@ -49,11 +50,16 @@ const BEHAVIOR_REGISTRY = {
 }
 
 /**
- * Look up and instantiate a page behavior by name.
- * @param {string} name - The data-page-behavior value
+ * Look up and instantiate a page behavior by name. While the viewing layer
+ * is on the page (`options.viewing`) the behavior is wrapped by
+ * `withViewing`, which needs the hook's `pushEvent` and the menu switch.
+ * @param {string|null} name - The data-page-behavior value
+ * @param {{viewing?: boolean, pushEvent?: function, isMenuOpen?: function}} [options]
  * @returns {PageBehavior|null}
  */
-export function createPageBehavior(name) {
+export function createPageBehavior(name, options = {}) {
   const factory = BEHAVIOR_REGISTRY[name]
-  return factory ? factory() : null
+  const behavior = factory ? factory() : null
+  if (!options.viewing) return behavior
+  return withViewing(behavior ?? {}, { pushEvent: options.pushEvent, isMenuOpen: options.isMenuOpen })
 }

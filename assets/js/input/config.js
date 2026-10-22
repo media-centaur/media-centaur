@@ -58,6 +58,10 @@ export const inputConfig = {
     profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
     // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
+    // The viewing layer's track menu (a remote player's OSD): two columns,
+    // each a GlassMenu list, walked as MENUs with left/right between them.
+    viewing_audio: "[data-nav-zone='viewing_audio'] [data-nav-item]",
+    viewing_subtitles: "[data-nav-zone='viewing_subtitles'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
     // Episode mapping (/episode-mapping) — the same master/detail shape as review
@@ -89,6 +93,8 @@ export const inputConfig = {
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
+    viewing_audio: Context.MENU,
+    viewing_subtitles: Context.MENU,
     bindings: Context.TREE,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
@@ -241,6 +247,16 @@ export const inputConfig = {
         plan_grid: { up: ["plan_head"], down: ["plan_body"] },
         plan_body: { up: ["plan_grid", "plan_head"], down: ["plan_menu"] },
         plan_menu: { up: ["plan_body"], back: ["plan_body"] },
+      },
+    },
+    // The viewing layer's track menu: Audio beside Subtitles, LEFT/RIGHT
+    // between them, no back edges so BACK closes the menu from either.
+    // The cursor opens on Subtitles, the desktop menu's rule.
+    viewing_menu: {
+      entry: ["viewing_subtitles", "viewing_audio"],
+      layout: {
+        viewing_audio: { right: ["viewing_subtitles"] },
+        viewing_subtitles: { left: ["viewing_audio"] },
       },
     },
   },
@@ -435,7 +451,7 @@ export const inputConfig = {
   // title modal's List, a plan-grid cell), which must never be an entry
   // target.
   activeMarkers: [
-    ".sidebar-link-active", ".zone-tab-active", ".menu-item-active",
+    ".sidebar-link-active", ".zone-tab-active", ".menu-item-active", ".glass-menu-item-active",
     ".segmented-control [aria-pressed='true']",
   ],
 

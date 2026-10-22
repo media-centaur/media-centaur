@@ -58,6 +58,10 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
     attr :event, :string, required: true
     attr :values, :map, doc: "`phx-value-*` params, string-keyed"
     attr :active, :boolean, doc: "the current choice (`menu_select`)"
+
+    attr :disabled, :boolean,
+      doc:
+        "listed but not choosable: `aria-disabled`, no event (a subtitle track the player cannot draw)"
   end
 
   def menu_list(assigns) do
@@ -79,8 +83,13 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         id={item[:id] || "#{@id}-item-#{index}"}
         role={if is_nil(item[:active]), do: "menuitem", else: "menuitemradio"}
         aria-checked={if is_boolean(item[:active]), do: to_string(item[:active])}
-        class={["glass-menu-item", item[:active] && "glass-menu-item-active"]}
-        phx-click={item.event}
+        class={[
+          "glass-menu-item",
+          item[:active] && "glass-menu-item-active",
+          item[:disabled] && "glass-menu-item-disabled"
+        ]}
+        aria-disabled={item[:disabled] && "true"}
+        phx-click={!item[:disabled] && item.event}
         {phx_values(item[:values])}
         data-nav-item
         tabindex="0"

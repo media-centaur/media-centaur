@@ -461,6 +461,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     <Layouts.app
       profile={@profile}
       profiles={@profiles}
+      viewing_layer={assigns[:viewing_layer]}
       show_social={@show_social}
       show_apps={@show_apps}
       flash={@flash}

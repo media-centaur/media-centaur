@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Layouts do
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Components.FollowUpPill
+  alias MediaCentaurWeb.Components.ViewingLayer
   alias MediaCentaurWeb.Components.Social.IdentityTile
 
   # Embed all files in layouts/* within this module.
@@ -36,6 +37,7 @@ defmodule MediaCentaurWeb.Layouts do
         show_apps={@show_apps}
         profile={@profile}
         profiles={@profiles}
+        viewing_layer={assigns[:viewing_layer]}
       >
         <h1>Content</h1>
       </Layouts.app>
@@ -82,6 +84,12 @@ defmodule MediaCentaurWeb.Layouts do
     doc: "every profile; the switcher shows only with more than one"
 
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
+
+  attr :viewing_layer, :map,
+    default: nil,
+    doc:
+      "the viewing layer's state from `Live.ViewingAware` (`viewing`, `bar_shown?`, `menu_open?`) when this " <>
+        "socket's player is a remote player with a viewing; nil on the host and between viewings"
 
   slot :inner_block, required: true
 
@@ -302,6 +310,12 @@ defmodule MediaCentaurWeb.Layouts do
       </main>
 
       {render_slot(@overlays)}
+      <ViewingLayer.viewing_layer
+        :if={@viewing_layer}
+        viewing={@viewing_layer.viewing}
+        bar_shown?={@viewing_layer.bar_shown?}
+        menu_open?={@viewing_layer.menu_open?}
+      />
     </div>
 
     <.flash_group flash={@flash} />
