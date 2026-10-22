@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   alias MediaCentaur.Playback
   alias MediaCentaur.Playback.ProgressBroadcaster
   alias MediaCentaurWeb.Components.Detail.CastSelection
+  alias MediaCentaurWeb.Live.PlayerAware
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -50,10 +51,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   @spec events() :: [String.t()]
   def events, do: @events
 
-  @doc "Plays a playable id in place (UIDR-027) as the socket's profile; what stands in the way is flashed."
+  @doc "Plays a playable id in place (UIDR-027) as the socket's profile, on the socket's player; what stands in the way is flashed."
   @spec play(socket(), Ecto.UUID.t()) :: socket()
   def play(socket, id) do
-    case Playback.play(socket.assigns.profile.id, id) do
+    case Playback.play(socket.assigns.profile.id, id, PlayerAware.playback_player(socket)) do
       :ok ->
         socket
 
@@ -62,6 +63,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
       {:error, :already_playing} ->
         socket
+
+      {:error, :player_offline} ->
+        put_flash(socket, :error, "This player isn't connected to Media Centaur right now.")
 
       {:error, _reason} ->
         put_flash(socket, :error, "Couldn't start playback.")

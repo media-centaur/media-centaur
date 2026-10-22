@@ -26,6 +26,11 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.RemoteAccess
 
+  @doc "The player `Playback.play/3` takes for this socket: `:host`, or the paired player's id."
+  @spec playback_player(Phoenix.LiveView.Socket.t()) :: :host | String.t()
+  def playback_player(%{assigns: %{player: :host}}), do: :host
+  def playback_player(%{assigns: %{player: %{id: id}}}), do: id
+
   def on_mount(:default, _params, session, socket) do
     %{address: address} = get_connect_info(socket, :peer_data)
 

@@ -160,6 +160,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         view.pid,
         {:playback_state_changed,
          %PlaybackStateChanged{
+           player: :host,
            entity_id: movie_id,
            profile_id: owner_profile_id(),
            state: :playing,
@@ -193,6 +194,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         view.pid,
         {:playback_state_changed,
          %PlaybackStateChanged{
+           player: :host,
            entity_id: movie_id,
            profile_id: owner_profile_id(),
            state: :playing,
@@ -243,6 +245,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         view.pid,
         {:playback_state_changed,
          %PlaybackStateChanged{
+           player: :host,
            entity_id: movie_id,
            profile_id: owner_profile_id(),
            state: :playing,
@@ -262,6 +265,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         view.pid,
         {:playback_state_changed,
          %PlaybackStateChanged{
+           player: :host,
            entity_id: movie_id,
            profile_id: owner_profile_id(),
            state: :stopped,
