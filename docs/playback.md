@@ -40,6 +40,8 @@ graph TD
 
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
+**Players and transports ([ADR-080](../decisions/architecture/2026-10-22-080-one-playback-session-type-over-two-transports.md)):** a session plays on a **player**: `:host` (an mpv this computer spawns) or a paired remote player's id (the mpv inside the TV app, `campaigns/remote-players.md`). `Playback.Transport` is the seam: `Transport.Local` reaches the spawned process over its Unix socket with a host path; `Transport.Remote` reaches the device over its **player channel** (`Playback.Remote.Channel`, a WebSocket the device dials carrying mpv IPC JSON, handled by `MediaCentaurWeb.PlayerSocket`) with a media URL (`MediaCentaurWeb.Plugs.MediaServer`, a file by `FilePresence` id behind a capability token). The session keeps the host path as the identity of what plays and asks the transport for mpv's locator and for the identity of a reported path. Sessions are keyed by `{player, entity_id}`; every viewing event names its player. A dropped channel detaches the session for a 60 s window; a reconnecting player's channel reattaches it, and a host restart recovers it by asking the player what it plays (`SessionRecovery.recover_player/1`). `quit` on a remote player is stop: the `end-file` it reports closes the viewing while the device's mpv lives on. `scripts/agents/mc-player-sim` stands in for a device with a desktop mpv.
+
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
 **Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.Completion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses. The session judges each persisted position itself (`MpvSession.judge_completion/1`) and keeps the set of items it completed; only the write runs in a task.
@@ -180,7 +182,12 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Playback.Sessions` | Public API facade (stateless) | `lib/media_centaur/playback/sessions.ex` |
+| `MediaCentaur.Playback.Sessions` | Public API facade (stateless): `play/2`, `resume/2`, `stop/2`, `list/0`, `get/2` by player | `lib/media_centaur/playback/sessions.ex` |
+| `MediaCentaur.Playback.Transport` | The seam between the observer and an mpv: behaviour + dispatch | `lib/media_centaur/playback/transport.ex` |
+| `MediaCentaur.Playback.Transport.Local` | The host player: spawn, Unix socket, exit classification | `lib/media_centaur/playback/transport/local.ex` |
+| `MediaCentaur.Playback.Transport.Remote` | A paired player: the channel, media URLs, reattach | `lib/media_centaur/playback/transport/remote.ex` |
+| `MediaCentaur.Playback.Remote.Channel` | The player channel's protocol over the socket handler's state | `lib/media_centaur/playback/remote/channel.ex` |
+| `MediaCentaur.Playback.Remote.PlayerRegistry` | Connected players and their media locators | `lib/media_centaur/playback/remote/player_registry.ex` |
 | `MediaCentaur.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centaur/playback/session_registry.ex` |
 | `MediaCentaur.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centaur/playback/mpv_session.ex` |
 | `MediaCentaur.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centaur/playback/session_supervisor.ex` |

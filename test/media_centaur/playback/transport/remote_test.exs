@@ -96,7 +96,9 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
-  test "a stop or quit reported by the player ends the viewing; any other end-file does not", %{player_id: player_id} do
+  test "a stop or quit reported by the player ends the viewing; any other end-file does not", %{
+    player_id: player_id
+  } do
     {:ok, transport} = Remote.new(player_id)
     stopped = %{"event" => "end-file", "reason" => "stop"}
     eof = %{"event" => "end-file", "reason" => "eof"}
@@ -104,7 +106,8 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     assert {[{:message, ^stopped}, {:closed, {:ok, :ended}}], _transport} =
              Remote.handle_message(transport, {:transport, {:remote, {:message, stopped}}})
 
-    assert {[{:message, ^eof}], _transport} = Remote.handle_message(transport, {:transport, {:remote, {:message, eof}}})
+    assert {[{:message, ^eof}], _transport} =
+             Remote.handle_message(transport, {:transport, {:remote, {:message, eof}}})
   end
 
   @tag :tmp_dir
