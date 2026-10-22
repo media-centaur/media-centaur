@@ -186,11 +186,19 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    nothing: no OSD, no bundled pills, no track menu, no subtitles
    (subtitles would need a renderer of their own, or the WebView
    drawing them); (c) both, chosen per viewing: `mediacodec_embed` by
-   default, `gpu` when a subtitle track is on. Recommendation: research
-   (b) on the Sony first (does the panel switch to HDR and DV with
-   `mediacodec_embed`; what the audio path can bitstream), then decide
-   with the owner — this decides what "host fidelity" means on a TV
-   and shapes the rest of M5.
+   default, `gpu` when a subtitle track is on. **Verified 2026-10-22**
+   (`android-app` `docs/playback-on-android.md` has the evidence): (a)
+   cannot give HDR — mpv's `--target-colorspace-hint` exists only for
+   Wayland, D3D11 and winvk, the Android context is EGL, and this
+   libmpv is built without Vulkan; (b) gives the compositor a native
+   3840×2160 layer with dataspace `BT2020_ITU_PQ` and HDR metadata on
+   both the DV remux and a plain HDR10 remux, zero dropped frames, `vo`
+   switched at runtime over the channel; Dolby Vision is not signalled
+   on either path (base layer, HDR10). Recommendation now: (c) with
+   the WebView as the OSD — the native path by default, the host UI
+   drawing the pills, track menu and text subtitles (`sub-text`) in the
+   WebView, and the GPU path only while a bitmap subtitle track (PGS)
+   is selected. Audio passthrough is a separate, untested item.
 5. **Per-viewing state on a long-lived libmpv** (found 2026-10-22). The
    host's mpv is a fresh process per viewing, so every option starts at
    its default; the TV's one libmpv keeps the previous viewing's
@@ -314,6 +322,17 @@ loopback.
   `displayFrame [0 0 3840 2160]`, `sourceCrop 1920×1080`, dataspace
   UNKNOWN, HWC supports hdr10, hlg, dv. Audio out `s16`, 6 ch, 48 kHz,
   `audiotrack`. Open decision 4 carries the options.
+* **Third window, `vo=mediacodec_embed`** (set over the channel before
+  `loadfile`, no app change): SurfaceFlinger shows the app's layer at
+  `size=(3840,2160)`, `sourceCrop 3840×2160`, `dataspace=BT2020_ITU_PQ`,
+  `hdr metadata types=3`, on both the DV profile 7 remux and a plain
+  HDR10 remux; the MediaTek decoder logs HDR metadata reads; zero
+  dropped frames, real time; `video-target-params` unavailable (no
+  mpv renderer); screencap still captures the frame. No DV signalling
+  on either path. The GPU path's HDR ceiling is the manual's:
+  `--target-colorspace-hint` is Wayland/D3D11/winvk only, Android's
+  context is EGL, and the build has no Vulkan. Full evidence in
+  `android-app` `docs/playback-on-android.md` (`1ffa3b1`).
 * **Rig additions.** `mc-sim-host stage <file> <name> <year>`;
   `mc-tv-flow perf <tv|emu> <movie-id>[:seek]...` (two property samples
   25 s apart, screenshot, the SurfaceFlinger dataspace lines, mpv
