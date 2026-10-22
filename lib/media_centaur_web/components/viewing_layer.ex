@@ -24,7 +24,9 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
   behaviour wraps itself while it is present); the OSD is the active
   overlay (`data-detail-mode="modal"`, BACK pushes `viewing_back`); the
   menu, rendered before it in DOM order, is the active overlay while open
-  (`data-nav-overlay="viewing_menu"`, BACK pushes `viewing_menu_close`).
+  (`data-nav-overlay="viewing_menu"`, BACK pushes `viewing_menu_close`) and
+  is nested in the OSD's (`data-detail-nested`): closing it returns the
+  cursor to the OSD rather than ending the page's overlay state.
   Nothing here animates continuously: the seek handle moves with the
   session's 1 Hz tick (measured on the Sony: a 60 fps page animation over
   4K video janks, a 1 Hz bar costs nothing).
@@ -183,6 +185,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       class="viewing-menu-backdrop"
       data-state={if @open?, do: "open", else: "closed"}
       data-detail-mode={@open? && "modal"}
+      data-detail-nested="true"
       data-dismiss-event="viewing_menu_close"
       data-nav-overlay="viewing_menu"
     >

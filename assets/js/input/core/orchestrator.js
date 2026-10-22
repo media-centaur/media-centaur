@@ -104,6 +104,11 @@ export class Orchestrator {
     // Prevents _syncState() from re-entering an overlay context during the
     // LiveView round-trip after _executeDismiss().
     this._expectedPresentation = undefined
+    // The open overlay's navigation model name (null for a flat one). A
+    // different name while the presentation stays "modal" is an overlay
+    // opening over, or closing back to, another — the viewing layer's track
+    // menu over the OSD — and is entered like any open.
+    this._overlayName = null
     // True while start() seeds focus — mount-time focus writes are
     // scroll-neutral because the navigation's scroll hasn't settled yet.
     this._mounting = false
@@ -203,8 +208,27 @@ export class Orchestrator {
     if (this.reader.hasForeignFocus?.()) return
 
     const context = this.focusMachine.context
-    const count = this.reader.getItemCount(context)
-    if (count > 0) return
+    const overlay = this.focusMachine.inOverlay
+      ? (this._config.overlays?.[this.reader.getOverlayName?.()] ?? null)
+      : null
+    // A named overlay's flat MODAL context is where the cursor waits while no
+    // region has items — the plan modal opens on a loading stage and grows
+    // its regions when the stage lands — so it is re-resolved on every sync.
+    const waitingForRegion = overlay !== null && context === Context.MODAL
+    if (!waitingForRegion && this.reader.getItemCount(context) > 0) return
+
+    // An open overlay keeps the cursor: the page beneath is what it covers.
+    // A flat overlay with no item yet (the viewing layer before its prompt
+    // pill streams in) waits; _reconcileFocus focuses the pill when it
+    // appears.
+    if (this.focusMachine.inOverlay) {
+      const entry = this._overlayEntry(overlay)
+      if (entry !== context && this.reader.getItemCount(entry) > 0) {
+        this.focusMachine.forceContext(entry)
+        this.writer.focusFirst(entry, this._restoreOpts())
+      }
+      return
+    }
 
     const target = resolveCursorStart(this.reader.getZone(), this._counts, {
       cursorStartPriority: this._config.cursorStartPriority,
@@ -361,38 +385,31 @@ export class Orchestrator {
     // overlay takes the cursor is resolved against them, the same way a page's
     // cursor start is.
     this._counts = this._buildCounts()
-    const overlay = this._config.overlays?.[this.reader.getOverlayName?.()] ?? null
+    const overlayName = this.reader.getOverlayName?.() ?? null
+    const overlay = this._config.overlays?.[overlayName] ?? null
 
     if (this._expectedPresentation !== undefined) {
       if (presentation === this._expectedPresentation) {
         this._expectedPresentation = undefined
       }
-    } else if (presentation === "modal" && !this.focusMachine.inOverlay) {
+    } else if (presentation === "modal" && (!this.focusMachine.inOverlay || overlayName !== this._overlayName)) {
+      // An overlay is entered fresh every time — on open, and when another
+      // takes its place while the presentation stays "modal". Its regions'
+      // position memory is scoped to one opening, so reopening a title
+      // re-seeds the episode list from the resume target rather than
+      // restoring wherever the last title was browsed to.
+      this._overlayName = overlayName
       const entry = this._overlayEntry(overlay)
-      // An overlay is entered fresh every time. Its regions' position memory is
-      // scoped to one opening, so reopening a title re-seeds the episode list
-      // from the resume target rather than restoring wherever the last title
-      // was browsed to.
       for (const region of Object.keys(overlay?.layout ?? {})) {
         delete this._contextMemory[region]
       }
       this.focusMachine.presentationChanged("modal", entry)
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(entry))
-    } else if (presentation === "modal" && overlay && !this._inOverlayRegion(overlay)) {
-      // An overlay whose regions populate after it opened: the plan modal opens
-      // on a loading stage with no controls and grows its regions when the
-      // stage lands. Entry was resolved against empty counts at open and fell
-      // back to the flat MODAL context (or the cursor start leaked to a page
-      // context beneath); re-resolve until a region exists to step into.
-      const entry = this._overlayEntry(overlay)
-      if (entry !== Context.MODAL) {
-        this.focusMachine.forceContext(entry)
-        this.writer.focusFirst(entry, this._restoreOpts())
-      }
     } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
       this.focusMachine.presentationChanged("drawer")
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
     } else if (!presentation && this.focusMachine.inOverlay) {
+      this._overlayName = null
       this.focusMachine.presentationChanged(null)
       // Restore focus to the originating card after modal/drawer closes
       this._restoreOriginFocus()
@@ -480,14 +497,17 @@ export class Orchestrator {
       return
     }
 
-    // Content/menu contexts: a patch — notably `stream(:grid, …, reset: true)`,
-    // which LibraryLive fires on any library mutation — can destroy the focused
-    // element and drop focus to <body>. Re-grab it by the context's identity so
-    // the cursor stays put instead of falling back to the first item (and then
-    // out to the sidebar) on the next keypress. Overlays are handled above and
-    // in the presentation block; empty contexts are left to _ensureCursorStart.
+    // Content/menu contexts and the flat modal: a patch — notably
+    // `stream(:grid, …, reset: true)`, which LibraryLive fires on any library
+    // mutation — can destroy the focused element and drop focus to <body>.
+    // Re-grab it by the context's identity so the cursor stays put instead of
+    // falling back to the first item (and then out to the sidebar) on the next
+    // keypress. The same rule gives a flat overlay its first item when that
+    // item arrives after the overlay opened — the viewing layer's prompt pill
+    // streams in behind the layer. The drawer is focused on open by the
+    // presentation block; empty contexts are left to _ensureCursorStart.
     const context = this.focusMachine.context
-    if (context === Context.MODAL || context === Context.DRAWER) return
+    if (context === Context.DRAWER) return
     if (this.reader.getItemCount(context) > 0 && !this.reader.getCurrentFocusedItem()) {
       this._restoreContextFocus(context, this._restoreOpts())
     }
@@ -498,11 +518,6 @@ export class Orchestrator {
    * populated entry in its priority list, exactly as a page resolves its cursor
    * start. An overlay that declares no regions is a flat list and gets MODAL.
    */
-  /** Whether the cursor is in one of the open overlay's declared regions. */
-  _inOverlayRegion(overlay) {
-    return Object.prototype.hasOwnProperty.call(overlay?.layout ?? {}, this.focusMachine.context)
-  }
-
   _overlayEntry(overlay) {
     const entry = overlay?.entry ?? []
     return entry.find(region => (this._counts[region] ?? 0) > 0) ?? Context.MODAL

@@ -143,6 +143,9 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     refute has_element?(view, "[data-nav-overlay='viewing_menu'][data-state='open']")
     render_click(view, "viewing_menu_open", %{})
     assert has_element?(view, "[data-nav-overlay='viewing_menu'][data-state='open']")
+    # Nested in the OSD's overlay: the page's BACK closes the menu alone and
+    # keeps the OSD's cursor, instead of expecting no overlay at all.
+    assert has_element?(view, "#viewing-menu[data-detail-nested='true']")
     assert render(view) =~ "Not on this TV"
 
     render_click(view, "viewing_back", %{})
