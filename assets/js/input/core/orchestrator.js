@@ -285,6 +285,10 @@ export class Orchestrator {
    */
   _onSourceAction(action) {
     debug("action:", action, "context:", this.focusMachine.context, "method:", this.inputDetector.current)
+    // The behavior is keyed on what the page shows now: the viewing layer
+    // arrives by a server push, not a user action, and a key pressed after
+    // it appeared must find its behavior whether or not a patch callback ran.
+    this._detectBehavior()
     // CLEAR action: delegate to page behavior's onClear hook. Behaviors use
     // this for resetting page-specific state (e.g. clearing a filter). A
     // behavior MAY return a string naming a target context — when the clear
@@ -534,6 +538,7 @@ export class Orchestrator {
         viewing,
         pushEvent: (event, payload) => this._hookEl?.pushEvent?.(event, payload),
         isMenuOpen: () => this.reader.isViewingMenuOpen?.() ?? false,
+        hasPrompt: () => this.reader.hasViewingPrompt?.() ?? false,
       })
       this._behavior?.onAttach?.()
     }

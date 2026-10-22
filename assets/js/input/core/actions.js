@@ -50,6 +50,19 @@ export function isCursorDriving(action) {
   return CURSOR_DRIVING_ACTIONS.has(action)
 }
 
+// The keys a viewing answers to, consulted after the user's map like the
+// zone keys: a remote's media keys as the WebView delivers them, and the
+// Menu key the TV shell forwards as ContextMenu (the WebView swallows it).
+// Not rebindable: Controls knows nothing of a viewing.
+const VIEWING_KEY_MAP = Object.freeze({
+  MediaPlayPause: Action.PLAY_PAUSE,
+  MediaPlay: Action.PLAY_PAUSE,
+  MediaPause: Action.PLAY_PAUSE,
+  MediaFastForward: Action.SEEK_FORWARD,
+  MediaRewind: Action.SEEK_BACK,
+  ContextMenu: Action.MENU,
+})
+
 const ZONE_KEY_MAP = Object.freeze({
   "]": Action.ZONE_NEXT,
   "[": Action.ZONE_PREV,
@@ -65,13 +78,6 @@ export const DEFAULT_KEY_MAP = Object.freeze({
   Backspace: Action.CLEAR,
   p: Action.PLAY,
   P: Action.PLAY,
-  // What an Android TV remote's media keys arrive as in the WebView.
-  MediaPlayPause: Action.PLAY_PAUSE,
-  MediaPlay: Action.PLAY_PAUSE,
-  MediaPause: Action.PLAY_PAUSE,
-  MediaFastForward: Action.SEEK_FORWARD,
-  MediaRewind: Action.SEEK_BACK,
-  ContextMenu: Action.MENU,
 })
 
 export const DEFAULT_BUTTON_MAP = Object.freeze({
@@ -97,7 +103,7 @@ export const DEFAULT_BUTTON_MAP = Object.freeze({
  */
 export function keyToAction(key, opts = {}, keyMap = DEFAULT_KEY_MAP) {
   if (opts.targetIsInput) return null
-  return keyMap[key] ?? ZONE_KEY_MAP[key] ?? null
+  return keyMap[key] ?? ZONE_KEY_MAP[key] ?? VIEWING_KEY_MAP[key] ?? null
 }
 
 /**

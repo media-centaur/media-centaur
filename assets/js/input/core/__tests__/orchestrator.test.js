@@ -558,6 +558,21 @@ describe("Orchestrator", () => {
       expect(system._behavior).toBe(null)
     })
 
+    test("a viewing layer that appears after start is found by the next key, with no patch callback", () => {
+      const { system, globals } = setup({
+        getPageBehavior: () => null,
+        hasViewing: () => false,
+      })
+      system.start({})
+      expect(system._behaviorKey).toBe("null|false")
+
+      // The layer arrives by a server push: nothing told the orchestrator.
+      system.reader.hasViewing = () => true
+      globals._dispatchKeyDown("ArrowLeft")
+
+      expect(system._behaviorKey).toBe("null|true")
+    })
+
     test("escape in a content context enters the sidebar — behaviors get no escape hook", () => {
       let escapeCalled = false
       const { system, globals } = setup({

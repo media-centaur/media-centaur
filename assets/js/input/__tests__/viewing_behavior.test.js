@@ -6,16 +6,16 @@ import { withViewing } from "../viewing_behavior"
  * The viewing layer's deps: a recording pushEvent, a switch for the track
  * menu, and a way to say whether the focused item is the prompt.
  */
-function deps({ menuOpen = false } = {}) {
+function deps({ menuOpen = false, prompt = false } = {}) {
   const pushed = []
   return {
     pushEvent: (event, payload) => pushed.push([event, payload]),
     isMenuOpen: () => menuOpen,
+    hasPrompt: () => prompt,
     pushed,
   }
 }
 
-const prompt = { dataset: { viewingPrompt: "" } }
 const nothing = null
 
 describe("withViewing — the bar state (no menu open)", () => {
@@ -36,15 +36,14 @@ describe("withViewing — the bar state (no menu open)", () => {
     ])
   })
 
-  test("select toggles pause unless the prompt is focused, which the orchestrator activates", () => {
+  test("select toggles pause, or acts on the prompt while one shows, focused or not", () => {
     const d = deps()
-    const behavior = withViewing({}, d)
-
-    expect(behavior.onAction(Action.SELECT, "modal", nothing)).toBe(true)
+    expect(withViewing({}, d).onAction(Action.SELECT, "modal", nothing)).toBe(true)
     expect(d.pushed).toEqual([["viewing_command", { command: "toggle_pause" }]])
 
-    expect(behavior.onAction(Action.SELECT, "modal", prompt)).toBe(false)
-    expect(d.pushed.length).toBe(1)
+    const withPrompt = deps({ prompt: true })
+    expect(withViewing({}, withPrompt).onAction(Action.SELECT, "modal", nothing)).toBe(true)
+    expect(withPrompt.pushed).toEqual([["viewing_prompt", {}]])
   })
 
   test("the remote's media keys: play/pause toggles, forward and rewind seek 30 s, menu opens the track menu", () => {

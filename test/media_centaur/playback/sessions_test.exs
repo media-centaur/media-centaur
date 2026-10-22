@@ -68,5 +68,36 @@ defmodule MediaCentaur.Playback.SessionsTest do
       :ok = Sessions.stop(player_id, params.entity_id)
       refute Process.alive?(session)
     end
+
+    test "a second viewing on a remote player replaces the first: one libmpv, one viewing" do
+      path = Path.join(System.tmp_dir!(), "media-centaur-test-#{System.unique_integer([:positive])}.mkv")
+      File.write!(path, "")
+      on_exit(fn -> File.rm(path) end)
+
+      player_id = Ecto.UUID.generate()
+      locators = %{locate: &("http://tv.test/media/" <> &1), identify: fn _url -> nil end}
+      :ok = MediaCentaur.Playback.Remote.PlayerRegistry.register(player_id, locators)
+
+      params = %{
+        action: :play,
+        profile_id: MediaCentaur.Profiles.owner().id,
+        entity_name: "Sample Movie",
+        content_url: path,
+        start_position: 0.0
+      }
+
+      first = Ecto.UUID.generate()
+      second = Ecto.UUID.generate()
+      assert :ok = Sessions.play(Map.put(params, :entity_id, first), player_id)
+      assert_receive {:channel, {:attach, first_session}}
+
+      assert :ok = Sessions.play(Map.put(params, :entity_id, second), player_id)
+      assert_receive {:channel, {:attach, _second_session}}
+      refute Process.alive?(first_session)
+      assert Sessions.get(player_id, first) == nil
+      assert %{entity_id: ^second} = Sessions.get(player_id, second)
+
+      :ok = Sessions.stop(player_id, second)
+    end
   end
 end

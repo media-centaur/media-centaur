@@ -5,7 +5,8 @@ defmodule MediaCentaur.Playback.Sessions do
 
   A session plays on a **player**: `:host` (an mpv this computer spawns,
   `Transport.Local`) or a paired player's id (an mpv on that device over
-  its channel). Playback takes the player as a value and never reads the
+  its channel). The host can run one session per entity; a remote player
+  holds one viewing at a time, so `play/2` there replaces any other. Playback takes the player as a value and never reads the
   `Players` context, as it takes a profile id and never reads `Profiles`.
   """
   require MediaCentaur.Log, as: Log
@@ -37,8 +38,24 @@ defmodule MediaCentaur.Playback.Sessions do
         {:error, :already_playing}
 
       true ->
+        replace_remote_viewing(player)
         start(params, player)
     end
+  end
+
+  # A remote player runs one libmpv for the app's life and so holds one
+  # viewing at a time: a new viewing's `loadfile … replace` would take the
+  # file from under any other session on that player, which would then
+  # observe a file it did not start. End them first, as a deliberate stop.
+  defp replace_remote_viewing(:host), do: :ok
+
+  defp replace_remote_viewing(player_id) do
+    for {{^player_id, entity_id}, _pid} <- SessionRegistry.list() do
+      Log.info(:playback, "replacing the viewing on #{inspect(player_id)} — #{entity_id}")
+      stop(player_id, entity_id)
+    end
+
+    :ok
   end
 
   @doc """
