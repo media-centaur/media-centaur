@@ -77,6 +77,25 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
+  test "a reattaching open attaches and observes without loading", %{player_id: player_id, path: path} do
+    {:ok, transport} = Remote.new(player_id)
+
+    launch = %{
+      session_options: [{"keep-open", "yes"}],
+      content_url: Remote.locator(transport, path),
+      start_position: 100.0,
+      profile_id: "p1",
+      reattach?: true
+    }
+
+    assert {[{:attached, :reconnected}], _transport} = Remote.open(transport, launch)
+    me = self()
+    assert_received {:channel, {:attach, ^me}}
+    refute_received {:channel, {:push, ["loadfile" | _]}}
+    refute_received {:channel, {:push, ["set_property" | _]}}
+  end
+
+  @tag :tmp_dir
   test "identify maps a media URL back to the host path; anything else is nobody's file", %{
     player_id: player_id,
     path: path,

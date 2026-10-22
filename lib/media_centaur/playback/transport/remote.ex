@@ -45,6 +45,11 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   end
 
   @impl true
+  def open(transport, %{reattach?: true} = launch) do
+    Channel.attach(transport.channel, self())
+    {[{:attached, :reconnected}], %{transport | launch: launch}}
+  end
+
   def open(transport, launch) do
     Channel.attach(transport.channel, self())
     Enum.each(launch.session_options, &Channel.push(transport.channel, option_command(&1)))

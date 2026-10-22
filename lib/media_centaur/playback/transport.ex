@@ -47,10 +47,15 @@ defmodule MediaCentaur.Playback.Transport do
           session_options: [MediaCentaur.Playback.LaunchFlags.option()],
           content_url: String.t(),
           start_position: number(),
-          profile_id: String.t()
+          profile_id: String.t(),
+          reattach?: boolean()
         }
 
-  @doc "Starts reaching an mpv for `launch`. Later progress arrives as messages to the session process."
+  @doc """
+  Starts reaching an mpv for `launch`. Later progress arrives as messages to
+  the session process. `reattach?` says the mpv already plays this file
+  (recovery): observe it, do not load.
+  """
   @callback open(t(), launch()) :: {[event()], t()}
 
   @doc "Sends one IPC command (a list, as mpv's `command` array). Dropped when not attached."

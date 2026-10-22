@@ -198,7 +198,8 @@ defmodule MediaCentaur.Playback.MpvSession do
         }),
       content_url: Transport.locator(state.transport, state.content_url),
       start_position: state.start_position,
-      profile_id: state.profile_id
+      profile_id: state.profile_id,
+      reattach?: params[:reattach?] || false
     }
 
     Log.info(

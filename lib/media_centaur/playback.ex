@@ -21,8 +21,32 @@ defmodule MediaCentaur.Playback do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Playback.{Resolver, Sessions}
+  alias MediaCentaur.Playback.{Resolver, SessionRecovery, Sessions}
   alias MediaCentaur.Topics
+
+  @doc """
+  A remote player's channel just connected and no session holds the player:
+  ask the device what it plays and reattach a session to it
+  (`SessionRecovery.recover_player/1`), off the channel's own process.
+  """
+  @spec recover_player(Ecto.UUID.t()) :: :ok
+  def recover_player(player_id) when is_binary(player_id) do
+    {:ok, _pid} =
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        case SessionRecovery.recover_player(player_id) do
+          {:ok, params} ->
+            case Sessions.resume(params, player_id) do
+              :ok -> Log.info(:playback, "recovered session on player #{Format.short_id(player_id)}")
+              {:error, reason} -> Log.warning(:playback, "could not reattach to player: #{inspect(reason)}")
+            end
+
+          :skip ->
+            :ok
+        end
+      end)
+
+    :ok
+  end
 
   @doc "Subscribe the caller to playback state and progress events."
   @spec subscribe() :: :ok | {:error, term()}
