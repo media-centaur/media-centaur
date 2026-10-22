@@ -121,22 +121,14 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The thing a viewing shows on is called a **player**. (conversation)
 * `2026-10-22` — Each browser session plays on the player it is on; no picker, no casting, in this campaign. (conversation)
 * `2026-10-22` — Distribution through Google Play's internal testing track, so installing on the TV is a Play Store install with no public listing. (conversation)
+* `2026-10-22` — The TV app lives in a sibling repository, `~/src/media-centaur/android-app`: its own toolchain, signing and release cadence; the name holds if a phone launcher is ever added to the same Android project. (owner)
+* `2026-10-22` — The bind address is a bootstrap TOML key, `bind`, default `127.0.0.1`, shown commented in `defaults/media-centaur.toml`; the endpoint listens before the database is reachable. (owner)
+
+* `2026-10-22` — The media endpoint names a file by its `FilePresence` id (`/media/<id>`), the one row every playable file (`WatchedFile` or `ExtraFile`) references; the transport maps a reported URL back to the path through the same id. Rejected: `PlayableItem` id (progress identity, may own several files) and a signed token over the host path (a second identity for one idea). A presence row's id changes if the file leaves and returns, harmless for a URL that lives one session. (owner)
 
 ## Open decisions
 
-1. **Where the TV app's code lives** — a sibling repository
-   (`../media-centaur-tv`, like `contrib` and the wiki) or a directory in
-   this one. Recommendation: sibling repository; it has its own toolchain,
-   signing and release cadence, and `mix precommit` has nothing to say
-   about Kotlin.
-2. **Whether the bind address is a TOML key or a Settings row.** The
-   endpoint listens before the database is reachable, so it is bootstrap
-   state by the `Settings.Config` rule. Recommendation: TOML key `bind`,
-   default `127.0.0.1`, shown commented in `defaults/media-centaur.toml`.
-3. **How the media endpoint names a file.** By `PlayableItem` id, by
-   `WatchedFile`/`ExtraFile` id, or by a signed token over the host path.
-   Recommendation: the file row's id, since that is the identity item 2
-   above needs the transport to map back to.
+None.
 
 ## Next steps
 
