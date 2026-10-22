@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`: the TV app pairs, browses, plays, auto-advances and ends viewings on the owner's Sony Bravia against a simulated host; next M5, hardening.** The UI and playback on a Google TV
+  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 opened with measurements the same day: throughput is no limit on the owner's Sony Bravia, but mpv renders into a 1080p SDR surface there (open decision 4, the output path); next, the owner on decisions 4, 5 and 3.** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only

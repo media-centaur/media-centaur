@@ -33,18 +33,25 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M4 built and verified on the TV 2026-10-22** (branch `remote-players`
-and `~/src/media-centaur/android-app` at `2ad7dda`): the TV app pairs,
+**M4 built and verified on the TV 2026-10-22; M5's first measurements
+taken the same day** (branch `remote-players`;
+`~/src/media-centaur/android-app` at `e46cd1b`). The TV app pairs,
 browses with the D-pad, plays over the media endpoint, reports
 progress, auto-advances an episode, ends on `eof-reached` or Back, and
-stays paired across restarts, all against a simulated host
-(`mc-sim-host`). M1–M3 are built and verified; nothing merges to main
-before the owner's sign-off at the campaign's end; the wiki edits are
+stays paired across restarts, against a simulated host (`mc-sim-host`).
+Measured on the Sony with two real releases (M5 record below):
+throughput is not a limit (the WiFi link sustains ~210 Mbit/s through
+the media endpoint; a 95 Mbit/s 4K remux plays with zero dropped
+frames and no cache stall), but **the output path loses quality**: mpv
+renders into a 1920×1080 SDR surface, so a 4K HDR file reaches the
+panel tone-mapped and upscaled (open decision 4). Found and fixed on
+the way: every viewing on the TV was paused, because the bridge sent
+booleans to libmpv as strings. M1–M3 are built and verified; nothing
+merges to main before the owner's sign-off; the wiki edits are
 committed locally in the wiki repo and not pushed. **The next session
-opens with a conversation, not code**: the owner's concern about
-playback performance on large, high-bitrate releases, and the
-"speed test" the product should offer (open decisions 2 and 3). Then
-M5, hardening, with those two items at its head.
+opens with the owner on open decisions 4 (output fidelity), 5
+(per-viewing state on a long-lived libmpv) and 3 (the speed test);
+then M5 in the order those set.**
 
 ## Design (unify pass, 2026-10-22)
 
@@ -140,6 +147,8 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The Android toolchain is owned by the app repository's `mise.toml` (Temurin 21, `ANDROID_HOME=~/Android/Sdk`, SDK tools on `PATH`); `mc-tv` runs every tool through `mise -C <repo> exec`; nothing goes in a shell profile. SDK licences accepted on the owner's behalf. (M3 record; agent, owner absent)
 * `2026-10-22` — The TV app targets compileSdk and targetSdk 36 on AGP 9.4.0 with built-in Kotlin, Gradle 9.6.0, minSdk 26. (M3 research)
 * `2026-10-22` — The owner's TV is a Sony Bravia XR-42A90K at `192.168.68.63`: Android 12 (API 31), 32-bit only (`armeabi-v7a`), adb over the network on 5555 once ADB debugging is on. (M3 hardware checks)
+* `2026-10-22` — The bridge's `set_property` keeps the JSON value's type (boolean, integer, double, string), as mpv's own JSON IPC does; a boolean sent as the string `"false"` is rejected by libmpv with error -4, which had left every viewing on the TV paused. (`android-app` `e46cd1b`)
+* `2026-10-22` — Throughput needs no design work on this TV: measured 210–220 Mbit/s through the media endpoint over WiFi against a 95 Mbit/s ceiling in the owner's library; no transcode or remux path is opened. The speed test (open decision 3) remains a product question, not a rescue. (M5 measurement)
 
 ## Open decisions
 
@@ -147,23 +156,57 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    "Media Centaur" are provisional in the app repository. An id cannot
    change after the first Play upload, so the owner confirms both
    before M6. Recommendation: keep them.
-2. **Playback performance on large, high-bitrate releases** (owner's
-   concern, 2026-10-22). What is known: the spec's throughput budget
-   (1080p remux 25–40 Mbit/s; 4K HDR remux 60–100 Mbit/s; the host's
-   `sendfile` is not the limit, the device's link is); the Sony is a
-   32-bit Android 12 panel on WiFi with MediaCodec decode; the app's
-   cache is 150 MiB / 20 s readahead; the only file played so far is a
-   2 MB 720p test pattern. What is unknown, and measurable before any
-   design: the Sony's real WiFi throughput from the host (a timed
-   fetch of a large file through the media endpoint), MediaCodec's
-   HEVC 10-bit 4K decode on this panel, whether libmpv's cache rides
-   out WiFi jitter at 60+ Mbit/s, HDR and audio passthrough. Levers if
-   it falls short: wired Ethernet on the TV, cache size and readahead,
-   `hwdec` variants, and as a last resort a host-side remux or
-   transcode, which the design rejected for fidelity and would reopen
-   the media-server question. Recommendation: measure first on the
-   owner's real library (one 1080p remux, one 4K HDR remux), in a TV
-   window, before deciding anything; the numbers decide M5's order.
+2. **Playback performance on large, high-bitrate releases** — measured
+   2026-10-22, see the M5 record; resolved as a decision (throughput
+   is not a limit on this TV; no transcode path). What remains is
+   open decision 4: the output path, which is a fidelity question, not
+   a performance one. Still unmeasured: WiFi jitter over a full-length
+   viewing (the two samples were 40 s each), and the TV's Ethernet
+   port, which is present and unplugged.
+4. **Output fidelity on the TV** (verified 2026-10-22). libmpv on the
+   Sony decodes the original bitstream in hardware (`hwdec=mediacodec`,
+   zero drops) but renders through `vo=gpu` into the app's
+   `SurfaceView`, which on this panel is 1920×1080 because its Android
+   UI runs at a 1080p override; the compositor then upscales to
+   3840×2160. mpv's `video-target-params` while a 4K HDR remux played:
+   1920×1080, bt.709, gamma 2.2, peak 1.0, so HDR (PQ/BT.2020) is
+   tone-mapped to SDR on the GPU and the panel never enters HDR
+   (SurfaceFlinger shows no HDR dataspace; the HWC reports hdr10, hlg
+   and dv support). Audio: DTS-HD MA decoded to 16-bit PCM 5.1 over
+   `audiotrack`, no bitstream passthrough. Dolby Vision profile 7's
+   enhancement layer is not supported by mpv anywhere (host included);
+   the HDR10 base layer plays. Options: (a) keep `vo=gpu` and fix the
+   surface at the panel's physical size (`SurfaceHolder.setFixedSize`
+   3840×2160) — restores resolution, costs a 4K tone-map on a 2022
+   Mali every frame, and HDR output stays SDR unless mpv can present a
+   10-bit HDR EGL surface on Android (research: it cannot as of
+   mpv 0.41, to be confirmed); (b) `vo=mediacodec_embed` — the decoder
+   writes straight to the surface, so the TV's own pipeline handles
+   resolution, HDR10 and DV at near-zero GPU cost, but mpv then draws
+   nothing: no OSD, no bundled pills, no track menu, no subtitles
+   (subtitles would need a renderer of their own, or the WebView
+   drawing them); (c) both, chosen per viewing: `mediacodec_embed` by
+   default, `gpu` when a subtitle track is on. Recommendation: research
+   (b) on the Sony first (does the panel switch to HDR and DV with
+   `mediacodec_embed`; what the audio path can bitstream), then decide
+   with the owner — this decides what "host fidelity" means on a TV
+   and shapes the rest of M5.
+5. **Per-viewing state on a long-lived libmpv** (found 2026-10-22). The
+   host's mpv is a fresh process per viewing, so every option starts at
+   its default; the TV's one libmpv keeps the previous viewing's
+   state: `keep-open=yes` leaves `pause=yes` at the end of a file, and
+   the next `loadfile` starts paused (seen on the Sony: the first
+   viewing after an `eof` was paused from its first frame). The same
+   applies to `sid`/`aid` enforcement, `script-opts` appended per
+   viewing, and anything else the session sets. Options: (a) the host
+   sends the viewing's whole option set as `loadfile` per-file options
+   (`loadfile <url> replace -1 pause=no,start=…,keep-open=yes,…`), which
+   mpv restores at the file's end — one representation of "this
+   viewing's options" for both transports (`LaunchFlags` pairs render
+   as CLI flags for the host and as the per-file list for a remote);
+   (b) the bridge resets a known list on every `loadfile`, which puts
+   session knowledge in the player. Recommendation: (a); the host owns
+   what a viewing is.
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -215,9 +258,11 @@ first, then iteration. The contract both codebases follow is
    plays one file, reports progress, auto-advances an episode, ends on
    eof or Back, on the Sony Bravia. The finish prompt and a
    real-length file move to M5's first item.
-5. **M5 — Hardening.** First: playback performance measured on the
-   owner's real library (open decision 2) and the speed test designed
-   (open decision 3); the finish prompt and a real-length viewing on
+5. **M5 — Hardening.** Started 2026-10-22 with the measurements
+   (record below). Head of the list, in order: the output path (open
+   decision 4), per-viewing state on the long-lived libmpv (open
+   decision 5), the speed test designed with the owner (open
+   decision 3); the finish prompt and a real-length viewing on
    the device (completion recorded, the prompt shown in the WebView);
    the pairing page's Code field size in the WebView; the WebView's
    960×540 layout scale (measure first); the audio underrun at start;
@@ -231,6 +276,54 @@ first, then iteration. The contract both codebases follow is
    Play internal testing track, wiki page for the TV app, glossary
    elevated to `docs/GLOSSARY.md`; the owner's walk through every page
    and the full viewing lifecycle on the TV.
+
+### M5 — Hardening (procedure record, in progress)
+
+**Measurements (2026-10-22), before any M5 design.** Two real releases
+from the owner's library were linked into the simulated host as
+symlinks (`mc-sim-host stage`): the heaviest 4K file (a 2160p UHD
+remux, HEVC, DV profile 7 FEL over HDR10, DTS-HD MA 5.1, 77 GiB,
+95 Mbit/s average) and the heaviest 1080p file (H.264, DTS-HD MA 5.1,
+21 Mbit/s). The owner's dev server was not touched: its `bind` stays
+loopback.
+* **Link ceiling, no TV window.** The TV's shell has no curl or wget
+  but toybox `nc` and `dd`: 1 GiB fetched from the media endpoint over
+  the TV's WiFi in 38.7 s (≈27.8 MB/s, ≈220 Mbit/s); a 20 s timed fetch
+  gave 208 Mbit/s; an `adb push` ran at 158 Mbit/s. The TV's `eth0` is
+  present with no carrier. Ad-hoc LAN servers from the agent shell are
+  refused by the permission classifier; the simulated host on 4003 is
+  the one LAN-exposed path, which is why `stage` exists.
+* **First window: every viewing paused.** `pause=true` from the first
+  frame of both files, and the host's `set_property pause false`
+  answered by libmpv with `-4` (bad option value): the bridge
+  stringified JSON booleans. Fixed (`android-app` `e46cd1b`, a unit
+  test on the typed set). The initial pause was the long-lived
+  instance keeping `keep-open`'s pause from M4's last `eof` (open
+  decision 5).
+* **Second window, both files playing** (`mc-tv-flow perf`): 4K —
+  `hwdec=mediacodec`, `time-pos` advancing in real time over 26 s,
+  `cache-speed` 10–12.6 MB/s (mpv throttles to the file's rate once
+  the 150 MiB cache is full: `demuxer-cache-duration` 13.4–13.8 s),
+  `paused-for-cache` never, `frame-drop-count` 0, `decoder-frame-drop-count` 0,
+  `vo-delayed-frame-count` 0, `avsync` 0.00003; 1080p — the same with
+  56 s cached. No mpv warnings or errors beyond "Dolby Vision
+  enhancement-layer playback is not supported".
+* **Output path** (`video-target-params` during the 4K file): 1920×1080,
+  bt.709, gamma 2.2, sig-peak 1.0, rgba16f; `osd-dimensions` 1920×1080;
+  `android-surface-size` 1920×1080 at surface creation; SurfaceFlinger:
+  `displayFrame [0 0 3840 2160]`, `sourceCrop 1920×1080`, dataspace
+  UNKNOWN, HWC supports hdr10, hlg, dv. Audio out `s16`, 6 ch, 48 kHz,
+  `audiotrack`. Open decision 4 carries the options.
+* **Rig additions.** `mc-sim-host stage <file> <name> <year>`;
+  `mc-tv-flow perf <tv|emu> <movie-id>[:seek]...` (two property samples
+  25 s apart, screenshot, the SurfaceFlinger dataspace lines, mpv
+  warnings, Back, `hdmi`). Staged in the sim host this session:
+  MOVIE `1bb10bdd-cbda-48b4-b59d-263425a31c40` (4K, 95 Mbit/s),
+  `f506e315-80b0-40a3-a2a1-9a5696d47fd8` (1080p) and
+  `1e2de1ec-6f9f-4109-b821-728f1a77f239` (a second 4K remux, 65 Mbit/s,
+  HDR10 without DV).
+
+Steps 1–7 of the procedure wait on open decisions 4 and 5.
 
 ### M4 — TV app skeleton (procedure record)
 
@@ -1122,16 +1215,17 @@ TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
 each window to a minute, always end with `mc-tv hdmi`.
 
-**The next session's agenda.** (1) Talk with the owner about playback
-performance and the speed test (open decisions 2 and 3) before writing
-code. (2) Measure on the owner's real library: pick a 1080p remux and
-a 4K HDR remux, play each on the Sony in one window, read mpv's
-`cache-speed`, `demuxer-cache-duration`, dropped frames, and whether
-it stutters; a timed `curl` of the same file from a LAN machine gives
-the link's ceiling. The real library is the owner's dev server on
-2160 (loopback) — reaching it from the TV needs `bind` opened on that
-install or a copy of the files into the simulated host's media dir;
-ask the owner which. (3) Then M5 in the order the numbers dictate.
+**The next session's agenda.** (1) With the owner: open decision 4
+(the output path: `mediacodec_embed` versus a 4K `gpu` surface, and
+what happens to OSD and subtitles), open decision 5 (per-viewing
+options as `loadfile` per-file options), open decision 3 (the speed
+test's shape). (2) Research for decision 4 on the Sony: one
+`mc-tv-flow perf` window with `vo=mediacodec_embed` set in the
+player's instance options, reading SurfaceFlinger's dataspace and
+whether the panel enters HDR/DV. (3) Then M5 by the procedure. The
+staged real files and `mc-tv-flow perf` make every measurement one
+command; the TV's paired player on the sim host is `b8ef08c8`
+(re-pair with `mc-tv-flow pair tv` if `mc-sim-host ids` shows none).
 
 **What is proven end to end** (2026-10-22, M2 record step 7): pairing by
 code; channel up; `play/3`; options and `loadfile` with a tokenised media
