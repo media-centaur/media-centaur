@@ -95,63 +95,63 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
     end
   end
 
-  describe "to_mpv_flags/1" do
-    test "emits --alang/--slang/--subs-with-matching-audio from the priority args" do
+  describe "to_mpv_options/1" do
+    test "emits alang/slang/subs-with-matching-audio pairs from the priority args" do
       flags =
-        LanguageContext.to_mpv_flags(%{
+        LanguageContext.to_mpv_options(%{
           alang: ["jpn", "eng"],
           slang: ["eng"],
           subs_match_audio: "no",
           disable_subs: false
         })
 
-      assert "--alang=jpn,eng" in flags
-      assert "--slang=eng" in flags
-      assert "--subs-with-matching-audio=no" in flags
-      refute "--sid=no" in flags
+      assert {"alang", "jpn,eng"} in flags
+      assert {"slang", "eng"} in flags
+      assert {"subs-with-matching-audio", "no"} in flags
+      refute {"sid", "no"} in flags
     end
 
     # Disabling subs is expressed through `sid` alone. `--sub-visibility=no`
     # is a session-wide render toggle nothing flips back at runtime, so a
     # launch with it made every later subtitle switch in the track menu
     # select a track that never rendered until the player was reopened.
-    test "never emits --sub-visibility — disabling subs is sid-only" do
+    test "never emits sub-visibility — disabling subs is sid-only" do
       flags =
-        LanguageContext.to_mpv_flags(%{
+        LanguageContext.to_mpv_options(%{
           alang: ["eng"],
           slang: [],
           subs_match_audio: "no",
           disable_subs: true
         })
 
-      refute Enum.any?(flags, &String.starts_with?(&1, "--sub-visibility"))
-      assert "--sid=no" in flags
+      refute Enum.any?(flags, &match?({"sub-visibility", _}, &1))
+      assert {"sid", "no"} in flags
     end
 
-    test "omits --alang when alang list is empty" do
+    test "omits alang when alang list is empty" do
       flags =
-        LanguageContext.to_mpv_flags(%{
+        LanguageContext.to_mpv_options(%{
           alang: [],
           slang: ["eng"],
           subs_match_audio: "no",
           disable_subs: false
         })
 
-      refute Enum.any?(flags, &String.starts_with?(&1, "--alang"))
-      assert "--slang=eng" in flags
+      refute Enum.any?(flags, &match?({"alang", _}, &1))
+      assert {"slang", "eng"} in flags
     end
 
-    test "omits --slang when slang list is empty (but still emits subs-with-matching-audio)" do
+    test "omits slang when slang list is empty (but still emits subs-with-matching-audio)" do
       flags =
-        LanguageContext.to_mpv_flags(%{
+        LanguageContext.to_mpv_options(%{
           alang: ["eng"],
           slang: [],
           subs_match_audio: "no",
           disable_subs: false
         })
 
-      refute Enum.any?(flags, &String.starts_with?(&1, "--slang"))
-      assert "--subs-with-matching-audio=no" in flags
+      refute Enum.any?(flags, &match?({"slang", _}, &1))
+      assert {"subs-with-matching-audio", "no"} in flags
     end
   end
 

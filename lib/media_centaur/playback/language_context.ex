@@ -61,22 +61,23 @@ defmodule MediaCentaur.Playback.LanguageContext do
   end
 
   @doc """
-  Convert `priority_args` into mpv launch flags. Returns an ordered
-  list of `--...=` strings suitable for splicing into mpv's argv.
-  Empty lists for `alang`/`slang` are omitted entirely (mpv treats
-  the flag's absence as "no preference").
+  Convert `priority_args` into mpv options, as `{option, value}` pairs
+  (`Playback.LaunchFlags.option/0`): `alang`, `slang`,
+  `subs-with-matching-audio`, and `sid=no` when subtitles are disabled.
+  Empty lists for `alang`/`slang` are omitted entirely (mpv treats the
+  option's absence as "no preference").
   """
-  @spec to_mpv_flags(TrackResolver.priority_args()) :: [String.t()]
-  def to_mpv_flags(args) do
+  @spec to_mpv_options(TrackResolver.priority_args()) :: [{String.t(), String.t()}]
+  def to_mpv_options(args) do
     []
-    |> append_lang_flag("--alang", args.alang)
-    |> append_lang_flag("--slang", args.slang)
-    |> Kernel.++(["--subs-with-matching-audio=#{args.subs_match_audio}"])
-    |> Kernel.++(if(args.disable_subs, do: ["--sid=no"], else: []))
+    |> append_lang_option("alang", args.alang)
+    |> append_lang_option("slang", args.slang)
+    |> Kernel.++([{"subs-with-matching-audio", to_string(args.subs_match_audio)}])
+    |> Kernel.++(if(args.disable_subs, do: [{"sid", "no"}], else: []))
   end
 
-  defp append_lang_flag(acc, _flag, []), do: acc
-  defp append_lang_flag(acc, flag, langs), do: acc ++ ["#{flag}=#{Enum.join(langs, ",")}"]
+  defp append_lang_option(acc, _name, []), do: acc
+  defp append_lang_option(acc, name, langs), do: acc ++ [{name, Enum.join(langs, ",")}]
 
   @doc """
   Parse mpv's `track-list` property value (a list of mpv track maps)
