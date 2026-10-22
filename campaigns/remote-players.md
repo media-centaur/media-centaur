@@ -927,6 +927,43 @@ layout and controls are not settled by the plan — they go to the owner
 as a mockup round before stage 2 is executed**, and stage 2's component
 list follows what the owner picks. Execution has not started.
 
+**Step 7 — execution.**
+* *Stage 1 (host) — built 2026-10-22, evening.* `Playback.Viewing`
+  (one shape for `now_playing` and the stream, with the prompt judged by
+  `Viewing.prompt/1`), `Playback.IntroChapter`, `Playback.Command` and
+  the door `Playback.command/3` → `Sessions.command/3` →
+  `MpvSession.command/2` (a cast, rendered against the current prompt);
+  the per-player viewing stream (`Playback.subscribe_viewing/1`,
+  `Topics.playback_viewing/1`, `Events.broadcast_viewing/1`,
+  `Events.ViewingEnded`), streamed on attach, on each discrete property
+  and on position once a second; `sub-text` and `chapter` observed;
+  `Transport.queue/3` and `Transport.draws_subtitles?/1` (Local: the
+  old append, true; Remote: the same per-file options, false);
+  `LaunchFlags.per_file_options/2` with `%n%` quoting and
+  `script-opts-append` → `script-opts`, `{"pause", "no"}` in the
+  session options; `Transport.Remote.open/2` sends one `loadfile` and no
+  `set_property`; `NextEpisode.loadfile_command/1` removed; the
+  resolver sees only drawable subtitle tracks and a bitmap-only file
+  gets `sid=no`; `Track.codec`; the three `now_playing` readers read
+  with `Map.get`. Tests: `viewing_test`, `intro_chapter_test`,
+  `command_test`, `chapter_words_lua_sync_test` (parses both Lua
+  tables, the floor and the window), `launch_flags_test`,
+  `transport/remote_test`, `mpv_session_transport_test` (commands,
+  the stream's cadence, bitmap enforcement), `sessions_test` updated;
+  the `next_episode_test` cases for the removed function went with it.
+  Records: ADR-080 amended (3a, 8–10), `docs/playback.md`,
+  `docs/mpv.md`. **End to end on the sim host with `mc-player-sim`
+  (a headless desktop mpv):** the prompt reads `{:skip_intro, 4.0}` on
+  the lab file's intro chapter and `:activate_prompt` seeks past it;
+  `:toggle_pause` pauses and resumes; `script-opts` reads back one
+  profile key; the subtitle line streams; the file's end ends the
+  session and the instance's `pause` reads false after it; a second
+  viewing starts playing on the same long-lived mpv. Found on the way,
+  for M6: a relative seek past the end leaves mpv paused on the last
+  frame with no `eof-reached`, so the viewing does not end until Back —
+  the host should clamp a seek to the duration, or treat paused-at-end
+  as the end.
+
 ### M4 — TV app skeleton (procedure record)
 
 **1. Scope (2026-10-22).** In, all in `~/src/media-centaur/android-app`:

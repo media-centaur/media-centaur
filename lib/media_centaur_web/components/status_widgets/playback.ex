@@ -106,20 +106,20 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
           </div>
           <div
             :if={
-              session.now_playing[:duration_seconds] != nil &&
-                session.now_playing[:duration_seconds] > 0
+              Map.get(session.now_playing, :duration_seconds) != nil &&
+                Map.get(session.now_playing, :duration_seconds) > 0
             }
             class="flex items-center gap-2 mt-1"
           >
             <progress
               class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
-              value={session.now_playing[:position_seconds] || 0}
+              value={Map.get(session.now_playing, :position_seconds) || 0}
               max={session.now_playing.duration_seconds}
             ></progress>
             <span class="text-xs text-base-content/55 whitespace-nowrap tabular-nums">
               {format_remaining(
                 session.now_playing.duration_seconds -
-                  (session.now_playing[:position_seconds] || 0)
+                  (Map.get(session.now_playing, :position_seconds) || 0)
               )}
             </span>
           </div>
@@ -188,15 +188,15 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   defp kind_glyph(_video), do: "hero-video-camera"
 
   defp now_playing_title(%{episode_name: _} = now_playing),
-    do: now_playing[:entity_name] || now_playing.entity_id
+    do: Map.get(now_playing, :entity_name) || now_playing.entity_id
 
   defp now_playing_title(%{movie_name: name}) when is_binary(name), do: name
   defp now_playing_title(%{entity_name: name}) when is_binary(name), do: name
   defp now_playing_title(now_playing), do: now_playing.entity_id
 
   defp now_playing_detail(%{episode_name: name} = now_playing) when is_binary(name) do
-    if now_playing[:season_number] do
-      "S#{now_playing[:season_number]}E#{now_playing[:episode_number] || "?"} · #{name}"
+    if Map.get(now_playing, :season_number) do
+      "S#{Map.get(now_playing, :season_number)}E#{Map.get(now_playing, :episode_number) || "?"} · #{name}"
     else
       name
     end

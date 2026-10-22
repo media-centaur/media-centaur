@@ -50,6 +50,25 @@ defmodule MediaCentaur.Playback.Completion do
   # "Closing Credits", "Credits"; `outro` covers "Outro". Deliberately
   # excludes bare "Ending" (often the story climax, not the credits).
   @credits_title ~r/\b(credits|outro)\b/i
+  @credits_words ["credits", "outro"]
+
+  @doc "The words a credits chapter title carries, lower case; `next_episode.lua` keeps the same list."
+  @spec credits_words() :: [String.t()]
+  def credits_words, do: @credits_words
+
+  @doc "The fraction of the runtime a credits chapter must start at or after."
+  @spec outro_floor() :: float()
+  def outro_floor, do: @outro_floor
+
+  @doc "Whether one `chapter-list` entry is the credits: a credits title starting at or after the outro floor of `duration`."
+  @spec credits_chapter?(map(), number()) :: boolean()
+  def credits_chapter?(chapter, duration)
+      when is_map(chapter) and is_number(duration) and duration > 0 do
+    %{title: title, time: time} = normalize(chapter)
+    is_number(time) and time >= duration * @outro_floor and credits_title?(title)
+  end
+
+  def credits_chapter?(_chapter, _duration), do: false
 
   @doc """
   Why a viewing at `position` of `duration` (seconds) is complete — a

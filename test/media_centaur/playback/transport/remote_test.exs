@@ -43,7 +43,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
-  test "open attaches the session, sends the session options, then loads the file", %{
+  test "open attaches the session and loads the file with the session options as per-file options", %{
     player_id: player_id,
     path: path,
     presence: presence
@@ -67,13 +67,44 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
     me = self()
     assert_received {:channel, {:attach, ^me}}
-    assert_received {:channel, {:push, ["set_property", "keep-open", "yes"]}}
+
+    # Nothing is set on the player's long-lived instance: every option
+    # rides on the file and mpv restores the instance at its end.
+    refute_received {:channel, {:push, ["set_property" | _]}}
+    refute_received {:channel, {:push, ["change-list" | _]}}
 
     assert_received {:channel,
                      {:push,
-                      ["change-list", "script-opts", "append", "media_centaur_session-profile_id=p1"]}}
+                      [
+                        "loadfile",
+                        ^url,
+                        "replace",
+                        -1,
+                        "keep-open=%3%yes,script-opts=%35%media_centaur_session-profile_id=p1,start=%4%42.5"
+                      ]}}
+  end
 
-    assert_received {:channel, {:push, ["loadfile", ^url, "replace", -1, "start=42.5"]}}
+  @tag :tmp_dir
+  test "a successor is queued with the same per-file options, so the chain keeps the viewing's set", %{
+    player_id: player_id,
+    path: path
+  } do
+    {:ok, transport} = Remote.new(player_id)
+    url = Remote.locator(transport, path)
+
+    launch = %{
+      session_options: [{"keep-open", "yes"}],
+      content_url: url,
+      start_position: 0,
+      profile_id: "p1"
+    }
+
+    {_events, transport} = Remote.open(transport, launch)
+
+    assert Remote.queue(transport, "#{@base}/media/next?t=token", 300.0) ==
+             ["loadfile", "#{@base}/media/next?t=token", "append", -1, "keep-open=%3%yes,start=%5%300.0"]
+
+    refute Remote.draws_subtitles?(transport)
   end
 
   @tag :tmp_dir

@@ -13,12 +13,11 @@ defmodule MediaCentaur.Playback.NextEpisode do
   queueing decision, so flipping it mid-session takes effect at the next
   episode boundary.
 
-  `loadfile_command/1` builds the IPC command for the append. The resume
-  position rides a **per-entry** `start` option — the global `--start`
-  launch flag (ADR-062) applies only to the first file and must never
-  leak onto appended entries. The 5-argument `loadfile` form (with the
-  insertion index) requires mpv ≥ 0.38; entries starting at zero use the
-  plain 3-argument form.
+  The append command itself is the transport's (`Playback.Transport.queue/3`):
+  the resume position rides a **per-entry** `start` option — the global
+  `--start` launch flag (ADR-062) applies only to the first file and must
+  never leak onto appended entries — and a remote player's entry carries
+  the whole session option set, since its instance holds none.
   """
 
   alias MediaCentaur.Settings.Preferences.AutoPlayNextEpisode
@@ -57,21 +56,6 @@ defmodule MediaCentaur.Playback.NextEpisode do
       _ -> :none
     end
   end
-
-  @doc """
-  Builds the mpv IPC `loadfile` command that appends a queue item to the
-  playlist.
-  """
-  @spec loadfile_command(%{
-          required(:content_url) => String.t(),
-          required(:start_position) => float(),
-          optional(atom()) => term()
-        }) :: list()
-  def loadfile_command(%{content_url: url, start_position: start}) when start > 0 do
-    ["loadfile", url, "append", -1, "start=#{start}"]
-  end
-
-  def loadfile_command(%{content_url: url}), do: ["loadfile", url, "append"]
 
   @doc """
   Re-derives episode identity from the path mpv reports playing — the

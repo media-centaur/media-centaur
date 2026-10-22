@@ -14,6 +14,7 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
   alias MediaCentaur.Playback.FakeTransport
   alias MediaCentaur.Playback.SessionRegistry
   alias MediaCentaur.Playback.Sessions
+  alias MediaCentaur.Playback.Viewing
   alias MediaCentaur.Profiles
 
   setup do
@@ -159,5 +160,105 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
                     %Events.PlaybackFailed{entity_id: ^entity_id, reason: :startup_failure}}
 
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+  end
+
+  describe "a reader's commands" do
+    test "are rendered to IPC by the session and sent through its transport", %{
+      params: params,
+      entity_id: entity_id
+    } do
+      pid = start!(params)
+      attach!(pid)
+
+      assert Playback.command(:host, entity_id, :toggle_pause) == :ok
+      assert_receive {:mpv_command, ["cycle", "pause"]}
+
+      assert Playback.command(:host, entity_id, {:seek, -10}) == :ok
+      assert_receive {:mpv_command, ["seek", -10, "relative"]}
+
+      assert Playback.command(:host, entity_id, {:select_track, :subtitle, :none}) == :ok
+      assert_receive {:mpv_command, ["set_property", "sid", "no"]}
+
+      # No prompt shows, so activating one does nothing.
+      assert Playback.command(:host, entity_id, :activate_prompt) == :ok
+      refute_receive {:mpv_command, ["playlist-next"]}, 50
+      refute_receive {:mpv_command, ["seek", _, "absolute"]}, 50
+    end
+
+    test "a command for a viewing that does not exist is refused", %{entity_id: entity_id} do
+      assert Playback.command(:host, entity_id, :toggle_pause) == {:error, :no_session}
+    end
+  end
+
+  describe "the viewing stream" do
+    test "carries the viewing on attach, on every discrete change, and on position once a second; ends with the session",
+         %{params: params, entity_id: entity_id} do
+      Playback.subscribe_viewing(:host)
+      pid = start!(params)
+      attach!(pid)
+      assert_receive {:viewing, %Viewing{entity_id: ^entity_id, player: :host, state: :playing}}
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "pause", "data" => true}}
+      )
+
+      assert_receive {:viewing, %Viewing{state: :paused}}
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "sub-text", "data" => "A line"}}
+      )
+
+      assert_receive {:viewing, %Viewing{subtitle_text: "A line"}}
+
+      FakeTransport.emit(pid, {:message, %{"event" => "property-change", "name" => "sub-text"}})
+      assert_receive {:viewing, %Viewing{subtitle_text: nil}}
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "chapter", "data" => 1}}
+      )
+
+      assert_receive {:viewing, %Viewing{chapter: 1}}
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "time-pos", "data" => 1.0}}
+      )
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "time-pos", "data" => 1.5}}
+      )
+
+      assert_receive {:viewing, %Viewing{position_seconds: 1.0}}
+      refute_receive {:viewing, %Viewing{position_seconds: 1.5}}, 50
+
+      Sessions.stop(:host, entity_id)
+      assert_receive {:viewing_ended, %Events.ViewingEnded{entity_id: ^entity_id, player: :host}}
+    end
+  end
+
+  describe "a player that draws no subtitles" do
+    test "never has a bitmap track enforced; a file with only bitmap tracks gets subtitles off",
+         %{params: params} do
+      params = %{params | transport: FakeTransport.new(self(), draws_subtitles?: false)}
+      pid = start!(params)
+      attach!(pid)
+
+      tracks = [
+        %{"id" => 1, "type" => "audio", "lang" => "eng", "codec" => "dts"},
+        %{"id" => 1, "type" => "sub", "lang" => "eng", "codec" => "hdmv_pgs_subtitle"}
+      ]
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "track-list", "data" => tracks}}
+      )
+
+      assert_receive {:mpv_command, ["set_property", "sid", "no"]}
+      refute_receive {:mpv_command, ["set_property", "sid", 1]}, 50
+    end
   end
 end

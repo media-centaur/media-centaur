@@ -109,7 +109,10 @@ defmodule MediaCentaur.Playback.LanguageContext do
       # mislabel signature the resolver distrusts (`forced+default` on a
       # full dialogue track). mpv exposes a boolean `default` per track.
       default: Map.get(track, "default", false) == true,
-      sdh: sdh_of(track)
+      sdh: sdh_of(track),
+      # The codec tells a bitmap subtitle track (PGS, VobSub) from text;
+      # a player that draws nothing cannot show the former (`Viewing`).
+      codec: Map.get(track, "codec")
     }
   end
 

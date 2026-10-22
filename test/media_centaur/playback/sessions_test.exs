@@ -62,7 +62,7 @@ defmodule MediaCentaur.Playback.SessionsTest do
 
       assert :ok = Sessions.play(params, player_id)
       assert_receive {:channel, {:attach, session}}
-      assert_receive {:channel, {:push, ["loadfile", _url, "replace"]}}
+      assert_receive {:channel, {:push, ["loadfile", _url, "replace", -1, _per_file_options]}}
       assert %{player: ^player_id, state: :playing} = Sessions.get(player_id, params.entity_id)
 
       :ok = Sessions.stop(player_id, params.entity_id)

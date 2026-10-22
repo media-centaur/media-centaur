@@ -48,10 +48,12 @@ quiet terminal, the IPC socket, the log file, the bundled scripts path),
 **session options** every mpv playing a session needs (the rows below
 from `keep-open` on, the language policy, the profile), and the **file
 target**. `Transport.Local` renders all three as argv for `Port.open`;
-`Transport.Remote` sends the session options as IPC (`set_property`, and
-`change-list script-opts append` for the profile) followed by one
-`loadfile … replace` with the media URL. A remote player owns its own
-process options and ships the bundled scripts in its assets.
+`Transport.Remote` sends one `loadfile … replace` with the media URL whose
+options argument carries the session options and the resume position
+(`LaunchFlags.per_file_options/2`), since the device's mpv lives for the
+app's life and must hold nothing between viewings; its appended successor
+carries the same set. A remote player owns its own process options and
+draws nothing — the host's page is its OSD, so it ships no scripts.
 Unit-tested without spawning anything.
 
 | Flag | Why |
@@ -60,6 +62,7 @@ Unit-tested without spawning anything.
 | `--terminal=no`, `--msg-level=all=error` | mpv's stdout is not the diagnostic channel; the log file is. |
 | `--input-ipc-server=<socket>` | The observation protocol (see [`playback.md`](playback.md)). |
 | `--log-file=<socket_dir>/media-centaur-<session>.log` | Exit classification and script errors. |
+| `--pause=no` | A viewing starts playing. A long-lived instance keeps `keep-open`'s pause from the previous file's end; a spawned process starts unpaused anyway. |
 | `--keep-open=yes` | `eof-reached` fires only at true playlist end. `always` would fire it at every file and quit mpv mid-chain. |
 | `--resume-playback=no` | The app owns position, track choice and sound toggles. mpv's watch-later restore fills in `start`, `aid`, `sid`, `af` and more whenever the command line leaves them unset, which the restart-from-0 path does. |
 | `--script=<priv>/mpv/scripts/media-centaur` | The bundled package. |

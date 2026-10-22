@@ -37,9 +37,10 @@ defmodule MediaCentaur.Playback.TrackResolver do
             title: String.t() | nil,
             forced: boolean(),
             default: boolean(),
-            sdh: boolean()
+            sdh: boolean(),
+            codec: String.t() | nil
           }
-    defstruct [:index, :lang, :title, forced: false, default: false, sdh: false]
+    defstruct [:index, :lang, :title, :codec, forced: false, default: false, sdh: false]
   end
 
   @type resolution :: %{

@@ -90,6 +90,18 @@ defmodule MediaCentaur.Playback.Transport.Local do
   def identify(_transport, reported_path), do: reported_path
 
   @impl true
+  # The process carries the session options; only the entry's own start
+  # rides on it (per entry, so an unwatched successor never inherits the
+  # first episode's offset — ADR-062). mpv ≥ 0.38's five-argument form.
+  def queue(_transport, locator, start) when start > 0,
+    do: ["loadfile", locator, "append", -1, "start=#{start}"]
+
+  def queue(_transport, locator, _start), do: ["loadfile", locator, "append"]
+
+  @impl true
+  def draws_subtitles?(_transport), do: true
+
+  @impl true
   def describe(transport), do: "mpv on this computer (#{Path.basename(transport.socket_path)})"
 
   @impl true

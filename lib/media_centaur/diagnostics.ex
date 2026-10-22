@@ -51,13 +51,13 @@ defmodule MediaCentaur.Diagnostics do
         IO.puts("  #{state} — #{name}")
 
         if now_playing = session[:now_playing] do
-          if now_playing[:season_number] do
+          if Map.get(now_playing, :season_number) do
             IO.puts(
-              "    S#{now_playing.season_number}E#{now_playing.episode_number} #{now_playing[:episode_name] || ""}"
+              "    S#{now_playing.season_number}E#{now_playing.episode_number} #{Map.get(now_playing, :episode_name) || ""}"
             )
           end
 
-          if now_playing[:position_seconds] && now_playing[:duration_seconds] do
+          if Map.get(now_playing, :position_seconds) && Map.get(now_playing, :duration_seconds) do
             IO.puts(
               "    #{format_seconds(now_playing.position_seconds)} / #{format_seconds(now_playing.duration_seconds)}"
             )

@@ -31,3 +31,15 @@ Declined on 2026-10-22: a second session type for remote viewings (two copies of
 * Good, because the TV app is small: a bridge from IPC JSON to libmpv calls, not a client of the library.
 * Bad, because the bridge must implement the IPC subset the host uses, including replies by `request_id` and node-valued properties observed as JSON strings, and coalesce `time-pos` to 1 Hz.
 * Bad, because a removed player's open channel is closed only on its next event, and a detached session shows as playing for up to a minute.
+
+## Amendment 2026-10-22 — a remote player's options ride on the file; readers get one viewing and one command door (M5)
+
+Point 3 said the remote transport *sends* the session options as IPC. Measured on the Sony the same day (`android-app` `docs/playback-on-android.md`): the device's mpv lives for the app's life, so every `set_property` is for the player's life — `keep-open` left the next viewing paused at its first frame, and an `audio-spdif` set for one test froze the viewing after it. So:
+
+3a. **`Transport.Remote` sets nothing on the instance.** It sends one `loadfile … replace` whose options argument carries the session options and the resume position (`LaunchFlags.per_file_options/2`, mpv's `%n%` quoting), which mpv applies while the file plays and restores at its end; `{"pause", "no"}` joined the session options. The successor the session appends carries the same set: the append is the transport's (`Transport.queue/3`), not `NextEpisode`'s, since a spawned process carries its options for its life and a device's mpv does not.
+
+8. **Every reader sees one viewing.** `Playback.Viewing` is the session's state as a reader needs it — the title words, position, pause, chapters and current chapter, tracks (bitmap subtitle tracks marked), the subtitle line and the **prompt** (Skip Intro, Next Episode, the countdown — the desktop package's rules, judged on the host). It is `PlaybackStateChanged.now_playing` and the message on the per-player viewing stream (`Playback.subscribe_viewing/1`): on attach, on every discrete change, on position once a second, then `ViewingEnded`.
+
+9. **A reader commands a viewing through one typed door.** `Playback.command/3` takes a `Playback.Command` (pause, a relative seek, the prompt's action, a track); the session renders it to IPC and sends it through its transport. No reader composes mpv IPC. This is how a remote player's keys act: they go to the host's page, which is the player's OSD (`campaigns/remote-players.md`, M5; the UIDR to follow).
+
+10. **A transport says whether its mpv draws subtitles** (`draws_subtitles?/1`). A remote player draws nothing (`vo=mediacodec_embed`), so the resolver never sees its bitmap tracks and a file with only bitmap subtitles gets them off; the page's menu lists them disabled.
