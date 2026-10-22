@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def progress_matches_session?(record, now_playing) do
     case Map.get(record, :playable_item) do
       %{container_id: id} when not is_nil(id) ->
-        id == now_playing[:entity_id]
+        id == Map.get(now_playing, :entity_id)
 
       _ ->
         false

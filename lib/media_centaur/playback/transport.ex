@@ -26,7 +26,12 @@ defmodule MediaCentaur.Playback.Transport do
       failed on the way; the session broadcasts the failure and finalises.
 
   Commands flow the other way through `send/2`, fire and forget; a
-  transport that is not attached drops them.
+  transport that is not attached drops them. How this mpv is told to
+  append the chain's successor is the transport's too (`queue/3`): a
+  spawned process carries the session options for its life, a remote
+  player's instance carries nothing and gets them on every file.
+  `draws_subtitles?/1` says whether the mpv renders subtitles at all; a
+  remote player draws nothing, so bitmap tracks are never enforced on it.
 
   File identity: the session keeps the host path (`content_url`) as the
   identity of what plays. `locator/2` turns that identity into what mpv
@@ -70,6 +75,12 @@ defmodule MediaCentaur.Playback.Transport do
   @doc "The host path identified by what mpv reports as its `path`, or nil."
   @callback identify(t(), reported_path :: String.t()) :: String.t() | nil
 
+  @doc "The command that appends the chain's successor (`locator`, from `start_position`) with this session's options."
+  @callback queue(t(), locator :: String.t(), start_position :: number()) :: list()
+
+  @doc "Whether this mpv renders subtitles; a player that draws nothing cannot show a bitmap track."
+  @callback draws_subtitles?(t()) :: boolean()
+
   @doc "Folds a raw message delivered to the session into transport events; `:unhandled` for one that is not the transport's."
   @callback handle_message(t(), message :: term()) :: {[event()], t()} | :unhandled
 
@@ -84,6 +95,8 @@ defmodule MediaCentaur.Playback.Transport do
   def attached?(%module{} = transport), do: module.attached?(transport)
   def locator(%module{} = transport, content_url), do: module.locator(transport, content_url)
   def identify(%module{} = transport, reported_path), do: module.identify(transport, reported_path)
+  def queue(%module{} = transport, locator, start), do: module.queue(transport, locator, start)
+  def draws_subtitles?(%module{} = transport), do: module.draws_subtitles?(transport)
   def handle_message(%module{} = transport, message), do: module.handle_message(transport, message)
   def close(%module{} = transport, final?), do: module.close(transport, final?)
   def describe(%module{} = transport), do: module.describe(transport)

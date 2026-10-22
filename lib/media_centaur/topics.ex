@@ -165,6 +165,8 @@ defmodule MediaCentaur.Topics do
   def pipeline_publish, do: "pipeline:publish"
   def pipeline_stats, do: "pipeline:stats"
   def playback_events, do: "playback:events"
+  @doc "One player's viewing stream (`Playback.subscribe_viewing/1`): `:host`, or a paired player's id."
+  def playback_viewing(player), do: "playback:viewing:#{player}"
   def dir_state, do: "watcher:state"
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"

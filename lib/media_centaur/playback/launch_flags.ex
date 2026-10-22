@@ -18,6 +18,13 @@ defmodule MediaCentaur.Playback.LaunchFlags do
     * **The file target** (`launch_target/2`) — the file and its resume
       position, scoped to that file.
 
+  A remote player's mpv lives for the app's life, so nothing is set on its
+  instance: `per_file_options/2` renders the same session options (and the
+  resume position) as the options argument of one `loadfile`, which mpv
+  applies while that file plays and restores at its end — each viewing
+  starts from the host's set, and the successor the session appends
+  carries the same set (`Transport.Remote`).
+
   Rule: **the session never depends on anything in the user's mpv config.**
   mpv gives command-line options precedence over every config file, so
   each behaviour `MpvSession` relies on is pinned here and survives
@@ -29,6 +36,9 @@ defmodule MediaCentaur.Playback.LaunchFlags do
 
   Why each pinned option exists:
 
+    * `pause=no` — a long-lived instance keeps `keep-open`'s pause from the
+      previous file's end; every viewing starts playing. A spawned process
+      starts unpaused anyway.
     * `keep-open=yes` — the session's `eof-reached` handling (and the
       moduledoc claim that quit-on-EOF only fires at true playlist end)
       holds for `yes` and `no`; `always` fires `eof-reached` at every file
@@ -93,11 +103,30 @@ defmodule MediaCentaur.Playback.LaunchFlags do
   @spec session_options(%{profile_id: String.t(), language_options: [option()]}) :: [option()]
   def session_options(input) do
     [
+      {"pause", "no"},
       {"keep-open", "yes"},
       {"resume-playback", "no"},
       {"script-opts-append", "#{@profile_script_opt}=#{input.profile_id}"}
     ] ++ input.language_options
   end
+
+  @doc """
+  The session options and the resume position as one `loadfile` options
+  string for a remote player: `key=value` pairs, every value in mpv's
+  `%n%` length quoting so a comma-bearing language list survives the
+  list parser. A remote has no user config to append to, so
+  `script-opts-append` becomes the whole `script-opts`.
+  """
+  @spec per_file_options([option()], number()) :: String.t()
+  def per_file_options(session_options, start_position) do
+    session_options
+    |> Enum.map(&remote_option/1)
+    |> Kernel.++(if(start_position > 0, do: [{"start", to_string(start_position)}], else: []))
+    |> Enum.map_join(",", fn {name, value} -> "#{name}=%#{byte_size(value)}%#{value}" end)
+  end
+
+  defp remote_option({"script-opts-append", value}), do: {"script-opts", value}
+  defp remote_option(option), do: option
 
   @doc "The full argv for a spawned mpv: every option as `--name=value`, ending with the launch target."
   @spec argv(input()) :: [String.t()]

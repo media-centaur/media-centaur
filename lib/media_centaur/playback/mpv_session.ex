@@ -10,7 +10,14 @@ defmodule MediaCentaur.Playback.MpvSession do
   player too. Sessions register in `SessionRegistry` by
   `{player, entity_id}` for lookup and enumeration.
 
-  This is an observation-only tracker — the user controls mpv directly.
+  This is an observation-only tracker — the user controls mpv directly,
+  or, on a player that draws nothing, through the host's page: a reader
+  sends a `Playback.Command` (`command/2`) and the session renders it to
+  IPC, the one writer to the player. Every reader sees the viewing as one
+  `Playback.Viewing`, carried on `PlaybackStateChanged.now_playing` and
+  streamed on the player's viewing topic (`Playback.subscribe_viewing/1`):
+  on attach, on every discrete change (pause, chapter, tracks, the
+  subtitle line, the prompt) and on position at most once a second.
   The session observes position/duration/pause/eof over IPC, persists
   watch progress, and broadcasts state changes via PubSub. How the mpv is
   reached — a process the host spawns (`Transport.Local`) or an mpv on a
@@ -50,6 +57,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Library.Progress, as: LibraryProgress
 
   alias MediaCentaur.Playback.{
+    Command,
     Completion,
     Events,
     LanguageContext,
@@ -60,6 +68,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     SessionRegistry,
     TrackResolver,
     Transport,
+    Viewing,
     WatchingTracker
   }
 
@@ -126,8 +135,17 @@ defmodule MediaCentaur.Playback.MpvSession do
     # `{:movie | :video_object | :extra, id}` or
     # `{:episode, id, season_number, episode_number}`. A chain keeps each
     # episode it finished; `SessionEnded` carries the set.
-    completed: MapSet.new()
+    completed: MapSet.new(),
+    # mpv's current `chapter` index and `sub-text` line, what the page draws
+    # for a remote player (`Viewing`). nil between files or with none.
+    chapter: nil,
+    subtitle_text: nil,
+    # When the viewing was last streamed for a position tick; nil before
+    # the first. Discrete changes stream at once and leave this alone.
+    last_position_stream_at: nil
   ]
+
+  @viewing_position_interval_ms 1_000
 
   # --- Public API ---
 
@@ -143,6 +161,15 @@ defmodule MediaCentaur.Playback.MpvSession do
       start: {__MODULE__, :start_link, [params]},
       restart: :temporary
     }
+  end
+
+  @doc "Sends a reader's `Playback.Command` to the session at `{player, entity_id}`; refused when none runs."
+  @spec command({Sessions.player(), String.t()}, Command.t()) :: :ok | {:error, :no_session}
+  def command(key, command) do
+    case SessionRegistry.lookup(key) do
+      nil -> {:error, :no_session}
+      pid -> GenServer.cast(pid, {:command, command})
+    end
   end
 
   @doc "Returns a read-only snapshot of the session's current state, by `{player, entity_id}`."
@@ -222,11 +249,23 @@ defmodule MediaCentaur.Playback.MpvSession do
   def handle_call(:get_state, _from, state) do
     reply = %{
       state: state.state,
-      now_playing: build_now_playing(state),
+      now_playing: Viewing.from_session(state),
       started_at: state.started_at
     }
 
     {:reply, reply, state}
+  end
+
+  @impl true
+  # A reader's command, rendered against the viewing's current prompt and
+  # sent through the transport; a command with nothing to send is dropped.
+  def handle_cast({:command, command}, state) do
+    case Command.ipc(command, Viewing.from_session(state).prompt) do
+      nil -> :ok
+      ipc -> Transport.send(state.transport, ipc)
+    end
+
+    {:noreply, state}
   end
 
   @impl true
@@ -289,13 +328,14 @@ defmodule MediaCentaur.Playback.MpvSession do
     Log.info(:playback, "player attached (#{kind})")
     state = cancel_reattach_timer(state)
     broadcast_state_changed(:playing, state)
-    {:noreply, %{state | state: :playing}}
+    {:noreply, stream_viewing(%{state | state: :playing})}
   end
 
   # Discard late messages after finalization.
   defp apply_event({:message, _object}, %{state: :stopped} = state), do: {:noreply, state}
 
-  defp apply_event({:message, object}, state), do: {:noreply, handle_mpv_message(object, state)}
+  defp apply_event({:message, object}, state),
+    do: {:noreply, object |> handle_mpv_message(state) |> maybe_stream_viewing(object)}
 
   defp apply_event({:detached, reason}, state) do
     Log.info(
@@ -363,6 +403,12 @@ defmodule MediaCentaur.Playback.MpvSession do
     # subscriber has dropped the entity from its playing set before it
     # reads what the session completed.
     Events.broadcast(session_ended(session))
+
+    Events.broadcast_viewing_ended(%Events.ViewingEnded{
+      player: session.player,
+      entity_id: session.entity_id
+    })
+
     %{session | state: :stopped}
   end
 
@@ -483,7 +529,19 @@ defmodule MediaCentaur.Playback.MpvSession do
     schedule_capture(%{state | current_sid: sid})
   end
 
+  # The current subtitle line; absent (no track, or between lines) reads nil.
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "sub-text"} = message, state) do
+    %{state | subtitle_text: subtitle_line(message["data"])}
+  end
+
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "chapter"} = message, state) do
+    %{state | chapter: if(is_integer(message["data"]), do: message["data"])}
+  end
+
   defp handle_mpv_message(_message, state), do: state
+
+  defp subtitle_line(text) when is_binary(text) and text != "", do: text
+  defp subtitle_line(_absent), do: nil
 
   # --- Episode auto-advance (ADR-062) ---
 
@@ -516,8 +574,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp queue_next(state) do
     case NextEpisode.resolve(state.profile_id, state.episode_id) do
       {:ok, item} ->
-        located = %{item | content_url: Transport.locator(state.transport, item.content_url)}
-        Transport.send(state.transport, NextEpisode.loadfile_command(located))
+        locator = Transport.locator(state.transport, item.content_url)
+        Transport.send(state.transport, Transport.queue(state.transport, locator, item.start_position))
 
         Log.info(
           :playback,
@@ -552,7 +610,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
         state = reset_for_file(state, content_url, %{episode_id: item.episode_id}, item)
         broadcast_state_changed(state.state, state)
-        maybe_queue_next(state)
+        state |> maybe_queue_next() |> stream_viewing()
 
       :none ->
         advance_to(state, :unknown, reported_path)
@@ -594,6 +652,8 @@ defmodule MediaCentaur.Playback.MpvSession do
           duration: 0.0,
           tracker: WatchingTracker.new(),
           chapters: [],
+          chapter: nil,
+          subtitle_text: nil,
           audio_tracks: [],
           subtitle_tracks: [],
           current_aid: nil,
@@ -621,29 +681,38 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp handle_track_list_update(state, raw_tracks) do
     {audio_tracks, subtitle_tracks} = LanguageContext.parse_track_list(raw_tracks)
     state = %{state | audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks}
+    drawable = drawable_subtitle_tracks(state)
 
     if audio_tracks == [] and subtitle_tracks == [] do
       state
     else
-      result = resolve_tracks(state)
+      result = resolve_tracks(state, drawable)
       new_choice = capture_choice(result)
 
       if new_choice != state.resolver_choice do
         Log.info(:playback, "track-resolver: " <> Enum.join(result.decision_log, " | "))
       end
 
-      enforce_subtitle_selection(%{state | resolver_choice: new_choice}, result)
+      enforce_subtitle_selection(%{state | resolver_choice: new_choice}, result, drawable)
     end
   end
 
-  defp resolve_tracks(state) do
+  # A player that draws nothing cannot show a bitmap track, so the
+  # resolver never sees one there; the menu still lists it, disabled.
+  defp drawable_subtitle_tracks(state) do
+    if Transport.draws_subtitles?(state.transport),
+      do: state.subtitle_tracks,
+      else: Enum.reject(state.subtitle_tracks, &Viewing.bitmap_track?/1)
+  end
+
+  defp resolve_tracks(state, subtitle_tracks) do
     ctx = state.language_context
 
     TrackResolver.resolve(
       ctx.policy,
       ctx.override,
       state.audio_tracks,
-      state.subtitle_tracks,
+      subtitle_tracks,
       ctx.original_language
     )
   end
@@ -667,8 +736,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # *user* track switch fires `sid`, never `track-list`, so enforcement
   # never clobbers a deliberate selection, and our own `set_property sid`
   # echo lands on the `sid` handler (capture), not here — no loop.
-  defp enforce_subtitle_selection(state, result) do
-    case TrackResolver.sid_enforcement(result, state.subtitle_tracks) do
+  defp enforce_subtitle_selection(state, result, drawable) do
+    case sid_target(result, drawable, state.subtitle_tracks) do
       :skip ->
         state
 
@@ -682,6 +751,11 @@ defmodule MediaCentaur.Playback.MpvSession do
         end
     end
   end
+
+  # A file whose subtitle tracks the player cannot draw at all gets them
+  # off, or mpv's own `slang` would pick a bitmap track nothing renders.
+  defp sid_target(_result, [], [_ | _]), do: {:set, "no"}
+  defp sid_target(result, drawable, _all), do: TrackResolver.sid_enforcement(result, drawable)
 
   # No capture for unsupported entity types (extras, video objects) — skip
   # scheduling rather than computing-and-discarding to avoid spurious
@@ -968,22 +1042,40 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp build_now_playing_for_broadcast(new_state, session) when new_state in [:playing, :paused] do
-    build_now_playing(session)
+    Viewing.from_session(session)
   end
 
   defp build_now_playing_for_broadcast(_new_state, _session), do: nil
 
-  defp build_now_playing(session) do
-    %{
-      entity_id: session.entity_id,
-      entity_name: session.entity_name,
-      season_number: session.season_number,
-      episode_number: session.episode_number,
-      episode_name: session.episode_name,
-      content_url: session.content_url,
-      position_seconds: session.position,
-      duration_seconds: session.duration
-    }
+  # --- The viewing stream ---
+
+  # A position tick streams at most once a second; every other property the
+  # page draws streams as it changes. Nothing streams after the end.
+  @streamed_properties ~w(pause duration chapter chapter-list sub-text track-list aid sid playlist-count playlist-pos)
+
+  defp maybe_stream_viewing(%{state: :stopped} = state, _object), do: state
+
+  defp maybe_stream_viewing(state, %{"event" => "property-change", "name" => "time-pos"}) do
+    now = System.monotonic_time(:millisecond)
+
+    if is_nil(state.last_position_stream_at) or
+         now - state.last_position_stream_at >= @viewing_position_interval_ms do
+      stream_viewing(%{state | last_position_stream_at: now})
+    else
+      state
+    end
+  end
+
+  defp maybe_stream_viewing(state, %{"event" => "property-change", "name" => name})
+       when name in @streamed_properties, do: stream_viewing(state)
+
+  defp maybe_stream_viewing(state, _object), do: state
+
+  defp stream_viewing(%{state: :stopped} = state), do: state
+
+  defp stream_viewing(state) do
+    Events.broadcast_viewing(Viewing.from_session(state))
+    state
   end
 
   defp broadcast_playback_failed(session, reason, message) do
@@ -1016,6 +1108,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     Transport.send(transport, ["observe_property", 9, "playlist-count"])
     Transport.send(transport, ["observe_property", 10, "playlist-pos"])
     Transport.send(transport, ["observe_property", 11, "path"])
+    Transport.send(transport, ["observe_property", 12, "sub-text"])
+    Transport.send(transport, ["observe_property", 13, "chapter"])
   end
 
   defp maybe_put(map, _key, nil), do: map

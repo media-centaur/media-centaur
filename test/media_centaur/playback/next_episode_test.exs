@@ -144,16 +144,4 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
       assert NextEpisode.identify(Ecto.UUID.generate(), "/a.mkv") == :none
     end
   end
-
-  describe "loadfile_command/1" do
-    test "appends without options when starting from zero" do
-      assert NextEpisode.loadfile_command(%{content_url: "/shows/a.mkv", start_position: 0.0}) ==
-               ["loadfile", "/shows/a.mkv", "append"]
-    end
-
-    test "carries a per-entry start option when resuming" do
-      assert NextEpisode.loadfile_command(%{content_url: "/shows/a.mkv", start_position: 300.0}) ==
-               ["loadfile", "/shows/a.mkv", "append", -1, "start=300.0"]
-    end
-  end
 end

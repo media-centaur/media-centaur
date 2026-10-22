@@ -2,13 +2,15 @@ defmodule MediaCentaur.Playback do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.Settings.Preferences, MediaCentaur.Settings],
     exports: [
+      Command,
       LanguagePolicy,
       ProgressBroadcaster,
       Remote.Channel,
       Remote.PlayerRegistry,
       ResumeTarget,
       SessionRegistry,
-      Sessions
+      Sessions,
+      Viewing
     ]
 
   @moduledoc """
@@ -21,7 +23,7 @@ defmodule MediaCentaur.Playback do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Playback.{Resolver, SessionRecovery, Sessions}
+  alias MediaCentaur.Playback.{Command, Resolver, SessionRecovery, Sessions}
   alias MediaCentaur.Topics
 
   @doc """
@@ -55,6 +57,28 @@ defmodule MediaCentaur.Playback do
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Topics.subscribe(Topics.playback_events())
+  end
+
+  @doc """
+  Subscribe the caller to one player's viewing stream: `{:viewing, %Playback.Viewing{}}`
+  on attach, on every discrete change and on position once a second, then
+  `{:viewing_ended, %Playback.Events.ViewingEnded{}}` when the session ends.
+  """
+  @spec subscribe_viewing(player()) :: :ok | {:error, term()}
+  def subscribe_viewing(player) do
+    Topics.subscribe(Topics.playback_viewing(player))
+  end
+
+  @doc """
+  Sends a reader's command (`Playback.Command`) to `player`'s viewing of
+  `uuid`: pause, a seek, the prompt's action, a track. The session renders
+  it and sends it to the player; a viewing that does not exist refuses it.
+  """
+  @spec command(player(), Ecto.UUID.t(), Command.t()) :: :ok | {:error, :no_session | :invalid_command}
+  def command(player, uuid, command) do
+    if Command.valid?(command),
+      do: Sessions.command(player, uuid, command),
+      else: {:error, :invalid_command}
   end
 
   @typedoc "Where a viewing shows: this computer's mpv, or a paired player by id."

@@ -4,9 +4,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   reached over its player channel (`Playback.Remote.Channel`), its files
   media URLs the channel's locators compose.
 
-  `open/2` attaches the session to the channel, sends the session options
-  as IPC (`set_property`, and `change-list script-opts append` for the
-  profile) and one `loadfile … replace` for the file, and is attached at
+  `open/2` attaches the session to the channel and sends one
+  `loadfile … replace` whose options argument carries the session options
+  and the resume position (`LaunchFlags.per_file_options/2`): the device's
+  mpv lives for the app's life, so nothing is set on its instance and mpv
+  restores it at the file's end; the successor the session queues carries
+  the same options. The transport is attached at
   once — the channel is already up, or `new/1` would have said the player
   is offline. A channel that drops detaches the transport; the next
   channel for the same player announces itself and the transport
@@ -15,6 +18,10 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   File identity goes through `Library.FilePresence`: the host path the
   session holds is the presence row's, the URL names the row's id.
+
+  The device's mpv draws nothing (`vo=mediacodec_embed`): the host's page
+  is its OSD, so `draws_subtitles?/1` is false and the session never
+  selects a bitmap subtitle track on it.
   """
 
   @behaviour MediaCentaur.Playback.Transport
@@ -26,6 +33,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library.FilePresence
+  alias MediaCentaur.Playback.LaunchFlags
   alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
 
   defstruct [:player_id, :channel, :locators, :launch]
@@ -52,8 +60,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   def open(transport, launch) do
     Channel.attach(transport.channel, self())
-    Enum.each(launch.session_options, &Channel.push(transport.channel, option_command(&1)))
-    Channel.push(transport.channel, loadfile_command(launch.content_url, launch.start_position))
+
+    Channel.push(
+      transport.channel,
+      loadfile(launch, launch.content_url, "replace", launch.start_position)
+    )
+
     {[{:attached, :fresh}], %{transport | launch: launch}}
   end
 
@@ -89,6 +101,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
       _unknown -> nil
     end
   end
+
+  @impl true
+  def queue(%{launch: launch}, locator, start), do: loadfile(launch, locator, "append", start)
+
+  @impl true
+  def draws_subtitles?(_transport), do: false
 
   @impl true
   # The player reports the file stopped or was quit: the viewing is over on
@@ -130,13 +148,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   @impl true
   def describe(transport), do: "player #{Format.short_id(transport.player_id)}"
 
-  # The one option mpv takes as a list edit rather than a value.
-  defp option_command({"script-opts-append", value}), do: ["change-list", "script-opts", "append", value]
-  defp option_command({name, value}), do: ["set_property", name, value]
-
-  # mpv ≥ 0.38's five-argument form: the index is required before per-file options.
-  defp loadfile_command(url, start) when start > 0,
-    do: ["loadfile", url, "replace", -1, "start=#{start}"]
-
-  defp loadfile_command(url, _start), do: ["loadfile", url, "replace"]
+  # mpv ≥ 0.38's five-argument form: the index is required before the options.
+  defp loadfile(launch, url, mode, start),
+    do: ["loadfile", url, mode, -1, LaunchFlags.per_file_options(launch.session_options, start)]
 end

@@ -76,7 +76,7 @@ defmodule MediaCentaur.Playback.Events do
   end
 
   defmodule PlaybackStateChanged do
-    @moduledoc "MpvSession state moved to :playing, :paused, or :stopped."
+    @moduledoc "MpvSession state moved to :playing, :paused, or :stopped; `now_playing` is the `Playback.Viewing` while it plays."
     @enforce_keys [:entity_id, :player, :profile_id, :state, :now_playing, :started_at]
     defstruct [:entity_id, :player, :profile_id, :state, :now_playing, :started_at]
 
@@ -86,7 +86,7 @@ defmodule MediaCentaur.Playback.Events do
             player: :host | String.t(),
             profile_id: String.t(),
             state: state(),
-            now_playing: map() | nil,
+            now_playing: MediaCentaur.Playback.Viewing.t() | nil,
             started_at: integer()
           }
   end
@@ -126,6 +126,14 @@ defmodule MediaCentaur.Playback.Events do
             profile_id: String.t(),
             completed: MapSet.t(item())
           }
+  end
+
+  defmodule ViewingEnded do
+    @moduledoc "The last message on a player's viewing stream: the session ended."
+    @enforce_keys [:player, :entity_id]
+    defstruct [:player, :entity_id]
+
+    @type t :: %__MODULE__{player: :host | String.t(), entity_id: String.t()}
   end
 
   defmodule TrackOverrideChanged do
@@ -172,4 +180,14 @@ defmodule MediaCentaur.Playback.Events do
   defp do_broadcast(message) do
     Topics.publish(Topics.playback_events(), message)
   end
+
+  @doc "Streams a viewing on its player's topic (`Playback.subscribe_viewing/1`) as `{:viewing, viewing}`."
+  @spec broadcast_viewing(MediaCentaur.Playback.Viewing.t()) :: :ok | {:error, term()}
+  def broadcast_viewing(%MediaCentaur.Playback.Viewing{player: player} = viewing),
+    do: Topics.publish(Topics.playback_viewing(player), {:viewing, viewing})
+
+  @doc "Ends a player's viewing stream with `{:viewing_ended, event}`."
+  @spec broadcast_viewing_ended(ViewingEnded.t()) :: :ok | {:error, term()}
+  def broadcast_viewing_ended(%ViewingEnded{player: player} = event),
+    do: Topics.publish(Topics.playback_viewing(player), {:viewing_ended, event})
 end

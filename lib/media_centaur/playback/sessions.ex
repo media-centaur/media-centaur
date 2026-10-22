@@ -107,6 +107,10 @@ defmodule MediaCentaur.Playback.Sessions do
     :exit, _already_gone -> :ok
   end
 
+  @doc "Sends a reader's `Playback.Command` to one player's viewing of one entity."
+  @spec command(player(), String.t(), MediaCentaur.Playback.Command.t()) :: :ok | {:error, :no_session}
+  def command(player, entity_id, command), do: MpvSession.command({player, entity_id}, command)
+
   @doc "Returns the state snapshot for one player's viewing of one entity, or nil."
   @spec get(player(), String.t()) :: map() | nil
   def get(player, entity_id) do
