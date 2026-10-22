@@ -8,7 +8,12 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       struct!(
         MpvSession,
         Map.merge(
-          %{episode_id: "ep-1", socket: :fake_socket, playlist_count: 1, playlist_pos: 0},
+          %{
+            episode_id: "ep-1",
+            transport: %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: true},
+            playlist_count: 1,
+            playlist_pos: 0
+          },
           overrides
         )
       )
@@ -26,9 +31,9 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       refute MpvSession.queue_next?(queue_state(%{playlist_count: 3, playlist_pos: 1}))
     end
 
-    test "does not queue while exiting or without a socket" do
-      refute MpvSession.queue_next?(queue_state(%{exiting?: true}))
-      refute MpvSession.queue_next?(queue_state(%{socket: nil}))
+    test "does not queue while the transport is detached" do
+      detached = %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: false}
+      refute MpvSession.queue_next?(queue_state(%{transport: detached}))
     end
   end
 

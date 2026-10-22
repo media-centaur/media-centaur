@@ -1,122 +1,74 @@
 defmodule MediaCentaur.Playback.MpvSession do
   @moduledoc """
-  Per-session GenServer managing one MPV process via Port + Unix domain socket IPC.
+  Per-session GenServer observing one mpv through a `Playback.Transport`.
 
-  Each session tracks one entity's *viewing chain*, identified by entity_id.
-  It also holds the profile it was started for (`profile_id`, ADR-078) for its
-  whole life — progress, track memory and every event it broadcasts are that
-  profile's, and a switch mid-film does not re-home them.
-  The socket path is `media-centaur-{entity_id}.sock` in the configured socket dir.
-  Sessions register in `SessionRegistry` by entity_id for lookup and enumeration.
+  Each session tracks one entity's *viewing chain*, identified by entity_id,
+  and holds the profile it was started for (`profile_id`, ADR-078) for its
+  whole life — progress, track memory and every event it broadcasts are
+  that profile's, and a switch mid-film does not re-home them. Sessions
+  register in `SessionRegistry` by entity_id for lookup and enumeration.
 
   This is an observation-only tracker — the user controls mpv directly.
-  The session observes position/duration/pause/eof via IPC, persists watch
-  progress, and broadcasts state changes via PubSub.
+  The session observes position/duration/pause/eof over IPC, persists
+  watch progress, and broadcasts state changes via PubSub. How the mpv is
+  reached — a process the host spawns (`Transport.Local`) or an mpv on a
+  paired player — is the transport's; the session never touches a socket
+  or a port, and it keeps the host path (`content_url`) as the identity of
+  what plays, asking the transport for mpv's locator and for the identity
+  of a path mpv reports.
 
-  ## Process lifetime — mpv's lifetime is the viewer's, not this app's
+  ## Process lifetime
 
-  mpv must outlive a Media Centaur restart, so an update never costs the
-  viewer what they were watching. On the next boot `SessionRecovery` scans the
-  socket directory, reconnects to the still-running mpv over its entity-scoped
-  IPC socket, and resumes observing (`ADR-023`). The viewer keeps driving
-  playback from their remote throughout; the backend is only the tracker.
-
-  **What actually kills mpv on restart — and what does not (measured, not
-  inferred):** the one lethal mechanism is the OS supervisor's cgroup SIGKILL.
-  systemd's `KillMode=mixed` follows the BEAM's SIGTERM with a SIGKILL to
-  everything left in the unit's cgroup, which reaches mpv even though it is a
-  detached descendant. The unit must therefore run `KillMode=process`, which
-  signals only the BEAM — the shipped prod unit already does, and the dev unit
-  was corrected to match (`defaults/media-centaur.service`,
-  `defaults/media-centaur-dev.service`).
-
-  The `Port` this session opens over mpv is **not** a lifetime binding. On this
-  machine (Elixir 1.20.4/OTP 29), a direct port child survives a restart
-  whenever the cgroup does not kill it — measured across the real
-  `systemctl stop` path and a bare `:erlang.halt()` alike. The port stays only
-  because it carries mpv's `{:exit_status, n}` and merged stderr for
-  `MpvExitClassifier`; it grants mpv no extra life and takes none away. The
-  original ADR-023 premise — that a restart "orphans the still-running mpv
-  process, the user's playback continues" — was an unmeasured inference and was
-  false for six months (dev ran `KillMode=mixed`); see the ADR's 2026-09-12
-  amendment, which carries the measurement.
+  mpv's lifetime is the viewer's, not this app's: a backend restart leaves
+  the mpv running and the next boot's `SessionRecovery` reattaches to it
+  (ADR-023, with the measured lifetime rules in `docs/playback.md`). A
+  transport that loses its mpv for now (`{:detached, _}`) stops the
+  session's persistence; the session waits `reattach_window_ms` for the
+  transport to reattach, then finalises as a stop.
 
   ## Episode auto-advance (ADR-062)
 
   A TV episode session appends its successor to the mpv playlist
   (`NextEpisode.resolve/2`), so end-of-episode rolls into the next file
-  inside the same mpv process — no window teardown, no HDR re-lock. The
-  queueing decision runs off mpv's own `playlist-count`/`playlist-pos`
-  properties: the successor is appended only while the current entry is
-  the playlist's last, which makes the check self-stabilizing (the append
-  bumps the count, disarming it) and reconnect-safe (an entry queued
-  before a backend restart is respected, never duplicated). A `path`
-  change is the advance signal: the session closes out the finished
-  episode, re-points its identity at the file now playing, and queues the
-  next successor. Quit-on-EOF only ever fires at true playlist end —
-  `eof-reached` stays false across mid-playlist transitions.
-
-  ## Display environment
-
-  Before spawning mpv, `DisplayEnv.resolve/1` produces an env list with
-  `WAYLAND_DISPLAY` / `DISPLAY` (preferring parent-env values, falling back to
-  scanning `$XDG_RUNTIME_DIR/wayland-N` and `/tmp/.X11-unix/XN`). This protects
-  against the classic failure mode where the service was started before the
-  graphical session imported its env into systemd-user — without it, mpv aborts
-  with status 1 and `--no-terminal` swallows the error message. When neither
-  display server is reachable, the session broadcasts `PlaybackFailed` with
-  `reason: :no_display` and stops, surfacing a clear user-facing message
-  instead of a silent mpv failure.
-
-  ## Diagnostic capture
-
-  mpv is launched with `--log-file=<socket_dir>/media-centaur-<session_id>.log`
-  so the exit classifier has a real error string to work with even when
-  `--no-terminal` blocks port-data capture. `MpvLogReader.fallback_tail/3`
-  prefers the live port tail when present and falls back to the log file
-  otherwise. The log file is cleaned up on session stop alongside the IPC
-  socket.
+  inside the same mpv — no window teardown, no HDR re-lock. The queueing
+  decision runs off mpv's own `playlist-count`/`playlist-pos` properties:
+  the successor is appended only while the current entry is the
+  playlist's last, which makes the check self-stabilizing and
+  reconnect-safe. A `path` change is the advance signal: the session
+  closes out the finished episode, re-points its identity at the file now
+  playing, and queues the next successor. Quit-on-EOF only ever fires at
+  true playlist end — `eof-reached` stays false across mid-playlist
+  transitions.
   """
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Progress, as: LibraryProgress
 
-  alias MediaCentaur.Platform.DisplayEnv
-
   alias MediaCentaur.Playback.{
     Completion,
     Events,
-    IpcFraming,
     LanguageContext,
     LaunchFlags,
-    MpvExitClassifier,
-    MpvLogReader,
-    MpvUserConfig,
     NextEpisode,
     OverrideCapture,
     ProgressBroadcaster,
     SessionRegistry,
     TrackResolver,
+    Transport,
     WatchingTracker
   }
 
   @db_write_interval_ms 10_000
-  @socket_retry_interval_ms 200
-
-  # Brief window after the first exit signal (tcp_closed OR exit_status) to let
-  # the other signal and any final stderr chunks arrive before classifying.
-  @exit_debounce_ms 200
+  @reattach_window_ms 60_000
 
   # Debounce window for capturing user track changes — coalesces rapid
   # keyboard mashing (e.g. #-#-# to cycle audio) into a single capture.
   @track_capture_debounce_ms 3_000
 
   defstruct [
-    :session_id,
     :entity_id,
     :profile_id,
     :entity_name,
@@ -129,21 +81,15 @@ defmodule MediaCentaur.Playback.MpvSession do
     :video_object_id,
     :content_url,
     :start_position,
-    :socket_path,
-    :log_file_path,
-    :port,
-    :socket,
+    :transport,
     :position,
     :duration,
     :paused,
     :last_db_write_at,
-    :socket_retries,
     :tracker,
     :started_at,
-    :exit_status,
-    seen_property_event?: false,
-    output_tail: [],
-    exiting?: false,
+    :reattach_timer,
+    reattach_window_ms: @reattach_window_ms,
     state: :starting,
     language_context: nil,
     # mpv `chapter-list` for the loaded file (`[%{"title", "time"}]`), used
@@ -173,11 +119,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     # queue check appends only while `playlist_count - playlist_pos == 1`.
     playlist_count: 1,
     playlist_pos: 0,
-    # Carries the unterminated tail of the mpv IPC byte stream between
-    # `{:tcp, ...}` deliveries. The socket is `packet: :raw`, so a long
-    # JSON line (e.g. `track-list`) can span chunks — `IpcFraming.feed/2`
-    # stitches them back together.
-    ipc_buffer: "",
     # Every item this session completed (`judge_completion/1`), as
     # `{:movie | :video_object | :extra, id}` or
     # `{:episode, id, season_number, episode_number}`. A chain keeps each
@@ -213,15 +154,9 @@ defmodule MediaCentaur.Playback.MpvSession do
   def init(params) do
     Process.flag(:trap_exit, true)
 
-    session_id = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
-    socket_dir = Config.get(:mpv_socket_dir)
-    socket_path = Path.join(socket_dir, "media-centaur-#{params.entity_id}.sock")
-    log_file_path = Path.join(socket_dir, "media-centaur-#{session_id}.log")
-    timeout_ms = Config.get(:mpv_socket_timeout_ms)
-    max_retries = div(timeout_ms, @socket_retry_interval_ms)
+    language_context = LanguageContext.init(params)
 
     state = %__MODULE__{
-      session_id: session_id,
       entity_id: params.entity_id,
       profile_id: params.profile_id,
       entity_name: params[:entity_name],
@@ -234,22 +169,43 @@ defmodule MediaCentaur.Playback.MpvSession do
       video_object_id: params[:video_object_id],
       content_url: params.content_url,
       start_position: params[:start_position] || 0.0,
-      socket_path: socket_path,
-      log_file_path: log_file_path,
+      transport: params.transport,
+      reattach_window_ms: params[:reattach_window_ms] || @reattach_window_ms,
       position: 0.0,
       duration: 0.0,
       paused: false,
       last_db_write_at: System.monotonic_time(:millisecond),
-      socket_retries: max_retries,
       tracker: WatchingTracker.new(),
       started_at: System.monotonic_time(:millisecond),
-      language_context: LanguageContext.init(params)
+      language_context: language_context
     }
 
-    Log.info(:playback, "session started — #{Path.basename(params.content_url)}")
-    send(self(), :try_reconnect)
-    {:ok, state}
+    launch = %{
+      session_options:
+        LaunchFlags.session_options(%{
+          profile_id: state.profile_id,
+          language_options: LanguageContext.to_mpv_options(language_context.priority_args)
+        }),
+      content_url: Transport.locator(state.transport, state.content_url),
+      start_position: state.start_position,
+      profile_id: state.profile_id
+    }
+
+    Log.info(
+      :playback,
+      "session started — #{Path.basename(params.content_url)} via #{Transport.describe(state.transport)}"
+    )
+
+    {events, transport} = Transport.open(state.transport, launch)
+
+    case apply_events(events, %{state | transport: transport}) do
+      {:noreply, state} -> {:ok, state}
+      {:stop, _reason, state} -> {:ok, state, {:continue, :stop}}
+    end
   end
+
+  @impl true
+  def handle_continue(:stop, state), do: {:stop, :normal, state}
 
   @impl true
   def handle_call(:get_state, _from, state) do
@@ -262,132 +218,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     {:reply, reply, state}
   end
 
-  # Try to reconnect to an existing mpv process via the entity-scoped socket
-  # before launching a new one. This handles the case where the backend restarts
-  # while mpv is still running (ADR-023).
   @impl true
-  def handle_info(:try_reconnect, state) do
-    socket_charlist = to_charlist(state.socket_path)
-
-    case :gen_tcp.connect(
-           {:local, socket_charlist},
-           0,
-           [:binary, packet: :raw, active: true],
-           500
-         ) do
-      {:ok, socket} ->
-        Log.info(
-          :playback,
-          "session #{state.session_id} reconnected to existing mpv via #{Path.basename(state.socket_path)}"
-        )
-
-        observe_properties(socket)
-        broadcast_state_changed(:playing, state)
-        {:noreply, %{state | socket: socket, state: :playing}}
-
-      {:error, _reason} ->
-        Log.info(:playback, "reconnect failed, cleaning stale socket, launching fresh")
-        File.rm(state.socket_path)
-        send(self(), :launch_mpv)
-        {:noreply, state}
-    end
-  end
-
-  def handle_info(:launch_mpv, state) do
-    case DisplayEnv.resolve() do
-      {:ok, env_pairs} ->
-        spawn_mpv(state, env_pairs)
-
-      {:error, :no_display} ->
-        Log.error(
-          :playback,
-          "no display server reachable — refusing to launch mpv (service likely started before the graphical session)"
-        )
-
-        broadcast_playback_failed(
-          state,
-          :no_display,
-          "Media Centaur can't reach your desktop. Restart it after signing in."
-        )
-
-        {:stop, :normal, %{state | state: :stopped}}
-    end
-  end
-
-  def handle_info(:connect_socket, state) do
-    socket_path = to_charlist(state.socket_path)
-
-    case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :raw, active: true]) do
-      {:ok, socket} ->
-        Log.info(:playback, "connected to IPC socket")
-        observe_properties(socket)
-
-        if state.start_position > 0 do
-          Log.info(:playback, "resuming at #{Format.format_seconds(state.start_position)}")
-        end
-
-        broadcast_state_changed(:playing, state)
-        {:noreply, %{state | socket: socket, state: :playing}}
-
-      {:error, _reason} ->
-        if state.socket_retries > 0 do
-          timeout_ms = Config.get(:mpv_socket_timeout_ms)
-          max_retries = div(timeout_ms, @socket_retry_interval_ms)
-
-          if state.socket_retries == max_retries do
-            Log.info(:playback, "waiting for IPC socket (#{max_retries} retries)")
-          end
-
-          Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
-          {:noreply, %{state | socket_retries: state.socket_retries - 1}}
-        else
-          Log.error(:playback, "socket connect timed out")
-          {:stop, :normal, %{state | state: :stopped}}
-        end
-    end
-  end
-
-  # MPV IPC data — discard late messages after finalization
-  def handle_info({:tcp, _socket, _data}, %{state: :stopped} = state) do
-    {:noreply, state}
-  end
-
-  def handle_info({:tcp, _socket, data}, state) do
-    # The socket is `packet: :raw`: a chunk may hold several IPC lines or
-    # only part of one (mpv's `track-list` regularly exceeds the read
-    # buffer). Stitch via the carried buffer, then decode each complete
-    # line. Decoding a fragment in isolation would raise Jason.DecodeError.
-    {lines, buffer} = IpcFraming.feed(state.ipc_buffer, data)
-    state = Enum.reduce(lines, %{state | ipc_buffer: buffer}, &decode_ipc_line/2)
-    {:noreply, state}
-  end
-
-  # MPV socket closed
-  def handle_info({:tcp_closed, _socket}, state) do
-    Log.info(:playback, "socket closed")
-    schedule_exit_classification(%{state | socket: nil})
-  end
-
-  # MPV process exited
-  def handle_info({_port, {:exit_status, status}}, state) do
-    Log.info(:playback, "mpv exited — status #{status}")
-    schedule_exit_classification(%{state | exit_status: status})
-  end
-
-  # MPV stdout+stderr (merged via :stderr_to_stdout). Captured into a
-  # bounded tail for later classification and logged live so failures
-  # are diagnosable in the Console / journal without re-running.
-  def handle_info({_port, {:data, data}}, state) do
-    log_mpv_lines(data)
-    {:noreply, %{state | output_tail: MpvExitClassifier.append_output(state.output_tail, data)}}
-  end
-
-  # Debounced classification — fires after the first exit signal gives
-  # both signals + any trailing output time to arrive.
-  def handle_info(:classify_and_finalize, state) do
-    {:stop, :normal, finalize_with_classification(state)}
-  end
-
   # Debounced capture — fires after the user has settled on a track
   # selection. Compares current state against what the resolver chose
   # at episode start; persists an override only if they differ.
@@ -396,65 +227,81 @@ defmodule MediaCentaur.Playback.MpvSession do
     {:noreply, %{state | capture_timer: nil}}
   end
 
-  # Absorb EXIT messages from port link (required with trap_exit)
-  def handle_info(_message, state), do: {:noreply, state}
+  # The transport did not come back within its window: the viewing is over.
+  def handle_info(:reattach_window_expired, state) do
+    if Transport.attached?(state.transport) do
+      {:noreply, %{state | reattach_timer: nil}}
+    else
+      Log.info(:playback, "player did not come back — ending the session")
+      {:stop, :normal, finalize(%{state | reattach_timer: nil})}
+    end
+  end
+
+  # Everything else is the transport's (socket data, port signals, its own
+  # timers) or an EXIT the trap absorbs.
+  def handle_info(message, state) do
+    case Transport.handle_message(state.transport, message) do
+      :unhandled -> {:noreply, state}
+      {events, transport} -> apply_events(events, %{state | transport: transport})
+    end
+  end
 
   @impl true
   def terminate(_reason, state) do
+    final? = state.state == :stopped
     finalize(state)
-    cleanup(state)
+    Transport.close(state.transport, final?)
     :ok
   end
 
-  # --- mpv launch ---
+  # --- Transport events ---
 
-  defp spawn_mpv(state, env_pairs) do
-    Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
-    mpv_path = Config.get(:mpv_path)
-
-    warn_about_stale_script_copies()
-
-    flags =
-      LaunchFlags.argv(%{
-        socket_path: state.socket_path,
-        log_file_path: state.log_file_path,
-        language_options: LanguageContext.to_mpv_options(state.language_context.priority_args),
-        content_url: state.content_url,
-        start_position: state.start_position,
-        bundled_scripts_dir: LaunchFlags.bundled_scripts_dir(),
-        profile_id: state.profile_id
-      })
-
-    port =
-      Port.open({:spawn_executable, to_charlist(mpv_path)}, [
-        :binary,
-        :exit_status,
-        :stderr_to_stdout,
-        {:env, env_pairs},
-        args: flags
-      ])
-
-    Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
-    {:noreply, %{state | port: port}}
+  defp apply_events(events, state) do
+    Enum.reduce_while(events, {:noreply, state}, fn event, {:noreply, state} ->
+      case apply_event(event, state) do
+        {:noreply, _state} = reply -> {:cont, reply}
+        {:stop, _reason, _state} = reply -> {:halt, reply}
+      end
+    end)
   end
 
-  # Old single-file copies of the now-bundled scripts in the user config
-  # double every overlay. Named here so Status → Playback shows them; the
-  # app never deletes anything in the user's mpv config.
-  defp warn_about_stale_script_copies do
-    case MpvUserConfig.stale_bundled_copies() do
-      [] ->
-        :ok
+  defp apply_event({:attached, kind}, state) do
+    observe_properties(state.transport)
+    Log.info(:playback, "player attached (#{kind})")
+    state = cancel_reattach_timer(state)
+    broadcast_state_changed(:playing, state)
+    {:noreply, %{state | state: :playing}}
+  end
 
-      paths ->
-        names = Enum.map_join(paths, ", ", &Path.basename/1)
+  # Discard late messages after finalization.
+  defp apply_event({:message, _object}, %{state: :stopped} = state), do: {:noreply, state}
 
-        Log.warning(
-          :playback,
-          "old copies of the built-in mpv scripts in #{Path.dirname(hd(paths))}: #{names}. " <>
-            "Delete them, or Skip Intro and Next Episode appear twice."
-        )
-    end
+  defp apply_event({:message, object}, state), do: {:noreply, handle_mpv_message(object, state)}
+
+  defp apply_event({:detached, reason}, state) do
+    Log.info(
+      :playback,
+      "player unreachable (#{inspect(reason)}) — waiting #{state.reattach_window_ms}ms"
+    )
+
+    state = if state.tracker.actively_watching, do: persist_progress(state), else: state
+    state = cancel_reattach_timer(state)
+    timer = Process.send_after(self(), :reattach_window_expired, state.reattach_window_ms)
+    {:noreply, %{state | reattach_timer: timer}}
+  end
+
+  defp apply_event({:closed, {:ok, :ended}}, state), do: {:stop, :normal, finalize(state)}
+
+  defp apply_event({:closed, {:error, reason, message}}, state) do
+    broadcast_playback_failed(state, reason, message)
+    {:stop, :normal, finalize(state)}
+  end
+
+  defp cancel_reattach_timer(%{reattach_timer: nil} = state), do: state
+
+  defp cancel_reattach_timer(state) do
+    Process.cancel_timer(state.reattach_timer)
+    %{state | reattach_timer: nil}
   end
 
   # --- Idempotent Finalization ---
@@ -504,28 +351,6 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- MPV Message Handling ---
 
-  # Decode one complete IPC line (already newline-framed by IpcFraming)
-  # and fold its effect into the session state. Blank lines (the trailing
-  # split segment of a "…}\n" chunk) are skipped.
-  defp decode_ipc_line(line, state) do
-    case String.trim(line) do
-      "" ->
-        state
-
-      trimmed ->
-        case Jason.decode(trimmed) do
-          {:ok, message} ->
-            state
-            |> flag_property_event(message)
-            |> then(&handle_mpv_message(message, &1))
-
-          {:error, error} ->
-            Log.warning(:playback, "IPC JSON decode failed — #{inspect(error)}")
-            state
-        end
-    end
-  end
-
   defp handle_mpv_message(
          %{"event" => "property-change", "name" => "time-pos", "data" => position},
          state
@@ -568,7 +393,7 @@ defmodule MediaCentaur.Playback.MpvSession do
        ) do
     Log.info(:playback, "reached end of file")
     state = finalize(state)
-    send_mpv_command(state.socket, ["quit"])
+    Transport.send(state.transport, ["quit"])
     state
   end
 
@@ -580,8 +405,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # exiting. Save the outgoing episode's progress now, while `position`
   # and `chapters` still describe the finished file — the new file's
   # property events would clobber them before the `path` change lands.
-  # If this end-file is actually a quit, the exit-classification path
-  # still finalizes the session moments later.
+  # If this end-file is actually a quit, the transport's close still
+  # finalizes the session moments later.
   defp handle_mpv_message(%{"event" => "end-file"}, state) do
     if state.tracker.actively_watching, do: persist_progress(state), else: state
   end
@@ -619,13 +444,15 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # `path` is nil between files; the initial observation echoes the file
-  # we launched. Only a change to a different file is an advance.
+  # we launched. Only a change to a different file is an advance. The
+  # transport maps what mpv reports back to the host path, the identity
+  # this session compares.
   defp handle_mpv_message(%{"event" => "property-change", "name" => "path", "data" => path}, state)
        when is_binary(path) do
-    if path == state.content_url do
-      state
-    else
-      advance_to(state, path)
+    case Transport.identify(state.transport, path) do
+      nil -> advance_to(state, :unknown, path)
+      content_url when content_url == state.content_url -> state
+      content_url -> advance_to(state, {:ok, content_url}, path)
     end
   end
 
@@ -656,21 +483,22 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   @doc """
   Whether the successor should be appended now (ADR-062): an episode
-  session with a live socket, nothing already queued, the current entry
-  the playlist's last, not exiting. Declining auto-advance needs no state
-  here — quitting the player ends the session, queued entry and all.
+  session with an attached transport, nothing already queued, the current
+  entry the playlist's last. Declining auto-advance needs no state here —
+  quitting the player ends the session, queued entry and all.
   """
   @spec queue_next?(%__MODULE__{}) :: boolean()
   def queue_next?(state) do
     is_nil(state.pending_next) and not is_nil(state.episode_id) and
-      not is_nil(state.socket) and not state.exiting? and
+      Transport.attached?(state.transport) and
       state.playlist_count - state.playlist_pos == 1
   end
 
   defp queue_next(state) do
     case NextEpisode.resolve(state.profile_id, state.episode_id) do
       {:ok, item} ->
-        send_mpv_command(state.socket, NextEpisode.loadfile_command(item))
+        located = %{item | content_url: Transport.locator(state.transport, item.content_url)}
+        Transport.send(state.transport, NextEpisode.loadfile_command(located))
 
         Log.info(
           :playback,
@@ -686,43 +514,47 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # A playlist advance landed on a new file: re-point the session at the
   # episode now playing. Identity comes from the queued item when the
-  # path matches; otherwise it is re-derived from the path (the ADR-023
-  # discipline — covers entries queued before a backend restart). The
-  # outgoing episode's final progress was persisted at its end-file.
-  defp advance_to(state, path) do
+  # path matches; otherwise it is re-derived from the host path (the
+  # ADR-023 discipline — covers entries queued before a backend restart).
+  # The outgoing episode's final progress was persisted at its end-file.
+  defp advance_to(state, {:ok, content_url}, reported_path) do
     identity =
       case state.pending_next do
-        %{content_url: ^path} = item -> {:ok, item}
-        _ -> NextEpisode.identify(state.entity_id, path)
+        %{content_url: ^content_url} = item -> {:ok, item}
+        _ -> NextEpisode.identify(state.entity_id, content_url)
       end
 
     case identity do
       {:ok, item} ->
         Log.info(
           :playback,
-          "advanced to S#{item.season_number}E#{item.episode_number} — #{Path.basename(path)}"
+          "advanced to S#{item.season_number}E#{item.episode_number} — #{Path.basename(content_url)}"
         )
 
-        state = reset_for_file(state, path, %{episode_id: item.episode_id}, item)
+        state = reset_for_file(state, content_url, %{episode_id: item.episode_id}, item)
         broadcast_state_changed(state.state, state)
         maybe_queue_next(state)
 
       :none ->
-        # A file this session can't attribute (user loaded something
-        # into mpv by hand, or the library changed underneath). Stop
-        # attributing progress rather than corrupting the old episode's.
-        Log.warning(
-          :playback,
-          "playlist advanced to unrecognized file — #{Path.basename(path)}; progress attribution stops"
-        )
-
-        reset_for_file(
-          state,
-          path,
-          %{episode_id: nil, movie_id: nil, video_object_id: nil},
-          %{season_number: nil, episode_number: nil, episode_name: nil}
-        )
+        advance_to(state, :unknown, reported_path)
     end
+  end
+
+  # A file this session can't attribute (user loaded something into mpv by
+  # hand, or the library changed underneath). Stop attributing progress
+  # rather than corrupting the old episode's.
+  defp advance_to(state, :unknown, reported_path) do
+    Log.warning(
+      :playback,
+      "playlist advanced to unrecognized file — #{Path.basename(reported_path)}; progress attribution stops"
+    )
+
+    reset_for_file(
+      state,
+      reported_path,
+      %{episode_id: nil, movie_id: nil, video_object_id: nil},
+      %{season_number: nil, episode_number: nil, episode_name: nil}
+    )
   end
 
   # Pure apart from cancelling the capture timer; public so the test can
@@ -825,7 +657,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         if sid == state.enforced_sid do
           state
         else
-          send_mpv_command(state.socket, ["set_property", "sid", sid])
+          Transport.send(state.transport, ["set_property", "sid", sid])
           Log.info(:playback, "track-resolver: enforcing sid=#{inspect(sid)}")
           %{state | enforced_sid: sid}
         end
@@ -851,10 +683,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     # Resolve the user's *current* selection now, from the complete track
     # lists — not from a language snapshot taken when the `aid`/`sid` event
     # fired. mpv populates tracks incrementally and auto-selects a sub from
-    # our `--slang` before subtitle tracks demux, so an event-time snapshot
-    # can read "no subs" while the eng sub is in fact selected. Deriving here
-    # is what stops the per-series `subtitles_off` poison (the Frieren
-    # flip-flop) — see `LanguageContext.current_selection/4`.
+    # our `slang` before subtitle tracks demux, so an event-time snapshot
+    # can read "no subs" while the eng sub is in fact selected. Deriving
+    # here is what stops the per-series `subtitles_off` poison — see
+    # `LanguageContext.current_selection/4`.
     current_state =
       LanguageContext.current_selection(
         state.current_aid,
@@ -1018,8 +850,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           # Hot-path write: lands in the Library.Progress in-memory
           # table in microseconds; the debounced flush persists to
           # `library_watch_progress` on the next interval (default 5s)
-          # or synchronously on clean shutdown (Library Schema v2
-          # Phase 3 Task D).
+          # or synchronously on clean shutdown.
           :ok = LibraryProgress.record(profile_id, playable_item_id, saveable, duration)
 
           Log.info(
@@ -1028,17 +859,9 @@ defmodule MediaCentaur.Playback.MpvSession do
           )
 
           maybe_mark_completed(profile_id, playable_item_id, reason)
-          # Preserve the rich `%EntityProgressUpdated{}` event for
-          # consumers that need summary/resume_target/changed_record
-          # (EntityModal, StatusLive, LibraryLive). The simpler
-          # `{:entity_progress_updated, pi_id, pos}` tuple broadcast
-          # from Progress.record/4 is consumed by projections that
-          # only need the trigger.
-          #
-          # Thread `playable_item_id` so the payload carries the changed
-          # record — without it the detail modal's in-memory merge
-          # no-ops and a per-episode badge never flips live (it only
-          # corrects on a full remount).
+          # The rich `%EntityProgressUpdated{}` event carries the changed
+          # record, so the detail modal's in-memory merge flips a
+          # per-episode badge live rather than on a full remount.
           ProgressBroadcaster.broadcast(profile_id, entity_id, playable_item_id)
 
         {:error, reason} ->
@@ -1048,9 +871,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # Resolves the canonical PlayableItem for the session's container FK
-  # without writing any WatchProgress row — that's the new Progress
-  # GenServer's job. Mirrors `Library.find_or_create_watch_progress_for_*`
-  # but stops at the PlayableItem.
+  # without writing any WatchProgress row — that's the Progress worker's job.
   defp resolve_or_create_playable_item_id(%{movie_id: movie_id}) when not is_nil(movie_id) do
     position =
       case Library.Containers.fetch(:movie, movie_id) do
@@ -1144,79 +965,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     }
   end
 
-  # --- Cleanup ---
-
-  defp cleanup(state) do
-    if state.socket do
-      :gen_tcp.close(state.socket)
-    end
-
-    # Only delete the socket file if mpv has already exited.
-    # If mpv is still running (backend shutting down), leave the socket
-    # so recovery can reconnect on next startup (ADR-023).
-    if state.state == :stopped do
-      File.rm(state.socket_path)
-      if state.log_file_path, do: File.rm(state.log_file_path)
-    end
-  end
-
-  defp observe_properties(socket) do
-    send_mpv_command(socket, ["observe_property", 1, "time-pos"])
-    send_mpv_command(socket, ["observe_property", 2, "duration"])
-    send_mpv_command(socket, ["observe_property", 3, "pause"])
-    send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
-    send_mpv_command(socket, ["observe_property", 5, "track-list"])
-    send_mpv_command(socket, ["observe_property", 6, "aid"])
-    send_mpv_command(socket, ["observe_property", 7, "sid"])
-    send_mpv_command(socket, ["observe_property", 8, "chapter-list"])
-    send_mpv_command(socket, ["observe_property", 9, "playlist-count"])
-    send_mpv_command(socket, ["observe_property", 10, "playlist-pos"])
-    send_mpv_command(socket, ["observe_property", 11, "path"])
-  end
-
-  defp send_mpv_command(nil, _command), do: :ok
-
-  defp send_mpv_command(socket, command) do
-    json = Jason.encode!(%{"command" => command}) <> "\n"
-    :gen_tcp.send(socket, json)
-  end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
-  defp flag_property_event(state, %{"event" => "property-change"}),
-    do: %{state | seen_property_event?: true}
-
-  defp flag_property_event(state, _message), do: state
-
-  # --- Exit Classification ---
-
-  defp schedule_exit_classification(%{exiting?: true} = state), do: {:noreply, state}
-
-  defp schedule_exit_classification(state) do
-    Process.send_after(self(), :classify_and_finalize, @exit_debounce_ms)
-    {:noreply, %{state | exiting?: true}}
-  end
-
-  defp finalize_with_classification(state) do
-    classification =
-      MpvExitClassifier.classify(%{
-        seen_property_event?: state.seen_property_event?,
-        exit_status: state.exit_status,
-        output_tail: MpvLogReader.fallback_tail(state.output_tail, state.log_file_path, 5)
-      })
-
-    case classification do
-      {:ok, :ended} ->
-        finalize(state)
-
-      {:error, :startup_failure, message} ->
-        Log.error(:playback, "mpv startup failure — #{message}")
-        broadcast_playback_failed(state, :startup_failure, message)
-        finalize(state)
-    end
-  end
-
   defp broadcast_playback_failed(session, reason, message) do
     Events.broadcast(%Events.PlaybackFailed{
       entity_id: session.entity_id,
@@ -1232,12 +980,22 @@ defmodule MediaCentaur.Playback.MpvSession do
     })
   end
 
-  defp log_mpv_lines(data) do
-    data
-    |> String.split("\n", trim: true)
-    |> Enum.each(fn line ->
-      trimmed = String.trim(line)
-      if trimmed != "", do: Log.info(:playback, "mpv: #{trimmed}")
-    end)
+  # --- Observation ---
+
+  defp observe_properties(transport) do
+    Transport.send(transport, ["observe_property", 1, "time-pos"])
+    Transport.send(transport, ["observe_property", 2, "duration"])
+    Transport.send(transport, ["observe_property", 3, "pause"])
+    Transport.send(transport, ["observe_property", 4, "eof-reached"])
+    Transport.send(transport, ["observe_property", 5, "track-list"])
+    Transport.send(transport, ["observe_property", 6, "aid"])
+    Transport.send(transport, ["observe_property", 7, "sid"])
+    Transport.send(transport, ["observe_property", 8, "chapter-list"])
+    Transport.send(transport, ["observe_property", 9, "playlist-count"])
+    Transport.send(transport, ["observe_property", 10, "playlist-pos"])
+    Transport.send(transport, ["observe_property", 11, "path"])
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

@@ -20,6 +20,11 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
     )
   end
 
+  defp argv_input(overrides \\ %{}) do
+    base = input(overrides)
+    Map.put(base, :session_options, LaunchFlags.session_options(base))
+  end
+
   describe "process_options/1 — what only a spawned mpv process needs" do
     test "the window, the quiet terminal, the IPC socket, the log file and the bundled scripts" do
       options = LaunchFlags.process_options(input())
@@ -55,7 +60,7 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
 
   describe "argv/1 — the spawned mpv's command line" do
     test "renders every option as --name=value and ends with the launch target" do
-      argv = LaunchFlags.argv(input(%{start_position: 90}))
+      argv = LaunchFlags.argv(argv_input(%{start_position: 90}))
 
       assert "--keep-open=yes" in argv
       assert "--resume-playback=no" in argv
@@ -73,7 +78,7 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
     end
 
     test "never takes over the user config: no --config-dir, --no-config or --load-scripts" do
-      argv = LaunchFlags.argv(input())
+      argv = LaunchFlags.argv(argv_input())
 
       refute Enum.any?(argv, &String.starts_with?(&1, "--config-dir"))
       refute Enum.any?(argv, &String.starts_with?(&1, "--no-config"))

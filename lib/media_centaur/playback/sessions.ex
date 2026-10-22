@@ -7,7 +7,7 @@ defmodule MediaCentaur.Playback.Sessions do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Playback.{MpvSession, SessionRegistry, SessionSupervisor}
+  alias MediaCentaur.Playback.{MpvSession, SessionRegistry, SessionSupervisor, Transport}
 
   @doc """
   Starts playback for the given params. Returns `:ok` or `{:error, reason}`.
@@ -29,6 +29,7 @@ defmodule MediaCentaur.Playback.Sessions do
 
       true ->
         Log.info(:playback, "starting session — #{params[:entity_name] || entity_id}")
+        params = Map.put_new_lazy(params, :transport, fn -> Transport.Local.new(entity_id) end)
 
         case SessionSupervisor.start_session(params) do
           {:ok, _pid} ->

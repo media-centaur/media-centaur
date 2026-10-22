@@ -61,15 +61,14 @@ defmodule MediaCentaur.Playback.LaunchFlags do
   @typedoc "One mpv option and its value, as `--option=value` would spell it."
   @type option :: {String.t(), String.t()}
 
-  @typedoc "What one launch needs from the session."
+  @typedoc "What a spawned mpv's command line needs: the process facts, the session options already built, the file."
   @type input :: %{
           socket_path: String.t(),
           log_file_path: String.t(),
-          language_options: [option()],
-          content_url: String.t(),
-          start_position: number(),
           bundled_scripts_dir: Path.t(),
-          profile_id: String.t()
+          session_options: [option()],
+          content_url: String.t(),
+          start_position: number()
         }
 
   @doc "The options only a spawned mpv process needs."
@@ -103,7 +102,7 @@ defmodule MediaCentaur.Playback.LaunchFlags do
   @doc "The full argv for a spawned mpv: every option as `--name=value`, ending with the launch target."
   @spec argv(input()) :: [String.t()]
   def argv(input) do
-    Enum.map(process_options(input) ++ session_options(input), fn {name, value} ->
+    Enum.map(process_options(input) ++ input.session_options, fn {name, value} ->
       "--#{name}=#{value}"
     end) ++
       launch_target(input.content_url, input.start_position)
