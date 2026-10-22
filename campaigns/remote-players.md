@@ -50,9 +50,10 @@ Fixed on the way: the bridge stringified booleans (every viewing was
 paused); opaque backgrounds hid the video under the page. M1–M3 built
 and verified; nothing merges to main before the owner's sign-off; the
 wiki edits are committed locally in the wiki repo and not pushed.
-**The next session starts M5's procedure at step 1 (scope) for "the
-native path and the page as OSD" — plan first, by the owner's
-instruction, then build. See "Resuming in a new session".**
+**M5's procedure ran steps 1–6 on 2026-10-22 (record below): scope,
+research on the desk and on the Sony, decisions, the design pass, the
+plan and the plan pass. Execution waits on the owner's look at the
+viewing layer's mockups and on open decisions 6 and 7.**
 
 ## Design (unify pass, 2026-10-22)
 
@@ -880,6 +881,25 @@ the TV), `Keyboard-and-Gamepad.md` (the remote's keys during a
 viewing), `Troubleshooting.md` (bitmap subtitles on the TV; audio
 passthrough off), committed locally, unpushed; `decisions/README.md`
 regenerated. Open decisions 6 and 7 stay listed for the owner.
+
+**Step 6 — plan unification (2026-10-22, `unify_design` on the plan).**
+Checked against the ways plans fail: no old path is kept — `set_property`
+per option, `NextEpisode.loadfile_command/1`, the TV's `input.conf`,
+`RemoteKeys` and `keypress` all leave in the stage that replaces them;
+no constant is copied — the intro and credits words have one Elixir
+home each and the Lua lists are held equal by a test; every caller
+converts — all three `now_playing` readers in stage 1, all fourteen
+`<Layouts.app>` sites in stage 2 (the same idiom `profile` already
+uses, so no new mechanism); no shim — the fake transport gains
+`loadfile/4` like the real ones; no stand-in encodes the old shape —
+`mpv_session_test` asserts the per-file `loadfile`, not a
+`set_property` sequence. One finding: `SessionRecovery.recover_player/1`
+reads `script-opts` for the profile, which per-file options make
+readable only while a file plays — exactly when recovery runs (R1), so
+no change. **Amendment from the owner (this session): the layer's
+layout and controls are not settled by the plan — they go to the owner
+as a mockup round before stage 2 is executed**, and stage 2's component
+list follows what the owner picks. Execution has not started.
 
 ### M4 — TV app skeleton (procedure record)
 
