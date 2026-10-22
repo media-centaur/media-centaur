@@ -37,9 +37,8 @@ Defined before use; refine as the campaign proceeds, elevate to
 `remote-players`**: the Android rig (SDK, JDK pin, `mc-tv`, AVD, the
 app repository's empty shell) builds, installs, launches, drives and
 observes the app on the owner's Sony Bravia XR-42A90K
-(`192.168.68.63`, Android 12, 32-bit). The emulator waits on SVM Mode
-being enabled in the BIOS (AMD-V is off; `/dev/kvm` absent after the
-reboot). M1 and M2 are built
+(`192.168.68.63`, Android 12, 32-bit). The emulator runs unaccelerated
+(AMD-V is off in the BIOS); SVM Mode would make it fast. M1 and M2 are built
 and verified against the simulator; nothing merges to main before the
 owner's sign-off at the campaign's end; the wiki edits are committed
 locally in the wiki repo and not pushed. Next: the hardware checks of
@@ -175,9 +174,9 @@ first, then iteration. The contract both codebases follow is
 3. ✅ **M3 — Android automation rig.** Built 2026-10-22 (record
    below): SDK, JDK pin, `mc-tv`, AVD, the app repository's empty
    shell, the debug APK; install, launch, log, screencap and a key
-   press verified on the TV the same day. Left for M4: the WebView
-   DevTools forward (needs a WebView) and the emulator's source
-   address (needs a reboot for KVM).
+   press verified on the TV and on the emulator the same day; the
+   emulator reaches the host as a device only via the LAN address.
+   Left for M4: the WebView DevTools forward (needs a WebView).
 4. **M4 — TV app skeleton** (`~/src/media-centaur/android-app`).
    Pairing screen, WebView shell, one libmpv instance on a surface, the
    bridge with reconnect and `time-pos` coalesced to 1 Hz, the bundled
@@ -398,11 +397,24 @@ authorized; the TV is Android 12 (API 31), **32-bit only**
 `armeabi-v7a` (libmpv 1.0.0 ships that ABI); `mc-tv launch` returned
 `Status: ok`, `mc-tv log` showed `MainActivity created`, `mc-tv shot`
 captured the app's name centred on black; `mc-tv key BACK` moved focus
-to Sony's launcher (`com.sony.dtv.tvx`). Two facts for later: Sony's
-launcher is a protected surface, so a screencap of it is a 0-byte file
-(the app's own screens capture normally); the emulator remains
-unbooted: after the reboot `/dev/kvm` is still absent because AMD-V
-is disabled in the BIOS. `mc-tv webview` is tried
+to Sony's launcher (`com.sony.dtv.tvx`). Sony's launcher is a protected
+surface, so a screencap of it is a 0-byte file (the app's own screens
+capture normally).
+
+Emulator checks, after the owner's reboot: `/dev/kvm` stayed absent
+because AMD-V is disabled in the BIOS (no `svm` flag), yet the API 36
+Android TV x86_64 image boots unaccelerated in about ten minutes, so
+`mc-tv emulator start` now falls back to `-no-accel` with a warning
+naming the cause. On the emulator (Android 16, `x86_64,arm64-v8a`,
+1920×1080): `mc-tv -e install` in 55 s, `mc-tv -e launch` ok, the log
+line and the screenshot as on the TV. **The source-address question is
+answered**: a guest connection to the host's LAN address
+(`192.168.68.67`) arrives from `192.168.68.67`, so the gate treats the
+emulator as a device; a connection to the guest's `10.0.2.2` alias
+arrives from `127.0.0.1`, which the gate would treat as the host. The
+TV app on the emulator therefore dials the LAN address, never
+`10.0.2.2` (noted in `mc-tv`'s header). `mc-tv webview` is tried in
+M4, when the app has a WebView. `mc-tv webview` is tried
 in M4, when the app has a WebView.
 
 ### M1 — Reachable and closed (procedure record)
@@ -810,11 +822,12 @@ The TV is Android 12 (API 31), 32-bit only (`armeabi-v7a`), 1080p
 override on a 4K panel, WebView 154. The machine was rebooted the
 same day (kernel 7.2.11) and `/dev/kvm` is still absent: the Ryzen 5
 5600X exposes no `svm` flag (`/proc/cpuinfo` has only `svm_lock`), so
-AMD-V is disabled in the BIOS and `kvm_amd` cannot load. Still owed by
-the owner: enable SVM Mode in the BIOS (typically Advanced → CPU
-Configuration); then `mc-tv emulator start` and the check of the
-source address the gate sees when the emulator guest dials the host's
-LAN IP. `mc-tv emulator start` names this cause when it refuses.
+AMD-V is disabled in the BIOS and `kvm_amd` cannot load. The emulator boots
+anyway, unaccelerated, in about ten minutes (`mc-tv emulator start`
+warns and falls back); enabling SVM Mode in the BIOS (typically
+Advanced → CPU Configuration) is optional and makes it fast. The
+source-address check is done: an app on the emulator must dial the
+host's LAN address, never `10.0.2.2`.
 
 **Running the branch as a host (the end-to-end rig).**
 * Scratch config: `/tmp/claude-1000/-home-shawn-src-media-centaur-media-centaur-app/4804e16b-c167-4c22-8eb8-6d5631bc6c6f/scratchpad/sim/media-centaur-sim.toml`
