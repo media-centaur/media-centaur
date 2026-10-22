@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     end
   end
 
-  describe "apply_playback_change/4 — the page's playing set after a state change" do
+  describe "apply_playback_change/3 — the page's playing set after a state change" do
     defp changed(player, entity_id, state, now_playing \\ %{title: "Episode 1"}) do
       %PlaybackStateChanged{
         player: player,
@@ -227,19 +227,6 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     test "a device's page takes its own player's viewing by id" do
       assert apply_playback_change(%{}, changed("tv-1", "entity-1", :playing), "tv-1") ==
                %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
-    end
-
-    test "the board over every player (:all) takes them all, with the extra fields merged" do
-      started_at = ~U[2026-04-06 12:00:00Z]
-
-      set =
-        %{}
-        |> apply_playback_change(changed(:host, "entity-1", :playing), :all, %{started_at: started_at})
-        |> apply_playback_change(changed("tv-1", "entity-2", :paused), :all)
-
-      assert set["entity-1"].started_at == started_at
-      assert set["entity-1"].state == :playing
-      assert set["entity-2"].state == :paused
     end
   end
 

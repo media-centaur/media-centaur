@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   of the row, preserving the original Continue Watching order both
   among the pinned items and among the rest.
 
-  `playback` is the page's playing set (`LiveHelpers.apply_playback_change/4`,
+  `playback` is the page's playing set (`LiveHelpers.apply_playback_change/3`,
   its own player's viewings keyed by `entity_id`); the value's `:state` is
   what we read.
   """

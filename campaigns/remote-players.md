@@ -43,7 +43,7 @@ override fixed; the finish-prompt burst not reproduced. Waiting on the
 TV: the bindings on the Sony, the UI scale, the Code field, the layout
 scale, the audio underrun, detach and host-restart recovery, Back-key and
 D-pad polish, the finish prompt after a real-length viewing. Third batch
-scoped: Status keyed by player and entity. Owner's calls open: the Sound
+done: Status keyed by player and title. Owner's calls open: the Sound
 column's owner (9), the speed test (3), the application id (1). M5's OSD
 check passed on the Sony 2026-10-22 (`mc-tv-flow osd tv`, record below): the layer
 over native 4K video, the Skip Intro pill taken by SELECT, SELECT
@@ -720,13 +720,29 @@ completing it — the desktop's rule too, left as is. (g) `reset_for_file`
 keeps `current_aid`/`current_sid`; the simulator's series had the
 poisoned override from before the fix, cleared by hand.
 
-**Step 1 — scope, third batch (2026-10-23, not started).** *Desk:*
-Status keyed by `{player, entity}` (two players on one title collide in
-the board's map; scheduled by the second batch's design pass). *TV,
-when the owner says it is free:* the second batch on the Sony
-(`mc-tv-flow osd tv`: the bindings, the sidecar on E01, a seek past the
-end, removal from Settings → Players while playing), then the first
-batch's TV list under Status.
+**Third batch (2026-10-23), steps 1–7.** *Scope:* Status keyed by
+`{player, entity}` — two players on one title collided in the board's
+map (scheduled by the second batch's design pass); the TV list waits.
+*Research:* Status built its own map (`build_playback_state`, keyed by
+entity, carrying `started_at`), updated it through the shared
+`apply_playback_change` with the `:all` scope the second batch added, and
+its widget already draws one block per session; `derive_playback` reads
+values only; `entity_progress_updated` found the one entry by entity.
+*Decisions:* none for the owner. *Design pass:* the board over every
+player and a page's playing set are two ideas — one is keyed by player
+and title, the other by title alone — so the `:all` scope was a flag
+hiding a different key: gone; Status owns its map
+(`StatusHelpers.apply_session_change/2`, one entry per player and title,
+`started_at` kept from first sight) and the helper's scope is `:host |
+player_id` only; progress moves every player's bar on that title (per
+profile and title, not per player). *Plan:* `status_helpers_test`
+(two players on one title, the stop that keeps the other, `started_at`),
+`status_live_test` (two sessions "2 active", one stopped "1 active"),
+`live_helpers_test` (the `:all` case removed) → the helper, Status's
+three handlers, docs. *Plan pass:* no `:all` left anywhere; the helper's
+arity drops to 3 and both callers (the detail host, the tests) follow; no
+shim. *Execution:* done, 212 tests green across the four files;
+precommit below.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -2324,8 +2340,8 @@ M6 batches are built and desk-checked (2026-10-23, records above; wiki
 commits local, unpushed). When the owner says the TV is free:
 `mc-tv-flow osd tv` with the bindings, the sidecar on E01, a seek past
 the end, removal while playing; then the TV items listed under Status.
-Desk: Status keyed by `{player, entity}`. Owner's calls open: 9 (the
-Sound column), 3 (the speed test), 1 (the application id). For any
+Desk: nothing left; every remaining M6 item needs the TV. Owner's calls
+open: 9 (the Sound column), 3 (the speed test), 1 (the application id). For any
 TV window: `mc-sim-host start` (it serves the branch and rebuilds
 `app.js` on change — confirm a changed symbol with `grep` in
 `priv/static/assets/js/app.js`), `mc-tv connect`, wake the TV if needed

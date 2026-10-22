@@ -557,15 +557,9 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, socket |> assign(error_buckets: snapshot) |> assign_board()}
   end
 
-  def handle_info(
-        {:playback_state_changed, %{entity_id: entity_id, started_at: started_at} = event},
-        socket
-      ) do
-    sessions = socket.assigns.playback.sessions
-    existing = Map.get(sessions, entity_id)
-    kept_started_at = (existing && existing[:started_at]) || started_at
-    sessions = apply_playback_change(sessions, event, :all, %{started_at: kept_started_at})
-
+  # The board over every player: a session is one player's viewing of one title.
+  def handle_info({:playback_state_changed, event}, socket) do
+    sessions = apply_session_change(socket.assigns.playback.sessions, event)
     {:noreply, assign(socket, playback: derive_playback(sessions))}
   end
 
@@ -573,28 +567,28 @@ defmodule MediaCentaurWeb.StatusLive do
         {:entity_progress_updated, %{entity_id: entity_id, changed_record: changed_record}},
         socket
       ) do
-    sessions = socket.assigns.playback.sessions
+    # Every player's session on that title moves its bar: progress is per
+    # profile and title, not per player.
+    sessions =
+      Map.new(socket.assigns.playback.sessions, fn
+        {{_player, ^entity_id} = key, %{now_playing: %{} = now_playing} = session} ->
+          if is_map(changed_record) and progress_matches_session?(changed_record, now_playing) do
+            updated =
+              Map.merge(now_playing, %{
+                position_seconds: changed_record.position_seconds,
+                duration_seconds: changed_record.duration_seconds
+              })
 
-    socket =
-      with %{now_playing: now_playing} = session when not is_nil(now_playing) <-
-             Map.get(sessions, entity_id),
-           %{} = record <- changed_record,
-           true <- progress_matches_session?(record, now_playing) do
-        updated =
-          Map.merge(now_playing, %{
-            position_seconds: record.position_seconds,
-            duration_seconds: record.duration_seconds
-          })
+            {key, %{session | now_playing: updated}}
+          else
+            {key, session}
+          end
 
-        updated_sessions =
-          Map.put(sessions, entity_id, %{session | now_playing: updated})
+        entry ->
+          entry
+      end)
 
-        assign(socket, playback: derive_playback(updated_sessions))
-      else
-        _ -> socket
-      end
-
-    {:noreply, socket}
+    {:noreply, assign(socket, playback: derive_playback(sessions))}
   end
 
   # --- Self-update subsystem (Updates widget) ---
@@ -825,7 +819,7 @@ defmodule MediaCentaurWeb.StatusLive do
   defp build_playback_state do
     sessions =
       Map.new(MediaCentaur.Playback.Sessions.list(), fn session ->
-        {session.entity_id,
+        {{session.player, session.entity_id},
          %{
            state: session.state,
            now_playing: session.now_playing,

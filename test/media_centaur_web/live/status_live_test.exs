@@ -282,6 +282,38 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   # pending-review count (the only consumer of library broadcasts on /status)
   # was dropped — the page no longer subscribes to Library events.
 
+  describe "the board over every player" do
+    test "two players on one title are two sessions; stopping one keeps the other", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
+      movie_id = Ecto.UUID.generate()
+
+      changed = fn player, state ->
+        %PlaybackStateChanged{
+          player: player,
+          entity_id: movie_id,
+          profile_id: owner_profile_id(),
+          state: state,
+          now_playing: %{
+            entity_id: movie_id,
+            entity_name: "Shared Movie",
+            position_seconds: 10.0,
+            duration_seconds: 1000.0
+          },
+          started_at: System.monotonic_time(:millisecond)
+        }
+      end
+
+      send(view.pid, {:playback_state_changed, changed.(:host, :playing)})
+      send(view.pid, {:playback_state_changed, changed.("living-room-tv", :playing)})
+      assert render(view) =~ "2 active"
+
+      send(view.pid, {:playback_state_changed, changed.(:host, :stopped)})
+      html = render(view)
+      assert html =~ "1 active"
+      assert html =~ "Shared Movie"
+    end
+  end
+
   describe "playback activity widget" do
     test "idle tile shows the recent feed and lifetime stat figures", %{conn: conn} do
       create_watch_event(%{
