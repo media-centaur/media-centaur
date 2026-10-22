@@ -6,10 +6,10 @@
  * `withViewing` is a decorator applied by `page_behavior.js` whenever the
  * reader sees `[data-viewing]`; it is detached with the layer. In the bar
  * state (no track menu open) it turns actions into `viewing_command`
- * pushes: arrows seek (±10 s sideways, ±60 s up and down), SELECT toggles
- * pause unless the prompt pill is focused (the orchestrator's activate then
- * clicks it), the remote's media keys play/pause and seek 30 s, and MENU
- * opens the track menu. BACK passes through: containment dismisses the
+ * pushes: arrows seek (±10 s sideways, ±60 s up and down), SELECT acts on
+ * the prompt while one shows (the desktop rule: ENTER is the pill's while
+ * the pill is up) and toggles pause otherwise, the remote's media keys
+ * play/pause and seek 30 s, and MENU opens the track menu. BACK passes through: containment dismisses the
  * overlay, whose dismiss event stops the viewing. With the menu open the
  * decorator steps aside so MODAL navigation walks the lists, except that
  * MENU closes it. Zone cycling and CLEAR mean nothing during a viewing.
@@ -32,7 +32,7 @@ const SWALLOWED = new Set([Action.ZONE_NEXT, Action.ZONE_PREV, Action.CLEAR])
  * Wrap a page behavior for the time a viewing is on.
  *
  * @param {import("./page_behavior").PageBehavior} behavior - the page's own behavior ({} when it has none)
- * @param {{pushEvent: function(string, Object): void, isMenuOpen: function(): boolean}} deps
+ * @param {{pushEvent: function(string, Object): void, isMenuOpen: function(): boolean, hasPrompt: function(): boolean}} deps
  * @returns {import("./page_behavior").PageBehavior}
  */
 export function withViewing(behavior, deps) {
@@ -56,8 +56,8 @@ export function withViewing(behavior, deps) {
 
       switch (action) {
         case Action.SELECT:
-          if (focused?.dataset?.viewingPrompt !== undefined) return false
-          command({ command: "toggle_pause" })
+          if (deps.hasPrompt()) deps.pushEvent("viewing_prompt", {})
+          else command({ command: "toggle_pause" })
           return true
         case Action.PLAY_PAUSE:
         case Action.PLAY:

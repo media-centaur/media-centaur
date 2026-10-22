@@ -33,27 +33,20 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M4 built and verified on the TV; M5's measurements and decisions
-taken 2026-10-22; M5's design not yet started** (branch
-`remote-players`; `~/src/media-centaur/android-app` at `6e2ea71`). The
-TV app pairs, browses with the D-pad, plays over the media endpoint,
-reports progress, auto-advances an episode, ends on `eof-reached` or
-Back, and stays paired across restarts, against a simulated host
-(`mc-sim-host`). Measured on the Sony with real releases (M5 record
-below): throughput is no limit; the GPU render path loses quality
-(1080p SDR); the native path (`vo=mediacodec_embed`) gives native 4K
-HDR10; a transparent host page over the native video shows the video.
-**Decided with the owner** (Decisions made): full fidelity is the
-target, the TV renders on the native path, mpv draws nothing on the
-TV, the host's page is the TV's OSD, PGS is unsupported on the TV.
-Fixed on the way: the bridge stringified booleans (every viewing was
-paused); opaque backgrounds hid the video under the page. M1–M3 built
-and verified; nothing merges to main before the owner's sign-off; the
-wiki edits are committed locally in the wiki repo and not pushed.
-**M5's procedure ran steps 1–6 on 2026-10-22 (record below): scope,
-research on the desk and on the Sony, decisions, the design pass, the
-plan and the plan pass. Execution waits on the owner's look at the
-viewing layer's mockups and on open decisions 6 and 7.**
+**M5 stages 1–3 built and committed 2026-10-22; stage 4 (the TV check)
+half done, paused mid-verification** (branch `remote-players`; `android-app` at `066bf70`). Verified on the Sony so far: the layer draws over the native 4K
+video, the Skip Intro pill and the subtitle line show, the bar shows the
+title, the chapter ticks and both clocks and fades, arrows seek, the
+chain auto-advances to E02, the lab film's end opens the finish prompt.
+Not yet verified on the TV: SELECT (pause / the pill), the track menu's
+key, Back stopping the viewing — three fixes made for them this evening
+(the behaviour re-detected on every key, the viewing keys in a fallback
+map the user's bindings cannot hide, the replaced file's end-file
+dropped) are in the code and the desk tests but have not been run on the
+TV. **Next session: commit nothing before re-reading the M5 record's
+"paused here" list, then `mc-tv-flow osd tv`.** Owner's calls recorded
+2026-10-22: direction 3, keys to the page, passthrough declined (stereo on
+optical), no 4K UI (a slightly smaller TV UI scale wanted instead, M6).
 
 ## Design (unify pass, 2026-10-22)
 
@@ -159,6 +152,11 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — Audio passthrough is not offered: the owner's speakers are stereo on the TV's optical output with no surround decoder, so a bitstream would reach something that cannot decode it; the TV decodes every track itself and sends PCM, which is full fidelity for that chain. Revisit only if a decoder joins the setup. (owner; open decision 7 → declined)
 * `2026-10-22` — The viewing layer's look is mockup direction 3, *scrim and seek bar*: a bottom gradient scrim, the title and episode line over a full-width seek bar with a handle and chapter ticks, the clock at both ends, a centre pause glyph for a moment, prompts at the top right, the track menu a centred two-column glass modal over a dimmed picture (`docs/superpowers/specs/2026-10-22-tv-viewing-layer-mockups/3-scrim-and-seek-bar`). (owner)
 * `2026-10-22` — During a viewing every remote key goes to the page; the viewing layer's behaviour turns it into a playback command the host sends down the channel; `input.conf`, `RemoteKeys` and `keypress` leave the TV app. (owner, on the recommendation; open decision 6 → decided)
+* `2026-10-22` — A debug build of the TV app bypasses the WebView's cache (`LOAD_NO_CACHE`): against a dev host the page script has no digest in its path and a rebuilt script never landed; a release host serves digested assets. (stage 4 finding)
+* `2026-10-22` — A new viewing on a remote player replaces the one running (`Sessions.play/2` stops any other session on that player first): one libmpv, one viewing; two sessions on one channel observed each other's file. (stage 4 finding)
+* `2026-10-22` — The remote transport drops an `end-file` that precedes its own file's `start-file`: a `loadfile … replace` on an mpv still holding a file ends that file first, and the bridge cannot know the reason. (stage 4 finding)
+* `2026-10-22` — The page's input orchestrator re-detects its behaviour on every key: the viewing layer arrives by a server push, and a key after it must find the viewing behaviour whether or not a patch callback ran. The viewing keys (media keys, `ContextMenu`) live in a fallback map after the user's bindings, like the zone keys. (stage 4 finding)
+* `2026-10-22` — No 4K UI on the TV: the Sony runs every app's UI at a 1080p override and the owner will not quadruple the WebView's load; a slightly smaller UI scale on the TV is wanted instead (M6). (owner)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
 
 ## Open decisions
@@ -277,6 +275,17 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    PCM, so the optical receiver would still get PCM at best; (c) leave
    passthrough unoffered. Recommendation: (a), when the owner is at the
    TV to hear the result; nothing in M5 depends on it.
+8. **The remote's key for the track menu** (stage 4, 2026-10-22). The
+   WebView swallows the Menu key (no DOM event), so the shell now forwards
+   `KEYCODE_MENU` as a `ContextMenu` keydown, the way it forwards Back —
+   unverified on the Sony, whose remote may have no Menu key at all; the
+   Info key reaches the page on a plain page but during a viewing Sony's
+   own info panel took it. Options: (a) keep MENU and verify; (b) UP in the
+   bar state opens the track menu (TV players use UP/DOWN for panels) and
+   DOWN only shows the bar, with ±60 s dropped (LEFT/RIGHT ±10, the media
+   keys ±30 remain); (c) a "Subtitles & audio" button in the bar reached
+   with UP. Recommendation: (b), with (a) kept for remotes that have the
+   key; the owner says which keys their remote has.
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -997,6 +1006,52 @@ list follows what the owner picks. Execution has not started.
   `cycle pause`; Escape (Back) arrived as `quit` and the session ended.
   The menu's keys are covered by the behaviour's unit tests only until
   the TV check.
+* *Stage 3 (the TV app) — built 2026-10-22, evening* (`android-app`
+  `8ca4f32`, then `066bf70`): `vo=mediacodec_embed`
+  as the instance option and on surface creation, `android-surface-size`
+  dropped, `input-conf`, the scripts package, `Assets.sync`, `RemoteKeys`,
+  `keypress` and the `CopyBundledScripts` Gradle task removed, every key
+  to the WebView, Back forwarded as Escape; then (`066bf70`) `Shell.kt`
+  forwards Menu as `ContextMenu`, a debug build sets `LOAD_NO_CACHE`, and
+  `MainActivity.dispatchKeyEvent` routes Back and Menu. Built and
+  installed on the Sony.
+* *Stage 4 (the TV) — half done 2026-10-22, evening; paused here.*
+  Rig: `mc-tv-flow osd tv [out-dir]` (promoted from the session's
+  scratch script; resets progress, plays E01 from the start, screenshots
+  each state; E01/E02 in the sim host were regenerated with chapters
+  Intro 0–8 s, Story, End Credits 75–90 s and an English SRT track; the
+  lab film `Sample Lab Film` is staged, 14 s, intro/story/credits, SRT);
+  `mc-tv ui` reads a screen as text. **Verified on the Sony** (captures
+  in the session's scratch `osd/` folder, gone with it; the facts stand):
+  the layer over native video (both layers `DEVICE`-composited), the
+  Skip Intro pill and the subtitle line at the right places, the bar
+  with the title, episode line, chapter ticks and clocks, hidden after
+  4 s with the opacity fade, LEFT arriving at the bridge as `seek -10`,
+  auto-advance E01 → E02 with the page staying up, the lab film's end
+  opening the title with the finish prompt ("You finished Sample Lab
+  Film", Delete this file, Done). **Found and fixed, unverified on the
+  TV:** (1) the WebView cached the dev host's `app.js`, so every window
+  ran stale page script → `LOAD_NO_CACHE` in debug builds; (2) a second
+  `play` on the player ran two sessions over one channel → `Sessions.play/2`
+  replaces the running viewing; (3) `loadfile replace` on a loaded file
+  made the bridge report the old file's `end-file` as `eof` and the new
+  session ended at once → `Transport.Remote` drops an end-file before its
+  own `start-file` (`started?`); (4) the orchestrator never attached the
+  viewing behaviour when the layer arrived by push (context stayed on
+  Home's shelf; SELECT, Menu and Back went nowhere while the one
+  stray `_syncState` let a LEFT through) → `_detectBehavior` on every
+  source action; (5) the user's key bindings replaced the default key
+  map, hiding the media and menu keys → `VIEWING_KEY_MAP` fallback.
+  **Still unverified on the TV:** SELECT pausing and resuming; SELECT
+  activating the pill; the track menu opening (and by which key — open
+  decision 8), its columns, choosing a subtitle, Back closing it; Back
+  stopping the viewing; the countdown pill (the earlier run seeked past
+  the end by my script's timing). **Owner items for M6:** the TV's UI
+  scale a little smaller (per-device, the existing scale preference);
+  a seek past the end leaves mpv paused on the last frame with no
+  `eof-reached` (clamp the seek to the duration, or end on paused-at-end);
+  the lab film must play ≥10 s continuously for completion (the
+  tracker's rule), which the finish check now does.
 
 ### M4 — TV app skeleton (procedure record)
 
@@ -1888,8 +1943,20 @@ TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
 each window to a minute, always end with `mc-tv hdmi`.
 
-**The next session's agenda: the owner's checkpoint on M5, then
-stage 1.** Steps 1–6 ran on 2026-10-22; nothing of M5 is built except
+**The next session's agenda: finish stage 4 on the TV, then stage 5.**
+Before anything: `mc-sim-host start` (it serves the branch; it rebuilds
+`app.js` on change but confirm with `grep VIEWING_KEY_MAP priv/static/assets/js/app.js`
+in the worktree), `mc-tv connect`, wake the TV if needed
+(`mc-tv adb shell input keyevent KEYCODE_WAKEUP`), `mc-tv build && mc-tv install`
+(the installed build is `066bf70` already; rebuild only after a change), then
+`mc-tv-flow osd tv /tmp/osd` and read `/tmp/osd/osd-*.png`: the five
+fixes above are what it checks. Then open decision 8 (the menu key) with
+the owner, and stage 5 (ADR-080 is amended already; the UIDR for the
+layer, the spec amendment, the wiki pages, `decisions/README.md`). The
+older checkpoint text below is kept for its facts.
+
+**The earlier agenda (the owner's checkpoint on M5, then stage 1 —
+done 2026-10-22).** Steps 1–6 ran on 2026-10-22; nothing of M5 is built except
 the WebView staying up (`android-app` `f2ca2b2`). Waiting on the
 owner: (1) a pick, or a mix, from the viewing layer's mockup round in
 `docs/superpowers/specs/2026-10-22-tv-viewing-layer-mockups/`

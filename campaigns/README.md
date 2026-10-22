@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 (the native path and the page as OSD) scoped, researched, designed and planned the same day — steps 1–6 recorded; waiting on the owner's pick from the viewing layer's mockup round and on open decisions 6–7 before stage 1 runs.** The UI and playback on a Google TV
+  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 (the native path and the page as OSD) stages 1–3 built the same evening, stage 4 (the TV check) half done — the layer, the pill, the subtitles, the bar, seeks, auto-advance and the finish prompt verified on the Sony; SELECT, the track menu and Back wait on five fixes made but not yet run on the TV (`mc-tv-flow osd tv`).** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only

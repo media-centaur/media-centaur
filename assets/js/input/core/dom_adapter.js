@@ -480,6 +480,11 @@ export function createDomReader(config = {}) {
       return document.querySelector("[data-viewing]") !== null
     },
 
+    /** Whether the viewing layer shows a prompt (Skip Intro, Next Episode) right now. */
+    hasViewingPrompt() {
+      return document.querySelector("[data-viewing-prompt]") !== null
+    },
+
     /** Whether the viewing layer's track menu is the active overlay. */
     isViewingMenuOpen() {
       return activeModalElement()?.dataset?.navOverlay === "viewing_menu"

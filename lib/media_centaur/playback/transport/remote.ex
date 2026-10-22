@@ -22,6 +22,13 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   The device's mpv draws nothing (`vo=mediacodec_embed`): the host's page
   is its OSD, so `draws_subtitles?/1` is false and the session never
   selects a bitmap subtitle track on it.
+
+  A `loadfile … replace` on an mpv that still holds a file (a viewing
+  replacing another, or one that ended on `keep-open`) makes mpv end that
+  file before it starts ours, and the device's bridge cannot know the
+  reason. So an `end-file` that arrives before our file's `start-file` is
+  the replaced file's and is dropped (`started?`); a reattaching session's
+  file has started already.
   """
 
   @behaviour MediaCentaur.Playback.Transport
@@ -36,7 +43,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   alias MediaCentaur.Playback.LaunchFlags
   alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
 
-  defstruct [:player_id, :channel, :locators, :launch]
+  defstruct [:player_id, :channel, :locators, :launch, started?: true]
 
   @type t :: %__MODULE__{}
 
@@ -55,7 +62,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   @impl true
   def open(transport, %{reattach?: true} = launch) do
     Channel.attach(transport.channel, self())
-    {[{:attached, :reconnected}], %{transport | launch: launch}}
+    {[{:attached, :reconnected}], %{transport | launch: launch, started?: true}}
   end
 
   def open(transport, launch) do
@@ -66,7 +73,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
       loadfile(launch, launch.content_url, "replace", launch.start_position)
     )
 
-    {[{:attached, :fresh}], %{transport | launch: launch}}
+    {[{:attached, :fresh}], %{transport | launch: launch, started?: false}}
   end
 
   @impl true
@@ -109,6 +116,18 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   def draws_subtitles?(_transport), do: false
 
   @impl true
+  # Our file has started: from here every end-file is about our viewing.
+  def handle_message(
+        transport,
+        {:transport, {:remote, {:message, %{"event" => "start-file"} = object}}}
+      ), do: {[{:message, object}], %{transport | started?: true}}
+
+  # The file mpv held before ours ended; not our end.
+  def handle_message(
+        %{started?: false} = transport,
+        {:transport, {:remote, {:message, %{"event" => "end-file"}}}}
+      ), do: {[], transport}
+
   # The player reports the file stopped or was quit: the viewing is over on
   # a remote player (its mpv lives on for the next one), so the message is
   # followed by the close the session finalises on.
@@ -136,7 +155,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
         _other -> transport.locators
       end
 
-    {[{:attached, :reconnected}], %{transport | channel: channel, locators: locators}}
+    {[{:attached, :reconnected}], %{transport | channel: channel, locators: locators, started?: true}}
   end
 
   def handle_message(_transport, _message), do: :unhandled

@@ -127,6 +127,62 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
+  test "an end-file before the session's own file starts is the replaced file's and is dropped", %{
+    player_id: player_id,
+    path: path
+  } do
+    {:ok, transport} = Remote.new(player_id)
+
+    launch = %{
+      session_options: [],
+      content_url: Remote.locator(transport, path),
+      start_position: 0,
+      profile_id: "p1"
+    }
+
+    {_events, transport} = Remote.open(transport, launch)
+
+    # mpv ends the file it was playing before it starts ours; the bridge
+    # cannot know the reason, and whatever it says, it is not our end.
+    stale = {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => "eof"}}}}
+    assert {[], transport} = Remote.handle_message(transport, stale)
+    stale_stop = {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => "stop"}}}}
+    assert {[], transport} = Remote.handle_message(transport, stale_stop)
+
+    started = {:transport, {:remote, {:message, %{"event" => "start-file"}}}}
+
+    assert {[{:message, %{"event" => "start-file"}}], transport} =
+             Remote.handle_message(transport, started)
+
+    ours = {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => "stop"}}}}
+
+    assert {[{:message, _}, {:closed, {:ok, :ended}}], _transport} =
+             Remote.handle_message(transport, ours)
+  end
+
+  @tag :tmp_dir
+  test "a reattaching session's file has already started: its first end-file counts", %{
+    player_id: player_id,
+    path: path
+  } do
+    {:ok, transport} = Remote.new(player_id)
+
+    launch = %{
+      session_options: [],
+      content_url: Remote.locator(transport, path),
+      start_position: 0,
+      profile_id: "p1",
+      reattach?: true
+    }
+
+    {_events, transport} = Remote.open(transport, launch)
+    ours = {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => "stop"}}}}
+
+    assert {[{:message, _}, {:closed, {:ok, :ended}}], _transport} =
+             Remote.handle_message(transport, ours)
+  end
+
+  @tag :tmp_dir
   test "a stop or quit reported by the player ends the viewing; any other end-file does not", %{
     player_id: player_id
   } do
