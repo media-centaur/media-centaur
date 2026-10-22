@@ -33,25 +33,26 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M4 built and verified on the TV 2026-10-22; M5's first measurements
-taken the same day** (branch `remote-players`;
-`~/src/media-centaur/android-app` at `6e2ea71`). The TV app pairs,
-browses with the D-pad, plays over the media endpoint, reports
-progress, auto-advances an episode, ends on `eof-reached` or Back, and
-stays paired across restarts, against a simulated host (`mc-sim-host`).
-Measured on the Sony with two real releases (M5 record below):
-throughput is not a limit (the WiFi link sustains ~210 Mbit/s through
-the media endpoint; a 95 Mbit/s 4K remux plays with zero dropped
-frames and no cache stall), but **the output path loses quality**: mpv
-renders into a 1920×1080 SDR surface, so a 4K HDR file reaches the
-panel tone-mapped and upscaled (open decision 4). Found and fixed on
-the way: every viewing on the TV was paused, because the bridge sent
-booleans to libmpv as strings. M1–M3 are built and verified; nothing
-merges to main before the owner's sign-off; the wiki edits are
-committed locally in the wiki repo and not pushed. **The next session
-opens with the owner on open decisions 4 (output fidelity), 5
-(per-viewing state on a long-lived libmpv) and 3 (the speed test);
-then M5 in the order those set.**
+**M4 built and verified on the TV; M5's measurements and decisions
+taken 2026-10-22; M5's design not yet started** (branch
+`remote-players`; `~/src/media-centaur/android-app` at `6e2ea71`). The
+TV app pairs, browses with the D-pad, plays over the media endpoint,
+reports progress, auto-advances an episode, ends on `eof-reached` or
+Back, and stays paired across restarts, against a simulated host
+(`mc-sim-host`). Measured on the Sony with real releases (M5 record
+below): throughput is no limit; the GPU render path loses quality
+(1080p SDR); the native path (`vo=mediacodec_embed`) gives native 4K
+HDR10; a transparent host page over the native video shows the video.
+**Decided with the owner** (Decisions made): full fidelity is the
+target, the TV renders on the native path, mpv draws nothing on the
+TV, the host's page is the TV's OSD, PGS is unsupported on the TV.
+Fixed on the way: the bridge stringified booleans (every viewing was
+paused); opaque backgrounds hid the video under the page. M1–M3 built
+and verified; nothing merges to main before the owner's sign-off; the
+wiki edits are committed locally in the wiki repo and not pushed.
+**The next session starts M5's procedure at step 1 (scope) for "the
+native path and the page as OSD" — plan first, by the owner's
+instruction, then build. See "Resuming in a new session".**
 
 ## Design (unify pass, 2026-10-22)
 
@@ -279,21 +280,68 @@ first, then iteration. The contract both codebases follow is
    plays one file, reports progress, auto-advances an episode, ends on
    eof or Back, on the Sony Bravia. The finish prompt and a
    real-length file move to M5's first item.
-5. **M5 — Hardening.** Started 2026-10-22 with the measurements
-   (record below). Head of the list, in order: the output path (open
-   decision 4), per-viewing state on the long-lived libmpv (open
-   decision 5), the speed test designed with the owner (open
-   decision 3); the finish prompt and a real-length viewing on
-   the device (completion recorded, the prompt shown in the WebView);
-   the pairing page's Code field size in the WebView; the WebView's
-   960×540 layout scale (measure first); the audio underrun at start;
-   detach/reattach end to end on the device;
-   host-restart recovery on the device; sidecar subtitles over the media
-   endpoint; HDR and audio passthrough options; Back-key and D-pad
-   behaviour in the WebView; WebView rendering cost of the glass UI on
-   the device; a removed player's channel closed at once; Home's pinned
-   "playing" rows filtered by player.
-6. **M6 — Release path and owner checks.** Release signing in CI, Google
+5. **M5 — The native path and the page as OSD.** Measurements and
+   decisions done 2026-10-22 (record below); the procedure's steps 1–7
+   are next, plan before code. What the milestone must deliver, from
+   the decisions: the TV plays on `vo=mediacodec_embed` (native 4K
+   HDR10; mpv draws nothing); the host's page stays over the video,
+   transparent, and is the TV's OSD; everything the bundled scripts
+   draw on the desktop exists on the TV as host UI in the page; text
+   subtitles drawn by the page; PGS-only files say so plainly;
+   per-viewing options sent so the long-lived libmpv starts clean
+   (open decision 5); audio passthrough measured and, if the panel
+   forwards it, offered. Inputs for step 1 (scope), gathered 2026-10-22:
+   * *What the desktop scripts draw today* (`docs/mpv.md`,
+     `priv/mpv/scripts/media-centaur/`): a Skip Intro pill on an intro
+     chapter; a Next Episode pill during a credits chapter and an
+     end-of-file countdown (ADR-062 auto-advance is the host's; the
+     pill only shortens credits); the TAB track menu with the Sound
+     column and `n` night mode; mpv's own OSD for seek/pause feedback.
+     On the TV each becomes a host-rendered surface in the page or is
+     dropped with a reason.
+   * *What the host already knows per viewing* over the channel:
+     `time-pos`, `duration`, `pause`, `eof-reached`, `track-list`,
+     `aid`, `sid`, `chapter-list`, `playlist-count`, `playlist-pos`
+     (`MpvSession`'s observe list); it does not yet observe `sub-text`
+     (text subtitles for the page) or `chapter` (for the pills).
+   * *What the page needs from the host*: to know it is on a TV player
+     with a viewing in progress (the player id is in its session; the
+     viewing events already name the player), the viewing's state, and
+     commands back (seek, pause, track choice) which go host → channel
+     → libmpv, never page → libmpv.
+   * *What the TV app changes*: the WebView stays `VISIBLE` during a
+     viewing (today `GONE` in `MainActivity.onViewingChanged`);
+     `vo=mediacodec_embed` in `Player.instanceOptions` (the surface
+     attach sequence is unchanged, `wid` already set); the remote's
+     keys go to the page whenever the page shows an overlay and to
+     mpv otherwise — today `dispatchKeyEvent` sends every key to mpv
+     while `player.viewing`, so the routing rule needs an owner (the
+     page tells the shell when it is "up", or the host does over the
+     channel); Back while a file plays stays `stop`; the bundled
+     scripts package and `input.conf` leave the TV build (nothing
+     draws, `ENTER cycle pause` and the seeks move to host-driven
+     commands or stay as `keypress` — decide in scope).
+   * *Known costs to measure in research*: the WebView's rendering
+     cost while idle and while animating over 4K video on the Mali;
+     a transparent page's effect on the input system's focus rings;
+     latency of host-rendered feedback (key → channel → LiveView →
+     page) versus mpv's local OSD — the pause/seek feedback must feel
+     immediate.
+   * *Facts and evidence*: `android-app` `docs/playback-on-android.md`
+     (render paths, HDR, transparency, audio, throughput, sampling);
+     `mc-tv-flow perf --set vo=mediacodec_embed --overlay` reproduces
+     the verified state.
+   Deferred into M6 from the old hardening list: the finish prompt and
+   a real-length viewing on the device (now part of the OSD work's
+   verification); the pairing page's Code field size in the WebView;
+   the WebView's 960×540 layout scale; the audio underrun at start;
+   detach/reattach and host-restart recovery on the device; sidecar
+   subtitles over the media endpoint; Back-key and D-pad polish; a
+   removed player's channel closed at once; Home's pinned "playing"
+   rows filtered by player; the speed test (open decision 3).
+6. **M6 — Hardening.** The deferred list above, in the order the OSD
+   work leaves them.
+7. **M7 — Release path and owner checks.** Release signing in CI, Google
    Play internal testing track, wiki page for the TV app, glossary
    elevated to `docs/GLOSSARY.md`; the owner's walk through every page
    and the full viewing lifecycle on the TV.
@@ -355,7 +403,24 @@ loopback.
   `1e2de1ec-6f9f-4109-b821-728f1a77f239` (a second 4K remux, 65 Mbit/s,
   HDR10 without DV).
 
-Steps 1–7 of the procedure wait on open decisions 4 and 5.
+* **Overlay windows (four, the owner watching the panel).** A
+  transparent page with a label over the native HDR video showed black
+  three times; each time one opaque paint was removed: the root
+  layout's and the WebView's XML black backgrounds, the theme's window
+  background, and Chromium's base colour (set only by
+  `WebView.setBackgroundColor` in code — the dark grey of the app's
+  dark theme in the capture gave it away). The fourth showed the video
+  under the label on the panel and in `screencap`, both layers
+  `DEVICE`-composited, the video layer `BT2020_ITU_PQ`
+  (`android-app` `6e2ea71`).
+* **Audio research.** mpv's `ao_audiotrack` opens an `IEC61937` track
+  for spdif formats; `--audio-spdif` takes `ac3, dts, dts-hd, eac3,
+  truehd`; optical carries PCM 2.0, AC3 and the DTS core only; the
+  owner's speakers are on optical. Untested on the panel.
+* **Decisions taken with the owner** (Decisions made, 2026-10-22):
+  full fidelity, native path, page as OSD, PGS unsupported.
+
+Steps 1–7 of the procedure start in the next session, at step 1.
 
 ### M4 — TV app skeleton (procedure record)
 
@@ -1247,17 +1312,29 @@ TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
 each window to a minute, always end with `mc-tv hdmi`.
 
-**The next session's agenda.** (1) With the owner: open decision 4
-(the output path: `mediacodec_embed` versus a 4K `gpu` surface, and
-what happens to OSD and subtitles), open decision 5 (per-viewing
-options as `loadfile` per-file options), open decision 3 (the speed
-test's shape). (2) Research for decision 4 on the Sony: one
-`mc-tv-flow perf` window with `vo=mediacodec_embed` set in the
-player's instance options, reading SurfaceFlinger's dataspace and
-whether the panel enters HDR/DV. (3) Then M5 by the procedure. The
-staged real files and `mc-tv-flow perf` make every measurement one
-command; the TV's paired player on the sim host is `b8ef08c8`
-(re-pair with `mc-tv-flow pair tv` if `mc-sim-host ids` shows none).
+**The next session's agenda: M5 step 1, the OSD plan, with the
+owner.** The owner asked for a plan before implementation
+(2026-10-22). Run the milestone procedure on "the native path and the
+page as OSD": (1) scope — from the inputs listed under M5 in Next
+steps, decide what each desktop OSD feature becomes on the TV, who
+owns key routing, what happens to `input.conf` and the scripts
+package on the TV, and what is dropped with a reason; (2) research —
+read `MpvSession`'s observe list and `Transport.Remote`, the LiveView
+surfaces that already react to viewing events by player, the TV
+shell's key routing, and measure the WebView's cost over 4K video and
+the key-to-feedback latency; (3) decisions — open decision 5 (per-file
+`loadfile` options, recommended) and the key-routing owner go to the
+owner with recommendations; (4) `unify_design`; (5) plan; (6)
+`unify_design` on the plan; (7) execute. Read first: this file's
+Decisions made and the M5 inputs; `android-app`
+`docs/playback-on-android.md`; `docs/mpv.md` for the desktop OSD;
+`docs/superpowers/specs/2026-10-22-remote-players-protocol-design.md`
+for the channel contract (it will need an amendment: the TV draws
+nothing, the page is the OSD). The staged real files and
+`mc-tv-flow perf [--set vo=mediacodec_embed] [--overlay]` make every
+measurement one command; the TV's paired player on the sim host is
+`b8ef08c8` (re-pair with `mc-tv-flow pair tv` if `mc-sim-host ids`
+shows none); `mc-sim-host start` now returns when the server is up.
 
 **What is proven end to end** (2026-10-22, M2 record step 7): pairing by
 code; channel up; `play/3`; options and `loadfile` with a tokenised media
