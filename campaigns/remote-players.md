@@ -156,6 +156,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The host's page is the TV's OSD: it stays over the video, transparent, and the host renders the pills, track menu, finish prompt and text subtitles into it; the bundled Lua scripts stay the desktop mpv's. Verified on the panel that a transparent page over the native HDR video shows the video, both layers hardware-composited. (owner: "probably makes sense"; agent recommendation; `android-app` `c1ad83f` and after)
 * `2026-10-22` — A viewing on a remote player carries its session options as per-file options on the `loadfile` (`replace` and the auto-advance `append` alike); nothing is set on the player's long-lived instance, so each viewing starts from the host's option set and mpv restores the instance at the file's end. Verified on desktop mpv 0.41 (M5 research R1). (open decision 5 → decided)
 * `2026-10-22` — The viewing layer (the page as the TV's OSD) changes at most once a second and animates nothing continuously: on the Sony a 60 fps page animation over native 4K video ran at 26 % janky frames and doubled the app's CPU, while a 1 Hz bar and subtitle line cost nothing measurable (M5 research R6).
+* `2026-10-22` — Audio passthrough is not offered: the owner's speakers are stereo on the TV's optical output with no surround decoder, so a bitstream would reach something that cannot decode it; the TV decodes every track itself and sends PCM, which is full fidelity for that chain. Revisit only if a decoder joins the setup. (owner; open decision 7 → declined)
 * `2026-10-22` — The viewing layer's look is mockup direction 3, *scrim and seek bar*: a bottom gradient scrim, the title and episode line over a full-width seek bar with a handle and chapter ticks, the clock at both ends, a centre pause glyph for a moment, prompts at the top right, the track menu a centred two-column glass modal over a dimmed picture (`docs/superpowers/specs/2026-10-22-tv-viewing-layer-mockups/3-scrim-and-seek-bar`). (owner)
 * `2026-10-22` — During a viewing every remote key goes to the page; the viewing layer's behaviour turns it into a playback command the host sends down the channel; `input.conf`, `RemoteKeys` and `keypress` leave the TV app. (owner, on the recommendation; open decision 6 → decided)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
@@ -246,7 +247,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    host which state it is in — two owners and a race. Measured: the
    page → host → channel → mpv path is ≈10 ms (R6).
    Recommendation: (a).
-7. **Audio passthrough** (M5, 2026-10-22). `audio-spdif=dts` stalled
+7. *Declined 2026-10-22 (Decisions made): the owner has stereo speakers on the optical port and no surround decoder.* **Audio passthrough** (M5, 2026-10-22). `audio-spdif=dts` stalled
    playback on the Sony with its passthrough setting off (R6). Options:
    (a) the owner sets the TV's digital audio output to passthrough and
    the measurement is repeated; if the stream then reaches the optical
