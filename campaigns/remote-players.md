@@ -153,6 +153,8 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — Full fidelity is the target of this software; the TV never drops picture quality to gain a feature. (owner)
 * `2026-10-22` — The TV renders video on the native path (`vo=mediacodec_embed`: the decoder writes to the surface, the panel gets native resolution and HDR10); mpv draws nothing on the TV. PGS (bitmap) subtitles are unsupported on the TV rather than served through the GPU path at 1080p SDR. (owner; evidence in `android-app` `docs/playback-on-android.md`)
 * `2026-10-22` — The host's page is the TV's OSD: it stays over the video, transparent, and the host renders the pills, track menu, finish prompt and text subtitles into it; the bundled Lua scripts stay the desktop mpv's. Verified on the panel that a transparent page over the native HDR video shows the video, both layers hardware-composited. (owner: "probably makes sense"; agent recommendation; `android-app` `c1ad83f` and after)
+* `2026-10-22` — A viewing on a remote player carries its session options as per-file options on the `loadfile` (`replace` and the auto-advance `append` alike); nothing is set on the player's long-lived instance, so each viewing starts from the host's option set and mpv restores the instance at the file's end. Verified on desktop mpv 0.41 (M5 research R1). (open decision 5 → decided)
+* `2026-10-22` — The viewing layer (the page as the TV's OSD) changes at most once a second and animates nothing continuously: on the Sony a 60 fps page animation over native 4K video ran at 26 % janky frames and doubled the app's CPU, while a 1 Hz bar and subtitle line cost nothing measurable (M5 research R6).
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
 
 ## Open decisions
@@ -213,7 +215,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    (`audio-spdif`) is the fidelity path; optical carries AC3 and the
    DTS core, eARC would carry DTS-HD MA and TrueHD; untested on the
    panel, an M5 item.
-5. **Per-viewing state on a long-lived libmpv** (found 2026-10-22). The
+5. *Decided 2026-10-22 (Decisions made): per-file options on every `loadfile`.* **Per-viewing state on a long-lived libmpv** (found 2026-10-22). The
    host's mpv is a fresh process per viewing, so every option starts at
    its default; the TV's one libmpv keeps the previous viewing's
    state: `keep-open=yes` leaves `pause=yes` at the end of a file, and
@@ -229,6 +231,25 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    (b) the bridge resets a known list on every `loadfile`, which puts
    session knowledge in the player. Recommendation: (a); the host owns
    what a viewing is.
+6. **Who owns the remote's keys during a viewing** (M5, 2026-10-22).
+   Today the TV app sends every key to libmpv as `keypress` while a file
+   plays and `input.conf` on the player binds them. With the page as the
+   OSD the pills, the track menu and the bar live in the page, so a key
+   must reach the page to act on them. Options: (a) every key goes to the
+   page always; the viewing layer's behaviour turns it into a playback
+   command the host sends down the channel; `input.conf`, `RemoteKeys`
+   and `keypress` leave the player. (b) keys go to libmpv unless the
+   page "is up", which needs the shell to be told by the page or the
+   host which state it is in — two owners and a race. Measured: the
+   page → host → channel → mpv path is ≈10 ms (R6).
+   Recommendation: (a).
+7. **Audio passthrough** (M5, 2026-10-22). `audio-spdif=dts` stalled
+   playback on the Sony with its passthrough setting off (R6). Options:
+   (a) the owner sets the TV's digital audio output to passthrough and
+   the measurement is repeated; if the stream then reaches the optical
+   receiver, passthrough becomes a per-player setting on Settings →
+   Players (host-owned, sent as a per-file option); (b) never offer it.
+   Recommendation: (a), after M5; nothing in M5 depends on it.
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -524,6 +545,223 @@ layer is designed at that scale from the start.
   `spdif passthrough not supported` log line).
 * R7 the bridge's `PropertyFormat` table: `sub-text` is a string and
   `chapter` an integer, both already covered by its defaults.
+
+**Step 2 — research record (2026-10-22).**
+* R1 **answered, decision 5 (a) holds.** Desktop mpv 0.41 over IPC
+  (`--idle --keep-open=yes`, a 14 s MKV with a text track and titled
+  chapters): `loadfile <f> replace -1 pause=no,keep-open=yes,slang=eng,alang=eng,script-opts=media_centaur_session-profile_id=abc`
+  starts unpaused on an instance `keep-open` left paused at the previous
+  file's end; `keep-open` reads `yes` when `eof-reached` fires; `slang`,
+  `script-opts` (whole, one key, readable for recovery) and `sid` apply
+  while the file plays and are restored at `stop` (`slang []`,
+  `script-opts {}`, `pause false`). An appended entry with its own
+  per-file options plays them after `playlist-next`. So the remote
+  transport sends every session option as per-file options on both the
+  `replace` and the `append` `loadfile`, and nothing is set on the
+  instance.
+* R2 **answered.** With `vo=null` (no renderer, the desktop proxy for
+  `mediacodec_embed`) `sub-text` property-change events carry each line
+  as it is due and `""` between lines; `sid=no` makes it unavailable
+  (a property-change with no `data`), `sid=1` resumes it. The bridge's
+  `emitPropertyChange` already forwards a null `data`.
+* R3 the session's only command doors are `play`, `resume`, `stop`; the
+  observer sends `set_property sid` (enforcement), `loadfile … append`
+  (auto-advance) and `quit`. The page's commands need one typed door
+  through `Sessions` so the transport stays the only IPC writer; design
+  item.
+* R4 `PlaybackStateChanged` carries `now_playing` (names, position,
+  duration) on the install-wide `playback:events` topic at state changes
+  only; the layer needs a 1 Hz stream for one player. Design item: a
+  per-player viewing topic.
+* R5 the input system: a flat MODAL overlay is `[data-detail-mode='modal'] [data-nav-item]`
+  from `Components.Modal` (always in the DOM, `data-state`), BACK pushes
+  its `data-dismiss-event`; regions need `data-nav-overlay` and a
+  `config.overlays` entry. The page's key map is `keyboard.js`'s
+  `keyToAction`; the WebView delivers media keys as DOM keys
+  (`MediaPlayPause`, `MediaFastForward`, `MediaRewind`), which the key
+  map does not know yet. The layer mounts once in the root layout, as
+  the gamepad hint bar does, so it outlives page navigation.
+* R6 **measured on the Sony, three windows** (`mc-tv` + `mc-sim-host`,
+  the 4K DV remux on `mediacodec_embed`):
+  * Round trips: host → channel → libmpv → host 2.7–7.4 ms (eight
+    `get_property` requests); the WebView's LiveView socket heartbeat
+    2.0–4.4 ms. A key's path page → host → channel → mpv → host → page is
+    therefore ≈10 ms plus render; no local shortcut is needed.
+  * The WebView's cost over playing native 4K HDR video, `dumpsys gfxinfo`
+    and `top` over 10 s each: page cleared, **app 35 % CPU** (mpv's decode
+    and the bridge), SurfaceFlinger 6 %; a static OSD bar, 0 page frames,
+    app 30 %, SF 7 %; the bar ticking at 1 Hz with a subtitle line
+    changing every 2 s, 10 page frames at 8–9 ms, app 33 %, SF 7 %; a
+    continuous 60 fps transform animation, 487 frames, **26 % janky at
+    48 ms**, app 65 %, SF 19 %. `frame-drop-count` stayed 0 in every
+    phase: the video never suffers, the page does. Rule for the design:
+    the layer changes at most once a second and animates nothing
+    continuously (a short opacity fade is the ceiling).
+  * `audio-spdif=ac3,dts` set before `loadfile` of the DTS-HD MA file:
+    mpv selected `spdif_dts` and **playback stalled** (`time-pos` fixed
+    at the resume position for 90 s, `current-ao` and
+    `audio-out-params` unavailable, no video advance); the TV's own log
+    said `PassThroughMode = Off`. The binding logs nothing from the AO,
+    so the refusal is inferred. Without the option: `audiotrack`, `s16`,
+    6 channels. Owner item: set the Sony's digital audio output to
+    passthrough/auto and retest; until then passthrough is not offered.
+  * The long-lived instance kept `audio-spdif` across `Sessions.stop`
+    and a second `play` (the second window froze the same way until
+    the process was restarted): a `set_property` over the channel is
+    install-wide for the player's life. Decision 5 (a) covers the
+    session's options; the rig's `--set` must be used knowing this.
+  * `mc-tv launch` on a running app does not reload the page (window 2
+    carried window 1's injected elements); `mc-tv stop` first for a
+    clean page.
+* R7 confirmed from `PropertyFormat.kt`: `chapter` is in `longs`,
+  `sub-text` falls to the string default.
+* App change made for the measurement and kept: `MainActivity.onViewingChanged`
+  no longer hides the WebView (`android-app`, this session's commit).
+
+**Step 3 — decisions.** Taken here with the scope's reasoning, each
+reversible at the plan:
+* Keys during a viewing go to the page (scope item 4). Measured cost
+  ≈10 ms; one owner. → open decision 6 for the owner's confirmation,
+  recommendation: the page.
+* Decision 5: (a), per-file options on every `loadfile`, confirmed by
+  R1. Moved to Decisions made.
+* The Sound column and sidecar subtitles stay M6; audio passthrough is
+  not offered until the owner's retest (R6). → open decision 7.
+* The viewing layer renders only for a remote player's session (scope
+  item 2); the host player's page never shows it.
+* The layer changes state at most once a second and does not animate
+  continuously (R6).
+
+**Step 4 — design unification (2026-10-22, `unify_design`).**
+
+*Core idea, one sentence.* **A viewing is observed and commanded by the
+host through one session, and a player that draws nothing gets its
+on-screen state drawn by the host's page from that same session** — the
+page is one more reader of the session, never a second controller.
+
+*Greenfield shape.*
+1. **`Playback.Viewing`** — one value type, the state of one viewing as
+   a reader needs it: `player`, `entity_id`, `profile_id`, the title
+   words (`entity_name`, `season_number`, `episode_number`,
+   `episode_name`), `content_url`, `position_seconds`,
+   `duration_seconds`, `paused?`, `chapters` and the current `chapter`
+   index, `audio_tracks` and `subtitle_tracks` (each with `id`, `lang`,
+   `title`, `codec`, `bitmap?`), `aid`, `sid`, `successor_queued?`,
+   `subtitle_text`, `state` (`:playing | :paused | :detached`) and the
+   derived **prompt**: `nil`, `:skip_intro`, `:next_episode` or
+   `{:next_episode_in, seconds}`. Built by `MpvSession` from its state
+   (`Viewing.from_session/1`); the prompt rules are pure
+   (`Viewing.prompt/1` over `Playback.Completion`'s credits words and a
+   new `Playback.IntroChapter` with the intro words).
+2. **The viewing stream** — `Playback.subscribe_viewing(player)` on topic
+   `playback:viewing:<player>`, message `{:viewing, %Viewing{}}` on
+   every discrete change (pause, chapter, tracks, subtitle line,
+   prompt) and on position at most once a second; `{:viewing_ended,
+   player}` when the session finalises. Uniform for both players; the
+   host player's stream simply has no subscriber today.
+3. **`Playback.Command`** — the typed vocabulary a reader sends back:
+   `:toggle_pause`, `{:seek, ±seconds}`, `:activate_prompt` (the
+   prompt's action, judged by the session: a seek to the chapter after
+   the intro, or `playlist-next`), `{:select_track, :audio | :subtitle,
+   id | :none}`, `:stop`. Door: `Playback.command(player, entity_id,
+   command)` → `Sessions.command/3` → the session, which renders the
+   IPC and sends it through its transport. The page never composes IPC.
+4. **The transport owns how its mpv loads a file**: `Transport.loadfile/4`
+   (`locator`, `start`, `:replace | :append`) returns the command.
+   `Local` renders today's forms (`--{ --start=N url --}` at launch,
+   `loadfile url append -1 start=N` for the successor; the process
+   carries the session options). `Remote` renders every session option
+   plus `start` as per-file options on both forms, as one `%n%`-quoted
+   key-value string (`LaunchFlags.per_file_options/2`; the bridge can
+   only pass strings, R1/lab 2). `Transport.draws_subtitles?/1`: `Local`
+   true, `Remote` false. `LaunchFlags.session_options/1` gains
+   `{"pause", "no"}`; `script-opts-append` renders per file as
+   `script-opts=<value>` on a remote (no user config to append to).
+5. **The viewing layer** — `MediaCentaurWeb.Live.ViewingAware`, an
+   `on_mount` in `live_session :default` after `PlayerAware`: for a
+   remote player it subscribes to that player's viewing stream and
+   assigns `:viewing` (nil or the struct) and the layer's own UI state
+   (`:viewing_bar` shown-until, `:viewing_menu` open?), attaching
+   `handle_info` and `handle_event` hooks; `Layouts.app` renders
+   `Components.ViewingLayer` from those assigns on every page, so a
+   viewing recovered while the page is on Settings still has its OSD.
+   The host player gets no assign and no layer. The layer's root carries
+   `data-viewing`; CSS hides the app shell beneath it and makes the body
+   transparent (`body:has([data-viewing])`).
+6. **Components.ViewingLayer** (function components with stories):
+   `viewing_bar/1` (title and episode line, position, duration, the
+   progress bar from the kit's recipe, the paused glyph), `viewing_prompt/1`
+   (the pill: a `<.button variant="primary">` with its label and the
+   SELECT hint, bottom-right), `viewing_subtitle/1` (the line, plain
+   text, `.text-on-image`), `viewing_track_menu/1` (a glass panel of
+   two `GlassMenu.menu_list` columns, Audio and Subtitles, the active
+   entry a `menuitemradio`, bitmap tracks disabled with "Not supported
+   on this TV", "None" first in Subtitles). The bar is shown while
+   paused and for 4 s after any command (a LiveView timer); prompts and
+   the subtitle line whenever their condition holds; nothing animates
+   continuously (decision, R6).
+7. **Keys** — the input system is the one pipeline. The layer is the
+   active overlay (`data-detail-mode="modal"`, `data-dismiss-event="viewing_back"`);
+   the track menu, when open, is a second overlay rendered first in DOM
+   order with `data-dismiss-event="viewing_menu_close"` and the regions
+   `viewing_audio` / `viewing_subtitles` (`data-nav-overlay="viewing_menu"`,
+   MENU contexts with left/right edges). A **viewing behaviour**
+   (`viewing_behavior.js`) composed over the page's behaviour while
+   `[data-viewing]` is present — the `withWipNotice` decorator is the
+   precedent — maps actions in the bar state: LEFT/RIGHT → `{:seek, ∓10}`,
+   UP/DOWN → `{:seek, ±60}`, SELECT → `:activate_prompt` when a prompt
+   is focused (the pill is the modal's one nav item, so the orchestrator's
+   activate does it), else `:toggle_pause`; the media keys the WebView
+   delivers (`MediaPlayPause`, `MediaPlay`, `MediaPause`,
+   `MediaFastForward`, `MediaRewind`, `ContextMenu`) join the key map as
+   actions (`PLAY_PAUSE`, `SEEK_FORWARD`, `SEEK_BACK`, `MENU`). With the
+   menu open the behaviour steps aside and MODAL navigation runs. BACK
+   is containment as always: the menu closes, else `viewing_back` stops
+   the viewing. The hook's `pushEvent` is the behaviour's door (as
+   `play` is today). Gamepad works for free.
+8. **The TV app**: `vo=mediacodec_embed` as the instance option and in
+   `surfaceCreated`; `android-surface-size` dropped (GPU path only);
+   `input-conf`, the scripts package and `Assets.sync`, `RemoteKeys`,
+   `keypress` and the viewing branch of `dispatchKeyEvent` removed —
+   every key reaches the WebView, Back is `shell.back()` always, and
+   `Player.stop()` is called only by the bridge's `quit`.
+
+*Diff against reality.*
+* (a) Seams used as they are: `Transport` (two callbacks added),
+  `Playback.Events` and MC0012, `Subscriptions`, the `PlayerAware`
+  on_mount pattern, `Components.Modal`'s overlay contract, the
+  behaviour decorator, `LaunchFlags` pairs, `OverrideCapture` (a track
+  chosen in the menu arrives as a `sid` change and is captured as a
+  keypress would be), `TrackResolver` enforcement.
+* (b) Unified: `PlaybackStateChanged.now_playing` (a loose map built by
+  `build_now_playing/1`) and the new viewing state are one idea →
+  `now_playing` becomes a `%Viewing{}`, map-matched by its three readers
+  (Status's playback widget, `StatusHelpers`, `LiveHelpers.apply_playback_change`)
+  under the same keys. The TV's `input.conf` and the page's key map
+  were two owners of one key → the player's bindings go. The intro and
+  credits chapter words exist in Lua (`skip_intro.lua`,
+  `next_episode.lua`) for the desktop mpv and in Elixir for the host
+  (`Completion` today, `IntroChapter` new): the Lua must stay (it runs
+  inside the desktop's mpv), so this is a **deliberate duplication**
+  held equal by a test that reads both Lua pattern lists and asserts
+  them against the Elixir words.
+* (c) Decided: `NextEpisode.loadfile_command/1` composes IPC for one
+  transport → replaced by `Transport.loadfile/4` (fix now). `Transport.Remote.open/2`
+  sends `set_property` per option onto the long-lived instance →
+  per-file options (fix now; ADR-080, `docs/mpv.md`, `docs/playback.md`
+  and the protocol spec say `set_property` and are amended in the
+  plan). The spec's boundary row "Local input: TV app" and "the bundled
+  scripts ride along" → amended: keys go to the page, the TV build
+  ships no scripts. `MpvSession` sends `quit` on `eof-reached` → stays
+  (on a remote it is stop). `sid` enforcement may pick a bitmap track on
+  a player that cannot draw it → `TrackResolver` receives only the
+  tracks the transport can draw (fix now).
+
+*Coherence cost, named.* Promoting `now_playing` to `Viewing` touches
+three readers and their tests; the viewing behaviour, two overlay
+regions and four key-map actions are new input-system surface with
+their bun tests; the Lua-pattern sync test is small. No part of this is
+owner-gated; the owner's calls are open decisions 6 and 7.
 
 ### M4 — TV app skeleton (procedure record)
 
