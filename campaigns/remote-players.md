@@ -254,8 +254,28 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    Players (host-owned, sent as a per-file option); (b) never offer it.
    Recommendation: (a), after M5; nothing in M5 depends on it.
    *2026-10-22, owner:* the owner does not know the TV's setting and
-   asked the agent to change it; the agent tries over adb (the record
-   of the attempt is in the M5 section).
+   asked the agent to change it. *Attempt over adb, same day:* Android's
+   Display & Sound → Advanced sound settings → Select formats is
+   **Automatic** and lists every surround format under *Disabled* — the
+   TV reports no encoded format for its current output, which is why
+   mpv's IEC61937 track was refused. The Sony page that decides it
+   (Settings → Display & Sound → Audio output, read through
+   `uiautomator` because the activity draws over the protected TV
+   input) shows *Speakers: TV speakers*, *eARC mode: Off*, **Digital
+   audio out: PCM** and **Pass through mode: Off**, and the *Digital
+   audio out* row is **disabled** (`enabled="false"` on its text; SELECT
+   and RIGHT do nothing). On this Sony the row is enabled only when
+   *Speakers* is set to *Audio system*, which also moves the TV's own
+   sound to the external system. Nothing was changed. **Owner's call:**
+   (a) switch *Speakers* to *Audio system* (the agent can do it over
+   adb and revert), then *Digital audio out* to *Auto*, then retest;
+   (b) force the Android side alone (*Select formats: Manual* with AC3,
+   E-AC3, DTS, DTS-HD, settable with `settings put global
+   encoded_surround_output 3` and reverted with `settings delete`), which
+   makes Android accept the track but leaves Sony's digital output on
+   PCM, so the optical receiver would still get PCM at best; (c) leave
+   passthrough unoffered. Recommendation: (a), when the owner is at the
+   TV to hear the result; nothing in M5 depends on it.
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
