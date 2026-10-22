@@ -36,8 +36,11 @@ defmodule MediaCentaur.Playback do
         case SessionRecovery.recover_player(player_id) do
           {:ok, params} ->
             case Sessions.resume(params, player_id) do
-              :ok -> Log.info(:playback, "recovered session on player #{Format.short_id(player_id)}")
-              {:error, reason} -> Log.warning(:playback, "could not reattach to player: #{inspect(reason)}")
+              :ok ->
+                Log.info(:playback, "recovered session on player #{Format.short_id(player_id)}")
+
+              {:error, reason} ->
+                Log.warning(:playback, "could not reattach to player: #{inspect(reason)}")
             end
 
           :skip ->

@@ -62,7 +62,9 @@ The bridge implements the subset the host uses. libmpv's Kotlin surface (`dev.jd
 1. Node-valued properties (`track-list`, `chapter-list`, `playlist`) are observed as `MPV_FORMAT_STRING`; mpv renders them as JSON text, which the bridge parses and forwards as the `data` of a `property-change`. The host sees the same shape it sees from the Unix socket.
 2. `command(Array<String>)` returns no error. The bridge replies `"success"` to a `command` it dispatched and an error string for one it refused (unknown command, malformed). `get_property` replies carry the value read synchronously.
 
-`quit` on a remote player means *stop and show the UI again*, not *exit the process*: the bridge runs `stop`, releases the surface, and reports `end-file` with reason `quit` followed by `shutdown`-equivalent behaviour from the host's point of view (the session finalises). The libmpv instance stays alive for the next viewing.
+`quit` on a remote player means *stop and show the UI again*, not *exit the process*: the bridge runs `stop` and releases the surface. mpv then reports `end-file` with reason `stop`, and the host's `Transport.Remote` treats an `end-file` whose reason is `stop` or `quit` as the end of the viewing (the session finalises and ends). The libmpv instance stays alive for the next viewing. Verified 2026-10-22 with `mc-player-sim` against a desktop mpv.
+
+**Rate of `time-pos`.** mpv raises `property-change` for `time-pos` many times a second (358 events in about 15 s in the end-to-end run). The host needs one a second: the bridge coalesces `time-pos` to 1 Hz before it crosses the channel, forwarding the latest value. Every other property passes through as it changes.
 
 ### Launch
 

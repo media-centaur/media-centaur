@@ -33,11 +33,13 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M1 built 2026-10-22 on branch `remote-players`** (worktree
-`../media-centaur-app-remote-players`), `mix precommit` green; waiting
-for the owner to merge. The wiki edits are committed locally in the wiki
-repo and not pushed. Next: M2, the transport extraction, through the
-milestone procedure.
+**M2 built 2026-10-22 on branch `remote-players`**, end to end with a
+simulated player: pairing, channel, media over HTTP, progress, stop,
+host-restart recovery all verified against a desktop mpv
+(`scripts/agents/mc-player-sim`). M1 and M2 wait for the owner's
+sign-off at the campaign's end; nothing merges to main before. The wiki
+edits are committed locally in the wiki repo and not pushed. Next: M3,
+the TV app skeleton in `~/src/media-centaur/android-app`.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -473,7 +475,49 @@ before any remote code is wired.
   comparison: it answers `locator/identify` like a real one.
 No step keeps an old path or lands through a shim.
 
-**7. Execution.** In progress; outcomes recorded per step below.
+**7. Execution (2026-10-22).**
+1. `LaunchFlags` as option pairs; `LanguageContext.to_mpv_options/1`.
+   Commit `6b51d9f8`.
+2. `Playback.Transport` + `Transport.Local`; `MpvSession` over the seam
+   with `attached?`/`locator`/`identify`; `FakeTransport` and
+   `mpv_session_transport_test.exs` (attach, pause, eof, detach,
+   reattach, window expiry, startup failure). Commit `5266ff4a`.
+3. `play/3`, `Sessions.play/2`, `Sessions.stop/2`, registry by
+   `{player, entity_id}`, `player` on the three viewing events, the web
+   passes `PlayerAware.playback_player/1`. Found on the way: sessions a
+   test leaves running show on the next test's Status page; the fix is
+   `Sessions.stop/2` in teardown. Commit `41baa1b6`.
+4. Media endpoint (`Plugs.MediaServer`, pure `Range`, `MediaToken`),
+   MIME types for mkv/m2ts/srt/ass registered in `config.exs`
+   (`mix deps.compile mime --force` after a change). Commit `ee32f7de`.
+5. `Playback.Remote.Channel` (protocol over the WebSock handler's state,
+   request correlation, attach/detach, ping liveness, `replace/1`),
+   `PlayerRegistry` (locators as the entry's value), `Transport.Remote`,
+   `MediaCentaurWeb.PlayerSocket`, `Plugs.PlayerChannel` (host 403,
+   Origin check, 426 without upgrade, eviction). Commit `0e8e9891`.
+6. `Sessions.resume/2`, `reattach?` on the launch, `SessionRecovery.recover_player/1`
+   over a property-reader function shared with the socket path, triggered
+   by the socket handler when a connecting player has no session. Commit
+   `a3ce8dc3`.
+7. Semantics the run forced: a remote `end-file` with reason `stop` or
+   `quit` closes the viewing (the player's mpv lives on); `Sessions.stop/2`
+   sends `quit` to the player while a supervisor shutdown leaves it
+   playing. `scripts/agents/mc-player-sim` (bun) pairs, opens the channel
+   with the cookie, bridges a desktop mpv, translates `quit` to `stop`,
+   reconnects with backoff. **End-to-end run, 2026-10-22**, against the
+   branch on a scratch config (`bind = "0.0.0.0"`, port 4003, scratch
+   database and media dir with a 90 s generated MKV), the simulator
+   dialling the host's LAN address: pairing by code → channel up →
+   `play/3` over RPC → options, `change-list script-opts`, `loadfile` with
+   a tokenised media URL → mpv fetched the file over HTTP Range → ticks →
+   "saved progress 0:09 of 1:30" → `Sessions.stop/2` → `quit` became
+   `stop`, mpv idle, session gone → `play/3` again → clean host shutdown
+   (`System.stop/0`) left mpv playing → restart → simulator reconnected
+   after one backoff → host asked `path`, `time-pos`, `script-opts` →
+   "player attached (reconnected)", "recovered session on player".
+   Finding: mpv emits `time-pos` many times a second (358 events in about
+   15 s on the channel); the TV app's bridge must coalesce it to 1 Hz,
+   recorded in the spec and M3. Commit `7d2a74e7`.
 
 ### Verification items (research before M4)
 
@@ -515,6 +559,9 @@ No step keeps an old path or lands through a shim.
   delivery, host and TV app architecture, the verification record.
 * `docs/playback.md`, `docs/mpv.md` — session internals, IPC protocol,
   launch flags, bundled scripts.
+* `~/scripts/agents/mc-player-sim` — the device stand-in: pairs, opens the
+  channel, bridges a desktop mpv; the end-to-end check for any host-side
+  change.
 * `dev.jdtech.mpv:libmpv` 1.0.0 (Maven Central; source
   <https://github.com/jarnedemeulemeester/libmpv-android>, `MPVLib.kt`)
   — the libmpv the TV app embeds.

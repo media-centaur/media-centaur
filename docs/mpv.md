@@ -42,13 +42,22 @@ Rules that follow:
 
 ## Launch flags
 
-`Playback.LaunchFlags` builds the list; `MpvSession.spawn_mpv/2` passes it
-to `Port.open`. Unit-tested without spawning anything.
+`Playback.LaunchFlags` builds `{option, value}` pairs in three kinds
+(ADR-080): **process options** only a spawned mpv needs (the window, the
+quiet terminal, the IPC socket, the log file, the bundled scripts path),
+**session options** every mpv playing a session needs (the rows below
+from `keep-open` on, the language policy, the profile), and the **file
+target**. `Transport.Local` renders all three as argv for `Port.open`;
+`Transport.Remote` sends the session options as IPC (`set_property`, and
+`change-list script-opts append` for the profile) followed by one
+`loadfile … replace` with the media URL. A remote player owns its own
+process options and ships the bundled scripts in its assets.
+Unit-tested without spawning anything.
 
 | Flag | Why |
 |---|---|
-| `--fullscreen`, `--force-window=immediate` | The couch window. |
-| `--no-terminal`, `--msg-level=all=error` | mpv's stdout is not the diagnostic channel; the log file is. |
+| `--fullscreen=yes`, `--force-window=immediate` | The couch window (process options). |
+| `--terminal=no`, `--msg-level=all=error` | mpv's stdout is not the diagnostic channel; the log file is. |
 | `--input-ipc-server=<socket>` | The observation protocol (see [`playback.md`](playback.md)). |
 | `--log-file=<socket_dir>/media-centaur-<session>.log` | Exit classification and script errors. |
 | `--keep-open=yes` | `eof-reached` fires only at true playlist end. `always` would fire it at every file and quit mpv mid-chain. |
