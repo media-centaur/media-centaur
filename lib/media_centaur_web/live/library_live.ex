@@ -487,8 +487,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       progress_by_id: progress_by_id,
       dir_status: MediaFileAvailability.dir_status(),
       unavailable_count: Enum.count(entries, &(not &1.available?)),
-      counts: tab_counts(entries),
-      playback: load_playback_sessions()
+      counts: tab_counts(entries)
     )
   end
 

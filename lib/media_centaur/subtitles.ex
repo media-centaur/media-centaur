@@ -83,6 +83,22 @@ defmodule MediaCentaur.Subtitles do
   end
 
   @doc """
+  The sidecar tracks of the file at `presence_id` (a `Library.FilePresence`),
+  in detection order. A remote player streams the file by URL and cannot
+  see the directory beside it, so the host hands it each sidecar the same
+  way; the media endpoint serves one by its name beside the file.
+  """
+  @spec sidecars_for_presence(Ecto.UUID.t()) :: [Track.t()]
+  def sidecars_for_presence(presence_id) when is_binary(presence_id) do
+    Repo.all(
+      from t in Track,
+        join: w in assoc(t, :watched_file),
+        where: w.file_presence_id == ^presence_id and t.kind == :sidecar,
+        order_by: [asc: t.inserted_at, asc: t.id]
+    )
+  end
+
+  @doc """
   Batch variant of `list_tracks_for_file/1`. Given a list of
   `WatchedFile` ids, returns a map of `watched_file_id => [Track.t()]`
   in one query — the read-side projection builders use this to avoid a

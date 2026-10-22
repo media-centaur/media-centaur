@@ -10,6 +10,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.FilePresence
+  alias MediaCentaur.Subtitles
   alias MediaCentaur.Playback.Remote.PlayerRegistry
   alias MediaCentaur.Playback.Transport.Remote
 
@@ -23,6 +24,9 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
     locators = %{
       locate: fn presence_id -> "#{@base}/media/#{presence_id}?t=token" end,
+      locate_subtitle: fn presence_id, basename ->
+        "#{@base}/media/#{presence_id}/subtitles/#{basename}?t=token"
+      end,
       identify: fn url ->
         case URI.parse(url) do
           %URI{path: "/media/" <> id} -> id
@@ -214,6 +218,63 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   test "a path with no presence row is handed over as it is", %{player_id: player_id} do
     {:ok, transport} = Remote.new(player_id)
     assert Remote.locator(transport, "/nowhere/unknown.mkv") == "/nowhere/unknown.mkv"
+  end
+
+  @tag :tmp_dir
+  test "once mpv reports the file loaded, the file's sidecars are added as external tracks, titled and tagged",
+       %{
+         player_id: player_id,
+         path: path,
+         presence: presence
+       } do
+    watched_file =
+      create_linked_file(%{
+        file_path: path,
+        media_dir: Path.dirname(path),
+        movie_id: create_standalone_movie().id
+      })
+
+    for {name, language} <- [{"Sample.Show.S01E01.en.srt", "en"}, {"Sample.Show.S01E01.srt", nil}] do
+      {:ok, _track} =
+        Subtitles.create_track(%{
+          watched_file_id: watched_file.id,
+          kind: :sidecar,
+          language: language,
+          source: Path.join(Path.dirname(path), name)
+        })
+    end
+
+    {:ok, transport} = Remote.new(player_id)
+    url = "#{@base}/media/#{presence.id}?t=token"
+    reported = %{"event" => "property-change", "name" => "path", "data" => url}
+    loaded = %{"event" => "file-loaded"}
+
+    # The path names the file; file-loaded is when mpv takes external tracks for it.
+    assert {[{:message, ^reported}], transport} =
+             Remote.handle_message(transport, {:transport, {:remote, {:message, reported}}})
+
+    refute_received {:channel, {:push, ["sub-add" | _]}}
+
+    assert {[{:message, ^loaded}], _transport} =
+             Remote.handle_message(transport, {:transport, {:remote, {:message, loaded}}})
+
+    english = "#{@base}/media/#{presence.id}/subtitles/Sample.Show.S01E01.en.srt?t=token"
+    untagged = "#{@base}/media/#{presence.id}/subtitles/Sample.Show.S01E01.srt?t=token"
+    assert_received {:channel, {:push, ["sub-add", ^english, "auto", "Sample.Show.S01E01.en.srt", "en"]}}
+    assert_received {:channel, {:push, ["sub-add", ^untagged, "auto", "Sample.Show.S01E01.srt"]}}
+  end
+
+  @tag :tmp_dir
+  test "a removed player's channel ends the viewing at once: the player is not coming back", %{
+    player_id: player_id
+  } do
+    {:ok, transport} = Remote.new(player_id)
+
+    assert {[{:closed, {:ok, :ended}}], %{channel: nil}} =
+             Remote.handle_message(
+               transport,
+               {:transport, {:remote, {:channel_down, {:shutdown, :removed}}}}
+             )
   end
 
   @tag :tmp_dir

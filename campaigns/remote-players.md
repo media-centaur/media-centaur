@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-10-22
-last_updated: 2026-10-22
+last_updated: 2026-10-23
 ---
 # Remote players
 
@@ -33,9 +33,19 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M5 done 2026-10-22 (stages 1–5); M6, hardening, is next**
-(branch `remote-players`; `android-app` at `3df9251`; UIDR-055). The whole OSD
-check passes on the Sony (`mc-tv-flow osd tv`, record below): the layer
+**M6 in progress: two batches built and desk-checked 2026-10-23, the TV
+checks pending** (branch `remote-players`; `android-app` at `3df9251`;
+UIDR-055). Done desk-side on the headless simulator: the viewing's keys as
+Controls bindings; a removed player's channel closed at once; a page's
+playing set its own player's; a seek that never crosses the end; sidecar
+subtitles over the media endpoint; the auto-advance's subtitles-off
+override fixed; the finish-prompt burst not reproduced. Waiting on the
+TV: the bindings on the Sony, the UI scale, the Code field, the layout
+scale, the audio underrun, detach and host-restart recovery, Back-key and
+D-pad polish, the finish prompt after a real-length viewing. Third batch
+scoped: Status keyed by player and entity. Owner's calls open: the Sound
+column's owner (9), the speed test (3), the application id (1). M5's OSD
+check passed on the Sony 2026-10-22 (`mc-tv-flow osd tv`, record below): the layer
 over native 4K video, the Skip Intro pill taken by SELECT, SELECT
 pausing and resuming, arrows seeking, the track menu on MENU opening on
 Subtitles, a subtitle picked and streaming, BACK closing the menu and
@@ -281,6 +291,16 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    passthrough unoffered. Recommendation: (a), when the owner is at the
    TV to hear the result; nothing in M5 depends on it.
 8. *Closed 2026-10-22 (Decisions made): the track menu's key is a Controls binding; MENU is its default.*
+9. **The Sound column's host-side owner** (M6, 2026-10-23). The desktop's
+   track menu has a Sound column — night mode, dialogue boost, the
+   limiter, the `n` key — whose per-folder memory and limiter rule live
+   in Lua on the desktop player; the TV's menu has Audio and Subtitles
+   only. Options: (a) the host owns the sound profile per folder
+   (Settings rows, applied as mpv audio filters through the session on
+   both transports; the Lua reads it back), (b) the TV goes without — the
+   panel's own sound modes do the job, (c) a TV-only toggle without
+   memory. Recommendation: (a), scoped as its own milestone after M7 if
+   the owner wants it on the TV at all; (b) until then.
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -475,6 +495,24 @@ custom map" — and is rewritten to the new rule. The JS test that lists
 the catalog's ids is a copy, accepted as a pin: a catalog id with no JS
 action is otherwise silent.
 
+**Step 7 — execution, first item (2026-10-23).** Commit `4bd5d6de`
+(worktree), wiki `57560d0` (local, unpushed). Precommit green: ,
+935 JS tests, zero warnings. Desk check on the headless simulator
+(`mc-player-sim --headless`, new: mpv on null video and audio, so no
+window on this computer, whose display is the TV): with E01 playing,
+`ContextMenu` opens the track menu (context `viewing_subtitles`) and
+closes it, `MediaFastForward` reaches the player as `seek 30 relative`,
+`MediaPlayPause` as `cycle pause` — all from the embedded bindings, the
+fallback maps gone. Found on the way: the sim host's resolved-bindings
+cache (`:persistent_term`) was built at boot from the 10-binding catalog
+and the code reloader did not refresh it, so the layout read a new id
+as nil and the page answered 500 — a dev-only stale cache (a release
+rebuilds it at boot), refreshed over RPC; and the rule itself seen
+working by accident — a Play/Pause key with no viewing started the
+focused shelf tile. **TV check pending** (the TV is the owner's gaming
+screen and off tonight): `mc-tv-flow osd tv` with the bindings, and
+binding Audio & subtitles to another key on the TV's own Settings page.
+
 **Step 1 — scope, second batch (2026-10-23, the owner asleep, the TV
 off).** The deferred list sorted by what can be verified on the desk
 (the simulator, headless) and what needs the TV. *Desk items, in this
@@ -506,6 +544,189 @@ page's Code field in the WebView, the WebView's 960×540 layout scale,
 the audio underrun at start, detach/reattach and host-restart recovery
 on the device, Back-key and D-pad polish, the finish prompt after a
 real-length viewing. *Dropped:* nothing yet.
+
+**Step 2 — research, second batch (2026-10-23).** (a) `Players.remove/1`
+deletes the row and broadcasts `PlayerRemoved` on `players:updates`;
+`PlayerAware` sends a removed player's page to `/pair`; the channel
+(`PlayerSocket` → `Remote.Channel`) never hears it, stays registered and
+keeps streaming a live viewing; the device is re-admitted per HTTP
+request only. A channel that closes detaches its session, which waits
+the 60 s reattach window before ending. (b) `LiveHelpers.load_playback_sessions/0`
+snapshots every session keyed by entity id — one key per entity
+whatever the player — and `apply_playback_change/5` ignores the event's
+`player`; users: Home (pins), Library (the card's playing dot), the title
+detail host (`title_playback`, guards delete), Status (every session —
+an admin board). `PlaybackStateChanged.player` is `:host | player_id`;
+`PlayerAware` gives every socket `player`. (c) The bar hides by
+`opacity: 0` with a 200 ms transition on `data-bar`, its DOM kept so a
+show never reflows; `Logic.update` replaces the viewing each tick and
+the clock, fill and handle re-render: ≈8 mutations/s, 0 drops on the
+Sony. (d) Reproduced on the headless simulator (desktop mpv 0.41): with
+a successor queued, `seek 200 relative` → `end-file reason=eof` → mpv
+advances, right; with none, mpv lands on `time-pos = duration`, emits
+`pause=true` and never `eof-reached=true` (mpv sets it only when playback
+runs into the end), and the session sits `paused pos=90.0` for good —
+the desktop too, where the user quits the window. The session's
+`{:seek, n}` goes out as `seek n relative`; the session holds `position`
+and `duration`. (e) `Subtitles.Track` (`kind: :sidecar`, `source` the
+path, `language`, `watched_file_id`) is detected at import
+(`Library.Inbound` → `Detector.Sidecar`) and listed by
+`Subtitles.list_tracks_for_file/1`; `WatchedFile.file_presence_id` ties
+a file to its presence; the media endpoint serves `/media/:presence_id`
+by a token over `{player_id, presence_id}`; the desktop mpv auto-loads
+sidecars itself (`sub-auto`), so only the remote transport lacks them;
+`Transport.Remote` holds the locators and sees every mpv event
+(`start-file`, `file-loaded`, `path`); mpv's `sub-add <url> auto <title>
+<lang>` loads an external track from a URL and fires `track-list`, which
+the session already re-resolves ("external sub file" anticipated).
+Boundaries: Playback depends on Library, not Subtitles; Library and the
+web layer depend on Subtitles. The simulator's library has no sidecar
+(0 tracks) — one goes into `mc-sim-host setup`. (f) Not reproduced yet;
+step 7 tries with the finish prompt on Home. (g) *New, found in (d):*
+after an auto-advance `reset_for_file` sets `current_sid: nil`; mpv
+reports an observed property only when it changes, and `sid`, set by
+`set_property`, keeps its value across files, so the new file brings an
+`aid` event (auto → 1) and no `sid` event; the capture then reads "no
+subtitle" and persists `subtitles_off: true` for the series — the sim
+host's log shows it; the desktop advances the same way.
+
+**Step 3 — decisions, second batch.** (a) A removed player's channel
+closes at once (`:removed`), after telling the device's mpv `stop`; its
+viewing ends at once, no reattach window — the player is not coming
+back. (b) A page's playback map holds its own player's sessions (the
+roadmap's rule: per-device state is session state); Status keeps every
+session. (c) *Dropped:* the hidden bar's 1 Hz patch is ≈8 text and
+attribute mutations a second at zero measured cost, and freezing the
+clock would keep a second copy of the position; nothing to fix. (d) A
+relative seek never crosses the end: the host clamps it to one second
+before the duration, so the file plays out and ends the way it always
+does (the prompt, the successor) — one rule for both transports, no
+state-matching on mpv's pause. (e) The remote transport adds the file's
+sidecars with `sub-add … auto` once mpv reports `file-loaded`, from
+`/media/:presence_id/subtitles/:basename` under the viewing's token; the
+sidecars of a presence are one query in Subtitles, used by the plug and
+the transport; Playback gains Subtitles as a dependency. (g) An observed
+property persists across files: `reset_for_file` keeps `current_aid`
+and `current_sid`. Owner's calls, not taken: the Sound column's owner,
+the speed test, the application id (Open decisions).
+
+**Step 4 — design unification, second batch (`unify_design`).** Core
+idea: *a remote player is a peer of the host's own mpv — the same
+session through a transport; what its mpv cannot do for itself (find
+the file, find the file's companions, outlive its pairing) the transport
+does for it; and what belongs to one device (its viewing, its playing
+rows) never shows on another.* Greenfield: (a) the pairing is the
+channel's admission, so the channel ends when the pairing does — it
+listens on `players:updates`, tells the device's mpv `stop` and closes
+`:removed`; a detach is for a channel that may come back, a removal is
+final, so the transport turns `channel_down :removed` into the session's
+end. (b) "what is playing here" is the device's sessions: the page's map
+is loaded and updated for its player, with Status the one board over
+every player. (d) the session owns position and duration, so it bounds
+a command: `Command.within/3` shortens a seek that would cross the end
+to stop one second short and drops one with nothing left; the command
+type is unchanged (relative stays relative). (e) a file's companions
+are fetched the way the file is — `/media/:presence_id/subtitles/:basename`
+under the file's token (the token names the file; its sidecars are part
+of it); the sidecars of a presence are one Subtitles query; the remote
+transport, standing in for mpv's own autoload, adds them with `sub-add`
+when mpv reports `file-loaded` for the presence it saw in `path`; the
+session stays unaware, as it is of the desktop's autoload. (g) observed
+properties persist across files. Diff: seams used as they are —
+`MediaServer.serve/3`, `MediaToken`, `PlayerChannel.locators` (one more
+closure, `locate_subtitle`), `Transport.Remote.handle_message`, the
+session's re-resolution on `track-list`, `PlayerAware`'s `player`,
+`PlaybackStateChanged.player`. Duplicates: `apply_playback_change/5`
+has every caller destructure the event — it takes the event and the
+page's player instead, one rule for "is this mine". Incoherences: Status
+keys sessions by entity across players (two players on one title
+collide) — pre-existing, scheduled: *Status keyed by {player, entity}*,
+M6 third batch; Playback gains Subtitles as a dependency — a new
+crossing, recorded in `docs/context-map.md`. Coherence cost: within the
+batch; no owner call.
+
+**Step 5 — plan, second batch.** Test-first, in this order. (1) (g)
+`mpv_session_test`: `reset_for_file/4` keeps `current_aid`/`current_sid`.
+(2) (d) `command_test`: `Command.within/3`; `mpv_session_transport_test`:
+a seek past the end goes out shortened, one with nothing left is not
+sent. (3) (b) `live_helpers_test`: `load_playback_sessions/1` by player
+(`:host`, an id, `:all`) and `apply_playback_change/3,4` with the event
+and the player; Home, Library, the title detail host and Status
+converted; `home_live_test`: another player's session does not pin.
+(4) (a) `channel_test`: `connect/2` subscribes; `{:player_removed, own}`
+→ `{:stop, :removed, {1000, "removed"}, [stop frame], state}`; another
+player's removal unhandled; `PlayerSocket.reply` maps the five-tuple;
+`remote_test`: `channel_down :removed` → `{:closed, {:ok, :ended}}`.
+(5) (e) `subtitles_test`: `sidecars_for_presence/1`; `media_server_test`:
+the subtitles route (200 with the file, 404 for a basename not among
+the file's sidecars, 403 for another file's token); `player_channel_test`:
+`locate_subtitle`; `remote_test`: `path` then `file-loaded` pushes one
+`sub-add url auto title lang` per sidecar; Playback's `use Boundary`;
+the context map; `mc-sim-host setup` writes a sidecar beside E01 and
+detects its tracks. (6) Docs: `docs/playback.md`, `MediaToken` and
+`MediaServer` moduledocs, the protocol spec, wiki `Playback.md` and
+`Troubleshooting.md` where they say sidecars are missing on a TV.
+(7) Desk checks on the headless simulator: removal closes the channel
+and stops the file; a seek past the end plays out to the prompt; the
+sidecar appears in the track menu; Home pins only the page's player's
+viewing. (8) (f) reproduce the burst with the finish prompt.
+
+**Step 6 — plan unification, second batch.** No old path kept:
+`apply_playback_change/5` goes, every caller converts in the same
+change (Home, Library, the detail host, Status). No constant copied: the
+subtitles URL is composed in one place (`PlayerChannel.locators`) and
+parsed in one (`MediaServer`). No shim: the transport's `file-loaded`
+rule replaces nothing. Test stand-ins: tests calling
+`apply_playback_change/5` are rewritten to the event form, not wrapped.
+The sim fixture is a fixture, not a copy of production data.
+
+**Step 7 — execution, second batch (2026-10-23).** Every item built
+test-first, the unit tests green, precommit green (8702 Elixir, 935 JS,
+zero warnings), each item verified on the headless simulator
+(`scratchpad` scripts; `mc-sim-host sidecars` is new: a sidecar beside E01
+and every file's tracks detected). (a) `Players.remove/1` → the channel
+pushes `stop` and closes `{:shutdown, :removed}` (a deliberate close is a
+shutdown, `:replaced` too — the first cut's `:removed` landed in the error
+log as a crash); the channel tells its session itself (`closed/2`'s
+reason is Bandit's to wrap: it arrived as `{:error, …}`); the viewing was
+gone within a second, the simulator's reconnect refused (1002). (b)
+`LiveHelpers.load_playback_sessions/1` and `apply_playback_change/4` take
+the page's scope (`:host`, a player id, `:all`); the title detail host
+loads its set at mount for `PlayerAware.playback_player/1` and filters
+events by it; Home's own `:playback` snapshot (loaded once, never
+updated) and Library's dead `playback:` assign are gone — one playing set
+per page; Status keeps `:all`. Checked: the movie playing on the
+simulated device pulses on the device's Library card and not on the
+host's. (c) dropped, as decided. (d) `Command.within/3`: a seek that
+would cross the end becomes `{:seek_to, duration − 1}`, a new vocabulary
+entry rendered `seek … absolute+exact` — the first cut shortened the
+relative seek, and a keyframe seek that close to the end snapped onto it
+(the simulator's files keyframe every 10 s), so the viewing still sat
+paused; exact, the file plays its last second, `eof-reached` fires and
+the session ends. (e) `Subtitles.sidecars_for_presence/1`;
+`/media/:presence_id/subtitles/:basename` under the file's token
+(`MediaServer.admit/3`, one admission for the file and its companions);
+`locators.locate_subtitle`; `Transport.Remote` remembers the presence
+from `path` and pushes `sub-add <url> auto <name> [<lang>]` on
+`file-loaded`; Playback depends on Subtitles. Checked: the sidecar is
+track 1 (`eng`), the resolver enforces it, its lines stream to the page.
+The spec's claim that sidecars are presence rows was wrong (the watcher
+stamps video files only) — amended. (f) not reproduced: with the finish
+prompt open on the device page after the lab film's end, SELECT on Delete
+caused one sync (the confirm state), not ten; retired. Found on the way:
+completion needs continuous watching into the end (the tracker's 10 s
+rule), so a seek into the last second ends the viewing without
+completing it — the desktop's rule too, left as is. (g) `reset_for_file`
+keeps `current_aid`/`current_sid`; the simulator's series had the
+poisoned override from before the fix, cleared by hand.
+
+**Step 1 — scope, third batch (2026-10-23, not started).** *Desk:*
+Status keyed by `{player, entity}` (two players on one title collide in
+the board's map; scheduled by the second batch's design pass). *TV,
+when the owner says it is free:* the second batch on the Sony
+(`mc-tv-flow osd tv`: the bindings, the sidecar on E01, a seek past the
+end, removal from Settings → Players while playing), then the first
+batch's TV list under Status.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -2098,13 +2319,13 @@ the owner's gaming screen: when the owner says it is in use, take no TV
 window at all until they say it is free — verify on the desk with
 `mc-player-sim` and record the TV check as pending.
 
-**The next session's agenda: M6, hardening.** M5 is done (2026-10-22,
-stages 1–5; UIDR-055; wiki commits `9df804c` and `de4868e` local,
-unpushed). M6 runs the campaign procedure on the deferred list under M5
-in Next steps (step 1, scope), plus the stage-4 owner items (the TV's
-UI scale a little smaller, a seek past the end, the hidden bar's clock)
-and the Sound column. Open decision 8 (the menu key) waits on the owner
-saying which keys the Sony remote has. For any
+**The next session's agenda: M6's TV checks, then the third batch.** Two
+M6 batches are built and desk-checked (2026-10-23, records above; wiki
+commits local, unpushed). When the owner says the TV is free:
+`mc-tv-flow osd tv` with the bindings, the sidecar on E01, a seek past
+the end, removal while playing; then the TV items listed under Status.
+Desk: Status keyed by `{player, entity}`. Owner's calls open: 9 (the
+Sound column), 3 (the speed test), 1 (the application id). For any
 TV window: `mc-sim-host start` (it serves the branch and rebuilds
 `app.js` on change — confirm a changed symbol with `grep` in
 `priv/static/assets/js/app.js`), `mc-tv connect`, wake the TV if needed

@@ -93,6 +93,43 @@ defmodule MediaCentaur.SubtitlesTest do
     end
   end
 
+  describe "sidecars_for_presence/1 — the sidecar files beside one presence's file" do
+    test "the sidecar tracks of the file at that presence, embedded ones left out; nothing for another" do
+      watched_file = create_linked_file(%{movie_id: create_standalone_movie().id})
+      other_file = create_linked_file(%{movie_id: create_standalone_movie().id})
+
+      {:ok, _embedded} =
+        Subtitles.create_track(%{
+          watched_file_id: watched_file.id,
+          kind: :embedded,
+          language: "en",
+          source: "stream:2"
+        })
+
+      {:ok, sidecar} =
+        Subtitles.create_track(%{
+          watched_file_id: watched_file.id,
+          kind: :sidecar,
+          language: "fr",
+          source: "/media/test/sample.fr.srt"
+        })
+
+      {:ok, _other} =
+        Subtitles.create_track(%{
+          watched_file_id: other_file.id,
+          kind: :sidecar,
+          language: nil,
+          source: "/media/test/other.srt"
+        })
+
+      assert Enum.map(Subtitles.sidecars_for_presence(watched_file.file_presence_id), & &1.id) == [
+               sidecar.id
+             ]
+
+      assert Subtitles.sidecars_for_presence(Ecto.UUID.generate()) == []
+    end
+  end
+
   describe "replace_tracks_for_file/2" do
     test "replaces the existing track set atomically" do
       watched_file = create_linked_file(%{movie_id: create_standalone_movie().id})

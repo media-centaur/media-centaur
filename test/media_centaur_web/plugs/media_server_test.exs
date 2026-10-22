@@ -93,6 +93,66 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
+  test "a file's sidecar subtitle is served under the file's own token, by its name beside the file", %{
+    conn: conn,
+    presence: presence,
+    path: path,
+    media_dir: media_dir
+  } do
+    watched_file =
+      create_linked_file(%{
+        file_path: path,
+        media_dir: media_dir,
+        movie_id: create_standalone_movie().id
+      })
+
+    assert watched_file.file_presence_id == presence.id
+
+    sidecar = Path.join(media_dir, "Sample.Movie.2010.1080p.en.srt")
+    File.write!(sidecar, "1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+
+    {:ok, _track} =
+      MediaCentaur.Subtitles.create_track(%{
+        watched_file_id: watched_file.id,
+        kind: :sidecar,
+        language: "en",
+        source: sidecar
+      })
+
+    token = MediaToken.sign(@player, presence.id)
+
+    conn =
+      conn
+      |> from_lan()
+      |> get("/media/#{presence.id}/subtitles/Sample.Movie.2010.1080p.en.srt?t=#{token}")
+
+    assert response(conn, 200) == File.read!(sidecar)
+    assert get_resp_header(conn, "accept-ranges") == ["bytes"]
+
+    # Only a detected sidecar of that file: a neighbour that is not one of its tracks is not served.
+    File.write!(Path.join(media_dir, "Sample.Movie.2010.1080p.de.srt"), "")
+
+    conn =
+      conn
+      |> recycle()
+      |> from_lan()
+      |> get("/media/#{presence.id}/subtitles/Sample.Movie.2010.1080p.de.srt?t=#{token}")
+
+    assert response(conn, 404)
+
+    # The file's token, not another's.
+    other = MediaToken.sign(@player, Ecto.UUID.generate())
+
+    conn =
+      conn
+      |> recycle()
+      |> from_lan()
+      |> get("/media/#{presence.id}/subtitles/Sample.Movie.2010.1080p.en.srt?t=#{other}")
+
+    assert response(conn, 403)
+  end
+
+  @tag :tmp_dir
   test "an unknown id is not found", %{conn: conn} do
     id = Ecto.UUID.generate()
     conn = conn |> from_lan() |> get("/media/#{id}?t=#{MediaToken.sign(@player, id)}")

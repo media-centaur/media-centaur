@@ -56,8 +56,9 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   of the row, preserving the original Continue Watching order both
   among the pinned items and among the rest.
 
-  `playback` is the `apply_playback_change/5`-shaped map keyed by
-  `entity_id`; the value's `:state` is what we read.
+  `playback` is the page's playing set (`LiveHelpers.apply_playback_change/4`,
+  its own player's viewings keyed by `entity_id`); the value's `:state` is
+  what we read.
   """
   @spec continue_watching_items([map()], map()) :: [ContinueWatchingRow.Item.t()]
   def continue_watching_items(progress_rows, playback) when is_map(playback) do
@@ -329,8 +330,8 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
 
   # Playback-state changes don't alter the underlying continue-watching
   # data; they affect the in-LiveView pinning order (now-playing item
-  # floats to the front via `Logic.continue_watching_items/3` reading
-  # `socket.assigns.playback`). Continue to reload so the pinned order
+  # floats to the front via `Logic.continue_watching_items/2` reading the
+  # page's playing set, `title_playback`). Continue to reload so the pinned order
   # re-applies.
   def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
 

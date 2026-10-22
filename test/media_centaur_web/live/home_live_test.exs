@@ -513,6 +513,52 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert render_until(view, "Now Playing Movie") =~ "Now Playing Movie"
     end
 
+    test "Continue Watching pins the page's own player's viewing, never another device's", %{conn: conn} do
+      # Two devices, one library: the host's Home must not float a title the
+      # TV is watching, and the TV's Home must not float the host's — the
+      # page's playing set is its player's (campaigns/remote-players.md, M6).
+      first = create_standalone_movie(%{name: "First Movie"})
+      second = create_standalone_movie(%{name: "Second Movie"})
+
+      for {movie, watched_at} <- [{first, ~U[2026-10-01 20:00:00Z]}, {second, ~U[2026-10-02 20:00:00Z]}] do
+        _ = create_linked_file(%{movie_id: movie.id})
+
+        %{movie_id: movie.id, position_seconds: 50.0, duration_seconds: 1000.0}
+        |> create_watch_progress()
+        |> backdate(:last_watched_at, watched_at)
+      end
+
+      {:ok, view, _html} = live_async!(conn, "/")
+      assert continue_watching_order(render(view)) == [second.id, first.id]
+
+      Events.broadcast(%PlaybackStateChanged{
+        player: "living-room-tv",
+        entity_id: first.id,
+        profile_id: owner_profile_id(),
+        state: :playing,
+        now_playing: %{},
+        started_at: System.monotonic_time(:millisecond)
+      })
+
+      Events.broadcast(%PlaybackStateChanged{
+        player: :host,
+        entity_id: first.id,
+        profile_id: owner_profile_id(),
+        state: :playing,
+        now_playing: %{},
+        started_at: System.monotonic_time(:millisecond)
+      })
+
+      render_until(view, &(continue_watching_order(&1) == [first.id, second.id]))
+    end
+
+    # The row's cards in document order, by the entity id each carries.
+    defp continue_watching_order(html) do
+      ~r/id="continue-watching-([0-9a-f-]{36})"/
+      |> Regex.scan(html)
+      |> Enum.map(fn [_match, entity_id] -> entity_id end)
+    end
+
     test "modal selected_entry refreshes when entity_progress_updated arrives",
          %{conn: conn} do
       # Class-of-bug regression: a modal opened on HomeLive must reflect

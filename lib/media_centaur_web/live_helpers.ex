@@ -66,38 +66,57 @@ defmodule MediaCentaurWeb.LiveHelpers do
     assign(socket, [{timer_assign, timer}])
   end
 
-  @doc """
-  Applies a playback state change to a sessions map. On `:stopped`, removes
-  the entity. On any other state, inserts or replaces the entry with the given
-  `now_playing` data.
-
-  Accepts an optional `extra_fields` map that is merged into the entry — used
-  by StatusLive to preserve `started_at` timestamps that LibraryLive doesn't
-  need.
+  @typedoc """
+  Whose viewings a page shows as playing: its own player's — `:host` for
+  the host's browser, the paired player's id for a device's page
+  (`PlayerAware.playback_player/1`) — or `:all` for the one board over
+  every player (Status). What a device is watching is that device's
+  state, never another's (`campaigns/remote-players.md`, M6).
   """
-  def apply_playback_change(sessions, entity_id, new_state, now_playing, extra_fields \\ %{}) do
-    case new_state do
-      :stopped ->
-        Map.delete(sessions, entity_id)
+  @type playback_scope :: :host | String.t() | :all
 
-      _ ->
-        entry = Map.merge(%{state: new_state, now_playing: now_playing}, extra_fields)
-        Map.put(sessions, entity_id, entry)
+  @doc """
+  The page's playing set after a `PlaybackStateChanged`: a viewing within
+  `scope` joins the set keyed by entity id (or replaces its entry) and
+  leaves it on `:stopped`; a viewing on another player leaves the set as
+  it was. `extra_fields` are merged into the entry — Status keeps
+  `started_at` this way.
+  """
+  @spec apply_playback_change(
+          map(),
+          MediaCentaur.Playback.Events.PlaybackStateChanged.t(),
+          playback_scope(),
+          map()
+        ) ::
+          map()
+  def apply_playback_change(sessions, event, scope, extra_fields \\ %{}) do
+    cond do
+      not within_scope?(event.player, scope) ->
+        sessions
+
+      event.state == :stopped ->
+        Map.delete(sessions, event.entity_id)
+
+      true ->
+        entry = Map.merge(%{state: event.state, now_playing: event.now_playing}, extra_fields)
+        Map.put(sessions, event.entity_id, entry)
     end
   end
 
   @doc """
-  Snapshots the current `Playback.Sessions` registry as a map keyed by
-  entity id. Used by every LiveView that renders live playback state
-  (Home, Library, Status). Pair with `apply_playback_change/5` to keep
-  the snapshot in sync via PubSub.
+  The playing set a page starts from: the `Playback.Sessions` within
+  `scope`, keyed by entity id. `apply_playback_change/4` keeps it current.
   """
-  @spec load_playback_sessions() :: %{optional(String.t()) => map()}
-  def load_playback_sessions do
-    Map.new(MediaCentaur.Playback.Sessions.list(), fn session ->
-      {session.entity_id, session}
-    end)
+  @spec load_playback_sessions(playback_scope()) :: %{optional(String.t()) => map()}
+  def load_playback_sessions(scope) do
+    Map.new(
+      Enum.filter(MediaCentaur.Playback.Sessions.list(), &within_scope?(&1.player, scope)),
+      fn session -> {session.entity_id, session} end
+    )
   end
+
+  defp within_scope?(_player, :all), do: true
+  defp within_scope?(player, scope), do: player == scope
 
   @doc """
   Formats the elapsed time since a `DateTime` as a bare duration —

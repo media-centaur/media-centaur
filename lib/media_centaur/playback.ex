@@ -1,6 +1,12 @@
 defmodule MediaCentaur.Playback do
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.Settings.Preferences, MediaCentaur.Settings],
+    deps: [
+      MediaCentaur.Library,
+      MediaCentaur.Players,
+      MediaCentaur.Settings.Preferences,
+      MediaCentaur.Settings,
+      MediaCentaur.Subtitles
+    ],
     exports: [
       Command,
       LanguagePolicy,

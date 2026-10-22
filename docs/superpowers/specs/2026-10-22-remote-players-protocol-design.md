@@ -123,7 +123,7 @@ Recommendation: the capability URL. The media request is made by a native media 
 
 ### Sidecar subtitles
 
-`--sub-auto` finds nothing over HTTP. The host knows a file's sidecar subtitles (`Subtitles`) and adds each as `sub-add <media URL of the sidecar>` after `loadfile`. Sidecars are `FilePresence` rows too, so the media endpoint serves them unchanged. Not in the skeleton; first hardening item.
+`--sub-auto` finds nothing over HTTP. The host knows a file's sidecar subtitles (`Subtitles`) and adds each as `sub-add <media URL of the sidecar>` after `loadfile`. ~~Sidecars are `FilePresence` rows too, so the media endpoint serves them unchanged.~~ *Amended 2026-10-23: the watcher stamps presence rows for video files only, so a sidecar has none. The media endpoint serves a sidecar by its name beside the file, `GET /media/:presence_id/subtitles/:basename`, under the file's own token (only a sidecar `Subtitles` detected for that file). `Transport.Remote` adds each with `sub-add <url> auto <name> [<lang>]` when mpv reports `file-loaded` for the presence it saw in `path` — the transport stands in for the autoload the desktop's mpv does itself.* Not in the skeleton; first hardening item.
 
 ## Host-side architecture
 
@@ -220,6 +220,8 @@ layer; `sub-text` and `chapter` join the observed set. The shell forwards
 Back and Menu to the page as `Escape` and `ContextMenu` keydowns on the
 focused element — never on the document, whose target the page's
 keyboard source cannot read; every other key the WebView delivers as is.
+
+**2026-10-23 (M6, second batch).** A removed player's channel closes at once: `Remote.Channel` listens on `players:updates`, and its own player's removal pushes `stop` to the device's mpv and closes the socket `:removed`, which `Transport.Remote` turns into the viewing's end rather than a reattach window. The media endpoint also serves a file's sidecars (the *Sidecar subtitles* amendment above). A page's playing set is its own player's (`LiveHelpers.load_playback_sessions/1`, `apply_playback_change/4`): a viewing on the TV does not pin the host's Continue Watching, nor the reverse; Status stays the board over every player. A relative seek never crosses the end (`Command.within/3`).
 
 ## The end-to-end skeleton
 

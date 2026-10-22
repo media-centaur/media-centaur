@@ -21,10 +21,18 @@ defmodule MediaCentaur.Playback.Remote.Channel do
 
   Liveness: the handler pings every `ping_interval_ms/0`; a client whose
   last pong is older than `pong_grace_ms/0` at the next ping is closed.
+
+  The pairing is the channel's admission, so the channel ends when the
+  pairing does: it listens on `players:updates`, and its own player's
+  removal tells the device's mpv `stop` and closes the channel `{:shutdown, :removed}`
+  — a final reason, which `Transport.Remote` turns into the viewing's end
+  rather than a reattach window.
   """
 
   alias MediaCentaur.Playback.Remote.PlayerRegistry
   alias MediaCentaur.Playback.SessionRegistry
+  alias MediaCentaur.Players.Events.PlayerRemoved
+  alias MediaCentaur.Topics
 
   @ping_interval_ms 15_000
   @pong_grace_ms 30_000
@@ -40,8 +48,12 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   ]
 
   @type t :: %__MODULE__{}
+  @type frame :: {:text, String.t()} | {:ping, binary()}
   @type outcome ::
-          {:ok, t()} | {:push, {:text, String.t()} | {:ping, binary()}, t()} | {:stop, term(), t()}
+          {:ok, t()}
+          | {:push, frame(), t()}
+          | {:stop, term(), t()}
+          | {:stop, term(), {1000, String.t()}, [frame()], t()}
 
   def ping_interval_ms, do: @ping_interval_ms
   def pong_grace_ms, do: @pong_grace_ms
@@ -50,14 +62,17 @@ defmodule MediaCentaur.Playback.Remote.Channel do
 
   @doc """
   Opens the channel for `player_id` from the calling process: registers it,
-  schedules the first ping, and tells the player's live sessions, if any,
-  that their channel is up. A second channel for a player must evict the
-  first with `replace/1` before connecting.
+  subscribes it to the players' updates, schedules the first ping, and
+  tells the player's live sessions, if any, that their channel is up. A
+  second channel for a player must evict the first with `replace/1`
+  before connecting.
   """
   @spec connect(String.t(), PlayerRegistry.locators()) ::
           {:ok, t()} | {:error, {:already_registered, pid()}}
   def connect(player_id, locators) do
     with :ok <- PlayerRegistry.register(player_id, locators) do
+      :ok = Topics.subscribe(Topics.players_updates())
+
       for {_key, session} <- SessionRegistry.on_player(player_id) do
         send(session, {:transport, {:remote, {:channel_up, self()}}})
       end
@@ -124,7 +139,20 @@ defmodule MediaCentaur.Playback.Remote.Channel do
     end
   end
 
-  def handle_message(state, {:channel, :replaced}), do: {:stop, :replaced, state}
+  # A deliberate close is a shutdown, not a crash: the handler's exit must
+  # not land in the error log as one.
+  def handle_message(state, {:channel, :replaced}), do: {:stop, {:shutdown, :replaced}, state}
+
+  # The pairing is gone: the device's mpv stops what it plays, the session is
+  # told why its channel goes (here, not in `closed/2`: the handler's
+  # terminate reason is the server's to wrap), and the channel closes for
+  # good. Another player's removal is nobody's here.
+  def handle_message(%{player_id: player_id} = state, {:player_removed, %PlayerRemoved{id: player_id}}) do
+    state = tell_session(state, {:shutdown, :removed})
+
+    {:stop, {:shutdown, :removed}, {1000, "removed"}, [{:text, Jason.encode!(%{"command" => ["stop"]})}],
+     state}
+  end
 
   def handle_message(%{session_ref: ref} = state, {:DOWN, ref, :process, _pid, _reason}),
     do: {:ok, %{state | session: nil, session_ref: nil}}
@@ -133,11 +161,18 @@ defmodule MediaCentaur.Playback.Remote.Channel do
 
   @doc "The channel is closing: its session, if any, is told."
   @spec closed(t(), term()) :: :ok
-  def closed(%{session: nil}, _reason), do: :ok
-
-  def closed(%{session: session}, reason) do
-    send(session, {:transport, {:remote, {:channel_down, reason}}})
+  def closed(state, reason) do
+    _state = tell_session(state, reason)
     :ok
+  end
+
+  # The attached session hears `{:channel_down, reason}` once and is let go.
+  defp tell_session(%{session: nil} = state, _reason), do: state
+
+  defp tell_session(%{session: session, session_ref: ref} = state, reason) do
+    if ref, do: Process.demonitor(ref, [:flush])
+    send(session, {:transport, {:remote, {:channel_down, reason}}})
+    %{state | session: nil, session_ref: nil}
   end
 
   # --- Other processes' side ---
