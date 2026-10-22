@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TV viewing layer — 2 Lower-third card</title>
+<style>
+  :root {
+    --base-content: oklch(93% 0.005 264); --primary: oklch(62% 0.16 250); --primary-content: oklch(96% 0.008 250); --warning: oklch(78% 0.14 80);
+    --glass: oklch(22% 0.018 264 / 0.74); --glass-border: oklch(93% 0.005 264 / 0.12); --sidebar: oklch(18% 0.018 264 / 0.82);
+  }
+  body { margin: 0; background: #111318; color: var(--base-content); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font: 500 18px/1.3 system-ui; margin: 24px 32px 4px; }
+  p.lede { margin: 0 32px 20px; color: oklch(93% 0.005 264 / 0.6); font-size: 14px; max-width: 960px; }
+  .frame-wrap { margin: 0 32px 36px; }
+  .frame-wrap h2 { font: 500 13px/1 system-ui; text-transform: uppercase; letter-spacing: .08em; color: oklch(93% 0.005 264 / 0.55); margin: 0 0 8px; }
+  .tv { position: relative; width: 960px; height: 540px; overflow: hidden; border-radius: 6px; outline: 1px solid #2a2f3a; }
+  .video { position: absolute; inset: 0; background:
+      radial-gradient(120% 90% at 30% 20%, oklch(45% 0.08 40 / .9), transparent 60%),
+      radial-gradient(80% 70% at 80% 80%, oklch(38% 0.07 240 / .9), transparent 60%),
+      linear-gradient(180deg, oklch(20% 0.02 260), oklch(12% 0.02 260)); }
+  .video::after { content: "native 4K HDR10 video layer (beneath the page)"; position: absolute; top: 16px; left: 16px; font: 500 11px system-ui; color: oklch(93% 0.005 264 / 0.28); letter-spacing: .04em; }
+  .shadow { text-shadow: 0 1px 2px oklch(0% 0 0 / .8), 0 2px 12px oklch(0% 0 0 / .6); }
+  /* --- the card: a glass lower third, centred --- */
+  .card { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); width: 720px; display: grid; grid-template-columns: 56px 1fr auto; gap: 0 16px; align-items: center; padding: 14px 18px; border-radius: 16px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: 0 10px 40px oklch(0% 0 0 / .5); }
+  .poster { width: 56px; height: 84px; border-radius: 6px; background: linear-gradient(160deg, oklch(50% 0.1 30), oklch(28% 0.06 280)); }
+  .card .text { min-width: 0; }
+  .card .title { font: 600 20px/1.2 system-ui; }
+  .card .ep { font-size: 15px; color: oklch(93% 0.005 264 / 0.7); margin-top: 2px; }
+  .card .bar { margin-top: 10px; height: 4px; border-radius: 2px; background: oklch(93% 0.005 264 / 0.14); overflow: hidden; }
+  .card .bar i { display: block; height: 100%; width: 38%; background: var(--primary); }
+  .card .bar i.paused { background: var(--warning); }
+  .card .right { text-align: right; font-variant-numeric: tabular-nums; }
+  .card .clock { font: 500 18px system-ui; }
+  .card .remaining { font-size: 13px; color: oklch(93% 0.005 264 / 0.6); margin-top: 2px; }
+  .card .glyph { width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--warning); color: #1a1408; font-size: 16px; margin-bottom: 6px; }
+  /* --- the pill, attached to the card's right end --- */
+  .pill { position: absolute; left: calc(50% + 360px + 14px); bottom: 48px; display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; border-radius: 999px; background: var(--primary); color: var(--primary-content); font: 600 16px system-ui; white-space: nowrap; box-shadow: 0 6px 24px oklch(0% 0 0 / .45); outline: 3px solid oklch(96% 0.008 250 / .9); outline-offset: 3px; }
+  .pill.alone { left: auto; right: 36px; bottom: 36px; font-size: 17px; }
+  .pill kbd { font: 600 12px system-ui; padding: 3px 7px; border-radius: 6px; background: oklch(96% 0.008 250 / .22); }
+  /* --- subtitles above the card's place --- */
+  .sub { position: absolute; left: 10%; right: 10%; bottom: 48px; text-align: center; font-size: 28px; font-weight: 500; line-height: 1.3; }
+  /* --- the track menu: a right-hand drawer, full height --- */
+  .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 320px; padding: 28px 24px; background: var(--sidebar); backdrop-filter: blur(30px); border-left: 1px solid var(--glass-border); box-shadow: -10px 0 40px oklch(0% 0 0 / .4); }
+  .drawer h3 { margin: 0 0 8px; font: 500 12px system-ui; text-transform: uppercase; letter-spacing: .08em; color: oklch(93% 0.005 264 / 0.55); }
+  .drawer h3 + ul { margin-bottom: 22px; }
+  .drawer ul { list-style: none; margin: 0; padding: 0; }
+  .drawer li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 16px; }
+  .drawer li .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid oklch(93% 0.005 264 / 0.35); }
+  .drawer li.active .dot { background: var(--primary); border-color: var(--primary); }
+  .drawer li.focus { outline: 2px solid var(--primary); outline-offset: -2px; background: oklch(62% 0.16 250 / .12); }
+  .drawer li .meta { margin-left: auto; font-size: 12px; color: oklch(93% 0.005 264 / 0.5); }
+  .drawer li.off { color: oklch(93% 0.005 264 / 0.4); }
+  .drawer li.off .meta { color: var(--warning); }
+  .drawer .note { font-size: 13px; color: oklch(93% 0.005 264 / 0.6); line-height: 1.35; margin-top: 4px; }
+  .drawer .hint { position: absolute; left: 24px; right: 24px; bottom: 20px; font-size: 12px; color: oklch(93% 0.005 264 / 0.5); }
+  .drawer .hint kbd { font: 600 11px system-ui; padding: 2px 6px; border-radius: 5px; background: oklch(93% 0.005 264 / .12); margin-right: 4px; }
+</style>
+</head>
+<body>
+<h1>2 — Lower-third card: the title as a card, the menu as a drawer</h1>
+<p class="lede">The bar is a glass card centred on the lower third, the way the app's title surfaces present a title: poster, name, episode line, progress and the clock, with the remaining time as a second line. Prompts attach to the card's right end while it shows and sit alone at the corner when it is hidden. The track menu is a right-hand drawer, the app's drawer idiom, with Audio over Subtitles.</p>
+
+<div class="frame-wrap"><h2>1 · Playing — the card shows for 4 s after a key</h2>
+<div class="tv"><div class="video"></div>
+  <div class="card"><div class="poster"></div>
+    <div class="text"><div class="title">Sample Show</div><div class="ep">S2 E4 · The Long Night</div><div class="bar"><i></i></div></div>
+    <div class="right"><div class="clock">0:31:12</div><div class="remaining">51 min left</div></div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>2 · Paused — the card stays, with a pause glyph</h2>
+<div class="tv"><div class="video"></div>
+  <div class="card"><div class="poster"></div>
+    <div class="text"><div class="title">Sample Show</div><div class="ep">S2 E4 · The Long Night</div><div class="bar"><i class="paused"></i></div></div>
+    <div class="right"><div class="glyph">❚❚</div><div class="clock">0:31:12</div><div class="remaining">51 min left</div></div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>3 · Skip Intro while the card is hidden — the pill alone at the corner</h2>
+<div class="tv"><div class="video"></div>
+  <div class="pill alone"><kbd>OK</kbd> Skip Intro ▶▶</div>
+</div></div>
+
+<div class="frame-wrap"><h2>4 · Next Episode countdown with the card up (a key was pressed)</h2>
+<div class="tv"><div class="video"></div>
+  <div class="card"><div class="poster"></div>
+    <div class="text"><div class="title">Sample Show</div><div class="ep">S2 E4 · The Long Night</div><div class="bar"><i style="width:97%"></i></div></div>
+    <div class="right"><div class="clock">1:22:28</div><div class="remaining">12 s left</div></div>
+  </div>
+  <div class="pill"><kbd>OK</kbd> Next episode in 12 s</div>
+</div></div>
+
+<div class="frame-wrap"><h2>5 · A subtitle line, card hidden</h2>
+<div class="tv"><div class="video"></div>
+  <div class="sub shadow">I never said it would be easy.<br>Only that it would be worth it.</div>
+</div></div>
+
+<div class="frame-wrap"><h2>6 · Track menu (MENU key) — a drawer on the right</h2>
+<div class="tv"><div class="video"></div>
+  <div class="drawer">
+    <h3>Audio</h3><ul>
+      <li class="active"><span class="dot"></span>English <span class="meta">DTS-HD MA 5.1</span></li>
+      <li><span class="dot"></span>Deutsch <span class="meta">AC3 5.1</span></li>
+      <li><span class="dot"></span>Commentary <span class="meta">AAC 2.0</span></li>
+    </ul>
+    <h3>Subtitles</h3><ul>
+      <li><span class="dot"></span>None</li>
+      <li class="active focus"><span class="dot"></span>English <span class="meta">SRT</span></li>
+      <li><span class="dot"></span>English (forced) <span class="meta">SRT</span></li>
+      <li class="off"><span class="dot"></span>English (PGS) <span class="meta">Not on this TV</span></li>
+    </ul>
+    <div class="hint"><kbd>▲ ▼</kbd> choose <kbd>OK</kbd> apply <kbd>BACK</kbd> close</div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>7 · PGS-only file — the drawer says so under Subtitles</h2>
+<div class="tv"><div class="video"></div>
+  <div class="drawer">
+    <h3>Audio</h3><ul>
+      <li class="active focus"><span class="dot"></span>English <span class="meta">TrueHD 7.1</span></li>
+      <li><span class="dot"></span>Français <span class="meta">DTS 5.1</span></li>
+    </ul>
+    <h3>Subtitles</h3><ul>
+      <li class="active"><span class="dot"></span>None</li>
+      <li class="off"><span class="dot"></span>English (PGS) <span class="meta">Not on this TV</span></li>
+      <li class="off"><span class="dot"></span>Français (PGS) <span class="meta">Not on this TV</span></li>
+    </ul>
+    <div class="note">This file's subtitles are images (PGS), which the TV player cannot draw. Text subtitles would show here.</div>
+    <div class="hint"><kbd>▲ ▼</kbd> choose <kbd>OK</kbd> apply <kbd>BACK</kbd> close</div>
+  </div>
+</div></div>
+</body>
+</html>

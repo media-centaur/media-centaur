@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TV viewing layer — 3 Scrim and seek bar</title>
+<style>
+  :root {
+    --base-content: oklch(93% 0.005 264); --primary: oklch(62% 0.16 250); --primary-content: oklch(96% 0.008 250); --warning: oklch(78% 0.14 80);
+    --glass: oklch(22% 0.018 264 / 0.80); --glass-border: oklch(93% 0.005 264 / 0.12);
+  }
+  body { margin: 0; background: #111318; color: var(--base-content); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font: 500 18px/1.3 system-ui; margin: 24px 32px 4px; }
+  p.lede { margin: 0 32px 20px; color: oklch(93% 0.005 264 / 0.6); font-size: 14px; max-width: 960px; }
+  .frame-wrap { margin: 0 32px 36px; }
+  .frame-wrap h2 { font: 500 13px/1 system-ui; text-transform: uppercase; letter-spacing: .08em; color: oklch(93% 0.005 264 / 0.55); margin: 0 0 8px; }
+  .tv { position: relative; width: 960px; height: 540px; overflow: hidden; border-radius: 6px; outline: 1px solid #2a2f3a; }
+  .video { position: absolute; inset: 0; background:
+      radial-gradient(120% 90% at 30% 20%, oklch(45% 0.08 40 / .9), transparent 60%),
+      radial-gradient(80% 70% at 80% 80%, oklch(38% 0.07 240 / .9), transparent 60%),
+      linear-gradient(180deg, oklch(20% 0.02 260), oklch(12% 0.02 260)); }
+  .video::after { content: "native 4K HDR10 video layer (beneath the page)"; position: absolute; top: 16px; left: 16px; font: 500 11px system-ui; color: oklch(93% 0.005 264 / 0.28); letter-spacing: .04em; }
+  .shadow { text-shadow: 0 1px 2px oklch(0% 0 0 / .8), 0 2px 12px oklch(0% 0 0 / .6); }
+  /* --- the scrim and the seek bar --- */
+  .scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 200px; background: linear-gradient(180deg, transparent, oklch(0% 0 0 / .78)); }
+  .osd { position: absolute; left: 48px; right: 48px; bottom: 36px; }
+  .osd .title { font: 600 24px/1.2 system-ui; }
+  .osd .ep { font-size: 16px; color: oklch(93% 0.005 264 / 0.72); margin-top: 2px; }
+  .osd .row { display: flex; align-items: center; gap: 16px; margin-top: 14px; font-variant-numeric: tabular-nums; font-size: 16px; }
+  .seek { position: relative; flex: 1; height: 8px; border-radius: 4px; background: oklch(93% 0.005 264 / 0.18); }
+  .seek i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; border-radius: 4px; background: var(--primary); }
+  .seek i.paused { background: var(--warning); }
+  .seek b { position: absolute; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: #fff; left: calc(38% - 8px); box-shadow: 0 0 0 3px oklch(0% 0 0 / .35); }
+  .seek .tick { position: absolute; top: -3px; width: 2px; height: 14px; background: oklch(93% 0.005 264 / 0.55); }
+  .osd .state { position: absolute; right: 0; top: 0; font: 600 14px system-ui; letter-spacing: .06em; text-transform: uppercase; color: var(--warning); }
+  .centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; background: oklch(0% 0 0 / .55); border: 2px solid oklch(93% 0.005 264 / .5); font-size: 34px; color: #fff; }
+  /* --- prompts at the top right --- */
+  .pill { position: absolute; right: 40px; top: 40px; display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px 12px 14px; border-radius: 12px; background: var(--primary); color: var(--primary-content); font: 600 18px system-ui; box-shadow: 0 6px 24px oklch(0% 0 0 / .45); outline: 3px solid oklch(96% 0.008 250 / .9); outline-offset: 3px; }
+  .pill kbd { font: 600 12px system-ui; padding: 3px 7px; border-radius: 6px; background: oklch(96% 0.008 250 / .22); }
+  .pill .count { font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+  /* --- subtitles --- */
+  .sub { position: absolute; left: 10%; right: 10%; bottom: 48px; text-align: center; font-size: 28px; font-weight: 500; line-height: 1.3; }
+  .sub.lifted { bottom: 128px; }
+  /* --- the track menu: a centred modal like the desktop's --- */
+  .modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 640px; padding: 22px 26px 18px; border-radius: 16px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: 0 20px 60px oklch(0% 0 0 / .6); }
+  .modal h2.m { margin: 0 0 14px; font: 600 18px system-ui; letter-spacing: 0; text-transform: none; color: var(--base-content); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  .modal h3 { margin: 0 0 8px; font: 500 12px system-ui; text-transform: uppercase; letter-spacing: .08em; color: oklch(93% 0.005 264 / 0.55); }
+  .modal ul { list-style: none; margin: 0; padding: 0; }
+  .modal li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 16px; }
+  .modal li .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid oklch(93% 0.005 264 / 0.35); }
+  .modal li.active .dot { background: var(--primary); border-color: var(--primary); }
+  .modal li.focus { outline: 2px solid var(--primary); outline-offset: -2px; background: oklch(62% 0.16 250 / .12); }
+  .modal li .meta { margin-left: auto; font-size: 13px; color: oklch(93% 0.005 264 / 0.5); }
+  .modal li.off { color: oklch(93% 0.005 264 / 0.4); }
+  .modal li.off .meta { color: var(--warning); }
+  .modal .note { margin-top: 12px; font-size: 13px; color: oklch(93% 0.005 264 / 0.6); }
+  .modal .hint { margin-top: 14px; font-size: 12px; color: oklch(93% 0.005 264 / 0.5); border-top: 1px solid var(--glass-border); padding-top: 10px; }
+  .modal .hint kbd { font: 600 11px system-ui; padding: 2px 6px; border-radius: 5px; background: oklch(93% 0.005 264 / .12); margin-right: 4px; }
+  .dim { position: absolute; inset: 0; background: oklch(0% 0 0 / .35); }
+</style>
+</head>
+<body>
+<h1>3 — Scrim and seek bar: the familiar TV player</h1>
+<p class="lede">The bar is what every TV player shows: a bottom gradient scrim, the title above a full-width seek bar with a handle and chapter ticks, the clock at both ends. Pausing also drops a large glyph in the centre for a moment. Prompts sit at the top right so they never meet the bar. The track menu is a centred modal with two columns, the same shape as the desktop's TAB menu, over a dimmed picture.</p>
+
+<div class="frame-wrap"><h2>1 · Playing — scrim, seek bar with chapter ticks, clock at both ends</h2>
+<div class="tv"><div class="video"></div><div class="scrim"></div>
+  <div class="osd"><div class="title shadow">Sample Show</div><div class="ep shadow">S2 E4 · The Long Night</div>
+    <div class="row"><span>0:31:12</span><div class="seek"><span class="tick" style="left:6%"></span><span class="tick" style="left:91%"></span><i></i><b></b></div><span>1:22:40</span></div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>2 · Paused — the bar stays, a centre glyph for a moment, the fill turns amber</h2>
+<div class="tv"><div class="video"></div><div class="scrim"></div>
+  <div class="centre">❚❚</div>
+  <div class="osd"><div class="state">Paused</div><div class="title shadow">Sample Show</div><div class="ep shadow">S2 E4 · The Long Night</div>
+    <div class="row"><span>0:31:12</span><div class="seek"><span class="tick" style="left:6%"></span><span class="tick" style="left:91%"></span><i class="paused"></i><b></b></div><span>1:22:40</span></div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>3 · Skip Intro at the top right, bar hidden</h2>
+<div class="tv"><div class="video"></div>
+  <div class="pill"><kbd>OK</kbd> Skip Intro ▶▶</div>
+</div></div>
+
+<div class="frame-wrap"><h2>4 · Next Episode countdown</h2>
+<div class="tv"><div class="video"></div>
+  <div class="pill"><kbd>OK</kbd> Next episode in <span class="count">12</span> s</div>
+</div></div>
+
+<div class="frame-wrap"><h2>5 · A subtitle line; with the bar up it lifts above the scrim's text</h2>
+<div class="tv"><div class="video"></div>
+  <div class="sub shadow">I never said it would be easy.<br>Only that it would be worth it.</div>
+</div></div>
+
+<div class="frame-wrap"><h2>6 · Track menu (MENU key) — a centred modal over a dimmed picture</h2>
+<div class="tv"><div class="video"></div><div class="dim"></div>
+  <div class="modal"><h2 class="m">Audio &amp; subtitles</h2>
+    <div class="cols">
+      <div><h3>Audio</h3><ul>
+        <li class="active"><span class="dot"></span>English <span class="meta">DTS-HD MA 5.1</span></li>
+        <li><span class="dot"></span>Deutsch <span class="meta">AC3 5.1</span></li>
+        <li><span class="dot"></span>Commentary <span class="meta">AAC 2.0</span></li>
+      </ul></div>
+      <div><h3>Subtitles</h3><ul>
+        <li><span class="dot"></span>None</li>
+        <li class="active focus"><span class="dot"></span>English <span class="meta">SRT</span></li>
+        <li><span class="dot"></span>English (forced) <span class="meta">SRT</span></li>
+        <li class="off"><span class="dot"></span>English (PGS) <span class="meta">Not on this TV</span></li>
+      </ul></div>
+    </div>
+    <div class="hint"><kbd>◀ ▶</kbd> column <kbd>▲ ▼</kbd> choose <kbd>OK</kbd> apply <kbd>BACK</kbd> close</div>
+  </div>
+</div></div>
+
+<div class="frame-wrap"><h2>7 · PGS-only file</h2>
+<div class="tv"><div class="video"></div><div class="dim"></div>
+  <div class="modal"><h2 class="m">Audio &amp; subtitles</h2>
+    <div class="cols">
+      <div><h3>Audio</h3><ul>
+        <li class="active focus"><span class="dot"></span>English <span class="meta">TrueHD 7.1</span></li>
+        <li><span class="dot"></span>Français <span class="meta">DTS 5.1</span></li>
+      </ul></div>
+      <div><h3>Subtitles</h3><ul>
+        <li class="active"><span class="dot"></span>None</li>
+        <li class="off"><span class="dot"></span>English (PGS) <span class="meta">Not on this TV</span></li>
+        <li class="off"><span class="dot"></span>Français (PGS) <span class="meta">Not on this TV</span></li>
+      </ul></div>
+    </div>
+    <div class="note">This file's subtitles are images (PGS), which the TV player cannot draw. Text subtitles would show here.</div>
+    <div class="hint"><kbd>◀ ▶</kbd> column <kbd>▲ ▼</kbd> choose <kbd>OK</kbd> apply <kbd>BACK</kbd> close</div>
+  </div>
+</div></div>
+</body>
+</html>
