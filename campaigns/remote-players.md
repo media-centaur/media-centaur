@@ -345,6 +345,45 @@ scripts (versus committing a copy) and the native address screen (a
 second UI technology for one field, unavoidable before pairing). No
 speculative abstraction: three packages, one activity, one instance.
 
+**5. Plan (2026-10-22).** In `android-app`: (1) `gradle.properties`
+`mediaCentaurHost=../media-centaur-app`; a `Copy` task in
+`app/build.gradle.kts` from `<host>/priv/mpv/scripts/media-centaur` to
+`build/bundledScripts/mpv/scripts/media-centaur`, registered as an
+assets source directory and a dependency of `preBuild`; the committed
+`app/src/main/assets/mpv/input.conf`; JUnit 4 and `org.json` as test
+dependencies for the bridge's pure parts. (2) `Log.kt` (the one tag);
+`shell/HostAddress.kt` (preference, normalisation, an intent extra
+`host` so `mc-tv launch --host <url>` sets it without typing);
+`shell/MainActivity.kt` (the layout: `SurfaceView` always attached
+under the `WebView`; the address screen; `dispatchKeyEvent` routing:
+the player when a file plays, else the page, Back as synthetic
+`Escape`); `shell/Shell.kt` (WebView settings, cookie manager,
+debugging flag, `onPageFinished` off `/pair` starts the channel).
+(3) `player/Mpv.kt` (the small interface the bridge is written
+against), `player/Player.kt` (`MPVLib` behind it: assets copied to
+`filesDir/mpv` at start, instance options, surface callbacks, event
+and log observers, `keypress`), `player/RemoteKeys.kt` (keycode →
+mpv key name). (4) `bridge/PropertyFormat.kt` (per-property observe
+format and rendering rule), `bridge/Ipc.kt` (commands → `Mpv`,
+replies, events, `time-pos` at 1 Hz, `end-file` reason synthesis),
+`bridge/Channel.kt` (OkHttp WebSocket with the WebView's cookies,
+backoff 1→30 s, frame logging). (5) `IpcTest.kt` against a fake `Mpv`:
+observe ids, typed set, loadfile args, `quit`→`stop`, reason
+synthesis, `script-opts` map, JSON-text parse, coalescing. (6) `mc-tv
+launch --host`. (7) The sim host from M2 recreated in the scratchpad
+with a two-episode series and a movie; the app on the Sony: pair,
+browse, play, progress on the host, auto-advance, finish prompt, Back.
+(8) Record, spec amendment, commits.
+
+**6. Plan unification (2026-10-22).** The shell's `MainActivity.TAG`
+moves to `Log.kt` rather than staying beside a second tag; the bridge
+is written against `Mpv`, not `MPVLib`, so the test fake is the
+interface and not a stand-in encoding the binding's shape; the cookie
+name is not restated in the app (the jar forwards whatever the host
+set); the key table exists once (`RemoteKeys`) and the policy once
+(`input.conf`). No old path kept, no constant copied, one commit per
+landable piece.
+
 ### M3 — Android automation rig (objectives, recorded 2026-10-22)
 
 The brief the milestone was built from; the procedure record follows it.
