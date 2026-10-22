@@ -41,8 +41,9 @@ observes the app on the owner's Sony Bravia XR-42A90K
 (AMD-V is off in the BIOS); SVM Mode would make it fast. M1 and M2 are built
 and verified against the simulator; nothing merges to main before the
 owner's sign-off at the campaign's end; the wiki edits are committed
-locally in the wiki repo and not pushed. Next: the hardware checks of
-M3, then M4, the TV app skeleton.
+locally in the wiki repo and not pushed. Next: M4, the TV app skeleton —
+scope, research, decisions and the design pass recorded; the plan and
+execution follow the owner's word on the design.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -193,6 +194,156 @@ first, then iteration. The contract both codebases follow is
    Play internal testing track, wiki page for the TV app, glossary
    elevated to `docs/GLOSSARY.md`; the owner's walk through every page
    and the full viewing lifecycle on the TV.
+
+### M4 — TV app skeleton (procedure record)
+
+**1. Scope (2026-10-22).** In, all in `~/src/media-centaur/android-app`:
+the host-address screen (the one native screen: the app knows nothing
+until it has an address); the WebView shell loading the host, which
+sends an unpaired device to its own pairing page and home after a
+match; the cookie jar shared between the WebView and the channel; one
+libmpv instance on a `SurfaceView` for the app's life, shown while a
+file plays; the bridge (OkHttp WebSocket ⇄ `MPVLib`): IPC JSON in,
+typed libmpv calls out, property events and replies back, `time-pos`
+at 1 Hz, reconnect with backoff; the remote's keys routed to whichever
+is on screen (the page, or mpv as `keypress`); the TV's own
+`input.conf`; the host's bundled scripts package in assets; logging
+under `MediaCentaur` and `mpv`; `mc-tv webview`. Exit: on the Sony,
+pair, browse, play one file, see progress on the host, auto-advance an
+episode, stop from the finish prompt. Dropped: an error page for an
+unreachable host beyond a retry (M5 polish). Moved to M5: sidecar
+subtitles, HDR and audio passthrough options, detach/reattach and
+host-restart on the device, Back-key and D-pad polish, WebView cost,
+removed-player close, Home's rows by player. To M6: release signing,
+Play, the wiki page, the glossary, the app icon and banner art.
+
+**2. Research (2026-10-22), against the host branch and the libraries.**
+* The host sends a remote player, in order: `set_property` for each
+  session option (`keep-open=yes`, `resume-playback=no`, the language
+  options), `change-list script-opts append media_centaur_session-profile_id=<id>`,
+  then `loadfile <media url> replace [-1 start=<s>]`; then
+  `observe_property` ids 1–10 for `time-pos`, `duration`, `pause`,
+  `eof-reached`, `track-list`, `aid`, `sid`, `chapter-list`,
+  `playlist-count`, `playlist-pos`; `quit` to end a viewing; recovery
+  asks `get_property` `path`, `time-pos`, `script-opts` with a
+  `request_id` and expects `script-opts` **as a map** (`session_profile/1`
+  rejects anything else). `Transport.Remote` ends the viewing on
+  `end-file` whose `reason` is `stop` or `quit`; `MpvSession` sends
+  `quit` on `eof-reached=true` and finalises on any `end-file`.
+* `MPVLib` 1.0.0 (verified from `MPVLib.kt` and `event.cpp`): instance
+  API; `command(Array<String>)` returns nothing; typed get/set;
+  `observeProperty(name, format)` with no id; property events arrive
+  as `eventProperty(name)` (NONE), `(name, Long)`, `(name, Double)`,
+  `(name, Boolean)`, `(name, String)`; any other format is dropped in
+  the JNI layer. **`event(eventId)` carries only the id: the `end-file`
+  reason is not forwarded.** Log messages arrive through `LogObserver`.
+* mpv renders node properties (`track-list`, `chapter-list`) as JSON
+  text when read as a string, and key-value lists (`script-opts`) as
+  `k=v,k=v`. The bridge therefore needs per-property rendering rules:
+  JSON text → parsed JSON; `script-opts` → object; scalars typed.
+* mpv-android's `BaseMPVView` (the libmpv reference): before `init`:
+  `config=yes`, `config-dir`, `force-window=no`, `idle=once`; `vo` set
+  separately (`gpu` or `gpu-next`); `surfaceCreated` → `attachSurface`,
+  `force-window=yes`, `vo` restored; `surfaceChanged` →
+  `android-surface-size=WxH`; `surfaceDestroyed` → `vo=null`,
+  `force-window=no`, `detachSurface`. `MPVView.initOptions`:
+  `gpu-context=android`, `opengl-es=yes`, `hwdec=mediacodec,mediacodec-copy`,
+  `hwdec-codecs=h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1`,
+  `ao=audiotrack,opensles`, `input-default-bindings=yes`,
+  `demuxer-max-bytes`, `demuxer-max-back-bytes`.
+* The bundled scripts bind keys: a visible pill forces `enter`
+  (activate) and the track menu offers `TAB` (open) and `n` (night
+  mode), overridable by `input.conf`. Keys reach libmpv only as
+  `keypress <name>` commands the app sends, so the app owns the
+  remote-to-mpv mapping. mpv's own default binds `ENTER` to
+  `playlist-next`, which a remote's centre button must not do.
+* The input system maps `Escape` to `BACK` (`actions.js`) and runs the
+  page's back semantics from it (UIDR-028), so a native Back becomes a
+  synthetic `Escape` keydown in the page. The WebView delivers D-pad
+  keys as arrow keys and `Enter`; verified on the Sony at the start of
+  execution (the spec's open item).
+* The pairing flow needs nothing native: `GET /` on an unpaired device
+  is a 302 to `/pair`, the form posts `pairing[name]`, `pairing[code]`
+  with a CSRF token, and a match redirects to `/` with the session
+  cookie `_media_centaur_key` carrying `player_id`. The cookie jar is
+  `android.webkit.CookieManager`; OkHttp reads it through a `CookieJar`.
+* The Sony is 32-bit (`armeabi-v7a`); libmpv 1.0.0 ships that ABI;
+  `hwdec=mediacodec` is the decode path on it.
+
+**3. Decisions (2026-10-22).**
+* Three packages under `app.mediacentaur.tv`, after the spec's modules
+  with `pairing` folded into the shell: `shell` (the activity, the
+  host-address screen, the WebView, key routing), `player` (the one
+  `MPVLib`, the surface, instance options, the local input policy),
+  `bridge` (the channel: WebSocket, IPC ⇄ libmpv, rendering rules,
+  reconnect). The app's state is the host address (`SharedPreferences`)
+  and the cookie jar; nothing else persists.
+* The bridge synthesises the `end-file` reason the binding drops:
+  `stop` when the bridge itself issued `stop` since the last `loadfile`
+  (the host's `quit`, or Back on the remote), `eof` when `eof-reached`
+  was true, `error` otherwise. Spec amendment recorded.
+* `script-opts` is answered as a map (parsed from `k=v,…`); JSON-text
+  properties are parsed; `time-pos` coalesced to one event per second
+  with the latest value; property ids are the host's, kept in a
+  name→id map at `observe_property`.
+* Instance options, the TV's: `idle=yes`, `force-window=no` until a
+  surface exists, `vo=gpu`, `gpu-context=android`, `opengl-es=yes`,
+  `hwdec=mediacodec,mediacodec-copy`, `ao=audiotrack,opensles`,
+  `config=no`, `script=<assets copy of the bundled package>`,
+  `input-conf=<assets input.conf>`, `input-default-bindings=no`,
+  `cache=yes`, `demuxer-max-bytes=150MiB`, `demuxer-readahead-secs=20`,
+  `msg-level=all=info` to the log observer. Session options come from
+  the host as today. Decided: `gpu`, not `gpu-next`, on a 32-bit 2022
+  panel until M5 measures.
+* The remote's keys while a file plays, as `keypress` names so the
+  bundled pills' forced `enter` wins when visible: CENTER/ENTER →
+  `ENTER`, LEFT/RIGHT → `LEFT`/`RIGHT`, UP/DOWN → `UP`/`DOWN`,
+  PLAY_PAUSE/PLAY/PAUSE → `PLAY`/`PAUSE`, FAST_FORWARD/REWIND →
+  `FORWARD`/`REWIND`, MENU → `MENU`; the TV's `input.conf` binds
+  `ENTER cycle pause`, `LEFT/RIGHT seek ∓10`, `UP/DOWN seek ±60`,
+  `PLAY/PAUSE/SPACE cycle pause`, `FORWARD/REWIND seek ±30`,
+  `MENU script-binding media_centaur/track-menu`. Back while a file
+  plays → `stop` (the viewing ends on the host, the UI returns); Back
+  on the page → synthetic `Escape`. Provisional: the owner's copy pass
+  on this mapping is an M5 item.
+* The bundled scripts package is not copied into the app repository's
+  history: a Gradle task copies `priv/mpv/scripts/media-centaur` from
+  the host checkout named in `gradle.properties` (`mediaCentaurHost`,
+  default `../media-centaur-app`) into the app's assets at build, the
+  copy ignored by git. One source for the scripts; CI's arrangement is
+  M6's.
+* `WebView.setWebContentsDebuggingEnabled` in debug builds only; the
+  WebView gets `javaScriptEnabled`, `domStorageEnabled`, media playback
+  without gesture, a desktop-class user agent left as the WebView's.
+* Provisional for the owner: the application id and name (open
+  decision 1, unchanged).
+
+**4. Design unification (2026-10-22).** Core idea: *the TV app is a
+terminal for the host — a browser for the UI and an mpv for the video,
+one identity for both, the remote's keys going to whichever is on
+screen.* Greenfield owners: the host address → the app's preferences;
+identity → the WebView's cookie jar, read by the channel; what plays
+and when → the host, through the channel; rendering and decode → the
+player; the mapping from remote keys to mpv input → the TV's
+`input.conf` plus a keycode→keypress table in the player; the couch
+behaviours → the host's scripts package, run unmodified inside the
+TV's libmpv. Diff against the code: the host's `Transport.Remote`,
+`Channel`, the media endpoint and the gate are the seams, unchanged.
+Incoherences and dispositions: (1) the spec said "mpv then reports
+`end-file` with reason stop" — true of mpv, dropped by the Kotlin
+binding; fixed in the bridge by synthesis, spec amended; (2) the spec's
+"node-valued properties observed as STRING, parsed" is a rendering rule
+that also covers `script-opts` as a key-value list; one rule table in
+the bridge, not special cases; (3) `mc-player-sim` and the bridge both
+translate `quit`→`stop`: the simulator is the stand-in and stays, the
+rule is the protocol's (spec); (4) mpv's default `ENTER playlist-next`
+versus a remote's centre button: the TV's `input.conf` and
+`input-default-bindings=no` own the policy, no per-key code; (5) the
+host's `script-opts` through `change-list … append` works on libmpv as
+a command, no special case. Coherence cost: the copy task for the
+scripts (versus committing a copy) and the native address screen (a
+second UI technology for one field, unavoidable before pairing). No
+speculative abstraction: three packages, one activity, one instance.
 
 ### M3 — Android automation rig (objectives, recorded 2026-10-22)
 
