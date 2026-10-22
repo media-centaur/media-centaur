@@ -25,6 +25,11 @@ defmodule MediaCentaurWeb.Router do
         # First, so its hooks run before any page's: the arm gesture's
         # "any other interaction disarms" rule must see every event.
         MediaCentaurWeb.Live.ArmGesture,
+        # Where the socket is (the gate's second enforcement point): assigns
+        # :player — :host, or the paired Players.Player — or halts the mount
+        # with a redirect to the pairing page. Ahead of ProfileAware, so an
+        # unpaired device never reaches the picker.
+        MediaCentaurWeb.Live.PlayerAware,
         # Who is watching (ADR-078): assigns :profile and :profiles, or
         # redirects the first handle_params to the picker.
         MediaCentaurWeb.Live.ProfileAware,
@@ -64,6 +69,12 @@ defmodule MediaCentaurWeb.Router do
 
     # The picker's tiles post here: a LiveView cannot write the session cookie.
     post "/profiles/:id/activate", ProfileController, :activate
+
+    # The pairing page: the one page an unpaired LAN device reaches
+    # (`Plugs.RemoteAccess` lets `/pair` through). A match writes the
+    # player into the session cookie, which a LiveView cannot.
+    get "/pair", PairingController, :show
+    post "/pair", PairingController, :create
 
     # Steam picker artwork — local librarycache file or CDN redirect
     # (hash-addressed titles have no guessable CDN URL; see controller).
