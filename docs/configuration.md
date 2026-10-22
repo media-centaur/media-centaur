@@ -14,6 +14,7 @@ All runtime settings are managed in the app UI and stored in the SQLite database
 |---|---|
 | `database_path` | Absolute path to the SQLite file |
 | `port` | TCP port the HTTP server listens on (default: `2160`) |
+| `bind` | Address the HTTP server listens on (default: `127.0.0.1`). `0.0.0.0` opens the install to the LAN; the gate (`MediaCentaurWeb.RemoteAccess`) then admits only loopback and paired players (Settings → Players). Parsed by `Settings.Config.BindAddress`. |
 | `media_dirs` | Initial media-directory seed, imported into the DB on first boot only (managed in the UI thereafter) |
 
 Everything else (excluded directories, data directory, TMDB API key, Prowlarr URL + key, download client, MPV path + socket dir + timeout, extras dirs, skip dirs, file absence TTL, recent changes days, auto-approve threshold, release-tracking intervals, update behaviour) is stored in the Settings DB and edited through the Settings UI. **A runtime value placed in the TOML is ignored** — the database is the single source of truth.

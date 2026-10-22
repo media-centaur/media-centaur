@@ -116,6 +116,43 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     end
   end
 
+  describe "bind" do
+    # The address the endpoint listens on is decided before the database
+    # is reachable, so it is bootstrap state like `port`. Loopback unless
+    # the owner opens the install to paired players on the LAN.
+    test "reads from the TOML", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      bind = "0.0.0.0"
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:bind) == {0, 0, 0, 0}
+    end
+
+    test "defaults to loopback when the TOML is silent", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      port = 9999
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:bind) == {127, 0, 0, 1}
+    end
+
+    test "an unparsable value stops the boot naming the key", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      bind = "living-room-pc"
+      """)
+
+      assert_raise ArgumentError, ~r/`bind`/, fn -> Config.load!() end
+    end
+
+    test "is not runtime-settable" do
+      refute :bind in Config.runtime_settable_keys()
+    end
+  end
+
   describe "Config.load!/0 with the retired `watch_dirs` TOML key" do
     # The key was renamed to `media_dirs` in 2026-06. A file still using the
     # old spelling must fail loudly with the fix named, never boot with no
