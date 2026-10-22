@@ -15,15 +15,20 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogicTest do
         clear: %{key: "Backspace", button: 3},
         zone_next: %{key: "]", button: 5},
         zone_prev: %{key: "[", button: 4},
-        play: %{key: "p", button: 9}
+        play: %{key: "p", button: 9},
+        play_pause: %{key: "MediaPlayPause", button: nil},
+        seek_forward: %{key: "MediaFastForward", button: nil},
+        seek_back: %{key: "MediaRewind", button: nil},
+        track_menu: %{key: "ContextMenu", button: nil}
       }
 
-      [{:navigation, nav}, {:zones, zones}, {:playback, play}] =
+      [{:navigation, nav}, {:zones, zones}, {:playback, play}, {:viewing, viewing}] =
         ControlsLogic.group_for_view(resolved)
 
       assert length(nav) == 7
       assert length(zones) == 2
       assert length(play) == 1
+      assert length(viewing) == 4
 
       [first | _] = nav
       assert first.id == :navigate_up
@@ -34,6 +39,13 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogicTest do
   end
 
   describe "display_key/1" do
+    test "the remote's keys read as a remote labels them" do
+      assert ControlsLogic.display_key("MediaPlayPause") == "Play/Pause"
+      assert ControlsLogic.display_key("MediaFastForward") == "Fast forward"
+      assert ControlsLogic.display_key("MediaRewind") == "Rewind"
+      assert ControlsLogic.display_key("ContextMenu") == "Menu"
+    end
+
     test "pretty-prints special keys" do
       assert ControlsLogic.display_key("ArrowUp") == "↑"
       assert ControlsLogic.display_key("ArrowDown") == "↓"

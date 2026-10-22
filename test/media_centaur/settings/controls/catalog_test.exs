@@ -3,8 +3,19 @@ defmodule MediaCentaur.Settings.Controls.CatalogTest do
 
   alias MediaCentaur.Settings.Controls.Catalog
 
-  test "all/0 returns 10 bindings" do
-    assert length(Catalog.all()) == 10
+  test "all/0 returns 14 bindings" do
+    assert length(Catalog.all()) == 14
+  end
+
+  test "the viewing's keys are bindings: the remote's media keys and the Menu key the TV shell forwards" do
+    viewing = Catalog.by_category(:viewing)
+
+    assert Enum.map(viewing, &{&1.id, &1.default_key, &1.default_button}) == [
+             {:play_pause, "MediaPlayPause", nil},
+             {:seek_forward, "MediaFastForward", nil},
+             {:seek_back, "MediaRewind", nil},
+             {:track_menu, "ContextMenu", nil}
+           ]
   end
 
   test "all binding ids are unique" do
@@ -13,7 +24,7 @@ defmodule MediaCentaur.Settings.Controls.CatalogTest do
   end
 
   test "every binding has a category in the valid set" do
-    valid = [:navigation, :zones, :playback]
+    valid = [:navigation, :zones, :playback, :viewing]
     assert Enum.all?(Catalog.all(), &(&1.category in valid))
   end
 

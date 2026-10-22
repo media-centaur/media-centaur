@@ -122,6 +122,9 @@ export class FocusContextMachine {
     // property of the region you are in — it is a property of what contains
     // that region. See `_backTransition`.
     if (action === Action.BACK) return this._backTransition()
+    // A remote's Play/Pause key reaches the machine only while nothing is
+    // playing (the viewing behaviour answers it otherwise): then it is Play.
+    if (action === Action.PLAY_PAUSE) action = Action.PLAY
 
     const type = contextType(this._context, this._config.instanceTypes)
     switch (type) {

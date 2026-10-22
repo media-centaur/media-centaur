@@ -17,8 +17,9 @@ export const Action = Object.freeze({
   CLEAR: "CLEAR",
   ZONE_NEXT: "ZONE_NEXT",
   ZONE_PREV: "ZONE_PREV",
-  // The remote's media keys, meaningful only while a viewing is on
-  // (viewing_behavior.js); the state machine ignores them otherwise.
+  // The viewing's actions (Controls' "During playback on a TV"): the viewing
+  // behaviour answers them while a viewing is on (viewing_behavior.js);
+  // otherwise the machine answers PLAY_PAUSE as PLAY and ignores the rest.
   PLAY_PAUSE: "PLAY_PAUSE",
   SEEK_FORWARD: "SEEK_FORWARD",
   SEEK_BACK: "SEEK_BACK",
@@ -50,24 +51,11 @@ export function isCursorDriving(action) {
   return CURSOR_DRIVING_ACTIONS.has(action)
 }
 
-// The keys a viewing answers to, consulted after the user's map like the
-// zone keys: a remote's media keys as the WebView delivers them, and the
-// Menu key the TV shell forwards as ContextMenu (the WebView swallows it).
-// Not rebindable: Controls knows nothing of a viewing.
-const VIEWING_KEY_MAP = Object.freeze({
-  MediaPlayPause: Action.PLAY_PAUSE,
-  MediaPlay: Action.PLAY_PAUSE,
-  MediaPause: Action.PLAY_PAUSE,
-  MediaFastForward: Action.SEEK_FORWARD,
-  MediaRewind: Action.SEEK_BACK,
-  ContextMenu: Action.MENU,
-})
-
-const ZONE_KEY_MAP = Object.freeze({
-  "]": Action.ZONE_NEXT,
-  "[": Action.ZONE_PREV,
-})
-
+// The catalog's default keys (Settings.Controls.Catalog), copied here for the
+// test fixtures: the app always builds its map from the bindings the layout
+// embeds, so this copy is never consulted at runtime. Every key the app
+// answers to is a catalog binding, the zone keys and the viewing's keys
+// included; there is no fallback map behind the user's.
 export const DEFAULT_KEY_MAP = Object.freeze({
   ArrowUp: Action.NAVIGATE_UP,
   ArrowDown: Action.NAVIGATE_DOWN,
@@ -76,10 +64,17 @@ export const DEFAULT_KEY_MAP = Object.freeze({
   Enter: Action.SELECT,
   Escape: Action.BACK,
   Backspace: Action.CLEAR,
+  "]": Action.ZONE_NEXT,
+  "[": Action.ZONE_PREV,
   p: Action.PLAY,
   P: Action.PLAY,
+  MediaPlayPause: Action.PLAY_PAUSE,
+  MediaFastForward: Action.SEEK_FORWARD,
+  MediaRewind: Action.SEEK_BACK,
+  ContextMenu: Action.MENU,
 })
 
+// The catalog's default buttons, a fixture copy like DEFAULT_KEY_MAP.
 export const DEFAULT_BUTTON_MAP = Object.freeze({
   0: Action.SELECT,
   1: Action.BACK,
@@ -103,7 +98,7 @@ export const DEFAULT_BUTTON_MAP = Object.freeze({
  */
 export function keyToAction(key, opts = {}, keyMap = DEFAULT_KEY_MAP) {
   if (opts.targetIsInput) return null
-  return keyMap[key] ?? ZONE_KEY_MAP[key] ?? VIEWING_KEY_MAP[key] ?? null
+  return keyMap[key] ?? null
 }
 
 /**

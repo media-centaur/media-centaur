@@ -11,7 +11,8 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
   @category_labels %{
     navigation: "Navigation",
     zones: "Zones",
-    playback: "Playback"
+    playback: "Playback",
+    viewing: "During playback on a TV"
   }
 
   @doc """
@@ -57,6 +58,10 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
   def display_key("ArrowRight"), do: "→"
   def display_key("Escape"), do: "Esc"
   def display_key(" "), do: "Space"
+  def display_key("MediaPlayPause"), do: "Play/Pause"
+  def display_key("MediaFastForward"), do: "Fast forward"
+  def display_key("MediaRewind"), do: "Rewind"
+  def display_key("ContextMenu"), do: "Menu"
 
   def display_key(key) when byte_size(key) == 1 do
     String.upcase(key)

@@ -33,7 +33,8 @@ const BROWSER_GLOBALS = {
   },
 }
 
-function actionForId(idStr) {
+/** The catalog's binding id → the input system's action; null for an id it does not know. */
+export function actionForId(idStr) {
   switch (idStr) {
     case "navigate_up": return Action.NAVIGATE_UP
     case "navigate_down": return Action.NAVIGATE_DOWN
@@ -45,6 +46,10 @@ function actionForId(idStr) {
     case "play": return Action.PLAY
     case "zone_next": return Action.ZONE_NEXT
     case "zone_prev": return Action.ZONE_PREV
+    case "play_pause": return Action.PLAY_PAUSE
+    case "seek_forward": return Action.SEEK_FORWARD
+    case "seek_back": return Action.SEEK_BACK
+    case "track_menu": return Action.MENU
     default: return null
   }
 }
