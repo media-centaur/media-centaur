@@ -421,7 +421,109 @@ loopback.
 * **Decisions taken with the owner** (Decisions made, 2026-10-22):
   full fidelity, native path, page as OSD, PGS unsupported.
 
-Steps 1–7 of the procedure start in the next session, at step 1.
+**Step 1 — scope (2026-10-22, resumed session).** What the milestone
+contains, with each desktop OSD feature's fate on the TV:
+
+*In scope.*
+1. **The native path.** `vo=mediacodec_embed` is the TV app's instance
+   option; the surface callbacks set `vo` to it, never to `gpu`; mpv draws
+   nothing on the TV. `input.conf`, the `keypress` door, `RemoteKeys` and
+   the bundled scripts leave the TV build: nothing on the player reads a
+   key or draws a pixel.
+2. **The page stays over the video** during a viewing (`VISIBLE`,
+   transparent, already verified) and the host's UI is the TV's OSD: a
+   **viewing layer** rendered by the host into every page of a remote
+   player's session, over a hidden app shell, while that player has a
+   session. The host player never shows it: its mpv window draws its own
+   OSD and covers the browser.
+3. **The viewing layer's contents** — each a host-rendered surface fed by
+   the host's own observation of the viewing:
+   * *The bar* (replaces mpv's seek/pause OSD): title and episode line,
+     position, duration, a progress bar, the paused state; shown while
+     paused and for a few seconds after any key, hidden otherwise so the
+     video is unobstructed.
+   * *Skip Intro* (replaces `skip_intro.lua`): the same chapter-title rule
+     (Intro, Opening, OP, Prologue; a next chapter exists), a pill
+     bottom-right while the chapter plays; SELECT seeks to the next
+     chapter.
+   * *Next Episode* (replaces `next_episode.lua`): skip mode during a
+     credits chapter at or after 80% with a successor queued, countdown
+     mode in the last 20 s with a successor queued; SELECT is
+     `playlist-next`. Auto-advance itself is unchanged (ADR-062, the
+     host's).
+   * *The track menu* (replaces `track_menu.lua`'s Audio and Subtitles
+     columns): the viewing's audio and subtitle tracks from `track-list`,
+     the active ones marked, "None" for subtitles; choosing sets `aid`/
+     `sid` over the channel, which `OverrideCapture` already records as
+     the profile's divergence. Bitmap subtitle tracks (PGS, VobSub, DVB)
+     are listed as not supported on this TV and cannot be chosen; a file
+     whose only subtitles are bitmap says so in the menu.
+   * *Text subtitles* (new: mpv drew them on the desktop): the host
+     observes `sub-text` and the page draws the current line at the
+     bottom, plain text.
+4. **Keys during a viewing** go to the page, never to libmpv: the page's
+   input system handles them, the viewing layer's behaviour turns them
+   into **playback commands** the host sends down the channel (pause,
+   seek by ±10 s and ±60 s, next episode, track choice, stop). One
+   routing rule, one owner; feedback is the bar re-rendered from the
+   host's observation, with the pressed command reflected at once. Back
+   closes the track menu when it is open, otherwise stops the viewing,
+   as M4 verified.
+5. **Per-viewing options on the long-lived libmpv** (open decision 5): the
+   remote transport sends the viewing's session options with the
+   `loadfile`, so each viewing starts from the host's option set and the
+   player's instance carries nothing over; the appended successor carries
+   the same set. Which options can ride on `loadfile` (`pause`,
+   `keep-open`, the language policy, `script-opts`) is research item R1.
+6. **The finish prompt and a real-length viewing on the TV**, deferred by
+   M4, are this milestone's verification: the WebView now stays up, so the
+   prompt simply renders when the session ends.
+7. **Audio passthrough**: measured in research (R6); whether it is offered,
+   and where, is a decision for the owner after the measurement.
+
+*Dropped, with reasons.*
+* mpv's volume OSD and `volume`: the TV's remote changes the system
+  volume, which Android applies to the app's AudioTrack; mpv stays at 100.
+* The Sound column (night mode, dialogue boost, the limiter, the `n` key)
+  → **M6**: its per-folder memory and the limiter rule live in Lua on the
+  desktop player and need a host-side owner before the TV can have them;
+  nothing else in M5 depends on it.
+* The pills' mouse hover and click: the TV has no pointer.
+* The OSC: never enabled under the app.
+* `osd-dimensions`-based scaling: the page's CSS scales the layer.
+
+*Moved.* Sidecar subtitles (`sub-add` over the media endpoint) stay in
+M6; the page's subtitle line renders them unchanged when they arrive.
+The speed test stays open decision 3, M6. The WebView's 960×540 layout
+scale and the pairing page's Code field stay M6, though the viewing
+layer is designed at that scale from the start.
+
+**Step 2 — research.** Items, each answered before the design pass:
+* R1 per-file `loadfile` options on a long-lived mpv (desktop mpv 0.41
+  over IPC): does `pause=no` unpause an instance `keep-open` left paused;
+  is `keep-open=yes` as a per-file option still in force when
+  `eof-reached` fires; do `alang`/`slang`/`sid` apply per file; is
+  `script-opts` settable whole (replace) so recovery reads one profile id.
+* R2 `sub-text` with no renderer: observe it on a desktop mpv with
+  `vo=null` playing a file with a text track (proxy for
+  `mediacodec_embed`), and whether `sid` changes still select tracks.
+* R3 the session's door for commands: `Sessions` has `play`, `resume`,
+  `stop`; the page needs pause, seek, next, track choice through the
+  session so the transport stays the only IPC writer.
+* R4 what the page can know: `PlaybackStateChanged` carries
+  `now_playing`; the layer needs position, duration, pause, chapter
+  state, tracks, `sub-text` at 1 Hz for one player — a per-player topic.
+* R5 the input system's overlay model for the layer (flat MODAL vs
+  `data-nav-overlay` regions), where the layer mounts (the root layout,
+  since a viewing outlives any one page), and the media keys the WebView
+  delivers (`MediaPlayPause`, `MediaFastForward`, …).
+* R6 on the TV, one window: the WebView's cost over native 4K video
+  (`dumpsys gfxinfo`, CPU), the LiveView round trip from the WebView and
+  the channel round trip (the two halves of key-to-feedback latency), and
+  `audio-spdif=ac3,dts` over the channel (`audio-out-params`, the
+  `spdif passthrough not supported` log line).
+* R7 the bridge's `PropertyFormat` table: `sub-text` is a string and
+  `chapter` an integer, both already covered by its defaults.
 
 ### M4 — TV app skeleton (procedure record)
 
