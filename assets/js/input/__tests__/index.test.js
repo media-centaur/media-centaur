@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import { actionForId } from "../index"
+import { Action } from "../core/index.js"
 import { inputConfig } from "../config"
 import { Context, buildNavGraph, resolveCursorStart } from "../core/index"
 
@@ -483,5 +485,37 @@ describe("Detail overlay collection rail region (real config)", () => {
 
   test("the rail enters at the selected member's tile", () => {
     expect(inputConfig.entryDefaults.detail_rail).toBe("[data-selected]")
+  })
+})
+
+// The one copy of the catalog's ids outside Elixir, kept as a pin: a binding
+// the catalog carries but this mapping lacks would bind silently to nothing.
+describe("actionForId", () => {
+  test("maps every catalog id to an action", () => {
+    expect(
+      Object.fromEntries(
+        [
+          "navigate_up", "navigate_down", "navigate_left", "navigate_right",
+          "select", "back", "clear", "zone_next", "zone_prev", "play",
+          "play_pause", "seek_forward", "seek_back", "track_menu",
+        ].map(id => [id, actionForId(id)])
+      )
+    ).toEqual({
+      navigate_up: Action.NAVIGATE_UP,
+      navigate_down: Action.NAVIGATE_DOWN,
+      navigate_left: Action.NAVIGATE_LEFT,
+      navigate_right: Action.NAVIGATE_RIGHT,
+      select: Action.SELECT,
+      back: Action.BACK,
+      clear: Action.CLEAR,
+      zone_next: Action.ZONE_NEXT,
+      zone_prev: Action.ZONE_PREV,
+      play: Action.PLAY,
+      play_pause: Action.PLAY_PAUSE,
+      seek_forward: Action.SEEK_FORWARD,
+      seek_back: Action.SEEK_BACK,
+      track_menu: Action.MENU,
+    })
+    expect(actionForId("nope")).toBe(null)
   })
 })

@@ -93,6 +93,10 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
     })
 
+    test("a remote's Play/Pause key is Play when nothing is playing", () => {
+      expect(machine.transition(Action.PLAY_PAUSE)).toEqual({ type: "play" })
+    })
+
     test("back enters the sidebar when the page has one", () => {
       machine.setNavGraph(fullGraph("watching"))
       expect(machine.transition(Action.BACK)).toEqual({ type: "enter_sidebar" })

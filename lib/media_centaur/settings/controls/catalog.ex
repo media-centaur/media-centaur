@@ -5,7 +5,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
   The catalog is the single source of truth:
   - The Settings → Controls LiveView renders rows from this list.
   - The JS input system's key and button maps are built from this list.
-  - Wiki cheat-sheet pages generate tables from this list.
+  - The wiki's Keyboard & Gamepad page is kept in step with this list by hand.
 
   Adding a new binding = one struct added here. Removing a binding =
   one struct removed and any persisted override in `Settings.Entry` under
@@ -97,6 +97,41 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       description: "Start playback of the focused item",
       default_key: "p",
       default_button: 9
+    },
+    # During playback on a TV: the viewing layer's keys (UIDR-055). A remote's
+    # media keys as the WebView delivers them, and the Menu key the TV shell
+    # forwards as ContextMenu. No gamepad defaults; bindable like the rest.
+    %Binding{
+      id: :play_pause,
+      category: :viewing,
+      name: "Play / pause",
+      description: "Pause or resume the playing video",
+      default_key: "MediaPlayPause",
+      default_button: nil
+    },
+    %Binding{
+      id: :seek_forward,
+      category: :viewing,
+      name: "Seek forward",
+      description: "Skip 30 seconds ahead",
+      default_key: "MediaFastForward",
+      default_button: nil
+    },
+    %Binding{
+      id: :seek_back,
+      category: :viewing,
+      name: "Seek back",
+      description: "Skip 30 seconds back",
+      default_key: "MediaRewind",
+      default_button: nil
+    },
+    %Binding{
+      id: :track_menu,
+      category: :viewing,
+      name: "Audio & subtitles",
+      description: "Open the track menu; press again to close it",
+      default_key: "ContextMenu",
+      default_button: nil
     }
   ]
 
@@ -126,5 +161,5 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
 
   @doc "Ordered list of category atoms — governs UI order."
   @spec categories() :: [atom()]
-  def categories, do: [:navigation, :zones, :playback]
+  def categories, do: [:navigation, :zones, :playback, :viewing]
 end

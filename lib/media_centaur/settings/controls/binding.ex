@@ -7,7 +7,7 @@ defmodule MediaCentaur.Settings.Controls.Binding do
   Unbound defaults are represented as `nil`.
   """
 
-  @type category :: :navigation | :zones | :playback
+  @type category :: :navigation | :zones | :playback | :viewing
 
   @type t :: %__MODULE__{
           id: atom(),

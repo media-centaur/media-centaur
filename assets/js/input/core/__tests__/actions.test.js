@@ -63,8 +63,21 @@ describe("keyToAction", () => {
     const custom = { w: Action.NAVIGATE_UP, s: Action.NAVIGATE_DOWN }
     expect(keyToAction("w", {}, custom)).toBe(Action.NAVIGATE_UP)
     expect(keyToAction("s", {}, custom)).toBe(Action.NAVIGATE_DOWN)
-    // Zone keys still work with custom map
-    expect(keyToAction("]", {}, custom)).toBe(Action.ZONE_NEXT)
+  })
+
+  test("the map is the whole answer: a key it lacks maps to nothing, zone and viewing keys included", () => {
+    const custom = { w: Action.NAVIGATE_UP }
+    expect(keyToAction("]", {}, custom)).toBe(null)
+    expect(keyToAction("ContextMenu", {}, custom)).toBe(null)
+    expect(keyToAction("MediaPlayPause", {}, custom)).toBe(null)
+  })
+
+  test("the fixture defaults carry the viewing's keys, like the catalog", () => {
+    expect(keyToAction("MediaPlayPause")).toBe(Action.PLAY_PAUSE)
+    expect(keyToAction("MediaPlay")).toBe(null)
+    expect(keyToAction("MediaFastForward")).toBe(Action.SEEK_FORWARD)
+    expect(keyToAction("MediaRewind")).toBe(Action.SEEK_BACK)
+    expect(keyToAction("ContextMenu")).toBe(Action.MENU)
   })
 })
 

@@ -159,6 +159,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — A key the TV shell forwards to the page (Back as Escape, Menu as ContextMenu) is dispatched on the focused element, or `<body>`, never on the document: the page's keyboard source reads the event's target as an element, as every real key press has. (`android-app` `3df9251`)
 * `2026-10-22` — An open overlay keeps the page's cursor: the cursor start never seeds the page beneath, a flat overlay whose one item arrives later (the OSD's prompt pill) gets it from the post-patch reconciler, and a named overlay's flat context is re-resolved until a region has items — one rule in `_ensureCursorStart`, replacing the branch in `_syncState`. (stage 4 finding)
 * `2026-10-22` — The input system knows the active overlay by its navigation model name: a different name while the presentation stays "modal" is an overlay opening over, or closing back to, another, and is entered like any open. The track menu is nested in the OSD's overlay (`data-detail-nested`), so BACK closes the menu alone and the next BACK dismisses the OSD. (stage 4 finding)
+* `2026-10-22` — The viewing's keys are Controls bindings (category *During playback on a TV*: play/pause, seek forward, seek back, audio & subtitles; defaults the remote's media keys and ContextMenu, no gamepad defaults), bound on the TV's own Settings page; the two fallback key maps behind the user's are gone, and a Play/Pause key outside a viewing is Play. Closes open decision 8: which key opens the track menu is the user's binding. (M6, the owner's question)
 * `2026-10-22` — Every TV check prints the player's drop counters (`frame-drop-count`, `decoder-frame-drop-count`, `vo-delayed-frame-count`) after each viewing it drives — `DROPS:` lines in `mc-tv-flow osd`. A layer change that costs frames shows up there, not in a screenshot. (rig rule, owner's question)
 * `2026-10-22` — No 4K UI on the TV: the Sony runs every app's UI at a 1080p override and the owner will not quadruple the WebView's load; a slightly smaller UI scale on the TV is wanted instead (M6). (owner)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
@@ -279,19 +280,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    PCM, so the optical receiver would still get PCM at best; (c) leave
    passthrough unoffered. Recommendation: (a), when the owner is at the
    TV to hear the result; nothing in M5 depends on it.
-8. **The remote's key for the track menu** (stage 4, 2026-10-22). The
-   WebView swallows the Menu key (no DOM event), so the shell forwards
-   `KEYCODE_MENU` as a `ContextMenu` keydown, the way it forwards Back —
-   **verified on the Sony 2026-10-22 with the key sent over adb**: the
-   track menu opens on Subtitles, a pick applies, BACK closes it. What is
-   not known is whether the Sony's remote has a Menu key; the Info key
-   reaches the page on a plain page but during a viewing Sony's own info
-   panel took it. Options: (a) MENU alone; (b) UP in the bar state also
-   opens the track menu (TV players use UP/DOWN for panels) and DOWN only
-   shows the bar, with ±60 s dropped (LEFT/RIGHT ±10, the media keys ±30
-   remain); (c) a "Subtitles & audio" button in the bar reached with UP.
-   Recommendation: (b), with MENU kept for remotes that have the key; the
-   owner says which keys their remote has.
+8. *Closed 2026-10-22 (Decisions made): the track menu's key is a Controls binding; MENU is its default.*
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -410,7 +399,115 @@ first, then iteration. The contract both codebases follow is
    elevated to `docs/GLOSSARY.md`; the owner's walk through every page
    and the full viewing lifecycle on the TV.
 
-### M5 — The native path and the page as OSD (procedure record, in progress)
+### M6 — Hardening (procedure record, in progress)
+
+**Step 1 — scope (2026-10-22), first item: the viewing's keys as
+Controls bindings** (the owner's question: Media Centaur has control
+configurations, why not use them). In: four catalog bindings in a new
+category *During playback on a TV* — play/pause `MediaPlayPause`, seek
+forward `MediaFastForward`, seek back `MediaRewind`, audio & subtitles
+`ContextMenu`, no gamepad defaults; the JS id mapping; the two fallback
+key maps deleted (`VIEWING_KEY_MAP`, and `ZONE_KEY_MAP`, a leftover
+from before the catalog carried the zone keys); a Play/Pause key
+outside a viewing meaning Play; UIDR-055 rule 3 amended; the wiki's
+Keyboard & Gamepad page; open decision 8 closed. Out: per-device
+bindings — bindings are install-wide, and the media keys and
+ContextMenu exist on no desktop keyboard, so nothing collides; keys the
+TV's operating system takes before the app (Sony's Info key during a
+viewing), which cannot be captured — said in the wiki; gamepad defaults
+for the four (none; bindable). The rest of M6's list is scoped when this
+item lands.
+
+**Step 2 — research.** `Controls.Catalog` is the compile-time list;
+overrides are Settings rows; `Controls.get/0` resolves; the layout
+embeds the resolved map as `data-input-bindings`; `index.js` builds the
+key map by id (`actionForId`) and `controls:updated` hot-swaps it.
+`KeyboardSource` consults the user's map, then `ZONE_KEY_MAP`, then
+`VIEWING_KEY_MAP`. `DEFAULT_KEY_MAP` and `DEFAULT_BUTTON_MAP` are never
+consulted by the app (an embedded empty map is still a map); they are
+the test fixtures' defaults. The Controls page renders every category
+from `Catalog.categories()` with `ControlsLogic.category_label/1`;
+capture takes the next keydown on `window` in the capture phase, which
+sees the shell's forwarded keys (bubbling synthetic events on the
+focused element), so the TV can bind its own Menu key on its own
+Settings page. The catalog's moduledoc says the wiki's tables are
+generated from it; no such script exists. The focus machine answers
+`PLAY` with `{type: "play"}` in every content context; `PLAY_PAUSE`
+reaches it only outside a viewing and is ignored.
+
+**Step 3 — decisions.** None for the owner: open decision 8 becomes the
+user's binding, with `ContextMenu` as the default.
+
+**Step 4 — design unification.** Core idea: *every key the app answers
+to is a catalog binding; the page decides what the action means where
+the cursor is.* Greenfield: one catalog, one resolved map, one
+`keyToAction` over it; the viewing's four actions are bindings like the
+rest; a Play/Pause key is Play when nothing is playing. Diff: (a) seams
+— the catalog, the id mapping and the hot-swap, used as they are; (b)
+duplicates — `VIEWING_KEY_MAP` and `ZONE_KEY_MAP` are second key→action
+maps outside the user's: deleted, `keyToAction` reads one map; the two
+`DEFAULT_*_MAP`s copy the catalog's defaults but are reachable only
+from tests — kept as the fixtures' defaults, named as such, and given
+the four so the fixture matches the catalog; (c) incoherences — the
+catalog's moduledoc promises a wiki generator: corrected to "kept in
+step by hand"; `PLAY_PAUSE` ignored on a page: the machine answers it
+as `PLAY`. Coherence cost: none beyond the scope; no owner call.
+
+**Step 5 — plan.** (1) `catalog_test`, `controls_logic_test`,
+`controls_test` extended (14 bindings, the category, the label) →
+catalog, `Binding.category`, the label. (2) `actions.test`: the
+viewing's keys answer from the map only, a custom map without `]`
+yields null → the two maps deleted, the fixture defaults extended.
+(3) `index.test`: every catalog id maps to an action (the ids listed in
+the test — the one copy of the list, a pin) → `actionForId` exported
+and extended. (4) `focus_context.test`: `PLAY_PAUSE` on a grid is
+`{type: "play"}` → `transition/1`. (5) UIDR-055 rule 3; the wiki's
+Keyboard & Gamepad page (a defaults table under *In the browser UI*,
+the TV section pointing at Controls); decision 8 to Decisions made.
+(6) `bun test`, precommit, the OSD check on the TV.
+
+**Step 6 — plan unification.** No old path kept: the fallback maps go
+in the same change as the bindings. No constant copied: the defaults
+live in the catalog; the fixtures' copy is named a fixture. Every
+caller converts: `keyToAction` is one line. No shim. One stand-in
+encoded the old shape — `actions.test`'s "zone keys still work with a
+custom map" — and is rewritten to the new rule. The JS test that lists
+the catalog's ids is a copy, accepted as a pin: a catalog id with no JS
+action is otherwise silent.
+
+**Step 1 — scope, second batch (2026-10-23, the owner asleep, the TV
+off).** The deferred list sorted by what can be verified on the desk
+(the simulator, headless) and what needs the TV. *Desk items, in this
+batch:* (a) a removed player's channel closed at once — today
+`Players.remove/1` broadcasts `PlayerRemoved` and the channel never
+hears it, so a revoked TV stays connected and its viewing keeps
+streaming until the socket drops on its own; (b) Home's pinned
+"playing" rows filtered by player — `HomeLive.Logic.continue_watching_items/2`
+pins any entity with a live session on *any* player, so a viewing on
+the desktop pins the row on the TV's Home and the reverse; (c) the
+hidden bar patched at 1 Hz — the clock's assigns change every tick
+whether the bar shows or not; (d) a relative seek past the end leaves
+mpv paused on the last frame with no `eof-reached` (stage 4 finding;
+reproduce on the desk, then clamp on the host or end on paused-at-end);
+(e) sidecar subtitles over the media endpoint — the desktop mpv
+auto-loads a sidecar next to the file, a remote player plays a URL and
+cannot, so the host adds them with `sub-add` after `loadfile` from an
+endpoint that serves the sidecar under the viewing's token; (f) the
+unexplained burst (≈10 syncs/s for a second on Home with the finish
+prompt open after SELECT on Delete, seen once) — reproduce or retire.
+*Owner decisions, recorded under Open decisions and not taken here:*
+the Sound column's host-side owner (night mode, dialogue boost, the
+limiter; today Lua on the desktop player with per-folder memory); the
+speed test (open decision 3); the application id (open decision 1).
+*TV items, pending the TV being free:* the bindings on the Sony
+(`mc-tv-flow osd tv`), the TV's UI scale a little smaller (the per-device
+scale preference, set on the TV's own Settings page), the pairing
+page's Code field in the WebView, the WebView's 960×540 layout scale,
+the audio underrun at start, detach/reattach and host-restart recovery
+on the device, Back-key and D-pad polish, the finish prompt after a
+real-length viewing. *Dropped:* nothing yet.
+
+### M5 — The native path and the page as OSD (procedure record)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
 from the owner's library were linked into the simulated host as
@@ -1996,7 +2093,10 @@ through `agent-mix`; the dev TOML's database is the owner's.
 **The owner's screen.** The owner's computer is displayed through the
 TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
-each window to a minute, always end with `mc-tv hdmi`.
+each window to a minute, always end with `mc-tv hdmi`. The TV is also
+the owner's gaming screen: when the owner says it is in use, take no TV
+window at all until they say it is free — verify on the desk with
+`mc-player-sim` and record the TV check as pending.
 
 **The next session's agenda: M6, hardening.** M5 is done (2026-10-22,
 stages 1–5; UIDR-055; wiki commits `9df804c` and `de4868e` local,
