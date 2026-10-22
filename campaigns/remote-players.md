@@ -156,6 +156,8 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The host's page is the TV's OSD: it stays over the video, transparent, and the host renders the pills, track menu, finish prompt and text subtitles into it; the bundled Lua scripts stay the desktop mpv's. Verified on the panel that a transparent page over the native HDR video shows the video, both layers hardware-composited. (owner: "probably makes sense"; agent recommendation; `android-app` `c1ad83f` and after)
 * `2026-10-22` — A viewing on a remote player carries its session options as per-file options on the `loadfile` (`replace` and the auto-advance `append` alike); nothing is set on the player's long-lived instance, so each viewing starts from the host's option set and mpv restores the instance at the file's end. Verified on desktop mpv 0.41 (M5 research R1). (open decision 5 → decided)
 * `2026-10-22` — The viewing layer (the page as the TV's OSD) changes at most once a second and animates nothing continuously: on the Sony a 60 fps page animation over native 4K video ran at 26 % janky frames and doubled the app's CPU, while a 1 Hz bar and subtitle line cost nothing measurable (M5 research R6).
+* `2026-10-22` — The viewing layer's look is mockup direction 3, *scrim and seek bar*: a bottom gradient scrim, the title and episode line over a full-width seek bar with a handle and chapter ticks, the clock at both ends, a centre pause glyph for a moment, prompts at the top right, the track menu a centred two-column glass modal over a dimmed picture (`docs/superpowers/specs/2026-10-22-tv-viewing-layer-mockups/3-scrim-and-seek-bar`). (owner)
+* `2026-10-22` — During a viewing every remote key goes to the page; the viewing layer's behaviour turns it into a playback command the host sends down the channel; `input.conf`, `RemoteKeys` and `keypress` leave the TV app. (owner, on the recommendation; open decision 6 → decided)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
 
 ## Open decisions
@@ -232,7 +234,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    (b) the bridge resets a known list on every `loadfile`, which puts
    session knowledge in the player. Recommendation: (a); the host owns
    what a viewing is.
-6. **Who owns the remote's keys during a viewing** (M5, 2026-10-22).
+6. *Decided 2026-10-22 (Decisions made): (a), the page.* **Who owns the remote's keys during a viewing** (M5, 2026-10-22).
    Today the TV app sends every key to libmpv as `keypress` while a file
    plays and `input.conf` on the player binds them. With the page as the
    OSD the pills, the track menu and the bar live in the page, so a key
@@ -251,6 +253,9 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    receiver, passthrough becomes a per-player setting on Settings →
    Players (host-owned, sent as a per-file option); (b) never offer it.
    Recommendation: (a), after M5; nothing in M5 depends on it.
+   *2026-10-22, owner:* the owner does not know the TV's setting and
+   asked the agent to change it; the agent tries over adb (the record
+   of the attempt is in the M5 section).
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
