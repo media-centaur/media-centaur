@@ -33,11 +33,12 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M3 built 2026-10-22 on branch `remote-players`**: the Android rig
-(SDK, JDK pin, `mc-tv`, AVD, the app repository's empty shell) builds
-the debug APK; nothing has reached a device yet. Two owner steps
-unblock the hardware checks: wireless debugging on the TV (Sony Bravia
-XR-42A90K, `192.168.68.63`) and a reboot for KVM. M1 and M2 are built
+**M3 built and checked on hardware 2026-10-22 on branch
+`remote-players`**: the Android rig (SDK, JDK pin, `mc-tv`, AVD, the
+app repository's empty shell) builds, installs, launches, drives and
+observes the app on the owner's Sony Bravia XR-42A90K
+(`192.168.68.63`, Android 12, 32-bit). The emulator waits on a reboot
+for KVM. M1 and M2 are built
 and verified against the simulator; nothing merges to main before the
 owner's sign-off at the campaign's end; the wiki edits are committed
 locally in the wiki repo and not pushed. Next: the hardware checks of
@@ -136,7 +137,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The TV app ships `priv/mpv/scripts/media-centaur` in its assets and points libmpv at it; verified that the `dev.jdtech.mpv:libmpv` 1.0.0 artifact builds mpv 0.41 with Lua enabled. (spec, verified)
 * `2026-10-22` — The Android toolchain is owned by the app repository's `mise.toml` (Temurin 21, `ANDROID_HOME=~/Android/Sdk`, SDK tools on `PATH`); `mc-tv` runs every tool through `mise -C <repo> exec`; nothing goes in a shell profile. SDK licences accepted on the owner's behalf. (M3 record; agent, owner absent)
 * `2026-10-22` — The TV app targets compileSdk and targetSdk 36 on AGP 9.4.0 with built-in Kotlin, Gradle 9.6.0, minSdk 26. (M3 research)
-* `2026-10-22` — The owner's TV is a Sony Bravia XR-42A90K at `192.168.68.63`. (mDNS, M3)
+* `2026-10-22` — The owner's TV is a Sony Bravia XR-42A90K at `192.168.68.63`: Android 12 (API 31), 32-bit only (`armeabi-v7a`), adb over the network on 5555 once ADB debugging is on. (M3 hardware checks)
 
 ## Open decisions
 
@@ -172,10 +173,10 @@ first, then iteration. The contract both codebases follow is
    proves them; hardening is M4.
 3. ✅ **M3 — Android automation rig.** Built 2026-10-22 (record
    below): SDK, JDK pin, `mc-tv`, AVD, the app repository's empty
-   shell, the debug APK. Its hardware checks (pair, install, launch,
-   screencap, D-pad, WebView DevTools, the emulator's source address)
-   run at the start of M4, once the TV is in developer mode and the
-   machine has rebooted.
+   shell, the debug APK; install, launch, log, screencap and a key
+   press verified on the TV the same day. Left for M4: the WebView
+   DevTools forward (needs a WebView) and the emulator's source
+   address (needs a reboot for KVM).
 4. **M4 — TV app skeleton** (`~/src/media-centaur/android-app`).
    Pairing screen, WebView shell, one libmpv instance on a surface, the
    bridge with reconnect and `time-pos` coalesced to 1 Hz, the bundled
@@ -385,13 +386,22 @@ emulator; the AVD `mc-tv` (tv_1080p, 1920×1080) on the TV image.
 Checked: `mc-tv build` produces `app-debug.apk` (107 MB, libmpv for
 every ABI) with no warnings; `adb` 1.0.41 runs through the repository's
 toolchain; `mc-tv status` and `mc-tv emulator status` report the rig.
-Not checked, and why: nothing on the TV — it came onto the LAN during
-the session (Sony Bravia XR-42A90K, `192.168.68.63`, advertising the
-Android TV remote service on 6466) but has no developer mode yet, so
-`pair`, `connect`, `install`, `launch`, `key`, `shot`, `log` and
-`webview` are untried against hardware; nothing on the emulator, which
-cannot boot until the machine reboots into the kernel whose modules are
-installed (KVM). The owner's two steps are below under *Resuming*.
+Hardware checks, later the same session, once the owner turned on
+"ADB debugging" on the TV (Sony's Google TV has no wireless-debugging
+pairing; ADB debugging alone opens adb on port 5555, and the TV asks
+once to allow this computer's key): `mc-tv connect 192.168.68.63:5555`
+authorized; the TV is Android 12 (API 31), **32-bit only**
+(`armeabi-v7a,armeabi`), 1920×1080 override on a 3840×2160 panel at
+320 dpi, WebView 154.0.8037.106, security patch 2026-05-01;
+`mc-tv install` streamed the 107 MB APK in 7 s and the package runs as
+`armeabi-v7a` (libmpv 1.0.0 ships that ABI); `mc-tv launch` returned
+`Status: ok`, `mc-tv log` showed `MainActivity created`, `mc-tv shot`
+captured the app's name centred on black; `mc-tv key BACK` moved focus
+to Sony's launcher (`com.sony.dtv.tvx`). Two facts for later: Sony's
+launcher is a protected surface, so a screencap of it is a 0-byte file
+(the app's own screens capture normally); the emulator remains
+unbooted until the machine reboots for KVM. `mc-tv webview` is tried
+in M4, when the app has a WebView.
 
 ### M1 — Reachable and closed (procedure record)
 
@@ -788,21 +798,18 @@ against `git log remote-players` first (the reconciliation rule).
   no remote yet. Its toolchain is its `mise.toml`; the rig is
   `~/scripts/agents/mc-tv` (run it with no arguments for usage).
 
-**The TV and the two owner steps (as of 2026-10-22).** Sony Bravia
-XR-42A90K at `192.168.68.63` (mDNS `_androidtvremote2._tcp`, port
-6466); no adb service advertised, port 5555 closed. Step one, on the
-TV: Settings → System → About → tap Build seven times; Developer
-options → Wireless debugging → on → "Pair device with pairing code"
-gives `<ip:port>` and a code for `mc-tv pair <ip:port> <code>`, then
-`mc-tv connect <ip:port>` with the connect port from the same screen
-(the address is remembered under `~/.config/mc-tv/device`). Step two,
-on this machine: reboot, so the installed kernel's `kvm` modules load
-and `/dev/kvm` appears for `mc-tv emulator start`. Then the M3
-hardware checks: `mc-tv install && mc-tv launch`, `mc-tv shot` of the
-app's name on screen, `mc-tv key DPAD_DOWN` moving focus on the
-launcher, `mc-tv log` showing "MainActivity created", and on the
-emulator the source address the gate sees when the guest dials the
-host's LAN IP.
+**The TV (as of 2026-10-22).** Sony Bravia XR-42A90K at
+`192.168.68.63` (mDNS `_androidtvremote2._tcp`, port 6466). Done the same day: the owner
+turned on Developer options → ADB debugging (Sony's Google TV has no
+wireless-debugging pairing step), `mc-tv connect 192.168.68.63:5555`
+was authorized on the TV, and the address is remembered under
+`~/.config/mc-tv/device`; every session starts with `mc-tv connect`.
+The TV is Android 12 (API 31), 32-bit only (`armeabi-v7a`), 1080p
+override on a 4K panel, WebView 154. Still owed by the owner: a
+reboot of this machine, so the installed kernel's `kvm` modules load
+and `/dev/kvm` appears for `mc-tv emulator start`; then check the
+source address the gate sees when the emulator guest dials the host's
+LAN IP.
 
 **Running the branch as a host (the end-to-end rig).**
 * Scratch config: `/tmp/claude-1000/-home-shawn-src-media-centaur-media-centaur-app/4804e16b-c167-4c22-8eb8-6d5631bc6c6f/scratchpad/sim/media-centaur-sim.toml`

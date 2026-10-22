@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M1–M3 built 2026-10-22 on branch `remote-players`: host side verified end to end with a simulated player, Android rig in place; next the hardware checks on the owner's Sony Bravia, then M4, the TV app skeleton.** The UI and playback on a Google TV
+  **M1–M3 built 2026-10-22 on branch `remote-players`: host side verified end to end with a simulated player, Android rig verified on the owner's Sony Bravia; next M4, the TV app skeleton.** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only
