@@ -39,7 +39,8 @@ host-restart recovery all verified against a desktop mpv
 (`scripts/agents/mc-player-sim`). M1 and M2 wait for the owner's
 sign-off at the campaign's end; nothing merges to main before. The wiki
 edits are committed locally in the wiki repo and not pushed. Next: M3,
-the TV app skeleton in `~/src/media-centaur/android-app`.
+the Android automation rig (toolchain, device access, `mc-tv`, emulator,
+the empty app repository), then M4, the TV app skeleton.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -162,21 +163,109 @@ first, then iteration. The contract both codebases follow is
    with no Android code. Detach/reattach window and host-restart
    recovery over the channel are in scope here only as far as the sim
    proves them; hardening is M4.
-3. **M3 — TV app skeleton** (`~/src/media-centaur/android-app`).
+3. **M3 — Android automation rig.** Added 2026-10-22 at the owner's
+   direction, before any app code: everything needed so the agent can
+   build, install, launch, drive and observe the TV app on the owner's
+   Google TV (and an emulator when the TV is off) with no manual step
+   beyond the one-time device setup. Objectives and open decisions in
+   the M3 section below. Starts in the next session.
+4. **M4 — TV app skeleton** (`~/src/media-centaur/android-app`).
    Pairing screen, WebView shell, one libmpv instance on a surface, the
-   bridge with reconnect, the bundled scripts in assets. Pairs, browses,
-   plays one file, reports progress, auto-advances an episode on a real
-   Chromecast with Google TV. Verification items below are answered here
-   on hardware.
-4. **M4 — Hardening.** Detach/reattach semantics end to end;
-   host-restart recovery; sidecar subtitles over the media endpoint;
-   HDR and audio passthrough options; Back-key and D-pad behaviour in
-   the WebView; WebView rendering cost of the glass UI on the device;
-   a removed player's channel closed at once.
-5. **M5 — Release path and owner checks.** Signing in CI, Google Play
-   internal testing track, wiki page for the TV app, ADR-080 (one
-   session type over two transports), glossary elevated; the owner's
-   walk through every page and the full viewing lifecycle on the TV.
+   bridge with reconnect and `time-pos` coalesced to 1 Hz, the bundled
+   scripts in assets. Pairs, browses, plays one file, reports progress,
+   auto-advances an episode on a real Chromecast with Google TV.
+   Verification items below are answered here on hardware.
+5. **M5 — Hardening.** Detach/reattach end to end on the device;
+   host-restart recovery on the device; sidecar subtitles over the media
+   endpoint; HDR and audio passthrough options; Back-key and D-pad
+   behaviour in the WebView; WebView rendering cost of the glass UI on
+   the device; a removed player's channel closed at once; Home's pinned
+   "playing" rows filtered by player.
+6. **M6 — Release path and owner checks.** Release signing in CI, Google
+   Play internal testing track, wiki page for the TV app, glossary
+   elevated to `docs/GLOSSARY.md`; the owner's walk through every page
+   and the full viewing lifecycle on the TV.
+
+### M3 — Android automation rig (objectives, recorded 2026-10-22)
+
+The next order of business. Nothing here is built yet; this section is
+the brief for the session that starts it, which runs the milestone
+procedure (scope, research, decisions, design unification, plan, plan
+unification, execution) and records each step here.
+
+**Goal.** The agent develops the TV app the way it develops the host:
+build from the command line, install on the device, launch, press keys,
+read logs, take screenshots, probe the WebView — all scripted under
+`~/scripts/agents/`, none of it needing a hand on the remote once the
+device is set up.
+
+**What exists on this machine (2026-10-22).** A JDK (`openjdk 27` at
+`/usr/bin/java`) and `mise`. No Android SDK, no `adb`, no Gradle, no
+`ANDROID_HOME`, no emulator. The owner's Google TV: model, address and
+whether developer mode is on are unknown.
+
+**Objectives, in the order they unblock each other.**
+1. **Toolchain.** Android SDK command-line tools under `~/Android/Sdk`
+   (`cmdline-tools`, `platform-tools` for `adb`, `build-tools`,
+   `platforms;android-35`), `ANDROID_HOME` in the shell profile, a JDK
+   the Android Gradle Plugin supports pinned with `mise` (AGP needs
+   JDK 17+; JDK 27 is untested with it — pin 21 unless research says
+   otherwise), Gradle through the repository's wrapper (no global
+   Gradle), Kotlin through the Gradle plugin. `sdkmanager --licenses`
+   accepts Google's SDK licence on the owner's behalf: an owner yes
+   before it runs.
+2. **The device.** One-time steps on the TV, by the owner: Settings →
+   System → About → tap Build seven times; Developer options → USB
+   debugging and wireless debugging (ADB over network). Then
+   `adb pair <ip>:<pairing port> <code>` once and `adb connect <ip>:5555`
+   on every session, scripted. The TV's address is a fact to record
+   here once known (a DHCP reservation keeps it stable).
+3. **`~/scripts/agents/mc-tv`.** One script, subcommands: `connect`
+   (adb over the network, by the recorded address), `build` (Gradle
+   wrapper, debug variant), `install` (`adb install -r`), `launch`
+   (Leanback launcher intent), `key <KEYCODE>` and `text` (D-pad walks
+   through `adb shell input`), `shot` (`adb exec-out screencap -p` to
+   a PNG the agent Reads), `log` (`logcat` filtered to the app's tag
+   and libmpv's), `webview` (forwards the WebView's DevTools socket,
+   `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>`,
+   so `_cdp.js`, `chromium-probe` and `page-shot` drive the UI inside
+   the TV exactly as they drive a desktop page). Extensionless, with a
+   shebang, like every script in that directory.
+4. **The emulator.** An Android TV system image
+   (`system-images;android-34;android-tv;x86_64`) and an AVD for runs
+   with the TV off, started headless (`-no-window`) with KVM
+   (`/dev/kvm` present?). Verify what source address the host's gate
+   sees from an emulator reaching the host's LAN IP: loopback would
+   make the emulator the host; the LAN address makes it a device.
+   libmpv's hardware decode path differs on the emulator; it is for the
+   UI and the protocol, the TV is for playback.
+5. **The repository.** `~/src/media-centaur/android-app`: `git init`,
+   Gradle wrapper, AGP + Kotlin versions from research, minSdk 26,
+   `dev.jdtech.mpv:libmpv:1.0.0`, OkHttp for the WebSocket, the
+   Leanback launcher intent and banner, a debug keystore, a README that
+   is the contributor guide for the app. The first commit is the empty
+   shell that installs and launches; M4 fills it.
+6. **Observability back to the agent.** The app's own log tag and
+   libmpv's log observer land in `logcat`; the bridge logs every frame
+   at debug level like `mc-player-sim`; a crash is a `logcat` line the
+   `mc-tv log` filter catches. The host side already has the console
+   ring under `:playback`.
+
+**Open decisions for the owner (asked at the start of M3).**
+* May the agent install the SDK under `~/Android/Sdk` and accept the
+  SDK licence? Recommendation: yes, that is the standard layout every
+  tool expects.
+* Which Google TV, and is it on the LAN now? Developer mode and
+  wireless debugging are the one manual step.
+* JDK pin: 21 (recommended) unless the AGP release research allows 27.
+* Emulator: worth its disk (several GB) for TV-off runs? Recommendation:
+  yes, the UI and protocol work can proceed without the living-room TV.
+
+**Verification items for M3.** `adb` reaching the TV over the network
+and surviving a TV sleep; `screencap` of the Leanback launcher; a
+D-pad `keyevent` moving focus; the WebView's DevTools socket exposed
+and `chromium-probe` evaluating in it; the emulator's source address as
+the gate sees it.
 
 ### M1 — Reachable and closed (procedure record)
 
@@ -551,6 +640,65 @@ No step keeps an old path or lands through a shim.
   Troubleshooting; a new page for the TV app.
 * Glossary terms elevated to `docs/GLOSSARY.md`; an ADR records the one
   session type over two transports.
+
+## Resuming in a new session
+
+Everything a cleared context needs, verified 2026-10-22. Reconcile
+against `git log remote-players` first (the reconciliation rule).
+
+**Where the work is.**
+* Branch `remote-players`, worktree `~/src/media-centaur/media-centaur-app-remote-players`.
+  Main's checkout (`~/src/media-centaur/media-centaur-app`) runs the
+  owner's dev server and stays on main; never build or edit there. The
+  branch is not pushed; nothing merges until the owner signs off at the
+  campaign's end. 16 commits so far, `50908397` … `8ca33875`.
+* `mix precommit` is green on the branch (8644 tests, 2026-10-22). Run
+  everything through `~/scripts/agents/agent-mix` from the worktree.
+  Test env only for `mix` tasks that touch a database: the dev TOML's
+  database is the owner's.
+* Wiki edits for M1 are committed locally in `~/src/media-centaur/media-centaur.wiki`
+  (`9df804c`), not pushed; push with the release that carries the campaign.
+* The TV app's repository does not exist yet: `~/src/media-centaur/android-app`.
+
+**Running the branch as a host (the end-to-end rig).**
+* Scratch config: `/tmp/claude-1000/-home-shawn-src-media-centaur-media-centaur-app/4804e16b-c167-4c22-8eb8-6d5631bc6c6f/scratchpad/sim/media-centaur-sim.toml`
+  — `bind = "0.0.0.0"`, port 4003, its own database and a media dir
+  holding one generated 90 s MKV under `Sample Movie (2010)/`. The
+  scratchpad is per session: a new session recreates it (ffmpeg
+  `testsrc`/`sine` to make the file; `agent-mix ecto.create`/`ecto.migrate`
+  under `MEDIA_CENTAUR_CONFIG_OVERRIDE`; the seed snippet is in the
+  commit `7d2a74e7` conversation record below).
+* Seed: `Library.Containers.create!(:movie, …)`, `Library.PlayableItems.find_or_create(:movie, id, 1)`,
+  `Library.Files.link!(%{file_path, media_dir, playable_item_id})`,
+  `Settings.Config.update(:setup_wizard_dismissed, true)`, run with
+  `MEDIA_CENTAUR_CONFIG_OVERRIDE=<toml> agent-mix run -e '…'`.
+* Server: from the worktree,
+  `MEDIA_CENTAUR_CONFIG_OVERRIDE=<toml> MIX_BUILD_ROOT=~/.cache/agent-mix-build/media-centaur-app-remote-players mise exec -- elixir --sname mc_sim -S mix phx.server`,
+  ready line "Running MediaCentaurWeb.Endpoint … 0.0.0.0:4003".
+* Driving it: `elixir --sname probe_$$ --cookie "$(cat ~/.erlang.cookie)" --rpc-eval mc_sim@<short hostname> '<code>'`
+  from a cwd outside the checkout (`uname -n | cut -d. -f1` is the host;
+  `hostname` is not installed). `Players.start_pairing()`, `Players.list()`,
+  `Playback.play(profile_id, uuid, player_id)`, `Sessions.stop/2`,
+  `Sessions.list/0`, `Remote.PlayerRegistry.connected/0`.
+* The device stand-in: `~/scripts/agents/mc-player-sim --host http://<LAN ip>:4003 --code <6 digits>`
+  (or `--cookie <value>` once paired). It must dial the LAN address
+  (`ip -4 -o addr show scope global`), never loopback, or the gate treats
+  it as the host. It logs every frame (`>>` host→mpv, `<<` mpv→host) and
+  maps `quit` to `stop`.
+* Shut the host down with `spawn(fn -> Process.sleep(200); System.stop() end)`
+  over RPC; the simulator's mpv keeps playing and recovery reattaches on
+  the next start.
+
+**What is proven end to end** (2026-10-22, M2 record step 7): pairing by
+code; channel up; `play/3`; options and `loadfile` with a tokenised media
+URL; mpv fetching over HTTP Range; progress saved; `Sessions.stop/2`
+quitting the player as a stop and ending the session; a second viewing;
+clean host shutdown leaving the player playing; reconnect with backoff;
+recovery of the viewing with its position and profile.
+
+**What is not yet proven**: anything on a real device — D-pad and Back in a
+WebView, libmpv rendering, HDR and audio passthrough, `script-opts` read
+back from libmpv, the WebView's cost on a Chromecast with Google TV.
 
 ## Pointers
 
