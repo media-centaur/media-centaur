@@ -141,7 +141,10 @@ It never deletes them.
 
 ## Track menu (`track_menu.lua`)
 
-A three-column overlay: Audio, Subtitles, Sound.
+A three-column overlay: Audio, Subtitles, Sound. On a remote player the
+page draws the menu instead (`Components.ViewingLayer.viewing_track_menu`:
+Audio and Subtitles; the Sound column waits on a host-side owner, M6 of
+`campaigns/remote-players.md`) — UIDR-055.
 
 ### Usage
 
@@ -189,7 +192,9 @@ Observes mpv's `chapter` property. When the current chapter's title matches
 `OP …`, `OP<digit>` or `Prologue`, and a next chapter exists, a pill
 appears bottom-right after a one-second delay: `ENTER  Skip Intro  ▶▶`.
 Enter or a click seeks to the next chapter's start. The pill fades out when
-playback leaves the chapter.
+playback leaves the chapter. On a remote player the same rule runs on the
+host (`Playback.IntroChapter`, held equal to this file's words by
+`chapter_words_lua_sync_test.exs`) and the page draws the pill (UIDR-055).
 
 - No user key binding is needed; the feature activates from the chapter observer
 - ENTER is force-bound while the pill shows and released when it hides
@@ -211,6 +216,10 @@ backend appends the next episode, ADR-062). Two modes:
 - **Countdown mode** in the final 20 seconds of the file, chapters or not:
   the pill reads "Next episode in Ns" so auto-play never lands unannounced.
   Enter plays now. Quitting the player is how you decline.
+
+On a remote player `Viewing.prompt/1` judges both modes on the host from
+the same words and window, and the page draws the pill and the countdown
+(UIDR-055).
 
 ### How it works
 
