@@ -3,55 +3,81 @@ defmodule MediaCentaur.Playback.LaunchFlagsTest do
 
   alias MediaCentaur.Playback.LaunchFlags
 
+  @profile_id "0f1e2d3c-aaaa-bbbb-cccc-123456789abc"
+
   defp input(overrides \\ %{}) do
     Map.merge(
       %{
         socket_path: "/tmp/media-centaur-entity.sock",
         log_file_path: "/tmp/media-centaur-abcd.log",
-        language_flags: ["--alang=jpn,eng", "--slang=eng"],
+        language_options: [{"alang", "jpn,eng"}, {"slang", "eng"}],
         content_url: "/media/a.mkv",
         start_position: 0,
         bundled_scripts_dir: "/opt/media-centaur/priv/mpv/scripts/media-centaur",
-        profile_id: "0f1e2d3c-aaaa-bbbb-cccc-123456789abc"
+        profile_id: @profile_id
       },
       overrides
     )
   end
 
-  describe "build/1 — every session assumption is a launch flag" do
-    test "pins the flags the IPC session depends on, independent of the user's mpv.conf" do
-      flags = LaunchFlags.build(input())
+  describe "process_options/1 — what only a spawned mpv process needs" do
+    test "the window, the quiet terminal, the IPC socket, the log file and the bundled scripts" do
+      options = LaunchFlags.process_options(input())
 
-      assert "--keep-open=yes" in flags
-      assert "--resume-playback=no" in flags
-      assert "--input-ipc-server=/tmp/media-centaur-entity.sock" in flags
-      assert "--log-file=/tmp/media-centaur-abcd.log" in flags
+      assert {"fullscreen", "yes"} in options
+      assert {"terminal", "no"} in options
+      assert {"msg-level", "all=error"} in options
+      assert {"force-window", "immediate"} in options
+      assert {"input-ipc-server", "/tmp/media-centaur-entity.sock"} in options
+      assert {"log-file", "/tmp/media-centaur-abcd.log"} in options
+      assert {"script", "/opt/media-centaur/priv/mpv/scripts/media-centaur"} in options
+    end
+  end
 
-      assert "--script-opts-append=media_centaur_session-profile_id=0f1e2d3c-aaaa-bbbb-cccc-123456789abc" in flags
+  describe "session_options/1 — what every mpv playing a session needs, spawned or remote" do
+    test "pins the behaviours the observer depends on, the language policy and the profile" do
+      options = LaunchFlags.session_options(input())
 
-      assert "--fullscreen" in flags
-      assert "--no-terminal" in flags
-      assert "--force-window=immediate" in flags
+      assert {"keep-open", "yes"} in options
+      assert {"resume-playback", "no"} in options
+      assert {"alang", "jpn,eng"} in options
+      assert {"slang", "eng"} in options
+      assert {"script-opts-append", "media_centaur_session-profile_id=#{@profile_id}"} in options
     end
 
-    test "loads the bundled scripts package on every launch" do
-      assert "--script=/opt/media-centaur/priv/mpv/scripts/media-centaur" in LaunchFlags.build(input())
+    test "carries no process option" do
+      names = Enum.map(LaunchFlags.session_options(input()), &elem(&1, 0))
+      refute "input-ipc-server" in names
+      refute "script" in names
+      refute "fullscreen" in names
+    end
+  end
+
+  describe "argv/1 — the spawned mpv's command line" do
+    test "renders every option as --name=value and ends with the launch target" do
+      argv = LaunchFlags.argv(input(%{start_position: 90}))
+
+      assert "--keep-open=yes" in argv
+      assert "--resume-playback=no" in argv
+      assert "--input-ipc-server=/tmp/media-centaur-entity.sock" in argv
+      assert "--log-file=/tmp/media-centaur-abcd.log" in argv
+      assert "--script=/opt/media-centaur/priv/mpv/scripts/media-centaur" in argv
+      assert "--script-opts-append=media_centaur_session-profile_id=#{@profile_id}" in argv
+      assert "--fullscreen=yes" in argv
+      assert "--terminal=no" in argv
+      assert "--force-window=immediate" in argv
+
+      assert Enum.take(argv, -4) == ["--{", "--start=90", "/media/a.mkv", "--}"]
+      alang_index = Enum.find_index(argv, &(&1 == "--alang=jpn,eng"))
+      assert alang_index < Enum.find_index(argv, &(&1 == "--{"))
     end
 
     test "never takes over the user config: no --config-dir, --no-config or --load-scripts" do
-      flags = LaunchFlags.build(input())
+      argv = LaunchFlags.argv(input())
 
-      refute Enum.any?(flags, &String.starts_with?(&1, "--config-dir"))
-      refute Enum.any?(flags, &String.starts_with?(&1, "--no-config"))
-      refute Enum.any?(flags, &String.starts_with?(&1, "--load-scripts"))
-    end
-
-    test "language flags precede the launch target, which is the tail" do
-      flags = LaunchFlags.build(input(%{start_position: 90}))
-
-      assert Enum.take(flags, -4) == ["--{", "--start=90", "/media/a.mkv", "--}"]
-      alang_index = Enum.find_index(flags, &(&1 == "--alang=jpn,eng"))
-      assert alang_index < Enum.find_index(flags, &(&1 == "--{"))
+      refute Enum.any?(argv, &String.starts_with?(&1, "--config-dir"))
+      refute Enum.any?(argv, &String.starts_with?(&1, "--no-config"))
+      refute Enum.any?(argv, &String.starts_with?(&1, "--load-scripts"))
     end
   end
 

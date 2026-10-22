@@ -415,10 +415,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     warn_about_stale_script_copies()
 
     flags =
-      LaunchFlags.build(%{
+      LaunchFlags.argv(%{
         socket_path: state.socket_path,
         log_file_path: state.log_file_path,
-        language_flags: LanguageContext.to_mpv_flags(state.language_context.priority_args),
+        language_options: LanguageContext.to_mpv_options(state.language_context.priority_args),
         content_url: state.content_url,
         start_position: state.start_position,
         bundled_scripts_dir: LaunchFlags.bundled_scripts_dir(),
