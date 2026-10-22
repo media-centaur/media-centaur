@@ -258,8 +258,16 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   @impl true
-  def terminate(_reason, state) do
+  # A deliberate stop (`Sessions.stop/2`, reason `:normal`) ends the viewing
+  # on the player too. A supervisor shutdown (`:shutdown`) does not: mpv's
+  # lifetime is the viewer's, and recovery reattaches on the next boot.
+  def terminate(reason, state) do
     final? = state.state == :stopped
+
+    if reason == :normal and not final? and Transport.attached?(state.transport) do
+      Transport.send(state.transport, ["quit"])
+    end
+
     finalize(state)
     Transport.close(state.transport, final?)
     :ok
