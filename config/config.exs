@@ -189,6 +189,17 @@ config :media_centaur,
   ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Media types the library carries that MIME's default table lacks: the
+# media endpoint (`MediaCentaurWeb.Plugs.MediaServer`) names a file's type
+# to the remote player from its extension. Compile-time for the `mime`
+# dependency: a change here needs `mix deps.compile mime --force`.
+config :mime, :types, %{
+  "video/x-matroska" => ["mkv", "mk3d"],
+  "video/mp2t" => ["m2ts", "mts"],
+  "application/x-subrip" => ["srt"],
+  "text/x-ssa" => ["ass", "ssa"]
+}
+
 # Redact sensitive form params from Plug.Logger output. Any param whose
 # name CONTAINS one of these substrings (case-insensitive) is replaced
 # with "[FILTERED]" in request logs. When adding a new sensitive config
