@@ -4,6 +4,8 @@ defmodule MediaCentaur.Playback do
     exports: [
       LanguagePolicy,
       ProgressBroadcaster,
+      Remote.Channel,
+      Remote.PlayerRegistry,
       ResumeTarget,
       SessionRegistry,
       Sessions

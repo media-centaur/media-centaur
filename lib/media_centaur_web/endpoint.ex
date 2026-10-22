@@ -43,6 +43,10 @@ defmodule MediaCentaurWeb.Endpoint do
   plug Plug.Session, @session_options
   plug MediaCentaurWeb.Plugs.RemoteAccess
 
+  # A paired player's channel: upgraded here, behind the gate, before the
+  # router (`Playback.Remote.Channel` owns the protocol).
+  plug MediaCentaurWeb.Plugs.PlayerChannel
+
   plug MediaCentaurWeb.Plugs.ImageServer
 
   # Tidewave MCP — must be before code_reloading? block per Tidewave docs.

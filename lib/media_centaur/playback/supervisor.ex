@@ -18,6 +18,7 @@ defmodule MediaCentaur.Playback.Supervisor do
     children =
       [
         {Registry, keys: :unique, name: MediaCentaur.Playback.SessionRegistry},
+        {Registry, keys: :unique, name: MediaCentaur.Playback.Remote.PlayerRegistry},
         MediaCentaur.Playback.SessionSupervisor
       ] ++ recovery_children()
 
