@@ -474,6 +474,16 @@ export function createDomReader(config = {}) {
     getPageBehavior() {
       return document.querySelector("[data-page-behavior]")?.dataset?.pageBehavior ?? null
     },
+
+    /** Whether the viewing layer is on the page (a remote player's OSD, `[data-viewing]`). */
+    hasViewing() {
+      return document.querySelector("[data-viewing]") !== null
+    },
+
+    /** Whether the viewing layer's track menu is the active overlay. */
+    isViewingMenuOpen() {
+      return activeModalElement()?.dataset?.navOverlay === "viewing_menu"
+    },
   }
 }
 

@@ -17,6 +17,12 @@ export const Action = Object.freeze({
   CLEAR: "CLEAR",
   ZONE_NEXT: "ZONE_NEXT",
   ZONE_PREV: "ZONE_PREV",
+  // The remote's media keys, meaningful only while a viewing is on
+  // (viewing_behavior.js); the state machine ignores them otherwise.
+  PLAY_PAUSE: "PLAY_PAUSE",
+  SEEK_FORWARD: "SEEK_FORWARD",
+  SEEK_BACK: "SEEK_BACK",
+  MENU: "MENU",
 })
 
 /**
@@ -59,6 +65,13 @@ export const DEFAULT_KEY_MAP = Object.freeze({
   Backspace: Action.CLEAR,
   p: Action.PLAY,
   P: Action.PLAY,
+  // What an Android TV remote's media keys arrive as in the WebView.
+  MediaPlayPause: Action.PLAY_PAUSE,
+  MediaPlay: Action.PLAY_PAUSE,
+  MediaPause: Action.PLAY_PAUSE,
+  MediaFastForward: Action.SEEK_FORWARD,
+  MediaRewind: Action.SEEK_BACK,
+  ContextMenu: Action.MENU,
 })
 
 export const DEFAULT_BUTTON_MAP = Object.freeze({

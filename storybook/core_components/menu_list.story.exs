@@ -67,6 +67,21 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuList do
         """
       },
       %Variation{
+        id: :disabled_item,
+        description:
+          "A `disabled` item is listed but not choosable: `aria-disabled`, no event — a subtitle track the " <>
+            "player cannot draw (the viewing layer's menu).",
+        attributes: %{
+          id: "list-disabled",
+          zone: "sample_menu",
+          on_close: "close_menu"
+        },
+        slots: [
+          ~s|<:item id="list-disabled-a" event="pick" values={%{"choice" => "a"}} active>English (SRT)</:item>|,
+          ~s|<:item id="list-disabled-b" event="pick" values={%{"choice" => "b"}} disabled>English (PGS) — Not on this TV</:item>|
+        ]
+      },
+      %Variation{
         id: :content_width,
         description: "`--content` sizing: the list hugs its longest label instead of its anchor.",
         attributes: %{

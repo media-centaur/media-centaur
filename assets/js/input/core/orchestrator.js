@@ -516,15 +516,25 @@ export class Orchestrator {
   /**
    * Detect data-page-behavior on the page and attach/detach as needed.
    */
+  // The behavior is keyed by the page's name and by whether the viewing
+  // layer is on the page: the layer wraps the page's behavior while it is
+  // present (viewing_behavior.js) and the wrap goes with it.
   _detectBehavior() {
     const behaviorName = this.reader.getPageBehavior?.() ?? null
-    if (behaviorName === this._behaviorName) return
+    const viewing = this.reader.hasViewing?.() ?? false
+    const key = `${behaviorName}|${viewing}`
+    if (key === this._behaviorKey) return
 
     this._detachBehavior()
     this._behaviorName = behaviorName
+    this._behaviorKey = key
 
-    if (behaviorName && this._config.createBehavior) {
-      this._behavior = this._config.createBehavior(behaviorName)
+    if ((behaviorName || viewing) && this._config.createBehavior) {
+      this._behavior = this._config.createBehavior(behaviorName, {
+        viewing,
+        pushEvent: (event, payload) => this._hookEl?.pushEvent?.(event, payload),
+        isMenuOpen: () => this.reader.isViewingMenuOpen?.() ?? false,
+      })
       this._behavior?.onAttach?.()
     }
   }
@@ -535,6 +545,7 @@ export class Orchestrator {
       this._behavior = null
       this._behaviorName = null
     }
+    this._behaviorKey = null
   }
 
   /**

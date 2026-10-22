@@ -10,16 +10,17 @@ defmodule MediaCentaurWeb.Live.Subscriptions do
   Nothing subscribes on the dead render: the socket must be connected.
 
   `context` is a module with a `subscribe/0` (`MediaCentaur.Library`,
-  `MediaCentaur.Playback`, …) or a `{module, function}` pair naming one
+  `MediaCentaur.Playback`, …), a `{module, function}` pair naming one
   of a context's other subscribe doors (`{MediaCentaur.Acquisition,
-  :subscribe_queue}`). The set of what this process holds lives in the
+  :subscribe_queue}`), or `{module, function, args}` for a door that
+  takes a key (`{MediaCentaur.Playback, :subscribe_viewing, [player_id]}`). The set of what this process holds lives in the
   `:subscriptions` assign.
   """
 
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [connected?: 1]
 
-  @type subscription :: module() | {module(), atom()}
+  @type subscription :: module() | {module(), atom()} | {module(), atom(), [term()]}
 
   @spec subscribe(Phoenix.LiveView.Socket.t(), subscription()) :: Phoenix.LiveView.Socket.t()
   def subscribe(socket, subscription) do
@@ -34,6 +35,7 @@ defmodule MediaCentaurWeb.Live.Subscriptions do
 
   defp subscribe_now(socket, subscription, held) do
     case subscription do
+      {module, function, args} -> apply(module, function, args)
       {module, function} -> apply(module, function, [])
       module -> module.subscribe()
     end

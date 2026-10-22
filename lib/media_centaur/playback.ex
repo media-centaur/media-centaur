@@ -10,6 +10,7 @@ defmodule MediaCentaur.Playback do
       ResumeTarget,
       SessionRegistry,
       Sessions,
+      TrackResolver.Track,
       Viewing
     ]
 

@@ -30,6 +30,9 @@ defmodule MediaCentaurWeb.Router do
         # with a redirect to the pairing page. Ahead of ProfileAware, so an
         # unpaired device never reaches the picker.
         MediaCentaurWeb.Live.PlayerAware,
+        # The viewing layer: a remote player's page is its OSD. Subscribes to
+        # the player's viewing stream and answers the layer's events.
+        MediaCentaurWeb.Live.ViewingAware,
         # Who is watching (ADR-078): assigns :profile and :profiles, or
         # redirects the first handle_params to the picker.
         MediaCentaurWeb.Live.ProfileAware,
