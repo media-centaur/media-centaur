@@ -123,12 +123,26 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — Distribution through Google Play's internal testing track, so installing on the TV is a Play Store install with no public listing. (conversation)
 * `2026-10-22` — The TV app lives in a sibling repository, `~/src/media-centaur/android-app`: its own toolchain, signing and release cadence; the name holds if a phone launcher is ever added to the same Android project. (owner)
 * `2026-10-22` — The bind address is a bootstrap TOML key, `bind`, default `127.0.0.1`, shown commented in `defaults/media-centaur.toml`; the endpoint listens before the database is reachable. (owner)
-
 * `2026-10-22` — The media endpoint names a file by its `FilePresence` id (`/media/<id>`), the one row every playable file (`WatchedFile` or `ExtraFile`) references; the transport maps a reported URL back to the path through the same id. Rejected: `PlayableItem` id (progress identity, may own several files) and a signed token over the host path (a second identity for one idea). A presence row's id changes if the file leaves and returns, harmless for a URL that lives one session. (owner)
+* `2026-10-22` — The whole campaign is built on branch `remote-players`, skeleton first: a full end-to-end slice (host transport, channel, media endpoint, TV app) before any hardening, then iteration; boundaries and transport are engineered as a real network interaction with high requirements. (owner)
+* `2026-10-22` — The player channel is a raw WebSocket (`WebSockAdapter` on Bandit) carrying one mpv IPC JSON object per text frame, server pings for liveness, no compression, 1 MiB frame cap; not a Phoenix Channel, whose join/topic/heartbeat layer would wrap a protocol that already has framing and correlation. (spec)
+* `2026-10-22` — A remote player runs one libmpv instance for the app's life, so it holds at most one viewing at a time; a second `play` on the same player replaces the first. `quit` on a remote player means stop and show the UI, not exit. (spec)
+* `2026-10-22` — The TV app ships `priv/mpv/scripts/media-centaur` in its assets and points libmpv at it; verified that the `dev.jdtech.mpv:libmpv` 1.0.0 artifact builds mpv 0.41 with Lua enabled. (spec, verified)
 
 ## Open decisions
 
-None.
+1. **The credential on media requests.** (a) The TV app copies the
+   session cookie into libmpv's `http-header-fields`, so the gate admits
+   media requests like any other — one credential, but the device's
+   whole identity travels on every byte-range request and lands in
+   header logs. (b) The host signs a capability token over
+   `{player_id, presence_id}` into each media URL it composes
+   (`Phoenix.Token`, 12 h); the gate admits `/media/*` by that token
+   alone — a second admission path, scoped to one file for one player.
+   Recommendation: (b). Spec § Media delivery → Credential.
+2. **Pushing the branch.** The owner asked for the work "in remote
+   branch"; the branch exists locally only. Pushing `remote-players` to
+   the public origin is outward-facing and waits for a yes.
 
 ## Next steps
 
@@ -137,29 +151,39 @@ Every milestone that changes an existing system runs the campaign
 procedure (scope, research, decisions, `unify_design` on the design,
 plan, `unify_design` on the plan, execution) and records each step here.
 
-1. **M1 — Reachable and closed.** Bind-address bootstrap key; `Players`
-   context (paired players, tokens, `players:updates`); Settings →
-   Players section with pairing code and revoke; the gate with the
-   pairing page. A laptop browser can pair and browse, which is also how
-   the TV layout gets checked before the app exists. Wiki:
-   `Configuration-File.md`, `Settings-Reference.md`.
-2. **M2 — Transport extraction.** Pure refactor behind existing tests:
-   host transport out of `MpvSession`; `LaunchFlags` as option pairs;
-   playable-file identity in place of `content_url` comparison.
-3. **M3 — Remote transport.** Player channel speaking mpv IPC over a
-   WebSocket; media endpoint with Range; `Playback.play/3` taking the
-   player; `PlayerAware` on_mount; registry keyed by player and entity;
-   player on every viewing event; per-transport recovery. Verifiable
-   from the host with a desktop mpv driven through the channel before
-   any Android code exists.
-4. **M4 — TV app.** Kotlin, Android TV: pairing screen (host address +
-   code), WebView shell carrying the paired session cookie, libmpv with the
-   IPC bridge, native Back-key handling, release signing in CI, Play
-   internal testing track. The largest milestone and the one with the
-   open verification items below.
-5. **M5 — Owner checks on the TV.** D-pad through every page, profile
-   picker, play, pause, resume after a host restart, auto-advance, the
-   finish prompt, HDR output, audio passthrough.
+Restructured 2026-10-22 at the owner's direction: the whole campaign is
+built on branch `remote-players`, and an end-to-end skeleton comes
+first, then iteration. The contract both codebases follow is
+`docs/superpowers/specs/2026-10-22-remote-players-protocol-design.md`.
+
+1. ✅ **M1 — Reachable and closed.** Built 2026-10-22 (record below).
+2. **M2 — Host side of the skeleton.** `Playback.Transport` seam with
+   `Local` carrying today's behaviour (tests unchanged); `LaunchFlags`
+   as option pairs; playable-file identity in place of `content_url`
+   comparison; `Playback.Remote.Channel` + `MediaCentaurWeb.PlayerSocket`
+   (raw WebSocket, mpv IPC frames, ping liveness); the media endpoint
+   (Range, `sendfile`, 206/416, HEAD) with the chosen credential;
+   `Playback.play/3` with the player; registry keyed by player and
+   entity; `player` on every viewing event; `scripts/agents/mc-player-sim`
+   driving a desktop mpv through the channel so the slice is verifiable
+   with no Android code. Detach/reattach window and host-restart
+   recovery over the channel are in scope here only as far as the sim
+   proves them; hardening is M4.
+3. **M3 — TV app skeleton** (`~/src/media-centaur/android-app`).
+   Pairing screen, WebView shell, one libmpv instance on a surface, the
+   bridge with reconnect, the bundled scripts in assets. Pairs, browses,
+   plays one file, reports progress, auto-advances an episode on a real
+   Chromecast with Google TV. Verification items below are answered here
+   on hardware.
+4. **M4 — Hardening.** Detach/reattach semantics end to end;
+   host-restart recovery; sidecar subtitles over the media endpoint;
+   HDR and audio passthrough options; Back-key and D-pad behaviour in
+   the WebView; WebView rendering cost of the glass UI on the device;
+   a removed player's channel closed at once.
+5. **M5 — Release path and owner checks.** Signing in CI, Google Play
+   internal testing track, wiki page for the TV app, ADR-080 (one
+   session type over two transports), glossary elevated; the owner's
+   walk through every page and the full viewing lifecycle on the TV.
 
 ### M1 — Reachable and closed (procedure record)
 
@@ -357,8 +381,14 @@ shim.
 
 ## Pointers
 
+* `docs/superpowers/specs/2026-10-22-remote-players-protocol-design.md`
+  — the host–player contract: boundaries, the player channel, media
+  delivery, host and TV app architecture, the verification record.
 * `docs/playback.md`, `docs/mpv.md` — session internals, IPC protocol,
   launch flags, bundled scripts.
+* `dev.jdtech.mpv:libmpv` 1.0.0 (Maven Central; source
+  <https://github.com/jarnedemeulemeester/libmpv-android>, `MPVLib.kt`)
+  — the libmpv the TV app embeds.
 * `lib/media_centaur/playback/mpv_session.ex`, `launch_flags.ex`,
   `session_recovery.ex`, `events.ex`, `resolver.ex`, `sessions.ex`.
 * `lib/media_centaur_web/live/profile_aware.ex` — the on_mount pattern
