@@ -88,7 +88,10 @@ defmodule MediaCentaur.Application do
          Application.get_env(:media_centaur, MediaCentaur.Console.JournalSource, [])},
         # Before the cache workers: the ShellBadges cache prime reads
         # `ErrorReports.list_buckets/0` synchronously during its init.
-        MediaCentaur.ErrorReports.Buckets
+        MediaCentaur.ErrorReports.Buckets,
+        # The one open pairing code (Settings → Players mints it, the pairing
+        # page redeems it). In every env: tests pair through the public API.
+        MediaCentaur.Players.Pairing
       ] ++
         cache_children(Application.get_env(:media_centaur, :environment)) ++
         [

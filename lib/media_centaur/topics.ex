@@ -63,6 +63,7 @@ defmodule MediaCentaur.Topics do
   | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_changed, _}` — a role's art landed, was replaced or removed |
   | `profiles:updates` | `Profiles.Events` | `{:profile_added, _}`, `{:profile_changed, _}`, `{:profile_removed, _}` — each a typed struct (ADR-060) |
+  | `players:updates` | `Players.Events` | `{:player_paired, _}`, `{:player_removed, _}`, `{:pairing_changed, _}` — each a typed struct (ADR-060) |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:files_approved, _}`, `{:file_reviewed, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
   | `pipeline:stats` | `Pipeline.Stats`, `Pipeline.Image.Stats` | `{:pipeline_stats_updated, :content \| :image}` — coalesced; read the snapshot with `get_snapshot/0` |
@@ -173,6 +174,7 @@ defmodule MediaCentaur.Topics do
   def activities_updates, do: "activities:updates"
   def apps_updates, do: "apps:updates"
   def profiles_updates, do: "profiles:updates"
+  def players_updates, do: "players:updates"
   def settings_updates, do: "settings:updates"
   def config_updates, do: "config:updates"
   def release_tracking_updates, do: "release_tracking:updates"

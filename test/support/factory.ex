@@ -498,6 +498,14 @@ defmodule MediaCentaur.TestFactory do
     app
   end
 
+  @doc "A paired player, through the public pairing flow: a code is minted and redeemed with the name."
+  def create_player(attrs \\ %{}) do
+    attrs = Map.new(attrs)
+    %MediaCentaur.Players.Pairing.Code{code: code} = MediaCentaur.Players.start_pairing()
+    {:ok, player} = MediaCentaur.Players.pair(code, Map.get(attrs, :name, "Sample Player"))
+    player
+  end
+
   @doc "Persists a viewer profile through `MediaCentaur.Profiles.add/1`; `hue:` and `name:` override."
   def create_profile(attrs \\ %{}) do
     attrs = Map.new(attrs)
