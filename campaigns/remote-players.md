@@ -763,6 +763,124 @@ regions and four key-map actions are new input-system surface with
 their bun tests; the Lua-pattern sync test is small. No part of this is
 owner-gated; the owner's calls are open decisions 6 and 7.
 
+**Step 5 — implementation plan (2026-10-22).** Five stages, each
+leaving the host working and `agent-mix precommit` green; test-first
+throughout (`automated-testing`); stories land with their components
+(`storybook`). Nothing merges; the branch stays unpushed.
+
+*Stage 1 — host: the viewing type, the stream, the commands, the
+transport's loadfile.* Files: `lib/media_centaur/playback/viewing.ex`
+(struct, `from_session/1`, `prompt/1`, `@bitmap_codecs`),
+`intro_chapter.ex` (the intro words, `skip_target/2`), `command.ex`
+(the typed vocabulary), `playback.ex` (`command/3`,
+`subscribe_viewing/1`), `sessions.ex` (`command/3`), `events.ex`
+(`now_playing` typed as `Viewing.t()`; the viewing stream's two
+messages documented under MC0012), `mpv_session.ex` (observe
+`sub-text` 12 and `chapter` 13; fold `subtitle_text` and `chapter`;
+`Viewing.from_session/1` in place of `build_now_playing/1`; the 1 Hz
+position throttle `last_viewing_at`; `handle_cast({:command, _})`
+rendering IPC; `handle_track_list_update` hands `TrackResolver` only
+the tracks the transport draws; `queue_next` through
+`Transport.loadfile/4`), `transport.ex` (`loadfile/4`,
+`draws_subtitles?/1`), `transport/local.ex` and `transport/remote.ex`
+(their renderings; `Remote.open/2` sends one `loadfile` with per-file
+options and no `set_property`), `launch_flags.ex`
+(`per_file_options/2` with `%n%` quoting, `{"pause", "no"}` in
+`session_options/1`), `next_episode.ex` (`loadfile_command/1`
+removed). Readers of `now_playing` move from `[:key]` to `.key`
+(`components/status_widgets/playback.ex`, `live/status_helpers.ex`,
+`live/status_live.ex`). Tests: `viewing_test.exs`,
+`intro_chapter_test.exs`, `command_test.exs`,
+`chapter_words_lua_sync_test.exs` (parses `skip_intro.lua` and
+`next_episode.lua` pattern tables, asserts the Elixir words),
+`launch_flags_test.exs` (per-file string, quoting, `pause=no`),
+`transport/remote_test.exs` and `local_test.exs` (`loadfile/4`),
+`mpv_session_test.exs` with the fake transport (commands → IPC, the
+stream's cadence, bitmap tracks never enforced on a remote, the
+`append` with options), the `now_playing` readers' tests. Check:
+`mc-player-sim` end to end on the sim host — a viewing starts
+unpaused after a previous `eof`, `script-opts` reads back one profile
+id, `Playback.command/3` pauses, seeks and switches a track.
+
+*Stage 2 — web: the viewing layer.* Files: `live/viewing_aware.ex`
+(on_mount after `PlayerAware` in `router.ex`'s `live_session :default`:
+assigns `:viewing`, `:viewing_bar_until`, `:viewing_menu`; `handle_info`
+for `{:viewing, _}`, `{:viewing_ended, _}`, `:viewing_bar_hide`;
+`handle_event` for `viewing_command` (`command`, `seconds`),
+`viewing_prompt`, `viewing_track` (`kind`, `id`), `viewing_menu_open`,
+`viewing_menu_close`, `viewing_back`), `components/viewing_layer.ex`
+(`viewing_layer/1` composing `viewing_bar/1`, `viewing_prompt/1`,
+`viewing_subtitle/1`, `viewing_track_menu/1`; the bar's progress from
+the kit's recipe, the pill a `<.button variant="primary">`, the menu two
+`GlassMenu.menu_list`s), `storybook/viewing_layer.story.exs` (playing,
+paused, each prompt, a subtitle line, the menu with a bitmap track
+disabled, a PGS-only file), `components/layouts.ex` (`attr :viewing`,
+rendered after the overlays slot) and the fourteen `<Layouts.app>`
+call sites passing `viewing={@viewing}` beside `profile`, `app.css`
+(`.viewing-layer`, `body:has([data-viewing])` transparent, the shell
+hidden). Input system: `core/actions.js` (`PLAY_PAUSE`,
+`SEEK_FORWARD`, `SEEK_BACK`, `MENU`; `MediaPlayPause`, `MediaPlay`,
+`MediaPause`, `MediaFastForward`, `MediaRewind`, `ContextMenu`),
+`viewing_behavior.js` (`withViewing(behavior, {pushEvent})`: bar-state
+mapping, steps aside while `[data-nav-overlay="viewing_menu"]` is
+present), `page_behavior.js` (the registry wraps when the reader sees
+`[data-viewing]`; `_detectBehavior`'s key becomes name plus the
+viewing flag so the wrap attaches and detaches with the layer),
+`config.js` (`overlays.viewing_menu` with `viewing_audio` /
+`viewing_subtitles` MENU regions, their selectors, start priority),
+`core/dom_adapter.js` (`hasViewing()`). Tests: `viewing_behavior.test.js`,
+`config_coverage.test.js`, nav-graph region tests, `viewing_aware_test.exs`
+(a device socket with a viewing renders the layer, the host socket
+never; each event reaches `Playback.command/3`; BACK with the menu
+open closes it, else stops), `layouts_test` for the attr, the story in
+`storybook_render_test`. Check on the desk, no TV: pair a headless
+Chromium with the sim host from the LAN address (`mc-sim-host pairing`
+→ the code typed on `/pair`), bridge a desktop mpv with
+`mc-player-sim` for that player, `Playback.play/3`, then `mc-nav-trace`
+and `page-shot` against the paired page: the layer over a transparent
+body, arrows seek, SELECT pauses, the prompt appears on the lab MKV's
+intro chapter and SELECT skips it, MENU opens the menu and BACK closes
+it, BACK stops.
+
+*Stage 3 — the TV app.* Files: `player/Player.kt` (`vo` →
+`mediacodec_embed` in the instance options and `surfaceCreated`;
+`android-surface-size`, `input-conf`, `script` and the assets sync
+removed; `keypress` removed), `player/RemoteKeys.kt` and
+`player/Assets.kt` and `assets/mpv/` deleted, `shell/MainActivity.kt`
+(`dispatchKeyEvent`: Back → `shell.back()` when the page is shown,
+everything else to the WebView; the viewing branch removed),
+`README.md` and `docs/playback-on-android.md` (the key path, the
+native path as the default). Tests: the JUnit set unchanged in intent;
+any test of `RemoteKeys` goes with it. Check: `mc-tv build`,
+`mc-tv install`.
+
+*Stage 4 — verification on the TV* (`mc-tv-flow osd`, new; each a
+short window ending with `mc-tv hdmi`), after the sim host's E01/E02
+are regenerated with titled chapters (Intro, Story, Credits), a text
+track and, for one file, a `dvdsub` bitmap track, and the library
+rescanned: (1) play E01 — the bar appears paused/on key and hides, LEFT
+seeks, SELECT pauses and resumes, the subtitle line renders; (2) the
+Skip Intro pill at the intro chapter and SELECT skipping it; (3) the
+Next Episode countdown in E01's last 20 s, SELECT advancing, then
+auto-advance to E02 without a key; (4) the track menu on MENU, a
+subtitle chosen, the bitmap track disabled with its words, BACK
+closing the menu; (5) BACK stopping the viewing with the page
+restored; (6) the finish prompt at the chain's end; (7) the real-length
+check, one longer window agreed with the owner: the 4K remux seeked
+to its last minutes, left to end, the finish prompt opening.
+
+*Stage 5 — records and docs.* ADR-080 amended (per-file options on a
+remote, the command door, `Transport.loadfile/4`); a new UIDR, *A
+remote player's OSD is the host's page* (the layer, its contents, the
+1 Hz rule, the key path, bitmap subtitles unsupported); the protocol
+spec amended (keys to the page, no scripts on the player, per-file
+options, the viewing stream); `docs/playback.md`, `docs/mpv.md`
+(the remote rendering of each row); wiki `Playback.md` (a section for
+the TV), `Keyboard-and-Gamepad.md` (the remote's keys during a
+viewing), `Troubleshooting.md` (bitmap subtitles on the TV; audio
+passthrough off), committed locally, unpushed; `decisions/README.md`
+regenerated. Open decisions 6 and 7 stay listed for the owner.
+
 ### M4 — TV app skeleton (procedure record)
 
 **1. Scope (2026-10-22).** In, all in `~/src/media-centaur/android-app`:
