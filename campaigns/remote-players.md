@@ -257,7 +257,8 @@ first, then iteration. The contract both codebases follow is
 `docs/superpowers/specs/2026-10-22-remote-players-protocol-design.md`.
 
 1. ✅ **M1 — Reachable and closed.** Built 2026-10-22 (record below).
-2. **M2 — Host side of the skeleton.** `Playback.Transport` seam with
+2. ✅ **M2 — Host side of the skeleton.** Built 2026-10-22 (record
+   below; ADR-080). `Playback.Transport` seam with
    `Local` carrying today's behaviour (tests unchanged); `LaunchFlags`
    as option pairs; playable-file identity in place of `content_url`
    comparison; `Playback.Remote.Channel` + `MediaCentaurWeb.PlayerSocket`
@@ -346,7 +347,7 @@ first, then iteration. The contract both codebases follow is
    elevated to `docs/GLOSSARY.md`; the owner's walk through every page
    and the full viewing lifecycle on the TV.
 
-### M5 — Hardening (procedure record, in progress)
+### M5 — The native path and the page as OSD (procedure record, in progress)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
 from the owner's library were linked into the simulated host as
@@ -1270,8 +1271,8 @@ against `git log remote-players` first (the reconciliation rule).
   database is the owner's.
 * Wiki edits for M1 are committed locally in `~/src/media-centaur/media-centaur.wiki`
   (`9df804c`), not pushed; push with the release that carries the campaign.
-* The TV app: `~/src/media-centaur/android-app` at `2ad7dda` (shell,
-  player, bridge; 11 JUnit tests), no remote yet. Each session: `mc-tv
+* The TV app: `~/src/media-centaur/android-app` at `6e2ea71` (shell,
+  player, bridge; transparent over the player's surface), no remote yet. Each session: `mc-tv
   connect`, `mc-tv build`, `mc-tv install`; `mc-tv launch --host
   http://<LAN ip>:<port>` points it at a host; `mc-tv eval` drives the
   WebView; every TV window ends with `mc-tv hdmi` (the owner's screen). Its toolchain is its `mise.toml`; the rig is
