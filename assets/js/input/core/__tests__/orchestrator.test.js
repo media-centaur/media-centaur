@@ -3423,6 +3423,132 @@ describe("Orchestrator", () => {
     })
   })
 
+  // A flat overlay can open with no item at all: the viewing layer (a
+  // remote player's OSD, the page over the video) arrives by a server push
+  // and its one nav item, the prompt pill, streams in afterwards. The page
+  // beneath is hidden under the layer, so it is never where the cursor goes;
+  // the layer keeps the cursor and the pill takes focus when it appears.
+  describe("a flat overlay that opens empty", () => {
+    function openEmptyLayer() {
+      const counts = { modal: 0 }
+      const result = setup({
+        getPresentation: () => "modal",
+        isModalOpen: () => true,
+        getItemCount: context => counts[context] ?? 8,
+      })
+      return { ...result, counts }
+    }
+
+    test("keeps the cursor in the overlay rather than seeding the page beneath", () => {
+      const { system, globals } = openEmptyLayer()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.inOverlay).toBe(true)
+      expect(system.focusMachine.context).toBe(Context.MODAL)
+    })
+
+    test("its item takes focus when it appears", () => {
+      const { system, calls, globals, counts } = openEmptyLayer()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      counts.modal = 1
+      calls.length = 0
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe(Context.MODAL)
+      const focused = calls.filter(c => c.method === "focusFirst").map(c => c.args[0])
+      expect(focused).toEqual([Context.MODAL])
+    })
+  })
+
+  // The viewing layer's track menu is a second overlay over the OSD: the
+  // presentation stays "modal" while it opens and closes, so what changes is
+  // the active overlay. Opening it enters it; BACK in it closes it alone (its
+  // `data-detail-nested` keeps the OSD's overlay) and the cursor returns to
+  // the OSD; the next BACK dismisses the OSD, which stops the viewing.
+  describe("an overlay opening over another", () => {
+    const MENU_CONFIG = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        viewing_audio: "[data-nav-zone='viewing_audio'] [data-nav-item]",
+        viewing_subtitles: "[data-nav-zone='viewing_subtitles'] [data-nav-item]",
+      },
+      instanceTypes: { ...TEST_CONFIG.instanceTypes, viewing_audio: "menu", viewing_subtitles: "menu" },
+      overlays: {
+        viewing_menu: {
+          entry: ["viewing_subtitles", "viewing_audio"],
+          layout: {
+            viewing_audio: { right: ["viewing_subtitles"] },
+            viewing_subtitles: { left: ["viewing_audio"] },
+          },
+        },
+      },
+    }
+
+    function openLayer() {
+      const state = {
+        overlay: null, nested: false, dismiss: "viewing_back",
+        counts: { modal: 0, viewing_audio: 0, viewing_subtitles: 0 },
+      }
+      const hookEl = { pushEvent: mock(() => {}) }
+      const result = setup({
+        getPresentation: () => "modal",
+        isModalOpen: () => true,
+        getOverlayName: () => state.overlay,
+        isDetailNested: () => state.nested,
+        getDismissEvent: () => state.dismiss,
+        getItemCount: context => state.counts[context] ?? 8,
+      }, MENU_CONFIG)
+      result.system.start(hookEl)
+      result.globals._flushRAF()
+      return { ...result, state, hookEl }
+    }
+
+    function openMenu({ system, globals, state }) {
+      Object.assign(state, { overlay: "viewing_menu", nested: true, dismiss: "viewing_menu_close" })
+      Object.assign(state.counts, { modal: 3, viewing_audio: 1, viewing_subtitles: 2 })
+      system.onViewChanged()
+      globals._flushRAF()
+    }
+
+    function closeMenu({ system, globals, state }) {
+      Object.assign(state, { overlay: null, nested: false, dismiss: "viewing_back" })
+      Object.assign(state.counts, { modal: 0, viewing_audio: 0, viewing_subtitles: 0 })
+      system.onViewChanged()
+      globals._flushRAF()
+    }
+
+    test("opening the menu enters its first region", () => {
+      const t = openLayer()
+      t.calls.length = 0
+      openMenu(t)
+
+      expect(t.system.focusMachine.context).toBe("viewing_subtitles")
+      const focused = t.calls.filter(c => c.method === "focusFirst").map(c => c.args[0])
+      expect(focused).toContain("viewing_subtitles")
+    })
+
+    test("BACK closes the menu and keeps the layer's overlay; the next BACK dismisses the layer", () => {
+      const t = openLayer()
+      openMenu(t)
+
+      t.globals._dispatchKeyDown("Escape")
+      expect(t.hookEl.pushEvent).toHaveBeenCalledWith("viewing_menu_close", {})
+      expect(t.system.focusMachine.inOverlay).toBe(true)
+
+      closeMenu(t)
+      expect(t.system.focusMachine.context).toBe(Context.MODAL)
+
+      t.globals._dispatchKeyDown("Escape")
+      expect(t.hookEl.pushEvent).toHaveBeenCalledWith("viewing_back", {})
+    })
+  })
+
   // The detail modal is two regions rather than one flat list: an action row
   // (Play / More info / Manage) over the body of the title. See UIDR-019.
   describe("detail overlay", () => {
