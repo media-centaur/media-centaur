@@ -71,6 +71,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaurWeb.SettingsLive.ProfilesSection
+  alias MediaCentaurWeb.SettingsLive.PlayersSection
+  alias MediaCentaur.Players
+  alias MediaCentaur.Platform.LanAddresses
   alias MediaCentaur.Profiles
   alias MediaCentaur.Profiles.PictureStore
   alias MediaCentaur.Profiles.Profile
@@ -118,6 +121,12 @@ defmodule MediaCentaurWeb.SettingsLive do
         "Who watches on this install. With more than one, each person picks theirs on the Who's watching? screen."
     },
     %{id: "controls", label: "Controls", group: :general, description: "Keyboard and gamepad bindings."},
+    %{
+      id: "players",
+      label: "Players",
+      group: :general,
+      description: "The TVs and other devices on your network that are paired with this install."
+    },
     # Media workflow — the arr stack. (Release tracking's refresh interval
     # lives on the Acquisition section — it feeds auto-grab.)
     %{
@@ -175,6 +184,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Settings")
 
+    # The Players section's assigns, read by `load_players/2` when it opens;
+    # the shell passes them to `section_content/1` on every section.
+    socket = assign(socket, players: [], pairing: nil, reach: :loopback)
+
     # `Settings.subscribe()` is auto-wired by SpoilerFreeAware. The single
     # subscription delivers every `:setting_changed` message — the trait
     # handles the spoiler_free key via attach_hook, and this LiveView's
@@ -189,7 +202,8 @@ defmodule MediaCentaurWeb.SettingsLive do
           Controls,
           Social,
           {Social, :subscribe_connections},
-          IntegrationHealth
+          IntegrationHealth,
+          Players
         ],
         socket,
         &Subscriptions.subscribe(&2, &1)
@@ -341,6 +355,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
       |> load_social(section)
+      |> load_players(section)
       |> open_media_dir_dialog(MediaDirsLogic.new_entry())
 
     {:noreply, socket}
@@ -357,9 +372,23 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
       |> load_social(section)
+      |> load_players(section)
 
     {:noreply, socket}
   end
+
+  # The Players section's reads: the paired players, the open pairing code,
+  # and how a device reaches this install (the endpoint's bound address and
+  # port against the host's LAN addresses).
+  defp load_players(socket, "players") do
+    assign(socket,
+      players: Players.list(),
+      pairing: Players.pairing(),
+      reach: PlayersSection.reach(MediaCentaurWeb.Endpoint.config(:http), LanAddresses.ipv4())
+    )
+  end
+
+  defp load_players(socket, _section), do: socket
 
   defp import_identity(socket, nsec) do
     case Social.import_identity(nsec) do
@@ -1137,6 +1166,36 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
+  # --- Players: pairing and removal ------------------------------------------
+  # The list and the open code are re-read on the context's events below.
+
+  def handle_event("start_pairing", _params, socket) do
+    _code = Players.start_pairing()
+    {:noreply, socket}
+  end
+
+  def handle_event("cancel_pairing", _params, socket) do
+    :ok = Players.cancel_pairing()
+    {:noreply, socket}
+  end
+
+  def handle_event("remove_player", %{"id" => id}, socket) do
+    case ArmGesture.press(socket, "remove_player", id) do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        case Players.get(id) do
+          nil ->
+            {:noreply, socket}
+
+          player ->
+            :ok = Players.remove(player)
+            {:noreply, put_flash(socket, :info, "#{player.name} removed")}
+        end
+    end
+  end
+
   # --- Social: profile, identity + relays ------------------------------------
 
   # The upload's change event: LiveView needs it bound to track the entry.
@@ -1827,6 +1886,21 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, load_relays(socket)}
   end
 
+  # Players events (`Players.Events`): the section re-reads what changed.
+  # The pairing device's name is worth a line; a removal already has one
+  # from the handler that fired it, or happened elsewhere.
+  def handle_info({:player_paired, %Players.Events.PlayerPaired{player: player}}, socket) do
+    {:noreply, socket |> assign(players: Players.list()) |> put_flash(:info, "#{player.name} paired")}
+  end
+
+  def handle_info({:player_removed, _event}, socket) do
+    {:noreply, assign(socket, players: Players.list())}
+  end
+
+  def handle_info({:pairing_changed, %Players.Events.PairingChanged{code: code}}, socket) do
+    {:noreply, assign(socket, pairing: code)}
+  end
+
   # `Connections.apply_message/2` is the owner's own fold, so the page and
   # the owner can never disagree about what a connection message means.
   def handle_info({:relay_connection, url, message}, socket) do
@@ -2075,6 +2149,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 nsec_revealed={@nsec_revealed}
                 import_draft={@import_draft}
                 relays={@relays}
+                players={@players}
+                pairing={@pairing}
+                reach={@reach}
                 relay_status={@relay_status}
                 share_watched?={@share_watched?}
                 share_watchlist?={@share_watchlist?}
@@ -2273,6 +2350,17 @@ defmodule MediaCentaurWeb.SettingsLive do
       uploads={@uploads}
       picture_editing={@picture_editing}
       picture_removed={@picture_removed}
+      armed_gesture={@armed_gesture}
+    />
+    """
+  end
+
+  defp section_content(%{active_section: "players"} = assigns) do
+    ~H"""
+    <PlayersSection.render
+      players={@players}
+      pairing={@pairing}
+      reach={@reach}
       armed_gesture={@armed_gesture}
     />
     """
