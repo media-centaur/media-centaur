@@ -127,22 +127,13 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — The whole campaign is built on branch `remote-players`, skeleton first: a full end-to-end slice (host transport, channel, media endpoint, TV app) before any hardening, then iteration; boundaries and transport are engineered as a real network interaction with high requirements. (owner)
 * `2026-10-22` — The player channel is a raw WebSocket (`WebSockAdapter` on Bandit) carrying one mpv IPC JSON object per text frame, server pings for liveness, no compression, 1 MiB frame cap; not a Phoenix Channel, whose join/topic/heartbeat layer would wrap a protocol that already has framing and correlation. (spec)
 * `2026-10-22` — A remote player runs one libmpv instance for the app's life, so it holds at most one viewing at a time; a second `play` on the same player replaces the first. `quit` on a remote player means stop and show the UI, not exit. (spec)
+* `2026-10-22` — Media requests carry a capability token: the host signs `{player_id, presence_id}` (`Phoenix.Token`, 12 h) into each media URL it composes, and the gate admits `/media/*` by that token alone. Rejected: the session cookie in libmpv's HTTP headers (the device's whole identity on every byte-range request). (owner)
+* `2026-10-22` — One branch, `remote-players`, for the whole campaign; nothing merges to main until the owner signs off at the campaign's end. The branch is not pushed. Main's M1 status in the index is therefore "built on the branch", not shipped. (owner)
 * `2026-10-22` — The TV app ships `priv/mpv/scripts/media-centaur` in its assets and points libmpv at it; verified that the `dev.jdtech.mpv:libmpv` 1.0.0 artifact builds mpv 0.41 with Lua enabled. (spec, verified)
 
 ## Open decisions
 
-1. **The credential on media requests.** (a) The TV app copies the
-   session cookie into libmpv's `http-header-fields`, so the gate admits
-   media requests like any other — one credential, but the device's
-   whole identity travels on every byte-range request and lands in
-   header logs. (b) The host signs a capability token over
-   `{player_id, presence_id}` into each media URL it composes
-   (`Phoenix.Token`, 12 h); the gate admits `/media/*` by that token
-   alone — a second admission path, scoped to one file for one player.
-   Recommendation: (b). Spec § Media delivery → Credential.
-2. **Pushing the branch.** The owner asked for the work "in remote
-   branch"; the branch exists locally only. Pushing `remote-players` to
-   the public origin is outward-facing and waits for a yes.
+None.
 
 ## Next steps
 
@@ -345,6 +336,144 @@ shim.
    row, wiki `Configuration-File.md` + `Settings-Reference.md` committed
    locally in the wiki repo (`9df804c`), **not pushed**: push with the
    release that carries M1.
+
+### M2 — Host side of the skeleton (procedure record)
+
+**1. Scope (2026-10-22).** In: the `Transport` seam in `MpvSession`
+with `Local` carrying today's behaviour; `LaunchFlags` split into
+process options (host only), session options (both) and the file
+target; file identity through the transport (`locator/2`,
+`identify/2`); `Playback.Remote` (the player channel's protocol, the
+player registry, request/reply for recovery); `MediaCentaurWeb.PlayerSocket`
+(the WebSock handler, admitted by the gate); the media endpoint
+(`Plugs.MediaServer` with a pure `Range` parser, capability token,
+`sendfile`, 200/206/416/404/503, HEAD); `Playback.play/3`; registry by
+`{player, entity_id}`; `player` on `PlaybackStateChanged`,
+`SessionEnded`, `PlaybackFailed`; detach with a 60 s reattach window;
+recovery over a reconnecting channel; `scripts/agents/mc-player-sim`
+(bun: pairs, opens the channel with the cookie, bridges a desktop mpv's
+Unix socket to the WebSocket). Dropped: a `:detached` UI state (plain
+first pass; the UI keeps showing playing); filtering Home's pinned
+"playing" rows by player (M4); sidecar subtitles (M4).
+
+**2. Research (2026-10-22).** `MpvSession`'s transport-specific state
+is `socket_path`, `log_file_path`, `port`, `socket`, `socket_retries`,
+`exit_status`, `output_tail`, `seen_property_event?`, `ipc_buffer`,
+`exiting?`; its transport handlers are `:try_reconnect`, `:launch_mpv`,
+`:connect_socket`, `{:tcp, …}`, `{:tcp_closed, …}`, the port's
+`exit_status` and `data`, `:classify_and_finalize`; plus `spawn_mpv/2`,
+`cleanup/1`, `observe_properties/1`, `send_mpv_command/2`, exit
+classification and the stale-script warning. Everything else is the
+observer. `advance_to/2` and `queue_next?/1` read `content_url` and
+`socket` directly. `SessionRegistry` keys by entity id. `MpvSessionTest`
+tests pure functions only; no test drives the observer through a
+transport. `NextEpisode.loadfile_command/1` emits the host path.
+`Events` structs use `@enforce_keys`, so a new field touches every
+constructor (MpvSession, `ProgressBroadcaster` for progress events,
+which stay as they are). WebSock callbacks: `init/1`, `handle_in/2`,
+`handle_control/2`, `handle_info/2`, `terminate/2`; `WebSockAdapter.upgrade/4`
+from any plug. Bandit `sendfile` with offset and length; `Phoenix.Token`
+for the capability. mpv ≥ 0.38 `loadfile <url> replace -1 start=N`.
+
+**3. Design decisions (2026-10-22).**
+* The transport is a struct in the session's state behind a behaviour,
+  not a second process: the WebSock handler already is a process, and
+  the local socket is owned by the session as today. Callbacks:
+  `open/2`, `send/2`, `locator/2`, `identify/2`, `handle_message/2`
+  (folds a raw Erlang message into `{events, transport}`), `close/2`.
+  Transport events to the session: `{:attached, :fresh | :reconnected}`,
+  `{:message, ipc_object}`, `{:detached, reason}`,
+  `{:closed, {:ok, :ended} | {:error, reason, message}}`.
+* The player channel's process is the WebSock handler itself,
+  registered under the player id in `Playback.Remote.PlayerRegistry`;
+  `Playback.Remote.Channel` holds the protocol as functions over the
+  handler's state, so the web module is thin. Request/reply (for
+  recovery's `get_property`) correlates by `request_id` in that state.
+* The media plug sits **ahead** of the gate in the endpoint and admits
+  by the capability token alone (the owner's decision); the gate never
+  sees `/media/*`. The URL is `/media/<presence_id>?t=<token>`.
+* `Playback.play/3` takes `player :: :host | player_id`; Playback never
+  depends on `Players` (as with profiles). A remote player with no
+  channel answers `{:error, :player_offline}`.
+* `script-opts` carries the profile id on remote players too, through
+  `change-list script-opts append`, so `SessionRecovery` reads it back
+  one way for both transports.
+
+**4. Design unification (2026-10-22).** Core idea: *one observer, two
+transports; the transport owns how an mpv is reached and how it names a
+file, nothing else.* Incoherences and dispositions:
+* `content_url` doubles as identity and as mpv's locator. Fixed: the
+  session keeps the host path as identity and asks the transport for
+  the locator (`loadfile`) and the identity of a reported path
+  (`advance_to`).
+* `queue_next?/1` tests `socket` for attachment. Fixed: `attached?` on
+  the transport.
+* `LaunchFlags` mixes process, session and file concerns in one argv.
+  Fixed: three functions; `Local` renders argv from all three, `Remote`
+  sends session options and the file target as IPC commands; the TV app
+  owns its process options.
+* The registry key and `Sessions.play/1`'s `already_playing` assume one
+  player. Fixed: `{player, entity_id}`.
+* Recovery scans a socket directory. Fixed: `SessionRecovery.recover_all/0`
+  stays for the host; `recover_player/1` runs when a channel connects
+  with no session; both share `query_and_resolve` over a request
+  function.
+* A test transport is a legitimate implementation of the seam, in
+  `test/support`, so the observer is finally testable through its own
+  door (ADR-026). Not speculative: it removes the "pure functions only"
+  gap today.
+Coherence cost: the `MpvSession` extraction is the bulk of the work and
+must land behind the existing tests plus the new transport-driven ones
+before any remote code is wired.
+
+**5. Implementation plan (2026-10-22).** One commit per step, test-first.
+1. `LaunchFlags` split: `process_options/1`, `session_options/1`,
+   `file_target/2`, `argv/1`; `LanguageContext.to_mpv_options/1` returns
+   `{option, value}` pairs and the argv strings are rendered from them.
+2. `Playback.Transport` behaviour; `Transport.Local` extracted from
+   `MpvSession`; the session drives the transport and reads
+   `attached?/1`, `locator/2`, `identify/2`; `test/support/playback/
+   fake_transport.ex`; `mpv_session_transport_test.exs` drives a session
+   through attach, ticks, pause, eof, end-file, detach and reattach.
+3. `Playback.play/3`, `Sessions.play/2`, `SessionRegistry` by
+   `{player, entity_id}` (every caller converted), `player` on
+   `PlaybackStateChanged`, `SessionEnded`, `PlaybackFailed`; the web
+   passes the socket's player.
+4. Media endpoint: `Plugs.MediaServer` ahead of the gate, pure
+   `MediaServer.Range`, `MediaCentaurWeb.MediaToken` (`Phoenix.Token`
+   over `{player_id, presence_id}`, 12 h), URL base from the upgrade
+   request's `Host` header. Tests: range parser, token, plug with a temp
+   file (200/206/416/404/HEAD, path confinement).
+5. `Playback.Remote.Channel` (protocol over the handler's state, request
+   correlation, attach/detach, locator functions captured at connect),
+   `Playback.Remote.PlayerRegistry`, `Transport.Remote`;
+   `MediaCentaurWeb.PlayerSocket` + the upgrade plug after the gate (a
+   `%Player{}` only). Tests: channel functions with the test process as
+   socket; remote transport against a fake channel; upgrade refusals.
+6. Detach window in the session; `SessionRecovery.recover_player/1`
+   sharing `query_and_resolve` with the socket path through a request
+   function. Tests: session with the fake transport; recovery with a
+   fake request function.
+7. `scripts/agents/mc-player-sim` (bun) and an end-to-end run against a
+   showcase-config server from the worktree; the run is recorded here.
+8. `docs/playback.md`, `docs/mpv.md`, ADR-080; `mix precommit`.
+
+**6. Plan unification (2026-10-22).** Findings and fixes:
+* Minting the media token inside Playback would make it depend on the
+  web layer (the endpoint signs). Fixed: the socket handler captures
+  `locate/1` and `identify/1` functions and the request's `Host` at
+  connect, and the channel hands them to the transport; Playback never
+  names a web module, and the URL base is the address the device used.
+* `LanguageContext.to_mpv_flags/1` would be parsed back into pairs.
+  Fixed: pairs first, strings rendered.
+* `Sessions.play/1`, `SessionRegistry.active?/1` and `MpvSession.get_state/1`
+  by entity alone must go, not stay beside the keyed forms: every caller
+  converts in step 3.
+* The fake transport must not carry the old `socket` field or path
+  comparison: it answers `locator/identify` like a real one.
+No step keeps an old path or lands through a shim.
+
+**7. Execution.** In progress; outcomes recorded per step below.
 
 ### Verification items (research before M4)
 
