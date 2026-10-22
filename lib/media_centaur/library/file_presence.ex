@@ -272,4 +272,17 @@ defmodule MediaCentaur.Library.FilePresence do
   # microseconds), while `last_seen_at` is `:utc_datetime_usec`. Cast
   # accordingly so insert_all doesn't choke on precision mismatch.
   defp trunc_seconds(%DateTime{} = dt), do: DateTime.truncate(dt, :second)
+
+  @doc "The presence row by id — what the media endpoint serves a remote player by. Malformed ids are not found."
+  @spec fetch(term()) :: {:ok, t()} | {:error, :not_found}
+  def fetch(id) when is_binary(id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %__MODULE__{} = presence <- Repo.get(__MODULE__, uuid) do
+      {:ok, presence}
+    else
+      _none -> {:error, :not_found}
+    end
+  end
+
+  def fetch(_not_a_string), do: {:error, :not_found}
 end

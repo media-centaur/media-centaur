@@ -32,6 +32,10 @@ defmodule MediaCentaurWeb.Endpoint do
     cache_control_for_vsn_requests: "public, max-age=31536000, immutable",
     cache_control_for_etags: "public, max-age=3600"
 
+  # Media for remote players, ahead of the gate: `/media/*` is admitted by
+  # its capability token alone (`MediaToken`), never by the session.
+  plug MediaCentaurWeb.Plugs.MediaServer
+
   # The gate: a request from the host passes; one from the LAN passes only
   # with a paired player in its session (`MediaCentaurWeb.RemoteAccess`).
   # Session first so the gate can read it; the gate ahead of `ImageServer`
