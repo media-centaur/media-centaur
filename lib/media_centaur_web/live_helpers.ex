@@ -69,54 +69,45 @@ defmodule MediaCentaurWeb.LiveHelpers do
   @typedoc """
   Whose viewings a page shows as playing: its own player's — `:host` for
   the host's browser, the paired player's id for a device's page
-  (`PlayerAware.playback_player/1`) — or `:all` for the one board over
-  every player (Status). What a device is watching is that device's
-  state, never another's (`campaigns/remote-players.md`, M6).
+  (`PlayerAware.playback_player/1`). What a device is watching is that
+  device's state, never another's (`campaigns/remote-players.md`, M6).
+  The board over every player is Status's own
+  (`StatusHelpers.apply_session_change/2`, keyed by player and title).
   """
-  @type playback_scope :: :host | String.t() | :all
+  @type playback_scope :: :host | String.t()
 
   @doc """
-  The page's playing set after a `PlaybackStateChanged`: a viewing within
-  `scope` joins the set keyed by entity id (or replaces its entry) and
-  leaves it on `:stopped`; a viewing on another player leaves the set as
-  it was. `extra_fields` are merged into the entry — Status keeps
-  `started_at` this way.
+  The page's playing set after a `PlaybackStateChanged`: a viewing on the
+  page's own player joins the set keyed by entity id (or replaces its
+  entry) and leaves it on `:stopped`; a viewing on another player leaves
+  the set as it was.
   """
   @spec apply_playback_change(
           map(),
           MediaCentaur.Playback.Events.PlaybackStateChanged.t(),
-          playback_scope(),
-          map()
+          playback_scope()
         ) ::
           map()
-  def apply_playback_change(sessions, event, scope, extra_fields \\ %{}) do
+  def apply_playback_change(sessions, event, scope) do
     cond do
-      not within_scope?(event.player, scope) ->
-        sessions
-
-      event.state == :stopped ->
-        Map.delete(sessions, event.entity_id)
-
-      true ->
-        entry = Map.merge(%{state: event.state, now_playing: event.now_playing}, extra_fields)
-        Map.put(sessions, event.entity_id, entry)
+      event.player != scope -> sessions
+      event.state == :stopped -> Map.delete(sessions, event.entity_id)
+      true -> Map.put(sessions, event.entity_id, %{state: event.state, now_playing: event.now_playing})
     end
   end
 
   @doc """
-  The playing set a page starts from: the `Playback.Sessions` within
-  `scope`, keyed by entity id. `apply_playback_change/4` keeps it current.
+  The playing set a page starts from: the `Playback.Sessions` on the
+  page's own player, keyed by entity id. `apply_playback_change/3` keeps
+  it current.
   """
   @spec load_playback_sessions(playback_scope()) :: %{optional(String.t()) => map()}
   def load_playback_sessions(scope) do
     Map.new(
-      Enum.filter(MediaCentaur.Playback.Sessions.list(), &within_scope?(&1.player, scope)),
+      Enum.filter(MediaCentaur.Playback.Sessions.list(), &(&1.player == scope)),
       fn session -> {session.entity_id, session} end
     )
   end
-
-  defp within_scope?(_player, :all), do: true
-  defp within_scope?(player, scope), do: player == scope
 
   @doc """
   Formats the elapsed time since a `DateTime` as a bare duration —

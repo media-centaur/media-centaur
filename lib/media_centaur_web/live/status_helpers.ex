@@ -6,14 +6,30 @@ defmodule MediaCentaurWeb.StatusHelpers do
 
   # --- Playback ---
 
+  @doc """
+  The board's sessions after a `PlaybackStateChanged`: one entry per player
+  and title, keyed `{player, entity_id}` — two players on one title are two
+  sessions, and only the one that stopped leaves. An entry keeps the
+  `started_at` it was first seen with.
+  """
+  @spec apply_session_change(map(), MediaCentaur.Playback.Events.PlaybackStateChanged.t()) :: map()
+  def apply_session_change(sessions, %{player: player, entity_id: entity_id, state: :stopped}),
+    do: Map.delete(sessions, {player, entity_id})
+
+  def apply_session_change(sessions, %{player: player, entity_id: entity_id} = event) do
+    key = {player, entity_id}
+    started_at = (sessions[key] && sessions[key].started_at) || event.started_at
+    Map.put(sessions, key, %{state: event.state, now_playing: event.now_playing, started_at: started_at})
+  end
+
   def derive_playback(sessions) when sessions == %{} do
     %{state: :idle, now_playing: nil, sessions: sessions}
   end
 
   def derive_playback(sessions) do
-    {_entity_id, primary} =
+    {_key, primary} =
       sessions
-      |> Enum.sort_by(fn {_id, session} -> if session.state == :playing, do: 0, else: 1 end)
+      |> Enum.sort_by(fn {_key, session} -> if session.state == :playing, do: 0, else: 1 end)
       |> hd()
 
     %{state: primary.state, now_playing: primary.now_playing, sessions: sessions}

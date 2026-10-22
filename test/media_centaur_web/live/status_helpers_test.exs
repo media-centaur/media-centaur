@@ -58,6 +58,46 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
   end
 
+  # --- apply_session_change/2 ---
+
+  describe "apply_session_change/2 — the board over every player, one entry per player and title" do
+    defp changed(player, entity_id, state) do
+      %MediaCentaur.Playback.Events.PlaybackStateChanged{
+        player: player,
+        entity_id: entity_id,
+        profile_id: "profile-1",
+        state: state,
+        now_playing: %{entity_id: entity_id},
+        started_at: 7
+      }
+    end
+
+    test "two players on one title are two sessions; stopping one keeps the other" do
+      sessions =
+        %{}
+        |> StatusHelpers.apply_session_change(changed(:host, "movie-1", :playing))
+        |> StatusHelpers.apply_session_change(changed("tv-1", "movie-1", :paused))
+
+      assert Enum.sort(Map.keys(sessions)) == [{:host, "movie-1"}, {"tv-1", "movie-1"}]
+      assert sessions[{"tv-1", "movie-1"}].state == :paused
+
+      after_stop = StatusHelpers.apply_session_change(sessions, changed(:host, "movie-1", :stopped))
+      assert Map.keys(after_stop) == [{"tv-1", "movie-1"}]
+    end
+
+    test "a session keeps the started_at it was first seen with" do
+      sessions = StatusHelpers.apply_session_change(%{}, changed(:host, "movie-1", :playing))
+
+      paused =
+        StatusHelpers.apply_session_change(sessions, %{
+          changed(:host, "movie-1", :paused)
+          | started_at: 99
+        })
+
+      assert paused[{:host, "movie-1"}].started_at == 7
+    end
+  end
+
   # --- derive_playback/1 ---
 
   describe "derive_playback/1" do
