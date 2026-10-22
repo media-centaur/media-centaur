@@ -161,6 +161,144 @@ plan, `unify_design` on the plan, execution) and records each step here.
    picker, play, pause, resume after a host restart, auto-advance, the
    finish prompt, HDR output, audio passthrough.
 
+### M1 — Reachable and closed (procedure record)
+
+Branch `remote-players`, worktree `../media-centaur-app-remote-players`.
+Test env only in the worktree (`agent-mix test`); no `ecto.migrate` from
+the branch, the dev database belongs to main.
+
+**1. Scope (2026-10-22).** In: `bind` bootstrap key; `Players` context
+(table, facade, events, pairing code); pairing page and controller; the
+gate (plug + `on_mount`); Settings → Players section; wiki and docs;
+an ADR for the access model. Dropped: a `last_seen_at` on players (no
+reader yet); an env override for `bind` (`PORT` has one because dev
+tooling sets it, nothing sets a bind); mDNS discovery (M4 or later).
+Moved to M3: the media endpoint, the player channel.
+
+**2. Research (2026-10-22).** Verified in code:
+* `Plugs.ImageServer` and `Plug.Static` sit in the endpoint *before*
+  `Plug.Session` and the router, so a router-pipeline gate would leave
+  artwork open; the gate must be an endpoint plug after `Plug.Session`
+  and before `ImageServer`. `Plug.Session` only registers the store, so
+  moving it ahead of `Plug.Static` costs nothing.
+* The LiveView socket bypasses plugs; the endpoint's `connect_info`
+  carries `session` today and can carry `:peer_data` too, so an
+  `on_mount` hook can judge loopback and the session the same way the
+  plug does — the shape `ProfileAware` + `ProfileController` already use.
+* `Phoenix.ConnTest.build_conn/0` has `remote_ip` `{127,0,0,1}`, so the
+  whole existing suite passes the gate unchanged; gate tests set a LAN
+  `remote_ip`.
+* `Profiles` is the template for a no-deps context with typed events
+  (`profiles:updates`, ADR-060) and a migration; the web boundary lists
+  its context deps in `lib/media_centaur_web.ex`.
+* `SettingsLive` holds `@sections` and delegates a section to a
+  `*Section.render/1` module composed from `Components.Settings`
+  (`settings_card`, `settings_field`, `armed_button` for Remove).
+* Wiki pages to touch: `Configuration-File.md` (TOML keys table, example,
+  restart note), `Settings-Reference.md` (a `### Players` heading).
+
+**3. Design decisions (2026-10-22).**
+* The credential is the signed browser session: pairing writes
+  `"player_id"` beside `"profile_id"` (ADR-078 extended), no separate
+  token or cookie. Glossary term *player token* retired.
+* A paired player is verified by a primary-key read per request; no
+  cache until a measurement asks for one.
+* One pairing code at a time, six digits, five minutes, held by a
+  `Players.Pairing` process; redeeming it consumes it.
+* The pairing page is a controller-rendered page, not a LiveView: it
+  is the one page an unpaired device sees and needs no shell.
+* Section placement: `Players` in the `:general` group after Controls,
+  since it is touched least often.
+* The Players section shows the host's non-loopback addresses and the
+  port, and a notice when `bind` is loopback.
+
+**4. Design unification (2026-10-22).** Core idea: *a request is
+admitted by where it comes from — the host itself, or a paired player
+held in the browser session.* The session is the one place a device's
+identity lives: the profile (who watches, ADR-078) and now the player
+(where). Incoherences and dispositions:
+* Loopback and session judgement would be written twice, in the plug
+  and in the `on_mount` hook. Fixed now: one policy module,
+  `MediaCentaurWeb.RemoteAccess.admit/2`, two enforcement points.
+* Endpoint plug order puts `Plug.Session` after `Plug.Static` and
+  `ImageServer`. Fixed now: Session, then the gate, then Static and
+  ImageServer. Static assets stay open to everyone (the pairing page
+  needs them; the bundle is public).
+* The LiveView socket's `connect_info` lacks `:peer_data`. Fixed now.
+* `PlayerAware` must run before `ProfileAware` in `live_session`, so an
+  unpaired device never reaches the profile picker.
+* The host player has no row. Represented as the atom `:host` in the
+  `:player` assign beside `%Players.Player{}`; M3 decides the
+  playback-side representation when the transport selects on it.
+* The host's LAN addresses come from `:inet.getifaddrs/0`, OS
+  introspection, so they live under `Platform` (`Platform.LanAddresses`),
+  not in the web layer.
+* The bootstrap-key table exists in three places (defaults TOML,
+  `docs/configuration.md`, wiki). Existing pattern for three audiences;
+  `bind` follows it. Accepted, not unified.
+Glossary changes: *player token* retired; *access plug* becomes *the
+gate* (one policy, plug + hook). Coherence cost over the bolt-on: the
+endpoint reorder and the shared policy module, both small.
+
+**5. Implementation plan (2026-10-22).** Test-first per step; one
+commit per step; `agent-mix test <file>` in the worktree.
+1. `bind`: `Settings.BindAddress.parse/1` (pure, tested) called from
+   `config/runtime.exs`; invalid value halts startup with the key named;
+   `defaults/media-centaur.toml` comment; `docs/configuration.md`.
+2. `Players` context: migration `create_players` (id, name,
+   timestamps); `Players.Player`; `Players.Events` (`PlayerPaired`,
+   `PlayerRemoved`, `PairingChanged`) on `players:updates` (Topics row +
+   function); `Players.Pairing` GenServer (one six-digit code, five
+   minutes, `start/0`, `current/0`, `redeem/1`), in the supervision tree
+   in every env; facade `list/0`, `get/1`, `start_pairing/0`,
+   `pairing/0`, `pair/2`, `remove/1`, `subscribe/0`. Tests: facade and
+   process.
+3. The gate: `MediaCentaurWeb.RemoteAccess.admit/2` (`remote_ip`,
+   session → `{:ok, :host | %Player{}} | :unpaired`), `Plugs.RemoteAccess`
+   in the endpoint (HTML → redirect `/pair`; anything else → 403),
+   `Live.PlayerAware` first in `live_session :default`, assigning
+   `:player`; endpoint `connect_info` gains `:peer_data`; web boundary
+   dep on `Players`. Tests: plug (loopback, LAN unpaired HTML and
+   image, paired, removed), hook via `put_connect_info`.
+4. Pairing page: `PairingController` `GET /pair` (form: name, code) and
+   `POST /pair` (`Players.pair/2`; success writes `"player_id"` to the
+   session and redirects to `/`; failure re-renders with the error),
+   `PairingHTML`; the plug lets `/pair` through for any address. Tests:
+   controller.
+5. Settings → Players: `@sections` row; `SettingsLive.PlayersSection`
+   (paired players as `settings_card`s with Remove as an arm gesture;
+   a Pair card whose button starts pairing and then shows the code, the
+   addresses from `Platform.LanAddresses` with the port, the five-minute
+   note, and the loopback notice read from the endpoint config);
+   handlers `start_pairing`, `remove_player`; subscribe through
+   `Subscriptions`. Tests: `settings_live_players_test.exs`.
+6. Docs: `docs/architecture.md` context row; ADR-079 (a remote device
+   is admitted by pairing and the browser session holds the player);
+   `scripts/gen-decisions-index`; wiki `Configuration-File.md` and
+   `Settings-Reference.md`; campaign glossary.
+7. `mix precommit` green, zero warnings; rebase on main; owner merges.
+
+**6. Plan unification (2026-10-22).** Findings and fixes to the plan:
+* The code lifetime would be copied into the Settings copy as prose.
+  Fixed: the section reads it from `Players` (one constant, one owner).
+* `bind` is read in `runtime.exs` for the endpoint and again by the
+  Settings section for the loopback notice. Fixed: `bind` joins the
+  bootstrap keys `Settings.Config` serves, read with `Config.get(:bind)`;
+  the parser lives beside it as `Settings.Config.BindAddress`.
+* `admit/2` takes the player id from the session, not the session map,
+  so plug and hook pass the same value.
+* The pairing page must not inherit the shell's root layout if that
+  layout reads `on_mount` assigns; step 4 checks the layout first and
+  renders standalone if so.
+* Tests that start pairing write global process state; they follow the
+  `GlobalStateWritesCheckedOut` Credo rule.
+* `Live.Subscriptions` maps contexts to topics (MC0011); `Players` is
+  added there in step 5.
+No step keeps an old path, converts a subset of callers, or lands via a
+shim.
+
+**7. Execution.** In progress; outcomes recorded per step below.
+
 ### Verification items (research before M4)
 
 * Whether the published libmpv artifact (`dev.jdtech.mpv:libmpv`, the

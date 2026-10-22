@@ -51,7 +51,13 @@ if config_env() != :test do
       true -> 1080
     end
 
-  config :media_centaur, MediaCentaurWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: port]
+  # Bind address: TOML `bind` > loopback. Loopback keeps the install
+  # reachable from its own host only; the owner opens it to the LAN for
+  # paired players, and the gate (`MediaCentaurWeb.RemoteAccess`) admits
+  # the rest. `Settings.Config` reads the same key for `Config.get(:bind)`.
+  bind = MediaCentaur.Settings.Config.BindAddress.parse!(get_in(toml, ["bind"]))
+
+  config :media_centaur, MediaCentaurWeb.Endpoint, http: [ip: bind, port: port]
 
   # Database: TOML `database_path` > compile-time default in config.exs.
   if db = get_in(toml, ["database_path"]) do

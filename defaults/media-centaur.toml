@@ -17,6 +17,12 @@ database_path = "~/.local/share/media-centaur/media-centaur.db"
 # Default: 2160 (prod), 1080 (dev).
 # port = 2160
 
+# Address the web UI listens on. Requires restart to change.
+# Default: 127.0.0.1 — reachable only from this computer. Set "0.0.0.0" to
+# let paired players on your network reach it (Settings → Players pairs
+# them; nothing else on the network is admitted).
+# bind = "127.0.0.1"
+
 # Media directories are seeded from here on first boot only — open
 # Settings → Library → Media Directories to manage them thereafter. Any
 # TOML `media_dirs` present here (or in an existing user config) are

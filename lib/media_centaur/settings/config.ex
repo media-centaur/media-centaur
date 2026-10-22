@@ -10,7 +10,7 @@ defmodule MediaCentaur.Settings.Config do
 
   Configuration has two tiers with different sources of truth:
 
-  * **Bootstrap state** — `database_path`, `port`, and the initial
+  * **Bootstrap state** — `database_path`, `port`, `bind`, and the initial
     `media_dirs` seed. These are read from the user's TOML config file
     (`~/.config/media-centaur/media-centaur.toml`) because the app needs
     them before the database is reachable. They fall back to application
@@ -39,6 +39,7 @@ defmodule MediaCentaur.Settings.Config do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Secret
+  alias MediaCentaur.Settings.Config.BindAddress
   alias MediaCentaur.Topics
 
   # Compile-time per-env default. `config/dev.exs` points at the dev
@@ -430,6 +431,7 @@ defmodule MediaCentaur.Settings.Config do
 
     defaults = %{
       port: 2160,
+      bind: BindAddress.parse!(nil),
       database_path: database_path,
       data_dir: default_data_dir,
       media_dirs: app_media_dirs,
@@ -503,7 +505,7 @@ defmodule MediaCentaur.Settings.Config do
     Application.put_env(:media_centaur, :__raw_toml_media_dirs, toml_media_dirs(toml) || [])
 
     # Only bootstrap state is read from TOML: values the app needs before
-    # the database is reachable (`database_path`, `port`), the initial
+    # the database is reachable (`database_path`, `port`, `bind`), the initial
     # `media_dirs` seed, and `showcase_mode`. Every runtime preference
     # lives in the Settings database and is overlaid by
     # `load_runtime_overrides/0` — any runtime key present in the TOML is
@@ -519,6 +521,7 @@ defmodule MediaCentaur.Settings.Config do
     # screen may turn a real install into a demo.
     Map.merge(defaults, %{
       port: get_in(toml, ["port"]) || defaults.port,
+      bind: BindAddress.parse!(get_in(toml, ["bind"])),
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       media_dirs: media_dirs,
       media_dir_images: media_dir_images,
