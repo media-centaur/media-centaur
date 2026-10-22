@@ -285,4 +285,13 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   def fetch(_not_a_string), do: {:error, :not_found}
+
+  @doc "The presence row for a host path — how a remote player's transport names the file to the media endpoint."
+  @spec fetch_by_path(String.t()) :: {:ok, t()} | {:error, :not_found}
+  def fetch_by_path(file_path) when is_binary(file_path) do
+    case Repo.get_by(__MODULE__, file_path: file_path) do
+      nil -> {:error, :not_found}
+      presence -> {:ok, presence}
+    end
+  end
 end

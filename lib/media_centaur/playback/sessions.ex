@@ -63,8 +63,7 @@ defmodule MediaCentaur.Playback.Sessions do
   # decides it.
   defp transport_for(%{transport: transport}, _player), do: {:ok, transport}
   defp transport_for(%{entity_id: entity_id}, :host), do: {:ok, Transport.Local.new(entity_id)}
-  # A remote player's transport arrives with the player channel (M2 step 5).
-  defp transport_for(_params, _player_id), do: {:error, :player_offline}
+  defp transport_for(_params, player_id) when is_binary(player_id), do: Transport.Remote.new(player_id)
 
   defp playable_file?(%{content_url: path}) when is_binary(path), do: File.exists?(path)
   defp playable_file?(_params), do: false
