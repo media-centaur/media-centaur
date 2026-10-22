@@ -37,6 +37,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.DeleteTargets,
       MediaCentaur.Watchlist,
       MediaCentaur.Social,
+      MediaCentaur.Players,
       MediaCentaur.Activities,
       MediaCentaur.Profiles
     ],
