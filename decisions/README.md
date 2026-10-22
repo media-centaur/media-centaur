@@ -67,6 +67,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 076 | 2026-09-29 | [Durability follows the cost of losing the work](architecture/2026-09-29-076-durability-follows-the-cost-of-losing-the-work.md) | accepted |
 | 077 | 2026-09-29 | [A durable job is recorded with the decision that owes it](architecture/2026-09-29-077-a-durable-job-is-recorded-with-the-decision-that-owes-it.md) | accepted |
 | 078 | 2026-10-06 | [A profile is a watching identity, and the browser session holds the active one](architecture/2026-10-06-078-a-profile-is-a-watching-identity-held-by-the-session.md) | accepted |
+| 079 | 2026-10-22 | [A device is admitted by pairing, and the browser session holds the player](architecture/2026-10-22-079-a-device-is-admitted-by-pairing-and-the-session-holds-the-player.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

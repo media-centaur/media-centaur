@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-10-22
 last_updated: 2026-10-22
 ---
@@ -23,21 +23,21 @@ Defined before use; refine as the campaign proceeds, elevate to
 | Term | Meaning |
 |---|---|
 | **Player** | A machine that renders a viewing. Two kinds now: the **host player** (mpv spawned on the computer running the app, "this computer") and a **remote player** (the paired TV app). |
-| **Pairing** | How a remote player joins the install: Settings → Players shows a one-time code, the player sends the code with its name, and receives a player token. |
-| **Player token** | The credential a paired player sends on every request to the host: UI pages, media files, the player channel. Issued at pairing, revocable in Settings. |
+| **Pairing** | How a remote player joins the install: Settings → Players shows a one-time code (six digits, five minutes, five misses), the device offers the code with its name on the pairing page, and its browser session then holds the new player's id (`"player_id"`, beside ADR-078's `"profile_id"`). There is no separate token (ADR-079). |
 | **Player channel** | The remote player's WebSocket to the host, carrying mpv IPC JSON in both directions. The remote equivalent of the Unix domain socket. |
 | **Transport** | How a playback session reaches an mpv and how that mpv gets its file: Unix socket to a spawned process with a host path, or the player channel with a media URL. The one thing that varies per player kind. |
 | **Playback session** | `Playback.MpvSession`: one profile watching one title chain on one player. Not the **browser session**, the signed cookie that holds the active profile (ADR-078). |
-| **Media endpoint** | The HTTP route that serves a playable file by identity with Range support, authorised by a player token. |
+| **Media endpoint** | The HTTP route that serves a playable file by identity with Range support, admitted by the gate like every other request. |
 | **TV app** | The Android TV application: a WebView shell showing the host's UI plus embedded libmpv bridged to the player channel. |
-| **Access plug** | The web-layer plug that lets loopback requests through and requires a player token from every other address, otherwise serving the pairing page. |
+| **The gate** | One policy, `MediaCentaurWeb.RemoteAccess.admit/2` — loopback is the host player, any other address is admitted only as the paired player its session names — with two enforcement points: `Plugs.RemoteAccess` for HTTP (an unpaired `GET` goes to the pairing page, anything else is refused) and `Live.PlayerAware` for the LiveView socket. |
 
 ## Status
 
-**Planning 2026-10-22.** Design agreed in conversation (core idea and
-the word *player*); nothing built. Owner wants this recorded, not
-started. The design below is the unify pass; the spec and the first
-milestone's plan are still to be written when work begins.
+**M1 built 2026-10-22 on branch `remote-players`** (worktree
+`../media-centaur-app-remote-players`), `mix precommit` green; waiting
+for the owner to merge. The wiki edits are committed locally in the wiki
+repo and not pushed. Next: M2, the transport extraction, through the
+milestone procedure.
 
 ## Design (unify pass, 2026-10-22)
 
@@ -55,7 +55,7 @@ one player, and the app observes it over mpv IPC whichever machine runs
 the mpv.*
 
 **Every browser session plays on the player it is on.** The TV app's
-WebView carries the player token, so Play there starts a session on that
+WebView session holds its player, so Play there starts a session on that
 TV; a loopback browser plays on the host. No player picker in this
 campaign. Casting from the host browser to a TV is a later feature with
 its own picker. Per-device state stays browser-session state, per the
@@ -103,8 +103,8 @@ TV a dumb screen driven from a phone).
    resolution stays shared.
 7. **No access layer exists**; the endpoint binds loopback with no
    authentication. Fix in M1: the bind address becomes a bootstrap TOML
-   key defaulting to loopback, and the access plug gates every
-   non-loopback request on a player token.
+   key defaulting to loopback, and the gate admits a
+   non-loopback request only as the paired player its session holds.
 
 ### Seams that already fit
 
@@ -139,7 +139,7 @@ plan, `unify_design` on the plan, execution) and records each step here.
 
 1. **M1 — Reachable and closed.** Bind-address bootstrap key; `Players`
    context (paired players, tokens, `players:updates`); Settings →
-   Players section with pairing code and revoke; access plug with the
+   Players section with pairing code and revoke; the gate with the
    pairing page. A laptop browser can pair and browse, which is also how
    the TV layout gets checked before the app exists. Wiki:
    `Configuration-File.md`, `Settings-Reference.md`.
@@ -153,7 +153,7 @@ plan, `unify_design` on the plan, execution) and records each step here.
    from the host with a desktop mpv driven through the channel before
    any Android code exists.
 4. **M4 — TV app.** Kotlin, Android TV: pairing screen (host address +
-   code), WebView shell with the player token cookie, libmpv with the
+   code), WebView shell carrying the paired session cookie, libmpv with the
    IPC bridge, native Back-key handling, release signing in CI, Play
    internal testing track. The largest milestone and the one with the
    open verification items below.
@@ -297,7 +297,30 @@ commit per step; `agent-mix test <file>` in the worktree.
 No step keeps an old path, converts a subset of callers, or lands via a
 shim.
 
-**7. Execution.** In progress; outcomes recorded per step below.
+**7. Execution (2026-10-22, branch `remote-players`).**
+1. `bind` — `Settings.Config.BindAddress` (`parse/1`, `parse!/1`,
+   `loopback?/1`), `Config.get(:bind)`, `runtime.exs`, defaults TOML,
+   `docs/configuration.md`. Commit `d0a71404`.
+2. `Players` — migration, `Player` (usec timestamps so two pairings in
+   one second still order), `Events`, `Pairing` + pure `Pairing.Code`
+   (six digits, five minutes, five misses), facade, `players:updates`,
+   factory `create_player/1`, sandbox disposition. Commit `81a5b2f6`.
+3. + 4. The gate and the pairing page — `MediaCentaurWeb.RemoteAccess`,
+   `Plugs.RemoteAccess` (endpoint reordered: Session, gate, Static kept
+   ahead, `ImageServer` behind), `Live.PlayerAware` (first after
+   `ArmGesture`), `:peer_data` on the socket, `PairingController` +
+   `PairingHTML`, routes. Plan deviation: an unpaired `GET` of any kind
+   goes to `/pair` (no Accept-header sniffing; a test conn sends none,
+   and the rule is simpler). Commit `0d43d184`.
+5. Settings → Players — `PlayersSection` (`reach/2` pure),
+   `Platform.LanAddresses`, handlers and events in `SettingsLive`, smoke
+   entry. Plan deviation: the section reads the endpoint's bound `http`
+   config, the truth of what is bound, not `Config.get(:bind)`; the
+   Config key stays as bootstrap state beside `port`. Commit `1df97aa5`.
+6. Docs — ADR-079, decisions index, `docs/architecture.md` row, Topics
+   row, wiki `Configuration-File.md` + `Settings-Reference.md` committed
+   locally in the wiki repo (`9df804c`), **not pushed**: push with the
+   release that carries M1.
 
 ### Verification items (research before M4)
 
