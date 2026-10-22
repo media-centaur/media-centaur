@@ -3,6 +3,8 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
 
   import MediaCentaurWeb.LiveHelpers
 
+  alias MediaCentaur.Playback.Events.PlaybackStateChanged
+
   describe "safe_existing_atom/2" do
     test "returns the existing atom for a known string" do
       assert safe_existing_atom("error") == :error
@@ -192,48 +194,52 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     end
   end
 
-  describe "apply_playback_change/4" do
-    test "adds a playing entry to sessions" do
-      sessions = %{}
-      now_playing = %{title: "Episode 1"}
-
-      result = apply_playback_change(sessions, "entity-1", :playing, now_playing)
-
-      assert result == %{
-               "entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}
-             }
+  describe "apply_playback_change/4 — the page's playing set after a state change" do
+    defp changed(player, entity_id, state, now_playing \\ %{title: "Episode 1"}) do
+      %PlaybackStateChanged{
+        player: player,
+        entity_id: entity_id,
+        profile_id: "profile-1",
+        state: state,
+        now_playing: now_playing,
+        started_at: 0
+      }
     end
 
-    test "removes an entry on :stopped" do
-      sessions = %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
+    test "the page's own player's viewing joins the set, and leaves it on :stopped" do
+      playing = apply_playback_change(%{}, changed(:host, "entity-1", :playing), :host)
+      assert playing == %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
 
-      result = apply_playback_change(sessions, "entity-1", :stopped, nil)
+      paused = apply_playback_change(playing, changed(:host, "entity-1", :paused), :host)
+      assert paused["entity-1"].state == :paused
 
-      assert result == %{}
+      assert apply_playback_change(paused, changed(:host, "entity-1", :stopped, nil), :host) == %{}
     end
 
-    test "updates existing entry state" do
-      sessions = %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
+    test "another player's viewing is not this page's: the set is unchanged either way" do
+      set = %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
 
-      result = apply_playback_change(sessions, "entity-1", :paused, %{title: "Episode 1"})
-
-      assert result == %{
-               "entity-1" => %{state: :paused, now_playing: %{title: "Episode 1"}}
-             }
+      assert apply_playback_change(set, changed("tv-1", "entity-2", :playing), :host) == set
+      assert apply_playback_change(set, changed(:host, "entity-1", :stopped, nil), "tv-1") == set
+      assert apply_playback_change(%{}, changed("tv-2", "entity-1", :playing), "tv-1") == %{}
     end
 
-    test "merges extra fields when provided" do
-      sessions = %{}
-      now_playing = %{title: "Episode 1"}
+    test "a device's page takes its own player's viewing by id" do
+      assert apply_playback_change(%{}, changed("tv-1", "entity-1", :playing), "tv-1") ==
+               %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
+    end
+
+    test "the board over every player (:all) takes them all, with the extra fields merged" do
       started_at = ~U[2026-04-06 12:00:00Z]
 
-      result =
-        apply_playback_change(sessions, "entity-1", :playing, now_playing, %{
-          started_at: started_at
-        })
+      set =
+        %{}
+        |> apply_playback_change(changed(:host, "entity-1", :playing), :all, %{started_at: started_at})
+        |> apply_playback_change(changed("tv-1", "entity-2", :paused), :all)
 
-      assert result["entity-1"].started_at == started_at
-      assert result["entity-1"].state == :playing
+      assert set["entity-1"].started_at == started_at
+      assert set["entity-1"].state == :playing
+      assert set["entity-2"].state == :paused
     end
   end
 

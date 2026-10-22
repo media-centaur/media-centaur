@@ -57,5 +57,17 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannelTest do
 
     %URI{query: query} = URI.parse(url)
     assert {:ok, {^player_id, ^presence_id}} = MediaToken.verify(URI.decode_query(query)["t"])
+
+    %{locate_subtitle: locate_subtitle} = PlayerChannel.locators(conn, player_id)
+    sidecar_url = locate_subtitle.(presence_id, "Sample Show - S01E01.en.srt")
+
+    assert String.starts_with?(
+             sidecar_url,
+             "http://192.168.1.5:2160/media/#{presence_id}/subtitles/Sample%20Show%20-%20S01E01.en.srt?t="
+           )
+
+    %URI{query: sidecar_query} = URI.parse(sidecar_url)
+    assert {:ok, {^player_id, ^presence_id}} = MediaToken.verify(URI.decode_query(sidecar_query)["t"])
+    assert identify.(sidecar_url) == nil
   end
 end

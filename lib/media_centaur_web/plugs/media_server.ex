@@ -1,6 +1,10 @@
 defmodule MediaCentaurWeb.Plugs.MediaServer do
   @moduledoc """
-  Serves one playable file to a remote player: `GET`/`HEAD /media/:presence_id?t=<token>`.
+  Serves one playable file to a remote player: `GET`/`HEAD /media/:presence_id?t=<token>`
+  — and, under the same token, each of the file's sidecar subtitles by
+  its name beside the file: `/media/:presence_id/subtitles/:basename?t=<token>`
+  (only a sidecar `Subtitles` detected for that file; a remote mpv cannot
+  autoload what sits beside a URL, so the host adds them by `sub-add`).
 
   Ahead of the gate in the endpoint, admitted by the `MediaToken` alone
   (the device's session never travels with media bytes). The id is the
@@ -13,6 +17,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   |---|---|
   | no or bad token, or a token for another file | `403` |
   | unknown id, a path outside every media directory, or a file gone from disk | `404` |
+  | a subtitle name that is not one of the file's detected sidecars | `404` |
   | the file's media directory is unavailable (drive unmounted) | `503`, retryable |
   | no `Range` | `200`, the whole file |
   | one satisfiable `Range` | `206` with `Content-Range` |
@@ -31,6 +36,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Subtitles
   alias MediaCentaurWeb.MediaToken
   alias MediaCentaurWeb.Plugs.MediaServer.Range
 
@@ -40,14 +46,32 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   @impl true
   def call(%Plug.Conn{path_info: ["media", presence_id], method: method} = conn, _opts)
       when method in ["GET", "HEAD"] do
+    admit(conn, presence_id, fn presence -> {:ok, presence.file_path} end)
+  end
+
+  def call(
+        %Plug.Conn{path_info: ["media", presence_id, "subtitles", basename], method: method} = conn,
+        _opts
+      )
+      when method in ["GET", "HEAD"] do
+    admit(conn, presence_id, &sidecar_of(&1, basename))
+  end
+
+  def call(%Plug.Conn{path_info: ["media" | _rest]} = conn, _opts), do: refuse(conn, 405)
+  def call(conn, _opts), do: conn
+
+  # One admission for the file and its companions: the token names the
+  # presence, `locate` picks the path to serve beside it.
+  defp admit(conn, presence_id, locate) do
     conn = fetch_query_params(conn)
 
     with {:ok, {_player_id, ^presence_id}} <- MediaToken.verify(conn.query_params["t"]),
          {:ok, presence} <- fetch_presence(presence_id),
-         :ok <- confined?(presence.file_path),
+         {:ok, path} <- locate.(presence),
+         :ok <- confined?(path),
          :ok <- available?(presence.media_dir),
-         {:ok, stat} <- File.stat(presence.file_path, time: :posix) do
-      serve(conn, presence.file_path, stat)
+         {:ok, stat} <- File.stat(path, time: :posix) do
+      serve(conn, path, stat)
     else
       {:ok, {_player_id, _other_file}} -> refuse(conn, 403)
       {:error, reason} when reason in [:invalid, :expired, :missing] -> refuse(conn, 403)
@@ -56,8 +80,12 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
     end
   end
 
-  def call(%Plug.Conn{path_info: ["media" | _rest]} = conn, _opts), do: refuse(conn, 405)
-  def call(conn, _opts), do: conn
+  defp sidecar_of(presence, basename) do
+    case Enum.find(Subtitles.sidecars_for_presence(presence.id), &(Path.basename(&1.source) == basename)) do
+      nil -> {:error, :not_found}
+      track -> {:ok, track.source}
+    end
+  end
 
   defp fetch_presence(presence_id) do
     case FilePresence.fetch(presence_id) do

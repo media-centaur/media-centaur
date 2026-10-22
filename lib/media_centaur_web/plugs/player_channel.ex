@@ -62,10 +62,16 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
       locate: fn presence_id ->
         "#{base}/media/#{presence_id}?t=#{MediaToken.sign(player_id, presence_id)}"
       end,
+      locate_subtitle: fn presence_id, basename ->
+        "#{base}/media/#{presence_id}/subtitles/#{URI.encode(basename, &URI.char_unreserved?/1)}?t=#{MediaToken.sign(player_id, presence_id)}"
+      end,
       identify: fn url ->
         case URI.parse(url) do
-          %URI{path: "/media/" <> presence_id} when presence_id != "" -> presence_id
-          _other -> nil
+          %URI{path: "/media/" <> presence_id} when presence_id != "" ->
+            if !String.contains?(presence_id, "/"), do: presence_id
+
+          _other ->
+            nil
         end
       end
     }

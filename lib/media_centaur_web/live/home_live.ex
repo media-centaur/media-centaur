@@ -291,7 +291,6 @@ defmodule MediaCentaurWeb.HomeLive do
       socket
     else
       socket
-      |> assign(:playback, load_playback_sessions())
       |> assign_all()
       |> assign(:loaded?, true)
     end
@@ -430,7 +429,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :continue_items,
-      Logic.continue_watching_items(load_progress(socket), socket.assigns.playback)
+      Logic.continue_watching_items(load_progress(socket), socket.assigns.title_playback)
     )
   end
 

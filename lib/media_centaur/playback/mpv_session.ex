@@ -257,12 +257,13 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   @impl true
-  # A reader's command, rendered against the viewing's current prompt and
-  # sent through the transport; a command with nothing to send is dropped.
+  # A reader's command, bounded to the file, rendered against the viewing's
+  # current prompt and sent through the transport; a command with nothing
+  # to send is dropped.
   def handle_cast({:command, command}, state) do
-    case Command.ipc(command, Viewing.from_session(state).prompt) do
-      nil -> :ok
-      ipc -> Transport.send(state.transport, ipc)
+    with bounded when bounded != nil <- Command.within(command, state.position, state.duration),
+         ipc when ipc != nil <- Command.ipc(bounded, Viewing.from_session(state).prompt) do
+      Transport.send(state.transport, ipc)
     end
 
     {:noreply, state}
@@ -656,8 +657,12 @@ defmodule MediaCentaur.Playback.MpvSession do
           subtitle_text: nil,
           audio_tracks: [],
           subtitle_tracks: [],
-          current_aid: nil,
-          current_sid: nil,
+          # `current_aid`/`current_sid` stay: mpv keeps a selected track id
+          # across the files of a playlist and reports an observed property
+          # only when it changes, so the next file brings no `sid` event
+          # while `sid` holds — resetting them here read "no subtitles" and
+          # captured a subtitles-off override for the series on every
+          # advance.
           resolver_choice: nil,
           enforced_sid: nil,
           capture_timer: nil,

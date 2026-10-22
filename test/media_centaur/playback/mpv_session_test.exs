@@ -133,6 +133,24 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       assert next.content_url == "/media/b.mkv"
       assert next.position == 0.0
     end
+
+    test "an advance keeps the selected tracks: mpv keeps them across files and reports only a change" do
+      state =
+        struct!(MpvSession, %{
+          profile_id: Ecto.UUID.generate(),
+          content_url: "/media/a.mkv",
+          current_aid: 1,
+          current_sid: 2,
+          tracker: WatchingTracker.new()
+        })
+
+      item = %{season_number: 1, episode_number: 2, episode_name: "Sample Episode"}
+      next = MpvSession.reset_for_file(state, "/media/b.mkv", %{episode_id: "ep-2"}, item)
+
+      assert next.current_aid == 1
+      assert next.current_sid == 2
+      assert next.enforced_sid == nil
+    end
   end
 
   describe "session_ended/1" do

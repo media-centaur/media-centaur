@@ -7,6 +7,8 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
   use MediaCentaur.Case, async: false
 
+  alias MediaCentaur.Players
+  alias MediaCentaur.Players.Events.PlayerRemoved
   alias MediaCentaur.Playback.Remote.Channel
   alias MediaCentaur.Playback.Remote.PlayerRegistry
 
@@ -40,7 +42,8 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
         {:ok, state} = Channel.connect(player_id, @locators)
 
         receive do
-          message -> assert {:stop, :replaced, _state} = Channel.handle_message(state, message)
+          message ->
+            assert {:stop, {:shutdown, :replaced}, _state} = Channel.handle_message(state, message)
         end
       end)
 
@@ -103,6 +106,25 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
     assert {:stop, :pong_overdue, _state} = Channel.handle_message(stale, {:channel, :ping})
 
     assert {:push, {:ping, ""}, _state} = Channel.handle_message(Channel.pong(stale), {:channel, :ping})
+  end
+
+  test "a removed player's channel tells the device's mpv to stop and closes; another player's removal is nobody's" do
+    player_id = player_id()
+    state = connected(player_id)
+
+    Players.Events.broadcast(%PlayerRemoved{id: Ecto.UUID.generate()})
+    assert_receive {:player_removed, %PlayerRemoved{}} = another
+    assert Channel.handle_message(state, another) == :unhandled
+
+    {:ok, state} = Channel.handle_message(state, {:channel, {:attach, self()}})
+    Players.Events.broadcast(%PlayerRemoved{id: player_id})
+    assert_receive {:player_removed, %PlayerRemoved{id: ^player_id}} = own
+
+    assert {:stop, {:shutdown, :removed}, {1000, "removed"}, [{:text, frame}], %{session: nil}} =
+             Channel.handle_message(state, own)
+
+    assert Jason.decode!(frame) == %{"command" => ["stop"]}
+    assert_received {:transport, {:remote, {:channel_down, {:shutdown, :removed}}}}
   end
 
   test "closing tells the attached session its channel is down" do

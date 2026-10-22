@@ -9,7 +9,9 @@ defmodule MediaCentaurWeb.MediaToken do
   of 2026-10-22 in `campaigns/remote-players.md`).
 
   A token names one file for one player and expires; it is never a
-  session. The device's identity stays in its session cookie.
+  session. The device's identity stays in its session cookie. The file's
+  sidecar subtitles are part of the file: the same token admits
+  `/media/:presence_id/subtitles/:basename`.
   """
 
   alias MediaCentaurWeb.Endpoint

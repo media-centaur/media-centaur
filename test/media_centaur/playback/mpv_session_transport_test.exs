@@ -185,6 +185,35 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
       refute_receive {:mpv_command, ["seek", _, "absolute"]}, 50
     end
 
+    test "a seek never crosses the end: it stops short, then there is nothing to send", %{
+      params: params,
+      entity_id: entity_id
+    } do
+      pid = start!(params)
+      attach!(pid)
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "duration", "data" => 90.0}}
+      )
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "time-pos", "data" => 85.0}}
+      )
+
+      assert Playback.command(:host, entity_id, {:seek, 30}) == :ok
+      assert_receive {:mpv_command, ["seek", 89.0, "absolute+exact"]}
+
+      FakeTransport.emit(
+        pid,
+        {:message, %{"event" => "property-change", "name" => "time-pos", "data" => 89.5}}
+      )
+
+      assert Playback.command(:host, entity_id, {:seek, 30}) == :ok
+      refute_receive {:mpv_command, ["seek", _, "relative"]}, 50
+    end
+
     test "a command for a viewing that does not exist is refused", %{entity_id: entity_id} do
       assert Playback.command(:host, entity_id, :toggle_pause) == {:error, :no_session}
     end

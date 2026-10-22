@@ -126,6 +126,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
+  alias MediaCentaurWeb.LiveHelpers
+  alias MediaCentaurWeb.Live.PlayerAware
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.Finish
@@ -184,7 +186,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         title_detail: nil,
         modal_state: ModalState.new(),
         title_opening: nil,
-        title_playback: %{},
+        title_playback: LiveHelpers.load_playback_sessions(PlayerAware.playback_player(socket)),
         finished_id: nil
       )
       |> ReviewFlow.init()
@@ -769,12 +771,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_info(message, socket), do: {:cont, react(message, socket)}
 
   # The playing set is kept while the modal is closed too: a delete
-  # prompt must know about playback that started before the open.
-  defp react({:playback_state_changed, %{entity_id: id, state: state, now_playing: now_playing}}, socket) do
+  # prompt must know about playback that started before the open. It is
+  # the page's own player's: another device's viewing is not this page's.
+  defp react({:playback_state_changed, event}, socket) do
     update(
       socket,
       :title_playback,
-      &MediaCentaurWeb.LiveHelpers.apply_playback_change(&1, id, state, now_playing)
+      &LiveHelpers.apply_playback_change(&1, event, PlayerAware.playback_player(socket))
     )
   end
 

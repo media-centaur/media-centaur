@@ -558,18 +558,13 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   def handle_info(
-        {:playback_state_changed,
-         %{entity_id: entity_id, state: new_state, now_playing: now_playing, started_at: started_at}},
+        {:playback_state_changed, %{entity_id: entity_id, started_at: started_at} = event},
         socket
       ) do
     sessions = socket.assigns.playback.sessions
     existing = Map.get(sessions, entity_id)
     kept_started_at = (existing && existing[:started_at]) || started_at
-
-    sessions =
-      apply_playback_change(sessions, entity_id, new_state, now_playing, %{
-        started_at: kept_started_at
-      })
+    sessions = apply_playback_change(sessions, event, :all, %{started_at: kept_started_at})
 
     {:noreply, assign(socket, playback: derive_playback(sessions))}
   end

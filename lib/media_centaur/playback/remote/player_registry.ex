@@ -11,7 +11,18 @@ defmodule MediaCentaur.Playback.Remote.PlayerRegistry do
   evicts the old one first (`Channel.replace/1`).
   """
 
-  @type locators :: %{locate: (String.t() -> String.t()), identify: (String.t() -> String.t() | nil)}
+  @typedoc """
+  How a channel's player reaches the host's files: `locate` composes the
+  media URL of a presence, `locate_subtitle` the URL of one sidecar beside
+  that presence's file (by its basename, under the same token), and
+  `identify` reads a presence id back out of a media URL — nil for a
+  sidecar URL or anything else.
+  """
+  @type locators :: %{
+          locate: (String.t() -> String.t()),
+          locate_subtitle: (String.t(), String.t() -> String.t()),
+          identify: (String.t() -> String.t() | nil)
+        }
 
   @doc "Registers the calling process as `player_id`'s channel."
   @spec register(String.t(), locators()) :: :ok | {:error, {:already_registered, pid()}}

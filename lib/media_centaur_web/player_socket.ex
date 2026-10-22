@@ -49,4 +49,5 @@ defmodule MediaCentaurWeb.PlayerSocket do
   defp reply({:ok, state}), do: {:ok, state}
   defp reply({:push, frame, state}), do: {:push, frame, state}
   defp reply({:stop, reason, state}), do: {:stop, reason, state}
+  defp reply({:stop, reason, close, frames, state}), do: {:stop, reason, close, frames, state}
 end
