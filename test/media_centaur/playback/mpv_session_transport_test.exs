@@ -133,6 +133,19 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
   end
 
+  test "a deliberate stop quits the player and ends the session", %{params: params, entity_id: entity_id} do
+    pid = start!(params)
+    attach!(pid)
+    ref = Process.monitor(pid)
+
+    :ok = Sessions.stop(:host, entity_id)
+
+    assert_receive {:mpv_command, ["quit"]}
+    assert_receive {:playback_state_changed, %Events.PlaybackStateChanged{state: :stopped}}
+    assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+    assert_receive {:transport_closed, false}
+  end
+
   test "a transport that fails to start broadcasts the failure and ends", %{
     params: params,
     entity_id: entity_id

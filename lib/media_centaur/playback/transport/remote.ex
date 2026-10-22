@@ -91,6 +91,14 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   end
 
   @impl true
+  # The player reports the file stopped or was quit: the viewing is over on
+  # a remote player (its mpv lives on for the next one), so the message is
+  # followed by the close the session finalises on.
+  def handle_message(transport, {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => reason} = object}}})
+      when reason in ["stop", "quit"] do
+    {[{:message, object}, {:closed, {:ok, :ended}}], transport}
+  end
+
   def handle_message(transport, {:transport, {:remote, {:message, object}}}),
     do: {[{:message, object}], transport}
 
