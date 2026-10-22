@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 measured and decided the same day: the TV renders on the native path (4K HDR10), the host's page is the TV's OSD, PGS unsupported, full fidelity the target; next session plans M5 (step 1, scope) before any code.** The UI and playback on a Google TV
+  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 (the native path and the page as OSD) scoped, researched, designed and planned the same day — steps 1–6 recorded; waiting on the owner's pick from the viewing layer's mockup round and on open decisions 6–7 before stage 1 runs.** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only

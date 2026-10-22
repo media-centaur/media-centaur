@@ -1791,8 +1791,21 @@ TV's HDMI 4. Any TV window takes it away; the owner has allowed
 automatic switching, asking that screen time be minimised: batch, keep
 each window to a minute, always end with `mc-tv hdmi`.
 
-**The next session's agenda: M5 step 1, the OSD plan, with the
-owner.** The owner asked for a plan before implementation
+**The next session's agenda: the owner's checkpoint on M5, then
+stage 1.** Steps 1–6 ran on 2026-10-22; nothing of M5 is built except
+the WebView staying up (`android-app` `f2ca2b2`). Waiting on the
+owner: (1) a pick, or a mix, from the viewing layer's mockup round in
+`docs/superpowers/specs/2026-10-22-tv-viewing-layer-mockups/`
+(1 hairline, 2 lower-third card, 3 scrim and seek bar; each page shows
+the same seven states at the TV page's 960×540); the chosen look
+fixes stage 2's components and may add a measurement (direction 2's
+blur over the video); (2) open decision 6, keys to the page; (3) open
+decision 7, passthrough after the TV's audio setting is changed. Then
+execute the plan stage by stage, recording each stage's outcome in the
+M5 record. Everything below this paragraph is the older agenda, kept
+for its facts.
+
+*Older agenda (2026-10-22, morning):* The owner asked for a plan before implementation
 (2026-10-22). Run the milestone procedure on "the native path and the
 page as OSD": (1) scope — from the inputs listed under M5 in Next
 steps, decide what each desktop OSD feature becomes on the TV, who
