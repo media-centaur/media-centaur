@@ -23,7 +23,13 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
     assert_receive {:channel, {:request, _from, _ref, ["get_property", "path"]}} = message
     {:push, {:text, json}, state} = Channel.handle_message(state, message)
     %{"request_id" => request_id} = Jason.decode!(json)
-    {:ok, state} = Channel.frame_in(state, Jason.encode!(%{"request_id" => request_id, "error" => "property unavailable"}))
+
+    {:ok, state} =
+      Channel.frame_in(
+        state,
+        Jason.encode!(%{"request_id" => request_id, "error" => "property unavailable"})
+      )
+
     await_supervised_tasks()
     state
   end

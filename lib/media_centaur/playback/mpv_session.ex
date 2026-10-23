@@ -611,7 +611,11 @@ defmodule MediaCentaur.Playback.MpvSession do
       # The successor exists but this player cannot be told to load it: the
       # chain ends here, as it does for a successor with no file.
       {:error, reason} ->
-        Log.warning(:playback, "cannot queue the next episode on #{Transport.describe(state.transport)} (#{reason})")
+        Log.warning(
+          :playback,
+          "cannot queue the next episode on #{Transport.describe(state.transport)} (#{reason})"
+        )
+
         state
     end
   end

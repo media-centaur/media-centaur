@@ -78,7 +78,10 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
     with :ok <- PlayerRegistry.register(player_id, media_urls) do
       case SessionRegistry.on_player(player_id) do
         [] ->
-          {:ok, _pid} = Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> Sessions.recover(player_id) end)
+          {:ok, _pid} =
+            Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+              Sessions.recover(player_id)
+            end)
 
         sessions ->
           for {_key, session} <- sessions do

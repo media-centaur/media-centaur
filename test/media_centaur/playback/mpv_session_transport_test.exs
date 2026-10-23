@@ -154,7 +154,11 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     :ok = Sessions.play(%{params | transport: FakeTransport.new(self(), locates?: false)}, :host)
 
     assert_receive {:playback_failed,
-                    %Events.PlaybackFailed{entity_id: ^entity_id, reason: :file_unknown, payload: %{message: message}}}
+                    %Events.PlaybackFailed{
+                      entity_id: ^entity_id,
+                      reason: :file_unknown,
+                      payload: %{message: message}
+                    }}
 
     assert message =~ "indexed"
     refute_received {:transport_opened, _launch}

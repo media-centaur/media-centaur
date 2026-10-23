@@ -32,6 +32,10 @@ Declined on 2026-10-22: a second session type for remote viewings (two copies of
 * Bad, because the bridge must implement the IPC subset the host uses, including replies by `request_id` and node-valued properties observed as JSON strings, and coalesce `time-pos` to 1 Hz.
 * Bad, because a removed player's open channel is closed only on its next event, and a detached session shows as playing for up to a minute.
 
+## Amendment 2026-10-23 — the transport answers everything that differs between the kinds (M8)
+
+Point 1's "nothing else" was too narrow. The player's kind is read in one place, `Sessions`, to choose the transport; every other difference between the two kinds of player is a question the transport answers: whether its mpv draws subtitles (`draws_subtitles?/1`, point 10), whether it holds one viewing at a time so a new viewing replaces the one running (`holds_one_viewing?/1`), and which of its mpvs outlived their session (`recover/1` — `Transport.Local` scans the socket directory at boot, `Transport.Remote` asks a connecting channel's mpv; `SessionRecovery` keeps the shared half and `Sessions.recover/1` is the one door). `locator/2` answers `{:ok, _}` or `{:error, _}`: a file the player could not fetch is never handed to it and the viewing fails as a `PlaybackFailed`. Each transport's helpers live under it. The boundary rule of the design holds again: Playback does not depend on Players (ADR-079's amendment of the same day). Design record: `docs/superpowers/specs/2026-10-23-player-model-design.md`.
+
 ## Amendment 2026-10-22 — a remote player's options ride on the file; readers get one viewing and one command door (M5)
 
 Point 3 said the remote transport *sends* the session options as IPC. Measured on the Sony the same day (`android-app` `docs/playback-on-android.md`): the device's mpv lives for the app's life, so every `set_property` is for the player's life — `keep-open` left the next viewing paused at its first frame, and an `audio-spdif` set for one test froze the viewing after it. So:

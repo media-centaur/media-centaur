@@ -31,7 +31,11 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   defp media_url(presence, token), do: "/media/#{presence.id}?t=#{token}"
 
   @tag :tmp_dir
-  test "the whole file, with the headers a player reads", %{player: player, conn: conn, presence: presence} do
+  test "the whole file, with the headers a player reads", %{
+    player: player,
+    conn: conn,
+    presence: presence
+  } do
     conn = conn |> from_lan() |> get(media_url(presence, MediaToken.sign(player.id, presence.id)))
 
     assert response(conn, 200) == @bytes
@@ -66,7 +70,11 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "an unsatisfiable range is a 416 naming the size", %{player: player, conn: conn, presence: presence} do
+  test "an unsatisfiable range is a 416 naming the size", %{
+    player: player,
+    conn: conn,
+    presence: presence
+  } do
     conn =
       conn
       |> from_lan()
@@ -85,7 +93,11 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "no token, a bad token, or a token for another file is refused", %{player: player, conn: conn, presence: presence} do
+  test "no token, a bad token, or a token for another file is refused", %{
+    player: player,
+    conn: conn,
+    presence: presence
+  } do
     assert conn |> from_lan() |> get("/media/#{presence.id}") |> response(403)
     assert conn |> from_lan() |> get(media_url(presence, "garbage")) |> response(403)
 
@@ -94,7 +106,8 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "a file's sidecar subtitle is served under the file's own token, by its name beside the file", %{player: player, 
+  test "a file's sidecar subtitle is served under the file's own token, by its name beside the file", %{
+    player: player,
     conn: conn,
     presence: presence,
     path: path,
@@ -194,7 +207,10 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "a file outside every media directory is not served, even with a presence row", %{player: player, conn: conn} do
+  test "a file outside every media directory is not served, even with a presence row", %{
+    player: player,
+    conn: conn
+  } do
     outside = Path.join(System.tmp_dir!(), "mc-outside-#{System.unique_integer([:positive])}.mkv")
     File.write!(outside, @bytes)
     on_exit(fn -> File.rm(outside) end)
@@ -205,7 +221,12 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "a file gone from disk is not found", %{player: player, conn: conn, presence: presence, path: path} do
+  test "a file gone from disk is not found", %{
+    player: player,
+    conn: conn,
+    presence: presence,
+    path: path
+  } do
     File.rm!(path)
     conn = conn |> from_lan() |> get(media_url(presence, MediaToken.sign(player.id, presence.id)))
     assert response(conn, 404)
@@ -221,7 +242,11 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
   end
 
   @tag :tmp_dir
-  test "anything but GET or HEAD on a media path is not allowed", %{player: player, conn: conn, presence: presence} do
+  test "anything but GET or HEAD on a media path is not allowed", %{
+    player: player,
+    conn: conn,
+    presence: presence
+  } do
     conn = conn |> from_lan() |> post(media_url(presence, MediaToken.sign(player.id, presence.id)), %{})
     assert response(conn, 405)
   end

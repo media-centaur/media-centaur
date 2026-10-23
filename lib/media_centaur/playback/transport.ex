@@ -103,7 +103,8 @@ defmodule MediaCentaur.Playback.Transport do
   @callback describe(t()) :: String.t()
 
   @doc "A transport for `player` and one viewing's params; `:player_offline` when a remote player has no channel."
-  @callback for_player(MediaCentaur.Playback.player(), params :: map()) :: {:ok, t()} | {:error, :player_offline}
+  @callback for_player(MediaCentaur.Playback.player(), params :: map()) ::
+              {:ok, t()} | {:error, :player_offline}
 
   @doc """
   The mpvs on `player` that outlived their session (ADR-023), as the

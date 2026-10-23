@@ -55,7 +55,9 @@ defmodule MediaCentaur.Playback.SessionsTest do
     end
 
     @tag :tmp_dir
-    test "a remote player with a channel starts a session that loads the file over it", %{tmp_dir: tmp_dir} do
+    test "a remote player with a channel starts a session that loads the file over it", %{
+      tmp_dir: tmp_dir
+    } do
       path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
@@ -81,7 +83,9 @@ defmodule MediaCentaur.Playback.SessionsTest do
     end
 
     @tag :tmp_dir
-    test "a second viewing on a remote player replaces the first: one libmpv, one viewing", %{tmp_dir: tmp_dir} do
+    test "a second viewing on a remote player replaces the first: one libmpv, one viewing", %{
+      tmp_dir: tmp_dir
+    } do
       path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
@@ -129,8 +133,12 @@ defmodule MediaCentaur.Playback.SessionsTest do
       first = Ecto.UUID.generate()
       second = Ecto.UUID.generate()
 
-      assert :ok = Sessions.play(Map.merge(params, %{entity_id: first, transport: holds_many}), player_id)
-      assert :ok = Sessions.play(Map.merge(params, %{entity_id: second, transport: holds_many}), player_id)
+      assert :ok =
+               Sessions.play(Map.merge(params, %{entity_id: first, transport: holds_many}), player_id)
+
+      assert :ok =
+               Sessions.play(Map.merge(params, %{entity_id: second, transport: holds_many}), player_id)
+
       assert %{entity_id: ^first} = Sessions.get(player_id, first)
       assert %{entity_id: ^second} = Sessions.get(player_id, second)
 

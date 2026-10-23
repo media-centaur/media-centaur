@@ -29,7 +29,10 @@ Defined before use; refine as the campaign proceeds, elevate to
 | **Playback session** | `Playback.MpvSession`: one profile watching one title chain on one player. Not the **browser session**, the signed cookie that holds the active profile (ADR-078). |
 | **Media endpoint** | The HTTP route that serves a playable file by identity with Range support, admitted by the gate like every other request. |
 | **TV app** | The Android TV application: a WebView shell showing the host's UI plus embedded libmpv bridged to the player channel. |
-| **The gate** | One policy, `MediaCentaurWeb.RemoteAccess.admit/2` — loopback is the host player, any other address is admitted only as the paired player its session names — with two enforcement points: `Plugs.RemoteAccess` for HTTP (an unpaired `GET` goes to the pairing page, anything else is refused) and `Live.PlayerAware` for the LiveView socket. |
+| **The gate** | One policy, `MediaCentaurWeb.RemoteAccess.admit/2` — loopback is the host player, any other address is admitted only as the paired player its session names; the verdict is the player id — with three **enforcement points**, each acting on a removal: `Plugs.RemoteAccess` for HTTP (an unpaired `GET` goes to the pairing page, anything else is refused), `Live.PlayerAware` for the LiveView socket, `PlayerSocket` for the player channel. |
+| **Player id** | The value that names a player everywhere in the host (`Players.Player.id/0`, `Playback.player/0`): `:host`, or a paired player's row id. The one representation of "which player". |
+| **Connected player** | A remote player with a channel open right now (`Playback.Transport.Remote.PlayerRegistry`). A paired player may be connected or not. |
+| **Media URLs** | The functions the web layer hands a channel at connect: `for_file`, `for_sidecar`, `presence_id`. How Playback names a file to a remote mpv without composing a URL. |
 
 ## Status
 

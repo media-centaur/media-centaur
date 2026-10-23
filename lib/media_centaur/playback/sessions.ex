@@ -107,7 +107,10 @@ defmodule MediaCentaur.Playback.Sessions do
     for params <- transport_module(player).recover(player) do
       case resume(params, player) do
         :ok ->
-          Log.info(:playback, "recovered session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}")
+          Log.info(
+            :playback,
+            "recovered session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}"
+          )
 
         {:error, reason} ->
           Log.warning(
