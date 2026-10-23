@@ -51,8 +51,6 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   # This module defines the behaviour's `send/2`; the Erlang send is spelled out.
   import Kernel, except: [send: 2]
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.Format
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Playback.LaunchFlags
@@ -109,18 +107,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   def attached?(%{channel: channel}), do: channel != nil
 
   @impl true
+  # A file with no presence row has no media URL: the player could not
+  # fetch a host path, so it is not handed one.
   def locator(transport, content_url) do
     case FilePresence.fetch_by_path(content_url) do
-      {:ok, presence} ->
-        transport.locators.locate.(presence.id)
-
-      {:error, :not_found} ->
-        Log.warning(
-          :playback,
-          "no presence row for #{Path.basename(content_url)} — the player cannot fetch it"
-        )
-
-        content_url
+      {:ok, presence} -> {:ok, transport.locators.locate.(presence.id)}
+      {:error, :not_found} -> {:error, :no_presence}
     end
   end
 

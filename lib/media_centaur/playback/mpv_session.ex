@@ -146,6 +146,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   ]
 
   @viewing_position_interval_ms 1_000
+  @file_unknown_message "Media Centaur hasn't indexed this file yet."
 
   # --- Public API ---
 
@@ -217,29 +218,49 @@ defmodule MediaCentaur.Playback.MpvSession do
       language_context: language_context
     }
 
+    {events, state} =
+      case Transport.locator(state.transport, state.content_url) do
+        {:ok, locator} ->
+          open(state, locator, params[:reattach?] || false)
+
+        # The player could not be told what to load (a remote player with
+        # no presence row for the file): the viewing fails before anything
+        # loads, as a startup failure does.
+        {:error, reason} ->
+          Log.warning(
+            :playback,
+            "cannot name #{Path.basename(state.content_url)} to #{Transport.describe(state.transport)} (#{reason})"
+          )
+
+          {[{:closed, {:error, :file_unknown, @file_unknown_message}}], state}
+      end
+
+    case apply_events(events, state) do
+      {:noreply, state} -> {:ok, state}
+      {:stop, _reason, state} -> {:ok, state, {:continue, :stop}}
+    end
+  end
+
+  defp open(state, locator, reattach?) do
     launch = %{
       session_options:
         LaunchFlags.session_options(%{
           profile_id: state.profile_id,
-          language_options: LanguageContext.to_mpv_options(language_context.priority_args)
+          language_options: LanguageContext.to_mpv_options(state.language_context.priority_args)
         }),
-      content_url: Transport.locator(state.transport, state.content_url),
+      content_url: locator,
       start_position: state.start_position,
       profile_id: state.profile_id,
-      reattach?: params[:reattach?] || false
+      reattach?: reattach?
     }
 
     Log.info(
       :playback,
-      "session started — #{Path.basename(params.content_url)} via #{Transport.describe(state.transport)}"
+      "session started — #{Path.basename(state.content_url)} via #{Transport.describe(state.transport)}"
     )
 
     {events, transport} = Transport.open(state.transport, launch)
-
-    case apply_events(events, %{state | transport: transport}) do
-      {:noreply, state} -> {:ok, state}
-      {:stop, _reason, state} -> {:ok, state, {:continue, :stop}}
-    end
+    {events, %{state | transport: transport}}
   end
 
   @impl true
@@ -573,19 +594,24 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp queue_next(state) do
-    case NextEpisode.resolve(state.profile_id, state.episode_id) do
-      {:ok, item} ->
-        locator = Transport.locator(state.transport, item.content_url)
-        Transport.send(state.transport, Transport.queue(state.transport, locator, item.start_position))
+    with {:ok, item} <- NextEpisode.resolve(state.profile_id, state.episode_id),
+         {:ok, locator} <- Transport.locator(state.transport, item.content_url) do
+      Transport.send(state.transport, Transport.queue(state.transport, locator, item.start_position))
 
-        Log.info(
-          :playback,
-          "queued next episode — S#{item.season_number}E#{item.episode_number} #{Path.basename(item.content_url)}"
-        )
+      Log.info(
+        :playback,
+        "queued next episode — S#{item.season_number}E#{item.episode_number} #{Path.basename(item.content_url)}"
+      )
 
-        %{state | pending_next: item}
-
+      %{state | pending_next: item}
+    else
       :none ->
+        state
+
+      # The successor exists but this player cannot be told to load it: the
+      # chain ends here, as it does for a successor with no file.
+      {:error, reason} ->
+        Log.warning(:playback, "cannot queue the next episode on #{Transport.describe(state.transport)} (#{reason})")
         state
     end
   end

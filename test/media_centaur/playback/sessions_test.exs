@@ -1,7 +1,19 @@
 defmodule MediaCentaur.Playback.SessionsTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory
+
+  alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Playback.Sessions
+
+  # A remote player is handed a media URL, which names the file's presence row.
+  defp stamped_file(tmp_dir) do
+    media_dir = register_media_dir(tmp_dir)
+    path = Path.join(media_dir, "Sample.Movie.2010.mkv")
+    File.write!(path, "")
+    _presence = FilePresence.stamp(path, media_dir)
+    path
+  end
 
   describe "play/1" do
     test "returns {:error, :file_not_found} when content_url does not exist" do
@@ -42,10 +54,9 @@ defmodule MediaCentaur.Playback.SessionsTest do
       assert {:error, :player_offline} = Sessions.play(params, Ecto.UUID.generate())
     end
 
-    test "a remote player with a channel starts a session that loads the file over it" do
-      path = Path.join(System.tmp_dir!(), "media-centaur-test-#{System.unique_integer([:positive])}.mkv")
-      File.write!(path, "")
-      on_exit(fn -> File.rm(path) end)
+    @tag :tmp_dir
+    test "a remote player with a channel starts a session that loads the file over it", %{tmp_dir: tmp_dir} do
+      path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
       locators = %{locate: &("http://tv.test/media/" <> &1), identify: fn _url -> nil end}
@@ -69,10 +80,9 @@ defmodule MediaCentaur.Playback.SessionsTest do
       refute Process.alive?(session)
     end
 
-    test "a second viewing on a remote player replaces the first: one libmpv, one viewing" do
-      path = Path.join(System.tmp_dir!(), "media-centaur-test-#{System.unique_integer([:positive])}.mkv")
-      File.write!(path, "")
-      on_exit(fn -> File.rm(path) end)
+    @tag :tmp_dir
+    test "a second viewing on a remote player replaces the first: one libmpv, one viewing", %{tmp_dir: tmp_dir} do
+      path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
       locators = %{locate: &("http://tv.test/media/" <> &1), identify: fn _url -> nil end}

@@ -84,7 +84,7 @@ defmodule MediaCentaur.Playback.Transport.Local do
   def attached?(%{socket: socket, exiting?: exiting?}), do: socket != nil and not exiting?
 
   @impl true
-  def locator(_transport, content_url), do: content_url
+  def locator(_transport, content_url), do: {:ok, content_url}
 
   @impl true
   def identify(_transport, reported_path), do: reported_path

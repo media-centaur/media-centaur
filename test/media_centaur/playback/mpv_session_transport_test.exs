@@ -147,6 +147,20 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     assert_receive {:transport_closed, false}
   end
 
+  test "a file the transport cannot name to the player fails the viewing before anything loads", %{
+    params: params,
+    entity_id: entity_id
+  } do
+    :ok = Sessions.play(%{params | transport: FakeTransport.new(self(), locates?: false)}, :host)
+
+    assert_receive {:playback_failed,
+                    %Events.PlaybackFailed{entity_id: ^entity_id, reason: :file_unknown, payload: %{message: message}}}
+
+    assert message =~ "indexed"
+    refute_received {:transport_opened, _launch}
+    assert_receive {:transport_closed, true}
+  end
+
   test "a transport that fails to start broadcasts the failure and ends", %{
     params: params,
     entity_id: entity_id
