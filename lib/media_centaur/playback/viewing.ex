@@ -51,7 +51,7 @@ defmodule MediaCentaur.Playback.Viewing do
   @type prompt :: {:skip_intro, number()} | :next_episode | {:next_episode_in, non_neg_integer()} | nil
 
   @type t :: %__MODULE__{
-          player: :host | String.t(),
+          player: MediaCentaur.Playback.player(),
           entity_id: String.t(),
           profile_id: String.t(),
           entity_name: String.t() | nil,

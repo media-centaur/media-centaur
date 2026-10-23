@@ -164,7 +164,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   @doc "Sends a reader's `Playback.Command` to the session at `{player, entity_id}`; refused when none runs."
-  @spec command({Sessions.player(), String.t()}, Command.t()) :: :ok | {:error, :no_session}
+  @spec command(SessionRegistry.key(), Command.t()) :: :ok | {:error, :no_session}
   def command(key, command) do
     case SessionRegistry.lookup(key) do
       nil -> {:error, :no_session}

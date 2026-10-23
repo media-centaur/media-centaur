@@ -11,9 +11,8 @@ defmodule MediaCentaur.Playback.Sessions do
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Playback
   alias MediaCentaur.Playback.{MpvSession, SessionRegistry, SessionSupervisor, Transport}
-
-  @type player :: SessionRegistry.player()
 
   @doc """
   Starts playback of `params` on `player`. Returns `:ok` or `{:error, reason}`:
@@ -22,7 +21,7 @@ defmodule MediaCentaur.Playback.Sessions do
   player has no channel to this install. `params.profile_id` is required:
   the profile the session records under.
   """
-  @spec play(map(), player()) ::
+  @spec play(map(), Playback.player()) ::
           :ok | {:error, :file_not_found | :already_playing | :player_offline | term()}
   def play(params, player) do
     entity_id = params.entity_id
@@ -63,7 +62,7 @@ defmodule MediaCentaur.Playback.Sessions do
   the params already name the file, the position and the profile, and
   `reattach?: true` tells the transport to observe rather than load.
   """
-  @spec resume(map(), player()) :: :ok | {:error, term()}
+  @spec resume(map(), Playback.player()) :: :ok | {:error, term()}
   def resume(params, player), do: start(Map.put(params, :reattach?, true), player)
 
   defp start(params, player) do
@@ -114,7 +113,7 @@ defmodule MediaCentaur.Playback.Sessions do
   saved, `:stopped` and `SessionEnded` broadcast) and releases its
   transport. `:ok` whether or not a session was running.
   """
-  @spec stop(player(), String.t()) :: :ok
+  @spec stop(Playback.player(), String.t()) :: :ok
   def stop(player, entity_id) do
     case SessionRegistry.lookup({player, entity_id}) do
       nil -> :ok
@@ -125,11 +124,11 @@ defmodule MediaCentaur.Playback.Sessions do
   end
 
   @doc "Sends a reader's `Playback.Command` to one player's viewing of one entity."
-  @spec command(player(), String.t(), MediaCentaur.Playback.Command.t()) :: :ok | {:error, :no_session}
+  @spec command(Playback.player(), String.t(), Playback.Command.t()) :: :ok | {:error, :no_session}
   def command(player, entity_id, command), do: MpvSession.command({player, entity_id}, command)
 
   @doc "Returns the state snapshot for one player's viewing of one entity, or nil."
-  @spec get(player(), String.t()) :: map() | nil
+  @spec get(Playback.player(), String.t()) :: map() | nil
   def get(player, entity_id) do
     case MpvSession.get_state({player, entity_id}) do
       nil -> nil

@@ -11,8 +11,7 @@ defmodule MediaCentaur.Playback.SessionRegistry do
   (e.g. during hot reload or early boot).
   """
 
-  @type player :: :host | String.t()
-  @type key :: {player(), String.t()}
+  @type key :: {MediaCentaur.Playback.player(), String.t()}
 
   @doc "Returns a via-tuple for registering or looking up a session by key."
   @spec via(key()) :: {:via, Registry, {__MODULE__, key()}}
@@ -42,7 +41,7 @@ defmodule MediaCentaur.Playback.SessionRegistry do
   def active?(key), do: lookup(key) != nil
 
   @doc "The sessions on one player, as `{key, pid}`."
-  @spec on_player(player()) :: [{key(), pid()}]
+  @spec on_player(MediaCentaur.Playback.player()) :: [{key(), pid()}]
   def on_player(player),
     do: Enum.filter(list(), fn {{session_player, _entity_id}, _pid} -> session_player == player end)
 end
