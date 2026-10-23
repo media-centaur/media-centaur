@@ -19,6 +19,10 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   File identity goes through `Library.FilePresence`: the host path the
   session holds is the presence row's, the URL names the row's id.
+  `recover/1` reads the same way back: when a channel connects and no
+  session holds the player, the device's mpv is asked what it plays, the
+  URL names the presence, the presence's path names the entity, and
+  `SessionRecovery` reads the position and the profile.
 
   The desktop's mpv autoloads the sidecar subtitles beside a local file;
   a remote mpv plays a URL and sees no directory, so the transport stands
@@ -51,9 +55,11 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   # This module defines the behaviour's `send/2`; the Erlang send is spelled out.
   import Kernel, except: [send: 2]
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Format
   alias MediaCentaur.Library.FilePresence
-  alias MediaCentaur.Playback.LaunchFlags
+  alias MediaCentaur.Playback.{LaunchFlags, SessionRecovery}
   alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
   alias MediaCentaur.Subtitles
 
@@ -79,6 +85,40 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
       {channel, locators} ->
         {:ok, %__MODULE__{player_id: player_id, channel: channel, locators: locators}}
+    end
+  end
+
+  @impl true
+  def for_player(player_id, _params), do: new(player_id)
+
+  @impl true
+  # Runs off the channel's process: the reader waits on the channel's replies.
+  def recover(player_id) do
+    case PlayerRegistry.lookup(player_id) do
+      nil ->
+        []
+
+      {channel, locators} ->
+        reader = fn name ->
+          case Channel.request(channel, ["get_property", name]) do
+            {:ok, %{"error" => "success", "data" => data}} -> {:ok, data}
+            {:ok, %{"error" => error}} -> {:error, error}
+            {:error, reason} -> {:error, reason}
+          end
+        end
+
+        with {:ok, path} when is_binary(path) <- reader.("path"),
+             presence_id when is_binary(presence_id) <- locators.identify.(path),
+             {:ok, presence} <- FilePresence.fetch(presence_id),
+             entity_id when is_binary(entity_id) <- SessionRecovery.entity_id_for_path(presence.file_path),
+             {:ok, params} <-
+               SessionRecovery.reattach_params(reader, entity_id, presence.file_path, "player #{player_id}") do
+          [params]
+        else
+          _nothing_to_recover ->
+            Log.info(:playback, "recovery: nothing to recover on player #{Format.short_id(player_id)}")
+            []
+        end
     end
   end
 

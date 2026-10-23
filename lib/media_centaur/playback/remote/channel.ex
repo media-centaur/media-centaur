@@ -17,7 +17,10 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   A session **attaches** to the channel (`attach/2`) to receive its events
   and is told when the channel goes (`{:channel_down, reason}`); a new
   channel for a player with a live session announces itself to that
-  session (`{:channel_up, pid}`) so the transport reattaches.
+  session (`{:channel_up, pid}`) so the transport reattaches. A new
+  channel for a player no session holds may belong to an mpv that
+  outlived its session (a host restart), so `connect/2` asks it through
+  `Sessions.recover/1`, off this process.
 
   Liveness: the handler pings every `ping_interval_ms/0`; a client whose
   last pong is older than `pong_grace_ms/0` at the next ping is closed.
@@ -32,7 +35,7 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   """
 
   alias MediaCentaur.Playback.Remote.PlayerRegistry
-  alias MediaCentaur.Playback.SessionRegistry
+  alias MediaCentaur.Playback.{SessionRegistry, Sessions}
 
   @ping_interval_ms 15_000
   @pong_grace_ms 30_000
@@ -63,7 +66,9 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   @doc """
   Opens the channel for `player_id` from the calling process: registers it,
   schedules the first ping, and tells the player's live sessions, if any,
-  that their channel is up. A
+  that their channel is up — or, with none, has the player asked what it
+  plays (`Sessions.recover/1`, in a task: recovery waits on this channel's
+  replies). A
   second channel for a player must evict the first with `replace/1`
   before connecting.
   """
@@ -71,8 +76,14 @@ defmodule MediaCentaur.Playback.Remote.Channel do
           {:ok, t()} | {:error, {:already_registered, pid()}}
   def connect(player_id, locators) do
     with :ok <- PlayerRegistry.register(player_id, locators) do
-      for {_key, session} <- SessionRegistry.on_player(player_id) do
-        send(session, {:transport, {:remote, {:channel_up, self()}}})
+      case SessionRegistry.on_player(player_id) do
+        [] ->
+          {:ok, _pid} = Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> Sessions.recover(player_id) end)
+
+        sessions ->
+          for {_key, session} <- sessions do
+            send(session, {:transport, {:remote, {:channel_up, self()}}})
+          end
       end
 
       Process.send_after(self(), {:channel, :ping}, @ping_interval_ms)
@@ -185,16 +196,24 @@ defmodule MediaCentaur.Playback.Remote.Channel do
     :ok
   end
 
-  @doc "Sends one IPC command and waits for its reply object, correlated by `request_id`."
-  @spec request(pid(), list(), timeout()) :: {:ok, map()} | {:error, :timeout}
+  @doc "Sends one IPC command and waits for its reply object, correlated by `request_id`; a channel that goes meanwhile answers `:channel_down`."
+  @spec request(pid(), list(), timeout()) :: {:ok, map()} | {:error, :timeout | :channel_down}
   def request(channel, command, timeout \\ 5_000) do
     ref = make_ref()
+    monitor = Process.monitor(channel)
     send(channel, {:channel, {:request, self(), ref, command}})
 
     receive do
-      {^ref, object} -> {:ok, object}
+      {^ref, object} ->
+        Process.demonitor(monitor, [:flush])
+        {:ok, object}
+
+      {:DOWN, ^monitor, :process, ^channel, _reason} ->
+        {:error, :channel_down}
     after
-      timeout -> {:error, :timeout}
+      timeout ->
+        Process.demonitor(monitor, [:flush])
+        {:error, :timeout}
     end
   end
 

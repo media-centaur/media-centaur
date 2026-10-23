@@ -1,8 +1,10 @@
 defmodule MediaCentaur.Playback.SessionRecoveryTest do
   @moduledoc """
-  Boot-path tests for `MediaCentaur.Playback.SessionRecovery` (ADR-023).
+  Boot-path tests for the host player's recovery (ADR-023):
+  `Transport.Local.recover/1` finding the orphaned mpvs and
+  `SessionRecovery` resolving them.
 
-  `recover_all/0` runs from `Playback.Supervisor.init/1` on every start, so
+  `Sessions.recover(:host)` runs from `Playback.Supervisor.init/1` on every start, so
   a regression here is a startup crash or silently-dropped sessions. The
   cases below drive it through the public function against a real socket
   directory, with a stub mpv IPC server standing in for a live player —
@@ -12,7 +14,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Playback.SessionRecovery
+  alias MediaCentaur.Playback.Transport.Local
 
   # The shipped default (`config.ex`), restored at the head of each setup.
   @default_socket_dir "/tmp"
@@ -50,7 +52,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
   end
 
   # Minimal mpv JSON-IPC stand-in. Answers `get_property` for the properties
-  # `recover_all/0` asks for and nothing else.
+  # recovery asks for and nothing else.
   defp start_stub_mpv(path, properties) do
     parent = self()
 
@@ -95,16 +97,16 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
     end
   end
 
-  describe "recover_all/0" do
+  describe "Local.recover(:host)" do
     test "returns no sessions when the socket directory is empty" do
-      assert SessionRecovery.recover_all() == []
+      assert Local.recover(:host) == []
     end
 
     test "reaps a socket file with no mpv behind it", %{socket_dir: dir} do
       path = touch_dead_socket(dir, Ecto.UUID.generate())
       assert File.exists?(path)
 
-      assert SessionRecovery.recover_all() == []
+      assert Local.recover(:host) == []
 
       # Leaving the file would make every subsequent boot re-probe a socket
       # that can never answer.
@@ -125,7 +127,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
           "script-opts" => script_opts(profile_id)
         })
 
-      assert [params] = SessionRecovery.recover_all()
+      assert [params] = Local.recover(:host)
 
       assert params.entity_id == movie.id
       assert params.profile_id == profile_id
@@ -152,7 +154,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
 
       # mpv is genuinely playing something; dropping the session because we
       # can't name it would strand a running player with no UI attached.
-      assert [params] = SessionRecovery.recover_all()
+      assert [params] = Local.recover(:host)
 
       assert params.entity_id == entity_id
       assert params.profile_id == profile_id
@@ -170,7 +172,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
       task =
         start_stub_mpv(path, %{"time-pos" => 3.0, "script-opts" => script_opts(Ecto.UUID.generate())})
 
-      assert SessionRecovery.recover_all() == []
+      assert Local.recover(:host) == []
 
       Task.shutdown(task, :brutal_kill)
     end
@@ -186,7 +188,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
       path = socket_path(dir, movie.id)
       task = start_stub_mpv(path, %{"path" => file.file_path, "time-pos" => 1.0, "script-opts" => %{}})
 
-      assert SessionRecovery.recover_all() == []
+      assert Local.recover(:host) == []
       assert File.exists?(path)
 
       Task.shutdown(task, :brutal_kill)

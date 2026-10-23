@@ -7,6 +7,8 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
   use MediaCentaur.Case, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+
   alias MediaCentaur.Playback.Remote.Channel
   alias MediaCentaur.Playback.Remote.PlayerRegistry
 
@@ -14,8 +16,15 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
   defp player_id, do: Ecto.UUID.generate()
 
+  # No session holds the player, so connecting asks it what it plays over
+  # this channel; this player plays nothing.
   defp connected(player_id \\ player_id()) do
     {:ok, state} = Channel.connect(player_id, @locators)
+    assert_receive {:channel, {:request, _from, _ref, ["get_property", "path"]}} = message
+    {:push, {:text, json}, state} = Channel.handle_message(state, message)
+    %{"request_id" => request_id} = Jason.decode!(json)
+    {:ok, state} = Channel.frame_in(state, Jason.encode!(%{"request_id" => request_id, "error" => "property unavailable"}))
+    await_supervised_tasks()
     state
   end
 
@@ -40,7 +49,7 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
         {:ok, state} = Channel.connect(player_id, @locators)
 
         receive do
-          message ->
+          {:channel, :replaced} = message ->
             assert {:stop, {:shutdown, :replaced}, _state} = Channel.handle_message(state, message)
         end
       end)
@@ -50,6 +59,13 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
     assert :ok = Channel.replace(older)
     refute Process.alive?(older)
+    # The recovery the older channel's connect started finds its channel gone.
+    await_supervised_tasks()
+  end
+
+  test "a request to a channel that goes meanwhile answers channel_down, not a timeout" do
+    channel = spawn(fn -> :ok end)
+    assert Channel.request(channel, ["get_property", "path"], 5_000) == {:error, :channel_down}
   end
 
   test "an mpv object from the player reaches the attached session; none is dropped silently" do
@@ -72,9 +88,9 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
     assert_receive {:channel, {:request, _from, _ref, ["get_property", "path"]}} = message
     assert {:push, {:text, json}, state} = Channel.handle_message(state, message)
-    assert %{"command" => ["get_property", "path"], "request_id" => 1} = Jason.decode!(json)
+    assert %{"command" => ["get_property", "path"], "request_id" => request_id} = Jason.decode!(json)
 
-    reply = %{"request_id" => 1, "error" => "success", "data" => "/media/x"}
+    reply = %{"request_id" => request_id, "error" => "success", "data" => "/media/x"}
     assert {:ok, _state} = Channel.frame_in(state, Jason.encode!(reply))
     assert Task.await(requester) == {:ok, reply}
   end

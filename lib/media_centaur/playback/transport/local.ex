@@ -14,6 +14,9 @@ defmodule MediaCentaur.Playback.Transport.Local do
   `close/2` with `final?` false leaves the socket file for recovery on the
   next boot: the mpv is still the viewer's. See `docs/playback.md` for the
   lifetime rules the systemd unit must honour (`KillMode=process`).
+  `recover/1` is that next boot's side: it scans the socket directory,
+  probes each socket synchronously for what the mpv plays, hands the live
+  ones to `SessionRecovery`, and removes the dead files.
   """
 
   @behaviour MediaCentaur.Playback.Transport
@@ -25,9 +28,12 @@ defmodule MediaCentaur.Playback.Transport.Local do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Platform.DisplayEnv
-  alias MediaCentaur.Playback.{IpcFraming, LaunchFlags, MpvExitClassifier, MpvLogReader, MpvUserConfig}
+  alias MediaCentaur.Playback.{IpcFraming, LaunchFlags, MpvExitClassifier, MpvLogReader, MpvUserConfig, SessionRecovery}
   alias MediaCentaur.Settings.Config
 
+  @socket_prefix "media-centaur-"
+  @socket_suffix ".sock"
+  @probe_timeout_ms 500
   @socket_retry_interval_ms 200
   # Brief window after the first exit signal (tcp_closed OR exit_status) to let
   # the other signal and any final stderr chunks arrive before classifying.
@@ -60,10 +66,80 @@ defmodule MediaCentaur.Playback.Transport.Local do
     %__MODULE__{
       entity_id: entity_id,
       session_id: session_id,
-      socket_path: Path.join(socket_dir, "media-centaur-#{entity_id}.sock"),
+      socket_path: Path.join(socket_dir, "#{@socket_prefix}#{entity_id}#{@socket_suffix}"),
       log_file_path: Path.join(socket_dir, "media-centaur-#{session_id}.log"),
       socket_retries: max_retries()
     }
+  end
+
+  @impl true
+  def for_player(:host, %{entity_id: entity_id}), do: {:ok, new(entity_id)}
+
+  @impl true
+  def recover(:host) do
+    socket_dir = Config.get(:mpv_socket_dir)
+    pattern = Path.join(socket_dir, "#{@socket_prefix}*#{@socket_suffix}")
+
+    Enum.flat_map(Path.wildcard(pattern), fn socket_path ->
+      entity_id = entity_id_of(socket_path)
+
+      case probe(socket_path, entity_id) do
+        {:ok, params} ->
+          Log.info(:playback, "recovery: found live session for #{params[:entity_name] || entity_id}")
+          [params]
+
+        :skip ->
+          []
+      end
+    end)
+  end
+
+  defp entity_id_of(socket_path) do
+    socket_path
+    |> Path.basename()
+    |> String.trim_leading(@socket_prefix)
+    |> String.trim_trailing(@socket_suffix)
+  end
+
+  # A synchronous probe over its own line-framed connection, closed after;
+  # the session's live socket is another connection.
+  defp probe(socket_path, entity_id) do
+    case :gen_tcp.connect(
+           {:local, to_charlist(socket_path)},
+           0,
+           [:binary, packet: :line, active: false],
+           @probe_timeout_ms
+         ) do
+      {:ok, socket} ->
+        reader = &get_property(socket, &1)
+
+        result =
+          case reader.("path") do
+            {:ok, path} when is_binary(path) -> SessionRecovery.reattach_params(reader, entity_id, path, entity_id)
+            _no_path -> :skip
+          end
+
+        :gen_tcp.close(socket)
+        result
+
+      {:error, reason} ->
+        Log.info(:playback, "no mpv at socket — #{entity_id} (#{reason})")
+        File.rm(socket_path)
+        :skip
+    end
+  end
+
+  defp get_property(socket, name) do
+    command = Jason.encode!(%{"command" => ["get_property", name]}) <> "\n"
+
+    with :ok <- :gen_tcp.send(socket, command),
+         {:ok, line} <- :gen_tcp.recv(socket, 0, @probe_timeout_ms) do
+      case Jason.decode(line) do
+        {:ok, %{"error" => "success", "data" => data}} -> {:ok, data}
+        {:ok, %{"error" => error}} -> {:error, error}
+        _ -> {:error, :decode_failed}
+      end
+    end
   end
 
   @impl true

@@ -7,7 +7,8 @@ defmodule MediaCentaur.Playback.Transport do
   (`Transport.Local`: a Unix socket, a host path) and an mpv on a paired
   player (`Transport.Remote`: the player channel, a media URL). The
   session holds a transport struct in its state and never touches a
-  socket, a port or a channel itself.
+  socket, a port or a channel itself. The transport module also knows how
+  to find its player's mpvs that outlived their session (`recover/1`).
 
   A transport is a struct whose module implements this behaviour. It
   runs inside the session process: raw Erlang messages the session does
@@ -100,6 +101,18 @@ defmodule MediaCentaur.Playback.Transport do
 
   @doc "A short name for logs."
   @callback describe(t()) :: String.t()
+
+  @doc "A transport for `player` and one viewing's params; `:player_offline` when a remote player has no channel."
+  @callback for_player(MediaCentaur.Playback.player(), params :: map()) :: {:ok, t()} | {:error, :player_offline}
+
+  @doc """
+  The mpvs on `player` that outlived their session (ADR-023), as the
+  params `Sessions.resume/2` reattaches with: this transport finds them
+  and reads their properties, `SessionRecovery.reattach_params/4` does the
+  rest. `Sessions.recover/1` calls it: for the host at boot, for a remote
+  player when its channel connects and no session holds it.
+  """
+  @callback recover(MediaCentaur.Playback.player()) :: [map()]
 
   def open(%module{} = transport, launch), do: module.open(transport, launch)
   def send(%module{} = transport, command), do: module.send(transport, command)
