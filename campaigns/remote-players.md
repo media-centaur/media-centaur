@@ -33,6 +33,16 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
+**M8 opened 2026-10-23: the engineering quality pass on the player
+model.** The owner paused the campaign before the merge to settle what
+rapid prototyping built. Steps 1–4 are done (record below; the design
+is `docs/superpowers/specs/2026-10-23-player-model-design.md`):
+fifteen findings, eleven for M8 (one session), two for M9 (the
+session's shape, two to three sessions), two no change with reasons.
+Waiting on the owner: decisions 11–14 (M8 before the merge; M9 before
+or after the release; the layout; four names). Then plan, plan
+unification, execution. The earlier state:
+
 **M7's automation shipped 2026-10-23: the TV app lives at
 `github.com/media-centaur/media-centaur-android` (public) with CI and a
 tag-driven signed release; v0.1.0 is published and installed on the
@@ -340,6 +350,29 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    milestone: M5 if measurement shows a real limit, M6 otherwise.
    Recommendation: design it with the owner at the start of the next
    session, after the measurements of item 2.
+11. **Run M8 before the merge** (2026-10-23; spec
+    `docs/superpowers/specs/2026-10-23-player-model-design.md` §4).
+    Options: (a) yes — one session, a pure refactor plus two behaviour
+    fixes (the media token's player id checked, the remote locator's
+    failure surfaced) behind existing tests, leaving the branch true to
+    its own records; (b) merge first and run it on main.
+    Recommendation: (a).
+12. **M9, the session's shape: before or after the merge and release**
+    (2026-10-23; spec §2.4). `MpvSession` as a thin GenServer over an
+    Entry, a property mirror, the chain, progress persistence and track
+    policy; two to three sessions, a pure refactor behind the session's
+    tests. Options: (a) after the release — independent of it, and the
+    branch already touches 163 files; (b) before. Recommendation: (a).
+13. **The layout** (2026-10-23; spec §2.5). Each transport's helpers
+    under it: `Playback.Transport.Local.{IpcFraming, ExitClassifier,
+    LogReader, UserConfig}`, `Playback.Transport.Remote.{Channel,
+    PlayerRegistry}`; `Playback.Remote.*` gone. Options: (a) in M8,
+    while the branch is unmerged and the rename is cheap; (b) the flat
+    layout stays. Recommendation: (a).
+14. **Names** (2026-10-23). The transport callback for "holds one
+    viewing at a time" (proposed `single_viewing?/1`); M9's *Entry*
+    and *property mirror*; *locators*, kept as a glossary term or
+    renamed to a plain one. Naming is the owner's.
 
 ## Next steps
 
@@ -448,6 +481,66 @@ first, then iteration. The contract both codebases follow is
    and the released build is on the Sony. Left: the Play internal
    track with the owner at the keyboard, the owner's walk, the merge
    and host release, closure.
+8. **M8 — The player model.** The engineering quality pass the owner
+   asked for before the merge (record below; design in
+   `docs/superpowers/specs/2026-10-23-player-model-design.md`): one
+   player-id type, the socket holding the id, Playback free of
+   Players, the channel socket as the gate's third enforcement point,
+   one kind dispatch, recovery per transport behind one door, the media
+   token's player id checked, the remote locator's failure surfaced,
+   each transport's helpers under it, the Topics row, the glossary
+   rows. Steps 1–4 done 2026-10-23; the plan waits on decisions 11–14.
+9. **M9 — The session's shape.** `MpvSession` as a thin GenServer over
+   pure modules — the Entry, the property mirror, the chain, progress
+   persistence, track policy (spec §2.4). Before or after the release
+   per decision 12.
+
+### M8 — The player model (procedure record, opened 2026-10-23)
+
+The owner paused the campaign before the merge for an engineering
+quality pass over everything built for playing on more than one
+player: what the internal model of a player should be, and how the
+pieces are segregated. The design is
+`docs/superpowers/specs/2026-10-23-player-model-design.md`; this
+record carries the procedure's steps.
+
+1. **Scope** (2026-10-23). In: the representation of a player across
+   Players, Playback and the web layer; the Playback → Players
+   dependency; the kind dispatch in `Sessions`; recovery's two doors;
+   the channel-connect handling split between `Remote.Channel` and
+   `PlayerSocket`; the media token's unused player id; the remote
+   locator's host-path fallback; the layout of transport-owned helpers;
+   the `Topics` table; the glossary. Out, with reason: the session's
+   decomposition (M9 — larger than one session and independent of the
+   release); the two page-side playing-set reducers (read models shaped
+   for their reads, not second truths — spec item 14); the channel
+   registry's name (spec item 15). Moved: nothing.
+2. **Research** (2026-10-23). Every claim checked against the branch at
+   `4638956a`: the player type is spelled nine times, and
+   `MpvSession.command/2`'s spec names `Sessions.player()` without an
+   alias, so it resolves to no module; nothing reads a field of the
+   `%Players.Player{}` on the socket; Playback's only use of Players is
+   `Remote.Channel`'s `PlayerRemoved` match, which is why `Players` is
+   in its Boundary deps; `Plugs.MediaServer` discards the token's
+   player id; `IpcFraming`, `MpvExitClassifier`, `MpvLogReader` and
+   `MpvUserConfig` are used by `Transport.Local` alone; Boundary does
+   not check alias references in typespecs unless `check: [aliases:
+   true]` is set, so a typespec may name `Players.Player.id/0` without
+   a dep; the pages read their playing set by entity id
+   (`Map.get(playback, entity_id)`), Status by player and entity; the
+   context map carries no rows for Playback or Players.
+3. **Decisions** (2026-10-23). Taken as design and recorded in the
+   spec: the host stays a sentinel, not a row (§2.2); the channel's
+   socket is the gate's third enforcement point, so Playback reacts to
+   a removal only as a transport fact (§3 item 3); recovery is per
+   transport behind one door keyed by player (§3 item 5). The owner's:
+   open decisions 11–14.
+4. **Design unification** (2026-10-23). The spec is the pass: fifteen
+   findings, eleven to M8, two to M9, two no change with reasons; the
+   seams that already fit are named so they are not re-cut.
+5. **Implementation plan** — waits on decisions 11, 13 and 14.
+6. **Plan unification** — after step 5.
+7. **Execution** — after step 6.
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
@@ -2638,7 +2731,12 @@ published.
    entered in the app, or `mc-tv-flow pair tv`). Whatever the walk names
    is fixed under M6's Back-key and D-pad item through the procedure; an
    app change means a new `appVersionName`, a CHANGELOG section and a tag.
-3. **When the owner says so:** merge `remote-players` into main, `/ship
+3. **M8, the player model** (opened 2026-10-23, record above; design in
+   `docs/superpowers/specs/2026-10-23-player-model-design.md`). Once the
+   owner has answered decisions 11–14, run steps 5–7: the plan, its
+   unification, execution. Then M9 per decision 12 (before or after the
+   release).
+4. **When the owner says so:** merge `remote-players` into main, `/ship
    minor` from main (its CHANGELOG entry covers remote players end to
    end: pairing, the TV app, playback on a TV, the Controls category,
    Continue Watching per device), push the wiki, then close the
