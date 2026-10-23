@@ -23,16 +23,16 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   last pong is older than `pong_grace_ms/0` at the next ping is closed.
 
   The pairing is the channel's admission, so the channel ends when the
-  pairing does: it listens on `players:updates`, and its own player's
-  removal tells the device's mpv `stop` and closes the channel `{:shutdown, :removed}`
+  pairing does: the socket, the gate's enforcement point for the channel
+  (ADR-079), hears its player's removal and calls `removed/1`, which
+  tells the device's mpv `stop` and closes the channel `{:shutdown, :removed}`
   — a final reason, which `Transport.Remote` turns into the viewing's end
-  rather than a reattach window.
+  rather than a reattach window. The channel itself knows nothing of
+  Players: Playback takes a player as a value.
   """
 
   alias MediaCentaur.Playback.Remote.PlayerRegistry
   alias MediaCentaur.Playback.SessionRegistry
-  alias MediaCentaur.Players.Events.PlayerRemoved
-  alias MediaCentaur.Topics
 
   @ping_interval_ms 15_000
   @pong_grace_ms 30_000
@@ -62,8 +62,8 @@ defmodule MediaCentaur.Playback.Remote.Channel do
 
   @doc """
   Opens the channel for `player_id` from the calling process: registers it,
-  subscribes it to the players' updates, schedules the first ping, and
-  tells the player's live sessions, if any, that their channel is up. A
+  schedules the first ping, and tells the player's live sessions, if any,
+  that their channel is up. A
   second channel for a player must evict the first with `replace/1`
   before connecting.
   """
@@ -71,8 +71,6 @@ defmodule MediaCentaur.Playback.Remote.Channel do
           {:ok, t()} | {:error, {:already_registered, pid()}}
   def connect(player_id, locators) do
     with :ok <- PlayerRegistry.register(player_id, locators) do
-      :ok = Topics.subscribe(Topics.players_updates())
-
       for {_key, session} <- SessionRegistry.on_player(player_id) do
         send(session, {:transport, {:remote, {:channel_up, self()}}})
       end
@@ -143,21 +141,24 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   # not land in the error log as one.
   def handle_message(state, {:channel, :replaced}), do: {:stop, {:shutdown, :replaced}, state}
 
-  # The pairing is gone: the device's mpv stops what it plays, the session is
-  # told why its channel goes (here, not in `closed/2`: the handler's
-  # terminate reason is the server's to wrap), and the channel closes for
-  # good. Another player's removal is nobody's here.
-  def handle_message(%{player_id: player_id} = state, {:player_removed, %PlayerRemoved{id: player_id}}) do
+  def handle_message(%{session_ref: ref} = state, {:DOWN, ref, :process, _pid, _reason}),
+    do: {:ok, %{state | session: nil, session_ref: nil}}
+
+  def handle_message(_state, _message), do: :unhandled
+
+  @doc """
+  The pairing is gone: the device's mpv stops what it plays, the session is
+  told why its channel goes (here, not in `closed/2`: the handler's
+  terminate reason is the server's to wrap), and the channel closes for
+  good. The socket calls this on its own player's removal.
+  """
+  @spec removed(t()) :: outcome()
+  def removed(state) do
     state = tell_session(state, {:shutdown, :removed})
 
     {:stop, {:shutdown, :removed}, {1000, "removed"}, [{:text, Jason.encode!(%{"command" => ["stop"]})}],
      state}
   end
-
-  def handle_message(%{session_ref: ref} = state, {:DOWN, ref, :process, _pid, _reason}),
-    do: {:ok, %{state | session: nil, session_ref: nil}}
-
-  def handle_message(_state, _message), do: :unhandled
 
   @doc "The channel is closing: its session, if any, is told."
   @spec closed(t(), term()) :: :ok
