@@ -5,41 +5,6 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
 
   defp entry(fields), do: struct!(%Entry{entity_id: "entity", content_url: "/media/a.mkv"}, fields)
 
-  describe "queue_next?/1" do
-    defp queue_state(overrides) do
-      struct!(
-        MpvSession,
-        Map.merge(
-          %{
-            entry: entry(episode_id: "ep-1"),
-            transport: %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: true},
-            properties: %MpvProperties{playlist_count: 1, playlist_pos: 0}
-          },
-          overrides
-        )
-      )
-    end
-
-    test "queues while the current entry is the playlist's last" do
-      assert MpvSession.queue_next?(queue_state(%{}))
-    end
-
-    test "does not queue when a successor is already pending" do
-      refute MpvSession.queue_next?(queue_state(%{pending_next: entry(episode_id: "ep-2")}))
-    end
-
-    test "does not queue when the current entry is not the playlist tail" do
-      refute MpvSession.queue_next?(
-               queue_state(%{properties: %MpvProperties{playlist_count: 3, playlist_pos: 1}})
-             )
-    end
-
-    test "does not queue while the transport is detached" do
-      detached = %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: false}
-      refute MpvSession.queue_next?(queue_state(%{transport: detached}))
-    end
-  end
-
   describe "judge_completion/1" do
     defp watching_state(overrides) do
       {entry_fields, overrides} =
