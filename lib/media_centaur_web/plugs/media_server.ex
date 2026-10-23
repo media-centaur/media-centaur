@@ -7,15 +7,18 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   autoload what sits beside a URL, so the host adds them by `sub-add`).
 
   Ahead of the gate in the endpoint, admitted by the `MediaToken` alone
-  (the device's session never travels with media bytes). The id is the
-  file's `Library.FilePresence` row; the token must name that same file.
+  (the device's session never travels with media bytes) — and only while
+  the player the token names is still paired, so removing a player cuts
+  its media off on the next range request, as the gate cuts off its pages
+  (ADR-079). The id is the file's `Library.FilePresence` row; the token
+  must name that same file.
   The row's path is confined to the configured media directories, then
   served with `Plug.Conn.send_file/5`, which Bandit hands to the kernel
   (`sendfile`): the BEAM never copies media bytes.
 
   | Request | Answer |
   |---|---|
-  | no or bad token, or a token for another file | `403` |
+  | no or bad token, a token for another file, or a token for a player since removed | `403` |
   | unknown id, a path outside every media directory, or a file gone from disk | `404` |
   | a subtitle name that is not one of the file's detected sidecars | `404` |
   | the file's media directory is unavailable (drive unmounted) | `503`, retryable |
@@ -35,6 +38,8 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
 
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.MediaFileAvailability
+  alias MediaCentaur.Players
+  alias MediaCentaur.Players.Player
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Subtitles
   alias MediaCentaurWeb.MediaToken
@@ -67,7 +72,8 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   defp admit(conn, presence_id, locate) do
     conn = fetch_query_params(conn)
 
-    with {:ok, {_player_id, ^presence_id}} <- MediaToken.verify(conn.query_params["t"]),
+    with {:ok, {player_id, ^presence_id}} <- MediaToken.verify(conn.query_params["t"]),
+         %Player{} <- Players.get(player_id),
          {:ok, presence} <- fetch_presence(presence_id),
          {:ok, path} <- locate.(presence),
          :ok <- confined?(path),
@@ -76,6 +82,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
       serve(conn, path, stat)
     else
       {:ok, {_player_id, _other_file}} -> refuse(conn, 403)
+      nil -> refuse(conn, 403)
       {:error, reason} when reason in [:invalid, :expired, :missing] -> refuse(conn, 403)
       {:error, :unavailable} -> refuse(conn, 503)
       {:error, _not_found} -> refuse(conn, 404)
