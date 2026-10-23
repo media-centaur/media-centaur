@@ -141,6 +141,11 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   def draws_subtitles?(_transport), do: false
 
   @impl true
+  # One libmpv for the app's life: a `loadfile … replace` takes the file
+  # from under any other viewing on this player.
+  def holds_one_viewing?(_transport), do: true
+
+  @impl true
   # Our file has started: from here every end-file is about our viewing.
   def handle_message(
         transport,

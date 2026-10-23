@@ -10,8 +10,9 @@ defmodule MediaCentaur.Playback.FakeTransport do
   session asked the transport for the locator and mapped a reported path
   back through `identify/2`. A successor is queued as
   `[:fake_queue, locator, start]`, so a test can see the session went
-  through the transport for it. `draws_subtitles?` is a field, so a test
-  can stand in for a player that draws nothing.
+  through the transport for it. `draws_subtitles?` and
+  `holds_one_viewing?` are fields, so a test can stand in for a player
+  that draws nothing, or one that holds one viewing at a time.
   """
 
   @behaviour MediaCentaur.Playback.Transport
@@ -19,9 +20,14 @@ defmodule MediaCentaur.Playback.FakeTransport do
   # This module defines the behaviour's `send/2`; the Erlang send is spelled out.
   import Kernel, except: [send: 2]
 
-  defstruct [:owner, attached?: false, draws_subtitles?: true]
+  defstruct [:owner, attached?: false, draws_subtitles?: true, holds_one_viewing?: false]
 
-  @type t :: %__MODULE__{owner: pid(), attached?: boolean(), draws_subtitles?: boolean()}
+  @type t :: %__MODULE__{
+          owner: pid(),
+          attached?: boolean(),
+          draws_subtitles?: boolean(),
+          holds_one_viewing?: boolean()
+        }
 
   @doc "A transport whose mpv is the `owner` process."
   @spec new(pid(), keyword()) :: t()
@@ -63,6 +69,9 @@ defmodule MediaCentaur.Playback.FakeTransport do
 
   @impl true
   def draws_subtitles?(transport), do: transport.draws_subtitles?
+
+  @impl true
+  def holds_one_viewing?(transport), do: transport.holds_one_viewing?
 
   @impl true
   def handle_message(transport, {:transport, {:fake, {:attached, _kind} = event}}),

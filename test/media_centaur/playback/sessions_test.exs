@@ -99,5 +99,39 @@ defmodule MediaCentaur.Playback.SessionsTest do
 
       :ok = Sessions.stop(player_id, second)
     end
+
+    test "whether a new viewing replaces the player's others is the transport's answer" do
+      path = Path.join(System.tmp_dir!(), "media-centaur-test-#{System.unique_integer([:positive])}.mkv")
+      File.write!(path, "")
+      on_exit(fn -> File.rm(path) end)
+
+      player_id = Ecto.UUID.generate()
+
+      params = %{
+        action: :play,
+        profile_id: MediaCentaur.Profiles.owner().id,
+        entity_name: "Sample Movie",
+        content_url: path,
+        start_position: 0.0
+      }
+
+      holds_many = MediaCentaur.Playback.FakeTransport.new(self(), holds_one_viewing?: false)
+      first = Ecto.UUID.generate()
+      second = Ecto.UUID.generate()
+
+      assert :ok = Sessions.play(Map.merge(params, %{entity_id: first, transport: holds_many}), player_id)
+      assert :ok = Sessions.play(Map.merge(params, %{entity_id: second, transport: holds_many}), player_id)
+      assert %{entity_id: ^first} = Sessions.get(player_id, first)
+      assert %{entity_id: ^second} = Sessions.get(player_id, second)
+
+      holds_one = MediaCentaur.Playback.FakeTransport.new(self(), holds_one_viewing?: true)
+      third = Ecto.UUID.generate()
+      assert :ok = Sessions.play(Map.merge(params, %{entity_id: third, transport: holds_one}), player_id)
+      assert Sessions.get(player_id, first) == nil
+      assert Sessions.get(player_id, second) == nil
+      assert %{entity_id: ^third} = Sessions.get(player_id, third)
+
+      :ok = Sessions.stop(player_id, third)
+    end
   end
 end
