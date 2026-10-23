@@ -33,21 +33,25 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M6 in progress: three batches built, desk-checked and verified on the
-Sony 2026-10-23; the TV-only items are next** (branch `remote-players`;
-`android-app` at `3df9251`; UIDR-055). Verified on the TV with zero
-dropped frames: the viewing's keys as Controls bindings and a rebind on
-the TV's own Settings page; a removed player's channel closed at once;
-a seek that never crosses the end; sidecar subtitles over the media
-endpoint; Status keyed by player and title (desk). The TV found three
-faults, fixed the same day: the sidecar URL's percent-encoded name, the
-`file-loaded`/`path` order, and the Controls page one change behind
-(a desktop fault too). Still to do on the TV: the UI scale a little
-smaller, the pairing Code field, the 960×540 layout scale, the audio
-underrun at start, detach and host-restart recovery, Back-key and D-pad
-polish, the finish prompt after a real-length viewing. Owner's calls
-open: the Sound column's owner (9), the speed test (3), the application
-id (1). M5's OSD
+**M6 nearly done: four batches built and verified on the Sony
+2026-10-23; what is left is the owner's** (branch `remote-players`;
+`android-app` rebuilt and installed with the audio buffer; UIDR-055).
+Verified on the TV with zero dropped frames: the viewing's keys as
+Controls bindings and a rebind on the TV's own Settings page; a removed
+player's channel closed at once; a seek that never crosses the end;
+sidecar subtitles over the media endpoint; a dropped channel reattaching
+in a second; a host restart with the stream reconnecting and the viewing
+recovered still playing; a clean audio start; the pair page's Code field
+drawn and the page full height; the finish prompt after a 42-minute
+file. The TV found faults fixed the same day: the sidecar URL's
+percent-encoded name, the `file-loaded`/`path` order, the Controls page
+one change behind (a desktop fault too), the stream ending early on a
+host restart, the Code field's missing box, the page's 70% height, the
+start-up underrun. Left for the owner: decision 10 (the TV's UI scale:
+1.4× today, a per-player factor recommended), Back-key and D-pad polish
+(nothing specific recorded — the owner's walk names it), and the earlier
+calls: the Sound column's owner (9), the speed test (3), the application
+id (1). Then M7. M5's OSD
 check passed on the Sony 2026-10-22 (`mc-tv-flow osd tv`, record below): the layer
 over native 4K video, the Skip Intro pill taken by SELECT, SELECT
 pausing and resuming, arrows seeking, the track menu on MENU opening on
@@ -173,6 +177,8 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — An open overlay keeps the page's cursor: the cursor start never seeds the page beneath, a flat overlay whose one item arrives later (the OSD's prompt pill) gets it from the post-patch reconciler, and a named overlay's flat context is re-resolved until a region has items — one rule in `_ensureCursorStart`, replacing the branch in `_syncState`. (stage 4 finding)
 * `2026-10-22` — The input system knows the active overlay by its navigation model name: a different name while the presentation stays "modal" is an overlay opening over, or closing back to, another, and is entered like any open. The track menu is nested in the OSD's overlay (`data-detail-nested`), so BACK closes the menu alone and the next BACK dismisses the OSD. (stage 4 finding)
 * `2026-10-22` — The viewing's keys are Controls bindings (category *During playback on a TV*: play/pause, seek forward, seek back, audio & subtitles; defaults the remote's media keys and ContextMenu, no gamepad defaults), bound on the TV's own Settings page; the two fallback key maps behind the user's are gone, and a Play/Pause key outside a viewing is Play. Closes open decision 8: which key opens the track menu is the user's binding. (M6, the owner's question)
+* `2026-10-23` — A remote player's stream reconnects: every `loadfile` the remote transport sends carries FFmpeg's HTTP `reconnect` and `reconnect_on_network_error`, so a host restart or a network blip stalls the viewing and resumes it instead of ending the file early. (M6 fourth batch)
+* `2026-10-23` — The TV app's audio buffer is 0.5 s (`Player.instanceOptions`): mpv's 0.2 s default underran once at every start on the Sony. (M6 fourth batch, `android-app`)
 * `2026-10-22` — Every TV check prints the player's drop counters (`frame-drop-count`, `decoder-frame-drop-count`, `vo-delayed-frame-count`) after each viewing it drives — `DROPS:` lines in `mc-tv-flow osd`. A layer change that costs frames shows up there, not in a screenshot. (rig rule, owner's question)
 * `2026-10-22` — No 4K UI on the TV: the Sony runs every app's UI at a 1080p override and the owner will not quadruple the WebView's load; a slightly smaller UI scale on the TV is wanted instead (M6). (owner)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
@@ -304,6 +310,28 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    panel's own sound modes do the job, (c) a TV-only toggle without
    memory. Recommendation: (a), scoped as its own milestone after M7 if
    the owner wants it on the TV at all; (b) until then.
+10. **The TV's UI scale** (2026-10-23, M6 fourth batch). The WebView lays
+    the page out at 960×540 CSS px (device pixel ratio 2: Android TV's
+    1080p is xhdpi), so `--auto-scale` computes 0.5 and the 0.7 floor in
+    `app.css` (a guard for narrow desktop windows) clamps it: the TV
+    draws the design at 1.4× its 1:1 1080p size — the "slightly too big"
+    the owner saw. The install-wide preference (`ui_scale`, Settings →
+    Preferences) multiplies on top and would move the desktop too.
+    Options: (a) a per-player scale — the Preferences stepper on a paired
+    device writes the player's own factor (a column on `players`,
+    host-owned, surviving the TV's restarts), which the root layout
+    applies for that device; the floor stays the desktop's, so the TV
+    ranges from 1× (pref 0.7) to 1.4× and beyond. (b) The TV app sets the
+    WebView's initial scale so the layout is 1920 CSS px wide and
+    `--auto-scale` is 1: the design at 1:1 physical pixels, the
+    install-wide preference the only knob — the TV and the desktop share
+    one size. (c) Keep 1.4× and lower the floor for devices only.
+    Recommendation: (a). The owner wants the TV between 1× and 1.4× with
+    the desktop unchanged; per-device state on the player row is the
+    roadmap's rule; the floor is a desktop guard and stays. Cost: a
+    column and a migration, the stepper's write split by device, the root
+    layout reading the player's factor (the player is in the session
+    already).
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -782,7 +810,58 @@ state before the write; the desktop has the same fault, masked in tests
 where no worker runs and `get/0` resolves live. The writer refreshes
 the cache before it broadcasts (`controls_test`, with the cache warm).
 Docs: `docs/playback.md` and the spec amendment say "in either order".
-Precommit and commit: see Status.
+Precommit green; commit `e606061b`.
+
+**Fourth batch (2026-10-23, the TV free), steps 1–7.** *Scope:* the
+TV-only list, measured before anything was designed: (a) the pairing
+page's Code field; (b) the WebView's 960×540 layout and the UI scale "a
+little smaller" — one question; (c) the audio underrun at start; (d)
+detach/reattach and host-restart recovery; (e) the finish prompt after a
+real-length viewing; (f) Back-key and D-pad polish — nothing specific is
+recorded; waits on the owner naming what they saw. *Research (TV window
+d, `scratchpad/m6tv-d`):* the WebView reports 960×540 CSS px at a device
+pixel ratio of 2 (Android TV's 1080p is xhdpi by convention), so
+`--auto-scale` computes 0.5 and the stylesheet's 0.7 floor clamps it: the
+TV draws the design at 1.4× its 1:1 size — (b) has one cause. The Code
+field had no box on the desk either (`page-shot` at 960×540): the kit's
+`.input` takes a caller's class in place of its own, and the code's
+`font-mono tracking-widest` had replaced `w-full input`; the page's
+background stopped at 70% of the screen — `min-h-screen` under the 0.7
+zoom, the `--pvh` case `app.css` documents. A dropped channel reconnects
+in 1 s and the viewing reattaches, zero drops. A host restart killed the
+stream: FFmpeg's HTTP reader took the short read for the file's end, mpv
+sat on `eof-reached` at 84 s of 2543 (keep-open), and the recovered
+session ended the viewing at once. The TV's mpv is FFmpeg n8.1, whose
+HTTP `reconnect` and `reconnect_on_network_error` resume the Range with
+backoff (caps: 120 s a try, 256 s in all); mpv ignores a `stream-lavf-o`
+key a build lacks; the media token lives 12 h. `audio-buffer=0.5` set on
+the instance before a play: no underrun, where every earlier start logged
+one at mpv's 0.2 s default. The rig: `mc-sim-host stop` returned before
+the old node had gone and the next `start` never came up (an empty log) —
+it waits now. *Decisions:* (b) is the owner's — open decision 10.
+*Design pass:* the stream is the transport's delivery, so its options
+ride on each file beside the session's: `Transport.Remote`'s one
+`loadfile` helper (open and queue) leads with
+`stream-lavf-o=reconnect=1,reconnect_on_network_error=1` — not on the TV
+app's instance (the host owns delivery) and not in `LaunchFlags` (the
+desktop's local file has no stream). The AO buffer belongs with the TV
+app's AO, decoder and cache options (`Player.instanceOptions`). The Code
+field and the page height are fixes at the callers, not the kit. *Plan:*
+`remote_test` (both loadfile expectations) → the helper;
+`pairing_controller_test` (both inputs drawn as the kit's, LazyHTML) →
+the class; `min-h-screen` → `calc(100 * var(--pvh))`; `audio-buffer` in
+the TV app and its doc; the rig's stop waits; docs: the transport
+moduledoc, `docs/playback.md`, the spec amendment; TV window e. *Plan
+pass:* the stream options live in the transport only; every loadfile goes
+through the helper; no shim. *Execution (TV window e, `m6tv-e`):* the
+Code field 279×28 CSS px, drawn; `audio-buffer` 0.5 → no underrun; the
+host stopped (16 s) and started (2 s): FFmpeg reconnected with backoff
+("Will reconnect … in 3 second(s)", then 7), the channel came back in
+1 s, the recovered session kept playing (45 → 51 s, not paused for
+cache), zero drops; a seek into the last 30 s of the 42-minute file
+played out to the finish prompt (completed: Delete this file / Done /
+Watch again). Precommit and commit: see Status; the TV app's build with
+the buffer (`android-app`): see Status.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -2329,7 +2408,7 @@ against `git log remote-players` first (the reconciliation rule).
   database is the owner's.
 * Wiki edits for M1 are committed locally in `~/src/media-centaur/media-centaur.wiki`
   (`9df804c`), not pushed; push with the release that carries the campaign.
-* The TV app: `~/src/media-centaur/android-app` at `3df9251` (shell,
+* The TV app: `~/src/media-centaur/android-app` at `ec7dd58` (shell,
   player, bridge; transparent over the player's surface; the native
   output path; Back and Menu forwarded to the page), no remote yet. Each session: `mc-tv
   connect`, `mc-tv build`, `mc-tv install`; `mc-tv launch --host
@@ -2375,22 +2454,20 @@ the owner's gaming screen: when the owner says it is in use, take no TV
 window at all until they say it is free — verify on the desk with
 `mc-player-sim` and record the TV check as pending.
 
-**The next session's agenda: the TV-only M6 items.** The three M6
-batches are verified on the Sony (2026-10-23, record above; wiki commits
-local, unpushed). Next, each through the milestone procedure: the UI
-scale a little smaller (the per-device scale preference on the TV's own
-Settings page), the pairing page's Code field in the WebView, the
-WebView's 960×540 layout scale, the audio underrun at start (every
-viewing logs `Audio device underrun detected` once at playback start),
-detach/reattach and host-restart recovery on the device, Back-key and
-D-pad polish, the finish prompt after a real-length viewing. Owner's
-calls open: 9 (the Sound column), 3 (the speed test), 1 (the
-application id). The Sony's player is `9586a9fc` (paired again after
-the removal checks). For any TV window: `mc-sim-host start` (it serves the branch and rebuilds
+**The next session's agenda: the owner's calls, then M7.** Four M6
+batches are verified on the Sony (2026-10-23, records above; wiki commits
+local, unpushed). Nothing is left that an agent can decide alone: open
+decision 10 (the TV's UI scale — (a) a per-player factor recommended),
+Back-key and D-pad polish (the owner's walk through the TV names what to
+fix), and the older calls 9 (the Sound column), 3 (the speed test), 1
+(the application id). When the owner answers, run the chosen items
+through the procedure, then M7 (release path and owner checks). The
+Sony's player is `9586a9fc` (paired again after the removal checks); the
+installed TV build carries the audio buffer. For any TV window: `mc-sim-host start` (it serves the branch and rebuilds
 `app.js` on change — confirm a changed symbol with `grep` in
 `priv/static/assets/js/app.js`), `mc-tv connect`, wake the TV if needed
 (`mc-tv adb shell input keyevent KEYCODE_WAKEUP`); the installed build is
-`3df9251`, rebuild only after a change; `mc-tv-flow osd tv <dir>` is
+`ec7dd58` (the audio buffer), rebuild only after a change; `mc-tv-flow osd tv <dir>` is
 the whole check and every TV check prints `DROPS:` lines. The older
 checkpoint text below is kept for its facts.
 

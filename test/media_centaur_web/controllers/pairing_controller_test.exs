@@ -17,6 +17,23 @@ defmodule MediaCentaurWeb.PairingControllerTest do
     assert html =~ "Settings → Players"
   end
 
+  # The kit's `.input` takes a caller's class in place of its own, so a
+  # class added for the code's look must carry the field's styling too:
+  # without it the field drew no box at all (seen on the TV, 2026-10-23).
+  test "both fields are drawn as the kit's inputs", %{conn: conn} do
+    html = conn |> from_lan() |> get(~p"/pair") |> html_response(200)
+
+    for name <- ["pairing[name]", "pairing[code]"] do
+      [class] =
+        html
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s|input[name="#{name}"]|)
+        |> LazyHTML.attribute("class")
+
+      assert "input" in String.split(class), "#{name} is not drawn as an input: #{inspect(class)}"
+    end
+  end
+
   test "the open code with a name pairs the device: the session holds the player, home follows",
        %{conn: conn} do
     %{code: code} = Players.start_pairing()

@@ -73,7 +73,9 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     assert_received {:channel, {:attach, ^me}}
 
     # Nothing is set on the player's long-lived instance: every option
-    # rides on the file and mpv restores the instance at its end.
+    # rides on the file and mpv restores the instance at its end. The
+    # stream's own options lead: FFmpeg resumes the HTTP range after a
+    # dropped connection instead of taking the short read for the end.
     refute_received {:channel, {:push, ["set_property" | _]}}
     refute_received {:channel, {:push, ["change-list" | _]}}
 
@@ -84,7 +86,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
                         ^url,
                         "replace",
                         -1,
-                        "keep-open=%3%yes,script-opts=%35%media_centaur_session-profile_id=p1,start=%4%42.5"
+                        "stream-lavf-o=%40%reconnect=1,reconnect_on_network_error=1,keep-open=%3%yes,script-opts=%35%media_centaur_session-profile_id=p1,start=%4%42.5"
                       ]}}
   end
 
@@ -106,7 +108,13 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     {_events, transport} = Remote.open(transport, launch)
 
     assert Remote.queue(transport, "#{@base}/media/next?t=token", 300.0) ==
-             ["loadfile", "#{@base}/media/next?t=token", "append", -1, "keep-open=%3%yes,start=%5%300.0"]
+             [
+               "loadfile",
+               "#{@base}/media/next?t=token",
+               "append",
+               -1,
+               "stream-lavf-o=%40%reconnect=1,reconnect_on_network_error=1,keep-open=%3%yes,start=%5%300.0"
+             ]
 
     refute Remote.draws_subtitles?(transport)
   end

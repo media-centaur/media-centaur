@@ -223,6 +223,8 @@ keyboard source cannot read; every other key the WebView delivers as is.
 
 **2026-10-23 (M6, second batch).** A removed player's channel closes at once: `Remote.Channel` listens on `players:updates`, and its own player's removal pushes `stop` to the device's mpv and closes the socket `:removed`, which `Transport.Remote` turns into the viewing's end rather than a reattach window. The media endpoint also serves a file's sidecars (the *Sidecar subtitles* amendment above). A page's playing set is its own player's (`LiveHelpers.load_playback_sessions/1`, `apply_playback_change/3`): a viewing on the TV does not pin the host's Continue Watching, nor the reverse; Status stays the board over every player. A relative seek never crosses the end (`Command.within/3`).
 
+**2026-10-23 (M6, fourth batch).** The stream's own options ride on each `loadfile` beside the session's: FFmpeg's HTTP `reconnect` and `reconnect_on_network_error` (`Transport.Remote`'s `stream-lavf-o`). Without them a host restart ended the TCP stream early and the TV's mpv took the short read for the file's end (paused on `eof-reached` at 84 s of 2543), so the recovered viewing ended at once; with them the stream stalls and resumes within FFmpeg's caps. The pairing page's Code field is drawn as the kit's input again (its caller's class had replaced the component's).
+
 ## The end-to-end skeleton
 
 The smallest vertical slice that exercises every boundary, built before anything is hardened:
