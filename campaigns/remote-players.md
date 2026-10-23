@@ -33,6 +33,11 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
+**Resumed 2026-10-23 (afternoon) after the context clear: reconciled,
+nothing drifted; M7 opened at step 1 (scope recorded below) and its one
+owner-free item done — the glossary elevated to `docs/GLOSSARY.md`.
+M6's remainder and M7's calls are the owner's.** The earlier state:
+
 **M6 nearly done: four batches built and verified on the Sony
 2026-10-23; what is left is the owner's** (branch `remote-players`;
 `android-app` rebuilt and installed with the audio buffer; UIDR-055).
@@ -426,8 +431,62 @@ first, then iteration. The contract both codebases follow is
    work leaves them.
 7. **M7 — Release path and owner checks.** Release signing in CI, Google
    Play internal testing track, wiki page for the TV app, glossary
-   elevated to `docs/GLOSSARY.md`; the owner's walk through every page
-   and the full viewing lifecycle on the TV.
+   elevated to `docs/GLOSSARY.md` (✅ 2026-10-23); the owner's walk
+   through every page and the full viewing lifecycle on the TV. Step 1
+   recorded 2026-10-23 (record below); steps 2–7 wait on the owner's
+   calls listed there.
+
+### M7 — Release path and owner checks (procedure record, step 1)
+
+**Step 1 — scope (2026-10-23).** In: (a) a home for `android-app` — a
+GitHub repository (today it has no remote and no CI) — and a release
+build signed in CI from a keystore held as a repository secret, one APK
+per tag; (b) the Google Play internal testing track, the first upload
+of which fixes the application id for good; (c) the path a user takes
+to install the TV app on their own TV — Play's internal track (testers
+the owner lists) or a sideloaded APK from the GitHub release; the wiki
+page says which; (d) the wiki page for the TV app: requirements
+(Android TV, the host on the same network), installing, then pointers
+to pairing (`Settings-Reference#players`) and use (`Playback#on-a-paired-tv`,
+`Keyboard-and-Gamepad`), which already exist; (e) the glossary
+elevated to `docs/GLOSSARY.md` — **done 2026-10-23**: the Playback
+section's stale *Player* row replaced by Player (host/remote), Pairing,
+The gate, Transport, Player channel, Media endpoint, Playback session,
+Viewing, Viewing layer and TV app, each row naming its module and
+record; (f) the owner's walk through every page and the full viewing
+lifecycle on the TV, with what it finds fixed under M6's Back-key and
+D-pad item; (g) the merge of `remote-players` into main, the release
+that carries it, and the five local wiki commits pushed with that
+release; (h) campaign closure — the file deleted, the index paragraph
+written, the per-player UI scale leftover (decision 10) re-homed there
+under *player operational status and settings*. Dropped from M7: the
+Sound column (decision 9) and the speed test (decision 3) — each is its
+own milestone after M7 if the owner wants it, neither gates a release.
+Not in scope: a Play production listing (store assets, a privacy
+policy, content rating) — the internal track is the campaign's end
+state, production is a later campaign.
+
+*Owner's calls that gate step 2 onward:* decision 1 (the application id
+`app.mediacentaur.tv` and the name "Media Centaur" — recommendation:
+keep them); whether the TV app ships through Play at all for now or
+only as a sideloaded APK (recommendation: build and sign in CI either
+way; open the Play internal track only when the owner has a Play
+Console account — it carries a one-time fee and an identity check, to
+confirm in research); the repository's name and visibility
+(recommendation: public, `media-centaur-tv`, beside the app
+repository); and whether the host's `scripts/ship` should tag the TV
+app too or the two release on their own cadence (recommendation: their
+own cadence — the channel protocol is versioned by the spec, and a host
+release must not wait on a Play review).
+
+*Research list for step 2 (not yet run):* Play Console account
+requirements and the internal track's tester limits as of 2026; Gradle
+`signingConfigs` from CI environment variables with the keystore
+base64-encoded in a secret; a GitHub Actions runner building the
+`armeabi-v7a` debug and release variants against `dev.jdtech.mpv:libmpv`
+1.0.0 with the `mise.toml` pins; whether the WebView version the Sony
+runs (154) is the floor to document; the wiki's `Installation` page
+structure, so the TV page sits beside it in `_Sidebar.md`.
 
 ### M6 — Hardening (procedure record, in progress)
 
@@ -2371,6 +2430,14 @@ No step keeps an old path or lands through a shim.
   session type over two transports.
 
 ## Resuming in a new session
+
+**2026-10-23, afternoon resume:** reconciled against `git log` — nothing
+had drifted (branch at `52937f35`, `android-app` at `ec7dd58`, the sim
+host up on 4003, the wiki's five commits local). This session elevated
+the glossary and recorded M7's step 1 (above). The next session starts
+at the owner's calls listed under that record and under *What is left
+in M6*; nothing else is agent-decidable. The paragraphs below remain
+accurate.
 
 Everything a cleared context needs, verified 2026-10-23 (the context
 was cleared at the owner's request after M6's fourth batch). Reconcile
