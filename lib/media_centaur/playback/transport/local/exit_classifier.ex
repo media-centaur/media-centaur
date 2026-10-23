@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Playback.MpvExitClassifier do
+defmodule MediaCentaur.Playback.Transport.Local.ExitClassifier do
   @moduledoc """
   Pure functions for classifying an MPV session's exit and building a short
   user-facing message from captured MPV output.

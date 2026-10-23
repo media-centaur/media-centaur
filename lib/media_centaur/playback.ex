@@ -10,12 +10,12 @@ defmodule MediaCentaur.Playback do
       Command,
       LanguagePolicy,
       ProgressBroadcaster,
-      Remote.Channel,
-      Remote.PlayerRegistry,
       ResumeTarget,
       SessionRegistry,
       Sessions,
       TrackResolver.Track,
+      Transport.Remote.Channel,
+      Transport.Remote.PlayerRegistry,
       Viewing
     ]
 

@@ -1,11 +1,11 @@
-defmodule MediaCentaur.Playback.MpvUserConfigTest do
+defmodule MediaCentaur.Playback.Transport.Local.UserConfigTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.MpvUserConfig
+  alias MediaCentaur.Playback.Transport.Local.UserConfig
 
   describe "dir/1 — mpv's own lookup order" do
     test "MPV_HOME wins" do
-      assert MpvUserConfig.dir(%{
+      assert UserConfig.dir(%{
                "MPV_HOME" => "/custom/mpv",
                "XDG_CONFIG_HOME" => "/xdg",
                "HOME" => "/home/viewer"
@@ -14,21 +14,21 @@ defmodule MediaCentaur.Playback.MpvUserConfigTest do
     end
 
     test "then XDG_CONFIG_HOME/mpv" do
-      assert MpvUserConfig.dir(%{"XDG_CONFIG_HOME" => "/xdg", "HOME" => "/home/viewer"}) == "/xdg/mpv"
+      assert UserConfig.dir(%{"XDG_CONFIG_HOME" => "/xdg", "HOME" => "/home/viewer"}) == "/xdg/mpv"
     end
 
     test "then ~/.config/mpv" do
-      assert MpvUserConfig.dir(%{"HOME" => "/home/viewer"}) == "/home/viewer/.config/mpv"
+      assert UserConfig.dir(%{"HOME" => "/home/viewer"}) == "/home/viewer/.config/mpv"
     end
   end
 
   describe "stale_bundled_copies/1" do
     @tag :tmp_dir
     test "an empty or absent scripts directory reports nothing", %{tmp_dir: tmp_dir} do
-      assert MpvUserConfig.stale_bundled_copies(tmp_dir) == []
+      assert UserConfig.stale_bundled_copies(tmp_dir) == []
 
       File.mkdir_p!(Path.join(tmp_dir, "scripts"))
-      assert MpvUserConfig.stale_bundled_copies(tmp_dir) == []
+      assert UserConfig.stale_bundled_copies(tmp_dir) == []
     end
 
     @tag :tmp_dir
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Playback.MpvUserConfigTest do
       File.write!(Path.join(scripts, "track-menu.lua"), "")
       File.write!(Path.join(scripts, "hdr-display.lua"), "")
 
-      assert MpvUserConfig.stale_bundled_copies(tmp_dir) ==
+      assert UserConfig.stale_bundled_copies(tmp_dir) ==
                [Path.join(scripts, "skip-intro.lua"), Path.join(scripts, "track-menu.lua")]
     end
   end

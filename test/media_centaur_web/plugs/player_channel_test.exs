@@ -43,12 +43,12 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannelTest do
     assert conn |> from_lan() |> as_player(player) |> post("/players/channel", %{}) |> response(405)
   end
 
-  test "the locators point at the address the device reached us by and read it back", %{conn: conn} do
+  test "the media_urls point at the address the device reached us by and read it back", %{conn: conn} do
     player_id = Ecto.UUID.generate()
     presence_id = Ecto.UUID.generate()
     conn = %{conn | host: "192.168.1.5", port: 2160, scheme: :http}
 
-    %{locate: locate, identify: identify} = PlayerChannel.locators(conn, player_id)
+    %{for_file: locate, presence_id: identify} = PlayerChannel.media_urls(conn, player_id)
     url = locate.(presence_id)
 
     assert String.starts_with?(url, "http://192.168.1.5:2160/media/#{presence_id}?t=")
@@ -58,7 +58,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannelTest do
     %URI{query: query} = URI.parse(url)
     assert {:ok, {^player_id, ^presence_id}} = MediaToken.verify(URI.decode_query(query)["t"])
 
-    %{locate_subtitle: locate_subtitle} = PlayerChannel.locators(conn, player_id)
+    %{for_sidecar: locate_subtitle} = PlayerChannel.media_urls(conn, player_id)
     sidecar_url = locate_subtitle.(presence_id, "Sample Show - S01E01.en.srt")
 
     assert String.starts_with?(

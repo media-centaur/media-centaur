@@ -10,7 +10,7 @@ Campaign: `campaigns/remote-players.md`. Decision records: ADR-079 (admission), 
 | **Player** | A machine that renders a viewing. The **host player** is mpv spawned on the host (`:host`); a **remote player** is a paired device running the TV app (`Players.Player`). |
 | **Viewing** | One profile watching one title chain on one player: a `Playback.MpvSession`. |
 | **Transport** | How a session reaches an mpv and how that mpv gets its file. **Local**: Unix socket to a spawned process, host path. **Remote**: the player channel, media URL. |
-| **Player channel** | The remote player's one long-lived WebSocket to the host, carrying mpv IPC JSON. Its remote end is the TV app's **bridge**; its host end is `Playback.Remote.Channel`. |
+| **Player channel** | The remote player's one long-lived WebSocket to the host, carrying mpv IPC JSON. Its remote end is the TV app's **bridge**; its host end is `Playback.Transport.Remote.Channel`. |
 | **Bridge** | The TV app component that turns IPC JSON into libmpv calls and libmpv events into IPC JSON. |
 | **Media endpoint** | `GET /media/:presence_id`: one playable file by its `FilePresence` id, served with HTTP Range. |
 | **Media URL** | The URL of one file on the media endpoint, composed by the host, handed to the player over the channel. |
@@ -134,8 +134,8 @@ Playback.play(profile_id, uuid, player)        player :: :host | player_id
        └─ MpvSession (unchanged observer)
             └─ Transport (behaviour): connect/1, send/2, reattach/1, close/1
                  ├─ Transport.Local   Port spawn + Unix socket (today's code, moved)
-                 └─ Transport.Remote  Playback.Remote.Channel for the player
-Playback.Remote.Channel                        one per connected remote player
+                 └─ Transport.Remote  Playback.Transport.Remote.Channel for the player
+Playback.Transport.Remote.Channel                        one per connected remote player
   ├─ started by MediaCentaurWeb.PlayerSocket (the WebSock handler) on upgrade
   ├─ registry by player_id; the socket process forwards frames to it
   └─ fans events to the attached MpvSession; queues nothing when none
@@ -230,7 +230,7 @@ keyboard source cannot read; every other key the WebView delivers as is.
 The smallest vertical slice that exercises every boundary, built before anything is hardened:
 
 1. Host: `Transport` seam with `Local` carrying today's behaviour (tests unchanged).
-2. Host: `Playback.Remote.Channel` + `PlayerSocket` + the media endpoint + `play/3`, verifiable from the host alone with a desktop mpv driven through a small script that speaks the channel (`scripts/agents/mc-player-sim`).
+2. Host: `Playback.Transport.Remote.Channel` + `PlayerSocket` + the media endpoint + `play/3`, verifiable from the host alone with a desktop mpv driven through a small script that speaks the channel (`scripts/agents/mc-player-sim`).
 3. TV app: pairing screen, WebView shell, libmpv surface, bridge. Pairs, browses, plays one file, reports progress, auto-advances an episode.
 
 Then iterate: detach/reattach window, host-restart recovery, sidecar subtitles, HDR and audio output, Back-key and D-pad polish, Play internal track.

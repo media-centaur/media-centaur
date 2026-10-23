@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Playback.Remote.ChannelTest do
+defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
   @moduledoc """
   The channel protocol over the handler's state, with the test process as
   the WebSocket owner: what a frame in does, what a message to the handler
@@ -9,17 +9,17 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
-  alias MediaCentaur.Playback.Remote.Channel
-  alias MediaCentaur.Playback.Remote.PlayerRegistry
+  alias MediaCentaur.Playback.Transport.Remote.Channel
+  alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
 
-  @locators %{locate: &Function.identity/1, identify: &Function.identity/1}
+  @media_urls %{for_file: &Function.identity/1, presence_id: &Function.identity/1}
 
   defp player_id, do: Ecto.UUID.generate()
 
   # No session holds the player, so connecting asks it what it plays over
   # this channel; this player plays nothing.
   defp connected(player_id \\ player_id()) do
-    {:ok, state} = Channel.connect(player_id, @locators)
+    {:ok, state} = Channel.connect(player_id, @media_urls)
     assert_receive {:channel, {:request, _from, _ref, ["get_property", "path"]}} = message
     {:push, {:text, json}, state} = Channel.handle_message(state, message)
     %{"request_id" => request_id} = Jason.decode!(json)
@@ -31,12 +31,12 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
   test "connect registers the caller as the player's channel; a second channel must evict the first" do
     player_id = player_id()
     _state = connected(player_id)
-    assert {pid, locators} = PlayerRegistry.lookup(player_id)
+    assert {pid, media_urls} = PlayerRegistry.lookup(player_id)
     assert pid == self()
-    assert locators == @locators
+    assert media_urls == @media_urls
     assert player_id in PlayerRegistry.connected()
 
-    other = Task.async(fn -> Channel.connect(player_id, @locators) end)
+    other = Task.async(fn -> Channel.connect(player_id, @media_urls) end)
     assert {:error, {:already_registered, pid}} = Task.await(other)
     assert pid == self()
   end
@@ -46,7 +46,7 @@ defmodule MediaCentaur.Playback.Remote.ChannelTest do
 
     older =
       spawn(fn ->
-        {:ok, state} = Channel.connect(player_id, @locators)
+        {:ok, state} = Channel.connect(player_id, @media_urls)
 
         receive do
           {:channel, :replaced} = message ->

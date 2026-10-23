@@ -1,8 +1,8 @@
 defmodule MediaCentaur.Playback.Transport.Remote do
   @moduledoc """
   A remote player's transport: the mpv inside the paired device's app,
-  reached over its player channel (`Playback.Remote.Channel`), its files
-  media URLs the channel's locators compose.
+  reached over its player channel (`Playback.Transport.Remote.Channel`), its
+  files the media URLs the channel composes.
 
   `open/2` attaches the session to the channel and sends one
   `loadfile … replace` whose options argument carries the session options
@@ -29,7 +29,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   in for the autoload: once mpv has reported both the file's `path` and
   `file-loaded` — libmpv delivers the two in either order — it adds each
   of that file's sidecars (`Subtitles.sidecars_for_presence/1`) with
-  `sub-add <url> auto <name> [<lang>]` from the locators' subtitle URL,
+  `sub-add <url> auto <name> [<lang>]` from the media URLs' sidecar function,
   once per file; `start-file` forgets both for the next one. The session
   hears of the tracks as it does of any, through `track-list`.
 
@@ -60,13 +60,13 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   alias MediaCentaur.Format
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Playback.{LaunchFlags, SessionRecovery}
-  alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
+  alias MediaCentaur.Playback.Transport.Remote.{Channel, PlayerRegistry}
   alias MediaCentaur.Subtitles
 
   defstruct [
     :player_id,
     :channel,
-    :locators,
+    :media_urls,
     :launch,
     :presence_id,
     started?: true,
@@ -83,8 +83,8 @@ defmodule MediaCentaur.Playback.Transport.Remote do
       nil ->
         {:error, :player_offline}
 
-      {channel, locators} ->
-        {:ok, %__MODULE__{player_id: player_id, channel: channel, locators: locators}}
+      {channel, media_urls} ->
+        {:ok, %__MODULE__{player_id: player_id, channel: channel, media_urls: media_urls}}
     end
   end
 
@@ -98,7 +98,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
       nil ->
         []
 
-      {channel, locators} ->
+      {channel, media_urls} ->
         reader = fn name ->
           case Channel.request(channel, ["get_property", name]) do
             {:ok, %{"error" => "success", "data" => data}} -> {:ok, data}
@@ -108,7 +108,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
         end
 
         with {:ok, path} when is_binary(path) <- reader.("path"),
-             presence_id when is_binary(presence_id) <- locators.identify.(path),
+             presence_id when is_binary(presence_id) <- media_urls.presence_id.(path),
              {:ok, presence} <- FilePresence.fetch(presence_id),
              entity_id when is_binary(entity_id) <- SessionRecovery.entity_id_for_path(presence.file_path),
              {:ok, params} <-
@@ -151,14 +151,14 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   # fetch a host path, so it is not handed one.
   def locator(transport, content_url) do
     case FilePresence.fetch_by_path(content_url) do
-      {:ok, presence} -> {:ok, transport.locators.locate.(presence.id)}
+      {:ok, presence} -> {:ok, transport.media_urls.for_file.(presence.id)}
       {:error, :not_found} -> {:error, :no_presence}
     end
   end
 
   @impl true
   def identify(transport, reported_path) do
-    with presence_id when is_binary(presence_id) <- transport.locators.identify.(reported_path),
+    with presence_id when is_binary(presence_id) <- transport.media_urls.presence_id.(reported_path),
          {:ok, presence} <- FilePresence.fetch(presence_id) do
       presence.file_path
     else
@@ -211,7 +211,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
          {:remote, {:message, %{"event" => "property-change", "name" => "path", "data" => url} = object}}}
       )
       when is_binary(url) do
-    transport = add_sidecars(%{transport | presence_id: transport.locators.identify.(url)})
+    transport = add_sidecars(%{transport | presence_id: transport.media_urls.presence_id.(url)})
     {[{:message, object}], transport}
   end
 
@@ -240,13 +240,13 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   def handle_message(transport, {:transport, {:remote, {:channel_up, channel}}}) do
     Channel.attach(channel, self())
 
-    locators =
+    media_urls =
       case PlayerRegistry.lookup(transport.player_id) do
-        {^channel, locators} -> locators
-        _other -> transport.locators
+        {^channel, media_urls} -> media_urls
+        _other -> transport.media_urls
       end
 
-    {[{:attached, :reconnected}], %{transport | channel: channel, locators: locators, started?: true}}
+    {[{:attached, :reconnected}], %{transport | channel: channel, media_urls: media_urls, started?: true}}
   end
 
   def handle_message(_transport, _message), do: :unhandled
@@ -272,7 +272,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   defp sub_add(transport, presence_id, %{source: source, language: language}) do
     basename = Path.basename(source)
-    url = transport.locators.locate_subtitle.(presence_id, basename)
+    url = transport.media_urls.for_sidecar.(presence_id, basename)
     ["sub-add", url, "auto", basename] ++ List.wrap(language)
   end
 

@@ -1,11 +1,11 @@
-defmodule MediaCentaur.Playback.MpvLogReader do
+defmodule MediaCentaur.Playback.Transport.Local.LogReader do
   @moduledoc """
   Reads the tail of an mpv `--log-file=` capture for inclusion in the exit
   classifier's `output_tail`.
 
   Production runs mpv with `--no-terminal`, which silences mpv's stderr —
   so when mpv fails to start, the backend's port-data capture is empty
-  and `MpvExitClassifier` falls back to the generic "mpv exited (status
+  and `ExitClassifier` falls back to the generic "mpv exited (status
   N) before playback started" message. Routing mpv's own logs through a
   per-session file and slurping the tail at finalization time gives the
   classifier the real error string instead.
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Playback.MpvLogReader do
   end
 
   @doc """
-  Selects the best available exit-output tail for `MpvExitClassifier`.
+  Selects the best available exit-output tail for `ExitClassifier`.
 
   Prefers a non-empty port-data tail (mpv ran with a terminal and we captured
   stderr live). Falls back to the `--log-file=` capture when the port tail is

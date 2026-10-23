@@ -59,8 +59,8 @@ defmodule MediaCentaur.Playback.SessionsTest do
       path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
-      locators = %{locate: &("http://tv.test/media/" <> &1), identify: fn _url -> nil end}
-      :ok = MediaCentaur.Playback.Remote.PlayerRegistry.register(player_id, locators)
+      media_urls = %{for_file: &("http://tv.test/media/" <> &1), presence_id: fn _url -> nil end}
+      :ok = MediaCentaur.Playback.Transport.Remote.PlayerRegistry.register(player_id, media_urls)
 
       params = %{
         action: :play,
@@ -85,8 +85,8 @@ defmodule MediaCentaur.Playback.SessionsTest do
       path = stamped_file(tmp_dir)
 
       player_id = Ecto.UUID.generate()
-      locators = %{locate: &("http://tv.test/media/" <> &1), identify: fn _url -> nil end}
-      :ok = MediaCentaur.Playback.Remote.PlayerRegistry.register(player_id, locators)
+      media_urls = %{for_file: &("http://tv.test/media/" <> &1), presence_id: fn _url -> nil end}
+      :ok = MediaCentaur.Playback.Transport.Remote.PlayerRegistry.register(player_id, media_urls)
 
       params = %{
         action: :play,

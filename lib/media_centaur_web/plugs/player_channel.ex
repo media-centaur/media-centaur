@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
   `Origin` header, when a browser sends one, must be this install's own.
   A player reconnecting evicts its earlier channel first.
 
-  The locators handed to the channel close over the address the device
+  The media URLs handed to the channel close over the address the device
   used to reach us (the request's `Host`), so every media URL the host
   composes for this player points where the device can fetch it.
   """
@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
 
   import Plug.Conn
 
-  alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
+  alias MediaCentaur.Playback.Transport.Remote.{Channel, PlayerRegistry}
   alias MediaCentaurWeb.MediaToken
   alias MediaCentaurWeb.PlayerSocket
 
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
       conn
       |> WebSockAdapter.upgrade(
         PlayerSocket,
-        %{player_id: player_id, locators: locators(conn, player_id)},
+        %{player_id: player_id, media_urls: media_urls(conn, player_id)},
         timeout: 60_000,
         max_frame_size: @max_frame_size,
         compress: false
@@ -52,19 +52,19 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
 
   def call(conn, _opts), do: conn
 
-  @doc "The locators a channel from `conn` gets: URLs at the address the device reached us by."
-  @spec locators(Plug.Conn.t(), String.t()) :: PlayerRegistry.locators()
-  def locators(conn, player_id) do
+  @doc "The media URLs a channel from `conn` gets: URLs at the address the device reached us by."
+  @spec media_urls(Plug.Conn.t(), String.t()) :: PlayerRegistry.media_urls()
+  def media_urls(conn, player_id) do
     base = base_url(conn)
 
     %{
-      locate: fn presence_id ->
+      for_file: fn presence_id ->
         "#{base}/media/#{presence_id}?t=#{MediaToken.sign(player_id, presence_id)}"
       end,
-      locate_subtitle: fn presence_id, basename ->
+      for_sidecar: fn presence_id, basename ->
         "#{base}/media/#{presence_id}/subtitles/#{URI.encode(basename, &URI.char_unreserved?/1)}?t=#{MediaToken.sign(player_id, presence_id)}"
       end,
-      identify: fn url ->
+      presence_id: fn url ->
         case URI.parse(url) do
           %URI{path: "/media/" <> presence_id} when presence_id != "" ->
             if !String.contains?(presence_id, "/"), do: presence_id
@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
 
   defp evict_existing(player_id) do
     case PlayerRegistry.lookup(player_id) do
-      {pid, _locators} -> Channel.replace(pid)
+      {pid, _media_urls} -> Channel.replace(pid)
       nil -> :ok
     end
   end

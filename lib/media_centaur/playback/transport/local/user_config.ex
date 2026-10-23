@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Playback.MpvUserConfig do
+defmodule MediaCentaur.Playback.Transport.Local.UserConfig do
   @moduledoc """
   The user's mpv configuration directory, read-only from the app's side.
 
