@@ -129,11 +129,11 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
 
       assert [params] = Local.recover(:host)
 
-      assert params.entity_id == movie.id
+      assert params.entry.entity_id == movie.id
       assert params.profile_id == profile_id
-      assert params.entity_name == "Recovered Movie"
-      assert params.content_url == file.file_path
-      assert params.start_position == 42.5
+      assert params.entry.entity_name == "Recovered Movie"
+      assert params.entry.content_url == file.file_path
+      assert params.entry.start_position == 42.5
 
       Task.shutdown(task, :brutal_kill)
     end
@@ -156,11 +156,11 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
       # can't name it would strand a running player with no UI attached.
       assert [params] = Local.recover(:host)
 
-      assert params.entity_id == entity_id
+      assert params.entry.entity_id == entity_id
       assert params.profile_id == profile_id
-      assert params.content_url == unknown_path
-      assert params.start_position == 7.0
-      refute Map.has_key?(params, :entity_name)
+      assert params.entry.content_url == unknown_path
+      assert params.entry.start_position == 7.0
+      assert params.entry.entity_name == nil
 
       Task.shutdown(task, :brutal_kill)
     end

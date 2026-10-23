@@ -18,27 +18,27 @@ defmodule MediaCentaur.Playback.Sessions do
   alias MediaCentaur.Playback.{MpvSession, SessionRegistry, SessionSupervisor, Transport}
 
   @doc """
-  Starts playback of `params` on `player`. Returns `:ok` or `{:error, reason}`:
-  `:file_not_found` when the file is not on disk, `:already_playing` when
-  that player already plays that entity, `:player_offline` when a remote
-  player has no channel to this install. `params.profile_id` is required:
-  the profile the session records under. On a player whose transport
+  Starts playback of `params` on `player`: `params.entry` is the
+  `Playback.Entry` to play and `params.profile_id` the profile the
+  session records under; a test may hand in `params.transport`. Returns
+  `:ok` or `{:error, reason}`: `:file_not_found` when the file is not on
+  disk, `:already_playing` when that player already plays that entity,
+  `:player_offline` when a remote player has no channel to this install.
+  On a player whose transport
   holds one viewing at a time, the player's other viewings end first, as
   a deliberate stop: a `loadfile … replace` would otherwise take the file
   from under a session that would then observe a file it did not start.
   """
   @spec play(map(), Playback.player()) ::
           :ok | {:error, :file_not_found | :already_playing | :player_offline | term()}
-  def play(params, player) do
-    entity_id = params.entity_id
-
+  def play(%{entry: entry} = params, player) do
     cond do
-      not playable_file?(params) ->
-        Log.error(:playback, "file not available — #{params[:content_url]}")
+      not File.exists?(entry.content_url) ->
+        Log.error(:playback, "file not available — #{entry.content_url}")
         {:error, :file_not_found}
 
-      SessionRegistry.active?({player, entity_id}) ->
-        Log.info(:playback, "already playing — #{params[:entity_name] || entity_id}")
+      SessionRegistry.active?({player, entry.entity_id}) ->
+        Log.info(:playback, "already playing — #{describe(entry)}")
         {:error, :already_playing}
 
       true ->
@@ -70,10 +70,7 @@ defmodule MediaCentaur.Playback.Sessions do
   end
 
   defp start(params, player, transport) do
-    Log.info(
-      :playback,
-      "starting session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}"
-    )
+    Log.info(:playback, "starting session — #{describe(params.entry)} on #{inspect(player)}")
 
     case SessionSupervisor.start_session(Map.merge(params, %{player: player, transport: transport})) do
       {:ok, _pid} ->
@@ -107,15 +104,12 @@ defmodule MediaCentaur.Playback.Sessions do
     for params <- transport_module(player).recover(player) do
       case resume(params, player) do
         :ok ->
-          Log.info(
-            :playback,
-            "recovered session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}"
-          )
+          Log.info(:playback, "recovered session — #{describe(params.entry)} on #{inspect(player)}")
 
         {:error, reason} ->
           Log.warning(
             :playback,
-            "failed to recover session — #{params.entity_id} on #{inspect(player)}: #{inspect(reason)}"
+            "failed to recover session — #{describe(params.entry)} on #{inspect(player)}: #{inspect(reason)}"
           )
       end
     end
@@ -123,8 +117,7 @@ defmodule MediaCentaur.Playback.Sessions do
     :ok
   end
 
-  defp playable_file?(%{content_url: path}) when is_binary(path), do: File.exists?(path)
-  defp playable_file?(_params), do: false
+  defp describe(entry), do: entry.entity_name || entry.entity_id
 
   @doc """
   Returns a list of `%{player, entity_id, state, now_playing, started_at}`

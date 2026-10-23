@@ -4,7 +4,9 @@ defmodule MediaCentaur.Playback.SessionsTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.FilePresence
-  alias MediaCentaur.Playback.Sessions
+  alias MediaCentaur.Playback.{Entry, Sessions}
+
+  defp for_entity(params, entity_id), do: put_in(params.entry.entity_id, entity_id)
 
   # A remote player is handed a media URL, which names the file's presence row.
   defp stamped_file(tmp_dir) do
@@ -26,12 +28,12 @@ defmodule MediaCentaur.Playback.SessionsTest do
       refute File.exists?(missing_path)
 
       params = %{
-        action: :play_next,
-        entity_id: Ecto.UUID.generate(),
         profile_id: Ecto.UUID.generate(),
-        entity_name: "Ghost Movie",
-        content_url: missing_path,
-        start_position: 0.0
+        entry: %Entry{
+          entity_id: Ecto.UUID.generate(),
+          entity_name: "Ghost Movie",
+          content_url: missing_path
+        }
       }
 
       assert {:error, :file_not_found} = Sessions.play(params, :host)
@@ -43,12 +45,8 @@ defmodule MediaCentaur.Playback.SessionsTest do
       on_exit(fn -> File.rm(path) end)
 
       params = %{
-        action: :play,
-        entity_id: Ecto.UUID.generate(),
         profile_id: Ecto.UUID.generate(),
-        entity_name: "Sample Movie",
-        content_url: path,
-        start_position: 0.0
+        entry: %Entry{entity_id: Ecto.UUID.generate(), entity_name: "Sample Movie", content_url: path}
       }
 
       assert {:error, :player_offline} = Sessions.play(params, Ecto.UUID.generate())
@@ -65,20 +63,16 @@ defmodule MediaCentaur.Playback.SessionsTest do
       :ok = MediaCentaur.Playback.Transport.Remote.PlayerRegistry.register(player_id, media_urls)
 
       params = %{
-        action: :play,
-        entity_id: Ecto.UUID.generate(),
         profile_id: MediaCentaur.Profiles.owner().id,
-        entity_name: "Sample Movie",
-        content_url: path,
-        start_position: 0.0
+        entry: %Entry{entity_id: Ecto.UUID.generate(), entity_name: "Sample Movie", content_url: path}
       }
 
       assert :ok = Sessions.play(params, player_id)
       assert_receive {:channel, {:attach, session}}
       assert_receive {:channel, {:push, ["loadfile", _url, "replace", -1, _per_file_options]}}
-      assert %{player: ^player_id, state: :playing} = Sessions.get(player_id, params.entity_id)
+      assert %{player: ^player_id, state: :playing} = Sessions.get(player_id, params.entry.entity_id)
 
-      :ok = Sessions.stop(player_id, params.entity_id)
+      :ok = Sessions.stop(player_id, params.entry.entity_id)
       refute Process.alive?(session)
     end
 
@@ -93,19 +87,16 @@ defmodule MediaCentaur.Playback.SessionsTest do
       :ok = MediaCentaur.Playback.Transport.Remote.PlayerRegistry.register(player_id, media_urls)
 
       params = %{
-        action: :play,
         profile_id: MediaCentaur.Profiles.owner().id,
-        entity_name: "Sample Movie",
-        content_url: path,
-        start_position: 0.0
+        entry: %Entry{entity_id: nil, entity_name: "Sample Movie", content_url: path}
       }
 
       first = Ecto.UUID.generate()
       second = Ecto.UUID.generate()
-      assert :ok = Sessions.play(Map.put(params, :entity_id, first), player_id)
+      assert :ok = Sessions.play(for_entity(params, first), player_id)
       assert_receive {:channel, {:attach, first_session}}
 
-      assert :ok = Sessions.play(Map.put(params, :entity_id, second), player_id)
+      assert :ok = Sessions.play(for_entity(params, second), player_id)
       assert_receive {:channel, {:attach, _second_session}}
       refute Process.alive?(first_session)
       assert Sessions.get(player_id, first) == nil
@@ -122,11 +113,8 @@ defmodule MediaCentaur.Playback.SessionsTest do
       player_id = Ecto.UUID.generate()
 
       params = %{
-        action: :play,
         profile_id: MediaCentaur.Profiles.owner().id,
-        entity_name: "Sample Movie",
-        content_url: path,
-        start_position: 0.0
+        entry: %Entry{entity_id: nil, entity_name: "Sample Movie", content_url: path}
       }
 
       holds_many = MediaCentaur.Playback.FakeTransport.new(self(), holds_one_viewing?: false)
@@ -134,17 +122,23 @@ defmodule MediaCentaur.Playback.SessionsTest do
       second = Ecto.UUID.generate()
 
       assert :ok =
-               Sessions.play(Map.merge(params, %{entity_id: first, transport: holds_many}), player_id)
+               params |> for_entity(first) |> Map.put(:transport, holds_many) |> Sessions.play(player_id)
 
       assert :ok =
-               Sessions.play(Map.merge(params, %{entity_id: second, transport: holds_many}), player_id)
+               params
+               |> for_entity(second)
+               |> Map.put(:transport, holds_many)
+               |> Sessions.play(player_id)
 
       assert %{entity_id: ^first} = Sessions.get(player_id, first)
       assert %{entity_id: ^second} = Sessions.get(player_id, second)
 
       holds_one = MediaCentaur.Playback.FakeTransport.new(self(), holds_one_viewing?: true)
       third = Ecto.UUID.generate()
-      assert :ok = Sessions.play(Map.merge(params, %{entity_id: third, transport: holds_one}), player_id)
+
+      assert :ok =
+               params |> for_entity(third) |> Map.put(:transport, holds_one) |> Sessions.play(player_id)
+
       assert Sessions.get(player_id, first) == nil
       assert Sessions.get(player_id, second) == nil
       assert %{entity_id: ^third} = Sessions.get(player_id, third)

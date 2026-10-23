@@ -5,15 +5,14 @@ defmodule MediaCentaur.Playback.LanguageContext do
   metadata) and the parsing of mpv's `track-list` property into
   `TrackResolver.Track` structs.
 
-  `MpvSession` calls `init/1` at session start to load the language
+  `MpvSession` calls `init/2` at session start to load the language
   context once, and `parse_track_list/1` whenever mpv emits a
   track-list update.
   """
 
   alias MediaCentaur.Library
   alias MediaCentaur.Iso639
-  alias MediaCentaur.Playback.LanguagePolicy
-  alias MediaCentaur.Playback.TrackResolver
+  alias MediaCentaur.Playback.{Entry, LanguagePolicy, TrackResolver}
   alias MediaCentaur.Playback.TrackResolver.Track
 
   @type t :: %{
@@ -26,27 +25,21 @@ defmodule MediaCentaur.Playback.LanguageContext do
         }
 
   @doc """
-  Build the language context for a playback session. Returns a context
-  map even when the entity type is unsupported (extras, video_objects)
-  — in that case `owner_type` is `nil` and the override flow is skipped,
-  but the global policy still applies via `priority_args`. The override
-  read is the session's profile's own (`profile_id`, ADR-078).
+  Build the language context for a playback session of `entry`. Returns a
+  context map even when the entry's playable is unsupported (extras,
+  video objects, an unattributed file) — in that case `owner_type` is
+  `nil` and the override flow is skipped, but the global policy still
+  applies via `priority_args`. The override read is the session's
+  profile's own (`profile_id`, ADR-078).
   """
-  @spec init(%{
-          required(:profile_id) => String.t(),
-          required(:entity_id) => String.t() | nil,
-          optional(:movie_id) => String.t() | nil,
-          optional(:episode_id) => String.t() | nil,
-          optional(:video_object_id) => String.t() | nil,
-          optional(:extra_id) => String.t() | nil
-        }) :: t()
-  def init(params) do
-    {owner_type, owner_id, original_language} = resolve_owner(params)
+  @spec init(String.t(), Entry.t()) :: t()
+  def init(profile_id, %Entry{} = entry) do
+    {owner_type, owner_id, original_language} = resolve_owner(entry)
 
     policy = LanguagePolicy.load()
 
     override =
-      if owner_type, do: Library.MediaTrackOverrides.get(params.profile_id, owner_type, owner_id)
+      if owner_type, do: Library.MediaTrackOverrides.get(profile_id, owner_type, owner_id)
 
     priority_args = TrackResolver.priority_args(policy, override, original_language)
 
@@ -207,16 +200,16 @@ defmodule MediaCentaur.Playback.LanguageContext do
   # Owner / metadata resolution
   # ---------------------------------------------------------------------------
 
-  defp resolve_owner(%{extra_id: extra_id}) when is_binary(extra_id), do: {nil, nil, nil}
+  defp resolve_owner(%Entry{extra_id: extra_id}) when is_binary(extra_id), do: {nil, nil, nil}
 
-  defp resolve_owner(%{movie_id: movie_id}) when is_binary(movie_id) do
+  defp resolve_owner(%Entry{movie_id: movie_id}) when is_binary(movie_id) do
     case Library.Containers.fetch(:movie, movie_id) do
       {:ok, movie} -> {:movie, movie.id, Iso639.normalize(movie.original_language)}
       _ -> {nil, nil, nil}
     end
   end
 
-  defp resolve_owner(%{episode_id: episode_id, entity_id: entity_id})
+  defp resolve_owner(%Entry{episode_id: episode_id, entity_id: entity_id})
        when is_binary(episode_id) and is_binary(entity_id) do
     # Episode's owner is the TV series root (entity_id). We don't need to
     # walk Episode → Season → TVSeries — entity_id is already the series.
@@ -226,5 +219,5 @@ defmodule MediaCentaur.Playback.LanguageContext do
     end
   end
 
-  defp resolve_owner(_), do: {nil, nil, nil}
+  defp resolve_owner(%Entry{}), do: {nil, nil, nil}
 end

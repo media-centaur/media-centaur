@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
   import MediaCentaur.Eventually
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Playback.{Events, FakeTransport, SessionRegistry, Sessions}
+  alias MediaCentaur.Playback.{Entry, Events, FakeTransport, SessionRegistry, Sessions}
   alias MediaCentaur.Profiles
 
   @lan {192, 168, 1, 20}
@@ -33,13 +33,13 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     movie = create_standalone_movie(%{name: "Sample Movie"})
 
     params = %{
-      action: :play,
-      entity_id: movie.id,
       profile_id: Profiles.owner().id,
-      entity_name: "Sample Movie",
-      movie_id: movie.id,
-      content_url: path,
-      start_position: 0.0,
+      entry: %Entry{
+        entity_id: movie.id,
+        entity_name: "Sample Movie",
+        movie_id: movie.id,
+        content_url: path
+      },
       transport: FakeTransport.new(self(), draws_subtitles?: false)
     }
 
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
 
   defp start_viewing!(params, player) do
     :ok = Sessions.play(params, player.id)
-    pid = SessionRegistry.lookup({player.id, params.entity_id})
+    pid = SessionRegistry.lookup({player.id, params.entry.entity_id})
     FakeTransport.emit(pid, {:attached, :fresh})
     assert_receive {:mpv_command, ["observe_property", 1, "time-pos"]}
     pid

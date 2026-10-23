@@ -4,7 +4,7 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.LanguageContext
+  alias MediaCentaur.Playback.{Entry, LanguageContext}
   alias MediaCentaur.Playback.LanguagePolicy
 
   describe "parse_track_list/1 — pure parser" do
@@ -229,12 +229,16 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
     end
   end
 
-  describe "init/1" do
+  describe "init/2" do
     test "movie session — owner_type = :movie, original_language from movie" do
       movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
 
       context =
-        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
+        LanguageContext.init(owner_profile_id(), %Entry{
+          entity_id: movie.id,
+          movie_id: movie.id,
+          content_url: "/a.mkv"
+        })
 
       assert context.owner_type == :movie
       assert context.owner_id == movie.id
@@ -248,10 +252,10 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       tv_series = create_tv_series(%{original_language: "kor"})
 
       context =
-        LanguageContext.init(%{
-          profile_id: owner_profile_id(),
+        LanguageContext.init(owner_profile_id(), %Entry{
           entity_id: tv_series.id,
-          episode_id: "fake-episode-uuid"
+          episode_id: "fake-episode-uuid",
+          content_url: "/a.mkv"
         })
 
       assert context.owner_type == :tv_series
@@ -265,7 +269,11 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       movie = create_movie(%{name: "Sample Movie", original_language: "ja"})
 
       context =
-        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
+        LanguageContext.init(owner_profile_id(), %Entry{
+          entity_id: movie.id,
+          movie_id: movie.id,
+          content_url: "/a.mkv"
+        })
 
       assert context.original_language == "jpn"
     end
@@ -277,7 +285,11 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
         Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "eng"})
 
       context =
-        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: movie.id, movie_id: movie.id})
+        LanguageContext.init(owner_profile_id(), %Entry{
+          entity_id: movie.id,
+          movie_id: movie.id,
+          content_url: "/a.mkv"
+        })
 
       assert context.override.audio_lang == "eng"
       # Override prepends to priority list.
@@ -285,7 +297,9 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
 
       # Another profile's session does not see this profile's memory.
       ana = create_profile(%{name: "Ana"}).id
-      context = LanguageContext.init(%{profile_id: ana, entity_id: movie.id, movie_id: movie.id})
+
+      context =
+        LanguageContext.init(ana, %Entry{entity_id: movie.id, movie_id: movie.id, content_url: "/a.mkv"})
 
       assert context.override == nil
       assert hd(context.priority_args.alang) == "jpn"
@@ -293,7 +307,11 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
 
     test "unsupported entity type (extra) — owner_type = nil, policy still applies" do
       context =
-        LanguageContext.init(%{profile_id: owner_profile_id(), entity_id: "any", extra_id: "some-extra"})
+        LanguageContext.init(owner_profile_id(), %Entry{
+          entity_id: "any",
+          extra_id: "some-extra",
+          content_url: "/a.mkv"
+        })
 
       assert context.owner_type == nil
       assert context.owner_id == nil

@@ -74,7 +74,7 @@ defmodule MediaCentaur.Playback.Transport.Local do
   end
 
   @impl true
-  def for_player(:host, %{entity_id: entity_id}), do: {:ok, new(entity_id)}
+  def for_player(:host, %{entry: %{entity_id: entity_id}}), do: {:ok, new(entity_id)}
 
   @impl true
   def recover(:host) do
@@ -86,7 +86,11 @@ defmodule MediaCentaur.Playback.Transport.Local do
 
       case probe(socket_path, entity_id) do
         {:ok, params} ->
-          Log.info(:playback, "recovery: found live session for #{params[:entity_name] || entity_id}")
+          Log.info(
+            :playback,
+            "recovery: found live session for #{params.entry.entity_name || entity_id}"
+          )
+
           [params]
 
         :skip ->

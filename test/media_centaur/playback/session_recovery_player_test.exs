@@ -66,12 +66,12 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
     })
 
     assert [params] = Task.await(task)
-    assert params.entity_id == movie.id
-    assert params.content_url == path
-    assert params.start_position == 1234.5
+    assert params.entry.entity_id == movie.id
+    assert params.entry.content_url == path
+    assert params.entry.start_position == 1234.5
     assert params.profile_id == profile_id
     assert params.reattach? == true
-    assert params.movie_id == movie.id
+    assert params.entry.movie_id == movie.id
   end
 
   @tag :tmp_dir

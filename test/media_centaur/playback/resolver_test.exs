@@ -22,11 +22,10 @@ defmodule MediaCentaur.Playback.ResolverTest do
       })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
-      assert params.action == :resume
-      assert params.entity_id == movie.id
-      assert params.entity_name == "Sample Movie"
-      assert params.content_url == "/movies/sample.mkv"
-      assert params.start_position == 1200.0
+      assert params.entry.entity_id == movie.id
+      assert params.entry.entity_name == "Sample Movie"
+      assert params.entry.content_url == "/movies/sample.mkv"
+      assert params.entry.start_position == 1200.0
     end
 
     test "movie entity plays from beginning when unwatched" do
@@ -34,9 +33,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
         create_entity(%{type: :movie, name: "Other Movie", content_url: "/movies/other.mkv"})
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
-      assert params.action == :play_next
-      assert params.content_url == "/movies/other.mkv"
-      assert params.start_position == 0.0
+      assert params.entry.content_url == "/movies/other.mkv"
+      assert params.entry.start_position == 0.0
     end
 
     test "tv_series entity resolves via Resume algorithm" do
@@ -68,9 +66,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
       )
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), tv_series.id)
-      assert params.action == :play_next
-      assert params.content_url == "/tv/show/s01e02.mkv"
-      assert params.start_position == 0.0
+      assert params.entry.content_url == "/tv/show/s01e02.mkv"
+      assert params.entry.start_position == 0.0
     end
 
     test "movie_series entity resolves via Resume algorithm" do
@@ -91,8 +88,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
       })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie_series.id)
-      assert params.action == :play_next
-      assert params.content_url == "/movies/movie1.mkv"
+      assert params.entry.content_url == "/movies/movie1.mkv"
     end
 
     test "entity with no content returns error" do
@@ -115,8 +111,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
         duration_seconds: 7200.0
       })
 
-      assert {:ok, %{start_position: 600.0}} = Resolver.resolve(ana, movie.id)
-      assert {:ok, %{start_position: start}} = Resolver.resolve(me, movie.id)
+      assert {:ok, %{entry: %{start_position: 600.0}}} = Resolver.resolve(ana, movie.id)
+      assert {:ok, %{entry: %{start_position: start}}} = Resolver.resolve(me, movie.id)
       assert start == 0.0
     end
   end
@@ -141,15 +137,14 @@ defmodule MediaCentaur.Playback.ResolverTest do
       })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), episode.id)
-      assert params.action == :resume
-      assert params.entity_id == tv_series.id
-      assert params.entity_name == "Sample Show"
+      assert params.entry.entity_id == tv_series.id
+      assert params.entry.entity_name == "Sample Show"
 
-      assert params.season_number == 1
-      assert params.episode_number == 3
-      assert params.episode_name == "Episode Three"
-      assert params.content_url == "/tv/show/s01e03.mkv"
-      assert params.start_position == 600.0
+      assert params.entry.season_number == 1
+      assert params.entry.episode_number == 3
+      assert params.entry.episode_name == "Episode Three"
+      assert params.entry.content_url == "/tv/show/s01e03.mkv"
+      assert params.entry.start_position == 600.0
     end
 
     test "episode plays from beginning when unwatched" do
@@ -165,9 +160,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
         })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), episode.id)
-      assert params.action == :play_episode
-      assert params.content_url == "/tv/show/s02e01.mkv"
-      assert params.start_position == 0.0
+      assert params.entry.content_url == "/tv/show/s02e01.mkv"
+      assert params.entry.start_position == 0.0
     end
 
     test "episode with nil content_url returns error" do
@@ -205,14 +199,13 @@ defmodule MediaCentaur.Playback.ResolverTest do
       })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
-      assert params.action == :resume
-      assert params.entity_id == movie_series.id
-      assert params.entity_name == "Sample Movie Series"
-      assert params.season_number == 0
-      assert params.episode_number == 1
-      assert params.episode_name == "Sample Movie One"
-      assert params.content_url == "/movies/movie1.mkv"
-      assert params.start_position == 2400.0
+      assert params.entry.entity_id == movie_series.id
+      assert params.entry.entity_name == "Sample Movie Series"
+      assert params.entry.season_number == 0
+      assert params.entry.episode_number == 1
+      assert params.entry.episode_name == "Sample Movie One"
+      assert params.entry.content_url == "/movies/movie1.mkv"
+      assert params.entry.start_position == 2400.0
     end
 
     test "child movie plays from beginning when unwatched" do
@@ -227,9 +220,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
         })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), movie.id)
-      assert params.action == :play_movie
-      assert params.content_url == "/movies/movie2.mkv"
-      assert params.start_position == 0.0
+      assert params.entry.content_url == "/movies/movie2.mkv"
+      assert params.entry.start_position == 0.0
     end
 
     test "child movie with nil content_url returns error" do
@@ -252,12 +244,11 @@ defmodule MediaCentaur.Playback.ResolverTest do
         })
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), extra.id)
-      assert params.action == :play_extra
-      assert params.entity_id == movie.id
-      assert params.entity_name == "Sample Movie"
-      assert params.episode_name == "Making Of"
-      assert params.content_url == "/extras/making_of.mkv"
-      assert params.start_position == 0.0
+      assert params.entry.entity_id == movie.id
+      assert params.entry.entity_name == "Sample Movie"
+      assert params.entry.episode_name == "Making Of"
+      assert params.entry.content_url == "/extras/making_of.mkv"
+      assert params.entry.start_position == 0.0
     end
 
     test "extra with nil content_url returns error" do

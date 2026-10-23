@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.ViewingTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.MpvSession
+  alias MediaCentaur.Playback.{Entry, MpvSession}
   alias MediaCentaur.Playback.TrackResolver.Track
   alias MediaCentaur.Playback.Viewing
 
@@ -42,13 +42,15 @@ defmodule MediaCentaur.Playback.ViewingTest do
     test "carries the title words, the position, the tracks, the chapter and the subtitle line" do
       session = %MpvSession{
         player: "player-1",
-        entity_id: "entity",
         profile_id: "profile",
-        entity_name: "Sample Show",
-        season_number: 2,
-        episode_number: 4,
-        episode_name: "The Long Night",
-        content_url: "/shows/a.mkv",
+        entry: %Entry{
+          entity_id: "entity",
+          entity_name: "Sample Show",
+          season_number: 2,
+          episode_number: 4,
+          episode_name: "The Long Night",
+          content_url: "/shows/a.mkv"
+        },
         position: 100.0,
         duration: 2600.0,
         paused: true,
@@ -59,7 +61,7 @@ defmodule MediaCentaur.Playback.ViewingTest do
         subtitle_tracks: [%Track{index: 2, lang: "eng", codec: "hdmv_pgs_subtitle"}],
         current_aid: 1,
         current_sid: 2,
-        pending_next: %{episode_id: "next"},
+        pending_next: %Entry{entity_id: "entity", episode_id: "next", content_url: "/shows/b.mkv"},
         subtitle_text: "A line"
       }
 
@@ -91,9 +93,8 @@ defmodule MediaCentaur.Playback.ViewingTest do
     test "a session with nothing queued and no subtitle line reads so" do
       session = %MpvSession{
         player: :host,
-        entity_id: "e",
         profile_id: "p",
-        content_url: "/a.mkv",
+        entry: %Entry{entity_id: "e", content_url: "/a.mkv"},
         state: :playing
       }
 
