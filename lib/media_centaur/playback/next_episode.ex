@@ -23,23 +23,14 @@ defmodule MediaCentaur.Playback.NextEpisode do
   alias MediaCentaur.Settings.Preferences.AutoPlayNextEpisode
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{EntityShape, EpisodeOrder, TypeResolver}
-  alias MediaCentaur.Playback.PlayableFks
+  alias MediaCentaur.Playback.{Entry, PlayableFks}
   alias MediaCentaur.Library.ProgressRecords
 
-  @type queue_item :: %{
-          episode_id: String.t(),
-          season_number: integer(),
-          episode_number: integer(),
-          episode_name: String.t() | nil,
-          content_url: String.t(),
-          start_position: float()
-        }
-
   @doc """
-  Returns `{:ok, queue_item}` for the episode that should follow
-  `episode_id` for `profile_id`, or `:none` when nothing should be queued.
+  Returns `{:ok, entry}` for the episode that should follow `episode_id`
+  for `profile_id`, or `:none` when nothing should be queued.
   """
-  @spec resolve(String.t(), String.t()) :: {:ok, queue_item()} | :none
+  @spec resolve(String.t(), String.t()) :: {:ok, Entry.t()} | :none
   def resolve(profile_id, episode_id) when is_binary(profile_id) and is_binary(episode_id) do
     with true <- AutoPlayNextEpisode.enabled?(),
          {:ok, episode} <- Library.Episodes.fetch(episode_id),
@@ -64,16 +55,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
   backend restart). Returns `:none` when the path isn't an episode of
   the session's entity.
   """
-  @spec identify(String.t(), String.t()) ::
-          {:ok,
-           %{
-             episode_id: String.t(),
-             season_number: integer() | nil,
-             episode_number: integer() | nil,
-             episode_name: String.t() | nil,
-             content_url: String.t()
-           }}
-          | :none
+  @spec identify(String.t(), String.t()) :: {:ok, Entry.t()} | :none
   def identify(entity_id, content_url) do
     case TypeResolver.resolve_container(entity_id,
            standalone_movie: false,
@@ -88,7 +70,9 @@ defmodule MediaCentaur.Playback.NextEpisode do
               PlayableFks.context_by_url(entity, content_url)
 
             {:ok,
-             %{
+             %Entry{
+               entity_id: entity.id,
+               entity_name: entity.name,
                episode_id: episode_id,
                season_number: season_number,
                episode_number: episode_number,
@@ -113,7 +97,9 @@ defmodule MediaCentaur.Playback.NextEpisode do
       {season_number, episode_number, content_url, next_episode_id} ->
         if File.exists?(content_url) do
           {:ok,
-           %{
+           %Entry{
+             entity_id: entity.id,
+             entity_name: entity.name,
              episode_id: next_episode_id,
              season_number: season_number,
              episode_number: episode_number,

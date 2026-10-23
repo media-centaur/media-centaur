@@ -76,15 +76,17 @@ defmodule MediaCentaur.Playback.Viewing do
   @doc "The viewing a session's state describes, with its prompt judged."
   @spec from_session(struct()) :: t()
   def from_session(session) do
+    entry = session.entry
+
     viewing = %__MODULE__{
       player: session.player,
-      entity_id: session.entity_id,
+      entity_id: entry.entity_id,
       profile_id: session.profile_id,
-      entity_name: session.entity_name,
-      season_number: session.season_number,
-      episode_number: session.episode_number,
-      episode_name: session.episode_name,
-      content_url: session.content_url,
+      entity_name: entry.entity_name,
+      season_number: entry.season_number,
+      episode_number: entry.episode_number,
+      episode_name: entry.episode_name,
+      content_url: entry.content_url,
       position_seconds: session.position || 0.0,
       duration_seconds: session.duration || 0.0,
       state: if(session.paused, do: :paused, else: :playing),

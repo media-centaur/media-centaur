@@ -1,7 +1,9 @@
 defmodule MediaCentaur.Playback.MpvSessionTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.{Events, MpvSession, WatchingTracker}
+  alias MediaCentaur.Playback.{Entry, Events, MpvSession, WatchingTracker}
+
+  defp entry(fields), do: struct!(%Entry{entity_id: "entity", content_url: "/media/a.mkv"}, fields)
 
   describe "queue_next?/1" do
     defp queue_state(overrides) do
@@ -9,7 +11,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
         MpvSession,
         Map.merge(
           %{
-            episode_id: "ep-1",
+            entry: entry(episode_id: "ep-1"),
             transport: %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: true},
             playlist_count: 1,
             playlist_pos: 0
@@ -24,7 +26,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
     end
 
     test "does not queue when a successor is already pending" do
-      refute MpvSession.queue_next?(queue_state(%{pending_next: %{episode_id: "ep-2"}}))
+      refute MpvSession.queue_next?(queue_state(%{pending_next: entry(episode_id: "ep-2")}))
     end
 
     test "does not queue when the current entry is not the playlist tail" do
@@ -39,12 +41,14 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
 
   describe "judge_completion/1" do
     defp watching_state(overrides) do
+      {entry_fields, overrides} =
+        Map.split(overrides, ~w(movie_id episode_id extra_id season_number episode_number)a)
+
       struct!(
         MpvSession,
         Map.merge(
           %{
-            entity_id: "movie-1",
-            movie_id: "movie-1",
+            entry: entry(Map.merge(%{entity_id: "movie-1", movie_id: "movie-1"}, entry_fields)),
             duration: 6000.0,
             tracker: %{WatchingTracker.new() | saveable_position: 5500.0}
           },
@@ -112,25 +116,32 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
     end
   end
 
-  describe "reset_for_file/4" do
+  describe "reset_for_file/2" do
+    @next_entry %Entry{
+      entity_id: "entity",
+      episode_id: "ep-2",
+      season_number: 1,
+      episode_number: 2,
+      episode_name: "Sample Episode",
+      content_url: "/media/b.mkv"
+    }
+
     test "an episode advance keeps the profile the session was started for" do
       profile_id = Ecto.UUID.generate()
 
       state =
         struct!(MpvSession, %{
           profile_id: profile_id,
-          content_url: "/media/a.mkv",
-          episode_id: "ep-1",
+          entry: entry(episode_id: "ep-1"),
           position: 1200.0,
           tracker: WatchingTracker.new()
         })
 
-      item = %{season_number: 1, episode_number: 2, episode_name: "Sample Episode"}
-      next = MpvSession.reset_for_file(state, "/media/b.mkv", %{episode_id: "ep-2"}, item)
+      next = MpvSession.reset_for_file(state, @next_entry)
 
       assert next.profile_id == profile_id
-      assert next.episode_id == "ep-2"
-      assert next.content_url == "/media/b.mkv"
+      assert next.entry.episode_id == "ep-2"
+      assert next.entry.content_url == "/media/b.mkv"
       assert next.position == 0.0
     end
 
@@ -138,14 +149,13 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       state =
         struct!(MpvSession, %{
           profile_id: Ecto.UUID.generate(),
-          content_url: "/media/a.mkv",
+          entry: entry(episode_id: "ep-1"),
           current_aid: 1,
           current_sid: 2,
           tracker: WatchingTracker.new()
         })
 
-      item = %{season_number: 1, episode_number: 2, episode_name: "Sample Episode"}
-      next = MpvSession.reset_for_file(state, "/media/b.mkv", %{episode_id: "ep-2"}, item)
+      next = MpvSession.reset_for_file(state, @next_entry)
 
       assert next.current_aid == 1
       assert next.current_sid == 2
@@ -159,7 +169,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
 
       state =
         struct!(MpvSession, %{
-          entity_id: "movie-1",
+          entry: entry(entity_id: "movie-1", movie_id: "movie-1"),
           profile_id: profile_id,
           completed: MapSet.new([{:movie, "movie-1"}])
         })

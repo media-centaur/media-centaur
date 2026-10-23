@@ -23,25 +23,27 @@ defmodule MediaCentaur.Playback.SessionRecovery do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{EntityShape, TypeResolver}
-  alias MediaCentaur.Playback.{LaunchFlags, PlayableFks}
+  alias MediaCentaur.Playback.{Entry, LaunchFlags, PlayableFks}
 
   @typedoc "Reads one mpv property by name from whatever carries the IPC."
   @type property_reader :: (String.t() -> {:ok, term()} | {:error, term()})
 
   @doc """
-  The params a session reattaches to this mpv with: `entity_id`, the file
-  (`content_url`, the host path the mpv plays), its position and profile
-  read through `reader`, and the entity's names and foreign keys when the
-  library knows the file. `:skip` when the mpv carries no profile or the
-  reads fail; `who` names the mpv in the log line.
+  The params a session reattaches to this mpv with: the profile read
+  through `reader` and the `Playback.Entry` for the file (`content_url`,
+  the host path the mpv plays) at the position read the same way — with
+  the entity's name and identity when the library knows the file, an
+  unattributed entry when it does not. `:skip` when the mpv carries no
+  profile or the reads fail; `who` names the mpv in the log line.
   """
-  @spec reattach_params(property_reader(), String.t(), String.t(), String.t()) :: {:ok, map()} | :skip
+  @spec reattach_params(property_reader(), String.t(), String.t(), String.t()) ::
+          {:ok, %{profile_id: String.t(), entry: Entry.t(), reattach?: true}} | :skip
   def reattach_params(reader, entity_id, content_url, who) when is_binary(content_url) do
     with {:ok, position} <- reader.("time-pos"),
          {:ok, script_opts} <- reader.("script-opts"),
          {:ok, profile_id} <- session_profile(script_opts) do
-      params = build_params(entity_id, content_url, position)
-      {:ok, Map.merge(params, %{profile_id: profile_id, reattach?: true})}
+      entry = build_entry(entity_id, content_url, position)
+      {:ok, %{profile_id: profile_id, entry: entry, reattach?: true}}
     else
       :no_profile ->
         Log.info(
@@ -77,40 +79,27 @@ defmodule MediaCentaur.Playback.SessionRecovery do
 
   defp session_profile(_not_a_map), do: :no_profile
 
-  defp build_params(entity_id, content_url, position) do
-    case Library.Files.list_by_paths([content_url]) do
-      [_watched_file | _] ->
-        resolve_entity(entity_id, content_url, position)
+  defp build_entry(entity_id, content_url, position) do
+    unattributed = %Entry{entity_id: entity_id, content_url: content_url, start_position: position}
 
-      _ ->
-        # File not in library but mpv is running — provide minimal params
-        %{entity_id: entity_id, content_url: content_url, start_position: position}
-    end
-  end
+    with [_watched_file | _] <- Library.Files.list_by_paths([content_url]),
+         {:ok, entity} <- resolve_typed_entity(entity_id) do
+      {season_number, episode_number, episode_name} = PlayableFks.context_by_url(entity, content_url)
 
-  defp resolve_entity(entity_id, content_url, position) do
-    case resolve_typed_entity(entity_id) do
-      {:ok, entity} ->
-        {season_number, episode_number, episode_name} =
-          PlayableFks.context_by_url(entity, content_url)
-
-        direct_fks = PlayableFks.resolve(entity, content_url)
-
-        Map.merge(
-          %{
-            entity_id: entity_id,
-            entity_name: entity.name,
+      struct!(
+        %{
+          unattributed
+          | entity_name: entity.name,
             season_number: season_number,
             episode_number: episode_number,
-            episode_name: episode_name,
-            content_url: content_url,
-            start_position: position
-          },
-          direct_fks
-        )
-
-      :not_found ->
-        %{entity_id: entity_id, content_url: content_url, start_position: position}
+            episode_name: episode_name
+        },
+        PlayableFks.resolve(entity, content_url)
+      )
+    else
+      # The file is not in the library, or its entity is gone, but mpv is
+      # playing it: the session observes it without attributing progress.
+      _unknown -> unattributed
     end
   end
 

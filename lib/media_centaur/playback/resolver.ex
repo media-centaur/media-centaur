@@ -5,8 +5,9 @@ defmodule MediaCentaur.Playback.Resolver do
   The UUID can identify any playable thing: a top-level Entity, an Episode,
   a child Movie, or an Extra. The resolver figures out what the UUID refers to,
   loads the necessary context, applies smart resume logic against the
-  profile's own progress rows (ADR-078), and returns a `play_params` map
-  suitable for `Sessions.play/1` — the profile rides in it.
+  profile's own progress rows (ADR-078), and returns the play params
+  `Sessions.play/2` starts with: the profile and the `Playback.Entry` to
+  play.
 
   UUID resolution order:
   1. Entity — if series, run `Resume.resolve`; if single item, check progress
@@ -20,24 +21,10 @@ defmodule MediaCentaur.Playback.Resolver do
   alias MediaCentaur.{Format, Library}
   alias MediaCentaur.Library.{EntityShape, TypeResolver}
   alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
-  alias MediaCentaur.Playback.{PlayableFks, Resume}
+  alias MediaCentaur.Playback.{Entry, PlayableFks, Resume}
   alias MediaCentaur.Library.ProgressRecords
 
-  @type play_params :: %{
-          action: atom(),
-          profile_id: String.t(),
-          entity_id: String.t(),
-          entity_name: String.t(),
-          season_number: integer() | nil,
-          episode_number: integer() | nil,
-          episode_name: String.t() | nil,
-          content_url: String.t(),
-          start_position: float(),
-          extra_id: String.t() | nil,
-          movie_id: String.t() | nil,
-          episode_id: String.t() | nil,
-          video_object_id: String.t() | nil
-        }
+  @type play_params :: %{profile_id: String.t(), entry: Entry.t()}
 
   @doc """
   Resolves a UUID into playback parameters for `profile_id`.
@@ -59,7 +46,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
       {:error, :not_found}
     else
-      {:ok, params} -> {:ok, Map.put(params, :profile_id, profile_id)}
+      {:ok, entry} -> {:ok, %{profile_id: profile_id, entry: entry}}
       {:error, _reason} = error -> error
     end
   end
@@ -105,9 +92,8 @@ defmodule MediaCentaur.Playback.Resolver do
         end)
 
         {:ok,
-         Map.merge(
-           %{
-             action: action,
+         struct!(
+           %Entry{
              entity_id: entity.id,
              entity_name: entity.name,
              season_number: season,
@@ -158,8 +144,7 @@ defmodule MediaCentaur.Playback.Resolver do
       end)
 
       {:ok,
-       %{
-         action: action,
+       %Entry{
          entity_id: entity.id,
          entity_name: entity.name,
          season_number: season.season_number,
@@ -220,8 +205,7 @@ defmodule MediaCentaur.Playback.Resolver do
           end)
 
           {:ok,
-           %{
-             action: action,
+           %Entry{
              entity_id: entity.id,
              entity_name: entity.name,
              season_number: 0,
@@ -294,11 +278,9 @@ defmodule MediaCentaur.Playback.Resolver do
     {entity_id, entity_name} = resolve_extra_parent(profile_id, extra)
 
     position = extra_resume_position(profile_id, extra.id)
-    action = if position > 0.0, do: :resume, else: :play_extra
 
     {:ok,
-     %{
-       action: action,
+     %Entry{
        entity_id: entity_id,
        entity_name: entity_name,
        season_number: nil,

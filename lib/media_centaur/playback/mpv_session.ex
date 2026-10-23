@@ -2,9 +2,11 @@ defmodule MediaCentaur.Playback.MpvSession do
   @moduledoc """
   Per-session GenServer observing one mpv through a `Playback.Transport`.
 
-  Each session tracks one entity's *viewing chain*, identified by entity_id,
-  on one **player** (`:host`, or a paired player's id), and holds the
-  profile it was started for (`profile_id`, ADR-078) for its whole life —
+  Each session tracks one entity's *viewing chain*, identified by the
+  entity id of its `Playback.Entry` (what plays now: the file, its library
+  identity, where it started), on one **player** (`:host`, or a paired
+  player's id), and holds the profile it was started for (`profile_id`,
+  ADR-078) for its whole life —
   progress, track memory and every event it broadcasts are that profile's,
   and a switch mid-film does not re-home them. Every event names the
   player too. Sessions register in `SessionRegistry` by
@@ -22,9 +24,9 @@ defmodule MediaCentaur.Playback.MpvSession do
   watch progress, and broadcasts state changes via PubSub. How the mpv is
   reached — a process the host spawns (`Transport.Local`) or an mpv on a
   paired player — is the transport's; the session never touches a socket
-  or a port, and it keeps the host path (`content_url`) as the identity of
-  what plays, asking the transport for mpv's locator and for the identity
-  of a path mpv reports.
+  or a port, and it keeps the host path (the entry's `content_url`) as the
+  identity of what plays, asking the transport for mpv's locator and for
+  the identity of a path mpv reports.
 
   ## Process lifetime
 
@@ -44,7 +46,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   the successor is appended only while the current entry is the
   playlist's last, which makes the check self-stabilizing and
   reconnect-safe. A `path` change is the advance signal: the session
-  closes out the finished episode, re-points its identity at the file now
+  closes out the finished episode, replaces its entry with the file now
   playing, and queues the next successor. Quit-on-EOF only ever fires at
   true playlist end — `eof-reached` stays false across mid-playlist
   transitions.
@@ -59,6 +61,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Playback.{
     Command,
     Completion,
+    Entry,
     Events,
     LanguageContext,
     LaunchFlags,
@@ -80,19 +83,10 @@ defmodule MediaCentaur.Playback.MpvSession do
   @track_capture_debounce_ms 3_000
 
   defstruct [
-    :entity_id,
+    # What plays now (`Playback.Entry`); replaced whole by an advance.
+    :entry,
     :player,
     :profile_id,
-    :entity_name,
-    :season_number,
-    :episode_number,
-    :episode_name,
-    :extra_id,
-    :movie_id,
-    :episode_id,
-    :video_object_id,
-    :content_url,
-    :start_position,
     :transport,
     :position,
     :duration,
@@ -123,7 +117,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     # spam, no enforcement loop). `nil` = nothing enforced yet.
     enforced_sid: nil,
     capture_timer: nil,
-    # The successor episode appended to the mpv playlist and not yet
+    # The successor's entry, appended to the mpv playlist and not yet
     # reached (ADR-062). `nil` while nothing is queued — chain end,
     # auto-play off, or a non-episode session.
     pending_next: nil,
@@ -131,10 +125,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     # queue check appends only while `playlist_count - playlist_pos == 1`.
     playlist_count: 1,
     playlist_pos: 0,
-    # Every item this session completed (`judge_completion/1`), as
-    # `{:movie | :video_object | :extra, id}` or
-    # `{:episode, id, season_number, episode_number}`. A chain keeps each
-    # episode it finished; `SessionEnded` carries the set.
+    # Every `Entry.item/1` this session completed (`judge_completion/1`).
+    # A chain keeps each episode it finished; `SessionEnded` carries the set.
     completed: MapSet.new(),
     # mpv's current `chapter` index and `sub-text` line, what the page draws
     # for a remote player (`Viewing`). nil between files or with none.
@@ -152,13 +144,13 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   def start_link(params) do
     GenServer.start_link(__MODULE__, params,
-      name: SessionRegistry.via({params.player, params.entity_id})
+      name: SessionRegistry.via({params.player, params.entry.entity_id})
     )
   end
 
   def child_spec(params) do
     %{
-      id: {__MODULE__, params.player, params.entity_id},
+      id: {__MODULE__, params.player, params.entry.entity_id},
       start: {__MODULE__, :start_link, [params]},
       restart: :temporary
     }
@@ -191,22 +183,12 @@ defmodule MediaCentaur.Playback.MpvSession do
   def init(params) do
     Process.flag(:trap_exit, true)
 
-    language_context = LanguageContext.init(params)
+    %Entry{} = entry = params.entry
 
     state = %__MODULE__{
-      entity_id: params.entity_id,
+      entry: entry,
       player: params.player,
       profile_id: params.profile_id,
-      entity_name: params[:entity_name],
-      season_number: params[:season_number],
-      episode_number: params[:episode_number],
-      episode_name: params[:episode_name],
-      extra_id: params[:extra_id],
-      movie_id: params[:movie_id],
-      episode_id: params[:episode_id],
-      video_object_id: params[:video_object_id],
-      content_url: params.content_url,
-      start_position: params[:start_position] || 0.0,
       transport: params.transport,
       reattach_window_ms: params[:reattach_window_ms] || @reattach_window_ms,
       position: 0.0,
@@ -215,11 +197,11 @@ defmodule MediaCentaur.Playback.MpvSession do
       last_db_write_at: System.monotonic_time(:millisecond),
       tracker: WatchingTracker.new(),
       started_at: System.monotonic_time(:millisecond),
-      language_context: language_context
+      language_context: LanguageContext.init(params.profile_id, entry)
     }
 
     {events, state} =
-      case Transport.locator(state.transport, state.content_url) do
+      case Transport.locator(state.transport, entry.content_url) do
         {:ok, locator} ->
           open(state, locator, params[:reattach?] || false)
 
@@ -229,7 +211,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         {:error, reason} ->
           Log.warning(
             :playback,
-            "cannot name #{Path.basename(state.content_url)} to #{Transport.describe(state.transport)} (#{reason})"
+            "cannot name #{Path.basename(entry.content_url)} to #{Transport.describe(state.transport)} (#{reason})"
           )
 
           {[{:closed, {:error, :file_unknown, @file_unknown_message}}], state}
@@ -249,14 +231,14 @@ defmodule MediaCentaur.Playback.MpvSession do
           language_options: LanguageContext.to_mpv_options(state.language_context.priority_args)
         }),
       content_url: locator,
-      start_position: state.start_position,
+      start_position: state.entry.start_position,
       profile_id: state.profile_id,
       reattach?: reattach?
     }
 
     Log.info(
       :playback,
-      "session started — #{Path.basename(state.content_url)} via #{Transport.describe(state.transport)}"
+      "session started — #{Path.basename(state.entry.content_url)} via #{Transport.describe(state.transport)}"
     )
 
     {events, transport} = Transport.open(state.transport, launch)
@@ -391,22 +373,22 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
     session = if session.tracker.actively_watching, do: persist_progress(session), else: session
 
-    cond do
-      # Extra playback — broadcast extra progress update
-      session.extra_id ->
-        profile_id = session.profile_id
-        entity_id = session.entity_id
-        extra_id = session.extra_id
+    profile_id = session.profile_id
+    %Entry{entity_id: entity_id} = entry = session.entry
 
+    case Entry.item(entry) do
+      # Extra playback — broadcast extra progress update
+      {:extra, extra_id} ->
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
           ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
         end)
 
-      # Entity/episode/movie playback — broadcast entity progress update
-      session.movie_id || session.episode_id || session.video_object_id ->
-        profile_id = session.profile_id
-        entity_id = session.entity_id
+      # An unattributed file: nothing was tracked.
+      nil ->
+        :ok
 
+      # Entity/episode/movie playback — broadcast entity progress update
+      _attributed ->
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
           # Explicit nil: this is the end-of-playback summary refresh. The
           # per-tick broadcast in persist_progress/1 already carried the
@@ -414,10 +396,6 @@ defmodule MediaCentaur.Playback.MpvSession do
           # report here.
           ProgressBroadcaster.broadcast(profile_id, entity_id, nil)
         end)
-
-      # No progress tracking (shouldn't happen, but safe fallback)
-      true ->
-        :ok
     end
 
     broadcast_state_changed(:stopped, session)
@@ -428,7 +406,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     Events.broadcast_viewing_ended(%Events.ViewingEnded{
       player: session.player,
-      entity_id: session.entity_id
+      entity_id: entity_id
     })
 
     %{session | state: :stopped}
@@ -538,7 +516,7 @@ defmodule MediaCentaur.Playback.MpvSession do
        when is_binary(path) do
     case Transport.identify(state.transport, path) do
       nil -> advance_to(state, :unknown, path)
-      content_url when content_url == state.content_url -> state
+      content_url when content_url == state.entry.content_url -> state
       content_url -> advance_to(state, {:ok, content_url}, path)
     end
   end
@@ -588,22 +566,22 @@ defmodule MediaCentaur.Playback.MpvSession do
   """
   @spec queue_next?(%__MODULE__{}) :: boolean()
   def queue_next?(state) do
-    is_nil(state.pending_next) and not is_nil(state.episode_id) and
+    is_nil(state.pending_next) and not is_nil(state.entry.episode_id) and
       Transport.attached?(state.transport) and
       state.playlist_count - state.playlist_pos == 1
   end
 
   defp queue_next(state) do
-    with {:ok, item} <- NextEpisode.resolve(state.profile_id, state.episode_id),
-         {:ok, locator} <- Transport.locator(state.transport, item.content_url) do
-      Transport.send(state.transport, Transport.queue(state.transport, locator, item.start_position))
+    with {:ok, entry} <- NextEpisode.resolve(state.profile_id, state.entry.episode_id),
+         {:ok, locator} <- Transport.locator(state.transport, entry.content_url) do
+      Transport.send(state.transport, Transport.queue(state.transport, locator, entry.start_position))
 
       Log.info(
         :playback,
-        "queued next episode — S#{item.season_number}E#{item.episode_number} #{Path.basename(item.content_url)}"
+        "queued next episode — S#{entry.season_number}E#{entry.episode_number} #{Path.basename(entry.content_url)}"
       )
 
-      %{state | pending_next: item}
+      %{state | pending_next: entry}
     else
       :none ->
         state
@@ -620,26 +598,26 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  # A playlist advance landed on a new file: re-point the session at the
-  # episode now playing. Identity comes from the queued item when the
-  # path matches; otherwise it is re-derived from the host path (the
-  # ADR-023 discipline — covers entries queued before a backend restart).
-  # The outgoing episode's final progress was persisted at its end-file.
+  # A playlist advance landed on a new file: the session's entry becomes
+  # the episode now playing. It is the queued entry when the path matches;
+  # otherwise it is re-derived from the host path (the ADR-023 discipline
+  # — covers entries queued before a backend restart). The outgoing
+  # episode's final progress was persisted at its end-file.
   defp advance_to(state, {:ok, content_url}, reported_path) do
     identity =
       case state.pending_next do
-        %{content_url: ^content_url} = item -> {:ok, item}
-        _ -> NextEpisode.identify(state.entity_id, content_url)
+        %Entry{content_url: ^content_url} = entry -> {:ok, entry}
+        _ -> NextEpisode.identify(state.entry.entity_id, content_url)
       end
 
     case identity do
-      {:ok, item} ->
+      {:ok, entry} ->
         Log.info(
           :playback,
-          "advanced to S#{item.season_number}E#{item.episode_number} — #{Path.basename(content_url)}"
+          "advanced to S#{entry.season_number}E#{entry.episode_number} — #{Path.basename(content_url)}"
         )
 
-        state = reset_for_file(state, content_url, %{episode_id: item.episode_id}, item)
+        state = reset_for_file(state, entry)
         broadcast_state_changed(state.state, state)
         state |> maybe_queue_next() |> stream_viewing()
 
@@ -657,51 +635,40 @@ defmodule MediaCentaur.Playback.MpvSession do
       "playlist advanced to unrecognized file — #{Path.basename(reported_path)}; progress attribution stops"
     )
 
-    reset_for_file(
-      state,
-      reported_path,
-      %{episode_id: nil, movie_id: nil, video_object_id: nil},
-      %{season_number: nil, episode_number: nil, episode_name: nil}
-    )
+    reset_for_file(state, Entry.unattributed(state.entry, reported_path))
   end
 
-  # Pure apart from cancelling the capture timer; public so the test can
-  # pin that an advance keeps the profile the session was started for.
+  # The session's per-file reset for an advance to `entry`. Pure apart from
+  # cancelling the capture timer; public so the test can pin that an
+  # advance keeps the profile the session was started for.
   @doc false
-  def reset_for_file(state, path, fk_fields, item) do
+  def reset_for_file(state, %Entry{} = entry) do
     if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
 
-    Map.merge(
-      %{
-        state
-        | content_url: path,
-          season_number: item.season_number,
-          episode_number: item.episode_number,
-          episode_name: item.episode_name,
-          start_position: 0.0,
-          position: 0.0,
-          duration: 0.0,
-          tracker: WatchingTracker.new(),
-          chapters: [],
-          chapter: nil,
-          subtitle_text: nil,
-          audio_tracks: [],
-          subtitle_tracks: [],
-          # `current_aid`/`current_sid` stay: mpv keeps a selected track id
-          # across the files of a playlist and reports an observed property
-          # only when it changes, so the next file brings no `sid` event
-          # while `sid` holds — resetting them here read "no subtitles" and
-          # captured a subtitles-off override for the series on every
-          # advance.
-          resolver_choice: nil,
-          enforced_sid: nil,
-          capture_timer: nil,
-          pending_next: nil,
-          last_db_write_at: System.monotonic_time(:millisecond),
-          state: if(state.paused, do: :paused, else: :playing)
-      },
-      fk_fields
-    )
+    %{
+      state
+      | entry: entry,
+        position: 0.0,
+        duration: 0.0,
+        tracker: WatchingTracker.new(),
+        chapters: [],
+        chapter: nil,
+        subtitle_text: nil,
+        audio_tracks: [],
+        subtitle_tracks: [],
+        # `current_aid`/`current_sid` stay: mpv keeps a selected track id
+        # across the files of a playlist and reports an observed property
+        # only when it changes, so the next file brings no `sid` event
+        # while `sid` holds — resetting them here read "no subtitles" and
+        # captured a subtitles-off override for the series on every
+        # advance.
+        resolver_choice: nil,
+        enforced_sid: nil,
+        capture_timer: nil,
+        pending_next: nil,
+        last_db_write_at: System.monotonic_time(:millisecond),
+        state: if(state.paused, do: :paused, else: :playing)
+    }
   end
 
   # --- Language / track override capture ---
@@ -878,24 +845,24 @@ defmodule MediaCentaur.Playback.MpvSession do
     state
   end
 
-  defp write_progress(%{extra_id: extra_id} = state, reason) when not is_nil(extra_id) do
-    persist_extra_progress(state, reason)
+  defp write_progress(state, reason) do
+    case Entry.item(state.entry) do
+      {:extra, _id} -> persist_extra_progress(state, reason)
+      nil -> :ok
+      _attributed -> persist_entity_progress(state, reason)
+    end
   end
-
-  defp write_progress(%{movie_id: nil, episode_id: nil, video_object_id: nil}, _reason), do: :ok
-
-  defp write_progress(state, reason), do: persist_entity_progress(state, reason)
 
   @doc """
   Judges the saved position against `Completion.reason/3`; a complete
-  one adds the playing item (`current_item/1`) to `completed`. Returns
-  the reason (nil while incomplete) with the state.
+  one adds the playing entry's item (`Entry.item/1`) to `completed`.
+  Returns the reason (nil while incomplete) with the state.
   """
   @spec judge_completion(%__MODULE__{}) :: {String.t() | nil, %__MODULE__{}}
   def judge_completion(state) do
     reason = Completion.reason(saveable_position(state), state.duration, state.chapters)
 
-    case {reason, current_item(state)} do
+    case {reason, Entry.item(state.entry)} do
       {nil, _item} -> {nil, state}
       {reason, nil} -> {reason, state}
       {reason, item} -> {reason, %{state | completed: MapSet.put(state.completed, item)}}
@@ -906,21 +873,12 @@ defmodule MediaCentaur.Playback.MpvSession do
   @spec session_ended(%__MODULE__{}) :: Events.SessionEnded.t()
   def session_ended(state) do
     %Events.SessionEnded{
-      entity_id: state.entity_id,
+      entity_id: state.entry.entity_id,
       player: state.player,
       profile_id: state.profile_id,
       completed: state.completed
     }
   end
-
-  defp current_item(%{extra_id: id}) when not is_nil(id), do: {:extra, id}
-  defp current_item(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
-
-  defp current_item(%{episode_id: id} = state) when not is_nil(id),
-    do: {:episode, id, state.season_number, state.episode_number}
-
-  defp current_item(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}
-  defp current_item(_state), do: nil
 
   defp saveable_position(state), do: state.tracker.saveable_position || state.position
 
@@ -928,17 +886,16 @@ defmodule MediaCentaur.Playback.MpvSession do
     saveable = saveable_position(state)
     duration = state.duration
 
+    %Entry{entity_id: entity_id, extra_id: extra_id} = state.entry
+    profile_id = state.profile_id
+
     params = %{
-      profile_id: state.profile_id,
-      extra_id: state.extra_id,
-      entity_id: state.entity_id,
+      profile_id: profile_id,
+      extra_id: extra_id,
+      entity_id: entity_id,
       position_seconds: saveable,
       duration_seconds: duration
     }
-
-    profile_id = state.profile_id
-    entity_id = state.entity_id
-    extra_id = state.extra_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       case MediaCentaur.Library.ProgressRecords.find_or_create_for_extra(params) do
@@ -966,12 +923,12 @@ defmodule MediaCentaur.Playback.MpvSession do
         position_seconds: saveable,
         duration_seconds: duration
       }
-      |> maybe_put(:movie_id, state.movie_id)
-      |> maybe_put(:episode_id, state.episode_id)
-      |> maybe_put(:video_object_id, state.video_object_id)
+      |> maybe_put(:movie_id, state.entry.movie_id)
+      |> maybe_put(:episode_id, state.entry.episode_id)
+      |> maybe_put(:video_object_id, state.entry.video_object_id)
 
     profile_id = state.profile_id
-    entity_id = state.entity_id
+    entity_id = state.entry.entity_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       case resolve_or_create_playable_item_id(params) do
@@ -1067,7 +1024,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     now_playing = build_now_playing_for_broadcast(new_state, session)
 
     Events.broadcast(%Events.PlaybackStateChanged{
-      entity_id: session.entity_id,
+      entity_id: session.entry.entity_id,
       player: session.player,
       profile_id: session.profile_id,
       state: new_state,
@@ -1113,18 +1070,22 @@ defmodule MediaCentaur.Playback.MpvSession do
     state
   end
 
+  # The payload is the web formatter's flat contract
+  # (`LibraryFormatters.playback_failed_flash/1`), built from the entry here.
   defp broadcast_playback_failed(session, reason, message) do
+    %Entry{} = entry = session.entry
+
     Events.broadcast(%Events.PlaybackFailed{
-      entity_id: session.entity_id,
+      entity_id: entry.entity_id,
       player: session.player,
       reason: reason,
       payload: %{
         message: message,
-        entity_name: session.entity_name,
-        season_number: session.season_number,
-        episode_number: session.episode_number,
-        episode_name: session.episode_name,
-        content_url: session.content_url
+        entity_name: entry.entity_name,
+        season_number: entry.season_number,
+        episode_number: entry.episode_number,
+        episode_name: entry.episode_name,
+        content_url: entry.content_url
       }
     })
   end

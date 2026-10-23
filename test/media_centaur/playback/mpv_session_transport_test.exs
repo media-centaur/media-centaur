@@ -10,6 +10,7 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Playback
+  alias MediaCentaur.Playback.Entry
   alias MediaCentaur.Playback.Events
   alias MediaCentaur.Playback.FakeTransport
   alias MediaCentaur.Playback.SessionRegistry
@@ -25,13 +26,13 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     movie = create_standalone_movie(%{name: "Sample Movie"})
 
     params = %{
-      action: :play,
-      entity_id: movie.id,
       profile_id: Profiles.owner().id,
-      entity_name: "Sample Movie",
-      movie_id: movie.id,
-      content_url: path,
-      start_position: 0.0,
+      entry: %Entry{
+        entity_id: movie.id,
+        entity_name: "Sample Movie",
+        movie_id: movie.id,
+        content_url: path
+      },
       transport: FakeTransport.new(self()),
       reattach_window_ms: 100
     }
@@ -49,7 +50,7 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
 
   defp start!(params) do
     :ok = Sessions.play(params, :host)
-    pid = SessionRegistry.lookup({:host, params.entity_id})
+    pid = SessionRegistry.lookup({:host, params.entry.entity_id})
     assert is_pid(pid)
     pid
   end
