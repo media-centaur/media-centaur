@@ -38,16 +38,22 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
+**M9 done 2026-10-23: the session's shape is executed and verified on
+the simulator; nothing of the agent's is left before the owner's
+items.** `MpvSession` is a thin GenServer over `Playback.Entry`,
+`Playback.MpvProperties`, `Playback.Chain`, `Playback.ProgressWriter`
+and `LanguageContext` as a struct (spec §2.4; the M9 record below has
+every step, the seven commits, precommit and the end-to-end run).
+Pending on the Sony, all in the owner's walk: `m6tv`, `m6tv-d` (M8) and
+`mc-tv-flow osd tv` (M9). **The merge is not a near step**: the owner
+is not ready to consider it until their own checks are done. The
+earlier state:
+
 **M8 done 2026-10-23: the player model's quality pass is executed and
 verified; M9 (the session's shape) is opened with its scope.** The
 design is `docs/superpowers/specs/2026-10-23-player-model-design.md`;
 M8's record below has every step, the nine commits, the precommit
-result and the end-to-end checks on the simulator. Pending on the Sony:
-`m6tv` and `m6tv-d` in the owner's walk. M9's steps 1–5 are recorded
-(scope, research, decisions, design, plan). Next: M9's plan
-unification, then execution, on the branch. **The merge is not a
-near step**: the owner is not ready to consider it until their own
-checks are done. The earlier state:
+result and the end-to-end checks on the simulator. The earlier state:
 
 **M7's automation shipped 2026-10-23: the TV app lives at
 `github.com/media-centaur/media-centaur-android` (public) with CI and a
@@ -517,10 +523,12 @@ first, then iteration. The contract both codebases follow is
    each transport's helpers under it, the Topics row, the glossary
    rows. Nine commits, precommit green, verified on the simulator; the
    Sony checks wait on the owner's walk.
-9. **M9 — The session's shape.** Opened 2026-10-23 with its scope. `MpvSession` as a thin GenServer over
-   pure modules — the Entry, the property mirror, the chain, progress
-   persistence, track policy (spec §2.4). Before or after the release
-   per decision 12.
+9. ✅ **M9 — The session's shape.** Done 2026-10-23 (record below):
+   `MpvSession` as a thin GenServer over pure modules — `Playback.Entry`,
+   `Playback.MpvProperties`, `Playback.Chain`, `Playback.ProgressWriter`,
+   `LanguageContext` as a struct (spec §2.4). Seven commits, precommit
+   green, verified on the simulator; the Sony check waits on the
+   owner's walk.
 
 ### M8 — The player model (procedure record, opened 2026-10-23)
 
@@ -863,7 +871,40 @@ decision 14's.
    fields — two edits to `Viewing`, no shim, each commit whole. No
    constant moves: the three intervals, the unknown-file message and the
    streamed-property list are the GenServer's.
-7. **Execution** — after step 6; recorded per commit below.
+7. **Execution** (2026-10-23). Seven commits, one per step, each green
+   on the playback directory: `76d9aca6` the entry (`Playback.Entry`;
+   play params `%{profile_id, entry}`; `action` gone; five builders and
+   five readers converted; the unattributed entry for recovery's unknown
+   file and the hand-loaded advance), `cc943597` the mirror
+   (`Playback.MpvProperties`: `apply/3`, `reset_for_file/1`, `observed/0`,
+   the `track-list` parser moved in with its eight tests; the session
+   reacts by name after the fold; a `property-change` without `data`
+   handled as before), `74492801` the chain (`Playback.Chain.queue_next?/4`,
+   `successor/3`, `advance/3`; the queue tests moved to `chain_test`),
+   `94f67ec6` the progress writer (`ProgressWriter.judge/4`,
+   `persist/5` — profile, entry, properties, tracker, reason —
+   `broadcast_end/2`; the judge tests moved), `48e9a1a1` the track policy
+   (`LanguageContext` a struct with `resolver_choice` and `enforced_sid`;
+   `on_track_list/3` answers `{context, [ipc]}`, `captures?/1`,
+   `capture/3`, `reset_for_file/1`; the session keeps the capture
+   timer), `6cee65f5` the docs, `d83b2c35` three `+0.0` match patterns.
+   `MpvSession` is 672 lines and 17 fields (was 1,152 and 39); the
+   `Transport`, `Viewing`, `Command`, `Events` and `LaunchFlags` surfaces
+   and the web layer are untouched. `agent-mix precommit` green: 8,720
+   Elixir tests, 935 JavaScript tests, zero warnings from the branch
+   (the quoted-keyword warnings in the log are `mix.lock`'s, from main's
+   dependency bump). End to end on `mc-sim-host` with `mc-player-sim
+   --headless` (the paired sim `ff373292`): E01 resumed at 46 s, the
+   successor queued, progress saved every ten seconds, E01 completed at
+   its credits chapter and recorded in watch history, the advance to E02
+   with the resolver's choice enforced again, a seek into E02's credits
+   chapter (chapter 2 at 79 s), a seek of 600 s bounded to one second
+   short of the end so mpv reached the end and the session finalised
+   with its refresh broadcast, zero sessions after. Note for the rig: a
+   session is keyed by the chain's entity (the series), not the episode
+   `mc-sim-host ids` prints — read the key from `Sessions.list/0`.
+   Pending: `mc-tv-flow osd tv` once the Sony is paired and free (the
+   owner's walk).
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
@@ -2989,24 +3030,24 @@ No step keeps an old path or lands through a shim.
 ## Resuming in a new session
 
 Everything a fresh context needs, rewritten 2026-10-23 at the end of the
-session that ran M8 and designed M9. Reconcile against `git log
-remote-players`, `git log` in `~/src/media-centaur/android-app` and the
-wiki checkout first (the reconciliation rule).
+session that ran M9. Reconcile against `git log remote-players`, `git
+log` in `~/src/media-centaur/android-app` and the wiki checkout first
+(the reconciliation rule).
 
-**Start here.** The next work is M9, *the session's shape*: read the
-design (`docs/superpowers/specs/2026-10-23-player-model-design.md`,
-§2.4 and item 10 of §3) and the M9 record above (steps 1–5: scope,
-research, decisions, design unification, the seven-step plan), then run
-step 6 — `unify_design` on the plan alone — and execute it one commit
-per step, `agent-mix test` on the touched files per step, `agent-mix
-precommit` at the end. The names are decided (decision 14 and M9 step
-3): `Playback.Entry`, `Playback.MpvProperties`, `Playback.Chain`,
-`Playback.ProgressWriter`, `LanguageContext` as a struct. It is a pure
-refactor: the existing tests are the contract; `mpv_session_test`'s and
-`viewing_test`'s struct fixtures move with the functions they pin,
-assertions intact. Verification at the end: `mc-player-sim --headless`
-against `mc-sim-host` (play, a seek past the credits, auto-advance, the
-finish), and `mc-tv-flow osd tv` once when the Sony is paired and free.
+**Start here.** M8 and M9 are done and verified on the simulator; the
+branch is at `d83b2c35` (M9's seven commits after `748c8877`), precommit
+green. **Nothing is left that an agent can do alone.** Every open item
+is the owner's (the list under *What is left*): the Play internal
+track at the keyboard, the walk through the TV on the released build —
+which also runs the pending Sony checks `m6tv`, `m6tv-d` and
+`mc-tv-flow osd tv` — and, far off, the merge. When the owner names a
+fault from the walk, run it through the milestone procedure under M6's
+Back-key and D-pad item; an app change means a new `appVersionName`, a
+CHANGELOG section and a tag. For any host-side change, the rig is
+`mc-sim-host start`, `mc-player-sim --host http://192.168.68.67:4003
+--code <code> --headless` (a session is keyed by the chain's entity,
+the series — read it from `Sessions.list/0`, not from `mc-sim-host
+ids`'s episode ids), `agent-mix precommit` at the end.
 
 **The owner's standing instruction.** Nothing from the host repository
 goes to main or to GitHub until the owner says so: no merge of
@@ -3016,11 +3057,11 @@ published.
 
 **State (2026-10-23, end of the M8 session).**
 * Host branch `remote-players`, worktree
-  `~/src/media-centaur/media-centaur-app-remote-players`, at `2918e474`:
+  `~/src/media-centaur/media-centaur-app-remote-players`, at `d83b2c35`:
   M8's nine code commits (`60b67d87` … `ed710500`, listed in the M8
-  record's step 7) and the campaign commits after them. Unpushed,
-  unmerged, precommit green (one `Database busy` flake in
-  `relay_sync_test`, passing alone; 935 JavaScript tests). Main's
+  record's step 7), M9's seven (`76d9aca6` … `d83b2c35`, in the M9
+  record's step 7) and the campaign commits. Unpushed, unmerged,
+  precommit green (8,720 Elixir tests, 935 JavaScript tests). Main's
   checkout runs the owner's dev server; never build or edit there. The
   TV rig scripts in `~/scripts/agents` (`mc-tv-flow`, `mc-tv-checks/*`)
   already name the moved modules (`Playback.Transport.Remote.*`).
@@ -3064,9 +3105,8 @@ published.
   Memory file `project-remote-players-campaign.md` says this in short.
 
 **What is left, in order.**
-1. **M9, the session's shape** — the agent's work, see *Start here*
-   above. M8 is done; its Sony checks (`m6tv`, `m6tv-d`) wait on the
-   owner's walk (item 3).
+1. **M9 is done.** Its Sony check (`mc-tv-flow osd tv`) and M8's
+   (`m6tv`, `m6tv-d`) wait on the owner's walk (item 3).
 2. **The Play internal track — with the owner at the keyboard.** The
    owner opens the Play Console account (one-time fee, identity check).
    Then: create the app with id `app.mediacentaur.tv` and the name
