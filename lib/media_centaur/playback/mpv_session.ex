@@ -56,19 +56,17 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Progress, as: LibraryProgress
 
   alias MediaCentaur.Playback.{
     Chain,
     Command,
-    Completion,
     Entry,
     Events,
     LanguageContext,
     LaunchFlags,
     MpvProperties,
     OverrideCapture,
-    ProgressBroadcaster,
+    ProgressWriter,
     SessionRegistry,
     TrackResolver,
     Transport,
@@ -350,30 +348,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
     session = if session.tracker.actively_watching, do: persist_progress(session), else: session
 
-    profile_id = session.profile_id
-    %Entry{entity_id: entity_id} = entry = session.entry
-
-    case Entry.item(entry) do
-      # Extra playback — broadcast extra progress update
-      {:extra, extra_id} ->
-        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
-        end)
-
-      # An unattributed file: nothing was tracked.
-      nil ->
-        :ok
-
-      # Entity/episode/movie playback — broadcast entity progress update
-      _attributed ->
-        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          # Explicit nil: this is the end-of-playback summary refresh. The
-          # per-tick broadcast in persist_progress/1 already carried the
-          # changed playable_item_id, so there is no single record to
-          # report here.
-          ProgressBroadcaster.broadcast(profile_id, entity_id, nil)
-        end)
-    end
+    ProgressWriter.broadcast_end(session.profile_id, session.entry)
 
     broadcast_state_changed(:stopped, session)
     # After `:stopped`, on the same topic from the same process: a
@@ -383,7 +358,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     Events.broadcast_viewing_ended(%Events.ViewingEnded{
       player: session.player,
-      entity_id: entity_id
+      entity_id: session.entry.entity_id
     })
 
     %{session | state: :stopped}
@@ -722,39 +697,16 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  # --- Progress Persistence ---
+  # --- Progress Persistence (`ProgressWriter`) ---
 
-  # Judges completion here, in the session, so the session knows what it
-  # completed; the write itself runs in a task.
+  # The session judges completion so it knows what it completed; the
+  # write runs in a task.
   defp persist_progress(state) do
-    {reason, state} = judge_completion(state)
-    write_progress(state, reason)
-    state
-  end
+    {reason, completed} =
+      ProgressWriter.judge(state.completed, state.entry, state.properties, state.tracker)
 
-  defp write_progress(state, reason) do
-    case Entry.item(state.entry) do
-      {:extra, _id} -> persist_extra_progress(state, reason)
-      nil -> :ok
-      _attributed -> persist_entity_progress(state, reason)
-    end
-  end
-
-  @doc """
-  Judges the saved position against `Completion.reason/3`; a complete
-  one adds the playing entry's item (`Entry.item/1`) to `completed`.
-  Returns the reason (nil while incomplete) with the state.
-  """
-  @spec judge_completion(%__MODULE__{}) :: {String.t() | nil, %__MODULE__{}}
-  def judge_completion(state) do
-    %MpvProperties{duration: duration, chapters: chapters} = state.properties
-    reason = Completion.reason(saveable_position(state), duration, chapters)
-
-    case {reason, Entry.item(state.entry)} do
-      {nil, _item} -> {nil, state}
-      {reason, nil} -> {reason, state}
-      {reason, item} -> {reason, %{state | completed: MapSet.put(state.completed, item)}}
-    end
+    ProgressWriter.persist(state.profile_id, state.entry, state.properties, state.tracker, reason)
+    %{state | completed: completed}
   end
 
   @doc "The `SessionEnded` event for this session."
@@ -766,144 +718,6 @@ defmodule MediaCentaur.Playback.MpvSession do
       profile_id: state.profile_id,
       completed: state.completed
     }
-  end
-
-  defp saveable_position(state), do: state.tracker.saveable_position || state.properties.position
-
-  defp persist_extra_progress(state, reason) do
-    saveable = saveable_position(state)
-    duration = state.properties.duration
-
-    %Entry{entity_id: entity_id, extra_id: extra_id} = state.entry
-    profile_id = state.profile_id
-
-    params = %{
-      profile_id: profile_id,
-      extra_id: extra_id,
-      entity_id: entity_id,
-      position_seconds: saveable,
-      duration_seconds: duration
-    }
-
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case MediaCentaur.Library.ProgressRecords.find_or_create_for_extra(params) do
-        {:ok, record} ->
-          Log.info(
-            :playback,
-            "saved extra progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
-          )
-
-          maybe_mark_extra_completed(record, reason)
-          ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
-
-        {:error, reason} ->
-          Log.warning(:playback, "failed to save extra progress — #{inspect(reason)}")
-      end
-    end)
-  end
-
-  defp persist_entity_progress(state, reason) do
-    saveable = saveable_position(state)
-    duration = state.properties.duration
-
-    params =
-      %{
-        position_seconds: saveable,
-        duration_seconds: duration
-      }
-      |> maybe_put(:movie_id, state.entry.movie_id)
-      |> maybe_put(:episode_id, state.entry.episode_id)
-      |> maybe_put(:video_object_id, state.entry.video_object_id)
-
-    profile_id = state.profile_id
-    entity_id = state.entry.entity_id
-
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case resolve_or_create_playable_item_id(params) do
-        {:ok, playable_item_id} ->
-          # Hot-path write: lands in the Library.Progress in-memory
-          # table in microseconds; the debounced flush persists to
-          # `library_watch_progress` on the next interval (default 5s)
-          # or synchronously on clean shutdown.
-          :ok = LibraryProgress.record(profile_id, playable_item_id, saveable, duration)
-
-          Log.info(
-            :playback,
-            "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
-          )
-
-          maybe_mark_completed(profile_id, playable_item_id, reason)
-          # The rich `%EntityProgressUpdated{}` event carries the changed
-          # record, so the detail modal's in-memory merge flips a
-          # per-episode badge live rather than on a full remount.
-          ProgressBroadcaster.broadcast(profile_id, entity_id, playable_item_id)
-
-        {:error, reason} ->
-          Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
-      end
-    end)
-  end
-
-  # Resolves the canonical PlayableItem for the session's container FK
-  # without writing any WatchProgress row — that's the Progress worker's job.
-  defp resolve_or_create_playable_item_id(%{movie_id: movie_id}) when not is_nil(movie_id) do
-    position =
-      case Library.Containers.fetch(:movie, movie_id) do
-        {:ok, %{position: pos}} when is_integer(pos) -> pos
-        _ -> 1
-      end
-
-    case Library.PlayableItems.find_or_create(:movie, movie_id, position) do
-      {:ok, %{id: id}} -> {:ok, id}
-      other -> other
-    end
-  end
-
-  defp resolve_or_create_playable_item_id(%{episode_id: episode_id}) when not is_nil(episode_id) do
-    position =
-      case Library.Episodes.fetch(episode_id) do
-        {:ok, %{episode_number: n}} when is_integer(n) -> n
-        _ -> 1
-      end
-
-    case Library.PlayableItems.find_or_create(:episode, episode_id, position) do
-      {:ok, %{id: id}} -> {:ok, id}
-      other -> other
-    end
-  end
-
-  defp resolve_or_create_playable_item_id(%{video_object_id: vo_id}) when not is_nil(vo_id) do
-    case Library.PlayableItems.find_or_create(:video_object, vo_id, 1) do
-      {:ok, %{id: id}} -> {:ok, id}
-      other -> other
-    end
-  end
-
-  defp resolve_or_create_playable_item_id(_params), do: {:error, :no_fk_specified}
-
-  defp maybe_mark_completed(_profile_id, _playable_item_id, nil), do: :ok
-
-  defp maybe_mark_completed(profile_id, playable_item_id, reason) do
-    case LibraryProgress.get(profile_id, playable_item_id) do
-      %{completed: true} ->
-        :ok
-
-      _ ->
-        Log.info(:playback, "marked completed — #{reason}")
-        :ok = LibraryProgress.complete(profile_id, playable_item_id)
-    end
-  end
-
-  defp maybe_mark_extra_completed(_record, nil), do: :ok
-  defp maybe_mark_extra_completed(%{completed: true}, _reason), do: :ok
-
-  defp maybe_mark_extra_completed(record, reason) do
-    Log.info(:playback, "extra marked completed — #{reason}")
-
-    case MediaCentaur.Library.ProgressRecords.mark_completed(record) do
-      {:ok, _} -> :ok
-      {:error, error} -> Log.warning(:playback, "failed to mark extra completed — #{inspect(error)}")
-    end
   end
 
   # --- PubSub Broadcasting ---
@@ -985,7 +799,4 @@ defmodule MediaCentaur.Playback.MpvSession do
       Transport.send(transport, ["observe_property", id, name])
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end
