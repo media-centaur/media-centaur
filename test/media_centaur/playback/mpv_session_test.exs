@@ -1,7 +1,14 @@
 defmodule MediaCentaur.Playback.MpvSessionTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.{Entry, Events, MpvProperties, MpvSession, WatchingTracker}
+  alias MediaCentaur.Playback.{
+    Entry,
+    Events,
+    LanguageContext,
+    MpvProperties,
+    MpvSession,
+    WatchingTracker
+  }
 
   defp entry(fields), do: struct!(%Entry{entity_id: "entity", content_url: "/media/a.mkv"}, fields)
 
@@ -23,6 +30,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
           profile_id: profile_id,
           entry: entry(episode_id: "ep-1"),
           properties: %MpvProperties{position: 1200.0},
+          language_context: %LanguageContext{},
           tracker: WatchingTracker.new()
         })
 
@@ -40,6 +48,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
           profile_id: Ecto.UUID.generate(),
           entry: entry(episode_id: "ep-1"),
           properties: %MpvProperties{aid: 1, sid: 2},
+          language_context: %LanguageContext{resolver_choice: %{sub_lang: "eng"}, enforced_sid: 2},
           tracker: WatchingTracker.new()
         })
 
@@ -47,7 +56,8 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
 
       assert next.properties.aid == 1
       assert next.properties.sid == 2
-      assert next.enforced_sid == nil
+      assert next.language_context.enforced_sid == nil
+      assert next.language_context.resolver_choice == nil
     end
   end
 
