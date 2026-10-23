@@ -43,6 +43,13 @@ defmodule MediaCentaur.Playback.FakeTransport do
   end
 
   @impl true
+  # A fake is handed in with the params; nothing builds one from a player.
+  def for_player(_player, %{transport: transport}), do: {:ok, transport}
+
+  @impl true
+  def recover(_player), do: []
+
+  @impl true
   def open(transport, launch) do
     Kernel.send(transport.owner, {:transport_opened, launch})
     {[], transport}
