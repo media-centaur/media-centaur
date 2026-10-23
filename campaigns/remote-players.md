@@ -47,8 +47,7 @@ file. The TV found faults fixed the same day: the sidecar URL's
 percent-encoded name, the `file-loaded`/`path` order, the Controls page
 one change behind (a desktop fault too), the stream ending early on a
 host restart, the Code field's missing box, the page's 70% height, the
-start-up underrun. Left for the owner: decision 10 (the TV's UI scale:
-1.4× today, a per-player factor recommended), Back-key and D-pad polish
+start-up underrun. Left for the owner: Back-key and D-pad polish
 (nothing specific recorded — the owner's walk names it), and the earlier
 calls: the Sound column's owner (9), the speed test (3), the application
 id (1). Then M7. M5's OSD
@@ -177,6 +176,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — An open overlay keeps the page's cursor: the cursor start never seeds the page beneath, a flat overlay whose one item arrives later (the OSD's prompt pill) gets it from the post-patch reconciler, and a named overlay's flat context is re-resolved until a region has items — one rule in `_ensureCursorStart`, replacing the branch in `_syncState`. (stage 4 finding)
 * `2026-10-22` — The input system knows the active overlay by its navigation model name: a different name while the presentation stays "modal" is an overlay opening over, or closing back to, another, and is entered like any open. The track menu is nested in the OSD's overlay (`data-detail-nested`), so BACK closes the menu alone and the next BACK dismisses the OSD. (stage 4 finding)
 * `2026-10-22` — The viewing's keys are Controls bindings (category *During playback on a TV*: play/pause, seek forward, seek back, audio & subtitles; defaults the remote's media keys and ContextMenu, no gamepad defaults), bound on the TV's own Settings page; the two fallback key maps behind the user's are gone, and a Play/Pause key outside a viewing is Play. Closes open decision 8: which key opens the track menu is the user's binding. (M6, the owner's question)
+* `2026-10-23` — The TV's UI scale: a per-player scale factor (option (a) of open decision 10 — the Preferences stepper on a paired device writes the player's own factor, applied by the root layout for that device; the 0.7 auto-scale floor stays the desktop's). Not built in this campaign: the owner places it in a future campaign, *player operational status and settings*, to pursue once the more critical work is resolved; the TV stays at 1.4× until then. (owner's call)
 * `2026-10-23` — A remote player's stream reconnects: every `loadfile` the remote transport sends carries FFmpeg's HTTP `reconnect` and `reconnect_on_network_error`, so a host restart or a network blip stalls the viewing and resumes it instead of ending the file early. (M6 fourth batch)
 * `2026-10-23` — The TV app's audio buffer is 0.5 s (`Player.instanceOptions`): mpv's 0.2 s default underran once at every start on the Sony. (M6 fourth batch, `android-app`)
 * `2026-10-22` — Every TV check prints the player's drop counters (`frame-drop-count`, `decoder-frame-drop-count`, `vo-delayed-frame-count`) after each viewing it drives — `DROPS:` lines in `mc-tv-flow osd`. A layer change that costs frames shows up there, not in a screenshot. (rig rule, owner's question)
@@ -310,28 +310,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    panel's own sound modes do the job, (c) a TV-only toggle without
    memory. Recommendation: (a), scoped as its own milestone after M7 if
    the owner wants it on the TV at all; (b) until then.
-10. **The TV's UI scale** (2026-10-23, M6 fourth batch). The WebView lays
-    the page out at 960×540 CSS px (device pixel ratio 2: Android TV's
-    1080p is xhdpi), so `--auto-scale` computes 0.5 and the 0.7 floor in
-    `app.css` (a guard for narrow desktop windows) clamps it: the TV
-    draws the design at 1.4× its 1:1 1080p size — the "slightly too big"
-    the owner saw. The install-wide preference (`ui_scale`, Settings →
-    Preferences) multiplies on top and would move the desktop too.
-    Options: (a) a per-player scale — the Preferences stepper on a paired
-    device writes the player's own factor (a column on `players`,
-    host-owned, surviving the TV's restarts), which the root layout
-    applies for that device; the floor stays the desktop's, so the TV
-    ranges from 1× (pref 0.7) to 1.4× and beyond. (b) The TV app sets the
-    WebView's initial scale so the layout is 1920 CSS px wide and
-    `--auto-scale` is 1: the design at 1:1 physical pixels, the
-    install-wide preference the only knob — the TV and the desktop share
-    one size. (c) Keep 1.4× and lower the floor for devices only.
-    Recommendation: (a). The owner wants the TV between 1× and 1.4× with
-    the desktop unchanged; per-device state on the player row is the
-    roadmap's rule; the floor is a desktop guard and stays. Cost: a
-    column and a migration, the stepper's write split by device, the root
-    layout reading the player's factor (the player is in the session
-    already).
+10. *Closed 2026-10-23 (Decisions made): a per-player scale factor, deferred to a future campaign.*
 3. **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
@@ -2456,9 +2435,10 @@ window at all until they say it is free — verify on the desk with
 
 **The next session's agenda: the owner's calls, then M7.** Four M6
 batches are verified on the Sony (2026-10-23, records above; wiki commits
-local, unpushed). Nothing is left that an agent can decide alone: open
-decision 10 (the TV's UI scale — (a) a per-player factor recommended),
-Back-key and D-pad polish (the owner's walk through the TV names what to
+local, unpushed). Nothing is left that an agent can decide alone: decision 10 is taken
+(a per-player scale factor, deferred to a future campaign — *player
+operational status and settings* — to be re-homed in the campaigns
+index when this one closes), Back-key and D-pad polish (the owner's walk through the TV names what to
 fix), and the older calls 9 (the Sound column), 3 (the speed test), 1
 (the application id). When the owner answers, run the chosen items
 through the procedure, then M7 (release path and owner checks). The
