@@ -37,21 +37,5 @@ defmodule MediaCentaur.Playback.Supervisor do
     end
   end
 
-  defp recover_sessions do
-    alias MediaCentaur.Playback.SessionRecovery
-    require MediaCentaur.Log, as: Log
-
-    for params <- SessionRecovery.recover_all() do
-      case MediaCentaur.Playback.Sessions.resume(params, :host) do
-        :ok ->
-          Log.info(:playback, "recovered session — #{params[:entity_name] || params.entity_id}")
-
-        {:error, reason} ->
-          Log.warning(
-            :playback,
-            "failed to recover session — #{params.entity_id}: #{inspect(reason)}"
-          )
-      end
-    end
-  end
+  defp recover_sessions, do: MediaCentaur.Playback.Sessions.recover(:host)
 end

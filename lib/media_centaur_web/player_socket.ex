@@ -15,9 +15,7 @@ defmodule MediaCentaurWeb.PlayerSocket do
 
   @behaviour WebSock
 
-  alias MediaCentaur.Playback
   alias MediaCentaur.Playback.Remote.Channel
-  alias MediaCentaur.Playback.SessionRegistry
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
 
@@ -25,9 +23,6 @@ defmodule MediaCentaurWeb.PlayerSocket do
   def init(%{player_id: player_id, locators: locators}) do
     case Channel.connect(player_id, locators) do
       {:ok, state} ->
-        # A channel for a player no session holds may belong to an mpv that
-        # outlived its session (a host restart): ask it, off this process.
-        if SessionRegistry.on_player(player_id) == [], do: Playback.recover_player(player_id)
         :ok = Players.subscribe()
         {:ok, state}
 

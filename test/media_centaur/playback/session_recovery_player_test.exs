@@ -12,7 +12,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Playback.LaunchFlags
   alias MediaCentaur.Playback.Remote.PlayerRegistry
-  alias MediaCentaur.Playback.SessionRecovery
+  alias MediaCentaur.Playback.Transport.Remote
 
   @base "http://tv.test:2160"
 
@@ -57,7 +57,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
   test "a player playing one of our files is recovered with its position and profile",
        %{player_id: player_id, presence: presence, path: path, movie: movie} do
     profile_id = MediaCentaur.Profiles.owner().id
-    task = Task.async(fn -> SessionRecovery.recover_player(player_id) end)
+    task = Task.async(fn -> Remote.recover(player_id) end)
 
     answer_properties(%{
       "path" => success("#{@base}/media/#{presence.id}?t=token"),
@@ -65,7 +65,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
       "script-opts" => success(%{LaunchFlags.profile_script_opt() => profile_id})
     })
 
-    assert {:ok, params} = Task.await(task)
+    assert [params] = Task.await(task)
     assert params.entity_id == movie.id
     assert params.content_url == path
     assert params.start_position == 1234.5
@@ -76,18 +76,18 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
 
   @tag :tmp_dir
   test "a player playing nothing, or a file that is not ours, is skipped", %{player_id: player_id} do
-    task = Task.async(fn -> SessionRecovery.recover_player(player_id) end)
+    task = Task.async(fn -> Remote.recover(player_id) end)
     answer_properties(%{"path" => success(nil)})
-    assert Task.await(task) == :skip
+    assert Task.await(task) == []
 
-    task = Task.async(fn -> SessionRecovery.recover_player(player_id) end)
+    task = Task.async(fn -> Remote.recover(player_id) end)
     answer_properties(%{"path" => success("http://elsewhere.test/video.mkv")})
-    assert Task.await(task) == :skip
+    assert Task.await(task) == []
   end
 
   @tag :tmp_dir
   test "a player whose mpv carries no profile is skipped", %{player_id: player_id, presence: presence} do
-    task = Task.async(fn -> SessionRecovery.recover_player(player_id) end)
+    task = Task.async(fn -> Remote.recover(player_id) end)
 
     answer_properties(%{
       "path" => success("#{@base}/media/#{presence.id}?t=token"),
@@ -95,11 +95,11 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
       "script-opts" => success(%{})
     })
 
-    assert Task.await(task) == :skip
+    assert Task.await(task) == []
   end
 
   @tag :tmp_dir
   test "a player with no channel is skipped" do
-    assert SessionRecovery.recover_player(Ecto.UUID.generate()) == :skip
+    assert Remote.recover(Ecto.UUID.generate()) == []
   end
 end

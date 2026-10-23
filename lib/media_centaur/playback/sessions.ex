@@ -85,11 +85,40 @@ defmodule MediaCentaur.Playback.Sessions do
     end
   end
 
-  # A caller may hand in the transport (a test's fake); otherwise the player
-  # decides it — the one place the player's kind is read.
+  # A caller may hand in the transport (a test's fake); otherwise the player's
+  # transport module builds it.
   defp transport_for(%{transport: transport}, _player), do: {:ok, transport}
-  defp transport_for(%{entity_id: entity_id}, :host), do: {:ok, Transport.Local.new(entity_id)}
-  defp transport_for(_params, player_id) when is_binary(player_id), do: Transport.Remote.new(player_id)
+  defp transport_for(params, player), do: transport_module(player).for_player(player, params)
+
+  # The one place the player's kind is read.
+  defp transport_module(:host), do: Transport.Local
+  defp transport_module(player_id) when is_binary(player_id), do: Transport.Remote
+
+  @doc """
+  Reattaches sessions to the mpvs on `player` that outlived their last
+  session (ADR-023): the host's orphaned processes at boot, a remote
+  player's mpv when its channel connects and no session holds it. The
+  player's transport finds them and reads what they play
+  (`Transport.recover/1`), `SessionRecovery` turns the readings into
+  reattach params, and each starts through `resume/2`.
+  """
+  @spec recover(Playback.player()) :: :ok
+  def recover(player) do
+    for params <- transport_module(player).recover(player) do
+      case resume(params, player) do
+        :ok ->
+          Log.info(:playback, "recovered session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}")
+
+        {:error, reason} ->
+          Log.warning(
+            :playback,
+            "failed to recover session — #{params.entity_id} on #{inspect(player)}: #{inspect(reason)}"
+          )
+      end
+    end
+
+    :ok
+  end
 
   defp playable_file?(%{content_url: path}) when is_binary(path), do: File.exists?(path)
   defp playable_file?(_params), do: false
