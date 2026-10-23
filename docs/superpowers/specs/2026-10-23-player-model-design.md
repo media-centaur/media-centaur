@@ -201,6 +201,13 @@ Recorded as open decisions 11–14 of the campaign.
     *Entry* and *property mirror* for M9; *locators* kept as a glossary
     term or renamed. Naming is the owner's.
 
+**Taken 2026-10-23.** 11: yes, now. 12: M9 immediately after M8, on the
+branch; the owner is not ready to consider a merge and will name the
+checks that come first. 13: yes. 14: the agent suggested
+`single_viewing?/1`, `Playback.Entry`, `Playback.MpvProperties` (in
+place of "property mirror") and *media URLs* in place of *locators*;
+the owner's word is pending. The plan is in the campaign's M8 record.
+
 ## 5. Cost
 
 | Milestone | Scope | Sessions | Verification |

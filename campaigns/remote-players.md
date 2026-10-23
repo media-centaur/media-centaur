@@ -39,9 +39,12 @@ rapid prototyping built. Steps 1–4 are done (record below; the design
 is `docs/superpowers/specs/2026-10-23-player-model-design.md`):
 fifteen findings, eleven for M8 (one session), two for M9 (the
 session's shape, two to three sessions), two no change with reasons.
-Waiting on the owner: decisions 11–14 (M8 before the merge; M9 before
-or after the release; the layout; four names). Then plan, plan
-unification, execution. The earlier state:
+Decisions 11–13 taken the same day (M8 now, M9 immediately after it on
+the branch, the layout); the plan is written and unified (steps 5–6
+below); execution starts on the owner's word on the four names
+(decision 14, the agent's suggestions recorded). **The merge is not a
+near step**: the owner is not ready to consider it until their own
+checks are done. The earlier state:
 
 **M7's automation shipped 2026-10-23: the TV app lives at
 `github.com/media-centaur/media-centaur-android` (public) with CI and a
@@ -207,6 +210,9 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-22` — Every TV check prints the player's drop counters (`frame-drop-count`, `decoder-frame-drop-count`, `vo-delayed-frame-count`) after each viewing it drives — `DROPS:` lines in `mc-tv-flow osd`. A layer change that costs frames shows up there, not in a screenshot. (rig rule, owner's question)
 * `2026-10-22` — No 4K UI on the TV: the Sony runs every app's UI at a 1080p override and the owner will not quadruple the WebView's load; a slightly smaller UI scale on the TV is wanted instead (M6). (owner)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
+* `2026-10-23` — M8, the player model's quality pass, runs now on the branch (open decision 11 → (a)). (owner)
+* `2026-10-23` — M9, the session's shape, runs immediately after M8 on the branch. No merge is considered until the owner has crossed their own T's and dotted their own I's: the feature is large and its impact large, and the merge is not a near step (open decision 12 → "immediately after", with the merge far off). (owner)
+* `2026-10-23` — The layout of the spec's §2.5: each transport's helpers under it, `Playback.Remote.*` folded into `Playback.Transport.Remote.*`, in M8 (open decision 13 → (a)). (owner)
 
 ## Open decisions
 
@@ -350,20 +356,20 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    milestone: M5 if measurement shows a real limit, M6 otherwise.
    Recommendation: design it with the owner at the start of the next
    session, after the measurements of item 2.
-11. **Run M8 before the merge** (2026-10-23; spec
+11. *Decided 2026-10-23 (Decisions made): (a), now.* **Run M8 before the merge** (2026-10-23; spec
     `docs/superpowers/specs/2026-10-23-player-model-design.md` §4).
     Options: (a) yes — one session, a pure refactor plus two behaviour
     fixes (the media token's player id checked, the remote locator's
     failure surfaced) behind existing tests, leaving the branch true to
     its own records; (b) merge first and run it on main.
     Recommendation: (a).
-12. **M9, the session's shape: before or after the merge and release**
+12. *Decided 2026-10-23 (Decisions made): immediately after M8, on the branch; the merge is far off.* **M9, the session's shape: before or after the merge and release**
     (2026-10-23; spec §2.4). `MpvSession` as a thin GenServer over an
     Entry, a property mirror, the chain, progress persistence and track
     policy; two to three sessions, a pure refactor behind the session's
     tests. Options: (a) after the release — independent of it, and the
     branch already touches 163 files; (b) before. Recommendation: (a).
-13. **The layout** (2026-10-23; spec §2.5). Each transport's helpers
+13. *Decided 2026-10-23 (Decisions made): (a).* **The layout** (2026-10-23; spec §2.5). Each transport's helpers
     under it: `Playback.Transport.Local.{IpcFraming, ExitClassifier,
     LogReader, UserConfig}`, `Playback.Transport.Remote.{Channel,
     PlayerRegistry}`; `Playback.Remote.*` gone. Options: (a) in M8,
@@ -372,7 +378,19 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 14. **Names** (2026-10-23). The transport callback for "holds one
     viewing at a time" (proposed `single_viewing?/1`); M9's *Entry*
     and *property mirror*; *locators*, kept as a glossary term or
-    renamed to a plain one. Naming is the owner's.
+    renamed to a plain one. Naming is the owner's. *The agent's
+    suggestions, 2026-10-23, on the owner's request:* `single_viewing?/1`
+    (the doc sentence "the player holds one viewing at a time" reads
+    straight off it); `Playback.Entry` (mpv's own word for an item of
+    the playlist, which the viewing chain is; a library *entry* is
+    another context's word, which the naming rule allows);
+    `Playback.MpvProperties` (the struct of the observed properties'
+    last values, mpv's term, no coinage — "property mirror" is
+    dropped); *locators* renamed to **media URLs** (`PlayerRegistry`'s
+    value `media_urls` with `file`, `sidecar` and `presence_id`
+    functions; `Plugs.PlayerChannel.media_urls/2`), since *media URL* is
+    already the protocol spec's defined term and *locators* is defined
+    nowhere. Execution waits on the owner's word.
 
 ## Next steps
 
@@ -538,9 +556,121 @@ record carries the procedure's steps.
 4. **Design unification** (2026-10-23). The spec is the pass: fifteen
    findings, eleven to M8, two to M9, two no change with reasons; the
    seams that already fit are named so they are not re-cut.
-5. **Implementation plan** — waits on decisions 11, 13 and 14.
-6. **Plan unification** — after step 5.
-7. **Execution** — after step 6.
+5. **Implementation plan** (2026-10-23). Ordered so each step is one
+   commit that leaves the suite green; `agent-mix test` on the touched
+   files per step, `agent-mix precommit` at the end. Names as suggested
+   under decision 14 until the owner says otherwise.
+   1. *One player-id type.* `Players.Player`: `@type id :: :host |
+      Ecto.UUID.t()`. `Playback`: `@type player :: Players.Player.id()`.
+      The eight other spellings reference one of the two:
+      `SessionRegistry`, `Sessions`, `Viewing.t/0`, the four `Events`
+      structs, `LiveHelpers` (its `playback_scope/0` goes; the typedoc
+      moves onto `load_playback_sessions/1`), `PlayerAware`'s spec,
+      `MpvSession.command/2`'s spec. Contingency: if `mix compile`'s
+      Boundary pass flags the typespec alias after all, the type is
+      defined in `Playback` alone and `Players.Player` keeps
+      `Ecto.UUID.t()`.
+   2. *The socket holds the id.* `RemoteAccess.admit/2` returns
+      `{:ok, Playback.player()}` (still reads the row; returns its id).
+      `PlayerAware` assigns the id and loses `playback_player/1`; its two
+      callers (`TitleDetailHost`, `TitleDetailHost.LibraryEvents`) read
+      `socket.assigns.player`; the seven struct matches (`PlayerAware`
+      ×2, `ViewingAware` ×4, `Plugs.PlayerChannel` ×1) become matches on
+      the id. Tests: `remote_access_test` (`{:ok, %{id: id}}` → `{:ok,
+      id}`), `plugs/remote_access_test`, `plugs/player_channel_test`.
+   3. *Playback free of Players.* `Remote.Channel`: the `PlayerRemoved`
+      alias, the `players:updates` subscription in `connect/2` and the
+      `{:player_removed, _}` clause go; `removed/1` is public and
+      returns today's outcome (tell the session, push `stop`, close
+      `{:shutdown, :removed}`). `PlayerSocket.init/1` calls
+      `Players.subscribe/0`; `handle_info({:player_removed,
+      %PlayerRemoved{id: ^player_id}}, state)` replies with
+      `Channel.removed(state)`; every other Players message falls
+      through as `:unhandled`. `Playback`'s Boundary deps drop
+      `MediaCentaur.Players`. `channel_test`'s removal test becomes a
+      `Channel.removed/1` test plus a `PlayerSocket` test that the
+      broadcast reaches it (the socket's handler is callable directly
+      with a state). ADR-079 gets its dated amendment: three enforcement
+      points; `Sessions`' moduledoc and the protocol spec's host-side
+      architecture say Playback does not depend on Players again.
+   4. *One kind dispatch.* `Transport` gains `single_viewing?/1`: Local
+      false, Remote true, `FakeTransport` a field. `Sessions.play/2`
+      builds the transport inside its `with` first, then stops the
+      player's other sessions when the transport says so, then starts;
+      `replace_remote_viewing/1` goes. `sessions_test`'s replacement
+      case drives the fake's field.
+   5. *The remote locator's failure.* `Transport.locator/2` returns
+      `{:ok, locator} | {:error, reason}` in all three implementations.
+      `MpvSession.init/1` turns an error into `{:closed, {:error,
+      :file_unknown, message}}` applied through `apply_events/2` (a
+      `PlaybackFailed` the page flashes; copy provisional: "Media
+      Centaur hasn't indexed this file yet."); `queue_next/1` logs and
+      ends the chain. Tests: `mpv_session_transport_test`,
+      `transport/remote_test` (no presence row → error, no `loadfile`).
+   6. *Recovery per transport, one door.* `Transport.Local.recover_all/0`
+      owns the socket-dir scan, the synchronous probe over `gen_tcp`
+      and the dead-socket sweep; `Transport.Remote.recover/1` owns the
+      channel request and the media-URL → presence → path step.
+      `SessionRecovery` keeps the shared half as
+      `reattach_params(reader, entity_id, content_url, who)` and makes
+      `entity_id_for_path/1` public. `Sessions.recover(player)` is the
+      one door: `:host` → Local, an id → Remote, each result through
+      `resume/2` with today's log lines. `Supervisor`'s boot task calls
+      `Sessions.recover(:host)`; `Channel.connect/2` starts a
+      `Task.Supervisor` child calling `Sessions.recover(player_id)` when
+      `SessionRegistry.on_player/1` is empty; `Playback.recover_player/1`
+      and `PlayerSocket`'s `SessionRegistry` use go. Tests:
+      `session_recovery_test` (host, over real socket files) and
+      `session_recovery_player_test` keep their cases against the new
+      module names; a `channel_test` case pins that connect triggers
+      recovery when no session holds the player.
+   7. *Media after removal.* `Plugs.MediaServer.admit/3` adds
+      `%Players.Player{} <- Players.get(player_id)` to its `with`, `nil`
+      refusing 403. `media_server_test`: a token for a removed player is
+      refused. ADR-079's amendment names it.
+   8. *The layout and the rename.* Moves with their tests:
+      `IpcFraming` → `Transport.Local.IpcFraming`, `MpvExitClassifier` →
+      `Transport.Local.ExitClassifier`, `MpvLogReader` →
+      `Transport.Local.LogReader`, `MpvUserConfig` →
+      `Transport.Local.UserConfig`, `Remote.Channel` →
+      `Transport.Remote.Channel`, `Remote.PlayerRegistry` →
+      `Transport.Remote.PlayerRegistry` (the Registry's name in
+      `Supervisor` follows); `lib/media_centaur/playback/remote/` goes.
+      *Locators* → *media URLs*: `PlayerRegistry.media_urls/0` with
+      `file`, `sidecar`, `presence_id`; `Plugs.PlayerChannel.media_urls/2`;
+      the struct fields in `Channel` and `Transport.Remote`. `Playback`'s
+      exports follow. A grep for every old name across `lib`, `test`,
+      `docs`, `decisions`, `.credo.exs` and `scripts/agents/mc-player-sim`
+      closes the step.
+   9. *Docs.* `Topics`' table: the `playback:viewing:<player>` row.
+      `docs/GLOSSARY.md`: player id, connected player, media URLs,
+      enforcement point; the Player channel and Media endpoint rows
+      re-pointed. `docs/playback.md`: the module table, the recovery
+      paragraph, the players-and-transports paragraph. The protocol
+      spec's host-side architecture block, amended and dated. This
+      campaign's glossary. ADR-080 stands.
+   10. *Verification.* `agent-mix precommit` green, zero warnings;
+      `mc-player-sim`: pair, play, stop, a second viewing replacing the
+      first, channel drop and reattach, host restart and recovery, a
+      removal mid-viewing (channel closed, media URL refused); on the
+      Sony, when the TV is free and paired again: `m6tv` (removal) and
+      `m6tv-d` (drop, reattach, host restart).
+6. **Plan unification** (2026-10-23). Checked against the ways plans
+   fail. No old path kept: step 6 deletes `recover_all/0`,
+   `recover_player/1` and `Playback.recover_player/1` outright. Nothing
+   copied: step 1 defines once and references; step 8 moves modules.
+   Every caller converted: step 2 lists all seven struct matches and
+   both helper callers, and closes with a grep; step 8 likewise. No
+   shim: step 5 changes the callback's return in all three
+   implementations in one commit. No stand-in encoding the old shape:
+   `FakeTransport` gains `single_viewing?/1` and the `{:ok, _}` locator
+   in the same steps as the real ones; the channel's removal test moves
+   to the socket rather than keeping a subscription inside `Channel`.
+   One ordering checked: step 4 builds the transport before stopping
+   the player's other sessions — `Transport.Remote.new/1` is a registry
+   read and `Transport.Local.new/1` allocates a session id, neither
+   touches the player, so the order is safe. Nothing sent back.
+7. **Execution** — after the owner's word on the names.
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
@@ -2732,11 +2862,14 @@ published.
    is fixed under M6's Back-key and D-pad item through the procedure; an
    app change means a new `appVersionName`, a CHANGELOG section and a tag.
 3. **M8, the player model** (opened 2026-10-23, record above; design in
-   `docs/superpowers/specs/2026-10-23-player-model-design.md`). Once the
-   owner has answered decisions 11–14, run steps 5–7: the plan, its
-   unification, execution. Then M9 per decision 12 (before or after the
-   release).
-4. **When the owner says so:** merge `remote-players` into main, `/ship
+   `docs/superpowers/specs/2026-10-23-player-model-design.md`). The plan
+   is written and unified (steps 5–6 of the record). Execute it once the
+   owner has said yes or no to the four names under decision 14, then
+   run M9 (the session's shape, spec §2.4) through the procedure
+   immediately after, on the branch.
+4. **Not yet, and not soon: the merge.** The owner is not ready to
+   consider it; they will name the checks that come first. When they
+   say so: merge `remote-players` into main, `/ship
    minor` from main (its CHANGELOG entry covers remote players end to
    end: pairing, the TV app, playback on a TV, the Controls category,
    Continue Watching per device), push the wiki, then close the
