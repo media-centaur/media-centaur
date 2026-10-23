@@ -110,9 +110,15 @@ defmodule MediaCentaur.Playback.Transport.Remote do
         with {:ok, path} when is_binary(path) <- reader.("path"),
              presence_id when is_binary(presence_id) <- media_urls.presence_id.(path),
              {:ok, presence} <- FilePresence.fetch(presence_id),
-             entity_id when is_binary(entity_id) <- SessionRecovery.entity_id_for_path(presence.file_path),
+             entity_id when is_binary(entity_id) <-
+               SessionRecovery.entity_id_for_path(presence.file_path),
              {:ok, params} <-
-               SessionRecovery.reattach_params(reader, entity_id, presence.file_path, "player #{player_id}") do
+               SessionRecovery.reattach_params(
+                 reader,
+                 entity_id,
+                 presence.file_path,
+                 "player #{player_id}"
+               ) do
           [params]
         else
           _nothing_to_recover ->
@@ -246,7 +252,8 @@ defmodule MediaCentaur.Playback.Transport.Remote do
         _other -> transport.media_urls
       end
 
-    {[{:attached, :reconnected}], %{transport | channel: channel, media_urls: media_urls, started?: true}}
+    {[{:attached, :reconnected}],
+     %{transport | channel: channel, media_urls: media_urls, started?: true}}
   end
 
   def handle_message(_transport, _message), do: :unhandled

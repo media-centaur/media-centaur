@@ -41,10 +41,8 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
     end
   end
 
-  defp on_players_event(
-         {:player_removed, %PlayerRemoved{id: id}},
-         %{assigns: %{player: id}} = socket
-       ), do: {:halt, redirect(socket, to: ~p"/pair")}
+  defp on_players_event({:player_removed, %PlayerRemoved{id: id}}, %{assigns: %{player: id}} = socket),
+    do: {:halt, redirect(socket, to: ~p"/pair")}
 
   defp on_players_event(_message, socket), do: {:cont, socket}
 end

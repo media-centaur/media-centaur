@@ -44,7 +44,8 @@ defmodule MediaCentaur.Topics do
   | `library:watch_completed` | `Library` | end-of-watch markers |
   | `library:availability` | `Library.MediaFileAvailability` | `{:availability_changed, dir, state}` |
   | `library:progress` | `Library.Progress` | `{:progress_ticked, _}`, `{:progress_flushed, _}` (each naming its `profile_id`), `{:progress_hydrated, _}` |
-  | `playback:events` | `Playback` | progress + state-change events, each naming its `profile_id` (`PlaybackFailed` excepted) |
+  | `playback:events` | `Playback` | progress + state-change events, each naming its `profile_id` (`PlaybackFailed` excepted) and its `player` |
+  | `playback:viewing:<player>` | `Playback.Events` | one topic per player (`playback_viewing/1`, `Playback.subscribe_viewing/1`): `{:viewing, %Viewing{}}` on attach, on every discrete change and on position once a second, then `{:viewing_ended, _}` |
   | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}`; also `{:watch_completed, playable_item_id}`, a trigger-only message from `Library.Progress.Worker` that names no profile |
   | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:tracking_sweep_completed}` |
   | `acquisition:updates` | `Acquisition` | grab lifecycle |

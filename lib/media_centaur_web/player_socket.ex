@@ -41,8 +41,10 @@ defmodule MediaCentaurWeb.PlayerSocket do
 
   @impl true
   # Our player's pairing is gone; another player's removal is nobody's here.
-  def handle_info({:player_removed, %PlayerRemoved{id: player_id}}, %Channel{player_id: player_id} = state),
-    do: reply(Channel.removed(state))
+  def handle_info(
+        {:player_removed, %PlayerRemoved{id: player_id}},
+        %Channel{player_id: player_id} = state
+      ), do: reply(Channel.removed(state))
 
   def handle_info(message, state) do
     case Channel.handle_message(state, message) do

@@ -116,8 +116,11 @@ defmodule MediaCentaur.Playback.Transport.Local do
 
         result =
           case reader.("path") do
-            {:ok, path} when is_binary(path) -> SessionRecovery.reattach_params(reader, entity_id, path, entity_id)
-            _no_path -> :skip
+            {:ok, path} when is_binary(path) ->
+              SessionRecovery.reattach_params(reader, entity_id, path, entity_id)
+
+            _no_path ->
+              :skip
           end
 
         :gen_tcp.close(socket)
