@@ -59,6 +59,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Library.Progress, as: LibraryProgress
 
   alias MediaCentaur.Playback.{
+    Chain,
     Command,
     Completion,
     Entry,
@@ -66,7 +67,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     LanguageContext,
     LaunchFlags,
     MpvProperties,
-    NextEpisode,
     OverrideCapture,
     ProgressBroadcaster,
     SessionRegistry,
@@ -470,46 +470,30 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp react(_name, _data, state), do: state
 
-  # --- Episode auto-advance (ADR-062) ---
+  # --- Episode auto-advance (ADR-062, `Chain`) ---
 
-  # Append the successor episode while the current entry is the
-  # playlist's last. Runs off every playlist-count/playlist-pos change
-  # and after each advance; all other states are no-ops, so the check is
-  # idempotent — an entry queued by a previous backend run (reconnect)
-  # keeps the count ahead and is never duplicated.
+  # Runs off every playlist-count/playlist-pos change and after each
+  # advance; all other states are no-ops, so the check is idempotent.
   defp maybe_queue_next(state) do
-    if queue_next?(state) do
+    if Chain.queue_next?(state.pending_next, state.entry, state.properties, state.transport) do
       queue_next(state)
     else
       state
     end
   end
 
-  @doc """
-  Whether the successor should be appended now (ADR-062): an episode
-  session with an attached transport, nothing already queued, the current
-  entry the playlist's last. Declining auto-advance needs no state here —
-  quitting the player ends the session, queued entry and all.
-  """
-  @spec queue_next?(%__MODULE__{}) :: boolean()
-  def queue_next?(state) do
-    is_nil(state.pending_next) and not is_nil(state.entry.episode_id) and
-      Transport.attached?(state.transport) and
-      state.properties.playlist_count - state.properties.playlist_pos == 1
-  end
-
   defp queue_next(state) do
-    with {:ok, entry} <- NextEpisode.resolve(state.profile_id, state.entry.episode_id),
-         {:ok, locator} <- Transport.locator(state.transport, entry.content_url) do
-      Transport.send(state.transport, Transport.queue(state.transport, locator, entry.start_position))
+    case Chain.successor(state.profile_id, state.entry, state.transport) do
+      {:ok, entry, ipc} ->
+        Transport.send(state.transport, ipc)
 
-      Log.info(
-        :playback,
-        "queued next episode — S#{entry.season_number}E#{entry.episode_number} #{Path.basename(entry.content_url)}"
-      )
+        Log.info(
+          :playback,
+          "queued next episode — S#{entry.season_number}E#{entry.episode_number} #{Path.basename(entry.content_url)}"
+        )
 
-      %{state | pending_next: entry}
-    else
+        %{state | pending_next: entry}
+
       :none ->
         state
 
@@ -526,18 +510,10 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # A playlist advance landed on a new file: the session's entry becomes
-  # the episode now playing. It is the queued entry when the path matches;
-  # otherwise it is re-derived from the host path (the ADR-023 discipline
-  # — covers entries queued before a backend restart). The outgoing
-  # episode's final progress was persisted at its end-file.
+  # the episode now playing. The outgoing episode's final progress was
+  # persisted at its end-file.
   defp advance_to(state, {:ok, content_url}, reported_path) do
-    identity =
-      case state.pending_next do
-        %Entry{content_url: ^content_url} = entry -> {:ok, entry}
-        _ -> NextEpisode.identify(state.entry.entity_id, content_url)
-      end
-
-    case identity do
+    case Chain.advance(state.pending_next, state.entry.entity_id, content_url) do
       {:ok, entry} ->
         Log.info(
           :playback,
