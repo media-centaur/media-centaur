@@ -45,9 +45,10 @@ pass on the released build (the pending Sony checks `m6tv`, `m6tv-d`
 and `mc-tv-flow osd tv` run in it; a fault it names is fixed under M6's
 Back-key and D-pad item through the procedure), then — after the Play
 campaign — the merge of `remote-players` into main, a **major** host
-release, the wiki push and closure. Which host the owner explores
-against is open decision 15. Nothing an agent can do alone until the
-walk names a fault. The earlier state:
+release, the wiki push and closure. The owner's dev server runs the
+branch since 2026-10-23 (decision 15; the worktree is gone — work in
+the main checkout). Nothing an agent can do alone until the walk names
+a fault. The earlier state:
 
 **M9 done 2026-10-23: the session's shape is executed and verified on
 the simulator; nothing of the agent's is left before the owner's
@@ -235,6 +236,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-23` — The layout of the spec's §2.5: each transport's helpers under it, `Playback.Remote.*` folded into `Playback.Transport.Remote.*`, in M8 (open decision 13 → (a)). (owner)
 * `2026-10-23` — Names (open decision 14): `Transport.holds_one_viewing?/1`; `Playback.Entry` and `Playback.MpvProperties` for M9; *locators* become **media URLs** (`for_file`, `for_sidecar`, `presence_id`). The owner asked for plain, logical words and then took the agent's recommendations. (owner)
 * `2026-10-23` — The Google Play work (account, internal track, production) is its own campaign, `google-play.md`. The order from here: this campaign's remaining items, the owner's own exploration of the app and iteration on its usability, then Google Play, then the merge to main and a **major** host release. (owner)
+* `2026-10-23` — The owner's dev server runs the branch (open decision 15 → (a)): the worktree removed, `remote-players` checked out in `~/src/media-centaur/media-centaur-app`, the `players` migration applied to the real database, `bind = "0.0.0.0"` added to `~/.config/media-centaur/media-centaur-dev.toml`; `mc-sim-host` builds from that checkout. The agent works in the checkout as usual, every `mix` through `agent-mix`. (owner)
 
 ## Open decisions
 
@@ -418,7 +420,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
     URL functions `for_file`, `for_sidecar`, `presence_id` (sentences at
     the call site); `Playback.Entry` and `Playback.MpvProperties` stand.
     Decided.
-15. **Which host the owner explores against** (2026-10-23). The owner
+15. *Decided 2026-10-23 (Decisions made): (a).* **Which host the owner explores against** (2026-10-23). The owner
     wants to explore the app on the TV and iterate on its usability
     before the merge, with their real library. Only the sim host
     (`mc-sim-host`, port 4003, three 90 s test files, its own database)
@@ -3093,14 +3095,17 @@ The TV app's repository is the one public surface and is already
 published.
 
 **State (2026-10-23, end of the M8 session).**
-* Host branch `remote-players`, worktree
-  `~/src/media-centaur/media-centaur-app-remote-players`, at `d83b2c35`:
+* Host branch `remote-players`, checked out in the main checkout
+  `~/src/media-centaur/media-centaur-app` since 2026-10-23 (the worktree
+  is removed), at `e8df996e` and after:
   M8's nine code commits (`60b67d87` … `ed710500`, listed in the M8
   record's step 7), M9's seven (`76d9aca6` … `d83b2c35`, in the M9
   record's step 7) and the campaign commits. Unpushed, unmerged,
-  precommit green (8,720 Elixir tests, 935 JavaScript tests). Main's
-  checkout runs the owner's dev server; never build or edit there. The
-  TV rig scripts in `~/scripts/agents` (`mc-tv-flow`, `mc-tv-checks/*`)
+  precommit green (8,720 Elixir tests, 935 JavaScript tests). The
+  owner's dev server (`media-centaur-dev`, `http://192.168.68.67:2160`)
+  runs this checkout on the branch: `bind = "0.0.0.0"` in the dev TOML,
+  the `players` migration applied to the real database. Edit here as
+  usual; every `mix` through `agent-mix`. The TV rig scripts in `~/scripts/agents` (`mc-tv-flow`, `mc-tv-checks/*`)
   already name the moved modules (`Playback.Transport.Remote.*`).
 * TV app: `~/src/media-centaur/android-app` on `main` at `230f622`,
   pushed to <https://github.com/media-centaur/media-centaur-android>
@@ -3146,9 +3151,9 @@ published.
    (`m6tv`, `m6tv-d`) wait on the owner's walk (item 3).
 2. **The owner's walk through the TV and their usability pass, on the
    released build.** The owner explores the app on the TV and iterates
-   on its usability themselves; faults come back one at a time. Which
-   host: open decision 15 (recommendation: the dev server on the
-   branch). Starts by pairing (Settings → Players → Start pairing on
+   on its usability themselves; faults come back one at a time. The
+   host is the owner's dev server at `http://192.168.68.67:2160`,
+   running the branch (decision 15). Starts by pairing (Settings → Players → Start pairing on
    that host, the code entered in the app; on the sim host
    `mc-tv-flow pair tv`). Whatever the walk names is fixed under M6's
    Back-key and D-pad item through the procedure; an app change means a
@@ -3193,7 +3198,8 @@ stop` now waits for the old node before returning; `mc-sim-host ids`
 reports the first player, so remove stale desk players.
 
 **Where the work is.**
-* Branch `remote-players`, worktree `~/src/media-centaur/media-centaur-app-remote-players`.
+* *(Superseded 2026-10-23: the worktree is removed and the dev server
+  runs the branch in the main checkout.)* Branch `remote-players`, worktree `~/src/media-centaur/media-centaur-app-remote-players`.
   Main's checkout (`~/src/media-centaur/media-centaur-app`) runs the
   owner's dev server and stays on main; never build or edit there. The
   branch is not pushed; nothing merges until the owner signs off at the
