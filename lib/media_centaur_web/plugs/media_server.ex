@@ -54,7 +54,9 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
         _opts
       )
       when method in ["GET", "HEAD"] do
-    admit(conn, presence_id, &sidecar_of(&1, basename))
+    # This plug runs ahead of the router, which is what decodes path
+    # segments: the basename arrives percent-encoded, as the locator sent it.
+    admit(conn, presence_id, &sidecar_of(&1, URI.decode(basename)))
   end
 
   def call(%Plug.Conn{path_info: ["media" | _rest]} = conn, _opts), do: refuse(conn, 405)

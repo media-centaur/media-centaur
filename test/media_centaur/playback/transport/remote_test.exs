@@ -265,6 +265,57 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
+  test "mpv reports file-loaded and the path in either order: the sidecars are added once both are known, once per file",
+       %{
+         player_id: player_id,
+         path: path,
+         presence: presence
+       } do
+    watched_file =
+      create_linked_file(%{
+        file_path: path,
+        media_dir: Path.dirname(path),
+        movie_id: create_standalone_movie().id
+      })
+
+    {:ok, _track} =
+      Subtitles.create_track(%{
+        watched_file_id: watched_file.id,
+        kind: :sidecar,
+        language: "en",
+        source: Path.join(Path.dirname(path), "Sample.Show.S01E01.en.srt")
+      })
+
+    {:ok, transport} = Remote.new(player_id)
+    url = "#{@base}/media/#{presence.id}?t=token"
+    reported = %{"event" => "property-change", "name" => "path", "data" => url}
+    loaded = %{"event" => "file-loaded"}
+    started = %{"event" => "start-file"}
+    english = "#{@base}/media/#{presence.id}/subtitles/Sample.Show.S01E01.en.srt?t=token"
+
+    message = fn transport, object ->
+      Remote.handle_message(transport, {:transport, {:remote, {:message, object}}})
+    end
+
+    # file-loaded first (seen on the Sony): nothing to look up yet.
+    {[{:message, ^loaded}], transport} = message.(transport, loaded)
+    refute_received {:channel, {:push, ["sub-add" | _]}}
+
+    # The path arrives: the file is known and loaded.
+    {[{:message, ^reported}], transport} = message.(transport, reported)
+    assert_received {:channel, {:push, ["sub-add", ^english, "auto", "Sample.Show.S01E01.en.srt", "en"]}}
+
+    # A second report of the same path adds nothing again.
+    {[{:message, ^reported}], transport} = message.(transport, reported)
+    refute_received {:channel, {:push, ["sub-add" | _]}}
+
+    # The next file starts: the previous one is forgotten, so its loaded report alone adds nothing.
+    {[{:message, ^started}], transport} = message.(transport, started)
+    {[{:message, ^loaded}], _transport} = message.(transport, loaded)
+    refute_received {:channel, {:push, ["sub-add" | _]}}
+  end
+
+  @tag :tmp_dir
   test "a removed player's channel ends the viewing at once: the player is not coming back", %{
     player_id: player_id
   } do

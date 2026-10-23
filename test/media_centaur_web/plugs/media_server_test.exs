@@ -129,6 +129,30 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
     assert response(conn, 200) == File.read!(sidecar)
     assert get_resp_header(conn, "accept-ranges") == ["bytes"]
 
+    # A basename with spaces arrives percent-encoded, as the locator encodes it:
+    # the segment is matched decoded. The router decodes path segments before
+    # it matches; this plug runs ahead of the router and must do the same.
+    spaced = Path.join(media_dir, "Sample Movie (2010) 1080p.en.srt")
+    File.write!(spaced, "1\n00:00:01,000 --> 00:00:02,000\nSpaced\n")
+
+    {:ok, _track} =
+      MediaCentaur.Subtitles.create_track(%{
+        watched_file_id: watched_file.id,
+        kind: :sidecar,
+        language: "en",
+        source: spaced
+      })
+
+    encoded = URI.encode("Sample Movie (2010) 1080p.en.srt", &URI.char_unreserved?/1)
+
+    conn =
+      conn
+      |> recycle()
+      |> from_lan()
+      |> get("/media/#{presence.id}/subtitles/#{encoded}?t=#{token}")
+
+    assert response(conn, 200) == File.read!(spaced)
+
     # Only a detected sidecar of that file: a neighbour that is not one of its tracks is not served.
     File.write!(Path.join(media_dir, "Sample.Movie.2010.1080p.de.srt"), "")
 

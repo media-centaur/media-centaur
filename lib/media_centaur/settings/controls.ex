@@ -43,10 +43,11 @@ defmodule MediaCentaur.Settings.Controls do
   Returns a map keyed by binding id, each value `%{key: ..., button: ...}`.
   `key` and `button` may be `nil` if the user cleared the slot.
 
-  Reads from `:persistent_term`. The Cache GenServer keeps it fresh by
-  subscribing to `:controls_changed`. The fallback path runs the live
-  resolve when the cache hasn't been initialised (e.g. in tests that
-  don't start the Cache child).
+  Reads from `:persistent_term`. Every write in this module refreshes the
+  cache before it broadcasts, so a writer and the broadcast's subscribers
+  see the change at once; the Cache worker fills it at boot. The fallback
+  path runs the live resolve when the cache hasn't been initialised (e.g.
+  in tests that don't start the Cache child).
   """
   @spec get() :: resolved()
   def get do
@@ -197,10 +198,11 @@ defmodule MediaCentaur.Settings.Controls do
     end
   end
 
+  # Write-through: the cache is refreshed here, not by the worker on
+  # receipt, or the broadcast (and the writer's own `get/0`) would carry
+  # the state before the write.
   defp broadcast do
-    Topics.publish(
-      Topics.controls_updates(),
-      {:controls_changed, get()}
-    )
+    :ok = refresh_cache()
+    Topics.publish(Topics.controls_updates(), {:controls_changed, get()})
   end
 end
