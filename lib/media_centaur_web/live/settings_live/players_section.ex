@@ -77,6 +77,16 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
         title="Pair a player"
         description="A TV or other device on your network. Open Media Centaur on it and enter the address and the code shown here."
       >
+        <p class="text-base-content/70">
+          On an Android TV, install the
+          <a
+            href="https://github.com/media-centaur/media-centaur-android/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link link-primary"
+          >Media Centaur TV app</a>
+          first; it asks for this computer's address, then shows the pairing page.
+        </p>
         <div :if={@pairing} class="space-y-3">
           <div class="flex flex-wrap items-center gap-x-10 gap-y-3">
             <span id="pairing-code" class="font-mono text-4xl tracking-[0.3em] text-base-content">
