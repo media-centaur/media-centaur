@@ -23,7 +23,7 @@ defmodule MediaCentaur.Playback.MpvPropertiesTest do
                position: 12.5,
                duration: 1800.0,
                paused: true,
-               chapters: [%{"title" => "Intro", "time" => 0.0}],
+               chapters: [%{"title" => "Intro", "time" => +0.0}],
                chapter: 0,
                aid: 1,
                sid: false,
@@ -82,8 +82,8 @@ defmodule MediaCentaur.Playback.MpvPropertiesTest do
       }
 
       assert %MpvProperties{
-               position: 0.0,
-               duration: 0.0,
+               position: +0.0,
+               duration: +0.0,
                chapters: [],
                chapter: nil,
                audio_tracks: [],
