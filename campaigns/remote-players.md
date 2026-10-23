@@ -33,18 +33,21 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M6 in progress: two batches built and desk-checked 2026-10-23, the TV
-checks pending** (branch `remote-players`; `android-app` at `3df9251`;
-UIDR-055). Done desk-side on the headless simulator: the viewing's keys as
-Controls bindings; a removed player's channel closed at once; a page's
-playing set its own player's; a seek that never crosses the end; sidecar
-subtitles over the media endpoint; the auto-advance's subtitles-off
-override fixed; the finish-prompt burst not reproduced. Waiting on the
-TV: the bindings on the Sony, the UI scale, the Code field, the layout
-scale, the audio underrun, detach and host-restart recovery, Back-key and
-D-pad polish, the finish prompt after a real-length viewing. Third batch
-done: Status keyed by player and title. Owner's calls open: the Sound
-column's owner (9), the speed test (3), the application id (1). M5's OSD
+**M6 in progress: three batches built, desk-checked and verified on the
+Sony 2026-10-23; the TV-only items are next** (branch `remote-players`;
+`android-app` at `3df9251`; UIDR-055). Verified on the TV with zero
+dropped frames: the viewing's keys as Controls bindings and a rebind on
+the TV's own Settings page; a removed player's channel closed at once;
+a seek that never crosses the end; sidecar subtitles over the media
+endpoint; Status keyed by player and title (desk). The TV found three
+faults, fixed the same day: the sidecar URL's percent-encoded name, the
+`file-loaded`/`path` order, and the Controls page one change behind
+(a desktop fault too). Still to do on the TV: the UI scale a little
+smaller, the pairing Code field, the 960×540 layout scale, the audio
+underrun at start, detach and host-restart recovery, Back-key and D-pad
+polish, the finish prompt after a real-length viewing. Owner's calls
+open: the Sound column's owner (9), the speed test (3), the application
+id (1). M5's OSD
 check passed on the Sony 2026-10-22 (`mc-tv-flow osd tv`, record below): the layer
 over native 4K video, the Skip Intro pill taken by SELECT, SELECT
 pausing and resuming, arrows seeking, the track menu on MENU opening on
@@ -742,7 +745,44 @@ profile and title, not per player). *Plan:* `status_helpers_test`
 three handlers, docs. *Plan pass:* no `:all` left anywhere; the helper's
 arity drops to 3 and both callers (the detail host, the tests) follow; no
 shim. *Execution:* done, 212 tests green across the four files;
-precommit below.
+precommit green, commit `8ff8cb81`.
+
+**TV checks of the three batches (2026-10-23, the TV free again).**
+Three windows on the Sony (`scratchpad` scripts `m6tv`, `m6tv-b`,
+`m6tv-c`), zero dropped frames in every viewing. Passed: the media keys
+through the bindings (Play/Pause pauses and resumes, Fast forward and
+Rewind seek ±30 s), MENU opening and BACK closing the track menu, BACK
+stopping the viewing; a rebind on the TV's own Settings page — the Seek
+back row clicked, the Menu key the shell forwards captured as
+`ContextMenu`, Audio & subtitles given Rewind by the auto-swap, and in
+the next viewing Rewind opened the menu and Menu seeked back; a seek
+past the end — on E01 it landed on 89 s and the chain advanced to E02,
+on the movie the file played out (`seek 89.023 absolute+exact`,
+`eof-reached`, `end-file stop`), the viewing ended and the page came
+back with no prompt; removal while playing — `stop` pushed, the socket
+closed `1000 removed`, the viewing gone within a second, the app on
+`/pair` (run twice; the Sony paired again each time, now `9586a9fc`,
+the two stale desk players removed); the sidecar beside E01 — mpv's
+track 2, external, titled by its name, its own entry in the menu,
+picked (sid 2), its line on the page. Three faults the TV found, each
+fixed test-first: (1) the media endpoint answered 404 for the sidecar —
+`MediaServer` runs ahead of the router, which is what decodes path
+segments, so a basename with spaces arrived percent-encoded and matched
+no track; the plug decodes it (`media_server_test`, an encoded name).
+(2) On the second run the `sub-add` never left the host — libmpv
+delivered `file-loaded` before the `path` property (the first run had
+the opposite order) and the transport pushed only on `file-loaded` with
+a presence already known; it now pushes once both are known, in either
+order, once per file, and `start-file` forgets both (`remote_test`).
+(3) The Controls page rendered the bindings one change behind after a
+bind — `Controls.broadcast/0` published `get/0`, the `:persistent_term`
+cache that the Cache worker refreshes only on receiving that very
+broadcast, so the broadcast and the writer's own return carried the
+state before the write; the desktop has the same fault, masked in tests
+where no worker runs and `get/0` resolves live. The writer refreshes
+the cache before it broadcasts (`controls_test`, with the cache warm).
+Docs: `docs/playback.md` and the spec amendment say "in either order".
+Precommit and commit: see Status.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -2335,14 +2375,18 @@ the owner's gaming screen: when the owner says it is in use, take no TV
 window at all until they say it is free — verify on the desk with
 `mc-player-sim` and record the TV check as pending.
 
-**The next session's agenda: M6's TV checks, then the third batch.** Two
-M6 batches are built and desk-checked (2026-10-23, records above; wiki
-commits local, unpushed). When the owner says the TV is free:
-`mc-tv-flow osd tv` with the bindings, the sidecar on E01, a seek past
-the end, removal while playing; then the TV items listed under Status.
-Desk: nothing left; every remaining M6 item needs the TV. Owner's calls
-open: 9 (the Sound column), 3 (the speed test), 1 (the application id). For any
-TV window: `mc-sim-host start` (it serves the branch and rebuilds
+**The next session's agenda: the TV-only M6 items.** The three M6
+batches are verified on the Sony (2026-10-23, record above; wiki commits
+local, unpushed). Next, each through the milestone procedure: the UI
+scale a little smaller (the per-device scale preference on the TV's own
+Settings page), the pairing page's Code field in the WebView, the
+WebView's 960×540 layout scale, the audio underrun at start (every
+viewing logs `Audio device underrun detected` once at playback start),
+detach/reattach and host-restart recovery on the device, Back-key and
+D-pad polish, the finish prompt after a real-length viewing. Owner's
+calls open: 9 (the Sound column), 3 (the speed test), 1 (the
+application id). The Sony's player is `9586a9fc` (paired again after
+the removal checks). For any TV window: `mc-sim-host start` (it serves the branch and rebuilds
 `app.js` on change — confirm a changed symbol with `grep` in
 `priv/static/assets/js/app.js`), `mc-tv connect`, wake the TV if needed
 (`mc-tv adb shell input keyevent KEYCODE_WAKEUP`); the installed build is

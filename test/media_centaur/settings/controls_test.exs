@@ -119,6 +119,30 @@ defmodule MediaCentaur.Settings.ControlsTest do
       :ok = Controls.reset_all()
       assert_receive {:controls_changed, _}
     end
+
+    # In production get/0 reads the cache the Worker keeps; a write must be
+    # visible in the broadcast and to the caller at once, not one change
+    # behind (the TV's Settings page rendered the previous state, 2026-10-23).
+    test "with the cache warm, a write is in the broadcast and in get/0 at once" do
+      :ok = Controls.refresh_cache()
+      :ok = Controls.subscribe()
+
+      {:ok, returned} = Controls.put(:navigate_up, :keyboard, "w")
+      assert returned[:navigate_up].key == "w"
+      assert Controls.get()[:navigate_up].key == "w"
+      assert_receive {:controls_changed, map}
+      assert map[:navigate_up].key == "w"
+
+      :ok = Controls.unbind(:navigate_up, :keyboard)
+      assert_receive {:controls_changed, map}
+      assert map[:navigate_up].key == nil
+      assert Controls.get()[:navigate_up].key == nil
+
+      :ok = Controls.reset_all()
+      assert_receive {:controls_changed, map}
+      assert map[:navigate_up].key == "ArrowUp"
+      assert Controls.get()[:navigate_up].key == "ArrowUp"
+    end
   end
 
   describe "glyph_style" do

@@ -22,11 +22,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   The desktop's mpv autoloads the sidecar subtitles beside a local file;
   a remote mpv plays a URL and sees no directory, so the transport stands
-  in for the autoload: it remembers the presence mpv reports in `path`
-  and, when mpv reports `file-loaded`, adds each of that file's sidecars
-  (`Subtitles.sidecars_for_presence/1`) with `sub-add <url> auto <name>
-  [<lang>]` from the locators' subtitle URL. The session hears of them as
-  it does of any track, through `track-list`.
+  in for the autoload: once mpv has reported both the file's `path` and
+  `file-loaded` — libmpv delivers the two in either order — it adds each
+  of that file's sidecars (`Subtitles.sidecars_for_presence/1`) with
+  `sub-add <url> auto <name> [<lang>]` from the locators' subtitle URL,
+  once per file; `start-file` forgets both for the next one. The session
+  hears of the tracks as it does of any, through `track-list`.
 
   The device's mpv draws nothing (`vo=mediacodec_embed`): the host's page
   is its OSD, so `draws_subtitles?/1` is false and the session never
@@ -53,7 +54,16 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
   alias MediaCentaur.Subtitles
 
-  defstruct [:player_id, :channel, :locators, :launch, :presence_id, started?: true]
+  defstruct [
+    :player_id,
+    :channel,
+    :locators,
+    :launch,
+    :presence_id,
+    started?: true,
+    loaded?: false,
+    sidecars_added?: false
+  ]
 
   @type t :: %__MODULE__{}
 
@@ -130,7 +140,10 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   def handle_message(
         transport,
         {:transport, {:remote, {:message, %{"event" => "start-file"} = object}}}
-      ), do: {[{:message, object}], %{transport | started?: true}}
+      ),
+      do:
+        {[{:message, object}],
+         %{transport | started?: true, presence_id: nil, loaded?: false, sidecars_added?: false}}
 
   # The file mpv held before ours ended; not our end.
   def handle_message(
@@ -156,21 +169,17 @@ defmodule MediaCentaur.Playback.Transport.Remote do
          {:remote, {:message, %{"event" => "property-change", "name" => "path", "data" => url} = object}}}
       )
       when is_binary(url) do
-    {[{:message, object}], %{transport | presence_id: transport.locators.identify.(url)}}
+    transport = add_sidecars(%{transport | presence_id: transport.locators.identify.(url)})
+    {[{:message, object}], transport}
   end
 
   # mpv has the file: what its autoload would find beside a local one, the
   # transport adds by URL.
   def handle_message(
-        %{presence_id: presence_id} = transport,
+        transport,
         {:transport, {:remote, {:message, %{"event" => "file-loaded"} = object}}}
-      )
-      when is_binary(presence_id) do
-    for track <- Subtitles.sidecars_for_presence(presence_id) do
-      Channel.push(transport.channel, sub_add(transport, presence_id, track))
-    end
-
-    {[{:message, object}], transport}
+      ) do
+    {[{:message, object}], add_sidecars(%{transport | loaded?: true})}
   end
 
   def handle_message(transport, {:transport, {:remote, {:message, object}}}),
@@ -206,6 +215,18 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   @impl true
   def describe(transport), do: "player #{Format.short_id(transport.player_id)}"
+
+  # Once per file, when both the presence and the load are known.
+  defp add_sidecars(%{presence_id: presence_id, loaded?: true, sidecars_added?: false} = transport)
+       when is_binary(presence_id) do
+    for track <- Subtitles.sidecars_for_presence(presence_id) do
+      Channel.push(transport.channel, sub_add(transport, presence_id, track))
+    end
+
+    %{transport | sidecars_added?: true}
+  end
+
+  defp add_sidecars(transport), do: transport
 
   defp sub_add(transport, presence_id, %{source: source, language: language}) do
     basename = Path.basename(source)
