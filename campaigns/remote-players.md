@@ -2372,8 +2372,53 @@ No step keeps an old path or lands through a shim.
 
 ## Resuming in a new session
 
-Everything a cleared context needs, verified 2026-10-22. Reconcile
+Everything a cleared context needs, verified 2026-10-23 (the context
+was cleared at the owner's request after M6's fourth batch). Reconcile
 against `git log remote-players` first (the reconciliation rule).
+
+**State at the clear (2026-10-23, late morning).** Branch `remote-players`
+at `abfea9aa` (the M6 commits: `4bd5d6de`, `cf28615c`, `8ff8cb81`,
+`e606061b`, `b493b977`, `abfea9aa`), precommit green, working tree
+clean. `android-app` at `ec7dd58` (the audio buffer), built and
+installed on the Sony. Wiki commits local and unpushed: `9df804c`,
+`de4868e`, `57560d0`, `32285f0`, `dab5336` — push with the release.
+The sim host is up on 4003 serving the branch; the Sony is paired as
+player `9586a9fc`; the TV app sits in the background on the TV (every
+window ended with `mc-tv hdmi`). Main's checkout and its campaign copy
+are untouched and stale. Memory:
+`project-remote-players-campaign.md` says the same in short.
+
+**What is left in M6, all the owner's:** Back-key and D-pad polish
+(nothing specific recorded — the owner's walk through the TV names it);
+open decisions 9 (the Sound column's host-side owner), 3 (the speed
+test), 1 (the application id — it gates M7's signing and the Play
+track). Decision 10 is taken: a per-player UI scale factor, deferred to
+a future campaign the owner named *player operational status and
+settings*; re-home that leftover in `campaigns/README.md` when this
+campaign closes. Then **M7**: release signing in CI, the Google Play
+internal testing track, a wiki page for the TV app, the glossary
+elevated to `docs/GLOSSARY.md`, the owner's walk through every page and
+the full viewing lifecycle on the TV. The wiki page and the glossary
+need no owner call and can start first.
+
+**The TV checks as scripts.** The session's check scripts live in
+`~/scripts/agents/mc-tv-checks/` (session-free copies): `m6tv` (media
+keys, menu, rebind, seek past the end, removal — the removal deletes the
+Sony's player, so `pairsony [name]` pairs it again under its name),
+`m6tv-b` (sidecar, menu pick, Settings rows, movie seek past the end),
+`m6tv-c` (Settings rows after a rebind), `m6tv-d` (viewport metrics,
+channel drop and reattach, host restart, finish prompt), `m6tv-e` (Code
+field, audio buffer, host restart with the reconnecting stream, finish
+prompt), `m6tv-f` (the rebuilt app's start-up underrun count). Each is
+one window ending in `mc-tv hdmi`, prints `DROPS:`/`PROPS:` lines and
+writes screenshots under `$TMPDIR/mc-tv-checks`. Rig rules learned:
+`mc-tv eval` takes one expression — wrap statements in an IIFE; the sim
+host reloads code on the next HTTP request (curl `/` once after an
+edit), not on RPC, and a reload leaves `:persistent_term` caches stale
+(`Controls.refresh_cache()` over RPC); `mc-sim-host rpc` swallows
+errors — run `elixir --rpc-eval` by hand to see them; `mc-sim-host
+stop` now waits for the old node before returning; `mc-sim-host ids`
+reports the first player, so remove stale desk players.
 
 **Where the work is.**
 * Branch `remote-players`, worktree `~/src/media-centaur/media-centaur-app-remote-players`.
