@@ -83,7 +83,7 @@ defmodule MediaCentaur.Playback.Events do
     @type state :: :playing | :paused | :stopped
     @type t :: %__MODULE__{
             entity_id: String.t(),
-            player: :host | String.t(),
+            player: MediaCentaur.Playback.player(),
             profile_id: String.t(),
             state: state(),
             now_playing: MediaCentaur.Playback.Viewing.t() | nil,
@@ -98,7 +98,7 @@ defmodule MediaCentaur.Playback.Events do
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
-            player: :host | String.t(),
+            player: MediaCentaur.Playback.player(),
             reason: atom(),
             payload: map()
           }
@@ -122,7 +122,7 @@ defmodule MediaCentaur.Playback.Events do
             | {:extra, String.t()}
     @type t :: %__MODULE__{
             entity_id: String.t(),
-            player: :host | String.t(),
+            player: MediaCentaur.Playback.player(),
             profile_id: String.t(),
             completed: MapSet.t(item())
           }
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Playback.Events do
     @enforce_keys [:player, :entity_id]
     defstruct [:player, :entity_id]
 
-    @type t :: %__MODULE__{player: :host | String.t(), entity_id: String.t()}
+    @type t :: %__MODULE__{player: MediaCentaur.Playback.player(), entity_id: String.t()}
   end
 
   defmodule TrackOverrideChanged do

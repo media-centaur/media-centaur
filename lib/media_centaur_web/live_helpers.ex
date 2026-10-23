@@ -66,28 +66,21 @@ defmodule MediaCentaurWeb.LiveHelpers do
     assign(socket, [{timer_assign, timer}])
   end
 
-  @typedoc """
-  Whose viewings a page shows as playing: its own player's — `:host` for
-  the host's browser, the paired player's id for a device's page
-  (`PlayerAware.playback_player/1`). What a device is watching is that
-  device's state, never another's (`campaigns/remote-players.md`, M6).
-  The board over every player is Status's own
-  (`StatusHelpers.apply_session_change/2`, keyed by player and title).
-  """
-  @type playback_scope :: :host | String.t()
-
   @doc """
   The page's playing set after a `PlaybackStateChanged`: a viewing on the
-  page's own player joins the set keyed by entity id (or replaces its
-  entry) and leaves it on `:stopped`; a viewing on another player leaves
-  the set as it was.
+  page's own player (`scope`, the socket's `:player`) joins the set keyed
+  by entity id (or replaces its entry) and leaves it on `:stopped`; a
+  viewing on another player leaves the set as it was. What a device is
+  watching is that device's state, never another's
+  (`campaigns/remote-players.md`, M6); the board over every player is
+  Status's own (`StatusHelpers.apply_session_change/2`, keyed by player
+  and title).
   """
   @spec apply_playback_change(
           map(),
           MediaCentaur.Playback.Events.PlaybackStateChanged.t(),
-          playback_scope()
-        ) ::
-          map()
+          MediaCentaur.Playback.player()
+        ) :: map()
   def apply_playback_change(sessions, event, scope) do
     cond do
       event.player != scope -> sessions
@@ -101,7 +94,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
   page's own player, keyed by entity id. `apply_playback_change/3` keeps
   it current.
   """
-  @spec load_playback_sessions(playback_scope()) :: %{optional(String.t()) => map()}
+  @spec load_playback_sessions(MediaCentaur.Playback.player()) :: %{optional(String.t()) => map()}
   def load_playback_sessions(scope) do
     Map.new(
       Enum.filter(MediaCentaur.Playback.Sessions.list(), &(&1.player == scope)),

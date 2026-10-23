@@ -88,8 +88,8 @@ defmodule MediaCentaur.Playback do
       else: {:error, :invalid_command}
   end
 
-  @typedoc "Where a viewing shows: this computer's mpv, or a paired player by id."
-  @type player :: Sessions.player()
+  @typedoc "Where a viewing shows: this computer's mpv, or a paired player by id (`Players.Player.id/0`)."
+  @type player :: MediaCentaur.Players.Player.id()
 
   @doc """
   Starts playback of `uuid` for `profile_id`, the session's active profile

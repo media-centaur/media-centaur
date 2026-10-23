@@ -24,6 +24,14 @@ defmodule MediaCentaur.Players.Player do
 
   @type t :: %__MODULE__{}
 
+  @typedoc """
+  Which player: `:host` for the host player (admitted by address, no
+  row), or a paired player's row id. The one representation of a
+  player's identity everywhere in the host — sessions, events, topics,
+  the socket's `:player` assign (`Playback.player/0` names it there).
+  """
+  @type id :: :host | Ecto.UUID.t()
+
   @doc "The name is already checked by `DisplayName.check/1`. This is the row's last guard."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(player \\ %__MODULE__{}, attrs) do
