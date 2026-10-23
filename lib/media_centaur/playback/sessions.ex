@@ -5,9 +5,12 @@ defmodule MediaCentaur.Playback.Sessions do
 
   A session plays on a **player**: `:host` (an mpv this computer spawns,
   `Transport.Local`) or a paired player's id (an mpv on that device over
-  its channel). The host can run one session per entity; a remote player
-  holds one viewing at a time, so `play/2` there replaces any other. Playback takes the player as a value and never reads the
+  its channel). Playback takes the player as a value and never reads the
   `Players` context, as it takes a profile id and never reads `Profiles`.
+  The player's kind is read here and nowhere else, to choose the
+  transport (`transport_for/2`); what else differs between the kinds the
+  transport answers — a transport that holds one viewing at a time has
+  `play/2` end the player's other viewings first.
   """
   require MediaCentaur.Log, as: Log
 
@@ -19,39 +22,37 @@ defmodule MediaCentaur.Playback.Sessions do
   `:file_not_found` when the file is not on disk, `:already_playing` when
   that player already plays that entity, `:player_offline` when a remote
   player has no channel to this install. `params.profile_id` is required:
-  the profile the session records under.
+  the profile the session records under. On a player whose transport
+  holds one viewing at a time, the player's other viewings end first, as
+  a deliberate stop: a `loadfile … replace` would otherwise take the file
+  from under a session that would then observe a file it did not start.
   """
   @spec play(map(), Playback.player()) ::
           :ok | {:error, :file_not_found | :already_playing | :player_offline | term()}
   def play(params, player) do
     entity_id = params.entity_id
-    key = {player, entity_id}
 
     cond do
       not playable_file?(params) ->
         Log.error(:playback, "file not available — #{params[:content_url]}")
         {:error, :file_not_found}
 
-      SessionRegistry.active?(key) ->
+      SessionRegistry.active?({player, entity_id}) ->
         Log.info(:playback, "already playing — #{params[:entity_name] || entity_id}")
         {:error, :already_playing}
 
       true ->
-        replace_remote_viewing(player)
-        start(params, player)
+        with {:ok, transport} <- transport_for(params, player) do
+          if Transport.holds_one_viewing?(transport), do: stop_all(player)
+          start(params, player, transport)
+        end
     end
   end
 
-  # A remote player runs one libmpv for the app's life and so holds one
-  # viewing at a time: a new viewing's `loadfile … replace` would take the
-  # file from under any other session on that player, which would then
-  # observe a file it did not start. End them first, as a deliberate stop.
-  defp replace_remote_viewing(:host), do: :ok
-
-  defp replace_remote_viewing(player_id) do
-    for {{^player_id, entity_id}, _pid} <- SessionRegistry.list() do
-      Log.info(:playback, "replacing the viewing on #{inspect(player_id)} — #{entity_id}")
-      stop(player_id, entity_id)
+  defp stop_all(player) do
+    for {{^player, entity_id}, _pid} <- SessionRegistry.list() do
+      Log.info(:playback, "replacing the viewing on #{inspect(player)} — #{entity_id}")
+      stop(player, entity_id)
     end
 
     :ok
@@ -63,28 +64,29 @@ defmodule MediaCentaur.Playback.Sessions do
   `reattach?: true` tells the transport to observe rather than load.
   """
   @spec resume(map(), Playback.player()) :: :ok | {:error, term()}
-  def resume(params, player), do: start(Map.put(params, :reattach?, true), player)
+  def resume(params, player) do
+    with {:ok, transport} <- transport_for(params, player),
+         do: start(Map.put(params, :reattach?, true), player, transport)
+  end
 
-  defp start(params, player) do
-    with {:ok, transport} <- transport_for(params, player) do
-      Log.info(
-        :playback,
-        "starting session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}"
-      )
+  defp start(params, player, transport) do
+    Log.info(
+      :playback,
+      "starting session — #{params[:entity_name] || params.entity_id} on #{inspect(player)}"
+    )
 
-      case SessionSupervisor.start_session(Map.merge(params, %{player: player, transport: transport})) do
-        {:ok, _pid} ->
-          :ok
+    case SessionSupervisor.start_session(Map.merge(params, %{player: player, transport: transport})) do
+      {:ok, _pid} ->
+        :ok
 
-        {:error, reason} ->
-          Log.info(:playback, "session start failed — #{inspect(reason)}")
-          {:error, reason}
-      end
+      {:error, reason} ->
+        Log.info(:playback, "session start failed — #{inspect(reason)}")
+        {:error, reason}
     end
   end
 
   # A caller may hand in the transport (a test's fake); otherwise the player
-  # decides it.
+  # decides it — the one place the player's kind is read.
   defp transport_for(%{transport: transport}, _player), do: {:ok, transport}
   defp transport_for(%{entity_id: entity_id}, :host), do: {:ok, Transport.Local.new(entity_id)}
   defp transport_for(_params, player_id) when is_binary(player_id), do: Transport.Remote.new(player_id)

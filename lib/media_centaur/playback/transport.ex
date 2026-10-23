@@ -32,6 +32,13 @@ defmodule MediaCentaur.Playback.Transport do
   player's instance carries nothing and gets them on every file.
   `draws_subtitles?/1` says whether the mpv renders subtitles at all; a
   remote player draws nothing, so bitmap tracks are never enforced on it.
+  `holds_one_viewing?/1` says whether this mpv holds one viewing at a
+  time: a remote player runs one libmpv for its app's life, so a new
+  viewing there replaces the one running (`Sessions.play/2`); the host
+  spawns a process per viewing. Everything that differs between the two
+  kinds of player beyond how they are reached is a question the transport
+  answers, so the player's kind is read in one place: `Sessions`, to
+  choose the transport.
 
   File identity: the session keeps the host path (`content_url`) as the
   identity of what plays. `locator/2` turns that identity into what mpv
@@ -81,6 +88,9 @@ defmodule MediaCentaur.Playback.Transport do
   @doc "Whether this mpv renders subtitles; a player that draws nothing cannot show a bitmap track."
   @callback draws_subtitles?(t()) :: boolean()
 
+  @doc "Whether this mpv holds one viewing at a time, so a new viewing on its player replaces the one running."
+  @callback holds_one_viewing?(t()) :: boolean()
+
   @doc "Folds a raw message delivered to the session into transport events; `:unhandled` for one that is not the transport's."
   @callback handle_message(t(), message :: term()) :: {[event()], t()} | :unhandled
 
@@ -97,6 +107,7 @@ defmodule MediaCentaur.Playback.Transport do
   def identify(%module{} = transport, reported_path), do: module.identify(transport, reported_path)
   def queue(%module{} = transport, locator, start), do: module.queue(transport, locator, start)
   def draws_subtitles?(%module{} = transport), do: module.draws_subtitles?(transport)
+  def holds_one_viewing?(%module{} = transport), do: module.holds_one_viewing?(transport)
   def handle_message(%module{} = transport, message), do: module.handle_message(transport, message)
   def close(%module{} = transport, final?), do: module.close(transport, final?)
   def describe(%module{} = transport), do: module.describe(transport)

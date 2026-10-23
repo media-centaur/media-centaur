@@ -102,6 +102,9 @@ defmodule MediaCentaur.Playback.Transport.Local do
   def draws_subtitles?(_transport), do: true
 
   @impl true
+  def holds_one_viewing?(_transport), do: false
+
+  @impl true
   def describe(transport), do: "mpv on this computer (#{Path.basename(transport.socket_path)})"
 
   @impl true
