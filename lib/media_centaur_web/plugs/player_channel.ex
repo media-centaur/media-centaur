@@ -16,7 +16,6 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
 
   import Plug.Conn
 
-  alias MediaCentaur.Players.Player
   alias MediaCentaur.Playback.Remote.{Channel, PlayerRegistry}
   alias MediaCentaurWeb.MediaToken
   alias MediaCentaurWeb.PlayerSocket
@@ -28,7 +27,7 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
 
   @impl true
   def call(%Plug.Conn{path_info: ["players", "channel"], method: "GET"} = conn, _opts) do
-    with %Player{id: player_id} <- conn.assigns[:player],
+    with player_id when is_binary(player_id) <- conn.assigns[:player],
          :ok <- origin_ok(conn),
          :ok <- upgrade_requested(conn) do
       evict_existing(player_id)

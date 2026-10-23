@@ -10,24 +10,26 @@ defmodule MediaCentaurWeb.RemoteAccess do
   judgement so a removed player is cut off at once. Anything else is
   `:unpaired`.
 
-  Two enforcement points call it: `Plugs.RemoteAccess` for HTTP requests
-  and `Live.PlayerAware` for the LiveView socket, which bypasses plugs.
-  Neither judges anything itself.
+  Three enforcement points carry it and act on a player's removal:
+  `Plugs.RemoteAccess` for HTTP requests (judged on every request),
+  `Live.PlayerAware` for the LiveView socket, which bypasses plugs, and
+  `PlayerSocket` for the player channel. None judges anything itself.
   """
 
+  alias MediaCentaur.Playback
   alias MediaCentaur.Players
-  alias MediaCentaur.Players.Player
   alias MediaCentaur.Settings.Config.BindAddress
 
-  @typedoc "Who a request is from: the host itself, or a paired player."
-  @type player :: :host | Player.t()
-
-  @doc "The verdict for a request from `address` whose session holds `player_id` (nil for none)."
-  @spec admit(:inet.ip_address(), term()) :: {:ok, player()} | :unpaired
+  @doc """
+  The verdict for a request from `address` whose session holds `player_id`
+  (nil for none): the player it is on, as the id every viewing names
+  (`Playback.player/0`), or `:unpaired`.
+  """
+  @spec admit(:inet.ip_address(), term()) :: {:ok, Playback.player()} | :unpaired
   def admit(address, player_id) do
     cond do
       BindAddress.loopback?(address) -> {:ok, :host}
-      player = Players.get(player_id) -> {:ok, player}
+      player = Players.get(player_id) -> {:ok, player.id}
       true -> :unpaired
     end
   end

@@ -127,7 +127,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.LiveHelpers
-  alias MediaCentaurWeb.Live.PlayerAware
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.Finish
@@ -186,7 +185,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         title_detail: nil,
         modal_state: ModalState.new(),
         title_opening: nil,
-        title_playback: LiveHelpers.load_playback_sessions(PlayerAware.playback_player(socket)),
+        title_playback: LiveHelpers.load_playback_sessions(socket.assigns.player),
         finished_id: nil
       )
       |> ReviewFlow.init()
@@ -777,7 +776,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     update(
       socket,
       :title_playback,
-      &LiveHelpers.apply_playback_change(&1, event, PlayerAware.playback_player(socket))
+      &LiveHelpers.apply_playback_change(&1, event, socket.assigns.player)
     )
   end
 

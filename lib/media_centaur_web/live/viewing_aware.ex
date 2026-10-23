@@ -38,7 +38,8 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
     {:cont, assign(socket, viewing_layer: nil)}
   end
 
-  def on_mount(:default, _params, _session, %{assigns: %{player: %{id: player_id}}} = socket) do
+  def on_mount(:default, _params, _session, %{assigns: %{player: player_id}} = socket)
+      when is_binary(player_id) do
     {:cont,
      socket
      |> Subscriptions.subscribe({Playback, :subscribe_viewing, [player_id]})
@@ -49,7 +50,7 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
 
   # --- the stream ---
 
-  defp on_info({:viewing, %Viewing{}} = message, %{assigns: %{player: %{id: player_id}}} = socket) do
+  defp on_info({:viewing, %Viewing{}} = message, %{assigns: %{player: player_id}} = socket) do
     {:viewing, viewing} = message
 
     if viewing.player == player_id,
@@ -57,7 +58,7 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
       else: {:cont, socket}
   end
 
-  defp on_info({:viewing_ended, %{player: player_id}}, %{assigns: %{player: %{id: player_id}}} = socket) do
+  defp on_info({:viewing_ended, %{player: player_id}}, %{assigns: %{player: player_id}} = socket) do
     {:halt, socket |> cancel_bar_timer() |> assign(viewing_layer: nil)}
   end
 
@@ -102,14 +103,14 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
     do: {:halt, set_menu(socket, false)}
 
   defp on_event("viewing_back", _params, socket) do
-    %{player: %{id: player_id}, viewing_layer: %{viewing: viewing}} = socket.assigns
+    %{player: player_id, viewing_layer: %{viewing: viewing}} = socket.assigns
     Sessions.stop(player_id, viewing.entity_id)
     {:halt, socket}
   end
 
   defp on_event(_event, _params, socket), do: {:cont, socket}
 
-  defp send_command(%{assigns: %{player: %{id: player_id}, viewing_layer: %{viewing: viewing}}}, command) do
+  defp send_command(%{assigns: %{player: player_id, viewing_layer: %{viewing: viewing}}}, command) do
     Playback.command(player_id, viewing.entity_id, command)
   end
 

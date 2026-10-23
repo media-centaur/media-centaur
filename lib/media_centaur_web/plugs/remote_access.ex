@@ -6,8 +6,8 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccess do
   (`Plug.Static`, earlier) stays open, since the pairing page needs it.
 
   `MediaCentaurWeb.RemoteAccess.admit/2` judges; this plug only carries
-  the verdict: admitted requests get `:player` assigned (`:host` or the
-  `Players.Player`), an unpaired `GET` is sent to the pairing page, and
+  the verdict: admitted requests get `:player` assigned (the player id,
+  `Playback.player/0`), an unpaired `GET` is sent to the pairing page, and
   any other unpaired request is refused with 403. `/pair` itself is open,
   or no device could ever pair.
   """
