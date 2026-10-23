@@ -54,9 +54,6 @@ defmodule MediaCentaur.Playback.MpvSession do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Format
-  alias MediaCentaur.Library
-
   alias MediaCentaur.Playback.{
     Chain,
     Command,
@@ -65,10 +62,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     LanguageContext,
     LaunchFlags,
     MpvProperties,
-    OverrideCapture,
     ProgressWriter,
     SessionRegistry,
-    TrackResolver,
     Transport,
     Viewing,
     WatchingTracker
@@ -77,8 +72,6 @@ defmodule MediaCentaur.Playback.MpvSession do
   @db_write_interval_ms 10_000
   @reattach_window_ms 60_000
 
-  # Debounce window for capturing user track changes — coalesces rapid
-  # keyboard mashing (e.g. #-#-# to cycle audio) into a single capture.
   @track_capture_debounce_ms 3_000
 
   defstruct [
@@ -93,14 +86,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     :reattach_timer,
     reattach_window_ms: @reattach_window_ms,
     state: :starting,
+    # The track policy (`Playback.LanguageContext`).
     language_context: nil,
     # What mpv last reported (`Playback.MpvProperties`).
     properties: %MpvProperties{},
-    resolver_choice: nil,
-    # Last `sid` value we pushed to mpv via enforcement, so we only send
-    # `set_property sid` when the resolved target actually changes (no IPC
-    # spam, no enforcement loop). `nil` = nothing enforced yet.
-    enforced_sid: nil,
     capture_timer: nil,
     # The successor's entry, appended to the mpv playlist and not yet
     # reached (ADR-062). `nil` while nothing is queued — chain end,
@@ -252,7 +241,10 @@ defmodule MediaCentaur.Playback.MpvSession do
   # selection. Compares current state against what the resolver chose
   # at episode start; persists an override only if they differ.
   def handle_info(:capture_settled, state) do
-    perform_capture(state)
+    if LanguageContext.captures?(state.language_context) do
+      LanguageContext.capture(state.language_context, state.profile_id, state.properties)
+    end
+
     {:noreply, %{state | capture_timer: nil}}
   end
 
@@ -423,7 +415,17 @@ defmodule MediaCentaur.Playback.MpvSession do
     state
   end
 
-  defp react("track-list", tracks, state) when is_list(tracks), do: handle_track_list_update(state)
+  defp react("track-list", tracks, state) when is_list(tracks) do
+    {language_context, commands} =
+      LanguageContext.on_track_list(
+        state.language_context,
+        state.properties,
+        Transport.draws_subtitles?(state.transport)
+      )
+
+    Enum.each(commands, &Transport.send(state.transport, &1))
+    %{state | language_context: language_context}
+  end
 
   defp react(playlist, count, state)
        when playlist in ["playlist-count", "playlist-pos"] and is_integer(count),
@@ -528,8 +530,7 @@ defmodule MediaCentaur.Playback.MpvSession do
       | entry: entry,
         properties: MpvProperties.reset_for_file(state.properties),
         tracker: WatchingTracker.new(),
-        resolver_choice: nil,
-        enforced_sid: nil,
+        language_context: LanguageContext.reset_for_file(state.language_context),
         capture_timer: nil,
         pending_next: nil,
         last_db_write_at: System.monotonic_time(:millisecond),
@@ -537,151 +538,20 @@ defmodule MediaCentaur.Playback.MpvSession do
     }
   end
 
-  # --- Language / track override capture ---
+  # --- Track override capture (`LanguageContext`) ---
 
-  # Recompute the resolver choice on *every* track-list update, not just
-  # the first. mpv populates tracks incrementally — audio frequently
-  # demuxes before subtitles — so the first non-empty list can be
-  # audio-only, which would otherwise freeze a wrong "no subs" baseline.
-  # track-list changes come only from mpv (initial load, external sub
-  # file); a user switching tracks fires `aid`/`sid`, never track-list,
-  # so recomputing here never clobbers a deliberate user selection.
-  defp handle_track_list_update(state) do
-    %MpvProperties{audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} = state.properties
-    drawable = drawable_subtitle_tracks(state)
-
-    if audio_tracks == [] and subtitle_tracks == [] do
-      state
-    else
-      result = resolve_tracks(state, drawable)
-      new_choice = capture_choice(result)
-
-      if new_choice != state.resolver_choice do
-        Log.info(:playback, "track-resolver: " <> Enum.join(result.decision_log, " | "))
-      end
-
-      enforce_subtitle_selection(%{state | resolver_choice: new_choice}, result, drawable)
-    end
-  end
-
-  # A player that draws nothing cannot show a bitmap track, so the
-  # resolver never sees one there; the menu still lists it, disabled.
-  defp drawable_subtitle_tracks(state) do
-    if Transport.draws_subtitles?(state.transport),
-      do: state.properties.subtitle_tracks,
-      else: Enum.reject(state.properties.subtitle_tracks, &Viewing.bitmap_track?/1)
-  end
-
-  defp resolve_tracks(state, subtitle_tracks) do
-    ctx = state.language_context
-
-    TrackResolver.resolve(
-      ctx.policy,
-      ctx.override,
-      state.properties.audio_tracks,
-      subtitle_tracks,
-      ctx.original_language
-    )
-  end
-
-  # The lang-based slice of the resolution, used as the override-capture
-  # baseline (lang/forced, not indices — survives re-rips).
-  defp capture_choice(result) do
-    %{
-      audio_lang: result.audio_lang,
-      sub_lang: result.sub_lang,
-      sub_forced: result.sub_forced
-    }
-  end
-
-  # Resolver is the source of truth: once subtitle tracks exist, make mpv's
-  # `sid` match `resolve/5`'s pick (disabling subs when it chose none).
-  # Gated on subtitle tracks being present (`sid_enforcement/2` returns
-  # `:skip` for an empty list) so we don't flash subs off during the
-  # audio-only incremental-load window. Idempotent — only sends when the
-  # resolved target changes. Driven from `track-list` updates only; a
-  # *user* track switch fires `sid`, never `track-list`, so enforcement
-  # never clobbers a deliberate selection, and our own `set_property sid`
-  # echo lands on the `sid` handler (capture), not here — no loop.
-  defp enforce_subtitle_selection(state, result, drawable) do
-    case sid_target(result, drawable, state.properties.subtitle_tracks) do
-      :skip ->
-        state
-
-      {:set, sid} ->
-        if sid == state.enforced_sid do
-          state
-        else
-          Transport.send(state.transport, ["set_property", "sid", sid])
-          Log.info(:playback, "track-resolver: enforcing sid=#{inspect(sid)}")
-          %{state | enforced_sid: sid}
-        end
-    end
-  end
-
-  # A file whose subtitle tracks the player cannot draw at all gets them
-  # off, or mpv's own `slang` would pick a bitmap track nothing renders.
-  defp sid_target(_result, [], [_ | _]), do: {:set, "no"}
-  defp sid_target(result, drawable, _all), do: TrackResolver.sid_enforcement(result, drawable)
-
-  # No capture for unsupported entity types (extras, video objects) — skip
-  # scheduling rather than computing-and-discarding to avoid spurious
-  # timer churn.
-  defp schedule_capture(%{language_context: %{owner_type: nil}} = state), do: state
-  defp schedule_capture(%{resolver_choice: nil} = state), do: state
-
+  # No capture for an entry without an override owner (extras, video
+  # objects) or before the resolver has chosen — skip scheduling rather
+  # than computing-and-discarding to avoid spurious timer churn. The
+  # debounce coalesces rapid keyboard mashing (#-#-# to cycle audio) into
+  # a single capture.
   defp schedule_capture(state) do
-    if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
-    timer = Process.send_after(self(), :capture_settled, @track_capture_debounce_ms)
-    %{state | capture_timer: timer}
-  end
-
-  defp perform_capture(%{language_context: %{owner_type: nil}}), do: :ok
-  defp perform_capture(%{resolver_choice: nil}), do: :ok
-
-  defp perform_capture(state) do
-    # Resolve the user's *current* selection now, from the complete track
-    # lists — not from a language snapshot taken when the `aid`/`sid` event
-    # fired. mpv populates tracks incrementally and auto-selects a sub from
-    # our `slang` before subtitle tracks demux, so an event-time snapshot
-    # can read "no subs" while the eng sub is in fact selected. Deriving
-    # here is what stops the per-series `subtitles_off` poison — see
-    # `LanguageContext.current_selection/4`.
-    %MpvProperties{aid: aid, sid: sid, audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} =
-      state.properties
-
-    current_state = LanguageContext.current_selection(aid, sid, audio_tracks, subtitle_tracks)
-
-    case OverrideCapture.compute(state.resolver_choice, current_state) do
-      :no_change ->
-        :ok
-
-      {:override, attrs} ->
-        persist_track_override(state, attrs)
-    end
-  end
-
-  defp persist_track_override(state, attrs) do
-    %{owner_type: owner_type, owner_id: owner_id} = state.language_context
-
-    case Library.MediaTrackOverrides.upsert(state.profile_id, owner_type, owner_id, attrs) do
-      {:ok, _override} ->
-        Log.info(
-          :playback,
-          "captured track override (#{owner_type}=#{Format.short_id(owner_id)}) — #{inspect(attrs)}"
-        )
-
-        Events.broadcast(%Events.TrackOverrideChanged{
-          profile_id: state.profile_id,
-          owner_type: owner_type,
-          owner_id: owner_id
-        })
-
-      {:error, changeset} ->
-        Log.warning(
-          :playback,
-          "failed to persist track override — #{inspect(changeset.errors)}"
-        )
+    if LanguageContext.captures?(state.language_context) do
+      if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
+      timer = Process.send_after(self(), :capture_settled, @track_capture_debounce_ms)
+      %{state | capture_timer: timer}
+    else
+      state
     end
   end
 
