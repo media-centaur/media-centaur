@@ -40,6 +40,11 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     %{player_id: player_id, presence: presence, path: path}
   end
 
+  defp locate(transport, path) do
+    {:ok, url} = Remote.locator(transport, path)
+    url
+  end
+
   @tag :tmp_dir
   test "a player with no channel is offline; a connected one yields a transport", %{player_id: player_id} do
     assert Remote.new(Ecto.UUID.generate()) == {:error, :player_offline}
@@ -53,7 +58,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     presence: presence
   } do
     {:ok, transport} = Remote.new(player_id)
-    url = Remote.locator(transport, path)
+    {:ok, url} = Remote.locator(transport, path)
     assert url == "#{@base}/media/#{presence.id}?t=token"
 
     launch = %{
@@ -96,7 +101,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     path: path
   } do
     {:ok, transport} = Remote.new(player_id)
-    url = Remote.locator(transport, path)
+    {:ok, url} = Remote.locator(transport, path)
 
     launch = %{
       session_options: [{"keep-open", "yes"}],
@@ -125,7 +130,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
     launch = %{
       session_options: [{"keep-open", "yes"}],
-      content_url: Remote.locator(transport, path),
+      content_url: locate(transport, path),
       start_position: 100.0,
       profile_id: "p1",
       reattach?: true
@@ -147,7 +152,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
     launch = %{
       session_options: [],
-      content_url: Remote.locator(transport, path),
+      content_url: locate(transport, path),
       start_position: 0,
       profile_id: "p1"
     }
@@ -181,7 +186,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
     launch = %{
       session_options: [],
-      content_url: Remote.locator(transport, path),
+      content_url: locate(transport, path),
       start_position: 0,
       profile_id: "p1",
       reattach?: true
@@ -223,9 +228,9 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
   end
 
   @tag :tmp_dir
-  test "a path with no presence row is handed over as it is", %{player_id: player_id} do
+  test "a path with no presence row cannot be named to the player", %{player_id: player_id} do
     {:ok, transport} = Remote.new(player_id)
-    assert Remote.locator(transport, "/nowhere/unknown.mkv") == "/nowhere/unknown.mkv"
+    assert Remote.locator(transport, "/nowhere/unknown.mkv") == {:error, :no_presence}
   end
 
   @tag :tmp_dir

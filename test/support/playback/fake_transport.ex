@@ -6,7 +6,8 @@ defmodule MediaCentaur.Playback.FakeTransport do
   the test feeds the session transport events with `emit/2`, which is the
   one message a transport may send its session.
 
-  Files are located as `fake://<host path>`, so a test can see that the
+  Files are located as `fake://<host path>` (`{:error, :no_presence}` for
+  every file when `locates?` is false), so a test can see that the
   session asked the transport for the locator and mapped a reported path
   back through `identify/2`. A successor is queued as
   `[:fake_queue, locator, start]`, so a test can see the session went
@@ -20,13 +21,14 @@ defmodule MediaCentaur.Playback.FakeTransport do
   # This module defines the behaviour's `send/2`; the Erlang send is spelled out.
   import Kernel, except: [send: 2]
 
-  defstruct [:owner, attached?: false, draws_subtitles?: true, holds_one_viewing?: false]
+  defstruct [:owner, attached?: false, draws_subtitles?: true, holds_one_viewing?: false, locates?: true]
 
   @type t :: %__MODULE__{
           owner: pid(),
           attached?: boolean(),
           draws_subtitles?: boolean(),
-          holds_one_viewing?: boolean()
+          holds_one_viewing?: boolean(),
+          locates?: boolean()
         }
 
   @doc "A transport whose mpv is the `owner` process."
@@ -58,7 +60,8 @@ defmodule MediaCentaur.Playback.FakeTransport do
   def attached?(transport), do: transport.attached?
 
   @impl true
-  def locator(_transport, content_url), do: "fake://" <> content_url
+  def locator(%{locates?: false}, _content_url), do: {:error, :no_presence}
+  def locator(_transport, content_url), do: {:ok, "fake://" <> content_url}
 
   @impl true
   def identify(_transport, "fake://" <> content_url), do: content_url

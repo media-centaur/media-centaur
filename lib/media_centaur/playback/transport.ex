@@ -42,9 +42,10 @@ defmodule MediaCentaur.Playback.Transport do
 
   File identity: the session keeps the host path (`content_url`) as the
   identity of what plays. `locator/2` turns that identity into what mpv
-  is told to load (the path itself, or a media URL); `identify/2` turns
-  the path mpv reports back into the identity, or `nil` for a file this
-  install did not hand it.
+  is told to load (the path itself, or a media URL), or says why it
+  cannot — a file the player could not fetch is never handed to it;
+  `identify/2` turns the path mpv reports back into the identity, or
+  `nil` for a file this install did not hand it.
   """
 
   @type t :: struct()
@@ -76,8 +77,8 @@ defmodule MediaCentaur.Playback.Transport do
   @doc "Whether an mpv is reachable right now."
   @callback attached?(t()) :: boolean()
 
-  @doc "What mpv is told to load for the file identified by the host path."
-  @callback locator(t(), content_url :: String.t()) :: String.t()
+  @doc "What mpv is told to load for the file identified by the host path, or why this player cannot be told."
+  @callback locator(t(), content_url :: String.t()) :: {:ok, String.t()} | {:error, atom()}
 
   @doc "The host path identified by what mpv reports as its `path`, or nil."
   @callback identify(t(), reported_path :: String.t()) :: String.t() | nil
