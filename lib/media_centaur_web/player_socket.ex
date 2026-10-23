@@ -5,6 +5,12 @@ defmodule MediaCentaurWeb.PlayerSocket do
   process holds. Opened by `Plugs.PlayerChannel` for a paired player with
   the locators that turn a presence id into a media URL for this player
   (`MediaToken` inside) and a URL back into the id.
+
+  The gate's enforcement point for the channel (ADR-079): it subscribes
+  to `players:updates`, and its own player's removal closes the channel
+  through `Channel.removed/1`, the way `Live.PlayerAware` drops a removed
+  player's page. Playback hears of the removal only as its channel
+  closing for good.
   """
 
   @behaviour WebSock
@@ -12,6 +18,8 @@ defmodule MediaCentaurWeb.PlayerSocket do
   alias MediaCentaur.Playback
   alias MediaCentaur.Playback.Remote.Channel
   alias MediaCentaur.Playback.SessionRegistry
+  alias MediaCentaur.Players
+  alias MediaCentaur.Players.Events.PlayerRemoved
 
   @impl true
   def init(%{player_id: player_id, locators: locators}) do
@@ -20,6 +28,7 @@ defmodule MediaCentaurWeb.PlayerSocket do
         # A channel for a player no session holds may belong to an mpv that
         # outlived its session (a host restart): ask it, off this process.
         if SessionRegistry.on_player(player_id) == [], do: Playback.recover_player(player_id)
+        :ok = Players.subscribe()
         {:ok, state}
 
       {:error, {:already_registered, _pid}} ->
@@ -36,6 +45,10 @@ defmodule MediaCentaurWeb.PlayerSocket do
   def handle_control(_frame, state), do: {:ok, state}
 
   @impl true
+  # Our player's pairing is gone; another player's removal is nobody's here.
+  def handle_info({:player_removed, %PlayerRemoved{id: player_id}}, %Channel{player_id: player_id} = state),
+    do: reply(Channel.removed(state))
+
   def handle_info(message, state) do
     case Channel.handle_message(state, message) do
       :unhandled -> {:ok, state}
