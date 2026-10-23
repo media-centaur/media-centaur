@@ -18,6 +18,16 @@ defmodule MediaCentaurWeb.SettingsLivePlayersTest do
     assert has_element?(view, "#start-pairing")
   end
 
+  test "the Pair card links the TV app's release page", %{conn: conn} do
+    {:ok, view, _html} = live_async!(conn, @section)
+
+    assert has_element?(
+             view,
+             "#pair-player a[href='https://github.com/media-centaur/media-centaur-android/releases/latest']",
+             "Media Centaur TV app"
+           )
+  end
+
   test "Start pairing shows the open code; Cancel closes it", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, @section)
 
