@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M1–M4 built 2026-10-22 on branch `remote-players` and in `android-app`; M5 (the native path and the page as OSD) stages 1–3 built the same evening, stage 4 (the TV check) half done — the layer, the pill, the subtitles, the bar, seeks, auto-advance and the finish prompt verified on the Sony; SELECT, the track menu and Back wait on five fixes made but not yet run on the TV (`mc-tv-flow osd tv`).** The UI and playback on a Google TV
+  **M1–M6 built and verified on the Sony 2026-10-22/23 on branch `remote-players` (unpushed, unmerged by the owner's instruction); M7's automation shipped 2026-10-23 — the TV app is public at `media-centaur/media-centaur-android` with CI and a tag-driven signed release, v0.1.0 published and installed on the Sony. Left with the owner: the Play internal track, the walk through the TV, then merge, host release, wiki push and closure.** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only

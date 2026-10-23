@@ -2572,53 +2572,85 @@ No step keeps an old path or lands through a shim.
 
 ## Resuming in a new session
 
-**2026-10-23, afternoon resume:** reconciled against `git log` — nothing
-had drifted (branch at `52937f35`, `android-app` at `ec7dd58`, the sim
-host up on 4003, the wiki's five commits local). This session elevated
-the glossary, took the owner's five calls and ran M7's automation to
-the published release (the M7 record above has every artefact and
-commit). **The next session:** (1) the Play Console internal track with
-the owner at the keyboard — account, app with id `app.mediacentaur.tv`,
-an AAB (`bundleRelease` signed by the same variables; Play App Signing
-takes this key as the upload key) uploaded to the internal track,
-testers listed; (2) the owner's walk through the TV on the released
-build — it starts by pairing, the Sony lost its pairing with the debug
-build; fix what the walk names under M6's Back-key and D-pad item;
-(3) merge `remote-players` into main, `/ship minor` from main, push the
-wiki (`cd ~/src/media-centaur/media-centaur.wiki && git push`), then
-close the campaign (file deleted, index paragraph, decision 10's
-leftover re-homed). The paragraphs below remain accurate except that
-the installed TV build is now the released `v0.1.0` (not `ec7dd58`'s
-debug build) and the Sony is unpaired.
+Everything a fresh context needs, written 2026-10-23 at the end of the
+session that ran M7's automation. Reconcile against `git log
+remote-players`, `git log` in `~/src/media-centaur/android-app` and the
+wiki checkout first (the reconciliation rule).
 
-Everything a cleared context needs, verified 2026-10-23 (the context
-was cleared at the owner's request after M6's fourth batch). Reconcile
-against `git log remote-players` first (the reconciliation rule).
+**The owner's standing instruction.** Nothing from the host repository
+goes to main or to GitHub until the owner says so: no merge of
+`remote-players`, no push of the branch, no host release, no wiki push.
+The TV app's repository is the one public surface and is already
+published.
 
-**State at the clear (2026-10-23, late morning).** Branch `remote-players`
-at `abfea9aa` (the M6 commits: `4bd5d6de`, `cf28615c`, `8ff8cb81`,
-`e606061b`, `b493b977`, `abfea9aa`), precommit green, working tree
-clean. `android-app` at `ec7dd58` (the audio buffer), built and
-installed on the Sony. Wiki commits local and unpushed: `9df804c`,
-`de4868e`, `57560d0`, `32285f0`, `dab5336` — push with the release.
-The sim host is up on 4003 serving the branch; the Sony is paired as
-player `9586a9fc`; the TV app sits in the background on the TV (every
-window ended with `mc-tv hdmi`). Main's checkout and its campaign copy
-are untouched and stale. Memory:
-`project-remote-players-campaign.md` says the same in short.
+**State (2026-10-23, end of day).**
+* Host branch `remote-players`, worktree
+  `~/src/media-centaur/media-centaur-app-remote-players`, at `5427bc04`
+  (this session's commits: `ac634080` glossary and M7 scope, `cc9018dc`
+  decisions and M7 steps 2–6, `9c962cd0` the Pair card's link,
+  `5427bc04` the M7 execution record). Unpushed, unmerged, precommit
+  green (8708 Elixir tests, 935 JavaScript tests). Main's checkout runs
+  the owner's dev server; never build or edit there.
+* TV app: `~/src/media-centaur/android-app` on `main` at `230f622`,
+  pushed to <https://github.com/media-centaur/media-centaur-android>
+  (public). Tag `v0.1.0` released:
+  <https://github.com/media-centaur/media-centaur-android/releases/tag/v0.1.0>
+  (`media-centaur-tv-0.1.0-release.apk`, `SHA256SUMS`). CI runs on push
+  and pull request; the release workflow runs on a `v*` tag and refuses
+  a tag whose version is not `appVersionName` or has no CHANGELOG
+  section. Secrets `MC_ANDROID_KEYSTORE_BASE64`,
+  `MC_ANDROID_KEYSTORE_PASSWORD`, `MC_ANDROID_KEY_ALIAS`,
+  `MC_ANDROID_KEY_PASSWORD` are set on the repository.
+* Keystore: `~/.config/media-centaur-android/release.jks` (PKCS12, alias
+  `media-centaur-tv`, certificate SHA-256 `970dceb2…f11f18`), passwords
+  in `release.env` beside it; archived through Fae to Hetzner Falkenstein
+  (run `93d58c52`). A local signed build: `set -a; . ~/.config/media-centaur-android/release.env; set +a; ./gradlew assembleRelease`
+  inside the app checkout.
+* The Sony runs the released `v0.1.0` (`versionCode=100`, release
+  signature), installed over adb after the debug build was uninstalled.
+  **The Sony is unpaired** — the debug build's cookie jar went with it.
+  The sim host's record for the old player `9586a9fc` is stale; remove
+  it on the Players page or leave it. `mc-tv build` + `mc-tv install`
+  would put a debug build back, which again needs an uninstall first
+  (signatures differ) — for TV checks prefer the released APK unless the
+  app itself changes.
+* Wiki checkout `~/src/media-centaur/media-centaur.wiki`: six commits
+  local and unpushed (`9df804c`, `de4868e`, `57560d0`, `32285f0`,
+  `dab5336`, `98b4525` — the last is `Android-TV-App.md`, the sidebar
+  entry and the Players reference). Push with the host release.
+* The sim host (`mc-sim-host`) was up on `http://192.168.68.67:4003`
+  serving the branch at the session's end; `mc-sim-host status` says.
+* `docs/GLOSSARY.md` carries the campaign's terms (Playback section).
+  Memory file `project-remote-players-campaign.md` says this in short.
 
-**What is left in M6, all the owner's:** Back-key and D-pad polish
-(nothing specific recorded — the owner's walk through the TV names it);
-open decisions 9 (the Sound column's host-side owner), 3 (the speed
-test), 1 (the application id — it gates M7's signing and the Play
-track). Decision 10 is taken: a per-player UI scale factor, deferred to
-a future campaign the owner named *player operational status and
-settings*; re-home that leftover in `campaigns/README.md` when this
-campaign closes. Then **M7**: release signing in CI, the Google Play
-internal testing track, a wiki page for the TV app, the glossary
-elevated to `docs/GLOSSARY.md`, the owner's walk through every page and
-the full viewing lifecycle on the TV. The wiki page and the glossary
-need no owner call and can start first.
+**What is left, in order.**
+1. **The Play internal track — with the owner at the keyboard.** The
+   owner opens the Play Console account (one-time fee, identity check).
+   Then: create the app with id `app.mediacentaur.tv` and the name
+   "Media Centaur"; Play wants an AAB, so add `bundleRelease` to the
+   release workflow's artefacts (signed by the same variables; with Play
+   App Signing this key becomes the upload key); upload to the internal
+   testing track; list the testers; record the outcome in the M7 record
+   and the wiki page's Install section (today it says the app is not on
+   the Play Store). Not in scope: a production listing.
+2. **The owner's walk through the TV on the released build.** Starts by
+   pairing (Settings → Players → Start pairing on the sim host, the code
+   entered in the app, or `mc-tv-flow pair tv`). Whatever the walk names
+   is fixed under M6's Back-key and D-pad item through the procedure; an
+   app change means a new `appVersionName`, a CHANGELOG section and a tag.
+3. **When the owner says so:** merge `remote-players` into main, `/ship
+   minor` from main (its CHANGELOG entry covers remote players end to
+   end: pairing, the TV app, playback on a TV, the Controls category,
+   Continue Watching per device), push the wiki, then close the
+   campaign: delete this file, write the index paragraph in
+   `campaigns/README.md` with every leftover — the per-player UI scale
+   (decision 10, for the future campaign *player operational status and
+   settings*), the Sound column (9) and the speed test (3) as later
+   milestones if wanted, the Play production listing — and move the
+   glossary's `docs/GLOSSARY.md` rows to their final wording.
+
+**Earlier resume notes** (kept for their facts; superseded where they
+disagree with the state above).
 
 **The TV checks as scripts.** The session's check scripts live in
 `~/scripts/agents/mc-tv-checks/` (session-free copies): `m6tv` (media
