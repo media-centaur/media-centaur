@@ -41,8 +41,9 @@ verified; M9 (the session's shape) is opened with its scope.** The
 design is `docs/superpowers/specs/2026-10-23-player-model-design.md`;
 M8's record below has every step, the nine commits, the precommit
 result and the end-to-end checks on the simulator. Pending on the Sony:
-`m6tv` and `m6tv-d` in the owner's walk. Next: M9 from step 2
-(research) through the procedure, on the branch. **The merge is not a
+`m6tv` and `m6tv-d` in the owner's walk. M9's steps 1–5 are recorded
+(scope, research, decisions, design, plan). Next: M9's plan
+unification, then execution, on the branch. **The merge is not a
 near step**: the owner is not ready to consider it until their own
 checks are done. The earlier state:
 
@@ -725,18 +726,81 @@ decision 14's.
    change: `Transport`, `Viewing`, `Command`, `Events`, `LaunchFlags`
    untouched, and the existing tests are the contract. Out: the web
    layer; anything a reader would notice.
-2. **Research** — the next session: read `mpv_session.ex` field by field
-   against the six concerns (the pass's reading is the spec's §2.4 and
-   item 10), list which tests pin which concern (`mpv_session_test`,
-   `mpv_session_transport_test`, `track_override_round_trip_test`, the
-   two recovery tests, `viewing_test`, `next_episode_test`,
-   `resolver_test`), and check every claim of §2.4 against the code
-   before any module is cut.
-3. **Decisions** — after step 2; the names are taken (decision 14).
-4. **Design unification** — after step 3.
-5. **Implementation plan** — after step 4.
-6. **Plan unification** — after step 5.
-7. **Execution** — after step 6; `mc-tv-flow osd tv` once at the end.
+2. **Research** (2026-10-23). `mpv_session.ex` read field by field: 39
+   fields fall into the entry (11: `entity_id`, `entity_name`, the
+   season/episode numbers and name, the four foreign keys, `content_url`,
+   `start_position`), the mpv mirror (14: position, duration, paused,
+   chapters and `chapter`, the two track lists, `current_aid`/`sid`,
+   `playlist_count`/`pos`, `subtitle_text`; `path` and `eof` are reacted
+   to without being kept), the chain (`pending_next`), progress
+   (`tracker`, `last_db_write_at`, `completed`), track policy
+   (`language_context`, `resolver_choice`, `enforced_sid`,
+   `capture_timer`), the stream (`last_position_stream_at`) and the
+   lifecycle (`player`, `profile_id`, `transport`, `state`, `started_at`,
+   `reattach_timer`, `reattach_window_ms`). Play params' `action` key is
+   read by nothing but the resolver's own log line. `LanguageContext.init/1`
+   takes exactly the entry's fields plus the profile. Tests: `mpv_session_test`
+   builds `%MpvSession{}` fixtures for `queue_next?/1`, `judge_completion/1`,
+   `reset_for_file/4` and `session_ended/1` (they move with the
+   functions, assertions intact); `viewing_test`'s `from_session/1` cases
+   build the struct too; `mpv_session_transport_test`,
+   `track_override_round_trip_test`, both recovery tests, `resolver_test`
+   (asserts on the params' keys) and `next_episode_test` drive public
+   doors and are the contract. Every claim of the spec's §2.4 holds
+   against the code; nothing measured (a pure refactor).
+3. **Decisions** (2026-10-23, under the owner's direction to go with
+   plain recommendations). Play params become `%{profile_id, entry}`
+   (plus `reattach?` and a test's `transport`); `action` goes. The
+   chain's functions are `Playback.Chain`; the progress writes and the
+   completion judgement are `Playback.ProgressWriter` (not
+   `Playback.Progress`: the session already aliases `Library.Progress`
+   under another name to avoid the clash). `LanguageContext` becomes a
+   struct carrying the policy's running state (`resolver_choice`,
+   `enforced_sid`) and answering with the IPC to send. The three timers
+   (reattach, capture debounce, the stream's 1 Hz) stay the GenServer's:
+   they are process concerns. `Viewing.from_session/1` keeps its name and
+   reads the entry and the mirror.
+4. **Design unification** (2026-10-23). One representation per idea:
+   the entry (five map shapes → `%Entry{}`, built by `Resolver`,
+   `NextEpisode`, `SessionRecovery`, re-pointed by an advance); the
+   mirror (`%MpvProperties{}`, one `apply/2` per `property-change` with
+   today's guards, one `reset_for_file/1` carrying the aid/sid rule);
+   the completed-set item (`Entry.item/1`, today `current_item/1`). State
+   behind its owner: the session keeps only lifecycle, the two values,
+   the chain's `pending_next`, the progress trio and the timers (about
+   seventeen fields). No speculation: every module collapses code that
+   exists; nothing is added for a future. Incoherence found: `Viewing`
+   duplicates eleven entry fields and seven mirror fields by copying —
+   disposition: it keeps its flat shape (the page's contract, UIDR-055)
+   and is built from the two values in one function. Nothing scheduled
+   beyond this milestone.
+5. **Implementation plan** (2026-10-23). One commit per step, each green:
+   1. `Playback.Entry` (struct, `item/1`); `Resolver`, `NextEpisode.resolve/2`
+      and `identify/2`, `SessionRecovery.reattach_params/4` build it;
+      `Sessions`, `MpvSession.init/1`, `LanguageContext.init/2`,
+      `Viewing`, `PlaybackFailed`'s payload read it; `action` dropped.
+      Tests: `resolver_test`, `next_episode_test`, both recovery tests,
+      `sessions_test`, `mpv_session_transport_test`, `viewing_test`.
+   2. `Playback.MpvProperties` with `apply/2` and `reset_for_file/1`; the
+      session folds every `property-change` through it and reacts by name;
+      `Command.within/3` and `Viewing` read it; `mpv_session_test`'s
+      `reset_for_file` cases become `mpv_properties_test`.
+   3. `Playback.Chain`: `queue_next?/4`, `advance/3` (the pending entry or
+      `NextEpisode.identify/2`); `mpv_session_test`'s `queue_next?` cases
+      move.
+   4. `Playback.ProgressWriter`: `judge/3`, `persist/5`, the end-of-session
+      broadcast; the task-supervised Library writes leave the GenServer;
+      `judge_completion` cases move.
+   5. `LanguageContext` as a struct with `on_track_list/3` (returns the
+      IPC to send) and `capture/…`; the session's track handlers collapse
+      to dispatch; `track_override_round_trip_test` unchanged.
+   6. Docs: `docs/playback.md`'s module table and key concepts,
+      `docs/GLOSSARY.md` (Entry, MpvProperties), this glossary.
+   7. Verification: `agent-mix precommit`; `mc-player-sim` headless: play,
+      a seek past the credits, auto-advance, the finish; `mc-tv-flow osd tv`
+      once, when the Sony is paired and free.
+6. **Plan unification** — the next session, on the plan as written.
+7. **Execution** — after step 6.
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
@@ -2928,9 +2992,9 @@ published.
    is fixed under M6's Back-key and D-pad item through the procedure; an
    app change means a new `appVersionName`, a CHANGELOG section and a tag.
 3. **M9, the session's shape** (opened 2026-10-23 with its scope, record
-   above; design in the spec's §2.4; names per decision 14). Run it
-   through the procedure from step 2, on the branch; `mc-tv-flow osd tv`
-   once at its end. M8 is done (record above); its Sony checks (`m6tv`,
+   above; design in the spec's §2.4; names per decision 14). Steps 1–5
+   are recorded; run step 6 (plan unification) and then execute, on the
+   branch; `mc-tv-flow osd tv` once at its end. M8 is done (record above); its Sony checks (`m6tv`,
    `m6tv-d`) wait on the owner's walk.
 4. **Not yet, and not soon: the merge.** The owner is not ready to
    consider it; they will name the checks that come first. When they
