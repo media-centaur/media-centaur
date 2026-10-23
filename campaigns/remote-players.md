@@ -36,16 +36,13 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**M8 opened 2026-10-23: the engineering quality pass on the player
-model.** The owner paused the campaign before the merge to settle what
-rapid prototyping built. Steps 1–4 are done (record below; the design
-is `docs/superpowers/specs/2026-10-23-player-model-design.md`):
-fifteen findings, eleven for M8 (one session), two for M9 (the
-session's shape, two to three sessions), two no change with reasons.
-Decisions 11–13 taken the same day (M8 now, M9 immediately after it on
-the branch, the layout); the plan is written and unified (steps 5–6
-below); execution starts on the owner's word on the four names
-(decision 14, the agent's suggestions recorded). **The merge is not a
+**M8 done 2026-10-23: the player model's quality pass is executed and
+verified; M9 (the session's shape) is opened with its scope.** The
+design is `docs/superpowers/specs/2026-10-23-player-model-design.md`;
+M8's record below has every step, the nine commits, the precommit
+result and the end-to-end checks on the simulator. Pending on the Sony:
+`m6tv` and `m6tv-d` in the owner's walk. Next: M9 from step 2
+(research) through the procedure, on the branch. **The merge is not a
 near step**: the owner is not ready to consider it until their own
 checks are done. The earlier state:
 
@@ -508,16 +505,16 @@ first, then iteration. The contract both codebases follow is
    and the released build is on the Sony. Left: the Play internal
    track with the owner at the keyboard, the owner's walk, the merge
    and host release, closure.
-8. **M8 — The player model.** The engineering quality pass the owner
-   asked for before the merge (record below; design in
+8. ✅ **M8 — The player model.** Done 2026-10-23 (record below; design in
    `docs/superpowers/specs/2026-10-23-player-model-design.md`): one
    player-id type, the socket holding the id, Playback free of
    Players, the channel socket as the gate's third enforcement point,
    one kind dispatch, recovery per transport behind one door, the media
    token's player id checked, the remote locator's failure surfaced,
    each transport's helpers under it, the Topics row, the glossary
-   rows. Steps 1–4 done 2026-10-23; the plan waits on decisions 11–14.
-9. **M9 — The session's shape.** `MpvSession` as a thin GenServer over
+   rows. Nine commits, precommit green, verified on the simulator; the
+   Sony checks wait on the owner's walk.
+9. **M9 — The session's shape.** Opened 2026-10-23 with its scope. `MpvSession` as a thin GenServer over
    pure modules — the Entry, the property mirror, the chain, progress
    persistence, track policy (spec §2.4). Before or after the release
    per decision 12.
@@ -679,7 +676,67 @@ record carries the procedure's steps.
    the player's other sessions — `Transport.Remote.new/1` is a registry
    read and `Transport.Local.new/1` allocates a session id, neither
    touches the player, so the order is safe. Nothing sent back.
-7. **Execution** — after the owner's word on the names.
+7. **Execution** (2026-10-23). Nine commits on the branch, one per plan
+   step, each leaving the suite green (`60b67d87` the one type, `eb61e6a6`
+   the socket's id, `4b0ed19b` Playback free of Players, `275ae002` one
+   kind dispatch, `915be215` the locator's failure, `438fa9b3` recovery
+   per transport, `65ec01e1` media after removal, `ec7b8789` the layout
+   and the rename, `ed710500` the docs). Precommit green but for one
+   failure, `relay_sync_test`'s `Database busy` under load, which passes
+   alone (the SQLite rule); 935 JavaScript tests; zero warnings from the
+   app — the quoted-keyword warnings in the log are `mix.lock`'s, from
+   main's dependency bump `e651e1b2`, not this branch's. Verified end to
+   end against `mc-sim-host` with `mc-player-sim` headless (the check
+   scripts `m8sim` and `m8sim6` in the session's scratchpad): a viewing
+   plays and its progress lands; a second viewing replaces the first; a
+   deliberate stop ends it with the player's mpv alive; a killed channel
+   reattaches in seconds with the position advancing; a host restart
+   recovers the viewing through `Sessions.recover/1` (45 s in on return);
+   a removal mid-viewing closes the channel at once, ends the session,
+   turns the media URL from 206 to 403 and refuses the sim's reconnects
+   as unpaired. Pending for the owner's TV walk: `m6tv` (removal) and
+   `m6tv-d` (drop, reattach, host restart) on the Sony, which is unpaired
+   and may be in use. Found on the way and fixed, a rig hazard: the sim
+   host's `mpv_socket_dir` was the shipped default `/tmp`, the owner's
+   dev server's socket dir, so the sim recovered the owner's paused mpv
+   as a host session at every boot — and a stop from the sim would have
+   quit it. The sim now has `~/.cache/mc-sim-host/sockets`, persisted in
+   its database and set by `mc-sim-host setup`. Items 1–9, 12 and 13 of
+   the spec are done; the cost table held (one session). The TV rig
+   scripts (`mc-tv-flow`, `mc-tv-checks/*`) name the moved modules.
+
+### M9 — The session's shape (procedure record, opened 2026-10-23)
+
+The owner's call (decision 12): immediately after M8, on the branch. The
+design is the spec's §2.4
+(`docs/superpowers/specs/2026-10-23-player-model-design.md`), the names
+decision 14's.
+
+1. **Scope** (2026-10-23). In: `MpvSession` as a thin GenServer over pure
+   modules — `Playback.Entry` (the chain's current file with its library
+   identity and resume position, in place of the five map shapes:
+   `Resolver.play_params`, `NextEpisode.queue_item`,
+   `NextEpisode.identify/2`, `SessionRecovery.reattach_params/4`, the
+   session's own fields), `Playback.MpvProperties` (the observed
+   properties' last values, folded from each `property-change`;
+   `Viewing` reads from it and the Entry), the chain (ADR-062) over an
+   Entry and the properties, progress persistence out of the GenServer,
+   the track policy's orchestration into `LanguageContext`. No behaviour
+   change: `Transport`, `Viewing`, `Command`, `Events`, `LaunchFlags`
+   untouched, and the existing tests are the contract. Out: the web
+   layer; anything a reader would notice.
+2. **Research** — the next session: read `mpv_session.ex` field by field
+   against the six concerns (the pass's reading is the spec's §2.4 and
+   item 10), list which tests pin which concern (`mpv_session_test`,
+   `mpv_session_transport_test`, `track_override_round_trip_test`, the
+   two recovery tests, `viewing_test`, `next_episode_test`,
+   `resolver_test`), and check every claim of §2.4 against the code
+   before any module is cut.
+3. **Decisions** — after step 2; the names are taken (decision 14).
+4. **Design unification** — after step 3.
+5. **Implementation plan** — after step 4.
+6. **Plan unification** — after step 5.
+7. **Execution** — after step 6; `mc-tv-flow osd tv` once at the end.
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
@@ -2870,12 +2927,11 @@ published.
    entered in the app, or `mc-tv-flow pair tv`). Whatever the walk names
    is fixed under M6's Back-key and D-pad item through the procedure; an
    app change means a new `appVersionName`, a CHANGELOG section and a tag.
-3. **M8, the player model** (opened 2026-10-23, record above; design in
-   `docs/superpowers/specs/2026-10-23-player-model-design.md`). The plan
-   is written and unified (steps 5–6 of the record). Execute it once the
-   owner has said yes or no to the four names under decision 14, then
-   run M9 (the session's shape, spec §2.4) through the procedure
-   immediately after, on the branch.
+3. **M9, the session's shape** (opened 2026-10-23 with its scope, record
+   above; design in the spec's §2.4; names per decision 14). Run it
+   through the procedure from step 2, on the branch; `mc-tv-flow osd tv`
+   once at its end. M8 is done (record above); its Sony checks (`m6tv`,
+   `m6tv-d`) wait on the owner's walk.
 4. **Not yet, and not soon: the merge.** The owner is not ready to
    consider it; they will name the checks that come first. When they
    say so: merge `remote-players` into main, `/ship
