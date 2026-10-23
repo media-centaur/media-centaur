@@ -65,6 +65,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     Events,
     LanguageContext,
     LaunchFlags,
+    MpvProperties,
     NextEpisode,
     OverrideCapture,
     ProgressBroadcaster,
@@ -88,9 +89,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     :player,
     :profile_id,
     :transport,
-    :position,
-    :duration,
-    :paused,
     :last_db_write_at,
     :tracker,
     :started_at,
@@ -98,19 +96,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     reattach_window_ms: @reattach_window_ms,
     state: :starting,
     language_context: nil,
-    # mpv `chapter-list` for the loaded file (`[%{"title", "time"}]`), used
-    # by `Completion` to complete at the credits boundary rather than
-    # grinding to the 90%/eof fallback. Empty for files without chapters.
-    chapters: [],
-    audio_tracks: [],
-    subtitle_tracks: [],
-    # Raw mpv-reported selected track indices (not derived languages). The
-    # comparison languages are resolved from these against the *complete*
-    # track list at capture time — see `LanguageContext.current_selection/4`
-    # and the `perform_capture/1` note — so an early `sid` event that lands
-    # before subtitle tracks demux can't freeze a stale "no subs" baseline.
-    current_aid: nil,
-    current_sid: nil,
+    # What mpv last reported (`Playback.MpvProperties`).
+    properties: %MpvProperties{},
     resolver_choice: nil,
     # Last `sid` value we pushed to mpv via enforcement, so we only send
     # `set_property sid` when the resolved target actually changes (no IPC
@@ -121,17 +108,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     # reached (ADR-062). `nil` while nothing is queued — chain end,
     # auto-play off, or a non-episode session.
     pending_next: nil,
-    # Mirror of mpv's playlist shape, fed by property observation. The
-    # queue check appends only while `playlist_count - playlist_pos == 1`.
-    playlist_count: 1,
-    playlist_pos: 0,
     # Every `Entry.item/1` this session completed (`judge_completion/1`).
     # A chain keeps each episode it finished; `SessionEnded` carries the set.
     completed: MapSet.new(),
-    # mpv's current `chapter` index and `sub-text` line, what the page draws
-    # for a remote player (`Viewing`). nil between files or with none.
-    chapter: nil,
-    subtitle_text: nil,
     # When the viewing was last streamed for a position tick; nil before
     # the first. Discrete changes stream at once and leave this alone.
     last_position_stream_at: nil
@@ -191,9 +170,6 @@ defmodule MediaCentaur.Playback.MpvSession do
       profile_id: params.profile_id,
       transport: params.transport,
       reattach_window_ms: params[:reattach_window_ms] || @reattach_window_ms,
-      position: 0.0,
-      duration: 0.0,
-      paused: false,
       last_db_write_at: System.monotonic_time(:millisecond),
       tracker: WatchingTracker.new(),
       started_at: System.monotonic_time(:millisecond),
@@ -264,7 +240,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # current prompt and sent through the transport; a command with nothing
   # to send is dropped.
   def handle_cast({:command, command}, state) do
-    with bounded when bounded != nil <- Command.within(command, state.position, state.duration),
+    with bounded when bounded != nil <-
+           Command.within(command, state.properties.position, state.properties.duration),
          ipc when ipc != nil <- Command.ipc(bounded, Viewing.from_session(state).prompt) do
       Transport.send(state.transport, ipc)
     end
@@ -416,50 +393,12 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- MPV Message Handling ---
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "time-pos", "data" => position},
-         state
-       )
-       when is_number(position) do
-    now = System.monotonic_time(:millisecond)
-    tracker = WatchingTracker.update(state.tracker, position, now)
-
-    if tracker.actively_watching and not state.tracker.actively_watching do
-      Log.info(:playback, "actively watching")
-    end
-
-    state = %{state | position: position, tracker: tracker}
-    maybe_persist(state)
-  end
-
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "duration", "data" => duration},
-         state
-       )
-       when is_number(duration) do
-    %{state | duration: duration}
-  end
-
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "pause", "data" => paused}, state)
-       when is_boolean(paused) do
-    new_state = if paused, do: :paused, else: :playing
-    Log.info(:playback, if(paused, do: "paused", else: "resumed"))
-    state = %{state | paused: paused, state: new_state}
-
-    state = if paused and state.tracker.actively_watching, do: persist_progress(state), else: state
-    broadcast_state_changed(new_state, state)
-
-    state
-  end
-
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "eof-reached", "data" => true},
-         state
-       ) do
-    Log.info(:playback, "reached end of file")
-    state = finalize(state)
-    Transport.send(state.transport, ["quit"])
-    state
+  # Every property change is folded into the mirror first; the session then
+  # reacts to the ones that move it (`react/3`). mpv omits `data` for a
+  # property with no value (a `sub-text` between lines).
+  defp handle_mpv_message(%{"event" => "property-change", "name" => name} = message, state) do
+    data = message["data"]
+    react(name, data, %{state | properties: MpvProperties.apply(state.properties, name, data)})
   end
 
   defp handle_mpv_message(%{"event" => "end-file"}, %{pending_next: nil} = state) do
@@ -476,44 +415,50 @@ defmodule MediaCentaur.Playback.MpvSession do
     if state.tracker.actively_watching, do: persist_progress(state), else: state
   end
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "track-list", "data" => tracks},
-         state
-       )
-       when is_list(tracks) do
-    handle_track_list_update(state, tracks)
+  defp handle_mpv_message(_message, state), do: state
+
+  # --- Reactions to a property change (the mirror already holds it) ---
+
+  defp react("time-pos", position, state) when is_number(position) do
+    now = System.monotonic_time(:millisecond)
+    tracker = WatchingTracker.update(state.tracker, position, now)
+
+    if tracker.actively_watching and not state.tracker.actively_watching do
+      Log.info(:playback, "actively watching")
+    end
+
+    maybe_persist(%{state | tracker: tracker})
   end
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "chapter-list", "data" => chapters},
-         state
-       )
-       when is_list(chapters) do
-    %{state | chapters: chapters}
+  defp react("pause", paused, state) when is_boolean(paused) do
+    new_state = if paused, do: :paused, else: :playing
+    Log.info(:playback, if(paused, do: "paused", else: "resumed"))
+    state = %{state | state: new_state}
+
+    state = if paused and state.tracker.actively_watching, do: persist_progress(state), else: state
+    broadcast_state_changed(new_state, state)
+
+    state
   end
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "playlist-count", "data" => count},
-         state
-       )
-       when is_integer(count) do
-    maybe_queue_next(%{state | playlist_count: count})
+  defp react("eof-reached", true, state) do
+    Log.info(:playback, "reached end of file")
+    state = finalize(state)
+    Transport.send(state.transport, ["quit"])
+    state
   end
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "playlist-pos", "data" => pos},
-         state
-       )
-       when is_integer(pos) do
-    maybe_queue_next(%{state | playlist_pos: pos})
-  end
+  defp react("track-list", tracks, state) when is_list(tracks), do: handle_track_list_update(state)
+
+  defp react(playlist, count, state)
+       when playlist in ["playlist-count", "playlist-pos"] and is_integer(count),
+       do: maybe_queue_next(state)
 
   # `path` is nil between files; the initial observation echoes the file
   # we launched. Only a change to a different file is an advance. The
   # transport maps what mpv reports back to the host path, the identity
   # this session compares.
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "path", "data" => path}, state)
-       when is_binary(path) do
+  defp react("path", path, state) when is_binary(path) do
     case Transport.identify(state.transport, path) do
       nil -> advance_to(state, :unknown, path)
       content_url when content_url == state.entry.content_url -> state
@@ -521,27 +466,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
-    schedule_capture(%{state | current_aid: aid})
-  end
+  defp react(track, _id, state) when track in ["aid", "sid"], do: schedule_capture(state)
 
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "sid", "data" => sid}, state) do
-    schedule_capture(%{state | current_sid: sid})
-  end
-
-  # The current subtitle line; absent (no track, or between lines) reads nil.
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "sub-text"} = message, state) do
-    %{state | subtitle_text: subtitle_line(message["data"])}
-  end
-
-  defp handle_mpv_message(%{"event" => "property-change", "name" => "chapter"} = message, state) do
-    %{state | chapter: if(is_integer(message["data"]), do: message["data"])}
-  end
-
-  defp handle_mpv_message(_message, state), do: state
-
-  defp subtitle_line(text) when is_binary(text) and text != "", do: text
-  defp subtitle_line(_absent), do: nil
+  defp react(_name, _data, state), do: state
 
   # --- Episode auto-advance (ADR-062) ---
 
@@ -568,7 +495,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   def queue_next?(state) do
     is_nil(state.pending_next) and not is_nil(state.entry.episode_id) and
       Transport.attached?(state.transport) and
-      state.playlist_count - state.playlist_pos == 1
+      state.properties.playlist_count - state.properties.playlist_pos == 1
   end
 
   defp queue_next(state) do
@@ -648,26 +575,14 @@ defmodule MediaCentaur.Playback.MpvSession do
     %{
       state
       | entry: entry,
-        position: 0.0,
-        duration: 0.0,
+        properties: MpvProperties.reset_for_file(state.properties),
         tracker: WatchingTracker.new(),
-        chapters: [],
-        chapter: nil,
-        subtitle_text: nil,
-        audio_tracks: [],
-        subtitle_tracks: [],
-        # `current_aid`/`current_sid` stay: mpv keeps a selected track id
-        # across the files of a playlist and reports an observed property
-        # only when it changes, so the next file brings no `sid` event
-        # while `sid` holds — resetting them here read "no subtitles" and
-        # captured a subtitles-off override for the series on every
-        # advance.
         resolver_choice: nil,
         enforced_sid: nil,
         capture_timer: nil,
         pending_next: nil,
         last_db_write_at: System.monotonic_time(:millisecond),
-        state: if(state.paused, do: :paused, else: :playing)
+        state: if(state.properties.paused, do: :paused, else: :playing)
     }
   end
 
@@ -680,9 +595,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # track-list changes come only from mpv (initial load, external sub
   # file); a user switching tracks fires `aid`/`sid`, never track-list,
   # so recomputing here never clobbers a deliberate user selection.
-  defp handle_track_list_update(state, raw_tracks) do
-    {audio_tracks, subtitle_tracks} = LanguageContext.parse_track_list(raw_tracks)
-    state = %{state | audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks}
+  defp handle_track_list_update(state) do
+    %MpvProperties{audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} = state.properties
     drawable = drawable_subtitle_tracks(state)
 
     if audio_tracks == [] and subtitle_tracks == [] do
@@ -703,8 +617,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # resolver never sees one there; the menu still lists it, disabled.
   defp drawable_subtitle_tracks(state) do
     if Transport.draws_subtitles?(state.transport),
-      do: state.subtitle_tracks,
-      else: Enum.reject(state.subtitle_tracks, &Viewing.bitmap_track?/1)
+      do: state.properties.subtitle_tracks,
+      else: Enum.reject(state.properties.subtitle_tracks, &Viewing.bitmap_track?/1)
   end
 
   defp resolve_tracks(state, subtitle_tracks) do
@@ -713,7 +627,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     TrackResolver.resolve(
       ctx.policy,
       ctx.override,
-      state.audio_tracks,
+      state.properties.audio_tracks,
       subtitle_tracks,
       ctx.original_language
     )
@@ -739,7 +653,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   # never clobbers a deliberate selection, and our own `set_property sid`
   # echo lands on the `sid` handler (capture), not here — no loop.
   defp enforce_subtitle_selection(state, result, drawable) do
-    case sid_target(result, drawable, state.subtitle_tracks) do
+    case sid_target(result, drawable, state.properties.subtitle_tracks) do
       :skip ->
         state
 
@@ -782,13 +696,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     # can read "no subs" while the eng sub is in fact selected. Deriving
     # here is what stops the per-series `subtitles_off` poison — see
     # `LanguageContext.current_selection/4`.
-    current_state =
-      LanguageContext.current_selection(
-        state.current_aid,
-        state.current_sid,
-        state.audio_tracks,
-        state.subtitle_tracks
-      )
+    %MpvProperties{aid: aid, sid: sid, audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} =
+      state.properties
+
+    current_state = LanguageContext.current_selection(aid, sid, audio_tracks, subtitle_tracks)
 
     case OverrideCapture.compute(state.resolver_choice, current_state) do
       :no_change ->
@@ -860,7 +771,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   """
   @spec judge_completion(%__MODULE__{}) :: {String.t() | nil, %__MODULE__{}}
   def judge_completion(state) do
-    reason = Completion.reason(saveable_position(state), state.duration, state.chapters)
+    %MpvProperties{duration: duration, chapters: chapters} = state.properties
+    reason = Completion.reason(saveable_position(state), duration, chapters)
 
     case {reason, Entry.item(state.entry)} do
       {nil, _item} -> {nil, state}
@@ -880,11 +792,11 @@ defmodule MediaCentaur.Playback.MpvSession do
     }
   end
 
-  defp saveable_position(state), do: state.tracker.saveable_position || state.position
+  defp saveable_position(state), do: state.tracker.saveable_position || state.properties.position
 
   defp persist_extra_progress(state, reason) do
     saveable = saveable_position(state)
-    duration = state.duration
+    duration = state.properties.duration
 
     %Entry{entity_id: entity_id, extra_id: extra_id} = state.entry
     profile_id = state.profile_id
@@ -916,7 +828,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp persist_entity_progress(state, reason) do
     saveable = saveable_position(state)
-    duration = state.duration
+    duration = state.properties.duration
 
     params =
       %{
@@ -1093,19 +1005,9 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- Observation ---
 
   defp observe_properties(transport) do
-    Transport.send(transport, ["observe_property", 1, "time-pos"])
-    Transport.send(transport, ["observe_property", 2, "duration"])
-    Transport.send(transport, ["observe_property", 3, "pause"])
-    Transport.send(transport, ["observe_property", 4, "eof-reached"])
-    Transport.send(transport, ["observe_property", 5, "track-list"])
-    Transport.send(transport, ["observe_property", 6, "aid"])
-    Transport.send(transport, ["observe_property", 7, "sid"])
-    Transport.send(transport, ["observe_property", 8, "chapter-list"])
-    Transport.send(transport, ["observe_property", 9, "playlist-count"])
-    Transport.send(transport, ["observe_property", 10, "playlist-pos"])
-    Transport.send(transport, ["observe_property", 11, "path"])
-    Transport.send(transport, ["observe_property", 12, "sub-text"])
-    Transport.send(transport, ["observe_property", 13, "chapter"])
+    for {name, id} <- Enum.with_index(MpvProperties.observed(), 1) do
+      Transport.send(transport, ["observe_property", id, name])
+    end
   end
 
   defp maybe_put(map, _key, nil), do: map

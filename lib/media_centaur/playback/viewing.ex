@@ -77,6 +77,7 @@ defmodule MediaCentaur.Playback.Viewing do
   @spec from_session(struct()) :: t()
   def from_session(session) do
     entry = session.entry
+    properties = session.properties
 
     viewing = %__MODULE__{
       player: session.player,
@@ -87,17 +88,17 @@ defmodule MediaCentaur.Playback.Viewing do
       episode_number: entry.episode_number,
       episode_name: entry.episode_name,
       content_url: entry.content_url,
-      position_seconds: session.position || 0.0,
-      duration_seconds: session.duration || 0.0,
-      state: if(session.paused, do: :paused, else: :playing),
-      chapters: session.chapters,
-      chapter: session.chapter,
-      audio_tracks: session.audio_tracks,
-      subtitle_tracks: session.subtitle_tracks,
-      aid: session.current_aid,
-      sid: session.current_sid,
+      position_seconds: properties.position,
+      duration_seconds: properties.duration,
+      state: if(properties.paused, do: :paused, else: :playing),
+      chapters: properties.chapters,
+      chapter: properties.chapter,
+      audio_tracks: properties.audio_tracks,
+      subtitle_tracks: properties.subtitle_tracks,
+      aid: properties.aid,
+      sid: properties.sid,
       successor_queued?: not is_nil(session.pending_next),
-      subtitle_text: session.subtitle_text
+      subtitle_text: properties.subtitle_text
     }
 
     %{viewing | prompt: prompt(viewing)}
