@@ -33,10 +33,15 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
-**Resumed 2026-10-23 (afternoon) after the context clear: reconciled,
-nothing drifted; M7 opened at step 1 (scope recorded below) and its one
-owner-free item done — the glossary elevated to `docs/GLOSSARY.md`.
-M6's remainder and M7's calls are the owner's.** The earlier state:
+**M7's automation shipped 2026-10-23: the TV app lives at
+`github.com/media-centaur/media-centaur-android` (public) with CI and a
+tag-driven signed release; v0.1.0 is published and installed on the
+Sony (unpaired — the debug build's data went with it); the wiki's
+Android TV App page and the Pair card's link are in; the glossary is
+elevated; precommit green on the branch.** Left, all with the owner: the
+Google Play internal track (sit-down), the walk through the TV (Back-key
+and D-pad polish), then the merge of `remote-players`, the host release
+that pushes the six wiki commits, and closure. The earlier state:
 
 **M6 nearly done: four batches built and verified on the Sony
 2026-10-23; what is left is the owner's** (branch `remote-players`;
@@ -437,11 +442,14 @@ first, then iteration. The contract both codebases follow is
 7. **M7 — Release path and owner checks.** Release signing in CI, Google
    Play internal testing track, wiki page for the TV app, glossary
    elevated to `docs/GLOSSARY.md` (✅ 2026-10-23); the owner's walk
-   through every page and the full viewing lifecycle on the TV. Step 1
-   recorded 2026-10-23 (record below); steps 2–7 wait on the owner's
-   calls listed there.
+   through every page and the full viewing lifecycle on the TV. Steps
+   1–7 run 2026-10-23 (record below): the TV app's repository, CI,
+   signed release v0.1.0, wiki page and the Pair card's link are done
+   and the released build is on the Sony. Left: the Play internal
+   track with the owner at the keyboard, the owner's walk, the merge
+   and host release, closure.
 
-### M7 — Release path and owner checks (procedure record, step 1)
+### M7 — Release path and owner checks (procedure record, in progress)
 
 **Step 1 — scope (2026-10-23).** In: (a) a home for `android-app` — a
 GitHub repository (today it has no remote and no CI) — and a release
@@ -581,6 +589,45 @@ share); no shim (signing attaches to the one release build type); no
 test stand-in encoding an old shape. One correction: the APK's name is
 given by the Gradle build (`archivesName`), not renamed by the workflow,
 so a local `assembleRelease` and CI produce the same file name.
+
+**Step 7 — execution (2026-10-23).** `android-app` commit `230f622`:
+`appVersionName` the one version source with `versionCode` derived
+(0.1.0 → 100), `archivesName` `media-centaur-tv-<version>`,
+`signingConfigs.release` from the four `MC_ANDROID_*` variables and
+attached only when they are set, `*.jks`/`*.keystore` ignored,
+`CHANGELOG.md` (v0.1.0), `ci.yml` (push and pull request: the runner's
+SDK in `local.properties`, `mise-action` v5 for the JDK, `setup-gradle`
+v6, `gradlew test assembleDebug`) and `release.yml` (tag `v*`: tag
+against `appVersionName`, keystore from the secret, `assembleRelease`,
+`SHA256SUMS`, notes from the CHANGELOG or fail, `gh release`), README
+for an outside contributor with the release path and the variables'
+table. Verified locally first: `assembleRelease` unsigned without the
+variables, signed with them, `apksigner` naming the certificate,
+`aapt` reading `versionCode='100'`. The keystore: PKCS12, RSA 4096,
+alias `media-centaur-tv`, valid to 2054, at
+`~/.config/media-centaur-android/release.jks` with its passwords in
+`release.env` beside it (0600), archived through Fae to Hetzner
+Falkenstein (run `93d58c52`, 2 files); certificate SHA-256
+`970dceb2…f11f18`. The repository
+`github.com/media-centaur/media-centaur-android`, public, created and
+pushed; the four secrets set; CI green on the first push; tag `v0.1.0`
+pushed; the release workflow green on the first run and
+<https://github.com/media-centaur/media-centaur-android/releases/tag/v0.1.0>
+published with `media-centaur-tv-0.1.0-release.apk` (106.8 MB) and
+`SHA256SUMS`. The published APK downloaded, its checksum verified, its
+signature the local keystore's. Installed on the Sony over adb after
+uninstalling the debug build (a different signature cannot upgrade it):
+`versionCode=100`, release signature, no TV window taken — the TV's
+pairing is gone with the debug build's data, so the owner's walk starts
+by pairing (`mc-tv-flow pair tv`, or the Pair card by hand). Wiki
+commit `98b4525` (local, with the other five): `Android-TV-App.md`
+(requirements, install over adb or from a USB stick, first run,
+updates), the sidebar entry under Getting Started, the Players reference
+pointing at the app. Host branch commit `9c962cd0`: the Pair card's
+line linking the release page, test-first (red, then green), `mix
+precommit` green (8708 Elixir tests, 935 JavaScript tests). Left in M7:
+the Play internal track (the sit-down), the owner's walk, the merge and
+the host release that pushes the wiki, closure.
 
 ### M6 — Hardening (procedure record, in progress)
 
@@ -2528,10 +2575,21 @@ No step keeps an old path or lands through a shim.
 **2026-10-23, afternoon resume:** reconciled against `git log` — nothing
 had drifted (branch at `52937f35`, `android-app` at `ec7dd58`, the sim
 host up on 4003, the wiki's five commits local). This session elevated
-the glossary and recorded M7's step 1 (above). The next session starts
-at the owner's calls listed under that record and under *What is left
-in M6*; nothing else is agent-decidable. The paragraphs below remain
-accurate.
+the glossary, took the owner's five calls and ran M7's automation to
+the published release (the M7 record above has every artefact and
+commit). **The next session:** (1) the Play Console internal track with
+the owner at the keyboard — account, app with id `app.mediacentaur.tv`,
+an AAB (`bundleRelease` signed by the same variables; Play App Signing
+takes this key as the upload key) uploaded to the internal track,
+testers listed; (2) the owner's walk through the TV on the released
+build — it starts by pairing, the Sony lost its pairing with the debug
+build; fix what the walk names under M6's Back-key and D-pad item;
+(3) merge `remote-players` into main, `/ship minor` from main, push the
+wiki (`cd ~/src/media-centaur/media-centaur.wiki && git push`), then
+close the campaign (file deleted, index paragraph, decision 10's
+leftover re-homed). The paragraphs below remain accurate except that
+the installed TV build is now the released `v0.1.0` (not `ec7dd58`'s
+debug build) and the Sony is unpaired.
 
 Everything a cleared context needs, verified 2026-10-23 (the context
 was cleared at the owner's request after M6's fourth batch). Reconcile
