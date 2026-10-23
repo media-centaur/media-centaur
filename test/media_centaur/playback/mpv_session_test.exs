@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.MpvSessionTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.{Entry, Events, MpvSession, WatchingTracker}
+  alias MediaCentaur.Playback.{Entry, Events, MpvProperties, MpvSession, WatchingTracker}
 
   defp entry(fields), do: struct!(%Entry{entity_id: "entity", content_url: "/media/a.mkv"}, fields)
 
@@ -13,8 +13,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
           %{
             entry: entry(episode_id: "ep-1"),
             transport: %MediaCentaur.Playback.FakeTransport{owner: self(), attached?: true},
-            playlist_count: 1,
-            playlist_pos: 0
+            properties: %MpvProperties{playlist_count: 1, playlist_pos: 0}
           },
           overrides
         )
@@ -30,7 +29,9 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
     end
 
     test "does not queue when the current entry is not the playlist tail" do
-      refute MpvSession.queue_next?(queue_state(%{playlist_count: 3, playlist_pos: 1}))
+      refute MpvSession.queue_next?(
+               queue_state(%{properties: %MpvProperties{playlist_count: 3, playlist_pos: 1}})
+             )
     end
 
     test "does not queue while the transport is detached" do
@@ -49,7 +50,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
         Map.merge(
           %{
             entry: entry(Map.merge(%{entity_id: "movie-1", movie_id: "movie-1"}, entry_fields)),
-            duration: 6000.0,
+            properties: %MpvProperties{duration: 6000.0},
             tracker: %{WatchingTracker.new() | saveable_position: 5500.0}
           },
           overrides
@@ -67,7 +68,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
     test "judges the saved position, not a seek target ahead of it" do
       state =
         watching_state(%{
-          position: 5900.0,
+          properties: %MpvProperties{duration: 6000.0, position: 5900.0},
           tracker: %{WatchingTracker.new() | saveable_position: 3000.0}
         })
 
@@ -133,7 +134,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
         struct!(MpvSession, %{
           profile_id: profile_id,
           entry: entry(episode_id: "ep-1"),
-          position: 1200.0,
+          properties: %MpvProperties{position: 1200.0},
           tracker: WatchingTracker.new()
         })
 
@@ -142,7 +143,7 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       assert next.profile_id == profile_id
       assert next.entry.episode_id == "ep-2"
       assert next.entry.content_url == "/media/b.mkv"
-      assert next.position == 0.0
+      assert next.properties.position == 0.0
     end
 
     test "an advance keeps the selected tracks: mpv keeps them across files and reports only a change" do
@@ -150,15 +151,14 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
         struct!(MpvSession, %{
           profile_id: Ecto.UUID.generate(),
           entry: entry(episode_id: "ep-1"),
-          current_aid: 1,
-          current_sid: 2,
+          properties: %MpvProperties{aid: 1, sid: 2},
           tracker: WatchingTracker.new()
         })
 
       next = MpvSession.reset_for_file(state, @next_entry)
 
-      assert next.current_aid == 1
-      assert next.current_sid == 2
+      assert next.properties.aid == 1
+      assert next.properties.sid == 2
       assert next.enforced_sid == nil
     end
   end

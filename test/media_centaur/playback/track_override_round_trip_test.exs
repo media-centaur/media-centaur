@@ -19,7 +19,14 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.{LanguageContext, LanguagePolicy, OverrideCapture, TrackResolver}
+
+  alias MediaCentaur.Playback.{
+    LanguageContext,
+    LanguagePolicy,
+    MpvProperties,
+    OverrideCapture,
+    TrackResolver
+  }
 
   # English speaker, fallback-only: subtitles only when the audio is in a
   # language they don't understand; forced ("Greedo scene") subs fill the
@@ -105,7 +112,7 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     resolver_choice = state("jpn", "eng")
 
     {audio_tracks, subtitle_tracks} =
-      LanguageContext.parse_track_list([
+      MpvProperties.parse_track_list([
         %{"id" => 1, "type" => "audio", "lang" => "jpn"},
         %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => false}
       ])

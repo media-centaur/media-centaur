@@ -4,96 +4,8 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.{Entry, LanguageContext}
+  alias MediaCentaur.Playback.{Entry, LanguageContext, MpvProperties}
   alias MediaCentaur.Playback.LanguagePolicy
-
-  describe "parse_track_list/1 — pure parser" do
-    test "splits audio and subtitle tracks; converts mpv shape to Track struct" do
-      raw = [
-        %{
-          "id" => 1,
-          "type" => "audio",
-          "lang" => "jpn",
-          "title" => "Stereo",
-          "forced" => false
-        },
-        %{"id" => 2, "type" => "audio", "lang" => "eng"},
-        %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => false},
-        %{"id" => 2, "type" => "sub", "lang" => "eng", "forced" => true},
-        %{"id" => 3, "type" => "video"}
-      ]
-
-      {audio, subs} = LanguageContext.parse_track_list(raw)
-
-      assert length(audio) == 2
-      assert length(subs) == 2
-      assert Enum.at(audio, 0).index == 1
-      assert Enum.at(audio, 0).lang == "jpn"
-      assert Enum.at(audio, 0).title == "Stereo"
-      assert Enum.at(subs, 1).forced == true
-    end
-
-    test "treats empty-string lang as nil" do
-      raw = [%{"id" => 1, "type" => "audio", "lang" => ""}]
-      {[track], []} = LanguageContext.parse_track_list(raw)
-      assert track.lang == nil
-    end
-
-    test "normalizes track languages to canonical 3-letter form at the boundary" do
-      # mpv reports a mix of 2-letter ("en") and 3-letter ("jpn") codes;
-      # all become canonical 3-letter once parsed, so no downstream
-      # comparison ever has to reconcile forms.
-      raw = [
-        %{"id" => 1, "type" => "audio", "lang" => "ja"},
-        %{"id" => 2, "type" => "audio", "lang" => "jpn"},
-        %{"id" => 1, "type" => "sub", "lang" => "en"},
-        %{"id" => 2, "type" => "sub", "lang" => "fre"}
-      ]
-
-      {audio, subs} = LanguageContext.parse_track_list(raw)
-
-      assert Enum.map(audio, & &1.lang) == ["jpn", "jpn"]
-      assert Enum.map(subs, & &1.lang) == ["eng", "fra"]
-    end
-
-    test "detects sdh via mpv's hearing-impaired flag" do
-      raw = [%{"id" => 1, "type" => "sub", "lang" => "eng", "hearing-impaired" => true}]
-      {[], [track]} = LanguageContext.parse_track_list(raw)
-      assert track.sdh == true
-    end
-
-    test "detects sdh via title heuristic" do
-      raw = [
-        %{"id" => 1, "type" => "sub", "lang" => "eng", "title" => "English [SDH]"},
-        %{"id" => 2, "type" => "sub", "lang" => "eng", "title" => "Full"}
-      ]
-
-      {[], [sdh_track, regular_track]} = LanguageContext.parse_track_list(raw)
-      assert sdh_track.sdh == true
-      assert regular_track.sdh == false
-    end
-
-    test "parses the default disposition flag from the mpv track map" do
-      raw = [
-        %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => true, "default" => true},
-        %{"id" => 2, "type" => "sub", "lang" => "eng", "default" => false},
-        %{"id" => 3, "type" => "sub", "lang" => "spa"}
-      ]
-
-      {[], [forced_default, explicit_non_default, absent]} =
-        LanguageContext.parse_track_list(raw)
-
-      assert forced_default.default == true
-      assert explicit_non_default.default == false
-      # Absent flag defaults to false, matching mpv's "no disposition" semantics.
-      assert absent.default == false
-    end
-
-    test "returns empty lists for non-list input" do
-      assert {[], []} = LanguageContext.parse_track_list(nil)
-      assert {[], []} = LanguageContext.parse_track_list("garbage")
-    end
-  end
 
   describe "to_mpv_options/1" do
     test "emits alang/slang/subs-with-matching-audio pairs from the priority args" do
@@ -164,7 +76,7 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
         %{"id" => 2, "type" => "sub", "lang" => "eng", "forced" => true}
       ]
 
-      {audio, subs} = LanguageContext.parse_track_list(raw)
+      {audio, subs} = MpvProperties.parse_track_list(raw)
       %{audio: audio, subs: subs}
     end
 
@@ -194,7 +106,7 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
         %{"id" => 2, "type" => "sub", "lang" => "eng", "forced" => true}
       ]
 
-      {audio, subs} = LanguageContext.parse_track_list(raw)
+      {audio, subs} = MpvProperties.parse_track_list(raw)
       %{audio: audio, subs: subs}
     end
 

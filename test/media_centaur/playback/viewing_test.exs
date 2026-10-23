@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.ViewingTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.{Entry, MpvSession}
+  alias MediaCentaur.Playback.{Entry, MpvProperties, MpvSession}
   alias MediaCentaur.Playback.TrackResolver.Track
   alias MediaCentaur.Playback.Viewing
 
@@ -51,18 +51,20 @@ defmodule MediaCentaur.Playback.ViewingTest do
           episode_name: "The Long Night",
           content_url: "/shows/a.mkv"
         },
-        position: 100.0,
-        duration: 2600.0,
-        paused: true,
+        properties: %MpvProperties{
+          position: 100.0,
+          duration: 2600.0,
+          paused: true,
+          chapters: @chapters,
+          chapter: 1,
+          audio_tracks: [%Track{index: 1, lang: "eng", codec: "dts"}],
+          subtitle_tracks: [%Track{index: 2, lang: "eng", codec: "hdmv_pgs_subtitle"}],
+          aid: 1,
+          sid: 2,
+          subtitle_text: "A line"
+        },
         state: :paused,
-        chapters: @chapters,
-        chapter: 1,
-        audio_tracks: [%Track{index: 1, lang: "eng", codec: "dts"}],
-        subtitle_tracks: [%Track{index: 2, lang: "eng", codec: "hdmv_pgs_subtitle"}],
-        current_aid: 1,
-        current_sid: 2,
-        pending_next: %Entry{entity_id: "entity", episode_id: "next", content_url: "/shows/b.mkv"},
-        subtitle_text: "A line"
+        pending_next: %Entry{entity_id: "entity", episode_id: "next", content_url: "/shows/b.mkv"}
       }
 
       viewing = Viewing.from_session(session)

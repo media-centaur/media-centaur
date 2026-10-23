@@ -2,12 +2,9 @@ defmodule MediaCentaur.Playback.LanguageContext do
   @moduledoc """
   Glue between `MpvSession` and the language-preferences subsystem.
   Owns all the impure work (DB lookups for policy/override/entity
-  metadata) and the parsing of mpv's `track-list` property into
-  `TrackResolver.Track` structs.
-
-  `MpvSession` calls `init/2` at session start to load the language
-  context once, and `parse_track_list/1` whenever mpv emits a
-  track-list update.
+  metadata); `MpvSession` calls `init/2` at session start to load the
+  language context once. mpv's `track-list` is parsed into
+  `TrackResolver.Track` structs by `MpvProperties`.
   """
 
   alias MediaCentaur.Library
@@ -71,71 +68,6 @@ defmodule MediaCentaur.Playback.LanguageContext do
 
   defp append_lang_option(acc, _name, []), do: acc
   defp append_lang_option(acc, name, langs), do: acc ++ [{name, Enum.join(langs, ",")}]
-
-  @doc """
-  Parse mpv's `track-list` property value (a list of mpv track maps)
-  into `{audio_tracks, subtitle_tracks}` of `TrackResolver.Track` structs.
-  """
-  @spec parse_track_list([map()]) :: {[Track.t()], [Track.t()]}
-  def parse_track_list(tracks) when is_list(tracks) do
-    {audio_raw, sub_raw} =
-      Enum.split_with(tracks, fn track -> Map.get(track, "type") == "audio" end)
-
-    sub_raw = Enum.filter(sub_raw, fn track -> Map.get(track, "type") == "sub" end)
-
-    {Enum.map(audio_raw, &build_track/1), Enum.map(sub_raw, &build_track/1)}
-  end
-
-  def parse_track_list(_), do: {[], []}
-
-  defp build_track(track) do
-    %Track{
-      index: Map.get(track, "id"),
-      # Boundary normalization: every track language entering the system
-      # is canonicalized to 3-letter ISO 639-2/T here, so downstream code
-      # never has to reconcile mpv's "en"/"jpn" forms against TMDB's
-      # "en"/"ja" forms — they're all the same form past this point.
-      lang: Iso639.normalize(lang_of(track)),
-      title: Map.get(track, "title"),
-      forced: Map.get(track, "forced", false) == true,
-      # The `default` disposition pairs with `forced` to expose the
-      # mislabel signature the resolver distrusts (`forced+default` on a
-      # full dialogue track). mpv exposes a boolean `default` per track.
-      default: Map.get(track, "default", false) == true,
-      sdh: sdh_of(track),
-      # The codec tells a bitmap subtitle track (PGS, VobSub) from text;
-      # a player that draws nothing cannot show the former (`Viewing`).
-      codec: Map.get(track, "codec")
-    }
-  end
-
-  defp lang_of(track) do
-    case Map.get(track, "lang") do
-      lang when is_binary(lang) and lang != "" -> lang
-      _ -> nil
-    end
-  end
-
-  # mpv exposes a "hearing-impaired" flag in track-list when the
-  # source codec/container tags it (Matroska's flag-hearing-impaired,
-  # MP4's `name` element with conventional SDH markers). When absent,
-  # fall back to a title-text heuristic — encoders frequently set the
-  # title to "SDH" or "CC" by convention.
-  defp sdh_of(track) do
-    case Map.get(track, "hearing-impaired") do
-      true ->
-        true
-
-      _ ->
-        case Map.get(track, "title") do
-          title when is_binary(title) ->
-            String.contains?(String.downcase(title), ["sdh", "cc", "hearing impaired"])
-
-          _ ->
-            false
-        end
-    end
-  end
 
   @doc """
   Look up a track's language by its mpv id within an audio or subtitle
