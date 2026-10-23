@@ -1,10 +1,10 @@
 defmodule MediaCentaurWeb.PlayerSocket do
   @moduledoc """
   The WebSocket end of a remote player's channel. Speaks frames only:
-  every decision is `Playback.Remote.Channel`'s, over the state this
+  every decision is `Playback.Transport.Remote.Channel`'s, over the state this
   process holds. Opened by `Plugs.PlayerChannel` for a paired player with
-  the locators that turn a presence id into a media URL for this player
-  (`MediaToken` inside) and a URL back into the id.
+  the media URLs for this player: the functions that compose a presence's
+  URL (`MediaToken` inside) and read a presence id back out of one.
 
   The gate's enforcement point for the channel (ADR-079): it subscribes
   to `players:updates`, and its own player's removal closes the channel
@@ -15,13 +15,13 @@ defmodule MediaCentaurWeb.PlayerSocket do
 
   @behaviour WebSock
 
-  alias MediaCentaur.Playback.Remote.Channel
+  alias MediaCentaur.Playback.Transport.Remote.Channel
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
 
   @impl true
-  def init(%{player_id: player_id, locators: locators}) do
-    case Channel.connect(player_id, locators) do
+  def init(%{player_id: player_id, media_urls: media_urls}) do
+    case Channel.connect(player_id, media_urls) do
       {:ok, state} ->
         :ok = Players.subscribe()
         {:ok, state}

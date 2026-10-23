@@ -1,10 +1,10 @@
-defmodule MediaCentaur.Playback.IpcFramingTest do
+defmodule MediaCentaur.Playback.Transport.Local.IpcFramingTest do
   @moduledoc """
   Pure-function tests for the mpv JSON-IPC newline framing.
   """
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Playback.IpcFraming
+  alias MediaCentaur.Playback.Transport.Local.IpcFraming
 
   describe "feed/2" do
     test "returns a single complete line and an empty remainder" do

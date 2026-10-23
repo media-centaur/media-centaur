@@ -8,7 +8,7 @@ defmodule MediaCentaur.Playback.Transport.Local do
   (`{:attached, :reconnected}`, ADR-023) before spawning a fresh one from
   `LaunchFlags.argv/1` under `Platform.DisplayEnv`. The socket's bytes are
   stitched into IPC lines by `IpcFraming` and decoded here; the port's exit
-  status and merged stderr feed `MpvExitClassifier` once both exit signals
+  status and merged stderr feed `ExitClassifier` once both exit signals
   have had a moment to arrive, which becomes the `{:closed, _}` event.
 
   `close/2` with `final?` false leaves the socket file for recovery on the
@@ -28,7 +28,8 @@ defmodule MediaCentaur.Playback.Transport.Local do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Platform.DisplayEnv
-  alias MediaCentaur.Playback.{IpcFraming, LaunchFlags, MpvExitClassifier, MpvLogReader, MpvUserConfig, SessionRecovery}
+  alias MediaCentaur.Playback.{LaunchFlags, SessionRecovery}
+  alias MediaCentaur.Playback.Transport.Local.{ExitClassifier, IpcFraming, LogReader, UserConfig}
   alias MediaCentaur.Settings.Config
 
   @socket_prefix "media-centaur-"
@@ -286,15 +287,15 @@ defmodule MediaCentaur.Playback.Transport.Local do
   # and logged live so a failure is diagnosable from the Console.
   def handle_message(%{port: port} = transport, {port, {:data, data}}) do
     log_mpv_lines(data)
-    {[], %{transport | output_tail: MpvExitClassifier.append_output(transport.output_tail, data)}}
+    {[], %{transport | output_tail: ExitClassifier.append_output(transport.output_tail, data)}}
   end
 
   def handle_message(transport, {:transport, :classify}) do
     classification =
-      MpvExitClassifier.classify(%{
+      ExitClassifier.classify(%{
         seen_property_event?: transport.seen_property_event?,
         exit_status: transport.exit_status,
-        output_tail: MpvLogReader.fallback_tail(transport.output_tail, transport.log_file_path, 5)
+        output_tail: LogReader.fallback_tail(transport.output_tail, transport.log_file_path, 5)
       })
 
     case classification do
@@ -344,7 +345,7 @@ defmodule MediaCentaur.Playback.Transport.Local do
   # double every overlay. Named here so Status → Playback shows them; the
   # app never deletes anything in the user's mpv config.
   defp warn_about_stale_script_copies do
-    case MpvUserConfig.stale_bundled_copies() do
+    case UserConfig.stale_bundled_copies() do
       [] ->
         :ok
 

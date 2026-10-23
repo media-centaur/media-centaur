@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
   alias MediaCentaur.Players.Events.PlayerRemoved
   alias MediaCentaurWeb.PlayerSocket
 
-  @locators %{locate: &Function.identity/1, identify: &Function.identity/1}
+  @media_urls %{for_file: &Function.identity/1, presence_id: &Function.identity/1}
 
   # A channel no session holds is asked what it plays; this player plays nothing.
   defp answer_recovery do
@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
 
   test "its own player's removal stops the device's mpv and closes the channel; another player's removal is nobody's" do
     player_id = Ecto.UUID.generate()
-    {:ok, state} = PlayerSocket.init(%{player_id: player_id, locators: @locators})
+    {:ok, state} = PlayerSocket.init(%{player_id: player_id, media_urls: @media_urls})
     answer_recovery()
 
     Players.Events.broadcast(%PlayerRemoved{id: Ecto.UUID.generate()})

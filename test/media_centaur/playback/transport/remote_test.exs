@@ -11,7 +11,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
 
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Subtitles
-  alias MediaCentaur.Playback.Remote.PlayerRegistry
+  alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
   alias MediaCentaur.Playback.Transport.Remote
 
   @base "http://tv.test:2160"
@@ -22,12 +22,12 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     File.write!(path, "")
     presence = FilePresence.stamp(path, media_dir)
 
-    locators = %{
-      locate: fn presence_id -> "#{@base}/media/#{presence_id}?t=token" end,
-      locate_subtitle: fn presence_id, basename ->
+    media_urls = %{
+      for_file: fn presence_id -> "#{@base}/media/#{presence_id}?t=token" end,
+      for_sidecar: fn presence_id, basename ->
         "#{@base}/media/#{presence_id}/subtitles/#{basename}?t=token"
       end,
-      identify: fn url ->
+      presence_id: fn url ->
         case URI.parse(url) do
           %URI{path: "/media/" <> id} -> id
           _other -> nil
@@ -36,7 +36,7 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     }
 
     player_id = Ecto.UUID.generate()
-    :ok = PlayerRegistry.register(player_id, locators)
+    :ok = PlayerRegistry.register(player_id, media_urls)
     %{player_id: player_id, presence: presence, path: path}
   end
 

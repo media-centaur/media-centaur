@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Playback.IpcFraming do
+defmodule MediaCentaur.Playback.Transport.Local.IpcFraming do
   @moduledoc """
   Newline framing for the mpv JSON-IPC byte stream.
 

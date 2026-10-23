@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.Endpoint do
   plug MediaCentaurWeb.Plugs.RemoteAccess
 
   # A paired player's channel: upgraded here, behind the gate, before the
-  # router (`Playback.Remote.Channel` owns the protocol).
+  # router (`Playback.Transport.Remote.Channel` owns the protocol).
   plug MediaCentaurWeb.Plugs.PlayerChannel
 
   plug MediaCentaurWeb.Plugs.ImageServer

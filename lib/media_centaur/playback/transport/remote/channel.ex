@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Playback.Remote.Channel do
+defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   @moduledoc """
   The player channel's protocol, as functions over the state of the
   process that owns the WebSocket (`MediaCentaurWeb.PlayerSocket`, which
@@ -34,7 +34,7 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   Players: Playback takes a player as a value.
   """
 
-  alias MediaCentaur.Playback.Remote.PlayerRegistry
+  alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
   alias MediaCentaur.Playback.{SessionRegistry, Sessions}
 
   @ping_interval_ms 15_000
@@ -42,7 +42,7 @@ defmodule MediaCentaur.Playback.Remote.Channel do
 
   defstruct [
     :player_id,
-    :locators,
+    :media_urls,
     session: nil,
     session_ref: nil,
     pending: %{},
@@ -72,10 +72,10 @@ defmodule MediaCentaur.Playback.Remote.Channel do
   second channel for a player must evict the first with `replace/1`
   before connecting.
   """
-  @spec connect(String.t(), PlayerRegistry.locators()) ::
+  @spec connect(String.t(), PlayerRegistry.media_urls()) ::
           {:ok, t()} | {:error, {:already_registered, pid()}}
-  def connect(player_id, locators) do
-    with :ok <- PlayerRegistry.register(player_id, locators) do
+  def connect(player_id, media_urls) do
+    with :ok <- PlayerRegistry.register(player_id, media_urls) do
       case SessionRegistry.on_player(player_id) do
         [] ->
           {:ok, _pid} = Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> Sessions.recover(player_id) end)
@@ -87,7 +87,7 @@ defmodule MediaCentaur.Playback.Remote.Channel do
       end
 
       Process.send_after(self(), {:channel, :ping}, @ping_interval_ms)
-      {:ok, %__MODULE__{player_id: player_id, locators: locators, last_pong_at: now()}}
+      {:ok, %__MODULE__{player_id: player_id, media_urls: media_urls, last_pong_at: now()}}
     end
   end
 
