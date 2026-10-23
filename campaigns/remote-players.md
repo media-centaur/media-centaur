@@ -799,8 +799,69 @@ decision 14's.
    7. Verification: `agent-mix precommit`; `mc-player-sim` headless: play,
       a seek past the credits, auto-advance, the finish; `mc-tv-flow osd tv`
       once, when the Sony is paired and free.
-6. **Plan unification** — the next session, on the plan as written.
-7. **Execution** — after step 6.
+6. **Plan unification** (2026-10-23, `unify_design` on the plan alone,
+   against the code read field by field). Six corrections, none widening
+   the scope; each taken under the owner's step-3 direction to go with
+   plain recommendations:
+   1. *One caller of three.* Step 1 names `Sessions` as the params reader
+      but not `Transport.Local.for_player/2` (reads `params.entity_id`)
+      and `Transport.Local.recover/1`'s log line (`params[:entity_name]`),
+      nor `MpvSession.start_link/1` and `child_spec/1` (the registry key).
+      All five read `params.entry` in the same commit; the fake
+      transport's `for_player/2` already reads only `params.transport`.
+   2. *A sixth entry shape.* The unattributed-file advance builds a map of
+      nils by hand today, and recovery's "file not in library" branch
+      builds a bare `%{entity_id, content_url, start_position}`. Both are
+      the one struct with nil identity: `Entry.unattributed/2` (the
+      session's entity id and name kept, the reported path, no keys, no
+      numbers). Both builders (`NextEpisode.resolve/2`, `identify/2`) fill
+      `entity_id` and `entity_name`, so an advance replaces the entry
+      whole instead of merging five fields into it.
+   3. *A mirror that reads the policy for its parser.* `track-list` is
+      parsed by `LanguageContext.parse_track_list/1` into `Track` structs
+      before it is kept; after step 2 the mirror is its only caller, and a
+      parse of mpv's property into a value is the mirror's. The parser
+      (`parse_track_list`, `build_track`, `lang_of`, `sdh_of`) moves to
+      `MpvProperties` in step 2; `language_context_test`'s eight parser
+      cases move to `mpv_properties_test`, assertions intact.
+      `LanguageContext` keeps `init`, `to_mpv_options`, `lang_at`,
+      `forced_at`, `current_selection`.
+   4. *A test stand-in that encodes the old shape.* Step 2 sends
+      `mpv_session_test`'s two `reset_for_file` cases to
+      `mpv_properties_test`, but they pin the session's per-file reset
+      (the profile kept across an advance; `aid`/`sid` kept while
+      `enforced_sid` clears), which composes the mirror's reset and the
+      policy's. They stay in `mpv_session_test` against
+      `MpvSession.reset_for_file/2` (state, entry), still `@doc false`,
+      with fixtures in the new shape; `mpv_properties_test` gets its own
+      case for the aid/sid rule, and `LanguageContext.reset_for_file/1`
+      (clears `resolver_choice` and `enforced_sid`) is named in step 5.
+   5. *The append is missing from the chain.* Step 3 lists the queue test
+      and the advance; the design's chain has three parts. Step 3 adds
+      `Chain.successor/3` (profile, entry, transport): resolves the
+      successor, asks the transport for its media URL, answers
+      `{:ok, entry, ipc} | :none | {:error, reason}`; the session sends
+      and logs, as it does for the policy's IPC. `queue_next?/4` takes
+      (pending, entry, properties, transport).
+   6. *Arities.* `ProgressWriter.judge/4` (completed, entry, properties,
+      tracker) answers `{reason | nil, completed}`, so the moved
+      `judge_completion` cases keep their assertions on the set;
+      `persist/5` is (profile, entry, saveable, duration, reason);
+      `broadcast_end/2` (profile, entry) is the finalise-time refresh.
+      `LanguageContext.captures?/1` names the two capture guards.
+   Kept as decided: `PlaybackFailed`'s payload stays flat (the web
+   formatter's contract) and is built from the entry in one place, the
+   disposition the design pass gave `Viewing`; the resolver's `action`
+   assertions in `resolver_test` go with the key (the file chosen is
+   pinned by `content_url` and `start_position` on the same lines);
+   `reattach?` set both by `reattach_params/4` and by `Sessions.resume/2`
+   is pre-existing and stays (`session_recovery_player_test` asserts the
+   former). Ordering holds: step 1 lands the entry with the flat mirror
+   fields still in place and `Viewing` reads both, step 2 replaces the
+   fields — two edits to `Viewing`, no shim, each commit whole. No
+   constant moves: the three intervals, the unknown-file message and the
+   streamed-property list are the GenServer's.
+7. **Execution** — after step 6; recorded per commit below.
 
 ### M7 — Release path and owner checks (procedure record, in progress)
 
