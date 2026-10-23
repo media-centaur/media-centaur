@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.PairingHTML do
 
   def pair(assigns) do
     ~H"""
-    <main class="page-side-dim-calm flex min-h-screen items-center justify-center p-6">
+    <main class="page-side-dim-calm flex min-h-[calc(100*var(--pvh))] items-center justify-center p-6">
       <div class="glass-surface w-full max-w-md space-y-5 rounded-xl p-6">
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Pair this device</h1>
@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.PairingHTML do
             errors={code_errors(@reason)}
             maxlength="6"
             autocomplete="one-time-code"
-            class="font-mono tracking-widest"
+            class="w-full input font-mono tracking-widest"
           />
           <.button type="submit" variant="primary">Pair</.button>
         </.form>

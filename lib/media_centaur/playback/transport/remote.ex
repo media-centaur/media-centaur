@@ -33,6 +33,11 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   is its OSD, so `draws_subtitles?/1` is false and the session never
   selects a bitmap subtitle track on it.
 
+  The stream is the transport's delivery, so its options ride on each
+  `loadfile` beside the session's: FFmpeg's HTTP reconnect, which resumes
+  the Range after a dropped connection — a host restart or a network
+  blip — instead of taking the short read for the file's end.
+
   A `loadfile … replace` on an mpv that still holds a file (a viewing
   replacing another, or one that ended on `keep-open`) makes mpv end that
   file before it starts ours, and the device's bridge cannot know the
@@ -235,6 +240,23 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   end
 
   # mpv ≥ 0.38's five-argument form: the index is required before the options.
-  defp loadfile(launch, url, mode, start),
-    do: ["loadfile", url, mode, -1, LaunchFlags.per_file_options(launch.session_options, start)]
+  # The stream's own options ride on the file beside the session's. A host
+  # restart (an update, say) or a network blip ends the TCP stream early,
+  # and FFmpeg's HTTP reader takes a short read for the file's end — the
+  # Sony sat on `eof-reached` at 84 s of 2543 (2026-10-23). `reconnect`
+  # resumes the Range from its offset after an early EOF and
+  # `reconnect_on_network_error` keeps trying while the host is still
+  # down, both with FFmpeg's backoff and caps (120 s between tries, 256 s
+  # in all). mpv ignores a key a build lacks.
+  @stream_options [{"stream-lavf-o", "reconnect=1,reconnect_on_network_error=1"}]
+
+  defp loadfile(launch, url, mode, start) do
+    [
+      "loadfile",
+      url,
+      mode,
+      -1,
+      LaunchFlags.per_file_options(@stream_options ++ launch.session_options, start)
+    ]
+  end
 end
