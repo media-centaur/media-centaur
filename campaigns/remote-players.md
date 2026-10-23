@@ -38,6 +38,17 @@ Defined before use; refine as the campaign proceeds, elevate to
 
 ## Status
 
+**Re-scoped 2026-10-23 at the owner's direction: the Google Play work
+leaves this campaign for `google-play.md`.** What is left here, in the
+owner's order: the owner's walk through the TV and their own usability
+pass on the released build (the pending Sony checks `m6tv`, `m6tv-d`
+and `mc-tv-flow osd tv` run in it; a fault it names is fixed under M6's
+Back-key and D-pad item through the procedure), then — after the Play
+campaign — the merge of `remote-players` into main, a **major** host
+release, the wiki push and closure. Which host the owner explores
+against is open decision 15. Nothing an agent can do alone until the
+walk names a fault. The earlier state:
+
 **M9 done 2026-10-23: the session's shape is executed and verified on
 the simulator; nothing of the agent's is left before the owner's
 items.** `MpvSession` is a thin GenServer over `Playback.Entry`,
@@ -223,6 +234,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-23` — M9, the session's shape, runs immediately after M8 on the branch. No merge is considered until the owner has crossed their own T's and dotted their own I's: the feature is large and its impact large, and the merge is not a near step (open decision 12 → "immediately after", with the merge far off). (owner)
 * `2026-10-23` — The layout of the spec's §2.5: each transport's helpers under it, `Playback.Remote.*` folded into `Playback.Transport.Remote.*`, in M8 (open decision 13 → (a)). (owner)
 * `2026-10-23` — Names (open decision 14): `Transport.holds_one_viewing?/1`; `Playback.Entry` and `Playback.MpvProperties` for M9; *locators* become **media URLs** (`for_file`, `for_sidecar`, `presence_id`). The owner asked for plain, logical words and then took the agent's recommendations. (owner)
+* `2026-10-23` — The Google Play work (account, internal track, production) is its own campaign, `google-play.md`. The order from here: this campaign's remaining items, the owner's own exploration of the app and iteration on its usability, then Google Play, then the merge to main and a **major** host release. (owner)
 
 ## Open decisions
 
@@ -406,6 +418,24 @@ pattern (for the media endpoint); the bootstrap TOML tier in
     URL functions `for_file`, `for_sidecar`, `presence_id` (sentences at
     the call site); `Playback.Entry` and `Playback.MpvProperties` stand.
     Decided.
+15. **Which host the owner explores against** (2026-10-23). The owner
+    wants to explore the app on the TV and iterate on its usability
+    before the merge, with their real library. Only the sim host
+    (`mc-sim-host`, port 4003, three 90 s test files, its own database)
+    runs the branch today; the owner's dev server runs main, which has
+    no remote-players code. Options: (a) the dev server on the branch —
+    switch main's checkout to `remote-players` (or point the unit at the
+    worktree) and restart `media-centaur-dev`; the branch's one migration
+    (`20261022120000_create_players`, a new `players` table, nothing
+    altered) runs on the real database, and main still runs on that
+    database afterwards, so the switch is reversible; (b) the sim host
+    with the owner's media dirs added and a scan — a second database
+    with the real library, no change to the real one, but no progress
+    history and a second copy of the library's metadata and images;
+    (c) `mc-sim-host stage` to link single files — for playback checks,
+    not for exploring the app. Recommendation: (a) — the usability pass
+    is meant to be the real app with the real library, the migration is
+    additive, and the merge follows the pass anyway.
 
 ## Next steps
 
@@ -511,9 +541,10 @@ first, then iteration. The contract both codebases follow is
    through every page and the full viewing lifecycle on the TV. Steps
    1–7 run 2026-10-23 (record below): the TV app's repository, CI,
    signed release v0.1.0, wiki page and the Pair card's link are done
-   and the released build is on the Sony. Left: the Play internal
-   track with the owner at the keyboard, the owner's walk, the merge
-   and host release, closure.
+   and the released build is on the Sony. Left: the owner's walk and
+   usability pass, then (after `google-play.md`) the merge, the major
+   host release, closure. The Play internal track moved to
+   `google-play.md` 2026-10-23.
 8. ✅ **M8 — The player model.** Done 2026-10-23 (record below; design in
    `docs/superpowers/specs/2026-10-23-player-model-design.md`): one
    player-id type, the socket holding the id, Playback free of
@@ -1085,6 +1116,11 @@ line linking the release page, test-first (red, then green), `mix
 precommit` green (8708 Elixir tests, 935 JavaScript tests). Left in M7:
 the Play internal track (the sit-down), the owner's walk, the merge and
 the host release that pushes the wiki, closure.
+
+*2026-10-23, re-scope (owner):* item (b), the Play internal track,
+leaves M7 for `google-play.md`; the release in (g) is a major version;
+the order is the owner's walk and usability pass, the Play campaign,
+then (g) and (h).
 
 ### M6 — Hardening (procedure record, in progress)
 
@@ -3009,8 +3045,9 @@ No step keeps an old path or lands through a shim.
 
 ## Completion criteria
 
-* A Google TV on the LAN, with only the TV app installed from the Play
-  Store internal track, pairs with the host from Settings → Players and
+* A Google TV on the LAN, with only the TV app installed from its
+  GitHub release (the Play Store install is `google-play.md`'s
+  criterion), pairs with the host from Settings → Players and
   shows the Media Centaur UI driven by its remote.
 * On that TV, every playable file in the library direct-plays with
   libmpv; progress, completion, next-episode auto-advance and the finish
@@ -3037,10 +3074,10 @@ log` in `~/src/media-centaur/android-app` and the wiki checkout first
 **Start here.** M8 and M9 are done and verified on the simulator; the
 branch is at `d83b2c35` (M9's seven commits after `748c8877`), precommit
 green. **Nothing is left that an agent can do alone.** Every open item
-is the owner's (the list under *What is left*): the Play internal
-track at the keyboard, the walk through the TV on the released build —
-which also runs the pending Sony checks `m6tv`, `m6tv-d` and
-`mc-tv-flow osd tv` — and, far off, the merge. When the owner names a
+is the owner's (the list under *What is left*): the walk through the
+TV and the usability pass on the released build — which also runs the
+pending Sony checks `m6tv`, `m6tv-d` and `mc-tv-flow osd tv` — then
+the Play campaign (`google-play.md`), and after it the merge. When the owner names a
 fault from the walk, run it through the milestone procedure under M6's
 Back-key and D-pad item; an app change means a new `appVersionName`, a
 CHANGELOG section and a tag. For any host-side change, the rig is
@@ -3107,32 +3144,31 @@ published.
 **What is left, in order.**
 1. **M9 is done.** Its Sony check (`mc-tv-flow osd tv`) and M8's
    (`m6tv`, `m6tv-d`) wait on the owner's walk (item 3).
-2. **The Play internal track — with the owner at the keyboard.** The
-   owner opens the Play Console account (one-time fee, identity check).
-   Then: create the app with id `app.mediacentaur.tv` and the name
-   "Media Centaur"; Play wants an AAB, so add `bundleRelease` to the
-   release workflow's artefacts (signed by the same variables; with Play
-   App Signing this key becomes the upload key); upload to the internal
-   testing track; list the testers; record the outcome in the M7 record
-   and the wiki page's Install section (today it says the app is not on
-   the Play Store). Not in scope: a production listing.
-3. **The owner's walk through the TV on the released build.** Starts by
-   pairing (Settings → Players → Start pairing on the sim host, the code
-   entered in the app, or `mc-tv-flow pair tv`). Whatever the walk names
-   is fixed under M6's Back-key and D-pad item through the procedure; an
-   app change means a new `appVersionName`, a CHANGELOG section and a tag.
-4. **Not yet, and not soon: the merge.** The owner is not ready to
-   consider it; they will name the checks that come first. When they
+2. **The owner's walk through the TV and their usability pass, on the
+   released build.** The owner explores the app on the TV and iterates
+   on its usability themselves; faults come back one at a time. Which
+   host: open decision 15 (recommendation: the dev server on the
+   branch). Starts by pairing (Settings → Players → Start pairing on
+   that host, the code entered in the app; on the sim host
+   `mc-tv-flow pair tv`). Whatever the walk names is fixed under M6's
+   Back-key and D-pad item through the procedure; an app change means a
+   new `appVersionName`, a CHANGELOG section and a tag.
+3. **Google Play — `google-play.md`** (moved out 2026-10-23): the
+   account, the bundle in the release, the internal track, production.
+   Runs after item 2 and before item 4.
+4. **Last: the merge and a major release.** The owner is not ready to
+   consider it; they will say when. When they
    say so: merge `remote-players` into main, `/ship
-   minor` from main (its CHANGELOG entry covers remote players end to
+   major` from main (its CHANGELOG entry covers remote players end to
    end: pairing, the TV app, playback on a TV, the Controls category,
    Continue Watching per device), push the wiki, then close the
    campaign: delete this file, write the index paragraph in
    `campaigns/README.md` with every leftover — the per-player UI scale
    (decision 10, for the future campaign *player operational status and
    settings*), the Sound column (9) and the speed test (3) as later
-   milestones if wanted, the Play production listing — and move the
-   glossary's `docs/GLOSSARY.md` rows to their final wording.
+   milestones if wanted — and move the glossary's `docs/GLOSSARY.md`
+   rows to their final wording. The Play production listing is
+   `google-play.md`'s M4, not a leftover here.
 
 **Earlier resume notes** (kept for their facts; superseded where they
 disagree with the state above).

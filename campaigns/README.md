@@ -22,13 +22,22 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`remote-players.md`](remote-players.md) —
-  **M9 done 2026-10-23: `MpvSession` is a thin GenServer over `Playback.Entry`, `Playback.MpvProperties`, `Playback.Chain`, `Playback.ProgressWriter` and `LanguageContext` as a struct (spec §2.4), verified on the simulator; M8 (the player model's quality pass — one player-id type, Playback free of Players, one kind dispatch, recovery per transport, media cut off on removal, each transport's helpers under it) done the same day. Nothing is left that an agent can do alone; the merge is not a near step. M1–M6 built and verified on the Sony 2026-10-22/23 on branch `remote-players` (unpushed, unmerged by the owner's instruction); M7's automation shipped 2026-10-23 — the TV app is public at `media-centaur/media-centaur-android` with CI and a tag-driven signed release, v0.1.0 published and installed on the Sony. Left with the owner: the Play internal track, the walk through the TV (with the pending Sony checks), then merge, host release, wiki push and closure.** The UI and playback on a Google TV
+  **M9 done 2026-10-23: `MpvSession` is a thin GenServer over `Playback.Entry`, `Playback.MpvProperties`, `Playback.Chain`, `Playback.ProgressWriter` and `LanguageContext` as a struct (spec §2.4), verified on the simulator; M8 (the player model's quality pass — one player-id type, Playback free of Players, one kind dispatch, recovery per transport, media cut off on removal, each transport's helpers under it) done the same day. Nothing is left that an agent can do alone; the merge is not a near step. M1–M6 built and verified on the Sony 2026-10-22/23 on branch `remote-players` (unpushed, unmerged by the owner's instruction); M7's automation shipped 2026-10-23 — the TV app is public at `media-centaur/media-centaur-android` with CI and a tag-driven signed release, v0.1.0 published and installed on the Sony. Re-scoped 2026-10-23: the Play work moved to `google-play.md`; left here: the owner's walk and usability pass on the TV (with the pending Sony checks), then — after the Play campaign — the merge, a major host release, wiki push and closure.** The UI and playback on a Google TV
   on the same network, at host fidelity. The TV runs a native Android TV
   app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
   over a WebSocket, so `MpvSession` stays the one session type and only
   the transport varies per player. Milestones: bind address + `Players`
   context + pairing and access plug; transport extraction; remote
   transport + media endpoint; the TV app; owner checks on the TV.
+* [`google-play.md`](google-play.md) —
+  **planning, parked 2026-10-23; runs after `remote-players`' remaining
+  items and the owner's usability pass, before the merge.** The TV app
+  on Google Play: the Play Console account (personal or organization —
+  the closed-testing rule for new personal accounts decides it), the
+  app bundle beside the APK in the tag-driven release, the internal
+  testing track with upload automation, then the production listing
+  with the Android TV review. Split from `remote-players` at the
+  owner's direction.
 * [`review-coherence.md`](review-coherence.md) —
   **shipped v1.48.0 2026-09-29; reporter check open.** Each half of a file's match is decided in one place:
   identity in Review, position in Episode mapping (`EpisodeMapping`,
