@@ -7,13 +7,12 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   Judges the peer address (`:peer_data` in the endpoint's `connect_info`)
   and the session's `"player_id"` through `MediaCentaurWeb.RemoteAccess.admit/2`,
   exactly as `Plugs.RemoteAccess` does for HTTP. Admitted, it assigns
-  `:player` (`:host`, or the `Players.Player` this device is) and
-  subscribes to `players:updates` through the subscribe door; when the
-  player this socket holds is removed, the page drops to the pairing
-  page. Unpaired, it halts the mount with a redirect there.
-
-  M3 of `campaigns/remote-players.md` reads `:player` to choose the
-  playback transport.
+  `:player` — the player this socket is on, as the id every viewing names
+  (`Playback.player/0`: `:host`, or the paired player's id), the value
+  `Playback.play/3` takes — and subscribes to `players:updates` through
+  the subscribe door; when the player this socket holds is removed, the
+  page drops to the pairing page. Unpaired, it halts the mount with a
+  redirect there.
   """
 
   use MediaCentaurWeb, :verified_routes
@@ -25,11 +24,6 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   alias MediaCentaur.Players.Events.PlayerRemoved
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.RemoteAccess
-
-  @doc "The player `Playback.play/3` takes for this socket: `:host`, or the paired player's id."
-  @spec playback_player(Phoenix.LiveView.Socket.t()) :: MediaCentaur.Playback.player()
-  def playback_player(%{assigns: %{player: :host}}), do: :host
-  def playback_player(%{assigns: %{player: %{id: id}}}), do: id
 
   def on_mount(:default, _params, session, socket) do
     %{address: address} = get_connect_info(socket, :peer_data)
@@ -49,7 +43,7 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
 
   defp on_players_event(
          {:player_removed, %PlayerRemoved{id: id}},
-         %{assigns: %{player: %{id: id}}} = socket
+         %{assigns: %{player: id}} = socket
        ), do: {:halt, redirect(socket, to: ~p"/pair")}
 
   defp on_players_event(_message, socket), do: {:cont, socket}

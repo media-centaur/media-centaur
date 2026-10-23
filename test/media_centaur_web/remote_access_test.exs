@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.RemoteAccessTest do
 
   test "a LAN address is the paired player its session names" do
     player = create_player(name: "Living room TV")
-    assert {:ok, %{id: id}} = RemoteAccess.admit(@lan, player.id)
+    assert {:ok, id} = RemoteAccess.admit(@lan, player.id)
     assert id == player.id
   end
 
