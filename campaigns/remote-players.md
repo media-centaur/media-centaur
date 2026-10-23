@@ -213,6 +213,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-23` — M8, the player model's quality pass, runs now on the branch (open decision 11 → (a)). (owner)
 * `2026-10-23` — M9, the session's shape, runs immediately after M8 on the branch. No merge is considered until the owner has crossed their own T's and dotted their own I's: the feature is large and its impact large, and the merge is not a near step (open decision 12 → "immediately after", with the merge far off). (owner)
 * `2026-10-23` — The layout of the spec's §2.5: each transport's helpers under it, `Playback.Remote.*` folded into `Playback.Transport.Remote.*`, in M8 (open decision 13 → (a)). (owner)
+* `2026-10-23` — Names (open decision 14): `Transport.holds_one_viewing?/1`; `Playback.Entry` and `Playback.MpvProperties` for M9; *locators* become **media URLs** (`for_file`, `for_sidecar`, `presence_id`). The owner asked for plain, logical words and then took the agent's recommendations. (owner)
 
 ## Open decisions
 
@@ -390,7 +391,12 @@ pattern (for the media endpoint); the bootstrap TOML tier in
     value `media_urls` with `file`, `sidecar` and `presence_id`
     functions; `Plugs.PlayerChannel.media_urls/2`), since *media URL* is
     already the protocol spec's defined term and *locators* is defined
-    nowhere. Execution waits on the owner's word.
+    nowhere. *Owner, 2026-10-23: reconsider for plainness, then go with
+    the recommendations.* Reconsidered: `holds_one_viewing?/1` (the
+    transport is the subject, as in `draws_subtitles?/1`) and the media
+    URL functions `for_file`, `for_sidecar`, `presence_id` (sentences at
+    the call site); `Playback.Entry` and `Playback.MpvProperties` stand.
+    Decided.
 
 ## Next steps
 
