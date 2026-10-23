@@ -2925,10 +2925,25 @@ No step keeps an old path or lands through a shim.
 
 ## Resuming in a new session
 
-Everything a fresh context needs, written 2026-10-23 at the end of the
-session that ran M7's automation. Reconcile against `git log
+Everything a fresh context needs, rewritten 2026-10-23 at the end of the
+session that ran M8 and designed M9. Reconcile against `git log
 remote-players`, `git log` in `~/src/media-centaur/android-app` and the
 wiki checkout first (the reconciliation rule).
+
+**Start here.** The next work is M9, *the session's shape*: read the
+design (`docs/superpowers/specs/2026-10-23-player-model-design.md`,
+§2.4 and item 10 of §3) and the M9 record above (steps 1–5: scope,
+research, decisions, design unification, the seven-step plan), then run
+step 6 — `unify_design` on the plan alone — and execute it one commit
+per step, `agent-mix test` on the touched files per step, `agent-mix
+precommit` at the end. The names are decided (decision 14 and M9 step
+3): `Playback.Entry`, `Playback.MpvProperties`, `Playback.Chain`,
+`Playback.ProgressWriter`, `LanguageContext` as a struct. It is a pure
+refactor: the existing tests are the contract; `mpv_session_test`'s and
+`viewing_test`'s struct fixtures move with the functions they pin,
+assertions intact. Verification at the end: `mc-player-sim --headless`
+against `mc-sim-host` (play, a seek past the credits, auto-advance, the
+finish), and `mc-tv-flow osd tv` once when the Sony is paired and free.
 
 **The owner's standing instruction.** Nothing from the host repository
 goes to main or to GitHub until the owner says so: no merge of
@@ -2936,14 +2951,16 @@ goes to main or to GitHub until the owner says so: no merge of
 The TV app's repository is the one public surface and is already
 published.
 
-**State (2026-10-23, end of day).**
+**State (2026-10-23, end of the M8 session).**
 * Host branch `remote-players`, worktree
-  `~/src/media-centaur/media-centaur-app-remote-players`, at `5427bc04`
-  (this session's commits: `ac634080` glossary and M7 scope, `cc9018dc`
-  decisions and M7 steps 2–6, `9c962cd0` the Pair card's link,
-  `5427bc04` the M7 execution record). Unpushed, unmerged, precommit
-  green (8708 Elixir tests, 935 JavaScript tests). Main's checkout runs
-  the owner's dev server; never build or edit there.
+  `~/src/media-centaur/media-centaur-app-remote-players`, at `2918e474`:
+  M8's nine code commits (`60b67d87` … `ed710500`, listed in the M8
+  record's step 7) and the campaign commits after them. Unpushed,
+  unmerged, precommit green (one `Database busy` flake in
+  `relay_sync_test`, passing alone; 935 JavaScript tests). Main's
+  checkout runs the owner's dev server; never build or edit there. The
+  TV rig scripts in `~/scripts/agents` (`mc-tv-flow`, `mc-tv-checks/*`)
+  already name the moved modules (`Playback.Transport.Remote.*`).
 * TV app: `~/src/media-centaur/android-app` on `main` at `230f622`,
   pushed to <https://github.com/media-centaur/media-centaur-android>
   (public). Tag `v0.1.0` released:
@@ -2971,13 +2988,23 @@ published.
   local and unpushed (`9df804c`, `de4868e`, `57560d0`, `32285f0`,
   `dab5336`, `98b4525` — the last is `Android-TV-App.md`, the sidebar
   entry and the Players reference). Push with the host release.
-* The sim host (`mc-sim-host`) was up on `http://192.168.68.67:4003`
-  serving the branch at the session's end; `mc-sim-host status` says.
+* The sim host (`mc-sim-host`) is down; `mc-sim-host start` serves the
+  branch on `http://192.168.68.67:4003`. It now has its own mpv socket
+  dir (`~/.cache/mc-sim-host/sockets`, set in its database and by
+  `setup`) — before 2026-10-23 it scanned `/tmp` and recovered the
+  owner's dev mpv as a host session. Its paired players are stale desk
+  sims; read the connected one from
+  `Transport.Remote.PlayerRegistry.connected()`, not `mc-sim-host ids`.
+  The M8 check scripts (`m8sim`, `m8sim6`) were session scratch; their
+  steps are in the M8 record.
 * `docs/GLOSSARY.md` carries the campaign's terms (Playback section).
   Memory file `project-remote-players-campaign.md` says this in short.
 
 **What is left, in order.**
-1. **The Play internal track — with the owner at the keyboard.** The
+1. **M9, the session's shape** — the agent's work, see *Start here*
+   above. M8 is done; its Sony checks (`m6tv`, `m6tv-d`) wait on the
+   owner's walk (item 3).
+2. **The Play internal track — with the owner at the keyboard.** The
    owner opens the Play Console account (one-time fee, identity check).
    Then: create the app with id `app.mediacentaur.tv` and the name
    "Media Centaur"; Play wants an AAB, so add `bundleRelease` to the
@@ -2986,16 +3013,11 @@ published.
    testing track; list the testers; record the outcome in the M7 record
    and the wiki page's Install section (today it says the app is not on
    the Play Store). Not in scope: a production listing.
-2. **The owner's walk through the TV on the released build.** Starts by
+3. **The owner's walk through the TV on the released build.** Starts by
    pairing (Settings → Players → Start pairing on the sim host, the code
    entered in the app, or `mc-tv-flow pair tv`). Whatever the walk names
    is fixed under M6's Back-key and D-pad item through the procedure; an
    app change means a new `appVersionName`, a CHANGELOG section and a tag.
-3. **M9, the session's shape** (opened 2026-10-23 with its scope, record
-   above; design in the spec's §2.4; names per decision 14). Steps 1–5
-   are recorded; run step 6 (plan unification) and then execute, on the
-   branch; `mc-tv-flow osd tv` once at its end. M8 is done (record above); its Sony checks (`m6tv`,
-   `m6tv-d`) wait on the owner's walk.
 4. **Not yet, and not soon: the merge.** The owner is not ready to
    consider it; they will name the checks that come first. When they
    say so: merge `remote-players` into main, `/ship
