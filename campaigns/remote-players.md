@@ -184,13 +184,18 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-23` — The TV's UI scale: a per-player scale factor (option (a) of open decision 10 — the Preferences stepper on a paired device writes the player's own factor, applied by the root layout for that device; the 0.7 auto-scale floor stays the desktop's). Not built in this campaign: the owner places it in a future campaign, *player operational status and settings*, to pursue once the more critical work is resolved; the TV stays at 1.4× until then. (owner's call)
 * `2026-10-23` — A remote player's stream reconnects: every `loadfile` the remote transport sends carries FFmpeg's HTTP `reconnect` and `reconnect_on_network_error`, so a host restart or a network blip stalls the viewing and resumes it instead of ending the file early. (M6 fourth batch)
 * `2026-10-23` — The TV app's audio buffer is 0.5 s (`Player.instanceOptions`): mpv's 0.2 s default underran once at every start on the Sony. (M6 fourth batch, `android-app`)
+* `2026-10-23` — The TV app's application id is `app.mediacentaur.tv` and its display name "Media Centaur", for good. (owner; open decision 1 → decided)
+* `2026-10-23` — The TV app ships first as a signed APK built in CI and attached to a GitHub release, which a user sideloads; the Google Play internal testing track is set up with the owner at the keyboard after the automation lands, since the Play Console account is theirs to open. (owner: "automate what we can before we do this")
+* `2026-10-23` — The TV app's repository is named for its platform, not its form factor: `media-centaur-android`, public, beside the app repository — a phone or tablet variant shares its Gradle project and libmpv, and an iOS app would be `media-centaur-ios`. (owner's question; agent's name)
+* `2026-10-23` — The TV app releases on its own cadence: its own tags and GitHub releases; `scripts/ship` tags the host only. The channel protocol is versioned by the spec, and a host release never waits on an app review. (owner)
+* `2026-10-23` — The Back-key and D-pad polish is named by the owner's walk through the TV (M7's owner check); the Sound column (9) and the speed test (3) leave M7 and become milestones of their own afterwards if the owner wants them. (owner)
 * `2026-10-22` — Every TV check prints the player's drop counters (`frame-drop-count`, `decoder-frame-drop-count`, `vo-delayed-frame-count`) after each viewing it drives — `DROPS:` lines in `mc-tv-flow osd`. A layer change that costs frames shows up there, not in a screenshot. (rig rule, owner's question)
 * `2026-10-22` — No 4K UI on the TV: the Sony runs every app's UI at a 1080p override and the owner will not quadruple the WebView's load; a slightly smaller UI scale on the TV is wanted instead (M6). (owner)
 * `2026-10-22` — The app's window, root layout and WebView carry no opaque background, and the WebView's transparency is set in code (`setBackgroundColor`), because any opaque paint above the player's surface hides the video. (`android-app`, the transparency commit)
 
 ## Open decisions
 
-1. **Application id and display name** — `app.mediacentaur.tv` and
+1. *Decided 2026-10-23 (Decisions made): kept.* **Application id and display name** — `app.mediacentaur.tv` and
    "Media Centaur" are provisional in the app repository. An id cannot
    change after the first Play upload, so the owner confirms both
    before M6. Recommendation: keep them.
@@ -305,7 +310,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    passthrough unoffered. Recommendation: (a), when the owner is at the
    TV to hear the result; nothing in M5 depends on it.
 8. *Closed 2026-10-22 (Decisions made): the track menu's key is a Controls binding; MENU is its default.*
-9. **The Sound column's host-side owner** (M6, 2026-10-23). The desktop's
+9. *Deferred 2026-10-23 (Decisions made): a milestone of its own after M7, if wanted.* **The Sound column's host-side owner** (M6, 2026-10-23). The desktop's
    track menu has a Sound column — night mode, dialogue boost, the
    limiter, the `n` key — whose per-folder memory and limiter rule live
    in Lua on the desktop player; the TV's menu has Audio and Subtitles
@@ -316,7 +321,7 @@ pattern (for the media endpoint); the bootstrap TOML tier in
    memory. Recommendation: (a), scoped as its own milestone after M7 if
    the owner wants it on the TV at all; (b) until then.
 10. *Closed 2026-10-23 (Decisions made): a per-player scale factor, deferred to a future campaign.*
-3. **A "speed test" for the user** (owner, 2026-10-22): something that
+3. *Deferred 2026-10-23 (Decisions made): a milestone of its own after M7, if wanted.* **A "speed test" for the user** (owner, 2026-10-22): something that
    gives real clarity, practically and in plain terms, about what a
    player can play. Shape to design with the owner: Settings → Players
    (or the player's row) runs a timed transfer from the media endpoint
@@ -487,6 +492,95 @@ base64-encoded in a secret; a GitHub Actions runner building the
 1.0.0 with the `mise.toml` pins; whether the WebView version the Sony
 runs (154) is the floor to document; the wiki's `Installation` page
 structure, so the TV page sits beside it in `_Sidebar.md`.
+
+**Step 2 — research (2026-10-23).** `android-app`: one Gradle module,
+AGP 9.4, `compileSdk`/`targetSdk` 36, `minSdk` 26, `versionCode 1` and
+`versionName "0.1.0"` as two hand-kept fields, no `signingConfigs`, no
+remote, no CI, no CHANGELOG; `rootProject.name` is `media-centaur-tv`;
+`mise.toml` pins Temurin 21 and points `ANDROID_HOME` at `~/Android/Sdk`
+(absent on a CI runner; AGP reads `local.properties` `sdk.dir` first,
+and the file is already gitignored). The debug APK is 107 MB and carries
+libmpv for four ABIs (arm64-v8a, armeabi-v7a, x86, x86_64). Nothing
+sensitive in the tree (a `192.168.1.5` placeholder in a hint string and
+a doc; no keys, no home paths). `keytool` is on the mise JDK. `gh` is
+logged in as the owner; the `media-centaur` organisation holds the app
+repository and six others, all public but `shell`. The host's release
+convention: `release.yml` on tag `v*`, the tag checked against the
+version in the source, notes cut from `CHANGELOG.md`'s `## v<tag>`
+section by `awk`, `SHA256SUMS`, `gh release create` with `github.token`;
+`ci.yml` on push to main and pull requests. The wiki: `_Sidebar.md`
+lists Getting Started → Installation; `Settings-Reference#players` says
+"On the device, open that address"; the Pair card on Settings → Players
+says "Open Media Centaur on it". Play Console requirements are left for
+the sit-down (decided: Play after the automation).
+
+**Step 3 — decisions (2026-10-23).** The owner's five calls (Decisions
+made, 2026-10-23). Taken by the agent as routine: the release APK is
+universal (one file for every TV and the emulator; Play takes an AAB
+and splits it when that channel opens); `versionCode` is derived from
+`versionName`; the keystore is generated now, held by the owner's
+machine and backed up, and reaches CI as repository secrets.
+
+**Step 4 — design unification (2026-10-23).** *Core idea:* a release of
+the TV app is a tag, and everything downstream — the signed APK, the
+checksum, the release page and its notes — is derived from that tag by
+CI, as the host's is; nothing is built or installed by hand. *Greenfield
+shape:* one version source (`versionName`; `versionCode` computed as
+major × 10000 + minor × 100 + patch, so an upgrade install always
+climbs); one toolchain source (`mise.toml`, read on CI by `mise-action`;
+the SDK's location is the machine-local `local.properties`, written by
+the workflow); signing as a property of the environment (the release
+build type gains a signing config only when the keystore secrets are
+present, so a contributor's `assembleRelease` yields an unsigned APK and
+CI's a signed one — one build type, not two); the host's release
+convention reused verbatim (tag check, CHANGELOG notes, SHA256SUMS,
+`gh release`); a public repository named for the platform. *Diff
+against the code:* (a) clean seams — the host's `release.yml` shape,
+`local.properties`, `mise.toml`; (b) duplicated state — `versionCode`
+beside `versionName` (derive it); the JDK version, which would be pinned
+again in CI (read `mise.toml` instead); (c) incoherences — the README is
+written for the author's rig (`mc-tv` lives in `~/scripts/agents`) and
+a public repository needs the `gradlew` path first and the rig named as
+the author's: fix now; `.gitignore` does not exclude a keystore: fix
+now; the host's Pair card and the wiki tell the user to "open Media
+Centaur" on the TV without saying where the app comes from — the
+release page is where, so the card and `Settings-Reference` link it:
+fix now (a host template line and a test on the branch). *Scope cost:*
+the Pair card line is the one host change; everything else is in the
+app repository and the wiki. Installing the signed APK on the Sony
+replaces the debug build (a different signature cannot upgrade it), so
+the TV loses its pairing once; the owner's walk starts by pairing.
+
+**Step 5 — implementation plan (2026-10-23).** In the app repository:
+`build.gradle.kts` (derived `versionCode`, environment-driven
+`signingConfigs.release`), `.gitignore` (`*.jks`, `*.keystore`),
+`CHANGELOG.md` (v0.1.0), `.github/workflows/ci.yml` (push and pull
+request: `mise-action`, `local.properties`, `gradlew test assembleDebug`),
+`.github/workflows/release.yml` (tag `v*`: version check, keystore from
+secrets, `assembleRelease`, `media-centaur-tv-<version>.apk`,
+`SHA256SUMS`, notes, `gh release create`), README (repository, the
+release path, the secrets' names, `gradlew` first). On this machine: the
+keystore under `~/.config/media-centaur-android/` with its passwords,
+backed up through Fae, the four secrets set with `gh secret set`. Then
+`gh repo create media-centaur/media-centaur-android --public` from the
+checkout, push, watch CI; tag `v0.1.0`, watch the release, download the
+APK, `apksigner verify`, install it on the Sony over adb (no TV window:
+the TV is the owner's display while they are at the keyboard). Wiki:
+`Android-TV-App.md` (requirements, install from the release page,
+first run, updates, pointers), `_Sidebar.md` under Getting Started,
+`Settings-Reference#players` naming the app; committed locally with the
+other five. Host branch: the Pair card's line linking the release page,
+its test, `mix precommit`. Record the outcome here.
+
+**Step 6 — plan unification (2026-10-23).** Checked against the design:
+no parallel path (there is no hand-built release to keep; `mc-tv build`
+stays the debug rig); no copied constant (the JDK comes from `mise.toml`,
+the version from `versionName`, the release URL appears once in the host
+template and once in each wiki page as prose links, not a constant to
+share); no shim (signing attaches to the one release build type); no
+test stand-in encoding an old shape. One correction: the APK's name is
+given by the Gradle build (`archivesName`), not renamed by the workflow,
+so a local `assembleRelease` and CI produce the same file name.
 
 ### M6 — Hardening (procedure record, in progress)
 
