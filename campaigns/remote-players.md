@@ -45,7 +45,10 @@ pass on the released build (the pending Sony checks `m6tv`, `m6tv-d`
 and `mc-tv-flow osd tv` run in it; a fault it names is fixed under M6's
 Back-key and D-pad item through the procedure), then — after the Play
 campaign — the merge of `remote-players` into main, a **major** host
-release, the wiki push and closure. The owner's dev server runs the
+release, the wiki push and closure. **Walk faults 2026-10-24**, two
+found and fixed (record under M6): the title modal closes when a
+viewing takes a paired player's page; TV app v0.1.1 sizes its surface
+to the picture's aspect — pending install on the Sony. The owner's dev server runs the
 branch since 2026-10-23 (decision 15; the worktree is gone — work in
 the main checkout). Nothing an agent can do alone until the walk names
 a fault. The earlier state:
@@ -1536,6 +1539,66 @@ cache), zero drops; a seek into the last 30 s of the 42-minute file
 played out to the finish prompt (completed: Delete this file / Done /
 Watch again). Precommit and commit: see Status; the TV app's build with
 the buffer (`android-app`): see Status.
+
+**Walk faults, 2026-10-24 (under the Back-key and D-pad item).** The
+owner's first walk on the dev server, running the branch since
+2026-10-23, named two faults the same evening; each ran the procedure
+in short form.
+
+*Fault 1 — Play from the title modal left the modal over the video.*
+Scope: on a paired player the viewing layer appeared beneath the open
+title modal, and Back closed the modal, not the viewing. Research: the
+modal is URL-owned (`?title=` / `?entity=`, `TitleDetailHost`); the
+layer is `ViewingAware`'s assign, rendered by `Layouts.app`; nothing
+closed the modal when a viewing began on the page's own player. The
+host's page shows no fault because its mpv window covers the browser
+and the modal waits beneath it. Decisions: none for the owner. Design
+unification — core idea: on a paired player the page is the viewing's
+OSD, so a viewing starting there takes the page, and the overlay Play
+was pressed in closes with it. Owner of the reaction: the modal's host,
+which already reads `playback:events` for the playing set and the
+finish prompt; it answers its own player's `:playing` when the page
+draws the layer (`ViewingAware.draws_layer?/1`, the one predicate for
+"this page is the OSD") with the existing `close_title/1`, a patch to
+the page's bare path, so the URL stays the modal's owner. Rejected:
+closing at the Play click in `LibraryEvents.play` (misses a viewing
+recovered or started elsewhere, and parts "the modal closes" from the
+event that means it); closing from `ViewingAware` (it does not own the
+modal's path). Plan: two tests in `viewing_aware_test.exs` (the
+device's page closes the modal and patches to `/library`; the host's
+page keeps it), the predicate, the reaction. Plan unification: no old
+path, no copied constant, the one caller converted; the finish prompt's
+Play next takes the same route. Execution: red on the old code (no
+patch), green, 7/7 in the file, precommit green; host commit
+`52744a71`.
+
+*Fault 2 — a 4:3 episode stretched to 16:9 on the TV.* Scope: the TV
+app. Research: `vo=mediacodec_embed` writes the decoder's frames to the
+`SurfaceView` as they are and the compositor scales them to the
+surface's bounds; the surface was `match_parent`, so any picture not
+the panel's shape stretched — Blu-ray remuxes hid it with baked-in
+bars, and `Player.surfaceChanged` carried the premise "the native path
+needs no surface size", true only for 16:9. mpv's
+`video-params/aspect` is the display aspect with the pixel aspect
+applied (the anamorphic DVD case). Decisions: none for the owner.
+Design unification — core idea: the picture's shape is the player's
+concern; the host knows nothing of the panel. The player observes the
+aspect for itself, as it does `idle-active`, and sizes the surface
+within its parent: one pure function, `SurfaceFit.size/3`, applied on
+the main thread on each aspect report and on a parent layout change;
+the property never reaches the host. Rejected: `vo=gpu` for odd aspects
+(full fidelity, no GPU fallback — decided 2026-10-22); an aspect sent
+by the host (a rendering fact it does not own). Plan: `SurfaceFit` and
+its JUnit test (16:9, 4:3, 2.39, 1:1, unusable), `Player` observing and
+applying, CHANGELOG v0.1.1, `appVersionName` 0.1.1, tag. Plan
+unification: the `surfaceChanged` comment corrected rather than left a
+stale premise; no second size source. Execution: `gradlew test
+assembleDebug` green (five fit tests); `android-app` commit `b9d1f5f`,
+tag `v0.1.1`, the release built by CI. **Pending on the Sony, when the
+TV is free:** install v0.1.1 (release over release upgrades in place and
+keeps the pairing), then Murphy Brown at 4:3 with bars at the sides and
+the viewing layer still full width; and Play from the modal landing on
+the video with the layer, no modal.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -3157,7 +3220,10 @@ published.
    that host, the code entered in the app; on the sim host
    `mc-tv-flow pair tv`). Whatever the walk names is fixed under M6's
    Back-key and D-pad item through the procedure; an app change means a
-   new `appVersionName`, a CHANGELOG section and a tag.
+   new `appVersionName`, a CHANGELOG section and a tag. First two faults
+   fixed 2026-10-24 (the M6 record): TV app **v0.1.1** waits to be
+   installed on the Sony when the TV is free (`mc-tv adb install -r` of
+   the release APK; same signature, pairing kept).
 3. **Google Play — `google-play.md`** (moved out 2026-10-23): the
    account, the bundle in the release, the internal track, production.
    Runs after item 2 and before item 4.
