@@ -1689,6 +1689,33 @@ Memory held: the app's RSS 220 → 237 MB over 30 minutes (476 MB peak in a
    windows are 15 % janky over 632 frames (D-pad moves and plays); the
    next `walk` run names the page.
 
+**The page's choppiness measured, 2026-10-25.** The owner sees glides
+and scrolls on the TV as choppy. The page's own rAF loop reports 60 fps
+throughout, so the measure is the compositor's present times for the
+app layer (`dumpsys SurfaceFlinger --latency`) while a glide runs; the
+tool is `~/scripts/agents/mc-tv-smooth` (CSS/JS overrides injected after
+each page load, run against the owner's dev server so posters render; the
+sim host has no artwork). Results on the Sony (MT5895, 1080p UI at 60 Hz):
+1. Library glides as shipped: 9–14 fps on screen, gaps p50 50–58 ms, frame
+   time p50 93 ms. Each of the 44 poster cards carries `.glass-surface`'s
+   `backdrop-filter: blur(12px)`; with no backdrop blur, 27–31 fps and
+   frame time p50 18 ms. Transitions, shadows, filters and masks change
+   nothing measurable.
+2. A bare transform animation presents at a steady 60 fps, but any scroll
+   capped at 30: `body.media-centaur` paints its gradient with
+   `background-attachment: fixed`, which Chromium repaints on every scroll
+   frame. With the gradient on a fixed layer of its own (`bglayer` preset,
+   same look) and no blur, the browser's own smooth scroll reaches 58 fps
+   (from 29), and 54 fps with a target retargeted every 50 ms (a held key).
+3. The input system's glide (`scroll_glide.js`, writes `scrollTop` from
+   rAF on the main thread) stays at 27–36 fps under the same CSS, as does
+   a plain rAF scroll: main-thread scrolling is the remaining cap.
+Proposed, not built (owner): on the TV, no backdrop blur (or none on
+cards) and the body gradient on a fixed layer; then the glide driven on
+the compositor (native smooth `scrollTo`, retargeting measured above),
+re-checking the held-input failure `scroll_glide.js` documents for
+desktop.
+
 ### M5 — The native path and the page as OSD (procedure record)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
