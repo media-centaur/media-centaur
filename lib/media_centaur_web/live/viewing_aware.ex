@@ -34,6 +34,15 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
 
   @bar_shown_ms 4_000
 
+  @doc """
+  Whether this socket's page draws its player's viewing layer: true on a
+  paired player, whose mpv draws nothing, false on the host, whose mpv
+  window draws its own OSD and covers the browser. A trait that must act
+  when a viewing takes the page (the title modal closing) asks here.
+  """
+  def draws_layer?(%{assigns: %{player: :host}}), do: false
+  def draws_layer?(%{assigns: %{player: player}}) when is_binary(player), do: true
+
   def on_mount(:default, _params, _session, %{assigns: %{player: :host}} = socket) do
     {:cont, assign(socket, viewing_layer: nil)}
   end

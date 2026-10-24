@@ -158,4 +158,42 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     assert_receive {:viewing_ended, %Events.ViewingEnded{}}, 500
     eventually(fn -> not has_element?(view, "[data-viewing]") end)
   end
+
+  test "a viewing starting on the device's player closes the title modal Play was pressed in", %{
+    conn: conn,
+    player: player,
+    params: params,
+    movie: movie
+  } do
+    _ = create_linked_file(%{movie_id: movie.id})
+    {:ok, view, _html} = conn |> from_lan() |> as_player(player) |> live(~p"/library?entity=#{movie.id}")
+    render_async(view)
+    assert has_element?(view, "#detail-modal[data-state='open']")
+
+    start_viewing!(params, player)
+
+    assert_patch(view, ~p"/library")
+    refute has_element?(view, "#detail-modal[data-state='open']")
+    eventually(fn -> has_element?(view, "[data-viewing]") end)
+  end
+
+  test "the host's page keeps the title modal while its own mpv plays", %{
+    conn: conn,
+    params: params,
+    movie: movie
+  } do
+    _ = create_linked_file(%{movie_id: movie.id})
+    {:ok, view, _html} = live(conn, ~p"/library?entity=#{movie.id}")
+    render_async(view)
+    assert has_element?(view, "#detail-modal[data-state='open']")
+
+    :ok = Sessions.play(params, :host)
+    pid = SessionRegistry.lookup({:host, movie.id})
+    FakeTransport.emit(pid, {:attached, :fresh})
+    assert_receive {:mpv_command, ["observe_property", 1, "time-pos"]}
+
+    assert render(view) =~ "detail-modal"
+    assert has_element?(view, "#detail-modal[data-state='open']")
+    refute has_element?(view, "[data-viewing]")
+  end
 end
