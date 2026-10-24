@@ -40,6 +40,17 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackSwitch do
         id: :movie,
         description: "A movie's line names its release dates.",
         attributes: %{id: "track-switch-movie", ref: "movie-603", rung: :list, media_type: :movie}
+      },
+      %Variation{
+        id: :compact,
+        description: "Compact, for the finish prompt's row of buttons: the line is the hover tip.",
+        attributes: %{
+          id: "track-switch-compact",
+          ref: "tv_series-1399",
+          rung: nil,
+          media_type: :tv_series,
+          compact: true
+        }
       }
     ]
   end

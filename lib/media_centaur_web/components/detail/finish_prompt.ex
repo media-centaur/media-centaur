@@ -8,8 +8,12 @@ defmodule MediaCentaurWeb.Components.Detail.FinishPrompt do
       collection that movie's files only (`delete_target`).
     * `:caught_up` — a show still airing whose latest episode was
       finished: "You're caught up on <title>", then Review, the Track
-      release dates switch (`TrackingControls.track_switch/1`) and Done.
-      No delete: more episodes are coming.
+      release dates switch (`TrackingControls.track_switch/1`, compact:
+      one line tall like the buttons, its description on hover) and
+      Done. No delete: more episodes are coming.
+
+  One line: the sentence at the left, the acts as one group at the
+  right, every act the height of a small button.
 
   Review, Delete and the switch are the modal's own acts —
   `review_open`, `DeleteAllButton`'s `delete_all_prompt` and `set_rung`
@@ -80,6 +84,7 @@ defmodule MediaCentaurWeb.Components.Detail.FinishPrompt do
         ref={@ref}
         rung={@rung}
         media_type={:tv_series}
+        compact
       />
       <DeleteAllButton.delete_all_button
         :if={@kind == :finished}
