@@ -48,7 +48,7 @@ campaign — the merge of `remote-players` into main, a **major** host
 release, the wiki push and closure. **Walk faults 2026-10-24**, two
 found and fixed (record under M6): the title modal closes when a
 viewing takes a paired player's page; TV app v0.1.1 sizes its surface
-to the picture's aspect — pending install on the Sony. The owner's dev server runs the
+to the picture's aspect. Both verified on the Sony the same day. The owner's dev server runs the
 branch since 2026-10-23 (decision 15; the worktree is gone — work in
 the main checkout). Nothing an agent can do alone until the walk names
 a fault. The earlier state:
@@ -1594,11 +1594,16 @@ applying, CHANGELOG v0.1.1, `appVersionName` 0.1.1, tag. Plan
 unification: the `surfaceChanged` comment corrected rather than left a
 stale premise; no second size source. Execution: `gradlew test
 assembleDebug` green (five fit tests); `android-app` commit `b9d1f5f`,
-tag `v0.1.1`, the release built by CI. **Pending on the Sony, when the
-TV is free:** install v0.1.1 (release over release upgrades in place and
-keeps the pairing), then Murphy Brown at 4:3 with bars at the sides and
-the viewing layer still full width; and Play from the modal landing on
-the video with the layer, no modal.
+tag `v0.1.1`, the release built by CI. **Verified on the Sony
+2026-10-24:** v0.1.1 installed over adb in place (`versionCode=101`,
+pairing kept). Murphy Brown (720×480, aspect 1.333): the surface
+1440×1080, the compositor's display frame `[480 0 3360 2160]` on the
+3840-wide panel, bars at the sides in the screenshot, zero dropped
+frames. Play from the modal, driven with the remote's keys (Continue
+Watching → the modal → *Resume Episode 15* → SELECT): the video full
+screen with no modal, one BACK ended the viewing. Rig note: a release
+build has WebView debugging off, so `mc-tv eval` answers nothing on it;
+drive the page with keys and read state from the host.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
@@ -3221,9 +3226,8 @@ published.
    `mc-tv-flow pair tv`). Whatever the walk names is fixed under M6's
    Back-key and D-pad item through the procedure; an app change means a
    new `appVersionName`, a CHANGELOG section and a tag. First two faults
-   fixed 2026-10-24 (the M6 record): TV app **v0.1.1** waits to be
-   installed on the Sony when the TV is free (`mc-tv adb install -r` of
-   the release APK; same signature, pairing kept).
+   fixed and verified on the Sony 2026-10-24 (the M6 record); the Sony
+   runs TV app v0.1.1.
 3. **Google Play — `google-play.md`** (moved out 2026-10-23): the
    account, the bundle in the release, the internal track, production.
    Runs after item 2 and before item 4.
