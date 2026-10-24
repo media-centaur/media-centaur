@@ -1658,6 +1658,37 @@ in order:
 Memory held: the app's RSS 220 → 237 MB over 30 minutes (476 MB peak in a
 4K viewing), the TV never below 820 MB available.
 
+**The findings worked, 2026-10-24.**
+1. Fixed (`82f7844e`): the clamp's bounds were the integers 0 and 100, so
+   a position past the duration (mpv near the end) reached `Float.round/2`
+   as an integer. Red in `storybook_render_test` with the run's exact
+   stack frame through a new `past_the_end` variation, then green.
+2. Not a playback fault; the rig's. The episode was played twice in the
+   run, both resuming at the saved 58.08 s, and the stall check compared
+   the second play's first reading with the first play's from 21 s
+   earlier. mpv's own log shows the resume playing in real time (58.08 at
+   15:17:18, 66.2 at 15:17:26). The rig now drops its reading on any
+   action but idle or watch.
+3. Fixed (`5548bbb8`): both failures were one viewing after one host
+   restart. The server half stops fine (replayed on `mc-sim-host` with a
+   headless `mc-player-sim`: play, pause, restart, `Sessions.stop` — the
+   recovered session ended and stayed ended). On the page, BACK's
+   `_executeDismiss` pushes `viewing_back` and sets an expected
+   presentation of none until the DOM agrees; a push while the page's
+   socket is still reconnecting is refused by LiveView, the layer stays,
+   the expectation never clears, and every later BACK found no overlay
+   while the arrows (the viewing decorator) kept working. A refused push
+   now drops the expectation and re-enters the overlay; bun test red,
+   then green.
+4. Withdrawn as stated: the 43 % was start-up, not idle. With no viewing
+   and more than 30 s after a relaunch or host restart the app's process
+   sits at a median 2.4 % of a core; the 30 s after one, 62 %. The
+   100 %-janky windows held 1–4 frames each (first paint after a
+   relaunch). The report now splits idle, viewing and start-up CPU, and
+   counts janky frames over frames rather than windows. Open: settled
+   windows are 15 % janky over 632 frames (D-pad moves and plays); the
+   next `walk` run names the page.
+
 ### M5 — The native path and the page as OSD (procedure record)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
