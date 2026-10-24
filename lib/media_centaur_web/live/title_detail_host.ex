@@ -133,6 +133,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents
   alias MediaCentaurWeb.Live.TitleDetailHost.TmdbEvents
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
+  alias MediaCentaurWeb.Live.ViewingAware
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -773,11 +774,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # prompt must know about playback that started before the open. It is
   # the page's own player's: another device's viewing is not this page's.
   defp react({:playback_state_changed, event}, socket) do
-    update(
-      socket,
-      :title_playback,
-      &LiveHelpers.apply_playback_change(&1, event, socket.assigns.player)
-    )
+    socket =
+      update(
+        socket,
+        :title_playback,
+        &LiveHelpers.apply_playback_change(&1, event, socket.assigns.player)
+      )
+
+    if viewing_takes_the_page?(event, socket), do: close_title(socket), else: socket
   end
 
   # UIDR-052: a finished title opens with the prompt — the modal may be
@@ -1151,6 +1155,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @doc "Closes the title detail — the page's own path with no modal query."
   @spec close_title(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def close_title(socket), do: push_patch(socket, to: path(socket, []))
+
+  # On a paired player the page is the viewing's OSD (`ViewingAware`): a
+  # viewing starting there takes the page, so the modal Play was pressed
+  # in closes with it. The host's mpv window covers the browser instead,
+  # and the modal waits beneath it for the viewing's end.
+  defp viewing_takes_the_page?(
+         %{state: :playing, player: player},
+         %{assigns: %{player: player, title_detail: %TitleDetail{}}} = socket
+       ), do: ViewingAware.draws_layer?(socket)
+
+  defp viewing_takes_the_page?(_event, _socket), do: false
 
   defp abandon_open(socket, flash), do: socket |> put_flash(:error, flash) |> close_title()
 
