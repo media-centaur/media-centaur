@@ -158,16 +158,12 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   defp tv_metadata_items(attrs) do
     compact([
       Format.year(attrs.date_published),
-      seasons_label(attrs.number_of_seasons),
+      MediaCentaurWeb.LibraryFormatters.seasons_label(attrs.number_of_seasons),
       attrs.country_code
     ])
   end
 
   defp compact(items), do: Enum.reject(items, &(is_nil(&1) or &1 == ""))
-
-  defp seasons_label(1), do: "1 season"
-  defp seasons_label(count) when is_integer(count) and count > 1, do: "#{count} seasons"
-  defp seasons_label(_count), do: nil
 
   defp runtime_label(seconds) when is_integer(seconds) and seconds > 0,
     do: MediaCentaurWeb.LibraryFormatters.format_human_duration(seconds)

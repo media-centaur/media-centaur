@@ -74,7 +74,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   import MediaCentaurWeb.LiveHelpers
 
-  import MediaCentaurWeb.LibraryFormatters, only: [format_type: 1, format_human_duration: 1]
+  import MediaCentaurWeb.LibraryFormatters,
+    only: [format_type: 1, format_human_duration: 1, seasons_label: 1]
 
   alias MediaCentaur.Format
   alias MediaCentaur.Settings.Preferences.PlanningMode
@@ -854,13 +855,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp year_or_nil(subject), do: Format.year(Map.get(subject, :date_published))
 
-  defp season_count_or_nil(%{type: :tv_series, seasons: seasons}) when is_list(seasons) do
-    case length(seasons) do
-      0 -> nil
-      1 -> "1 season"
-      n -> "#{n} seasons"
-    end
-  end
+  defp season_count_or_nil(%{type: :tv_series} = subject),
+    do: seasons_label(Map.get(subject, :number_of_seasons))
 
   defp season_count_or_nil(_), do: nil
 

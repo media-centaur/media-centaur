@@ -50,6 +50,18 @@ defmodule MediaCentaurWeb.LibraryFormatters do
   defp format_votes(count) when count >= 1000, do: "#{Float.round(count / 1000, 1)}k"
   defp format_votes(count), do: Integer.to_string(count)
 
+  # --- Seasons ---
+
+  @doc """
+  A show's season count for the metadata strip — `"1 season"`, `"5
+  seasons"` — from TMDB's `number_of_seasons`: the show's, never the
+  library's, which holds only the seasons with files. `nil` without one.
+  """
+  @spec seasons_label(integer() | nil) :: String.t() | nil
+  def seasons_label(1), do: "1 season"
+  def seasons_label(count) when is_integer(count) and count > 1, do: "#{count} seasons"
+  def seasons_label(_count), do: nil
+
   # --- Type and year ---
 
   def format_type(:movie), do: "Movie"
