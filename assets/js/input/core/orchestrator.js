@@ -1275,7 +1275,13 @@ export class Orchestrator {
     }
 
     const dismissEvent = this.reader.getDismissEvent?.() ?? "close_detail"
-    this._hookEl.pushEvent(dismissEvent, {})
+    // A push LiveView refuses (its socket down, the host restarting) never
+    // reaches the server, so the overlay stays: drop the expectation and
+    // re-enter it from the DOM, or the next BACK would find no overlay.
+    this._hookEl.pushEvent(dismissEvent, {})?.catch(() => {
+      this._expectedPresentation = undefined
+      this.onViewChanged()
+    })
     // Proactively restore — don't wait for onViewChanged() which may not
     // fire if the hook element isn't directly patched by morphdom.
     this.focusMachine.presentationChanged(null)

@@ -3547,6 +3547,26 @@ describe("Orchestrator", () => {
       t.globals._dispatchKeyDown("Escape")
       expect(t.hookEl.pushEvent).toHaveBeenCalledWith("viewing_back", {})
     })
+
+    // LiveView refuses a push while its socket is down — after the host
+    // restarts, the player's channel can be back before the page's socket
+    // is. The overlay never left, so the cursor returns to it and the next
+    // BACK dismisses it again (the first chaos run: every later BACK on that
+    // viewing went nowhere).
+    test("a dismiss LiveView refuses leaves the overlay entered; the next BACK dismisses it", async () => {
+      const t = openLayer()
+      t.hookEl.pushEvent = mock(() => Promise.reject(new Error("unable to push hook event. LiveView not connected")))
+
+      t.globals._dispatchKeyDown("Escape")
+      expect(t.hookEl.pushEvent).toHaveBeenCalledTimes(1)
+      await Promise.resolve()
+      t.globals._flushRAF()
+
+      expect(t.system.focusMachine.inOverlay).toBe(true)
+      t.globals._dispatchKeyDown("Escape")
+      expect(t.hookEl.pushEvent).toHaveBeenCalledTimes(2)
+      expect(t.hookEl.pushEvent).toHaveBeenLastCalledWith("viewing_back", {})
+    })
   })
 
   // The detail modal is two regions rather than one flat list: an action row
