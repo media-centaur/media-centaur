@@ -106,6 +106,12 @@ defmodule MediaCentaurWeb.Storybook.ViewingLayer.ViewingLayer do
         }
       },
       %Variation{
+        id: :past_the_end,
+        description:
+          "mpv's position a little past the duration at the end of a file: the fill full, the bar intact",
+        attributes: %{viewing: viewing(position_seconds: 4960.4), bar_shown?: true}
+      },
+      %Variation{
         id: :subtitle,
         description: "A subtitle line, bar hidden — the usual state while watching",
         attributes: %{

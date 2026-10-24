@@ -275,7 +275,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
   defp episode_line(_viewing), do: nil
 
   defp percent(position, duration) when is_number(duration) and duration > 0,
-    do: Float.round(min(max(position / duration * 100, 0), 100), 2)
+    do: Float.round(min(max(position / duration * 100, 0.0), 100.0), 2)
 
   defp percent(_position, _duration), do: 0
 
