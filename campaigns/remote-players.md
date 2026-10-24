@@ -1632,6 +1632,32 @@ crash (`am crash`) and a native crash of the app (`kill -11` through
 and the run went on. Run it only when the owner says the TV is free;
 every run hands the TV back.
 
+**First 30-minute chaos run, 2026-10-24** (`~/.cache/mc-tv-stress/runs/20261024-151645-chaos-601622`,
+seed 601622; 303 actions: 86 plays, 53 app relaunches, 20 host restarts,
+23 stops, 15 far seeks). No app crash, native crash, renderer death, ANR,
+low-memory kill or TV reboot. Play to first frame p50 1.5 s, p95 2.2 s;
+relaunch to channel 6 s; host restart to channel 4.4 s. Findings to fix,
+in order:
+1. **Host crash in the viewing bar** — `ViewingLayer.viewing_bar` →
+   `percent/2` calls `Float.round(100, 2)` with an integer (mpv reported a
+   whole-number position or duration, here after a seek); the page's
+   LiveView process dies and the page reloads under the viewing.
+2. **Playback stalled after a resume** — a 720p H.264 episode resumed at
+   58.08 s: mpv's demuxer logged "EOF reached" right after the resume seek,
+   and `time-pos` stayed at 58.08, not paused, for 21 s while the session
+   said playing (incident 001's bundle has the log).
+3. **BACK did not stop a paused viewing** (2 of 14 stops by BACK; the
+   viewing was still there 15 s later): once right after a host restart,
+   once after the track menu had been open. The host log for those minutes
+   was overwritten by the next restart — the rig now keeps it (`host.log`).
+4. **The page is expensive while idle** — the app's process at a median
+   43 % of a core with no viewing, against 21 % during one; the page's
+   frames: 23 % janky in the median 30 s window, p99 frame time 350 ms,
+   worst windows 100 % janky at 550 ms. The rig now records the page per
+   frame window, so the next run names the page.
+Memory held: the app's RSS 220 → 237 MB over 30 minutes (476 MB peak in a
+4K viewing), the TV never below 820 MB available.
+
 ### M5 — The native path and the page as OSD (procedure record)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
