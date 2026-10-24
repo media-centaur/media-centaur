@@ -1605,6 +1605,33 @@ screen with no modal, one BACK ended the viewing. Rig note: a release
 build has WebView debugging off, so `mc-tv eval` answers nothing on it;
 drive the page with keys and read state from the host.
 
+**The stress rig, 2026-10-24 (owner: "test the crap out of the android
+app … all without an llm running everything").** `~/scripts/agents/mc-tv-stress`
+drives the TV app the way a person does, with no model in the loop: seeded
+random D-pad walks with SELECT, page and modal jumps, play from the modal
+and from the host, viewing keys, the track menu, far seeks, stops by BACK
+and by the host, long viewings, app kills and host restarts, in five
+scenarios (`walk`, `churn`, `soak`, `chaos`, `mix`). Monitors after every
+action: the app's process (pid), the device log for app and native
+crashes, ANRs, the page renderer's death, the low-memory killer and the
+TV's own system processes, the boot id (a TV reboot), adb, the player
+channel, mpv's clock against its pause and cache state (a stall), the
+modal over a viewing, dropped frames, the host's error lines, the app's
+memory. Each incident is a bundle (screenshot, log window, host log,
+meminfo, page state, the last steps) and the run goes on after
+recovering; the seed replays the action sequence. It drives the **debug
+app**, which now installs beside the release one as
+`app.mediacentaur.tv.debug` (`android-app` `a10c680`), against the sim
+host with its staged real files, so the owner's release app, its pairing
+and the real library are never touched; `mc-tv` targets the release app
+unless `MC_TV_APP=debug` (`mc-tv-flow` sets it). SELECT is refused on
+anything that leaves the sim host (self-update, app launching, social,
+removals) and on the pages that do. Verified by injection: a renderer
+crash (`am crash`) and a native crash of the app (`kill -11` through
+`run-as`) each became one incident with its bundle, the app relaunched
+and the run went on. Run it only when the owner says the TV is free;
+every run hands the TV back.
+
 ### M5 — The native path and the page as OSD (procedure record)
 
 **Measurements (2026-10-22), before any M5 design.** Two real releases
