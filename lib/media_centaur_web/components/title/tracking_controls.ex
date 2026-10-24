@@ -145,21 +145,31 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   attr :media_type, :atom, values: [:movie, :tv_series], required: true
 
+  attr :compact, :boolean,
+    default: false,
+    doc:
+      "the label alone, one line tall, its description as the hover tip — for a row of buttons (the finish prompt)"
+
   @doc """
   The Track release dates switch alone: drawn by `tracking_controls/1`
   and by the finish prompt for a show the person is caught up on
-  (UIDR-052), where the title may not be on the list yet.
+  (UIDR-052), where the title may not be on the list yet. In the block
+  its description sits under the label; `compact` keeps the switch the
+  height of the buttons beside it and moves the line to `data-tip`.
   """
   def track_switch(assigns) do
+    assigns = assign(assigns, :description, track_description(assigns.media_type, assigns.rung))
+
     ~H"""
     <Switch.switch
       id={@id}
       label="Track release dates"
-      description={track_description(@media_type, @rung)}
+      description={!@compact && @description}
       checked={TitleIntent.follows_releases?(@rung)}
       event={track_choice(@rung) && "set_rung"}
       values={%{"choice" => track_choice(@rung), "ref" => @ref}}
-      class="-mx-2 px-2 py-1.5"
+      class={if @compact, do: "px-2 py-1.5", else: "-mx-2 px-2 py-1.5"}
+      data-tip={@compact && @description}
     />
     """
   end
