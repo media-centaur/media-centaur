@@ -2434,6 +2434,30 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       refute render(view) =~ "Download more of this show"
     end
+
+    test "the metadata strip counts the show's seasons, not the library's", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810", number_of_seasons: 5})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [%{episode_number: 1, name: "Pilot", air_date: "2020-01-01"}]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
+      html = render(view)
+
+      assert html =~ "5 seasons"
+      refute html =~ "1 season"
+    end
   end
 
   # One of the Review modal's sentiment choices, by its value.
