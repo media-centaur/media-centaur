@@ -9,7 +9,9 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
     * **The bar**: a bottom scrim, the title and episode line, the clock at
       both ends of a full-width seek bar with chapter ticks and a handle.
       On screen while paused and for a few seconds after a key
-      (`bar_shown?`), with a pause glyph in the centre while paused.
+      (`bar_shown?`), with a pause glyph in the centre while paused, and
+      while paused an "Audio & subtitles" button under the seek bar — the
+      track menu on a remote without a Menu key.
     * **The prompt**: Skip Intro or Next Episode (`viewing.prompt`) as the
       primary button at the top right with its key hint — the layer's one
       nav item, so SELECT activates it (`viewing_prompt`).
@@ -131,6 +133,22 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
           <b class="viewing-handle" style={"left: #{@percent}%"}></b>
         </div>
         <span class="viewing-clock">{Format.format_seconds(@viewing.duration_seconds)}</span>
+      </div>
+      <%!-- The track menu without a Menu key, which most Google TV remotes
+            lack: DOWN reaches it while paused (`viewing_behavior.js`). Not a
+            nav item — one would take the cursor as the pause renders it, and
+            the next OK would open the menu instead of resuming. --%>
+      <div :if={@viewing.state == :paused} class="viewing-actions">
+        <.button
+          id="viewing-tracks"
+          variant="secondary"
+          size="sm"
+          phx-click="viewing_menu_open"
+          data-viewing-tracks
+          tabindex="0"
+        >
+          <.icon name="hero-language" class="size-4" /> Audio &amp; subtitles
+        </.button>
       </div>
     </div>
     """

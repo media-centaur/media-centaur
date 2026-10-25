@@ -659,6 +659,29 @@ describe("Orchestrator", () => {
       expect(sidebarCalls.length).toBe(0)
     })
 
+    test("BACK in the sidebar leaves the app when the shell can leave", () => {
+      let left = 0
+      const { system, globals } = setup({}, { leaveApp: () => { left++ } })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+
+      globals._dispatchKeyDown("Escape")
+
+      expect(left).toBe(1)
+      expect(system.focusMachine.context).toBe("sidebar")
+    })
+
+    test("BACK in the sidebar returns to content when the shell cannot leave", () => {
+      const { system, globals } = setup({ getItemCount: () => 8 })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      system._preSidebarContext = Context.GRID
+
+      globals._dispatchKeyDown("Escape")
+
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+
     test("exit sidebar stays in sidebar when no content", () => {
       const { system } = setup({
         getItemCount: () => 0,

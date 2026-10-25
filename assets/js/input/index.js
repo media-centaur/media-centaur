@@ -33,6 +33,17 @@ const BROWSER_GLOBALS = {
   },
 }
 
+/**
+ * Leaving the app, when the page runs inside a shell that can: the TV app
+ * registers `MediaCentaurTV` (a WebView JavaScript interface) whose `leave()`
+ * finishes its activity. A browser has no such shell, so BACK keeps its
+ * in-page meaning there.
+ */
+export function shellLeave(win) {
+  const shell = win.MediaCentaurTV
+  return typeof shell?.leave === "function" ? () => shell.leave() : undefined
+}
+
 /** The catalog's binding id → the input system's action; null for an id it does not know. */
 export function actionForId(idStr) {
   switch (idStr) {
@@ -131,6 +142,7 @@ export function createInputHook() {
           },
         ],
         ...inputConfig,
+        leaveApp: shellLeave(window),
       })
       orchestrator.start(this)
 

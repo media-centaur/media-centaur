@@ -255,6 +255,7 @@ Source-agnostic action router. Receives full config object including `reader`, `
 3. **An overlay** → dismiss.
 4. **The primary menu** → exit to the pre-sidebar context.
 5. **Content** → enter the primary menu. The main nav contains every content region, so BACK from a grid, shelf, toolbar, zone-tab strip or non-primary menu goes there, landing on the active item ([UIDR-028](../decisions/user-interface/2026-08-19-028-back-enters-main-menu.md)). A page whose layout declares no sidebar node (the setup tour) has no menu to enter, so BACK stays a no-op — the node's presence in the nav graph is the capability check.
+6. **The app** → on a shell that can leave it (the TV app, whose WebView registers `MediaCentaurTV` with `leave()`; the app layer passes it as `leaveApp`), BACK in the primary menu, and on a page without one, leaves the app instead (`leave_app`): the platform's own BACK, and Google Play's TV-DB criterion. A browser has no such shell, so steps 4 and 5 stand there.
 
 LEFT is lateral movement within the page and never reaches the sidebar: no zone layout declares a `left: ["sidebar"]` edge. Genuine lateral edges between content zones (settings grid → sections, guide outline → chapters) are unaffected.
 
@@ -342,6 +343,7 @@ layer out.
 | `zone_cycle` | `direction` | Click next/prev zone tab |
 | `enter_sidebar` | — | Expand sidebar, focus active item |
 | `exit_sidebar` | — | Restore pre-sidebar context and sidebar state |
+| `leave_app` | — | Call the injected `leaveApp` (the TV app's shell finishes its activity) |
 | `none` | — | No-op (wall) |
 
 ## DOM Contract

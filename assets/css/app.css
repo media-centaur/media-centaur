@@ -3883,6 +3883,18 @@ body:has(.viewing) .gamepad-hint-bar {
   text-align: center;
 }
 
+.viewing-actions {
+  margin-top: 1rem;
+}
+
+/* Not a nav item (see the component), so the nav ring rule does not reach
+   it: the same ring, drawn here. */
+[data-input=keyboard] [data-viewing-tracks]:focus,
+[data-input=gamepad] [data-viewing-tracks]:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .viewing-seek {
   position: relative;
   flex: 1;

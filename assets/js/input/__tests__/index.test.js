@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionForId } from "../index"
+import { actionForId, shellLeave } from "../index"
 import { Action } from "../core/index.js"
 import { inputConfig } from "../config"
 import { Context, buildNavGraph, resolveCursorStart } from "../core/index"
@@ -517,5 +517,18 @@ describe("actionForId", () => {
       track_menu: Action.MENU,
     })
     expect(actionForId("nope")).toBe(null)
+  })
+})
+
+describe("shellLeave", () => {
+  test("is the TV shell's leave when the page runs inside the TV app", () => {
+    let left = 0
+    const leave = shellLeave({ MediaCentaurTV: { leave: () => { left++ } } })
+    leave()
+    expect(left).toBe(1)
+  })
+
+  test("is absent in a browser, which has no shell to leave", () => {
+    expect(shellLeave({})).toBeUndefined()
   })
 })

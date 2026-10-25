@@ -485,6 +485,16 @@ export function createDomReader(config = {}) {
       return document.querySelector("[data-viewing-prompt]") !== null
     },
 
+    /** Whether the paused bar shows its "Audio & subtitles" button. */
+    hasViewingTracks() {
+      return document.querySelector("[data-viewing-tracks]") !== null
+    },
+
+    /** Whether the cursor is on the paused bar's tracks button. */
+    isViewingTracksFocused() {
+      return document.activeElement?.hasAttribute?.("data-viewing-tracks") ?? false
+    },
+
     /** Whether the viewing layer's track menu is the active overlay. */
     isViewingMenuOpen() {
       return activeModalElement()?.dataset?.navOverlay === "viewing_menu"
@@ -612,6 +622,17 @@ export function createDomWriter(config = {}) {
      */
     setInputMethod(method) {
       document.documentElement.dataset.input = method
+    },
+
+    /** Put the cursor on the paused bar's "Audio & subtitles" button. */
+    focusViewingTracks() {
+      document.querySelector("[data-viewing-tracks]")?.focus({ preventScroll: true })
+    },
+
+    /** Take the cursor off the tracks button: the bar's arrows seek again. */
+    leaveViewingTracks() {
+      const button = document.querySelector("[data-viewing-tracks]")
+      if (button && document.activeElement === button) button.blur()
     },
 
     /**

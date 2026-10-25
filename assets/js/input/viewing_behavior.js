@@ -9,7 +9,10 @@
  * pushes: arrows seek (±10 s sideways, ±60 s up and down), SELECT acts on
  * the prompt while one shows (the desktop rule: ENTER is the pill's while
  * the pill is up) and toggles pause otherwise, the remote's media keys
- * play/pause and seek 30 s, and MENU opens the track menu. BACK passes through: containment dismisses the
+ * play/pause and seek 30 s, and MENU opens the track menu. Paused, the bar
+ * shows an "Audio & subtitles" button — the track menu on a remote without a
+ * Menu key: DOWN focuses it, SELECT on it opens the menu, UP leaves it, and
+ * LEFT and RIGHT still seek. BACK passes through: containment dismisses the
  * overlay, whose dismiss event stops the viewing. With the menu open the
  * decorator steps aside so MODAL navigation walks the lists, except that
  * MENU closes it. Zone cycling and CLEAR mean nothing during a viewing.
@@ -32,7 +35,9 @@ const SWALLOWED = new Set([Action.ZONE_NEXT, Action.ZONE_PREV, Action.CLEAR])
  * Wrap a page behavior for the time a viewing is on.
  *
  * @param {import("./page_behavior").PageBehavior} behavior - the page's own behavior ({} when it has none)
- * @param {{pushEvent: function(string, Object): void, isMenuOpen: function(): boolean, hasPrompt: function(): boolean}} deps
+ * @param {{pushEvent: function(string, Object): void, isMenuOpen: function(): boolean, hasPrompt: function(): boolean,
+ *   hasTracksButton: function(): boolean, isTracksFocused: function(): boolean,
+ *   focusTracksButton: function(): void, leaveTracksButton: function(): void}} deps
  * @returns {import("./page_behavior").PageBehavior}
  */
 export function withViewing(behavior, deps) {
@@ -47,6 +52,23 @@ export function withViewing(behavior, deps) {
           return true
         }
         return behavior.onAction?.(action, context, focused) ?? false
+      }
+
+      // The tracks button is outside the nav system (as a nav item it would
+      // take the cursor the moment a pause renders it, and the next OK would
+      // open the menu instead of resuming), so its focus is asked, not read.
+      const onTracks = deps.isTracksFocused()
+      if (onTracks && action === Action.SELECT) {
+        deps.pushEvent("viewing_menu_open", {})
+        return true
+      }
+      if (onTracks && action === Action.NAVIGATE_UP) {
+        deps.leaveTracksButton()
+        return true
+      }
+      if (action === Action.NAVIGATE_DOWN && (onTracks || deps.hasTracksButton())) {
+        if (!onTracks) deps.focusTracksButton()
+        return true
       }
 
       if (action in BAR_SEEKS) {
