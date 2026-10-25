@@ -7,7 +7,6 @@
 # answers for it (launchctl on macOS, systemctl --user on Linux) with:
 #
 #   PLATFORM_TAG          release tarball platform, e.g. darwin-arm64
-#   PLATFORM_INSTALLER    the platform installer's path in this checkout
 #   SERVICE_FILE          the plist or unit file the installer writes
 #   SUMMARY_RUNNING       the installer summary's line for a started service
 #   service_manager_ok    the user's service manager is reachable
@@ -89,33 +88,48 @@ assert_serving() {
     wait_until "app answers at $APP_URL" 120 app_answers
 }
 
-# Installs a release tag. By default through the public installer, as
-# `curl … | sh` would. MC_INSTALLER=checkout instead runs the released
-# tarball with this checkout's platform installer in place of the bundled
-# one, to prove an installer fix before it ships. The in-app update
-# always runs the installer bundled in the release it downloads.
-install_release() {
+# The run's source, from MC_SOURCE: `released` (a published release) or
+# `branch` (a release built from the branch, at MC_BRANCH_TARBALL, whose
+# version MC_TAG names).
+source_kind() { printf '%s' "${MC_SOURCE:-released}"; }
+
+# Prints the path of the release tarball for a tag: the branch build when
+# the tag is the one under test in a branch run, otherwise the published
+# tarball, downloaded into a fresh directory.
+release_tarball() {
     tag="$1"
-    case "${MC_INSTALLER:-released}" in
-        released) sh "$REPO_ROOT/installer/install.sh" --version "$tag" ;;
-        checkout) install_with_checkout_installer "$tag" ;;
-        *) fail "MC_INSTALLER must be released or checkout, not '$MC_INSTALLER'" ;;
-    esac
+    if [ "$(source_kind)" = branch ] && [ "$tag" = "${MC_TAG:-}" ]; then
+        [ -f "${MC_BRANCH_TARBALL:-}" ] || fail "MC_BRANCH_TARBALL does not name the branch build"
+        printf '%s' "$MC_BRANCH_TARBALL"
+        return
+    fi
+    name="media-centaur-${tag#v}-${PLATFORM_TAG}.tar.gz"
+    dir=$(mktemp -d)
+    curl -fsSL -o "$dir/$name" "https://github.com/media-centaur/media-centaur/releases/download/$tag/$name" ||
+        fail "could not download $name"
+    printf '%s' "$dir/$name"
 }
 
-install_with_checkout_installer() {
+# Installs a release tag. A published release goes through the public
+# installer, as `curl … | sh` would. A branch build runs its bundled
+# installer directly — the step the public installer hands off to after
+# its download and checksum check.
+install_release() {
     tag="$1"
-    tarball="media-centaur-${tag#v}-${PLATFORM_TAG}.tar.gz"
-    work=$(mktemp -d)
-    curl -fsSL -o "$work/$tarball" "https://github.com/media-centaur/media-centaur/releases/download/$tag/$tarball"
-    mkdir "$work/extract"
-    tar -xzf "$work/$tarball" -C "$work/extract"
-    cp "$PLATFORM_INSTALLER" "$work/extract/bin/media-centaur-install"
-    printf "==> Using this checkout's installer with the %s tarball\n" "$tag"
-    "$work/extract/bin/media-centaur-install"
-    status=$?
-    rm -rf "$work"
-    return "$status"
+    case "$(source_kind)" in
+        released) sh "$REPO_ROOT/installer/install.sh" --version "$tag" ;;
+        branch)
+            if [ "$tag" != "${MC_TAG:-}" ]; then
+                sh "$REPO_ROOT/installer/install.sh" --version "$tag"
+                return
+            fi
+            work=$(mktemp -d)
+            tar -xzf "$(release_tarball "$tag")" -C "$work"
+            printf '==> Installing the branch build %s\n' "$tag"
+            "$work/bin/media-centaur-install"
+            ;;
+        *) fail "MC_SOURCE must be released or branch, not '$MC_SOURCE'" ;;
+    esac
 }
 
 # shellcheck source=/dev/null

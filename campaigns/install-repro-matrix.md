@@ -16,7 +16,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 | **Scenario** | One script that runs one install path and ends in pass or fail. It checks the outcome directly (the service manager's state, the HTTP port, the logs), never only the installer's own summary. |
 | **Scenario set** | The nine scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `<platform>/disabled-service`, `manual-start`, `uninstall`, `upgrade`, `fresh-install-log`, `in-app-update`. |
 | **Environment** | Where a scenario runs: a **bare runner** (the GitHub-hosted machine itself), a **runner VM** (a cloud-image VM booted with QEMU/KVM inside a Linux runner), or a **real machine** by hand. |
-| **Source** | What a run installs: `released` (the public install path for a published tag), `installer: checkout` (a released tarball with the branch's installer swapped in), or `branch` (a release built from the branch on the runner). |
+| **Source** | What a run installs: `released` (a published release, through the public installer) or `branch` (a release built from the dispatched ref by `build-release.yml`, versioned `<next patch>-branch.g<sha>`). |
 | **Matrix** | The environments × the scenario set, run by one dispatch. |
 | **Evidence** | What a job uploads whatever the outcome: app logs, update handoff logs, service-manager state, scenario output. |
 | **macOS runner** | A GitHub-hosted Apple Silicon machine (`macos-14`). It has an Aqua `gui/501` login domain, so LaunchAgents load. |
@@ -26,7 +26,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 
 ## Status
 
-M0 (macOS) and M1 (Linux, bare ubuntu runner) are done: one `install-repro.yml` dispatch runs the nine scenarios on both, and all pass on v1.60.3. M2 (build from the branch) is next.
+M0 (macOS), M1 (Linux, bare ubuntu runner) and M2 (build from the branch) are done: one `install-repro.yml` dispatch runs the nine scenarios on both platforms against a published release or a release built from the branch, through the same build workflow `release.yml` uses. M3 (runner VMs) is next.
 
 ## Principles
 
@@ -34,7 +34,7 @@ M0 (macOS) and M1 (Linux, bare ubuntu runner) are done: one `install-repro.yml` 
 2. **Assert outcomes, not reports.** A scenario checks the service manager, the port and the logs itself. The installer once printed a summary while `2>/dev/null` hid the failure underneath.
 3. **Scenarios are plain scripts against the real installed paths.** The same script runs on a bare runner, in a runner VM and on a user's machine. The workflow is only the environment.
 4. **Manual dispatch only.** Runs start when we decide, never from `release.yml` (owner, 2026-10-25).
-5. **A fix carries its run.** A fix found by the matrix cites the run that found it, and is proven by a `checkout` or `branch` run before its tag where the source allows.
+5. **A fix carries its run.** A fix found by the matrix cites the run that found it, and is proven by a `source: branch` run before its tag.
 6. **Change the version.** Installing a release over itself proves nothing about the version switch. Every environment runs `upgrade` (the release before, then the tag) and checks the version the running app reports, not only the symlink.
 7. **No secrets in evidence.** `collect-evidence` never copies `secrets.env`, and diagnostics never print the process environment unfiltered.
 
@@ -70,7 +70,7 @@ M0 (macOS) and M1 (Linux, bare ubuntu runner) are done: one `install-repro.yml` 
 |---|---|---|
 | M0 | macOS scenario set on the macOS runner | ✅ 2026-10-25 — nine scenarios on `macos-14`, dispatch-only. Found five faults, fixed in v1.60.2 (reload over a running agent, Settings Stop, launchd detection, first-migration lock error) and v1.60.3 (no upgrade switched versions). Run `40202430776`: every scenario passes on v1.60.3, the in-app update from v1.60.2 included. |
 | M1 | Linux scenario set on the bare `ubuntu-24.04` runner | ✅ 2026-10-25 — shared scenarios with a per-platform adapter; `install-repro.yml` with a platform matrix (M4's first half). Run `40204388498`: all nine scenarios pass on Linux and macOS against v1.60.3, the in-app update from v1.60.2 included. No Linux fault found. |
-| M2 | `source: branch` — a release built from the branch, through a build workflow shared with `release.yml` | open |
+| M2 | `source: branch` — a release built from the branch, through a build workflow shared with `release.yml` | ✅ 2026-10-25 — `build-release.yml`; `release.yml` builds through it; `source: released\|branch` replaces `installer: checkout`. Run `40208897190`: both platforms build `1.60.4-branch.ge853f4a` and pass the install scenarios, `upgrade` from v1.60.3 included. Tarball file lists match v1.60.3's on both platforms (3,598 files). |
 | M3 | Runner VMs: Debian 12, Ubuntu 22.04, Ubuntu 24.04, Fedora (current) | open |
 | M4 | One dispatch runs the whole matrix and writes a summary table | open — one dispatch already runs both platforms (M1); the VMs and the summary table remain |
 
@@ -105,12 +105,20 @@ Record (2026-10-25):
 - **Apply M0's checks to Linux:** does the Linux installer hide errors with `2>/dev/null` where the outcome matters? Is its "loaded" state checked against systemd?
 - **Done when** all nine scenarios pass against the latest release, or a scenario is dropped with a recorded reason.
 
-### M2 — build from the branch
+### M2 — build from the branch ✅
 
 - One build workflow (`workflow_call`) that both `release.yml` and the repro workflows call. It builds the release tarball for one platform from the checked-out ref.
 - The repro workflows gain `source: branch`: build, then install the tarball through its bundled installer, as the public installer does. It replaces `installer: checkout`, which a full build covers.
 - `in-app-update` stays `released`-only: it needs two published releases.
 - **Done when** a `source: branch` run on macOS and Linux passes the install scenarios, and `release.yml` builds through the shared workflow with an identical tarball file list.
+
+Record (2026-10-25):
+
+1. **Scope.** The shared build workflow, `release.yml` on it, and `source: released|branch` in `install-repro.yml`. Dropped: `installer: checkout` — a branch build covers it.
+2. **Research.** Each platform's release build takes about 1.5 minutes with caches. `Version.parse("1.60.4-branch.g3be7b8b")` parses as a pre-release, and the installers' tag pattern accepts it. A branch build's version must differ from the latest release, or `upgrade` would reinstall the same version and prove nothing.
+3. **Design unification.** One build: `build-release.yml` (`workflow_call`, inputs `platform` and `version`) owns the platform → runner, tarball tag and required unit path mapping that `release.yml`'s matrix carried. It sets `mix.exs` to the given version (a no-op for a release); checking the tag against `mix.exs` stays in `release.yml`, a release rule. The scenarios get one `release_tarball` helper for every path that needs a tarball. Kept apart deliberately: the build's Linux runner (`ubuntu-22.04`, older glibc) and the test's (`ubuntu-24.04`).
+4. **Plan unification.** `release.yml` keeps its publish job unchanged; only the build moved. The branch `push` trigger is scaffolding, removed before merge. `release.yml` can only be fully proven by a tag; `actionlint` passes on all workflows, and the repro exercises `build-release.yml` itself.
+5. **Execution.** First run failed at compile: the build got the tag (`v1.60.4-…`) as its version; the resolve job now outputs the bare version. Second run (`40208897190`) green on both platforms; the branch build's tarball file lists equal v1.60.3's. The next tag is the first `release.yml` run on the shared build — `scripts/ship verify` checks its assets.
 
 ### M3 — runner VMs
 
@@ -136,7 +144,7 @@ Record (2026-10-25):
 ## Pointers
 
 * Scenarios: `install-repro/scenarios/` (shared) and `install-repro/scenarios/<platform>/`; README: `install-repro/README.md`
-* Workflow: `.github/workflows/install-repro.yml`
+* Workflows: `.github/workflows/install-repro.yml` (the matrix), `.github/workflows/build-release.yml` (the one release build)
 * Installers: `installer/install.sh` (public), `rel/platforms/linux/bin/media-centaur-install`, `rel/platforms/darwin/bin/media-centaur-install`
 * Release build: `.github/workflows/release.yml`
 * KVM on standard Linux runners: GitHub changelog, 2024-04-02, "GitHub Actions: hardware accelerated Android virtualization now available"
