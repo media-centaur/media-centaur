@@ -22,12 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tv-performance.md`](tv-performance.md) —
-  **planning, opened 2026-10-25; resume at M1.** Tooling first, then the
-  cause: make `mc-tv-smooth` / `mc-tv-trace` measure without perturbing
-  what they measure (the page probe's cost, A/A noise), add Android's
-  render-thread timing (Perfetto), make a code-version A/B one command,
-  then find and fix why key-press glides fell from 59.9 to 35–42 fps on
-  2026-10-25 with every code version tried.
+  **in progress, opened 2026-10-25; M1 built offline, its TV runs
+  queued.** Tooling first, then the cause: `mc-tv-smooth` now records
+  what each row measured (animator from the step profile, px/glide,
+  served bundle + HEAD, noise beside every comparison); next Android's
+  render-thread timing (Perfetto) and a one-command code-version A/B.
+  The stored data says the 59.9 fps baseline was a browser smooth scroll
+  and the JS glide has measured 35–42 all along; one interleaved TV run
+  confirms it, then the owner decides whether the glide becomes
+  compositor-driven.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV
