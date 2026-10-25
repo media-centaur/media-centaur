@@ -123,12 +123,14 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-037) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
-  **planning.** Reproducible install environments for media-centaur and
+  **planning; Phase 8 next (added 2026-10-25): the real macOS installer
+  on GitHub's macOS runners — fresh install, upgrade, disabled label,
+  sudo refused, manual start, in-app update, uninstall.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
   ([`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md));
-  six follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,
+  seven follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,
   pre-built shareable images via Packer+GHCR, `--from-local`,
-  upgrade/uninstall scenarios, optional CI). Triggered by a tester
+  upgrade/uninstall scenarios, optional CI, macOS on GitHub's runners). Triggered by a tester
   hitting missing-package, first-run, and Docker-without-sudo failures
   on a fresh Mint install — and our inability to reproduce any of them
   locally.
@@ -137,8 +139,10 @@ Use [`template.md`](template.md) as a starter.
   Linux and macOS impls, CI is green on both OSes with
   `--warnings-as-errors`, every tag builds `darwin-arm64`, and the
   one-line installer supports Apple Silicon. Phase 7 (a real-Mac
-  install + self-update smoke) waits on hardware or the first macOS user
-  report — none has arrived.
+  install + self-update smoke) is under way: the first macOS user report
+  arrived 2026-10-25, and its four installer faults are fixed in
+  v1.60.1. The automated macOS test environment is
+  `install-repro-matrix.md` Phase 8.
 
 ## Complete
 

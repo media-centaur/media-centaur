@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-05-27
-last_updated: 2026-06-10
+last_updated: 2026-10-25
 ---
 # Install reproduction matrix
 
@@ -9,9 +9,19 @@ last_updated: 2026-06-10
 
 Build out a multi-distro, snapshot-driven reproduction environment for the Media Centaur and prowlarr-stack installers, so install bugs can be proven, fixed, and kept-fixed across releases. Phase 1 (Linux Mint only) is a focused start — this campaign carries the larger roadmap from the brainstorm so the deferred decisions are not lost.
 
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| **Scenario** | One scripted install path run against one environment, ending in pass or fail. |
+| **macOS runner** | A GitHub-hosted Apple Silicon machine that runs a workflow job (`macos-14` today). |
+| **LaunchAgent** | The launchd job that starts Media Centaur at login on macOS — the systemd user unit's counterpart. |
+| **Label** | The LaunchAgent's name, `com.media-centaur.app`. launchd keeps an enabled or disabled flag per label, separate from the plist file. |
+| **gui domain** | launchd's per-user login session, `gui/<uid>`. LaunchAgents load into it, and it exists only for a user with a GUI login. |
+
 ## Status
 
-**Phase 1 in progress.** Brainstorm complete; design spec written at [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md). Implementation plan to be written next via the writing-plans skill. No code yet.
+**Planning; Phase 8 (macOS on GitHub's macOS runners) is next.** Added 2026-10-25 by the owner after the first macOS user report. *Reconciled 2026-10-25:* still no `install-repro/` directory and no code for any phase. Phase 1's earlier status: brainstorm complete; design spec written at [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md). Implementation plan to be written next via the writing-plans skill. No code yet.
 
 *Reconciled 2026-06-10:* no `install-repro/` directory exists — untouched
 since the spec. Note the macOS public-installer support (v0.72.10) does not
@@ -27,6 +37,8 @@ change the scope decision here (macOS repro stays out, per Decisions).
 * `2026-05-27` — **Scenarios pull from the released tarball by default**, not the local repo, because faithfulness to what the real user experiences is the point. A `--from-local` mode is a future phase. (brainstorm)
 * `2026-05-27` — **No CI integration in any phase yet.** GH Actions runners can't run KVM on the standard tier; the `larger` runners can but cost money. Revisit only if the matrix grows beyond what local iteration can keep green. (brainstorm)
 * `2026-05-27` — **macOS reproduction is out of scope.** Apple Silicon needs real Mac hardware (or licensed macOS-on-QEMU, which is legally and operationally dodgy). Surface separately if darwin issues recur — `campaigns/macos-platform-support.md` is the better home. (brainstorm)
+* `2026-10-25` — **macOS reproduction is in scope, as Phase 8 on GitHub's macOS runners** (owner). Supersedes the 2026-05-27 entry above: GitHub hosts Apple Silicon at the standard tier, so the hardware objection no longer applies. The trigger was the first macOS user report, fixed in v1.60.1: the LaunchAgent never loaded, `sudo` left root-owned files, a manual start had no `SECRET_KEY_BASE`, and the in-app update needed `setsid`, which macOS lacks. None of these could have shipped had the installer run once on a Mac. (commit `66b9b74b`)
+* `2026-10-25` — **Phase 8 runs in CI**, an exception to "no CI integration": a macOS runner needs no KVM, and `ci.yml` already runs the test suite on `macos-14`. (owner)
 
 ## Roadmap
 
@@ -73,12 +85,35 @@ Default scenarios pull from released tarballs. Add `--from-local PATH` so a deve
 - `mc-uninstall-reinstall` — full uninstall cycle followed by clean reinstall; asserts config/data preservation rules in the wiki are accurate.
 - `mc-rollback` — symlink-swap rollback flow per the wiki.
 
+### Phase 8 — macOS on GitHub's macOS runners (next)
+
+A workflow job on a macOS runner that installs Media Centaur with the real installer and runs these scenarios, each as its own step:
+
+1. **Fresh install without `sudo`.** The summary reports the agent loaded and running. `launchctl print gui/$(id -u)/com.media-centaur.app` succeeds, and `http://localhost:2160` answers.
+2. **Re-run over an existing install.** The upgrade path loads the agent again.
+3. **Install over a disabled label.** `launchctl disable` first, then install. The agent loads, which proves the v1.60.1 fix.
+4. **`sudo` is refused.** The installer exits non-zero and writes nothing.
+5. **Manual start.** Boot the agent out, run `bin/media_centaur start`, and the app boots with the secrets file loaded.
+6. **In-app update.** Install the previous release, trigger the update the way **Settings → System → Update now** does, and assert the agent ends on the new version.
+7. **Uninstall.** The agent is gone, the label is disabled, and config and data are kept.
+
+The job uploads the installer output, `handoff.log` and `~/Library/Logs/Media Centaur/` as artifacts, so a failure carries its evidence.
+
+Research before building:
+
+- Whether a macOS runner has a gui domain for its user. Scenarios 1–3, 6 and 7 need one. If it doesn't, the job can only cover `--no-service` installs, and real-Mac checks stay with users.
+- How scenario 6 triggers the update without a browser: a release command (`bin/media_centaur rpc`) or the HTTP route the Settings button uses.
+- Whether the app boots without `mpv` on the runner, or the job needs `brew install mpv`.
+
 ### Phase 7 — CI integration (only if/when warranted)
 
 `larger` GitHub-hosted runner with KVM, or a self-hosted runner on a small workstation, running a subset of the matrix on release tag. Skip unless local iteration starts dropping regressions.
 
 ## Next steps
 
+0. **Phase 8 first**, ahead of Phase 1: it covers the platform with no tester and no owned hardware. Start with its three research items. Its open decisions:
+   - **Trigger** — on every release tag after `release.yml` publishes, by manual dispatch, or as a gate before the tag. Recommendation: after release plus manual dispatch first. Gating before the tag needs a darwin tarball built from an untagged commit, which is Phase 5's `--from-local` idea on macOS.
+   - **Runner image** — `macos-14`, as `ci.yml` and `release.yml` use, or a newer image. Recommendation: `macos-14`, matching the build.
 1. **Write implementation plan** for Phase 1 via the writing-plans skill, using the spec as input.
 2. Execute Phase 1: driver script, Mint VM bootstrap, two scenarios, README.
 3. Reproduce the reported Mint installation failures end-to-end and capture the run logs; attach to whatever bug tickets/wiki notes those become.
@@ -92,6 +127,7 @@ This campaign is **done** when:
 * All seven phases are shipped, *or* an explicit decision is made that a later phase will not happen (and recorded in **Decisions made** above with the reasoning).
 * `install-repro/README.md` documents the matrix and the bootstrap path for every supported distro.
 * At least one shipped media-centaur or prowlarr-stack fix references a `repro-vm` run-log as the bug evidence — proving the environment is being used, not just maintained.
+* The Phase 8 job runs on every release, and all seven of its scenarios pass, or a scenario is dropped with a recorded reason (for example, no gui domain on the runner).
 
 ## Pointers
 
@@ -100,4 +136,5 @@ This campaign is **done** when:
 * Bundled installer: `rel/platforms/linux/bin/media-centaur-install`
 * prowlarr-stack installer: `../prowlarr-stack/install.sh`
 * Wiki Installation page: `~/src/media-centaur/media-centaur.wiki/Installation.md`
-* macOS reproduction is **not** in this campaign — see [`campaigns/macos-platform-support.md`](macos-platform-support.md) for that line of work.
+* macOS: Phase 8 here owns the macOS test environment. [`campaigns/macos-platform-support.md`](macos-platform-support.md) owns the platform's features and parity.
+* macOS installer: `rel/platforms/darwin/bin/media-centaur-install`, plist `rel/platforms/darwin/share/launchd/com.media-centaur.app.plist`
