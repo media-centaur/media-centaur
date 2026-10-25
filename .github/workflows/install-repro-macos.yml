@@ -56,6 +56,7 @@ jobs:
     runs-on: macos-14
     env:
       MC_TAG: ${{ needs.resolve.outputs.tag }}
+      MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
       MC_INSTALLER: ${{ inputs.installer }}
     steps:
       - uses: actions/checkout@v7
@@ -80,6 +81,9 @@ jobs:
         run: install-repro/scenarios/macos/manual-start
       - name: 7. Uninstall
         run: install-repro/scenarios/macos/uninstall
+      - name: 8. Upgrade from the release before
+        if: needs.resolve.outputs.from_tag != ''
+        run: install-repro/scenarios/macos/upgrade
       - name: Fresh install logged no error
         if: ${{ !cancelled() }}
         run: install-repro/scenarios/macos/fresh-install-log
