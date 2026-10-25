@@ -88,7 +88,23 @@ input system's motion is checked on the TV before it is done:
   artwork and understates the cost.
 * **Only interleaved conditions compare.** Identical code measured 29, 38
   and 60 fps at different times on 2026-10-25. A number from another run is
-  not a baseline. Each row records the TV's CPU load and free memory.
+  not a baseline. Each row records the TV's CPU load and free memory, the
+  spread of its own rounds (`fps range`) and, for every condition after
+  the first, the difference against that spread (`Δ vs first`): only a
+  difference beyond the noise is a result. The same `--cond` given twice
+  is an A/A run, which shows the noise on its own.
+* **Check what moved before reading the number.** A row's `animator`
+  says what produced the glide's step profile: `glide` is the input
+  system's main-thread glide (its largest step is always among the
+  first); `eased` is a browser smooth scroll on the compositor, which
+  presents at 60 fps on the Sony regardless. On 2026-10-25 a 59.9 fps
+  "glide" was an `eased` scroll; the glide itself measured 35–42. Two rows
+  compare only when `animator` and `px/glide` agree.
+* **Check the page identity.** Each row's `page id` is the served
+  bundle's digest and the checkout's HEAD (`*` when the tree is dirty).
+  `MIXED` means the rounds measured different pages. Twice on 2026-10-25
+  the page on the TV was not the code the session believed it was
+  measuring; this column is what would have shown it.
 * **Wait for a settled page.** The debug app loads with `LOAD_NO_CACHE`,
   so every page load refetches all artwork; `mc-tv-smooth` waits until
   loading stops before measuring.
@@ -108,13 +124,16 @@ Worked in `campaigns/tv-performance.md`.
 
 
 Key-press glides measured 59.9 fps on 2026-10-25 at midday and 35–42 fps
-from mid-afternoon on, with that midday commit, the current code, both
-debug app builds, either glide implementation, either scale and a freshly
-booted TV alike; a compositor scroll measured 57 fps throughout. The cause
-is not found. Not yet ruled out: `mc-tv-smooth`'s own page probe (it reads
-every element's scroll offsets each frame, which costs a main-thread
-scroll and not a compositor one), and the WebView's draw on Android's
-render thread (`DrawFn_DrawGL`, up to 48 ms).
+from mid-afternoon on. The stored traces, read that evening, show the
+midday figure measured a compositor scroll animation (the browser's own
+smooth scroll, `ScrollTree::OnScrollOffsetAnimated` on every frame, no
+`requestAnimationFrame`) and the afternoon figures the input system's
+main-thread glide (a commit every other frame, half the presented frames
+partial). The glide did not slow down; the two numbers measured two
+animators. Still to do on the TV: one interleaved run that shows both
+side by side with the rewritten probe's `animator` column; the probe's
+own cost (`--no-probe` against a probed run); and whether the glide
+becomes compositor-driven, which is decision 2 in the campaign.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
 to 16 MB on Home), not measured — read the debug app's PSS on Home before
