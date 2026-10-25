@@ -79,8 +79,10 @@ flex centring of the glyph, the round shape, `color: white`, the
 `base-100`-at-75% background, the 1.5px light border, `cursor: pointer`,
 primary on hover, the sink and darkening on `:active`, the transitions and the
 reduced-motion rule. `.play-overlay-btn` keeps what is the play button's own:
-its absolute centring in the card, its two sizes, and the release ring
-(`::after`), which answers the player's window delay. Both buttons carry both
+its absolute centring in the card, its two sizes, `pointer-events: auto` (its
+wrapper is pointer-transparent), and the release ring (`::after`), which
+answers the player's window delay. The picture button block sits above the
+play overlay's in `app.css`: primitive before composer. Both buttons carry both
 classes where they apply. No visual change to the play button.
 
 The hover-intent delay token `--play-overlay-reveal-delay` becomes
@@ -93,18 +95,25 @@ the page shows nothing.
 The reveal is one rule for both pointer affordances, grouped:
 
 ```css
-.play-overlay, .scroll-row-arrow { opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
+.play-overlay, .scroll-row-arrow { opacity: 0; transition: opacity 240ms ease; }
 @media (hover: hover) {
   .play-overlay-host:hover .play-overlay,
-  .scroll-row:hover .scroll-row-arrow { opacity: 1; pointer-events: auto; transition-delay: var(--hover-reveal-delay); }
+  .scroll-row:hover .scroll-row-arrow { opacity: 1; transition-delay: var(--hover-reveal-delay); }
 }
 ```
 
-and the arrow's own rules place it and drop it at a reached end:
+Who takes the pointer is each affordance's own, not the disc's: `.picture-button`
+sets no `pointer-events`. The play overlay's wrapper is always `pointer-events:
+none` (card clicks pass through) and `.play-overlay-btn` is `auto`; the arrow's
+wrapper is `none` until hovered, when it turns `auto` and the disc inherits it,
+so a hidden arrow never takes a click meant for the card beneath.
+
+The arrow's own rules place it and drop it at a reached end:
 
 ```css
 .scroll-row { position: relative; }
-.scroll-row-arrow { position: absolute; top: 50%; translate: 0 -50%; z-index: 3; }
+.scroll-row-arrow { position: absolute; top: 50%; translate: 0 -50%; z-index: 3; pointer-events: none; }
+@media (hover: hover) { .scroll-row:hover .scroll-row-arrow { pointer-events: auto; } }
 .scroll-row-arrow[data-scroll-row-arrow="left"]  { left: 0.5rem; }
 .scroll-row-arrow[data-scroll-row-arrow="right"] { right: 0.5rem; }
 .scroll-row-arrow .picture-button { width: 44px; height: 44px; }

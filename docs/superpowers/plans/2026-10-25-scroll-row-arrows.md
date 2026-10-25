@@ -77,7 +77,6 @@ Then split the button. The disc's drawing is `.picture-button`; the play button 
   background: oklch(from var(--color-base-100) l c h / 0.75);
   border: 1.5px solid oklch(100% 0 0 / 0.85);
   cursor: pointer;
-  pointer-events: auto;
   /* The release half of the press: the disc settles back to size with a
      barely-there overshoot (the same curve also runs when the pointer
      lets go after a drag-off, which is the right answer for that case
@@ -123,6 +122,9 @@ Then split the button. The disc's drawing is `.picture-button`; the play button 
   translate: -50% -50%;
   width: 52px;
   height: 52px;
+  /* This button's: its wrapper is pointer-transparent so card clicks pass
+     through, and only the disc takes the pointer. */
+  pointer-events: auto;
 }
 
 .play-overlay-btn::after {
@@ -195,8 +197,8 @@ Expected: all pass (the story renders; nothing in the tests names the old class 
 
 - [ ] **Step 4: Confirm no reference to the old token remains**
 
-Run: `grep -rn "play-overlay-reveal-delay" assets lib docs .claude`
-Expected: no output.
+Run: `grep -rn "play-overlay-reveal-delay" assets lib decisions .claude`
+Expected: only the historical line in `decisions/user-interface/2026-08-17-027-play-in-place.md`, which gets a dated amendment at the end of the file naming the new token and `.picture-button` (the spec and plan under `docs/superpowers` name the old token on purpose). The picture button block sits ABOVE the `── Play overlay ──` header (primitive before composer; the two classes share no property).
 
 - [ ] **Step 5: Visual check of the play button**
 
@@ -909,7 +911,6 @@ with
 .play-overlay,
 .scroll-row-arrow {
   opacity: 0;
-  pointer-events: none;
   transition: opacity 240ms ease;
 }
 
@@ -917,7 +918,6 @@ with
   .play-overlay-host:hover .play-overlay,
   .scroll-row:hover .scroll-row-arrow {
     opacity: 1;
-    pointer-events: auto;
     transition-delay: var(--hover-reveal-delay);
   }
 }
@@ -925,9 +925,10 @@ with
 .play-overlay {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 ```
 
-and delete the old `.play-overlay-host:hover .play-overlay { … }` rule below it (its declarations now live in the grouped rule). The play overlay keeps its halo `background` and the rest of its block.
+and delete the old `.play-overlay-host:hover .play-overlay { … }` rule below it (its declarations now live in the grouped rule). The play overlay keeps its halo `background`, its `pointer-events: none` (card clicks pass through; `.play-overlay-btn` carries `pointer-events: auto`, Task 1) and the rest of its block. Pointer-events are deliberately NOT in the grouped rule: each affordance decides who takes the pointer. The play overlay's wrapper never does; the arrow's wrapper does only while revealed.
 
 Second, after the `.row-scroll-hero` block and before `/* ── Poster grid ──`:
 
@@ -950,11 +951,21 @@ Second, after the `.row-scroll-hero` block and before `/* ── Poster grid ─
   position: relative;
 }
 
+/* Pointer-transparent until revealed, so a hidden arrow never takes a
+   click meant for the card beneath; the disc inherits `auto` on hover
+   (`.picture-button` sets no pointer-events of its own). */
 .scroll-row-arrow {
   position: absolute;
   top: 50%;
   translate: 0 -50%;
   z-index: 3;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .scroll-row:hover .scroll-row-arrow {
+    pointer-events: auto;
+  }
 }
 
 .scroll-row-arrow[data-scroll-row-arrow="left"] {
