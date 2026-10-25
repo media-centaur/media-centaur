@@ -26,8 +26,11 @@
  * Frame-rate independent: the fraction is derived from elapsed time, so a
  * dropped frame changes nothing about where the row ends up.
  *
- * A write the browser rounds back to the same offset ends the glide at the
- * target: under a root zoom, sub-device-pixel steps never close the gap.
+ * A write that rounds back to the same offset twice running ends the glide at
+ * the target: under a root zoom, sub-device-pixel steps never close the gap.
+ * Once is not enough — a first frame can land a fraction of a millisecond
+ * after the glide starts, and its tiny step must not turn the glide into a
+ * snap.
  *
  * All external dependencies (`requestAnimationFrame`, a clock) are injected,
  * following the same DI pattern as the rest of the framework.
@@ -44,10 +47,14 @@ const DEFAULT_TAU = 110
 /** Below this many px the animation is over — snap and stop. */
 const EPSILON = 0.5
 
-/** The two scroll axes: the target key and the offset it moves and the extent/viewport it clamps against. */
+/**
+ * The two scroll axes: the target record's keys (the offset it is heading
+ * for, and whether the last write stalled), the box offset it moves, and the
+ * extent/viewport it clamps against.
+ */
 const AXES = [
-  { key: "left", offset: "scrollLeft", extent: "scrollWidth", port: "clientWidth" },
-  { key: "top", offset: "scrollTop", extent: "scrollHeight", port: "clientHeight" },
+  { key: "left", stalled: "stalledLeft", offset: "scrollLeft", extent: "scrollWidth", port: "clientWidth" },
+  { key: "top", stalled: "stalledTop", offset: "scrollTop", extent: "scrollHeight", port: "clientHeight" },
 ]
 
 /**
@@ -62,10 +69,15 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
   let running = false
   let lastTime = 0
 
-  function glide(box, { left, top } = {}) {
+  function glide(box, offsets = {}) {
     const target = {}
-    if (left != null && Math.abs(left - box.scrollLeft) > EPSILON) target.left = left
-    if (top != null && Math.abs(top - box.scrollTop) > EPSILON) target.top = top
+    for (const axis of AXES) {
+      const value = offsets[axis.key]
+      if (value == null || Math.abs(value - box[axis.offset]) <= EPSILON) continue
+      target[axis.key] = value
+      // A stall counts only against the target it was chasing.
+      target[axis.stalled] = false
+    }
 
     // Already there on every requested axis — nothing to animate. Note this
     // does NOT clear an existing target: a caller asking for the current
@@ -111,11 +123,11 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
   }
 
   /**
-   * Move one axis of `box` a frame closer to `value`. Returns whether the
-   * axis has arrived.
+   * Move one axis of `box` a frame closer to its `target`. Returns whether
+   * the axis has arrived.
    */
-  function settle(box, axis, value, fraction) {
-    const goal = reachable(value, box[axis.extent], box[axis.port])
+  function settle(box, axis, target, fraction) {
+    const goal = reachable(target[axis.key], box[axis.extent], box[axis.port])
     const remaining = goal - box[axis.offset]
     if (Math.abs(remaining) <= EPSILON) {
       box[axis.offset] = goal
@@ -124,11 +136,21 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
 
     const before = box[axis.offset]
     box[axis.offset] = before + remaining * fraction
+    if (box[axis.offset] !== before) {
+      target[axis.stalled] = false
+      return false
+    }
+
     // The browser snaps offsets to device pixels; under a root zoom a step
     // below half a device pixel rounds back to where it was, and the gap
-    // would never close. A write that moved nothing is the end: land on the
-    // target (its nearest representable offset).
-    if (box[axis.offset] !== before) return false
+    // would never close. A genuine stall repeats every frame, but a single
+    // one can also be a first frame that ran a fraction of a millisecond
+    // after `start()` — so only the second stalled write in a row is the
+    // end: land on the target (its nearest representable offset).
+    if (!target[axis.stalled]) {
+      target[axis.stalled] = true
+      return false
+    }
     box[axis.offset] = goal
     return true
   }
@@ -147,7 +169,7 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
       let arrived = true
       for (const axis of AXES) {
         if (target[axis.key] == null) continue
-        if (!settle(box, axis, target[axis.key], fraction)) arrived = false
+        if (!settle(box, axis, target, fraction)) arrived = false
       }
       if (arrived) targets.delete(box)
     }
