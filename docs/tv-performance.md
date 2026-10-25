@@ -108,7 +108,15 @@ input system's motion is checked on the TV before it is done:
   a passive scroll listener and measured zero cost (run 43). After any
   change to the probe, alternate a probed and a `--no-probe` run into one
   `--out` directory and read `Δ vs first`. `mc-tv-trace`'s tracing cost
-  is still unmeasured; treat its frame counts as indicative until it is.
+  nothing measurable either (run 45: traced glides presented at 60 fps
+  with every gap 16.7 ms, alternated with plain presses), but its frame
+  count is the trace's `PipelineReporter` count, not the screen's
+  presents (54 against 41 on one glide); read fps from `mc-tv-smooth`.
+* **A run starts with the app on screen.** SurfaceFlinger presents
+  nothing for a layer behind the TV's input, while the WebView still
+  answers over CDP: a run after a handback recorded zero presents in
+  every trial. `mc-tv-smooth run` brings the app to the front first; a
+  row with zero glides on a page that scrolls is this, not a result.
 * **Check the page identity.** Each row's `page id` is the served
   bundle's digest and the checkout's HEAD (`*` when the tree is dirty).
   `MIXED` means the rounds measured different pages. Twice on 2026-10-25
@@ -137,11 +145,14 @@ was a compositor scroll animation (the browser's own smooth scroll), and
 the 35–42 fps afternoon readings were the input system's glide under the
 tool's old per-frame probe, which cost it 16–19 fps (run 42, interleaved).
 With the present probe or none the glide presents at 60 fps on the Sony,
-the same as a compositor smooth scroll (runs 41, 43). Still open in the
-campaign: the A/A noise run, `mc-tv-trace`'s own cost, Android's render
-thread per frame (Perfetto), a one-command code-version A/B, and a reveal
-that scrolled 156 px under the glide where the smooth variant scrolled 88.
+the same as a compositor smooth scroll (runs 41, 43); the A/A reads 60
+against 60 (run 44) and `mc-tv-trace`'s tracing costs nothing measurable
+(run 45). Still open in the campaign: Android's render thread per frame
+(Perfetto), a one-command code-version A/B, and a reveal that scrolled
+156 px under the glide where the smooth variant scrolled 88.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
-to 16 MB on Home), not measured — read the debug app's PSS on Home before
-and after `e84dfd99`'s change with the TV free.
+to 16 MB on Home), not measured. The browser process alone reads 83 MB
+PSS on Home at `47a4607b`; the WebView's renderer, a separate sandboxed
+process where the bitmap lives, still needs reading per pid, for the
+commits before and after `e84dfd99`.

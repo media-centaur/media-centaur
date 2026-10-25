@@ -31,14 +31,15 @@ for every UI change, so the tooling outlives the slowdown.
 
 ## Status
 
-In progress, paused 2026-10-25 evening at a clean cut (runs 41–43
-complete, run 44 not started; the TV handed back). The slowdown is
-explained and confirmed on the TV: the old page probe cost the glide
-16–19 fps (run 42), and the 59.9 baseline was a compositor scroll it
-could not slow. The JS glide presents at 60 fps on the Sony with the new
-probe or none (runs 41, 43). M1 lacks only the A/A run (44, seven
-minutes of TV); M4 is done; M5's fix is the tool itself and its guard
-the standing rule in `docs/tv-performance.md`. Next: run 44, then M2.
+In progress; the TV in standby after the 2026-10-25 night runs (44, 45).
+The slowdown is explained and confirmed on the TV: the old page probe
+cost the glide 16–19 fps (run 42), and the 59.9 baseline was a
+compositor scroll it could not slow. The JS glide presents at 60 fps on
+the Sony with the new probe or none (runs 41, 43), the A/A reads 60
+against 60 (run 44), and `mc-tv-trace`'s tracing cost nothing
+measurable in two traced glides (run 45). M1, M4 and M5 are done. Next:
+M2 (Perfetto; `mc-tv-trace` reads presents and converges the held-key
+expression), then M3, with decisions 2–4 open for the owner.
 
 ## Principles
 
@@ -141,10 +142,39 @@ the standing rule in `docs/tv-performance.md`. Next: run 44, then M2.
   Runs 41–43 then measured the same glide at 60 fps with the new probe or
   none, and at 37–44 with the old probe reinstated: the old probe is what
   made the afternoon glide miss its deadline.
-* Open, not pursued: `mc-tv-trace`'s own cost. The afternoon trace showed
-  the partial-frame glide without `mc-tv-smooth`'s probe, but Chromium
-  tracing with the devtools.timeline categories is itself main-thread
-  work. M2 measures it the same way before its numbers are believed.
+* **Run 44 (TV): the A/A.** `base` against `base#2` on the library,
+  three rounds, no overrides: 60 against 60 fps, Δ +0.0 (noise 7). The
+  one reading off 60 was 53 in the first trial after the app came
+  forward; the five that followed were 60.0 with every gap 16.7 ms. On
+  an idle TV the noise is one slow first trial, not a spread. A first
+  attempt had recorded zero presents in all 36 presses: the TV's input
+  app was in front after the evening's handback and SurfaceFlinger
+  presents nothing for a layer behind it, while the WebView still
+  answers over CDP. `mc-tv-smooth run` now brings the app to the front
+  before its first trial; the empty directory was discarded.
+* **Run 45 (TV): `mc-tv-trace`'s own cost, none measurable.** Plain
+  D-pad presses alternated with presses made under `mc-tv-trace --key`
+  (Chromium tracing with the devtools.timeline categories active), no
+  page probe in either, each glide read from SurfaceFlinger as the
+  longest unbroken run of presents. Plain: four glides, 60.0 fps, 24–31
+  presents each, every gap 16.7 ms. Traced: two glides, 60.0 fps, 22–25
+  presents, every gap 16.7 ms. Two traced glides are a small sample, but
+  neither dropped a frame. Two things learned for M2: a trace attaching
+  presents one frame about 450 ms before the key, so the no-probe
+  glide window must skip isolated leading presents (the first-unbroken-
+  run rule read the glide as empty); and the trace's `PipelineReporter`
+  count after the action (54, 58) exceeds the screen's presents (41, 44
+  in the same window), so the trace's frame count is not a present
+  count and `mc-tv-trace` should read presents the way `mc-tv-smooth`
+  does. Data: `~/.cache/mc-tv-smooth/runs/45-trace-cost/presses.jsonl`
+  and `trace-{1..8}.json`.
+* **Memory, after `e84dfd99` only (M6, half).** The debug app's main
+  process on the dev library page: 79 MB PSS; on Home after settling:
+  83 MB PSS, Graphics 0. This is the browser process alone, read with
+  `dumpsys meminfo <package>`; the WebView's renderer is a separate
+  sandboxed process that this read does not cover, and the hero bitmap
+  lives there. M6 reads every process whose name starts with the package
+  (`dumpsys meminfo` per pid) for both commits.
 
 ## Open decisions
 
@@ -178,17 +208,20 @@ the standing rule in `docs/tv-performance.md`. Next: run 44, then M2.
 * `2026-10-25` — Later the same evening the owner freed the TV; runs 41–43 ran, then the owner asked for a pause that keeps the data whole: the chain stopped between runs, run 44 untouched. (owner)
 * `2026-10-25` — The glide slowdown's cause is the old page probe, confirmed interleaved on the TV (run 42); the fix is the scroll-event probe and the guard is the standing rule that a tool's cost is measured with `--no-probe` before its numbers are believed. (M4, M5)
 * `2026-10-25` — `window.__scrollGlider` is the page's debug handle for swapping the animator under measurement. (commit `4d18f9b2`)
+* `2026-10-25` — Night: the owner freed the TV for whatever runs the campaign needed and asked for it off afterwards; runs 44 and 45 ran, Home's memory was read for the current commit, then `mc-tv off`. (owner)
+* `2026-10-25` — `mc-tv-smooth run` brings the app to the front before measuring; a run after a handback had recorded no presents at all. (M1, `mc-tv-smooth`)
+* `2026-10-25` — `mc-tv-trace`'s frame count is not a present count (54 against 41 on one glide); M2 gives it SurfaceFlinger's presents and a glide window that skips the trace's own leading present. (run 45)
 
 ## Milestones
 
 | | | |
 |---|---|---|
-| M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | tool rewritten 2026-10-25 (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); probe cost measured on the TV: zero (run 43, Δ 0.0 both pages). Open: the A/A run (`run --page /library --cond base --cond base --reps 3`, seven minutes). |
-| M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). | open |
+| M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | ✅ 2026-10-25 — tool rewritten (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); probe cost zero on the TV (run 43, Δ 0.0 both pages); A/A on the library (run 44, three rounds): 60 against 60, Δ +0.0, the only off-reading 53 in the first trial after the app came forward, so the noise band on an idle TV is one slow first trial. `run` now brings the app to the front first (a run after a handback had recorded zero presents). |
+| M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). Also: `mc-tv-trace` reads the screen's presents beside its trace (run 45 showed its frame count is not a present count) and shares the held-key expression with `mc-tv-smooth`. | open — tracing cost measured first (run 45): none in two traced glides |
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | open |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
-| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open |
+| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25 for the browser process only (83 MB PSS on Home, 79 on the library); the renderer process, where the bitmap lives, needs a per-pid read, and the before-half needs M3's second server |
 
 Every milestone that changes an existing system runs the campaign
 procedure and records each step here.
@@ -284,7 +317,13 @@ procedure and records each step here.
    opening third outweighs the middle third" after a jittered glide
    mislabelled; the no-probe glide window became the first unbroken run
    of presents after an idle gap inflated one row. Both are derivations,
-   re-run over the stored events. Run 44 (A/A) waits for the TV.
+   re-run over the stored events. Run 44 (A/A, later the same evening):
+   `base` against `base#2` on the library, three rounds, 60 against 60
+   fps, Δ +0.0, one trial at 53 (the first after the app came forward);
+   the first attempt recorded zero presents in every trial because the
+   TV's input app was in front after the handback, so `cmd_run` now
+   calls `mc-tv launch` before its first trial and the empty directory
+   was discarded. M1 closed.
 
 ## Completion criteria
 

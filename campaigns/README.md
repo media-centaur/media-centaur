@@ -22,14 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tv-performance.md`](tv-performance.md) —
-  **in progress, opened 2026-10-25; paused at a clean cut, M4–M5 done,
-  M1 lacks the A/A run.** The glide slowdown was the tool: the old
-  per-frame probe cost the glide 16–19 fps, and the 59.9 baseline was a
-  compositor scroll it could not slow (confirmed interleaved on the TV).
-  `mc-tv-smooth` now records what each row measured (animator, px/glide,
-  served bundle + HEAD, noise beside every comparison) and its probe
-  measures zero cost. Next: the A/A run, Android's render-thread timing
-  (Perfetto, with `mc-tv-trace`'s own cost measured first), a one-command
+  **in progress, opened 2026-10-25; M1, M4 and M5 done.** The glide
+  slowdown was the tool: the old per-frame probe cost the glide 16–19
+  fps, and the 59.9 baseline was a compositor scroll it could not slow
+  (confirmed interleaved on the TV). `mc-tv-smooth` now records what
+  each row measured (animator, px/glide, served bundle + HEAD, noise
+  beside every comparison); its probe measures zero cost, the A/A reads
+  60 against 60, and `mc-tv-trace`'s tracing cost nothing measurable.
+  Next: Android's render-thread timing (Perfetto, with `mc-tv-trace`
+  reading the screen's presents beside its trace), a one-command
   code-version A/B.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
