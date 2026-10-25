@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.60.3 — 2026-10-25
+
+### Fixed
+
+- **Updating on a Mac switches to the new version.** On a Mac, every update — **Settings → System → Update now**, `media-centaur-install --update`, or running a newer installer — said it installed the new version, but the app kept running the old one. Updates now take effect. If you are on 1.60.1 or 1.60.2, use **Update now** once to reach this version. On 1.60.0 or earlier, run `~/.local/lib/media-centaur/current/bin/media-centaur-install --update` in Terminal instead.
+
 ## v1.60.2 — 2026-10-25
 
 ### Fixed
