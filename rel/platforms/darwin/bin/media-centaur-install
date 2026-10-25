@@ -433,10 +433,13 @@ banner "Running schema migrations against $version"
 banner "Running data migrations against $version"
 "$target/bin/media_centaur" eval "MediaCentaur.Release.migrate_data()"
 
-# 7. Atomic symlink flip.
+# 7. Atomic symlink flip. BSD mv follows a destination that is a symlink
+#    to a directory and moves the new link into it, leaving `current` on
+#    the old release; -h renames over the symlink itself, as GNU mv -T
+#    does on Linux.
 banner "Pointing current -> releases/$version"
 ln -sfn "releases/$version" "$current_link.new"
-mv -f "$current_link.new" "$current_link"
+mv -fh "$current_link.new" "$current_link"
 
 # 8. Autostart. A failure to load is reported in the summary, with the
 #    manual-start commands, and the installer then exits non-zero.
