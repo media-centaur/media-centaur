@@ -18,18 +18,58 @@
 // `data-src` is the cache key. The root layout marks the same URL on its
 // prefetch hint (`data-hero-backdrop`) and app.js pre-decodes it at idle, so
 // the first visit is warm too. Cache capacity is one: Home's hero is the only
-// backdrop-bearing surface, so exactly one URL is live at a time and a bitmap
-// costs ~33 MB at 4K. The hero rotates and a `?v=` bump changes the URL —
+// backdrop-bearing surface, so exactly one URL is live at a time. A bitmap is
+// kept no larger than the screen can show (`fitToScreen`): ~33 MB for a 4K
+// master on a 4K screen, ~8 MB on the TV app's 1080p page — the cache and the
+// canvas sized from it each hold one. The hero rotates and a `?v=` bump changes the URL —
 // either way the outgoing bitmap is never asked for again, so evicting it is
 // the right move, and invalidation is the key itself.
 //
 // `data-hero-state` reports the slot's state — `pending` (decoding),
 // `drawn`, or `failed` — for tests and runtime probes; nothing styles it.
 
+// The largest the hero can be drawn, in device pixels: the screen, or the
+// viewport when that is larger — headless Chromium reports an 800×600-class
+// screen whatever its window, and screenshot captures must keep a full hero.
+// Browser zoom trades CSS pixels for devicePixelRatio, so the products are
+// device resolution either way.
+export function displaySize(screenSize, viewport, ratio) {
+  return {
+    width: Math.round(Math.max(screenSize.width, viewport.width) * ratio),
+    height: Math.round(Math.max(screenSize.height, viewport.height) * ratio)
+  }
+}
+
+function currentDisplaySize() {
+  return displaySize(
+    { width: screen.width, height: screen.height },
+    { width: window.innerWidth, height: window.innerHeight },
+    window.devicePixelRatio || 1
+  )
+}
+
+// A decoded bitmap no larger than the screen can show. The hero covers its
+// slot (`object-fit: cover`) and the slot is never larger than the screen, so
+// the picture is scaled to cover the screen and only ever down: a 4K master
+// on a 4K screen is kept as decoded, a smaller picture is never enlarged. The
+// TV app draws a 1080p page, where a 4K master held at full size spent three
+// quarters of its memory on pixels never shown.
+export async function fitToScreen(bitmap, screenSize, resize = (source, options) => createImageBitmap(source, options)) {
+  const scale = Math.max(screenSize.width / bitmap.width, screenSize.height / bitmap.height)
+  if (scale >= 1) return bitmap
+  const fitted = await resize(bitmap, {
+    resizeWidth: Math.round(bitmap.width * scale),
+    resizeHeight: Math.round(bitmap.height * scale),
+    resizeQuality: "high"
+  })
+  bitmap.close()
+  return fitted
+}
+
 async function decodeUrl(url) {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`hero backdrop ${url}: HTTP ${response.status}`)
-  return createImageBitmap(await response.blob())
+  return fitToScreen(await createImageBitmap(await response.blob()), currentDisplaySize())
 }
 
 // LRU keyed by URL. `get` promotes; `load` dedupes in-flight decodes and
