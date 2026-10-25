@@ -1708,13 +1708,28 @@ sim host has no artwork). Results on the Sony (MT5895, 1080p UI at 60 Hz):
    same look) and no blur, the browser's own smooth scroll reaches 58 fps
    (from 29), and 54 fps with a target retargeted every 50 ms (a held key).
 3. The input system's glide (`scroll_glide.js`, writes `scrollTop` from
-   rAF on the main thread) stays at 27–36 fps under the same CSS, as does
-   a plain rAF scroll: main-thread scrolling is the remaining cap.
-Proposed, not built (owner): on the TV, no backdrop blur (or none on
-cards) and the body gradient on a fixed layer; then the glide driven on
-the compositor (native smooth `scrollTo`, retargeting measured above),
-re-checking the held-input failure `scroll_glide.js` documents for
-desktop.
+   rAF on the main thread) measured 27–36 fps under the same CSS that
+   night — but see the outcome below: that was the TV's state, not the
+   glide.
+
+**Fixed, 2026-10-25 (owner approved).** The root layout names a paired
+player on `<html>` (`data-player="remote"`, test
+`player_kind_test.exs`, red then green); under it `app.css` turns every
+`backdrop-filter` off, and the body gradient moved to a fixed
+`body::before` layer for every device (same look). Measured in one run,
+interleaved, with the page settled: library glides 15 fps → 59.9, home
+42 → 59.9, no stall over 50 ms. A native smooth-scroll variant of the
+glide also measured 59.9 and the current glide 59.9 under the same
+conditions (held key: 52.9 against 51.5, settle 0.9 s both), so the glide
+stays; the earlier 29 fps readings came from the TV's state (it had just
+woken from standby; 3 GB with swap full while both apps are resident) and
+from measuring while the debug app, which loads with `LOAD_NO_CACHE`,
+was still re-fetching artwork. `mc-tv-smooth` now waits for a settled
+page and records the TV's CPU and free memory per trial; `mc-tv-trace`
+records a Chromium trace of one action and breaks each frame into its
+pipeline stages. Open: the 40 s of artwork refetch on every debug-app
+page load is a debug-build cost only; nothing else is open for the
+page's smoothness until the owner's walk names one.
 
 ### M5 — The native path and the page as OSD (procedure record)
 
