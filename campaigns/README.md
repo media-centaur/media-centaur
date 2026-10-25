@@ -30,8 +30,10 @@ Use [`template.md`](template.md) as a starter.
   context + pairing and access plug; transport extraction; remote
   transport + media endpoint; the TV app; owner checks on the TV.
 * [`google-play.md`](google-play.md) —
-  **planning, parked 2026-10-23; runs after `remote-players`' remaining
-  items and the owner's usability pass, before the merge.** The TV app
+  **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
+  BACK-to-home, the Menu-key dependency and the banner fail the TV
+  review criteria); the account sit-down waits on the personal or
+  organization decision.** The TV app
   on Google Play: the Play Console account (personal or organization —
   the closed-testing rule for new personal accounts decides it), the
   app bundle beside the APK in the tag-driven release, the internal

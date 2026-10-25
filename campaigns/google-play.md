@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in-progress
 started: 2026-10-23
-last_updated: 2026-10-23
+last_updated: 2026-10-25
 ---
 # The TV app on Google Play
 
@@ -32,10 +32,10 @@ Defined before use; refined as the campaign proceeds.
 
 ## Status
 
-Planning, parked. Nothing is done: the owner has no Play Console
-account. Runs after `remote-players.md`'s remaining items and the
-owner's usability pass, and before the merge of `remote-players` into
-main and the major host release (the owner's sequence, 2026-10-23).
+M1's research done 2026-10-25 (record under M1 below); the account
+sit-down waits on open decision 1. Three findings against Google's TV
+quality criteria need work before the Android TV review (open
+decisions 4–6); none blocks the internal track.
 
 ## Principles
 
@@ -67,6 +67,25 @@ main and the major host release (the owner's sequence, 2026-10-23).
    or a Google Group. Recommendation: the owner alone on the internal
    track; a group only if closed testing needs the twelve.
 
+4. **BACK must be able to leave the app (TV-DB, "Back presses return
+   to the Android TV home screen").** The shell hands every BACK to the
+   page, and the page's BACK only ever moves between content and the
+   main menu, so BACK never leaves the app. Options: (a) BACK in the
+   main menu leaves the app on a remote player — the page tells the
+   shell through a JavaScript interface, which needs a TV app release;
+   (b) a confirm ("Exit Media Centaur?") on that BACK. Recommendation:
+   (a), the platform's own behaviour; the desktop keeps today's.
+5. **The track menu opens only with the Menu key (TV-DM, "does not
+   depend on a Menu button").** Google TV remotes have no Menu key;
+   only the Sony's has one. Options: (a) a tracks control on the
+   viewing bar, reached with the D-pad; (b) a long SELECT. Recommendation:
+   (a) — visible and reachable on every remote, and it fixes a
+   usability gap on every TV, not only the review.
+6. **The banner names nothing (TV-BN, "the banner contains the app
+   name").** `banner.xml` is a placeholder vector of two triangles.
+   It needs real artwork with "Media Centaur" in it: the owner's call
+   (the app's mark, 320×180, legible from the couch).
+
 ## Decisions made
 
 * `2026-10-22` — Distribution through Google Play's internal testing track, so installing on the TV is a Play Store install with no public listing. (`remote-players.md`, conversation)
@@ -81,6 +100,36 @@ runs the campaign procedure (scope, research, decisions, `unify_design`
 on the design, plan, `unify_design` on the plan, execution) and records
 each step here.
 
+**M1 research, 2026-10-25** (Google's pages: Play Console Help
+14151465, developer.android.com/docs/quality-guidelines/tv-app-quality):
+* Closed testing — "personal developer accounts created after November
+  13, 2023": 12 testers opted in continuously for 14 consecutive days
+  (an opt-out restarts that tester's count), then production access is
+  applied for on the Dashboard, reviewed in about seven days. The help
+  page names no rule for organization accounts; third-party guides say
+  they are exempt. Internal testing (up to 100 testers, no review) is
+  open to either account at once — the owner's own TV needs nothing
+  more, so decision 1 decides production's timeline, not M3's.
+* Organization accounts need a D-U-N-S number (free, up to 30 business
+  days; third-party sources). The one-time fee is USD 25.
+* TV criteria (Tier 3, the review's bar): leanback launcher intent and
+  touchscreen not required (the manifest has both); `minSdk` ≤ 31 (26);
+  App Bundles mandatory (M2); at least one unaltered TV screenshot;
+  from 2026-08-01 "TV apps must support both 32- and 64-bit
+  architectures and comply with 16 KB page size requirements" — the
+  APK carries armeabi-v7a, arm64-v8a, x86 and x86_64, and every native
+  library, libmpv's included, is 16 KB-aligned in the zip and in its
+  ELF segments (`mc-tv check-16k`, 2026-10-25). The 16 KB question is
+  closed.
+* D-pad and playback (TV-DP, TV-PC, TV-PP): five-way navigation,
+  centre toggles pause, left/right seek, play/pause keys toggle — the
+  viewing layer does all of it. TV-DB, TV-DM and TV-BN fail today:
+  open decisions 4–6.
+* Overscan (TV-OV, "no text or functionality is cut off by screen
+  edges"): the sidebar's labels sit 24 px from the left edge of a
+  1920 px page; unverified against the review, checked on a TV with
+  overscan on before submitting.
+
 1. **M1 — Research and the account.** Research, by the agent before
    the sit-down: Play's current account rules (fee, identity check,
    personal versus organization, the closed-testing rule and whom it
@@ -91,8 +140,8 @@ each step here.
    Advanced settings → Form factors); the 64-bit and 16 KB page-size
    requirement for TV apps in force since 2026-08-01 (the APK carries
    `arm64-v8a`; whether `dev.jdtech.mpv:libmpv` 1.0.0's native
-   libraries are 16 KB-aligned is unverified — check with the SDK's
-   alignment tool); Play App Signing's enrolment with an existing
+   libraries are 16 KB-aligned was unverified — checked 2026-10-25,
+   they are); Play App Signing's enrolment with an existing
    keystore as the upload key; the Play Developer API and service
    accounts. Each finding goes under Decisions made or Open decisions.
    Then the sit-down: the owner opens the account (decision 1),
