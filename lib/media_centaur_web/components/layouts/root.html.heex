@@ -48,14 +48,17 @@
         // the shell so every screen shows that composition regardless of
         // resolution: screen.width is CSS px, so OS display scaling is
         // already accounted for. Floored at 0.7 so small laptops render a
-        // readable miniature rather than a broken one. The Settings stepper
+        // readable miniature rather than a broken one — but not on a remote
+        // player (the TV app, `data-player`): its WebView runs at dPR 2, so
+        // a 1080p TV reports 960 CSS px, and a TV is never small. The Settings stepper
         // multiplies on top (--ui-scale-pref, server-rendered on <html>);
         // browser zoom composes on top of both. Runs synchronously in <head>
         // so the first paint is already scaled; recomputed when the window
         // lands on a different screen (resize fires on maximize/fullscreen
         // there, and Screen's own change event covers the rest).
         const applyAutoScale = () => {
-          const auto = Math.max(0.7, screen.width / 1920);
+          const floor = document.documentElement.dataset.player === "remote" ? 0 : 0.7;
+          const auto = Math.max(floor, screen.width / 1920);
           document.documentElement.style.setProperty(
             "--auto-scale",
             String(Math.round(auto * 10000) / 10000)
