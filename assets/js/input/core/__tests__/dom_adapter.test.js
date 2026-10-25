@@ -114,6 +114,12 @@ import { createDomWriter } from "../dom_adapter.js"
 const MODAL_ITEM_SELECTOR = "[data-detail-mode='modal'] [data-nav-item]"
 // These writers never scroll; the glider is required, so give them an inert one.
 const INERT_GLIDER = { glide() {}, cancel() {}, cancelAll() {}, isGliding: () => false }
+
+// The page has one scroll animator (assets/js/scroll_glider.js). Core cannot
+// import it, so the writer demands it and never builds a second one.
+test("a writer without a glider is refused", () => {
+  expect(() => createDomWriter({ contextSelectors: {} })).toThrow(/glider/)
+})
 const SCOPED_CONFIG = {
   glider: INERT_GLIDER,
   contextSelectors: {
