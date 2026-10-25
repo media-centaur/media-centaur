@@ -813,6 +813,36 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
       expect(machine.context).toBe(Context.GRID)
     })
+
+    // On a shell that can leave (the TV app), the app is the outermost layer:
+    // BACK with nothing left to peel leaves it, as the platform's BACK does.
+    describe("when the shell can leave", () => {
+      beforeEach(() => {
+        machine = createMachine({ canLeave: true })
+      })
+
+      test("the primary menu leaves the app instead of returning to content", () => {
+        machine.forceContext("sidebar")
+        expect(machine.transition(Action.BACK)).toEqual({ type: "leave_app" })
+      })
+
+      test("a page without a main menu leaves the app", () => {
+        machine.forceContext(Context.GRID)
+        machine.setNavGraph({ grid: {} })
+        expect(machine.transition(Action.BACK)).toEqual({ type: "leave_app" })
+      })
+
+      test("content still enters the main menu first", () => {
+        machine.forceContext(Context.GRID)
+        machine.setNavGraph({ grid: {}, sidebar: {} })
+        expect(machine.transition(Action.BACK)).toEqual({ type: "enter_sidebar" })
+      })
+
+      test("an overlay still dismisses first", () => {
+        machine.presentationChanged("modal")
+        expect(machine.transition(Action.BACK)).toEqual({ type: "dismiss" })
+      })
+    })
   })
 
   // The detail modal's body: a two-level list of seasons and episodes. LEFT and

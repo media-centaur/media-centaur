@@ -52,8 +52,9 @@ const BEHAVIOR_REGISTRY = {
 /**
  * Look up and instantiate a page behavior by name. While the viewing layer
  * is on the page (`options.viewing`) the behavior is wrapped by
- * `withViewing`, which needs the hook's `pushEvent`, the menu switch and
- * whether a prompt shows — the orchestrator supplies all three.
+ * `withViewing`, which needs the hook's `pushEvent`, the menu switch,
+ * whether a prompt shows, and the paused bar's tracks button (shown,
+ * focused, focus it, leave it) — the orchestrator supplies them.
  * @param {string|null} name - The data-page-behavior value
  * @param {{viewing?: boolean, pushEvent?: function, isMenuOpen?: function, hasPrompt?: function}} [options]
  * @returns {PageBehavior|null}
@@ -62,6 +63,8 @@ export function createPageBehavior(name, options = {}) {
   const factory = BEHAVIOR_REGISTRY[name]
   const behavior = factory ? factory() : null
   if (!options.viewing) return behavior
-  const { pushEvent, isMenuOpen, hasPrompt } = options
-  return withViewing(behavior ?? {}, { pushEvent, isMenuOpen, hasPrompt })
+  const { pushEvent, isMenuOpen, hasPrompt, hasTracksButton, isTracksFocused, focusTracksButton, leaveTracksButton } = options
+  return withViewing(behavior ?? {}, {
+    pushEvent, isMenuOpen, hasPrompt, hasTracksButton, isTracksFocused, focusTracksButton, leaveTracksButton,
+  })
 }

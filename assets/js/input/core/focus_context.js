@@ -42,6 +42,7 @@ export function contextType(instance, instanceTypes = {}) {
 
 const NONE = Object.freeze({ type: "none" })
 const DISMISS = Object.freeze({ type: "dismiss" })
+const LEAVE = Object.freeze({ type: "leave_app" })
 const ACTIVATE = Object.freeze({ type: "activate" })
 
 function navigate(direction) {
@@ -76,11 +77,14 @@ export class FocusContextMachine {
    * @param {Object} [config.instanceTypes={}] - Map instance names to context types
    * @param {string} [config.primaryMenu] - Instance name with enter/exit behavior
    * @param {string} [config.initialContext] - Starting context (default: GRID)
+   * @param {boolean} [config.canLeave=false] - The shell can leave the app (the TV app):
+   *   BACK with nothing left to peel leaves it rather than doing nothing
    */
   constructor(config = {}) {
     this._config = {
       instanceTypes: config.instanceTypes ?? {},
       primaryMenu: config.primaryMenu ?? null,
+      canLeave: config.canLeave ?? false,
     }
     this._context = config.initialContext ?? Context.GRID
     this._onContextChanged = config.onContextChanged ?? null
@@ -158,6 +162,11 @@ export class FocusContextMachine {
    *    sidebar node (the setup tour) has no menu to enter, so BACK stays a
    *    no-op there — the node's presence in the graph is the capability check.
    *
+   * 6. **The app** — on a shell that can leave it (the TV app), the main menu
+   *    and a page without one have nothing left to peel: BACK leaves the app,
+   *    as the platform's own BACK does. Elsewhere the menu returns to content
+   *    and a menu-less page stays a no-op.
+   *
    * Ordering is the whole design: an overlay region leaves for its sibling
    * before the overlay dismisses itself, which is what makes "BACK anywhere in
    * the episode list goes to Play, BACK from Play closes the modal" one rule
@@ -179,12 +188,13 @@ export class FocusContextMachine {
 
     if (this._overlay) return DISMISS
     const primaryMenu = this._config.primaryMenu
-    if (this._context === primaryMenu) return { type: "exit_sidebar" }
+    const atRoot = this._config.canLeave ? LEAVE : null
+    if (this._context === primaryMenu) return atRoot ?? { type: "exit_sidebar" }
     if (primaryMenu && this._navGraph?.[primaryMenu]) {
       this._setContext(primaryMenu)
       return { type: "enter_sidebar" }
     }
-    return NONE
+    return atRoot ?? NONE
   }
 
   /**

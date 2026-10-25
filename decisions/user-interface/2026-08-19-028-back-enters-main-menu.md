@@ -20,3 +20,16 @@ UIDR-007 made Left at the left edge of any content row enter the sidebar, so one
 ### Consequences
 
 * Keyboard users lose the spatial "the sidebar is to the left" gesture and must learn Escape or B; the gamepad hint bar advertises B → Menu in content contexts.
+
+## Amendment 2026-10-25 — on the TV app, BACK from the main menu leaves the app
+
+Rules 1 and 3 hold in a browser. In the TV app (a remote player's WebView,
+`campaigns/remote-players.md`) the app itself is the outermost container:
+BACK in the main menu, and BACK on a page without one, leaves the app, as
+the platform's BACK does and as Google Play's TV review requires (TV-DB).
+The shell offers the capability (`MediaCentaurTV.leave()`, a WebView
+JavaScript interface); the input system takes it as `leaveApp` and the
+focus machine answers `leave_app` where it would otherwise return to
+content or do nothing (`focus_context.js`, `_backTransition`). A page
+without the input system (the pairing page) is left by the shell on the
+first BACK.

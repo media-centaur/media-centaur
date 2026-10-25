@@ -43,12 +43,15 @@ export class Orchestrator {
    * @param {Object} [config.cursorStartPriority] - Cursor start priority per zone
    * @param {string[]} [config.alwaysPopulated] - Contexts that skip item count check
    * @param {function} [config.createBehavior] - Factory: (name) => PageBehavior|null
+   * @param {function} [config.leaveApp] - Leaves the app, when the shell can (the TV
+   *   app); given, BACK with nothing left to peel calls it
    */
   constructor(config = {}) {
     this._config = config
     this.focusMachine = new FocusContextMachine({
       instanceTypes: config.instanceTypes,
       primaryMenu: config.primaryMenu,
+      canLeave: typeof config.leaveApp === "function",
       onContextChanged: (context) => {
         this.writer?.setNavContext?.(context)
         this._behavior?.onZoneChanged?.(context)
@@ -554,6 +557,10 @@ export class Orchestrator {
         pushEvent: (event, payload) => this._hookEl?.pushEvent?.(event, payload),
         isMenuOpen: () => this.reader.isViewingMenuOpen?.() ?? false,
         hasPrompt: () => this.reader.hasViewingPrompt?.() ?? false,
+        hasTracksButton: () => this.reader.hasViewingTracks?.() ?? false,
+        isTracksFocused: () => this.reader.isViewingTracksFocused?.() ?? false,
+        focusTracksButton: () => this.writer.focusViewingTracks?.(),
+        leaveTracksButton: () => this.writer.leaveViewingTracks?.(),
       })
       this._behavior?.onAttach?.()
     }
@@ -970,6 +977,10 @@ export class Orchestrator {
 
       case "exit_sidebar":
         this._executeExitSidebar()
+        break
+
+      case "leave_app":
+        this._config.leaveApp()
         break
 
       case "enter_sub_focus":

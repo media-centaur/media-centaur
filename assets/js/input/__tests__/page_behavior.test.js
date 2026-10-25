@@ -10,16 +10,27 @@ import { createPageBehavior } from "../page_behavior"
  * key that needs it — SELECT on the Sony, 2026-10-22.
  */
 describe("createPageBehavior while a viewing is on", () => {
-  function build(prompt) {
+  function build(prompt, { tracks = false } = {}) {
     const pushed = []
+    const focus = []
     const behavior = createPageBehavior(null, {
       viewing: true,
       pushEvent: (event, payload) => pushed.push([event, payload]),
       isMenuOpen: () => false,
       hasPrompt: () => prompt,
+      hasTracksButton: () => tracks,
+      isTracksFocused: () => false,
+      focusTracksButton: () => focus.push("focus"),
+      leaveTracksButton: () => focus.push("leave"),
     })
-    return { behavior, pushed }
+    return { behavior, pushed, focus }
   }
+
+  test("DOWN reaches the paused bar's tracks button", () => {
+    const { behavior, focus } = build(false, { tracks: true })
+    expect(behavior.onAction(Action.NAVIGATE_DOWN, "modal", null)).toBe(true)
+    expect(focus).toEqual(["focus"])
+  })
 
   test("SELECT acts on the prompt while one shows", () => {
     const { behavior, pushed } = build(true)

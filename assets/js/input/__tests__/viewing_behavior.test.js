@@ -6,13 +6,19 @@ import { withViewing } from "../viewing_behavior"
  * The viewing layer's deps: a recording pushEvent, a switch for the track
  * menu, and a way to say whether the focused item is the prompt.
  */
-function deps({ menuOpen = false, prompt = false } = {}) {
+function deps({ menuOpen = false, prompt = false, tracks = false, onTracks = false } = {}) {
   const pushed = []
+  const focus = []
   return {
     pushEvent: (event, payload) => pushed.push([event, payload]),
     isMenuOpen: () => menuOpen,
     hasPrompt: () => prompt,
+    hasTracksButton: () => tracks,
+    isTracksFocused: () => onTracks,
+    focusTracksButton: () => focus.push("focus"),
+    leaveTracksButton: () => focus.push("leave"),
     pushed,
+    focus,
   }
 }
 
@@ -107,5 +113,55 @@ describe("withViewing — the wrapped behaviour", () => {
     const behavior = withViewing(base, deps())
     expect(behavior.onClear()).toBe("cleared")
     expect(behavior.activateOnFocus).toEqual(["sections"])
+  })
+})
+
+// Paused, the bar shows an "Audio & subtitles" button: the track menu without
+// a Menu key, which most Google TV remotes lack (Play's TV-DM criterion).
+describe("withViewing — the paused bar's tracks button", () => {
+  test("down focuses the button instead of seeking back", () => {
+    const d = deps({ tracks: true })
+    expect(withViewing({}, d).onAction(Action.NAVIGATE_DOWN, "modal", nothing)).toBe(true)
+    expect(d.focus).toEqual(["focus"])
+    expect(d.pushed).toEqual([])
+  })
+
+  test("select on the focused button opens the track menu", () => {
+    const d = deps({ tracks: true, onTracks: true })
+    expect(withViewing({}, d).onAction(Action.SELECT, "modal", nothing)).toBe(true)
+    expect(d.pushed).toEqual([["viewing_menu_open", {}]])
+  })
+
+  test("select off the button still resumes", () => {
+    const d = deps({ tracks: true })
+    expect(withViewing({}, d).onAction(Action.SELECT, "modal", nothing)).toBe(true)
+    expect(d.pushed).toEqual([["viewing_command", { command: "toggle_pause" }]])
+  })
+
+  test("up leaves the button without seeking; OK pauses and resumes again", () => {
+    const d = deps({ tracks: true, onTracks: true })
+    const behavior = withViewing({}, d)
+    expect(behavior.onAction(Action.NAVIGATE_UP, "modal", nothing)).toBe(true)
+    expect(d.focus).toEqual(["leave"])
+    expect(d.pushed).toEqual([])
+  })
+
+  test("down on the focused button stays put", () => {
+    const d = deps({ tracks: true, onTracks: true })
+    expect(withViewing({}, d).onAction(Action.NAVIGATE_DOWN, "modal", nothing)).toBe(true)
+    expect(d.focus).toEqual([])
+    expect(d.pushed).toEqual([])
+  })
+
+  test("left and right still seek while the button is focused", () => {
+    const d = deps({ tracks: true, onTracks: true })
+    expect(withViewing({}, d).onAction(Action.NAVIGATE_RIGHT, "modal", nothing)).toBe(true)
+    expect(d.pushed).toEqual([["viewing_command", { command: "seek", seconds: 10 }]])
+  })
+
+  test("without the button (playing) down still seeks back 60 s", () => {
+    const d = deps()
+    expect(withViewing({}, d).onAction(Action.NAVIGATE_DOWN, "modal", nothing)).toBe(true)
+    expect(d.pushed).toEqual([["viewing_command", { command: "seek", seconds: -60 }]])
   })
 })
