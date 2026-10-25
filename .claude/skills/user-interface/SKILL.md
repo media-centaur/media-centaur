@@ -3,6 +3,12 @@ name: user-interface
 description: "Use this skill before any UI work — LiveView templates, components, CSS, styling, layout, modals, cards, badges, buttons, themes, or visual design. Contains all component recipes, styling conventions, and design principles."
 ---
 
+## The TV performance floor ([UIDR-056])
+
+Every UI change must hold on the TV app (Android WebView, MediaTek MT5895, 3 GB) — the slowest device the app supports. Read [`docs/tv-performance.md`](../../../docs/tv-performance.md) before touching CSS, layout, images, animation or scrolling. Standing rules: no backdrop blur on a remote player (off under `html[data-player="remote"]`); no `background-attachment: fixed` (test-enforced); animate only `transform`/`opacity`; nothing added to a scroll frame's main-thread work; images decoded no larger than the display; design at 1920 CSS px. Verify with `mc-tv-smooth` interleaved against the base and record the numbers.
+
+[UIDR-056]: ../../../decisions/user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md
+
 ## Design Values
 
 - **Readability first.** Every visual choice serves readability above aesthetics.
