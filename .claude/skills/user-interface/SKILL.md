@@ -465,7 +465,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `detail_panel/1` | `detail_panel.ex` | The title detail modal (CinematicShell tenant) for an owned or an unowned title, over `Title.Detail` + `Title.ModalState`; `detail/` holds its sub-views (Manage panel, seasons) | ✅ |
 | `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system, UIDR-021) |
 | `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
-| `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
+| `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027); its button is a `.picture-button`, the disc the scroll row arrows share |
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
 | `download_strip/1` | `acquisition/download_strip.ex` | The one drawing of a download-client job: phase ladder, phase word, figure bar, facts, cancel (the pursuit row, Other downloads, the pursuit modal) | ✅ |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |

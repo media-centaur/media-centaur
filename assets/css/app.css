@@ -2267,16 +2267,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 }
 
-/* ── Play overlay (UIDR-027) ──
-   Hover-revealed direct-play button on browse cards. Opacity-only
-   reveal — no scale, no translation — per UIDR-012's calm. The reveal
-   waits for hover intent (`--hover-reveal-delay`);
-   the fade-out is never delayed, so skimming the pointer across a row
-   shows nothing. The trigger is pointer hover on the card's
-   `.play-overlay-host` region, so keyboard/gamepad focus can never
-   surface it. The wrapper is pointer-transparent (card clicks pass
-   through to select_entity); only the button itself takes the pointer. */
-/* The delay before a hovered pointer affordance reveals (the play overlay,
+/* ── Pointer affordance reveal ──
+   The delay before a hovered pointer affordance reveals (the play overlay,
    a scroll row's edge arrows): skimming the pointer across the page shows
    nothing. Tune freely. */
 :root {
@@ -2306,6 +2298,15 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 }
 
+/* ── Play overlay (UIDR-027) ──
+   Hover-revealed direct-play button on browse cards. Opacity-only
+   reveal — no scale, no translation — per UIDR-012's calm. The reveal
+   waits for hover intent (`--hover-reveal-delay`);
+   the fade-out is never delayed, so skimming the pointer across a row
+   shows nothing. The trigger is pointer hover on the card's
+   `.play-overlay-host` region, so keyboard/gamepad focus can never
+   surface it. The wrapper is pointer-transparent (card clicks pass
+   through to select_entity); only the button itself takes the pointer. */
 .play-overlay {
   position: absolute;
   inset: 0;
