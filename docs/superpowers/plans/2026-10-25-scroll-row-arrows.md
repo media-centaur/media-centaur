@@ -447,7 +447,17 @@ git commit -m "feat(hooks): scroll row edge state and step — the pure half of 
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `assets/js/hooks/scroll_row.test.js` (add `ScrollRow` to the import from `./scroll_row`, and `installGlobal`, `installResizeObserver` to the import from `../test_support/dom_stubs`):
+In `assets/js/hooks/scroll_row.test.js`, add one more `edges` test inside its describe block (overscroll pins the clamp and the comparison direction):
+
+```js
+  // Trackpad and touch overscroll report offsets past either end.
+  test("overscroll past either end still reads as that end", () => {
+    expect(edges({ scrollLeft: -5, scrollWidth: 3000, clientWidth: 1000 })).toEqual({ atStart: true, atEnd: false })
+    expect(edges({ scrollLeft: 2500, scrollWidth: 3000, clientWidth: 1000 })).toEqual({ atStart: false, atEnd: true })
+  })
+```
+
+Then append (add `ScrollRow` to the import from `./scroll_row`, and `installGlobal`, `installResizeObserver` to the import from `../test_support/dom_stubs`):
 
 ```js
 // A wrapper element with a track inside it, as the component renders them,
@@ -536,7 +546,6 @@ describe("ScrollRow", () => {
   // has no edge attributes; after a patch the hook puts them back.
   test("re-asserts the edge state after a patch", () => {
     const { hook, track } = mount({ scrollLeft: 2000 })
-    track.attributes = {}
     delete track.attributes["data-at-end"]
     hook.updated()
     expect(track.attributes).toEqual({ "data-at-end": "" })
@@ -683,7 +692,7 @@ export const ScrollRow = {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `bun test assets/js/hooks/scroll_row.test.js`
-Expected: 19 pass.
+Expected: 20 pass.
 
 - [ ] **Step 5: Register the hook**
 
