@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Scenario: running the installer again over an existing install loads
+# the agent again — the upgrade path.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+require_tag
+
+step "re-run the installer over the existing install"
+install_release "$MC_TAG"
+assert_serving
+assert_version "$MC_TAG"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Prints the facts the Linux scenarios depend on: the OS, the user, and
+# whether this user has a reachable systemd user manager — the installer
+# skips autostart without one.
+set -uo pipefail
+. /etc/os-release && printf '%s\n' "$PRETTY_NAME"
+uname -r
+id
+printf 'XDG_RUNTIME_DIR=%s\n' "${XDG_RUNTIME_DIR:-<unset>}"
+printf 'DBUS_SESSION_BUS_ADDRESS set: %s\n' "$([ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && echo yes || echo no)"
+loginctl show-user "$(id -un)" --property=Linger --property=State 2>&1 || true
+systemctl --user show-environment >/dev/null 2>&1 && echo "systemctl --user: reachable" || echo "systemctl --user: NOT reachable"
+systemctl --user is-system-running 2>&1 || true
+command -v mpv || echo "mpv not installed"
+true

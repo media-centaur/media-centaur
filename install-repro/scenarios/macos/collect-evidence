@@ -3,7 +3,7 @@
 # every update handoff log, launchd state and the installed tree's shape.
 # Never copies secrets.env.
 set -uo pipefail
-. "$(dirname "$0")/lib"
+. "$(dirname "$0")/../lib"
 
 out="${1:?usage: collect-evidence <dir>}"
 mkdir -p "$out"
@@ -16,6 +16,6 @@ launchctl print "$(ctl_target)" > "$out/launchctl-agent.txt" 2>&1
 launchctl print-disabled "$(ctl_domain)" > "$out/launchctl-disabled.txt" 2>&1
 ls -laR "$INSTALL_ROOT" > "$out/install-root.txt" 2>&1
 ls -la "$CONFIG_DIR" > "$out/config-dir.txt" 2>&1
-cp "$PLIST" "$out/" 2>/dev/null
+cp "$SERVICE_FILE" "$out/" 2>/dev/null
 cp -R "$SCENARIO_LOG_DIR" "$out/scenario-logs" 2>/dev/null
 true
