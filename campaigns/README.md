@@ -127,7 +127,8 @@ Use [`template.md`](template.md) as a starter.
   removal path runs on demand against real operating systems on GitHub's
   runners, by manual dispatch. M0 (macOS) found five macOS faults, fixed in
   v1.60.2–v1.60.3; M1 (Linux) passed first time. One `install-repro.yml`
-  dispatch runs the nine scenarios on both. Next: a build-from-branch source, cloud-image VMs via KVM (Debian,
+  dispatch runs the nine scenarios on both, against a published release or a
+  release built from the branch (M2). Next: cloud-image VMs via KVM (Debian,
   Ubuntu, Fedora; Ubuntu 24.04 stands in for Mint), and one matrix
   dispatch. prowlarr-stack gets its own repro in its repo.
 * [`macos-platform-support.md`](macos-platform-support.md) —
