@@ -13,27 +13,16 @@ import {
   tooltipTransforms,
 } from "./tooltip"
 
-// Any anchor with a label tips. Sidebar links are the exception: expanded,
-// the label text is right on the link, so a tooltip would be a redundant
-// echo — they tip only while the rail is collapsed.
+// Any anchor with a label tips.
 describe("shouldShow", () => {
-  test("a labelled anchor outside the sidebar → true, whatever the rail state", () => {
-    expect(shouldShow({ inSidebar: false, sidebarState: undefined, label: "Review" })).toBe(true)
-    expect(shouldShow({ inSidebar: false, sidebarState: "collapsed", label: "Review" })).toBe(true)
+  test("a labelled anchor → true", () => {
+    expect(shouldShow({ label: "Review" })).toBe(true)
+    expect(shouldShow({ label: "Home" })).toBe(true)
   })
 
-  test("collapsed sidebar with a label → true", () => {
-    expect(shouldShow({ inSidebar: true, sidebarState: "collapsed", label: "Home" })).toBe(true)
-  })
-
-  test("expanded sidebar (attribute absent) → false", () => {
-    expect(shouldShow({ inSidebar: true, sidebarState: undefined, label: "Home" })).toBe(false)
-    expect(shouldShow({ inSidebar: true, sidebarState: "", label: "Home" })).toBe(false)
-  })
-
-  test("no label → false anywhere", () => {
-    expect(shouldShow({ inSidebar: true, sidebarState: "collapsed", label: undefined })).toBe(false)
-    expect(shouldShow({ inSidebar: false, sidebarState: undefined, label: "" })).toBe(false)
+  test("no label → false", () => {
+    expect(shouldShow({ label: undefined })).toBe(false)
+    expect(shouldShow({ label: "" })).toBe(false)
   })
 })
 

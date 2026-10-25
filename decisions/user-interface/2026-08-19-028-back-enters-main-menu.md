@@ -21,6 +21,14 @@ UIDR-007 made Left at the left edge of any content row enter the sidebar, so one
 
 * Keyboard users lose the spatial "the sidebar is to the left" gesture and must learn Escape or B; the gamepad hint bar advertises B → Menu in content contexts.
 
+## Amendment 2026-10-25 — the collapse toggle is gone
+
+Rule 4 is void: the sidebar is a fixed 52px icon rail with no expand or
+collapse control. Each entry is an icon-only link named by `aria-label`;
+the Tooltip hook shows the name beside the rail on hover and on
+keyboard/gamepad focus. The profile switcher keeps its deferred
+activation (UIDR-053 rule 3).
+
 ## Amendment 2026-10-25 — on the TV app, BACK from the main menu leaves the app
 
 Rules 1 and 3 hold in a browser. In the TV app (a remote player's WebView,

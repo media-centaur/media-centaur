@@ -208,17 +208,6 @@ const TOUR = [
   //   showcase. Capture manually if needed.
 ]
 
-// Seed localStorage before every page load so every shot renders with
-// the sidebar collapsed. The key is owned by root.html.heex —
-// phx:sidebar-collapsed drives data-sidebar="collapsed" on <html>.
-test.beforeEach(async ({ context }) => {
-  await context.addInitScript(() => {
-    try {
-      localStorage.setItem("phx:sidebar-collapsed", "true")
-    } catch {}
-  })
-})
-
 // Marketing shots should show what someone using a mouse sees.
 //
 // The app boots in keyboard mode — root.html.heex renders

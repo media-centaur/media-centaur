@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
   test "two profiles and a cookie: the named profile is active and the switcher shows it", %{conn: conn} do
     ana = create_profile(name: "Ana")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
-    assert has_element?(view, "#sidebar-profile", "Ana")
+    assert has_element?(view, "#sidebar-profile[aria-label='Ana · Switch profile']")
     # Walking the cursor over it must not open the picker; only SELECT does.
     assert has_element?(view, "#sidebar-profile[data-nav-defer-activate]")
   end
@@ -51,7 +51,11 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
       view |> element("#sidebar-profile") |> render_click() |> follow_redirect(conn, "/profiles")
 
     assert has_element?(picker, "h1", "Who's watching?")
-    assert has_element?(picker, "#sidebar-profile.sidebar-link-active", "Ana")
+
+    assert has_element?(
+             picker,
+             "#sidebar-profile.sidebar-link-active[aria-label='Ana · Switch profile']"
+           )
   end
 
   test "a stale cookie asks again", %{conn: conn} do
@@ -65,7 +69,10 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
 
     {:ok, _ana} = Profiles.rename(ana, "Anna")
-    render_until(view, fn _html -> has_element?(view, "#sidebar-profile", "Anna") end)
+
+    render_until(view, fn _html ->
+      has_element?(view, "#sidebar-profile[aria-label='Anna · Switch profile']")
+    end)
   end
 
   test "removing the active profile of three drops the page to the picker, returning to it", %{
@@ -82,7 +89,7 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
   test "removing the active profile of two leaves the other active, with no switcher", %{conn: conn} do
     ana = create_profile(name: "Ana")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
-    assert has_element?(view, "#sidebar-profile", "Ana")
+    assert has_element?(view, "#sidebar-profile[aria-label='Ana · Switch profile']")
 
     :ok = Profiles.remove(ana)
     render_until(view, fn _html -> not has_element?(view, "#sidebar-profile") end)
@@ -107,6 +114,8 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     # Both broadcasts come from this process in order, so the switcher
     # showing "Anna" means the hook handled the removal with two profiles
     # left, the cookie lookup chose Ana, and the page was not redirected.
-    render_until(view, fn _html -> has_element?(view, "#sidebar-profile", "Anna") end)
+    render_until(view, fn _html ->
+      has_element?(view, "#sidebar-profile[aria-label='Anna · Switch profile']")
+    end)
   end
 end

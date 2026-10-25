@@ -314,11 +314,11 @@ Sizes: `size-3` (12px), `size-4` (16px default), `size-5` (20px), `size-6` (24px
 
 ### Sidebar Navigation
 
-Fixed left, 200px expanded / 52px collapsed. State via `data-sidebar` on `<html>`, persisted in `localStorage`.
+Fixed left, a 52px icon rail. It never expands and has no toggle.
 
-- Links: `.sidebar-link` — muted by default, primary color when `.sidebar-link-active`
-- Labels: `.sidebar-label` — opacity 0 when collapsed
-- Tooltips: `tooltip tooltip-right` on collapsed icons
+- Links: `.sidebar-link` — icon-only, named by `aria-label`; muted by default, primary color when `.sidebar-link-active`
+- Labels: the link's `data-tip`, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
+- Groups: the System `<nav>` carries `.sidebar-group-system`, a hairline above it
 
 ### Zone Tabs
 

@@ -341,8 +341,8 @@ layer out.
 | `dismiss` | — | Push dismiss event to LiveView (`data-dismiss-event` or `close_detail`) |
 | `play` | — | Push `play` event with entity ID, flash animation |
 | `zone_cycle` | `direction` | Click next/prev zone tab |
-| `enter_sidebar` | — | Expand sidebar, focus active item |
-| `exit_sidebar` | — | Restore pre-sidebar context and sidebar state |
+| `enter_sidebar` | — | Focus the sidebar's active item (the Tooltip hook labels it on focus) |
+| `exit_sidebar` | — | Restore the pre-sidebar context |
 | `leave_app` | — | Call the injected `leaveApp` (the TV app's shell finishes its activity) |
 | `none` | — | No-op (wall) |
 
@@ -369,7 +369,6 @@ layer out.
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-input-editing` | Text input is in edit mode (set on `<html>`) | `true` or absent |
-| `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
 | `data-nav-zone-value` | Zone identifier on a tab element — the zone it switches to | a zone name |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
@@ -666,8 +665,6 @@ Each `data-*` attribute on `<html>` is a **projection** of exactly one piece of 
 | `data-input-editing` | `KeyboardSource._inputEditing` | `onEditingChanged` → `setTextEditing` |
 | `data-nav-context` | `FocusContextMachine.context` | `onContextChanged` callback → `setNavContext` |
 | `data-gamepad-type` | `GamepadSource` controller detection | `setControllerType` on connect |
-| `data-sidebar` | `localStorage` | Inline script in `root.html.heex` |
-| `data-sidebar-hover` | Pointer position over the rail | Delegated `mouseover` listener in `root.html.heex` |
 
 **Design rules:**
 

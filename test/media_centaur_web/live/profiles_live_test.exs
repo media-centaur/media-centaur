@@ -71,7 +71,7 @@ defmodule MediaCentaurWeb.ProfilesLiveTest do
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!("/profiles")
     assert has_element?(view, "h1", "Who's watching?")
     assert has_element?(view, "#sidebar")
-    assert has_element?(view, "#sidebar-profile.sidebar-link-active", "Ana")
+    assert has_element?(view, "#sidebar-profile.sidebar-link-active[aria-label='Ana · Switch profile']")
     assert has_element?(view, "#pick-#{ana.id} button[aria-current='true'] .profile-tile-current")
     refute has_element?(view, "#pick-#{me.id} button[aria-current]")
   end
