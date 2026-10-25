@@ -97,6 +97,23 @@ defmodule MediaCentaur.SelfUpdate.HandoffTest do
       assert Enum.at(args, setsid_idx + 1) == "--fork"
     end
 
+    test "under launchd the chain is not wrapped in setsid, which macOS does not ship" do
+      me = self()
+      spawn_fn = fn args -> send(me, {:argv, args}) end
+
+      assert :ok =
+               Handoff.spawn_detached("/staged",
+                 spawn_fn: spawn_fn,
+                 autostart: MediaCentaur.Platform.Autostart.Launchd
+               )
+
+      assert_receive {:argv, args}
+      refute "setsid" in args
+      sh_idx = Enum.find_index(args, &(&1 == "sh"))
+      assert Enum.at(args, sh_idx + 1) == "-c"
+      assert Enum.at(args, sh_idx - 1) == "PATH=/usr/bin:/bin"
+    end
+
     test "env hardening: HOME + minimal PATH, env -i strips inherited env" do
       me = self()
       spawn_fn = fn args -> send(me, {:argv, args}) end

@@ -15,9 +15,13 @@ defmodule MediaCentaur.SelfUpdate.Handoff do
       `HOME` exported from the current user's environment. Inherited env
       from the web request chain (BEAM session, LiveView socket) cannot
       influence the installer.
-    * `setsid --fork` creates a brand-new session with a grandchild
-      process. Any SIGHUP from the parent BEAM's restart cannot reach
-      the grandchild because it is no longer in the BEAM's session.
+    * The autostart system supplies the detach prefix
+      (`Autostart.handoff_detach/0`). Under systemd it is
+      `setsid --fork`, a brand-new session with a grandchild process,
+      so no SIGHUP from the BEAM's restart can reach it. Under launchd
+      it is empty: macOS has no `setsid`, and the LaunchAgent's
+      `AbandonProcessGroup` keeps the installer alive through the
+      bootout it performs.
     * The spawning `Port.open` uses `:nouse_stdio` so Erlang never
       connects its pipes to the child at all. `Port.close` therefore
       cannot SIGPIPE the chain.
@@ -40,7 +44,9 @@ defmodule MediaCentaur.SelfUpdate.Handoff do
       ran and its output explains where it stopped
 
   The `:spawn_fn` option lets tests assert the exact argv shape without
-  executing a subprocess.
+  executing a subprocess, and `:autostart` names the autostart module
+  whose handoff rules apply (default: this OS's, via
+  `MediaCentaur.Platform.Autostart`).
   """
 
   require MediaCentaur.Log, as: Log
@@ -50,6 +56,7 @@ defmodule MediaCentaur.SelfUpdate.Handoff do
     spawn_fn = Keyword.get(opts, :spawn_fn, &default_spawn/1)
     home = Keyword.get(opts, :home, System.user_home!())
     env_getter = Keyword.get(opts, :env_getter, &System.get_env/1)
+    autostart = Keyword.get(opts, :autostart, MediaCentaur.Platform.Autostart)
 
     installer = Path.join(staged_root, "bin/media-centaur-install")
     log_file = Path.join(staged_root, "handoff.log")
@@ -78,7 +85,7 @@ defmodule MediaCentaur.SelfUpdate.Handoff do
     # fails, no unit gets restarted, and the new release stages on disk
     # but the running BEAM keeps running.
     autostart_env =
-      MediaCentaur.Platform.Autostart.handoff_env_vars()
+      autostart.handoff_env_vars()
       |> Enum.map(&pass_through(env_getter, &1))
       |> Enum.reject(&is_nil/1)
 
@@ -90,9 +97,8 @@ defmodule MediaCentaur.SelfUpdate.Handoff do
         "PATH=/usr/bin:/bin"
       ] ++
         autostart_env ++
+        autostart.handoff_detach() ++
         [
-          "setsid",
-          "--fork",
           "sh",
           "-c",
           script,
