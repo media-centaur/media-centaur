@@ -57,11 +57,17 @@ By hand, when we decide to — nothing triggers it automatically:
 ```sh
 gh workflow run install-repro.yml                              # latest release, both platforms
 gh workflow run install-repro.yml -f tag=v1.60.3 -f platform=linux
-gh workflow run install-repro.yml -f installer=checkout --ref <branch>
+gh workflow run install-repro.yml -f source=branch --ref <branch>
 ```
 
-`installer: checkout` runs the released tarball with the branch's installer
-swapped in, to prove an installer fix before it ships.
+**Sources.** `released` installs a published release through the public
+installer. `branch` builds a release from the dispatched ref on each platform
+— through `build-release.yml`, the same workflow `release.yml` builds with —
+and installs it with its bundled installer. A branch build's version is the
+next patch marked as a pre-release of the commit (`1.60.4-branch.g3be7b8b`),
+so `upgrade` from the latest release is a real version change. This proves an
+app or installer change before it is tagged. `in-app-update` runs only for
+`released`: it updates to GitHub's latest release.
 
 **On a real machine:** the scenarios are plain scripts against the real
 installed paths. From a checkout, on a machine with no Media Centaur install:

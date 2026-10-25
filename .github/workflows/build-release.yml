@@ -1,0 +1,126 @@
+name: Build release
+
+# Builds one platform's release tarball from the checked-out ref and
+# uploads it as the artifact tarball-<platform_tag>. The one way a release
+# tarball is made: release.yml calls it for a tag, install-repro.yml for a
+# branch build.
+#
+# We CAN'T cross-compile: priv/mac_listener (a file_system dep) is a
+# per-platform binary that Hex ships pre-compiled for the host OS.
+# ubuntu-22.04 = older glibc → wider compatibility on user Linuxes.
+# macos-14     = first GHA runner image on Apple Silicon arm64.
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: macos or linux
+        type: string
+        required: true
+      version:
+        description: The version to build (X.Y.Z or X.Y.Z-pre). mix.exs is set to it if it differs.
+        type: string
+        required: true
+
+jobs:
+  build:
+    name: Build ${{ inputs.platform }} ${{ inputs.version }}
+    runs-on: ${{ inputs.platform == 'macos' && 'macos-14' || 'ubuntu-22.04' }}
+    env:
+      PLATFORM_TAG: ${{ inputs.platform == 'macos' && 'darwin-arm64' || 'linux-x86_64' }}
+      REQUIRED_UNIT_PATH: ${{ inputs.platform == 'macos' && 'share/launchd/com.media-centaur.app.plist' || 'share/systemd/media-centaur.service' }}
+      VERSION: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set the version
+        run: |
+          mix_version=$(grep -E '^[[:space:]]*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ "$mix_version" != "$VERSION" ]; then
+            sed -i.bak -E "s/^([[:space:]]*version: )\"$mix_version\"/\1\"$VERSION\"/" mix.exs && rm mix.exs.bak
+          fi
+          grep -E '^[[:space:]]*version:' mix.exs | head -1 | grep -q "\"$VERSION\"" \
+            || { echo "::error::mix.exs version is not $VERSION"; exit 1; }
+
+      - name: Write build info for runtime display
+        run: |
+          mkdir -p priv
+          built_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          git_sha="${GITHUB_SHA:-unknown}"
+          printf '{"version":"%s","built_at":"%s","git_sha":"%s"}\n' \
+            "$VERSION" "$built_at" "$git_sha" > priv/build_info.json
+          cat priv/build_info.json
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20"
+          otp-version: "29"
+
+      - name: Cache deps
+        uses: actions/cache@v6
+        with:
+          path: deps
+          key: ${{ runner.os }}-release-mix-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache _build
+        uses: actions/cache@v6
+        with:
+          path: _build
+          key: ${{ runner.os }}-release-build-${{ hashFiles('**/mix.lock') }}
+
+      - name: Fetch prod deps
+        run: MIX_ENV=prod mix deps.get --only prod
+
+      - name: Compile
+        env:
+          MIX_ENV: prod
+          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
+        run: mix compile
+
+      - name: Deploy assets
+        run: MIX_ENV=prod mix assets.deploy
+
+      - name: Sync defaults into shared release overlay
+        run: |
+          mkdir -p rel/platforms/shared/share/defaults
+          cp defaults/media-centaur.toml rel/platforms/shared/share/defaults/media-centaur.toml
+
+      - name: Build release tarball
+        run: MIX_ENV=prod mix release --overwrite
+
+      - name: Stage release artifact
+        id: stage
+        run: |
+          src="_build/prod/media_centaur-${VERSION}.tar.gz"
+          if [ ! -f "$src" ]; then
+            echo "::error::Expected tarball not found at $src"
+            ls -la _build/prod/
+            exit 1
+          fi
+          mkdir -p artifacts
+          dest="artifacts/media-centaur-${VERSION}-${PLATFORM_TAG}.tar.gz"
+          cp "$src" "$dest"
+          echo "tarball=$dest" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test tarball contents
+        env:
+          TARBALL: ${{ steps.stage.outputs.tarball }}
+        run: |
+          tar -tzf "$TARBALL" | grep -q '^bin/media-centaur-install$' \
+            || (echo "::error::Tarball missing bin/media-centaur-install"; exit 1)
+          tar -tzf "$TARBALL" | grep -q '^bin/media_centaur$' \
+            || (echo "::error::Tarball missing bin/media_centaur"; exit 1)
+          tar -tzf "$TARBALL" | grep -q "^${REQUIRED_UNIT_PATH}$" \
+            || (echo "::error::Tarball missing ${REQUIRED_UNIT_PATH}"; exit 1)
+          tar -tzf "$TARBALL" | grep -q '^share/defaults/media-centaur.toml$' \
+            || (echo "::error::Tarball missing share/defaults/media-centaur.toml"; exit 1)
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: tarball-${{ env.PLATFORM_TAG }}
+          path: ${{ steps.stage.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7

@@ -3,7 +3,6 @@
 # The app runs as the systemd user unit media-centaur.service.
 
 PLATFORM_TAG="linux-x86_64"
-PLATFORM_INSTALLER="$REPO_ROOT/rel/platforms/linux/bin/media-centaur-install"
 UNIT="media-centaur.service"
 SERVICE_FILE="$HOME/.config/systemd/user/$UNIT"
 SUMMARY_RUNNING="state     enabled + running"

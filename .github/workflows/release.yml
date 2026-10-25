@@ -10,27 +10,13 @@ permissions:
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────
-  # Matrix: build the release tarball on each target OS natively.
-  #
-  # We CAN'T cross-compile: priv/mac_listener (a file_system dep) is a
-  # per-platform binary that Hex ships pre-compiled for the host OS.
-  # ubuntu-22.04 = older glibc → wider compatibility on user Linuxes.
-  # macos-14     = first GHA runner image on Apple Silicon arm64.
+  # The tag must name the version mix.exs declares.
   # ────────────────────────────────────────────────────────────────────────
-  build:
-    name: Build ${{ matrix.platform_tag }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            platform_tag: linux-x86_64
-            required_unit_path: share/systemd/media-centaur.service
-          - os: macos-14
-            platform_tag: darwin-arm64
-            required_unit_path: share/launchd/com.media-centaur.app.plist
-    runs-on: ${{ matrix.os }}
-
+  version:
+    name: Check the tag against mix.exs
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -39,102 +25,27 @@ jobs:
         run: |
           tag="${GITHUB_REF##*/}"
           version="${tag#v}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          mix_version=$(grep -E '^[[:space:]]*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ "$mix_version" != "$version" ]; then
+            echo "::error::Tag version ($version) does not match mix.exs version ($mix_version)"
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Verify mix.exs version matches tag
-        run: |
-          mix_version=$(grep -E '^\s*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-          if [ "$mix_version" != "${{ steps.version.outputs.version }}" ]; then
-            echo "::error::Tag version (${{ steps.version.outputs.version }}) does not match mix.exs version ($mix_version)"
-            exit 1
-          fi
-
-      - name: Write build info for runtime display
-        run: |
-          mkdir -p priv
-          built_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          git_sha="${GITHUB_SHA:-unknown}"
-          printf '{"version":"%s","built_at":"%s","git_sha":"%s"}\n' \
-            "${{ steps.version.outputs.version }}" \
-            "$built_at" \
-            "$git_sha" > priv/build_info.json
-          cat priv/build_info.json
-
-      - name: Set up Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.20"
-          otp-version: "29"
-
-      - name: Cache deps
-        uses: actions/cache@v6
-        with:
-          path: deps
-          key: ${{ runner.os }}-release-mix-${{ hashFiles('**/mix.lock') }}
-
-      - name: Cache _build
-        uses: actions/cache@v6
-        with:
-          path: _build
-          key: ${{ runner.os }}-release-build-${{ hashFiles('**/mix.lock') }}
-
-      - name: Fetch prod deps
-        run: MIX_ENV=prod mix deps.get --only prod
-
-      - name: Compile
-        env:
-          MIX_ENV: prod
-          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
-        run: mix compile
-
-      - name: Deploy assets
-        run: MIX_ENV=prod mix assets.deploy
-
-      - name: Sync defaults into shared release overlay
-        run: |
-          mkdir -p rel/platforms/shared/share/defaults
-          cp defaults/media-centaur.toml rel/platforms/shared/share/defaults/media-centaur.toml
-
-      - name: Build release tarball
-        run: MIX_ENV=prod mix release --overwrite
-
-      - name: Stage release artifact
-        id: stage
-        run: |
-          version="${{ steps.version.outputs.version }}"
-          platform="${{ matrix.platform_tag }}"
-          src="_build/prod/media_centaur-${version}.tar.gz"
-          if [ ! -f "$src" ]; then
-            echo "::error::Expected tarball not found at $src"
-            ls -la _build/prod/
-            exit 1
-          fi
-          mkdir -p artifacts
-          dest="artifacts/media-centaur-${version}-${platform}.tar.gz"
-          cp "$src" "$dest"
-          echo "tarball=$dest" >> "$GITHUB_OUTPUT"
-
-      - name: Smoke-test tarball contents
-        run: |
-          tarball="${{ steps.stage.outputs.tarball }}"
-          required_unit="${{ matrix.required_unit_path }}"
-          tar -tzf "$tarball" | grep -q '^bin/media-centaur-install$' \
-            || (echo "::error::Tarball missing bin/media-centaur-install"; exit 1)
-          tar -tzf "$tarball" | grep -q '^bin/media_centaur$' \
-            || (echo "::error::Tarball missing bin/media_centaur"; exit 1)
-          tar -tzf "$tarball" | grep -q "^${required_unit}$" \
-            || (echo "::error::Tarball missing ${required_unit}"; exit 1)
-          tar -tzf "$tarball" | grep -q '^share/defaults/media-centaur.toml$' \
-            || (echo "::error::Tarball missing share/defaults/media-centaur.toml"; exit 1)
-
-      - name: Upload tarball artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: tarball-${{ matrix.platform_tag }}
-          path: ${{ steps.stage.outputs.tarball }}
-          if-no-files-found: error
-          retention-days: 7
+  # ────────────────────────────────────────────────────────────────────────
+  # Build each platform's tarball natively — see build-release.yml.
+  # ────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux, macos]
+    uses: ./.github/workflows/build-release.yml
+    with:
+      platform: ${{ matrix.platform }}
+      version: ${{ needs.version.outputs.version }}
 
   # ────────────────────────────────────────────────────────────────────────
   # Atomically publish all matrix-built tarballs to a single GitHub Release.
