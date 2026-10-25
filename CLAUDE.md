@@ -14,6 +14,10 @@ Stories are a **typed coupling check** and a **state-matrix forcing function**, 
 
 You are free to design new visual surfaces directly in storybook (the isolated render is genuinely useful for iterating on a card or panel without booting the whole page), but you are not required to. Designing against the running app is fine as long as the story lands in the same commit and the variations cover the states the app exercises.
 
+## The TV app is the performance floor
+
+The host's pages also render in the TV app's Android WebView on far weaker hardware than a desktop ([UIDR-056](decisions/user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md)). A change touching CSS, layout, images, animation, scrolling or the input system's motion is done when it holds on the TV: measure it against its base, interleaved, with `~/scripts/agents/mc-tv-smooth`, and follow the standing rules in [`docs/tv-performance.md`](docs/tv-performance.md) (no backdrop blur on a remote player, no fixed-attachment backgrounds, compositor-only animation, nothing added to a scroll frame, images no larger than the display). The TV is also this machine's display: run only when the owner says it is free, and never reboot it.
+
 ## Compose from the kit; never re-draw what a component draws
 
 Before writing markup for anything the app already draws — a button, a badge, a label over a control, a settings row or field, a form footer, a switch, a menu, a modal, a tile — find the component that draws it and compose from it. The catalog is the `user-interface` skill's Component Inventory and the storybook at `/storybook`; a Settings section composes from `Components.Settings` (UIDR-041), a content surface from the family under `lib/media_centaur_web/components/`. An idiom that exists nowhere yet becomes a component with a story, not inline classes on one surface — the second surface would otherwise copy them, and the two drift. Credo enforces the button and badge cases (MC RawButtonClass, RawBadgeClass); everything else is this rule. A plan that prescribes hand-rolled markup is wrong at the plan, not at the keyboard: fix the plan.
@@ -57,6 +61,7 @@ Map of contributor docs:
 | Component catalog (Phoenix Storybook, dev-only) | [`docs/storybook.md`](docs/storybook.md) |
 | Configuration keys and precedence | [`docs/configuration.md`](docs/configuration.md) |
 | Strip charts (time-series store, Connections drill-in, adding a tenant, browser verification) | [`docs/strip-charts.md`](docs/strip-charts.md) |
+| TV performance — the floor every UI change meets (the device, the rules, measuring with `mc-tv-smooth` / `mc-tv-trace`) | [`docs/tv-performance.md`](docs/tv-performance.md) |
 | Context map (schemas by context, boundary crossings, verdicts) | [`docs/context-map.md`](docs/context-map.md) |
 | Prowlarr / acquisition setup | [`docs/acquisition/`](docs/acquisition/) |
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
