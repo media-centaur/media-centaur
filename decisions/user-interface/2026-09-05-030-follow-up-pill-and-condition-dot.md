@@ -17,3 +17,8 @@ The sidebar rendered one idea three ways: the Status count cleared on visit, the
 ### Consequences
 
 * The Review count changed from blue to red. If it proves too loud, the remedy is one non-error variant for all three sources, never a second colour.
+
+## Amendment 2026-10-25 — one placement
+
+The rail no longer expands, so rule 1 has one placement: the icon's
+top-right corner.

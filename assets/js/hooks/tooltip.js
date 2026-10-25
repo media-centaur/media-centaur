@@ -9,16 +9,16 @@
 // (Credo MC0042): the browser draws it outside the page in its own chrome,
 // so it ignores the theme and the UI scale, and Chromium clips its box.
 // daisyUI tooltips are ::before/::after pseudo-elements of the anchor, so the
-// sidebar rail (overflow-y: auto) and each link (overflow: hidden) clip them
-// at the 52px collapsed width, and every other surface would have to match
-// their look by hand. This hook is ONE element in <body> (position: fixed, so
-// nothing clips it), listening on the document and moving next to whichever
-// anchor is hovered or focused, reading the label from that anchor's
-// data-tip. Placement comes from the nearest data-tip-placement — "right"
-// on the sidebar rail, "bottom" (centered under the anchor) everywhere else;
-// a tip with no room beneath flips above, and every tip is kept inside the
-// viewport's edge margin (fitToViewport), since a label may be a full file
-// path on an anchor at the window's edge.
+// sidebar rail (overflow-y: auto) clips them at its 52px width, and every
+// other surface would have to match their look by hand. This hook is ONE
+// element in <body> (position: fixed, so nothing clips it), listening on the
+// document and moving next to whichever anchor is hovered or focused,
+// reading the label from that anchor's data-tip. Placement comes from the
+// nearest data-tip-placement — "right" on the sidebar rail, "bottom"
+// (centered under the anchor) everywhere else; a tip with no room beneath
+// flips above, and every tip is kept inside the viewport's edge margin
+// (fitToViewport), since a label may be a full file path on an anchor at
+// the window's edge.
 //
 // Feel: the first hover waits a beat (COLD_DELAY_MS); while the tooltip is
 // warm — visible, or hidden less than WARM_WINDOW_MS ago — the next anchor's
@@ -27,8 +27,8 @@
 // Keyboard/gamepad focus shows immediately: focus is deliberate, not a
 // pass-through, so there is nothing to debounce.
 //
-// Sidebar links only tip while <html data-sidebar="collapsed"> — expanded
-// mode renders the label text on the link itself.
+// The sidebar's icon-only links are the hook's first tenant: the tip is the
+// link's name, shown beside the rail.
 
 import { parseUiScale } from "../ui_scale"
 
@@ -46,14 +46,12 @@ const GAP_BELOW_PX = 8
 export const EDGE_MARGIN_PX = 8
 
 /**
- * Should a tooltip show at all? A label is required; a sidebar anchor also
- * needs the rail collapsed (expanded, the label is already on the link).
- * @param {{inSidebar: boolean, sidebarState: string|undefined, label: string|undefined}} args
+ * Should a tooltip show at all? Only a label is required.
+ * @param {{label: string|undefined}} args
  * @returns {boolean}
  */
-export function shouldShow({ inSidebar, sidebarState, label }) {
-  if (!label) return false
-  return inSidebar ? sidebarState === "collapsed" : true
+export function shouldShow({ label }) {
+  return !!label
 }
 
 /**
@@ -225,10 +223,7 @@ export const Tooltip = {
 
   show(anchor, { immediate }) {
     const label = anchor.dataset.tip
-    const inSidebar = !!anchor.closest("#sidebar")
-    if (!shouldShow({ inSidebar, sidebarState: document.documentElement.dataset.sidebar, label })) {
-      return
-    }
+    if (!shouldShow({ label })) return
     clearTimeout(this.showTimer)
     const delay = immediate
       ? 0

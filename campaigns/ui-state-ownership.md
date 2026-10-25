@@ -53,7 +53,7 @@ Every piece of UI state has one owner, chosen by what the state is:
 |---|---|---|
 | Where the user is | URL | page, tab, filter, sort, open title, drill-in |
 | What is rendered, or what a handler reads | LiveView process | disclosures, arm gestures, open menus and modals, selection, loaded pages |
-| Device and viewport | Browser | focus position, scroll, hover, input method, sidebar collapse |
+| Device and viewport | Browser | focus position, scroll, hover, input method |
 
 The browser never decides what is rendered. This matches the input system,
 which learns about structure only from patches, and the app's deployment:

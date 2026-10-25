@@ -462,29 +462,17 @@ html.psb .psb-variation-block .media-centaur {
   );
 }
 
-/* ── Collapsible Sidebar ──
-   Icon-only 52px rail that flies out to 200px (icon + label). Two modes,
-   toggled by the bottom chevron and persisted on <html data-sidebar> via
-   localStorage (root.html.heex) for flash-free paint:
-
-   - auto (attribute absent): rests at 52px, expands while the mouse is
-     over it — or, in keyboard/gamepad mode, while the nav cursor is
-     inside it (:focus-within; sidebar items receive real DOM focus).
-   - pinned (data-sidebar="collapsed"): always 52px; the app tooltip
-     labels the hovered/focused icon instead.
-
-   `--sidebar-expanded` (0/1) is the single expansion switch — every
-   expanded-state property derives from it, so the condition lives in one
-   selector. Content margin stays 52px in both modes: the expanded rail
-   overlays content rather than reflowing it. */
+/* ── Sidebar ──
+   A fixed 52px icon rail. It never expands: the app tooltip (hooks/tooltip.js)
+   labels the hovered or focused icon beside the rail. Content sits at a
+   52px margin. */
 
 .sidebar {
-  --sidebar-expanded: 0;
-  width: calc(52px + 148px * var(--sidebar-expanded));
+  width: 52px;
   position: fixed;
   /* top:0 + bottom:0 (not height:100vh) so the bar stays pinned to the
      viewport under the root `zoom` UI scale — a 100vh height would scale past
-     the screen and push the bottom theme toggle off the fold. Verified at
+     the screen and push the bottom entries off the fold. Verified at
      0.8–1.5×. With both insets fixed, the height follows the viewport and the
      inner column (overflow-y:auto) scrolls if its scaled content overflows. */
   top: 0;
@@ -493,39 +481,25 @@ html.psb .psb-variation-block .media-centaur {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  padding: 1rem calc(0.5rem + 0.5rem * var(--sidebar-expanded));
+  padding: 1rem 0.5rem;
   gap: 0.25rem;
   overflow-x: hidden;
   overflow-y: auto;
-  transition: width 0.25s ease, padding 0.25s ease;
-}
-
-/* The expansion condition reads html-level attributes, never the rail's own
-   pseudo-state (:hover / :focus-within): live navigation replaces the aside,
-   and pseudo-state on the fresh node is only re-evaluated a frame later — the
-   open rail would paint collapsed, then animate back open. Both attributes
-   live on <html>, which survives navigation, so the new rail paints expanded
-   on its first frame. data-sidebar-hover is maintained by a delegated
-   listener in root.html.heex; data-nav-context by the input system. */
-html:not([data-sidebar=collapsed])[data-sidebar-hover] .sidebar,
-html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad])[data-nav-context=sidebar] .sidebar {
-  --sidebar-expanded: 1;
 }
 
 #input-system > main {
   margin-left: 52px;
 }
 
-/* Sidebar navigation links — colors use theme variables */
+/* Sidebar navigation links — a 36px square around the icon; colors use
+   theme variables. The pill is positioned against this box. */
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  justify-content: center;
   padding: 0.5rem;
   border-radius: 0.375rem;
   position: relative;
-  overflow: hidden;
-  white-space: nowrap;
   color: oklch(from var(--color-base-content) l c h / 0.7);
   transition: background 0.15s, color 0.15s;
 }
@@ -558,24 +532,17 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   color: oklch(from var(--color-primary) l c h / 0.8);
 }
 
-/* Sidebar group label — small, uppercase, dim. Separates Watch from System.
-   Collapsed: text fades out but the box (padding + line height) stays, so
-   the icon rows below it don't shift between expanded and collapsed. */
-.sidebar-group-label {
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: oklch(from var(--color-base-content) l c h / 0.4);
-  padding: 0.75rem 0.5rem 0.25rem 0.5rem;
-  opacity: var(--sidebar-expanded);
-  overflow: hidden;
+/* The System group sits under a hairline that separates it from the Watch
+   group — the rail's one group marker, since it carries no text. */
+.sidebar-group-system {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--glass-border);
 }
 
-/* Demoted system-group links — slightly dimmer & smaller font.
+/* Demoted system-group links — slightly dimmer.
    Stack with .sidebar-link (e.g. class="sidebar-link sidebar-link-system"). */
 .sidebar-link-system {
-  font-size: 0.8125rem;
   color: oklch(from var(--color-base-content) l c h / 0.55);
 }
 
@@ -588,42 +555,22 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   background: oklch(from var(--color-primary) l c h / 0.10);
 }
 
-/* Label text fades in with expansion */
-.sidebar-label {
-  white-space: nowrap;
-  opacity: var(--sidebar-expanded);
-  transition: opacity 0.2s;
-}
-
-/* Follow-up pill (UIDR-030) — one element, two placements. Expanded rail:
-   at the row's end, vertically centred. 52px rail: anchored to the icon's
-   top-right corner so the count survives the label's fade and the rail's
-   overflow clip. `--sidebar-expanded` drives the switch, like every other
-   expanded-state property. The condition dot lives at the icon's
+/* Follow-up pill (UIDR-030) — anchored to the link box's top-right corner,
+   over the icon's corner. The condition dot lives at the icon's
    bottom-right, so the two never overlap. */
 .sidebar-follow-up {
   position: absolute;
-  right: calc(0.125rem + 0.375rem * var(--sidebar-expanded));
-  top: calc(50% * var(--sidebar-expanded));
-  transform: translateY(calc(-50% * var(--sidebar-expanded)));
-  transition: top 0.25s ease, right 0.25s ease, transform 0.25s ease;
-}
-
-/* Collapse button chevron points at the action: « (collapse) while the
-   rail is visually expanded, » (expand) while it shows as a rail. */
-.sidebar-collapse-icon {
-  transform: rotate(calc(180deg * (1 - var(--sidebar-expanded))));
-  transition: transform 0.25s;
+  right: 0.125rem;
+  top: 0;
 }
 
 /* The tooltip — one element in <body> for every data-tip anchor in the
    app, driven by the Tooltip hook (hooks/tooltip.js). Lives outside every
-   surface because the sidebar rail (overflow-y: auto) and each link
-   (overflow: hidden) clip pseudo-element tooltips at the 52px collapsed
-   width, and one element is one look. Position is set entirely via
-   transform by the hook; the transform transition is what lets the open
-   tooltip glide between neighbouring anchors. Blur is static — only
-   opacity/transform animate. */
+   surface because the sidebar rail (overflow-y: auto) clips pseudo-element
+   tooltips at its 52px width, and one element is one look. Position is set
+   entirely via transform by the hook; the transform transition is what
+   lets the open tooltip glide between neighbouring anchors. Blur is static
+   — only opacity/transform animate. */
 .app-tooltip {
   position: fixed;
   top: 0;
@@ -632,8 +579,8 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   pointer-events: none;
   padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
-  /* Typeset identically to the expanded .sidebar-label it stands in for —
-     a smaller/bolder face reads as a foreign, out-of-scale UI. */
+  /* Typeset like body text — a smaller/bolder face reads as a foreign,
+     out-of-scale UI. */
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.5rem;

@@ -96,13 +96,11 @@ export const test = base.extend({
         initScriptAdded = true
       }
 
-      // Park the pointer away from the sidebar BEFORE loading. The sidebar is
-      // a 52px rail that expands to 200px on hover and overlays the content
-      // rather than reflowing it — and a browser's virtual pointer starts at
-      // (0, 0), inside that rail. Left there it swallows clicks aimed at the
-      // first column of whatever is behind it. Moving it before the navigation
-      // matters: afterwards would dispatch a mousemove into the loaded page
-      // and flip the input system into mouse mode, which several specs assert
+      // Park the pointer away from the sidebar BEFORE loading. A browser's
+      // virtual pointer starts at (0, 0), inside the rail, where it hovers a
+      // link and raises its tooltip. Moving it before the navigation matters:
+      // afterwards would dispatch a mousemove into the loaded page and flip
+      // the input system into mouse mode, which several specs assert
       // against.
       const { width, height } = page.viewportSize()
       await page.mouse.move(Math.round(width / 2), Math.round(height / 2))

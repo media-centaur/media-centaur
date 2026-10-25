@@ -7,10 +7,8 @@ defmodule MediaCentaurWeb.Components.FollowUpPill do
   defines handling: approve or discard a plan, review a file, look at
   an incident (the Status source's seen-marker is its definition).
 
-  Placement is one CSS rule (`.sidebar-follow-up`) keyed off the rail's
-  `--sidebar-expanded` switch: at the row's end when the rail is open,
-  at the icon's top-right corner when it is the 52px rail, so the count
-  survives both widths. The condition dot sits at the icon's
+  Placement is one CSS rule (`.sidebar-follow-up`): the icon's top-right
+  corner in the 52px rail. The condition dot sits at the icon's
   bottom-right so the two never overlap.
   """
 

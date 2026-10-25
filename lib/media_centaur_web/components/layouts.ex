@@ -127,47 +127,51 @@ defmodule MediaCentaurWeb.Layouts do
         aria-hidden="true"
       >
       </div>
+      <%!-- The sidebar: a fixed 52px icon rail. Every entry is an icon-only
+            link named by aria-label; the same words are its data-tip, which
+            the Tooltip hook shows beside the icon on hover and on
+            keyboard/gamepad focus. A hairline separates the Watch group
+            from the System group. --%>
       <aside
         id="sidebar"
         class="sidebar glass-sidebar"
         data-nav-zone="sidebar"
         data-tip-placement="right"
       >
-        <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
           <.link
             navigate="/"
             class={sidebar_link_class(@current_path, "/")}
+            aria-label="Home"
             data-tip="Home"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-home" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Home</span>
           </.link>
           <.link
             navigate="/library"
             class={sidebar_link_class(@current_path, "/library")}
+            aria-label="Library"
             data-tip="Library"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Library</span>
           </.link>
           <.link
             :if={@show_social}
             navigate="/social"
             class={sidebar_link_class(@current_path, ["/social", "/social/friends"])}
+            aria-label="Social"
             data-tip="Social"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-users" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Social</span>
           </.link>
           <%!-- One entry for the whole collection-growth story (UIDR-015) —
                 unconditional: without acquisition the page degrades to an
@@ -175,13 +179,13 @@ defmodule MediaCentaurWeb.Layouts do
           <.link
             navigate="/incoming"
             class={sidebar_link_class(@current_path, "/incoming")}
+            aria-label="Incoming"
             data-tip="Incoming"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-inbox-arrow-down" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Incoming</span>
             <FollowUpPill.follow_up_pill
               id="sidebar-incoming-follow-up"
               count={@badges.plans_awaiting_review}
@@ -191,26 +195,26 @@ defmodule MediaCentaurWeb.Layouts do
             :if={@show_apps}
             navigate="/apps"
             class={sidebar_link_class(@current_path, "/apps")}
+            aria-label="Apps"
             data-tip="Apps"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-rocket-launch" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Apps</span>
           </.link>
         </nav>
 
-        <div class="sidebar-group-label sidebar-label">System</div>
-        <nav id="sidebar-system" class="flex flex-col gap-0.5">
+        <nav id="sidebar-system" class="sidebar-group-system flex flex-col gap-0.5">
           <%!-- The profile switcher (UIDR-053 rule 3): a System entry like
-                the others, the active profile's name behind a person icon in
-                the profile's hue — no picture — linking to the picker, which
-                opens inside this shell and lights this entry; present only
-                when there is someone to switch to. data-nav-defer-activate:
-                sidebar entries activate on focus, but merely walking the
-                cursor over the switcher must not open the picker — only an
-                explicit SELECT does. --%>
+                the others, a person icon in the profile's hue — no picture —
+                linking to the picker, which opens inside this shell and
+                lights this entry; present only when there is someone to
+                switch to. Its name carries the active profile's name, since
+                the icon alone cannot. data-nav-defer-activate: sidebar
+                entries activate on focus, but merely walking the cursor over
+                the switcher must not open the picker — only an explicit
+                SELECT does. --%>
           <.link
             :if={length(@profiles) > 1}
             id="sidebar-profile"
@@ -219,7 +223,8 @@ defmodule MediaCentaurWeb.Layouts do
               sidebar_link_class(@current_path, "/profiles") <>
                 " sidebar-link-system sidebar-link-profile"
             }
-            data-tip="Switch profile"
+            aria-label={profile_switch_label(@profile)}
+            data-tip={profile_switch_label(@profile)}
             data-hue={@profile.hue}
             data-nav-item
             data-nav-defer-activate
@@ -227,11 +232,11 @@ defmodule MediaCentaurWeb.Layouts do
             {IdentityTile.hue_style(@profile.hue)}
           >
             <.icon name="hero-user-circle" class="size-5 flex-shrink-0 sidebar-profile-mark" />
-            <span class="sidebar-label min-w-0 truncate">{@profile.name}</span>
           </.link>
           <.link
             navigate="/status"
             class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}
+            aria-label="Status"
             data-tip="Status"
             data-nav-item
             tabindex="0"
@@ -245,7 +250,6 @@ defmodule MediaCentaurWeb.Layouts do
                 aria-hidden="true"
               />
             </span>
-            <span class="sidebar-label">Status</span>
             <FollowUpPill.follow_up_pill
               id="sidebar-status-follow-up"
               count={@badges.diagnostics_unseen}
@@ -258,12 +262,12 @@ defmodule MediaCentaurWeb.Layouts do
               sidebar_link_class(@current_path, ["/review", "/episode-mapping"]) <>
                 " sidebar-link-system"
             }
+            aria-label="Review"
             data-tip="Review"
             data-nav-item
             tabindex="0"
           >
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Review</span>
             <FollowUpPill.follow_up_pill
               id="sidebar-review-follow-up"
               count={@badges.review_pending + @badges.mapping_pending}
@@ -272,35 +276,15 @@ defmodule MediaCentaurWeb.Layouts do
           <.link
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings") <> " sidebar-link-system"}
+            aria-label="Settings"
             data-tip="Settings"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Settings</span>
           </.link>
         </nav>
-
-        <div class="flex-1" />
-
-        <%!-- data-nav-defer-activate: sidebar entries activate on focus, but
-              merely walking the cursor over this toggle must not collapse the
-              rail — only an explicit SELECT flips it. --%>
-        <button
-          class="sidebar-link"
-          phx-click={JS.dispatch("phx:toggle-sidebar")}
-          data-tip="Expand"
-          data-nav-item
-          data-nav-defer-activate
-          tabindex="0"
-        >
-          <.icon
-            name="hero-chevron-double-left"
-            class="size-5 flex-shrink-0 sidebar-collapse-icon"
-          />
-          <span class="sidebar-label">Collapse</span>
-        </button>
       </aside>
 
       <main class="flex-1 min-w-0 px-6 py-6 flex flex-col">
@@ -467,8 +451,8 @@ defmodule MediaCentaurWeb.Layouts do
 
   # `paths` may be a list when one nav entry fronts several routes — the
   # Review entry covers both review dimensions (/review and /episode-mapping).
-  # Collapsed-rail tooltips come from the Tooltip hook reading each
-  # link's data-tip — no tooltip classes here.
+  # The rail's tooltips come from the Tooltip hook reading each link's
+  # data-tip — no tooltip classes here.
   defp sidebar_link_class(current_path, paths) do
     base = "sidebar-link"
 
@@ -478,4 +462,7 @@ defmodule MediaCentaurWeb.Layouts do
       base
     end
   end
+
+  # The switcher's name and tip: who is active, and what the entry does.
+  defp profile_switch_label(profile), do: "#{profile.name} · Switch profile"
 end
