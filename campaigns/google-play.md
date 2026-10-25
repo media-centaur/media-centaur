@@ -34,7 +34,7 @@ Defined before use; refined as the campaign proceeds.
 
 M1's research done 2026-10-25 (record under M1 below). A personal
 account (decided). BACK-to-home and the Menu-key dependency are built
-on the host and in the TV app (unreleased) and verified on the Sony
+on the host and in the TV app (released as v0.1.2, installed on the Sony) and verified there
 2026-10-25 with the debug app on the sim host: BACK on the pairing page
 leaves at once; BACK from content enters the sidebar and BACK again
 leaves; paused, DOWN focuses Audio & subtitles, OK opens the track menu,
@@ -74,7 +74,7 @@ the owner opens the account (the M1 sit-down).
 * `2026-10-23` — The application id is `app.mediacentaur.tv` and the display name "Media Centaur", for good. (`remote-players.md`, owner)
 * `2026-10-23` — The Play work is its own campaign, split from `remote-players.md`; it runs after that campaign's remaining items and the owner's usability pass, and before the merge of `remote-players` and the major host release. (owner)
 * `2026-10-25` — A **personal** Play Console account: closed testing (12 testers, 14 days) before production; the internal track is open at once. (owner; open decision 1 closed)
-* `2026-10-25` — BACK with nothing left to peel leaves the app on the TV (TV-DB): host `cf99b381` (`leave_app`, UIDR-028 amended), TV app `5490789` (`MediaCentaurTV.leave()`, and the pairing page left on the first BACK). Ships with the next TV app release. (owner; open decision 4 closed)
+* `2026-10-25` — BACK with nothing left to peel leaves the app on the TV (TV-DB): host `cf99b381` (`leave_app`, UIDR-028 amended), TV app `5490789` (`MediaCentaurTV.leave()`, and the pairing page left on the first BACK). Released as TV app v0.1.2 the same day (tag `v0.1.2`, `c1d5da8`) and installed on the Sony. (owner; open decision 4 closed)
 * `2026-10-25` — The track menu without a Menu key (TV-DM): paused, the bar shows an Audio & subtitles button — DOWN reaches it, OK opens the menu, UP comes back; playing keeps every arrow a seek. Host `cf99b381`. (owner chose the paused button over DOWN-opens-the-menu and a full button row; open decision 5 closed)
 
 ## Next steps
