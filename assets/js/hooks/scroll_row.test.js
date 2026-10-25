@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { edges, step } from "./scroll_row"
-import { restoreGlobals } from "../test_support/dom_stubs"
+import { ScrollRow, edges, step } from "./scroll_row"
+import { installGlobal, installResizeObserver, restoreGlobals } from "../test_support/dom_stubs"
 
 afterEach(restoreGlobals)
 
@@ -34,6 +34,12 @@ describe("edges", () => {
       atEnd: true,
     })
   })
+
+  // Trackpad and touch overscroll report offsets past either end.
+  test("overscroll past either end still reads as that end", () => {
+    expect(edges({ scrollLeft: -5, scrollWidth: 3000, clientWidth: 1000 })).toEqual({ atStart: true, atEnd: false })
+    expect(edges({ scrollLeft: 2500, scrollWidth: 3000, clientWidth: 1000 })).toEqual({ atStart: false, atEnd: true })
+  })
 })
 
 describe("step", () => {
@@ -48,5 +54,156 @@ describe("step", () => {
   // still moves a whole card, never a sliver.
   test("is never less than one card", () => {
     expect(step({ clientWidth: 300, cardWidth: 200, gap: 8 })).toBe(200)
+  })
+})
+
+// A wrapper element with a track inside it, as the component renders them,
+// under a fake glider that records what it was asked. `hover` is what the
+// page's `(hover: hover)` query answers.
+function mount({ hover = true, scrollLeft = 0, scrollWidth = 3000, clientWidth = 1000, cardWidth = 200, gap = 8 } = {}) {
+  installGlobal("matchMedia", (query) => ({ matches: query === "(hover: hover)" && hover }))
+  installGlobal("getComputedStyle", () => ({ columnGap: `${gap}px` }))
+  const observers = installResizeObserver()
+
+  function element() {
+    const attributes = {}
+    const listeners = {}
+    return {
+      attributes,
+      listeners,
+      setAttribute: (name, value) => {
+        attributes[name] = value
+      },
+      removeAttribute: (name) => {
+        delete attributes[name]
+      },
+      hasAttribute: (name) => name in attributes,
+      toggleAttribute(name, force) {
+        if (force) attributes[name] = ""
+        else delete attributes[name]
+      },
+      addEventListener: (type, fn) => {
+        listeners[type] = fn
+      },
+      removeEventListener: (type, fn) => {
+        if (listeners[type] === fn) delete listeners[type]
+      },
+    }
+  }
+
+  const track = Object.assign(element(), {
+    scrollLeft,
+    scrollWidth,
+    clientWidth,
+    firstElementChild: { offsetWidth: cardWidth },
+  })
+  const el = Object.assign(element(), { querySelector: (sel) => (sel === ".row-scroll" ? track : null) })
+
+  const glides = []
+  const hook = Object.assign(Object.create(ScrollRow), {
+    el,
+    glider: { glide: (box, target) => glides.push({ box, target }) },
+  })
+  hook.mounted()
+
+  const arrow = (direction) => ({
+    target: { closest: (sel) => (sel === "[data-scroll-row-arrow]" ? { dataset: { scrollRowArrow: direction } } : null) },
+  })
+
+  return { hook, el, track, glides, observers, arrow, press: (direction) => el.listeners.click(arrow(direction)) }
+}
+
+describe("ScrollRow", () => {
+  test("projects the edge state onto the track at mount", () => {
+    const { track } = mount({ scrollLeft: 0 })
+    expect(track.attributes).toEqual({ "data-at-start": "" })
+  })
+
+  test("a track that fits is at both ends", () => {
+    const { track } = mount({ scrollWidth: 900 })
+    expect(track.attributes).toEqual({ "data-at-start": "", "data-at-end": "" })
+  })
+
+  test("follows the track's scroll", () => {
+    const { track } = mount()
+    track.scrollLeft = 2000
+    track.listeners.scroll()
+    expect(track.attributes).toEqual({ "data-at-end": "" })
+  })
+
+  test("follows a resize", () => {
+    const { track, observers } = mount()
+    expect(observers[0].targets).toEqual([track])
+    track.clientWidth = 3000
+    observers[0].fire()
+    expect(track.attributes).toEqual({ "data-at-start": "", "data-at-end": "" })
+  })
+
+  // morphdom syncs a patched element back to the server's markup, which
+  // has no edge attributes; after a patch the hook puts them back.
+  test("re-asserts the edge state after a patch", () => {
+    const { hook, track } = mount({ scrollLeft: 2000 })
+    delete track.attributes["data-at-end"]
+    hook.updated()
+    expect(track.attributes).toEqual({ "data-at-end": "" })
+  })
+
+  test("a press on the right arrow glides one step", () => {
+    const { track, glides, press } = mount({ scrollLeft: 0 })
+    press("right")
+    expect(glides).toEqual([{ box: track, target: { left: 792 } }])
+  })
+
+  test("a press on the left arrow glides one step back, clamped at 0", () => {
+    const { track, glides, press } = mount({ scrollLeft: 500 })
+    press("left")
+    expect(glides).toEqual([{ box: track, target: { left: 0 } }])
+  })
+
+  test("a press near the end is clamped at the maximum", () => {
+    const { track, glides, press } = mount({ scrollLeft: 1500 })
+    press("right")
+    expect(glides).toEqual([{ box: track, target: { left: 2000 } }])
+  })
+
+  test("a click elsewhere in the row is not a press", () => {
+    const { el, glides } = mount()
+    el.listeners.click({ target: { closest: () => null } })
+    expect(glides).toEqual([])
+  })
+
+  // Chrome never takes the cursor: in the collection rail the arrows sit
+  // outside every nav zone, and a focused arrow would read as foreign focus
+  // to the input system's reconciler (`hasForeignFocus`), which would then
+  // cede the cursor to it.
+  test("mousedown on an arrow is prevented, so the button never takes focus", () => {
+    const { el, arrow } = mount()
+    let prevented = false
+    el.listeners.mousedown({ ...arrow("left"), preventDefault: () => (prevented = true) })
+    expect(prevented).toBe(true)
+  })
+
+  test("mousedown elsewhere in the row is left alone", () => {
+    const { el } = mount()
+    let prevented = false
+    el.listeners.mousedown({ target: { closest: () => null }, preventDefault: () => (prevented = true) })
+    expect(prevented).toBe(false)
+  })
+
+  // No pointer, no chrome: the TV's glide frames carry no scroll listener.
+  test("without a hovering pointer the hook attaches nothing", () => {
+    const { el, track, observers } = mount({ hover: false })
+    expect(track.attributes).toEqual({})
+    expect(track.listeners).toEqual({})
+    expect(el.listeners).toEqual({})
+    expect(observers).toEqual([])
+  })
+
+  test("destroyed releases the listeners and the observer", () => {
+    const { hook, el, track, observers } = mount()
+    hook.destroyed()
+    expect(track.listeners).toEqual({})
+    expect(el.listeners).toEqual({})
+    expect(observers[0].targets).toEqual([])
   })
 })
