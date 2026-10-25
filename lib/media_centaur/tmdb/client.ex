@@ -14,8 +14,14 @@ defmodule MediaCentaur.TMDB.Client do
   ## API Details
 
   - **Base URL:** `https://api.themoviedb.org/3`
-  - **Auth:** v3 `api_key` query parameter on every request (left out of
-    the cache key)
+  - **Auth:** TMDB gives every account two credentials that open the
+    same v3 endpoints, and the `:tmdb_api_key` setting holds either one.
+    The **API Key** (32 hex characters) is sent as the `api_key` query
+    parameter, which is left out of the cache key. The **API Read Access
+    Token** (a JSON Web Token: three dot-separated segments) is sent as
+    an `Authorization: Bearer` header. `default_client/0` picks the
+    transport from the value's form, so the user pastes whichever one
+    they copied.
   - **Search endpoints:** `/search/movie`, `/search/tv`, `/search/multi`
   - **Detail endpoints:** `/movie/{id}`, `/tv/{id}`, `/tv/{id}/season/{n}`, `/collection/{id}`
   - **Image URL:** `https://image.tmdb.org/t/p/original{path}`
@@ -87,18 +93,26 @@ defmodule MediaCentaur.TMDB.Client do
 
     __MODULE__
     |> HttpClient.new(
-      upstream: :tmdb,
-      base_url: @base_url,
-      params: [api_key: api_key],
-      cache: [exclude_params: ["api_key"]]
+      [upstream: :tmdb, base_url: @base_url, cache: [exclude_params: ["api_key"]]] ++
+        credential_options(api_key)
     )
     |> RateLimiter.attach()
   end
 
+  # A read access token is a JSON Web Token; an API key has no dots.
+  defp credential_options(credential) when is_binary(credential) do
+    case String.split(credential, ".") do
+      [_header, _payload, _signature] -> [auth: {:bearer, credential}]
+      _api_key -> [params: [api_key: credential]]
+    end
+  end
+
+  defp credential_options(credential), do: [params: [api_key: credential]]
+
   @doc """
   Hits TMDB's `/3/configuration` endpoint — the canonical cheap
   credential check. The endpoint returns static image-CDN metadata, so
-  a 200 response proves the api_key is accepted without consuming a
+  a 200 response proves the credential is accepted without consuming a
   useful quota slot or touching user data. Never served from the cache.
   """
   @spec configuration(opts()) :: {:ok, map()} | {:error, any()}

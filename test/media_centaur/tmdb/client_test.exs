@@ -210,4 +210,41 @@ defmodule MediaCentaur.TMDB.ClientTest do
     assert_receive {:http_stop, %{upstream: :tmdb, path: "/3/tv/3/season/1", rate_limit_wait: wait}}
     assert is_integer(wait) and wait >= 0
   end
+
+  describe "the credential — TMDB's API Key or its API Read Access Token" do
+    # Fake values in each credential's shape. Neither is a real key.
+    @api_key "0123456789abcdef0123456789abcdef"
+    @read_access_token "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJzYW1wbGUifQ.c2FtcGxlLXNpZ25hdHVyZQ"
+
+    setup do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        conn = Plug.Conn.fetch_query_params(conn)
+
+        send(
+          test_pid,
+          {:credential_sent, conn.query_params["api_key"], Plug.Conn.get_req_header(conn, "authorization")}
+        )
+
+        Req.Test.json(conn, %{"images" => %{}})
+      end)
+
+      :ok
+    end
+
+    test "an API Key travels as the api_key query parameter" do
+      MediaCentaur.Settings.Config.update(:tmdb_api_key, @api_key)
+
+      assert {:ok, _body} = Client.configuration()
+      assert_receive {:credential_sent, @api_key, []}
+    end
+
+    test "an API Read Access Token travels as a Bearer header, never in the URL" do
+      MediaCentaur.Settings.Config.update(:tmdb_api_key, @read_access_token)
+
+      assert {:ok, _body} = Client.configuration()
+      assert_receive {:credential_sent, nil, ["Bearer " <> @read_access_token]}
+    end
+  end
 end
