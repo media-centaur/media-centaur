@@ -68,6 +68,15 @@ assert_version() {
     pass "installed version is $want"
 }
 
+# The version the running app reports — not the one `current` points at,
+# which a failed restart would leave out of step with it.
+assert_running_version() {
+    want="${1#v}"
+    got=$("$INSTALL_ROOT/current/bin/media_centaur" rpc 'IO.puts(MediaCentaur.Version.current_version())' 2>/dev/null || true)
+    [ "$got" = "$want" ] || fail "the running app reports '$got', expected '$want'"
+    pass "the running app reports $want"
+}
+
 # The agent is loaded, running, and the app answers on its port.
 assert_serving() {
     agent_loaded || fail "LaunchAgent $LABEL is not loaded in $(ctl_domain)"

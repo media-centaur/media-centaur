@@ -17,9 +17,11 @@ Environment: a GitHub macOS runner (`macos-14`, Apple Silicon), through
 | `disabled-label` | An install over a disabled `com.media-centaur.app` label still loads the agent. |
 | `manual-start` | With the agent unloaded, `bin/media_centaur daemon` boots the app with `secrets.env` loaded; `service install` restores autostart. |
 | `uninstall` | The app, plist and agent are gone, the label is disabled, and config and data are kept. |
+| `upgrade` | Installing the tag over the release before switches `current` to it, and the running app reports the new version. |
+| `fresh-install-log` | The fresh install logged no `[error]` line. |
 | `in-app-update` | From the release before, the update the Settings button starts reaches the latest release and the agent ends on it. |
 
-The first six run in order in one job, each building on the state the one
+The first eight run in order in one job, each building on the state the one
 before left. `in-app-update` runs in its own job on a clean runner. It always
 updates to GitHub's latest release, so it tests the tag under test only when
 that tag is the latest — run it without a tag to test the latest release. Each job uploads `collect-evidence` output (app logs,

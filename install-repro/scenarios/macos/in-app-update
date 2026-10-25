@@ -51,3 +51,4 @@ reached_latest() { [ "$(installed_version)" = "${MC_LATEST_TAG#v}" ]; }
 wait_until "current points at $MC_LATEST_TAG" 300 reached_latest
 assert_serving
 assert_version "$MC_LATEST_TAG"
+assert_running_version "$MC_LATEST_TAG"
