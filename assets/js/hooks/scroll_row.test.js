@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { ScrollRow, edges, step } from "./scroll_row"
 import { installGlobal, installResizeObserver, restoreGlobals } from "../test_support/dom_stubs"
+import { scrollGlider } from "../scroll_glider.js"
 
 afterEach(restoreGlobals)
 
@@ -59,8 +60,17 @@ describe("step", () => {
 
 // A wrapper element with a track inside it, as the component renders them,
 // under a fake glider that records what it was asked. `hover` is what the
-// page's `(hover: hover)` query answers.
-function mount({ hover = true, scrollLeft = 0, scrollWidth = 3000, clientWidth = 1000, cardWidth = 200, gap = 8 } = {}) {
+// page's `(hover: hover)` query answers. `glider: false` leaves the hook
+// to find its own.
+function mount({
+  hover = true,
+  glider = true,
+  scrollLeft = 0,
+  scrollWidth = 3000,
+  clientWidth = 1000,
+  cardWidth = 200,
+  gap = 8,
+} = {}) {
   installGlobal("matchMedia", (query) => ({ matches: query === "(hover: hover)" && hover }))
   installGlobal("getComputedStyle", () => ({ columnGap: `${gap}px` }))
   const observers = installResizeObserver()
@@ -97,13 +107,11 @@ function mount({ hover = true, scrollLeft = 0, scrollWidth = 3000, clientWidth =
     clientWidth,
     firstElementChild: { offsetWidth: cardWidth },
   })
-  const el = Object.assign(element(), { querySelector: (sel) => (sel === ".row-scroll" ? track : null) })
+  const el = Object.assign(element(), { querySelector: (sel) => (sel === ":scope > .row-scroll" ? track : null) })
 
   const glides = []
-  const hook = Object.assign(Object.create(ScrollRow), {
-    el,
-    glider: { glide: (box, target) => glides.push({ box, target }) },
-  })
+  const hook = Object.assign(Object.create(ScrollRow), { el })
+  if (glider) hook.glider = { glide: (box, target) => glides.push({ box, target }) }
   hook.mounted()
 
   const arrow = (direction) => ({
@@ -166,13 +174,27 @@ describe("ScrollRow", () => {
     expect(glides).toEqual([{ box: track, target: { left: 2000 } }])
   })
 
+  test("a press on a track with no cards glides nowhere", () => {
+    const { track, glides, press } = mount({ scrollWidth: 900 })
+    track.firstElementChild = null
+    press("right")
+    expect(glides).toEqual([{ box: track, target: { left: 0 } }])
+  })
+
+  // The page has one scroll animator; the hook glides on it, so the
+  // orchestrator's wheel rule cancels an arrow glide like any other.
+  test("glides on the page's one glider", () => {
+    const { hook } = mount({ glider: false })
+    expect(hook.glider).toBe(scrollGlider)
+  })
+
   test("a click elsewhere in the row is not a press", () => {
     const { el, glides } = mount()
     el.listeners.click({ target: { closest: () => null } })
     expect(glides).toEqual([])
   })
 
-  // Chrome never takes the cursor: in the collection rail the arrows sit
+  // Pointer chrome never takes the cursor: in the collection rail the arrows sit
   // outside every nav zone, and a focused arrow would read as foreign focus
   // to the input system's reconciler (`hasForeignFocus`), which would then
   // cede the cursor to it.
@@ -197,6 +219,15 @@ describe("ScrollRow", () => {
     expect(track.listeners).toEqual({})
     expect(el.listeners).toEqual({})
     expect(observers).toEqual([])
+  })
+
+  test("updated and destroyed are no-ops on an unattached hook", () => {
+    const { hook, track } = mount({ hover: false })
+    expect(() => {
+      hook.updated()
+      hook.destroyed()
+    }).not.toThrow()
+    expect(track.attributes).toEqual({})
   })
 
   test("destroyed releases the listeners and the observer", () => {

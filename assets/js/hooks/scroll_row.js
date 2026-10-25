@@ -54,7 +54,7 @@ export function step({ clientWidth, cardWidth, gap }) {
 export const ScrollRow = {
   mounted() {
     if (!globalThis.matchMedia?.("(hover: hover)").matches) return
-    this.track = this.el.querySelector(".row-scroll")
+    this.track = this.el.querySelector(":scope > .row-scroll")
     if (!this.track) return
     this.glider = this.glider ?? scrollGlider
 
@@ -70,7 +70,7 @@ export const ScrollRow = {
     }
     this.el.addEventListener("click", this.onClick)
 
-    // Chrome never takes the cursor. Chromium focuses a clicked
+    // Pointer chrome never takes the cursor. Chromium focuses a clicked
     // `tabindex="-1"` button; in the collection rail the arrows sit outside
     // every nav zone, and the input system's reconciler would read that
     // focus as foreign (`hasForeignFocus`) and cede the cursor to it.
