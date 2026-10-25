@@ -133,9 +133,11 @@ defmodule MediaCentaurWeb.HomeLive do
         <div :if={@hero} class="page-side-dim" aria-hidden="true"></div>
 
         <%!-- ── Hero (z-index 1) ──
-              Breaks out of main's padding to fill available width. The
-              row-scroll-hero wrapper is structural setup for future multi-item
-              featured carousels; today it holds a single item.
+              Breaks out of main's padding to fill available width. The hero
+              keeps a plain `.row-scroll.row-scroll-hero` track for the shelf
+              scroll system's styling (edge to edge, no fade, no reserve); one
+              full-bleed item has nothing to scroll, so it is deliberately not
+              a `ScrollRow`.
 
               `data-nav-reveal` makes the whole hero the thing scrolled into
               view when its Play / More info buttons take focus. The CTAs sit
@@ -145,7 +147,6 @@ defmodule MediaCentaurWeb.HomeLive do
         <div
           :if={@hero}
           class="relative z-[1] -mx-6 -mt-6"
-          data-scroll-row="hero"
           data-nav-zone="hero"
           data-nav-reveal
         >

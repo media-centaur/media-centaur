@@ -3,9 +3,10 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   Horizontal-scrolling row of backdrop cards for in-progress titles. Used
   on Home. Each item is a `Item` struct (see below).
 
-  All loaded items render — the row scrolls horizontally so callers can
-  pass as many as they like. A "See all" placeholder appears as the last
-  slot. Cards carry `data-nav-item` so the host can wrap the row in a
+  All loaded items render — the track is a `ScrollRow.scroll_row/1`,
+  which scrolls horizontally and adds the mouse user's edge arrows, so
+  callers can pass as many as they like. A "See all" placeholder appears
+  as the last slot. Cards carry `data-nav-item` so the host can wrap the row in a
   `data-nav-zone` (a SHELF context) for keyboard/gamepad navigation — see
   HomeLive and the `input-system` skill.
   """
@@ -20,6 +21,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.PlayOverlay
+  alias MediaCentaurWeb.Components.ScrollRow
 
   # Cards sit in a `.row-scroll-backdrop-lg` track, so each is
   # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
@@ -64,11 +66,11 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
 
   def continue_watching_row(assigns) do
     ~H"""
-    <div
+    <ScrollRow.scroll_row
       :if={@items != []}
+      id="continue-watching-row"
+      variant={:backdrop_lg}
       data-component="continue-watching"
-      data-scroll-row="continue-watching"
-      class="row-scroll row-scroll-backdrop-lg"
     >
       <%!-- A div, not a <button>: the play overlay nests a real button
             inside (UIDR-027) and buttons cannot nest. --%>
@@ -134,7 +136,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         <.icon name="hero-arrow-right-circle" class="size-10" />
         <span class="text-sm font-medium">See all</span>
       </.link>
-    </div>
+    </ScrollRow.scroll_row>
     """
   end
 end
