@@ -449,6 +449,19 @@ pattern (for the media endpoint); the bootstrap TOML tier in
     is meant to be the real app with the real library, the migration is
     additive, and the merge follows the pass anyway.
 
+16. **What the Sony's WebView answers to `(hover: hover)`** (opened
+    2026-10-25). Home's rows and the title detail's collection rail carry
+    the mouse user's edge arrows (`ScrollRow`,
+    `docs/superpowers/specs/2026-10-25-scroll-row-arrows-design.md`). The
+    CSS reveals them only under `@media (hover: hover)` and the hook
+    attaches only where `matchMedia("(hover: hover)")` matches, so the TV
+    never shows them either way; the open question is cost. `false` means
+    no listener on the TV; `true` means one passive scroll listener per row
+    with the arrows still unseen. Read it when the TV is free, with a page
+    probe through `mc-tv` evaluating `matchMedia("(hover: hover)").matches`
+    on the app's WebView, and record the answer here. Headless Chromium on
+    the PC answers `false` (`chromium-probe --pointer` emulates `true`).
+
 ## Next steps
 
 Milestones in order; each lands on its own and leaves the host working.
