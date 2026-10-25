@@ -28,6 +28,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
 
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
+  alias MediaCentaurWeb.Components.ScrollRow
   alias MediaCentaurWeb.ViewModel.MovieRow
 
   attr :movie_items, :list,
@@ -51,19 +52,24 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       <h3 class="mb-2 text-sm font-medium uppercase tracking-wider text-base-content/55">
         {@saga_label}
       </h3>
-      <%!-- The home shelves' scroll system, wholesale: `.row-scroll`
-            owns the ring reserve, hidden scrollbar, cursor peek
-            (scroll-padding stops the cursor one tile short and slides
-            the row instead), and the scroll-linked edge fades. The
-            variant only sets tile width and gap. --%>
-      <div class="row-scroll row-scroll-backdrop-sm" data-nav-zone="detail_rail">
+      <%!-- The home shelves' scroll system, wholesale, through the scroll
+            row: `.row-scroll` owns the ring reserve, hidden scrollbar,
+            cursor peek (scroll-padding stops the cursor one tile short and
+            slides the row instead) and the scroll-linked edge fades; the
+            scroll row adds the mouse user's edge arrows. The variant only
+            sets tile width and gap. --%>
+      <ScrollRow.scroll_row
+        id="collection-rail-row"
+        variant={:backdrop_sm}
+        data-nav-zone="detail_rail"
+      >
         <.rail_tile
           :for={item <- @movie_items}
           item={item}
           selected={match?(%MovieRow.Library{}, item) && item.movie.id == @selected_id}
           available={@available}
         />
-      </div>
+      </ScrollRow.scroll_row>
     </div>
     """
   end
