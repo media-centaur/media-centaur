@@ -15,15 +15,24 @@ defmodule MediaCentaur.Release do
      Tracked separately in the `data_migrations` table.
 
   See `MediaCentaur.DataMigrations` for authoring rules.
+
+  Every task starts the repo with one connection. With the migrator's
+  default two, both connections switch a brand-new database to WAL at
+  once; exqlite sets `journal_mode` before `busy_timeout`, so one of them
+  fails at once with "database is locked" and reconnects — harmless, but
+  the first install logs it as an error. SQLite's migration lock needs no
+  second connection.
   """
 
   @app :media_centaur
+  @migrator_opts [pool_size: 1]
 
   def migrate do
     load_app()
 
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      {:ok, _, _} =
+        Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true), @migrator_opts)
     end
   end
 
@@ -36,15 +45,19 @@ defmodule MediaCentaur.Release do
 
     for repo <- repos() do
       {:ok, _, _} =
-        Ecto.Migrator.with_repo(repo, fn started_repo ->
-          MediaCentaur.DataMigrations.run!(started_repo)
-        end)
+        Ecto.Migrator.with_repo(
+          repo,
+          fn started_repo -> MediaCentaur.DataMigrations.run!(started_repo) end,
+          @migrator_opts
+        )
     end
   end
 
   def rollback(repo, version) do
     load_app()
-    {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
+
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version), @migrator_opts)
   end
 
   defp repos do
