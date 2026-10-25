@@ -2219,17 +2219,64 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: 2;
 }
 
+/* ── Picture button ──
+   The house disc control over a picture: a dark translucent disc with a
+   light border, primary under the pointer, sinking while pressed. The
+   play overlay's button is one; a scroll row's edge arrow is one. Every
+   transition is a compositor property or a colour. */
+.picture-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: white;
+  background: oklch(from var(--color-base-100) l c h / 0.75);
+  border: 1.5px solid oklch(100% 0 0 / 0.85);
+  cursor: pointer;
+  /* The release half of the press: the disc settles back to size with a
+     barely-there overshoot (the same curve also runs when the pointer
+     lets go after a drag-off, which is the right answer for that case
+     too). */
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease,
+    scale 240ms cubic-bezier(0.3, 1.15, 0.5, 1);
+}
+
+.picture-button:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* mousedown — the disc sinks and darkens at once (near-zero transition so
+   there is no easing to wait on) and holds while pressed. */
+.picture-button:active {
+  scale: 0.88;
+  background: color-mix(in oklab, var(--color-primary) 82%, black);
+  border-color: color-mix(in oklab, var(--color-primary) 82%, black);
+  transition-duration: 40ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picture-button {
+    transition-duration: 100ms;
+  }
+}
+
 /* ── Play overlay (UIDR-027) ──
    Hover-revealed direct-play button on browse cards. Opacity-only
    reveal — no scale, no translation — per UIDR-012's calm. The reveal
-   waits for hover intent (`--play-overlay-reveal-delay`, tune freely);
+   waits for hover intent (`--hover-reveal-delay`);
    the fade-out is never delayed, so skimming the pointer across a row
    shows nothing. The trigger is pointer hover on the card's
    `.play-overlay-host` region, so keyboard/gamepad focus can never
    surface it. The wrapper is pointer-transparent (card clicks pass
    through to select_entity); only the button itself takes the pointer. */
+/* The delay before a hovered pointer affordance reveals (the play overlay,
+   a scroll row's edge arrows): skimming the pointer across the page shows
+   nothing. Tune freely. */
 :root {
-  --play-overlay-reveal-delay: 450ms;
+  --hover-reveal-delay: 450ms;
 }
 
 .play-overlay {
@@ -2253,56 +2300,27 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 .play-overlay-host:hover .play-overlay {
   opacity: 1;
-  transition-delay: var(--play-overlay-reveal-delay);
+  transition-delay: var(--hover-reveal-delay);
 }
 
+/* The play button: a picture button centred in the card, with a release
+   ring of its own. The server starts the player, and the player's window
+   takes a moment to appear, so the click has to answer on the spot or it
+   feels dropped: on release a primary ring leaves the disc's edge, growing
+   a little past it as it fades — a quiet exhale, not a burst. The ring is
+   a pseudo-element so the glyph never moves out from under the pointer,
+   and `scale`/`translate` are separate properties so the press never
+   disturbs the centring translate. `pointer-events: auto` is this
+   button's: its wrapper is pointer-transparent so card clicks pass
+   through, and only the disc takes the pointer. */
 .play-overlay-btn {
+  pointer-events: auto;
   position: absolute;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: 9999px;
-  color: white;
-  background: oklch(from var(--color-base-100) l c h / 0.75);
-  border: 1.5px solid oklch(100% 0 0 / 0.85);
-  cursor: pointer;
-  pointer-events: auto;
-  /* The release half of the press: the disc settles back to size with a
-     barely-there overshoot (the same curve also runs when the pointer
-     lets go after a drag-off, which is the right answer for that case
-     too). */
-  transition:
-    background-color 100ms ease,
-    border-color 100ms ease,
-    scale 240ms cubic-bezier(0.3, 1.15, 0.5, 1);
-}
-
-.play-overlay-btn:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-/* Press feedback. The server starts the player, and the player's window
-   takes a moment to appear, so the click has to answer on the spot or it
-   feels dropped. Three beats, every one of them opacity or transform:
-   mousedown — the disc sinks and darkens at once (near-zero transition
-   so there is no easing to wait on) and holds while pressed, with a
-   primary ring sitting tight on its edge; release — the disc springs
-   back (the rule above) and the ring leaves it, growing a little past
-   the edge as it fades — a quiet exhale, not a burst. The ring is a
-   pseudo-element so the glyph never moves out from under
-   the pointer, and `scale`/`translate` are separate properties so the
-   press never disturbs the centring translate. */
-.play-overlay-btn:active {
-  scale: 0.88;
-  background: color-mix(in oklab, var(--color-primary) 82%, black);
-  border-color: color-mix(in oklab, var(--color-primary) 82%, black);
-  transition-duration: 40ms;
 }
 
 .play-overlay-btn::after {
@@ -2326,9 +2344,6 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .play-overlay-btn {
-    transition-duration: 100ms;
-  }
   .play-overlay-btn::after {
     transition: none;
   }
