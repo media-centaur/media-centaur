@@ -23,11 +23,13 @@ last_updated: 2026-10-25
 ## Goal
 
 Make the TV app's performance measurable with tooling the project can
-trust, then use it to find and fix why key-press glides dropped from
-59.9 fps (midday 2026-10-25) to 35–42 fps (from mid-afternoon on) with
-every code version tried. The owner set the order: tooling and technique
-first, the root cause after. UIDR-056 makes the TV the performance floor
-for every UI change, so the tooling outlives the slowdown.
+trust, and keep that tooling from perturbing what it measures: every
+number a tool prints traces back to the page it measured, the condition,
+and a measured cost of the tool's own presence. The campaign opened on a
+glide that seemed to drop from 59.9 to 35–42 fps on 2026-10-25; the
+tool's old probe was the cause, which is why the goal is the tooling.
+UIDR-056 makes the TV the performance floor for every UI change, so the
+tooling outlives the slowdown. (Rewritten 2026-10-25 by decision 3.)
 
 ## Status
 
@@ -37,9 +39,10 @@ cost the glide 16–19 fps (run 42), and the 59.9 baseline was a
 compositor scroll it could not slow. The JS glide presents at 60 fps on
 the Sony with the new probe or none (runs 41, 43), the A/A reads 60
 against 60 (run 44), and `mc-tv-trace`'s tracing cost nothing
-measurable in two traced glides (run 45). M1, M4 and M5 are done. Next:
-M2 (Perfetto; `mc-tv-trace` reads presents and converges the held-key
-expression), then M3, with decisions 2–4 open for the owner.
+measurable in two traced glides (run 45). M1, M4 and M5 are done; no
+decision is open (1–4 approved as recommended). Next: M2 (Perfetto;
+`mc-tv-trace` reads presents and converges the held-key expression),
+then M3 (a worktree server on its own port), M6, M7.
 
 ## Principles
 
@@ -171,34 +174,18 @@ expression), then M3, with decisions 2–4 open for the owner.
 * **Memory, after `e84dfd99` only (M6, half).** The debug app's main
   process on the dev library page: 79 MB PSS; on Home after settling:
   83 MB PSS, Graphics 0. This is the browser process alone, read with
-  `dumpsys meminfo <package>`; the WebView's renderer is a separate
-  sandboxed process that this read does not cover, and the hero bitmap
-  lives there. M6 reads every process whose name starts with the package
-  (`dumpsys meminfo` per pid) for both commits.
+  `dumpsys meminfo <package>`. A second read later that night, per pid
+  over every process whose name starts with the package, found only that
+  one process (82 MB on the library, 79 on Home at `f635aae4`, Graphics
+  0): the WebView's renderer is not named after the package on this TV,
+  or runs in-process. M6 finds where the renderer's memory is accounted
+  (`ps -A` for `sandboxed_process`, `dumpsys meminfo` by the WebView
+  package, or `dumpsys gfxinfo`) before it compares the two commits.
 
 ## Open decisions
 
-1. **Where a code-version A/B runs.** Options: (a) alternate the dev
-   server's checkout between two commits (works today; disturbs the
-   owner's dev server and any agent in the checkout); (b) a second
-   server from a worktree on its own port against a copy of the real
-   database (real artwork, nothing shared; needs the copy kept
-   read-only and the debug app paired to it). Recommendation: (b).
-2. **Whether the glide becomes compositor-driven.** Runs 41 and 43 put
-   the JS glide at 60 fps on the Sony, interleaved with a compositor
-   smooth scroll at 59–60. Recommendation: keep the glide; nothing
-   measured favours replacing it, and the two native routes fail under a
-   held key (`scroll_glide.js` moduledoc). The owner closes this.
-3. **What the campaign's goal becomes.** The glide never slowed; the
-   tool slowed it. Recommendation: the Goal's second half becomes "keep
-   the tooling from perturbing what it measures", which M1 delivered and
-   M2 extends to `mc-tv-trace`. The owner rewrites or confirms.
-4. **The 156 px against 88 px reveal.** On the library page one DOWN
-   press scrolled 156 px under the glide and 88 px under the smooth
-   variant (run 41). The glide re-reads its reachable target per tick, so
-   a layout change mid-glide moves it. Options: investigate as its own
-   small milestone, or leave it. Recommendation: investigate after M2; it
-   is the owner's eye that decides whether the glide lands where it should.
+None. Decisions 1–4 were taken 2026-10-25 night, as recommended (see
+*Decisions made*); the reveal became M7.
 
 ## Decisions made
 
@@ -211,6 +198,8 @@ expression), then M3, with decisions 2–4 open for the owner.
 * `2026-10-25` — Night: the owner freed the TV for whatever runs the campaign needed and asked for it off afterwards; runs 44 and 45 ran, Home's memory was read for the current commit, then `mc-tv off`. (owner)
 * `2026-10-25` — `mc-tv-smooth run` brings the app to the front before measuring; a run after a handback had recorded no presents at all. (M1, `mc-tv-smooth`)
 * `2026-10-25` — `mc-tv-trace`'s frame count is not a present count (54 against 41 on one glide); M2 gives it SurfaceFlinger's presents and a glide window that skips the trace's own leading present. (run 45)
+* `2026-10-25` — The owner approved the four open recommendations at once: (1) a code-version A/B runs from a second server in a worktree on its own port against a read-only copy of the real database, never by switching the dev server's checkout; (2) the glide stays the input system's main-thread glide, nothing measured favours a compositor route and both native routes fail under a held key; (3) the Goal's second half is "keep the tooling from perturbing what it measures" (rewritten above); (4) the 156 px against 88 px reveal is investigated after M2, as M7, with the owner's eye deciding where a glide should land. (owner)
+* `2026-10-25` — The TV is used when it is asleep or already in the campaign's hands, never when someone else has it on; it goes back to standby when the session's TV work is done. (owner)
 
 ## Milestones
 
@@ -221,7 +210,8 @@ expression), then M3, with decisions 2–4 open for the owner.
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | open |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
-| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25 for the browser process only (83 MB PSS on Home, 79 on the library); the renderer process, where the bitmap lives, needs a per-pid read, and the before-half needs M3's second server |
+| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half needs M3's second server |
+| M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
 
 Every milestone that changes an existing system runs the campaign
 procedure and records each step here.

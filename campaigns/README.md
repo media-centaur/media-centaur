@@ -29,9 +29,10 @@ Use [`template.md`](template.md) as a starter.
   each row measured (animator, px/glide, served bundle + HEAD, noise
   beside every comparison); its probe measures zero cost, the A/A reads
   60 against 60, and `mc-tv-trace`'s tracing cost nothing measurable.
-  Next: Android's render-thread timing (Perfetto, with `mc-tv-trace`
-  reading the screen's presents beside its trace), a one-command
-  code-version A/B.
+  The glide stays as it is (decision 2). Next: Android's render-thread
+  timing (Perfetto, with `mc-tv-trace` reading the screen's presents
+  beside its trace), a one-command code-version A/B from a worktree
+  server on its own port, the hero's memory, the 156 px reveal.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV

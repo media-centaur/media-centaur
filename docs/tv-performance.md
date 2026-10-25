@@ -152,7 +152,8 @@ against 60 (run 44) and `mc-tv-trace`'s tracing costs nothing measurable
 156 px under the glide where the smooth variant scrolled 88.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
-to 16 MB on Home), not measured. The browser process alone reads 83 MB
-PSS on Home at `47a4607b`; the WebView's renderer, a separate sandboxed
-process where the bitmap lives, still needs reading per pid, for the
-commits before and after `e84dfd99`.
+to 16 MB on Home), not measured. The package's only process reads 79–83
+MB PSS on Home and the library at `f635aae4` with Graphics 0, so the
+WebView renderer's memory, where the bitmap lives, is accounted somewhere
+else on this TV; find where before comparing the commits before and
+after `e84dfd99`.
