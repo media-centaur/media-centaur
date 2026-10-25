@@ -503,7 +503,7 @@ export function createDomReader(config = {}) {
 
 /**
  * Create a DomWriter that modifies the DOM using the given config.
- * @param {Object} [config={}]
+ * @param {Object} config
  * @param {Object} config.glider - Required: the page's one scroll glider;
  *   injected so tests can drive frames by hand.
  * @returns {Object} DomWriter interface
