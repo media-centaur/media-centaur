@@ -32,10 +32,11 @@ Defined before use; refined as the campaign proceeds.
 
 ## Status
 
-M1's research done 2026-10-25 (record under M1 below); the account
-sit-down waits on open decision 1. Three findings against Google's TV
-quality criteria need work before the Android TV review (open
-decisions 4–6); none blocks the internal track.
+M1's research done 2026-10-25 (record under M1 below). A personal
+account (decided). BACK-to-home and the Menu-key dependency are built
+on the host and in the TV app (unreleased; verified in tests, not yet
+on the Sony); the banner artwork (open decision 6) is the owner's. Next:
+the owner opens the account (the M1 sit-down).
 
 ## Principles
 
@@ -49,15 +50,6 @@ decisions 4–6); none blocks the internal track.
 
 ## Open decisions
 
-1. **Personal or organization account.** A personal account created
-   now must run closed testing with 12 testers for 14 continuous days
-   before it can apply for production; an organization account is
-   exempt but needs a D-U-N-S number, which can take up to 30 days to
-   issue. Recommendation: confirm both rules in M1's research first;
-   for a one-person project the closed-testing hurdle is the deciding
-   fact — if it holds, an organization account for `media-centaur` is
-   the shorter path to production, and the D-U-N-S request should go
-   out at the start of M1 so the wait overlaps the rest.
 2. **Upload automation.** Options: (a) Gradle Play Publisher (in
    maintenance mode; a plugin in the Gradle build); (b) one step in
    `release.yml` calling the Play Developer API with the service
@@ -67,20 +59,6 @@ decisions 4–6); none blocks the internal track.
    or a Google Group. Recommendation: the owner alone on the internal
    track; a group only if closed testing needs the twelve.
 
-4. **BACK must be able to leave the app (TV-DB, "Back presses return
-   to the Android TV home screen").** The shell hands every BACK to the
-   page, and the page's BACK only ever moves between content and the
-   main menu, so BACK never leaves the app. Options: (a) BACK in the
-   main menu leaves the app on a remote player — the page tells the
-   shell through a JavaScript interface, which needs a TV app release;
-   (b) a confirm ("Exit Media Centaur?") on that BACK. Recommendation:
-   (a), the platform's own behaviour; the desktop keeps today's.
-5. **The track menu opens only with the Menu key (TV-DM, "does not
-   depend on a Menu button").** Google TV remotes have no Menu key;
-   only the Sony's has one. Options: (a) a tracks control on the
-   viewing bar, reached with the D-pad; (b) a long SELECT. Recommendation:
-   (a) — visible and reachable on every remote, and it fixes a
-   usability gap on every TV, not only the review.
 6. **The banner names nothing (TV-BN, "the banner contains the app
    name").** `banner.xml` is a placeholder vector of two triangles.
    It needs real artwork with "Media Centaur" in it: the owner's call
@@ -92,6 +70,9 @@ decisions 4–6); none blocks the internal track.
 * `2026-10-23` — The TV app ships first as a signed APK built in CI and attached to a GitHub release; the Play track is set up with the owner at the keyboard after the automation lands. (`remote-players.md`, owner)
 * `2026-10-23` — The application id is `app.mediacentaur.tv` and the display name "Media Centaur", for good. (`remote-players.md`, owner)
 * `2026-10-23` — The Play work is its own campaign, split from `remote-players.md`; it runs after that campaign's remaining items and the owner's usability pass, and before the merge of `remote-players` and the major host release. (owner)
+* `2026-10-25` — A **personal** Play Console account: closed testing (12 testers, 14 days) before production; the internal track is open at once. (owner; open decision 1 closed)
+* `2026-10-25` — BACK with nothing left to peel leaves the app on the TV (TV-DB): host `cf99b381` (`leave_app`, UIDR-028 amended), TV app `5490789` (`MediaCentaurTV.leave()`, and the pairing page left on the first BACK). Ships with the next TV app release. (owner; open decision 4 closed)
+* `2026-10-25` — The track menu without a Menu key (TV-DM): paused, the bar shows an Audio & subtitles button — DOWN reaches it, OK opens the menu, UP comes back; playing keeps every arrow a seek. Host `cf99b381`. (owner chose the paused button over DOWN-opens-the-menu and a full button row; open decision 5 closed)
 
 ## Next steps
 
