@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-10-22
-last_updated: 2026-10-23
+last_updated: 2026-10-25
 ---
 # Remote players
 
@@ -48,10 +48,17 @@ campaign — the merge of `remote-players` into main, a **major** host
 release, the wiki push and closure. **Walk faults 2026-10-24**, two
 found and fixed (record under M6): the title modal closes when a
 viewing takes a paired player's page; TV app v0.1.1 sizes its surface
-to the picture's aspect. Both verified on the Sony the same day. The owner's dev server runs the
+to the picture's aspect. Both verified on the Sony the same day.
+**2026-10-25:** the page glides at 60 fps on the Sony (`c5488bb3`: no
+backdrop blur on a remote player, the body gradient on its own layer),
+the hero bitmap is kept no larger than the display (`e84dfd99`), and a
+remote player has no auto-scale floor, so the TV shows the PC's 1920
+composition (`7960cf7d`). The owner walked it the same day: "pretty
+good", more testing later — **the walk is passed for now and the next
+step is the Play campaign**; a fault named by later testing still goes
+through M6's procedure. The owner's dev server runs the
 branch since 2026-10-23 (decision 15; the worktree is gone — work in
-the main checkout). Nothing an agent can do alone until the walk names
-a fault. The earlier state:
+the main checkout). The earlier state:
 
 **M9 done 2026-10-23: the session's shape is executed and verified on
 the simulator; nothing of the agent's is left before the owner's
