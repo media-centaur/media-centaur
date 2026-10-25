@@ -2699,9 +2699,12 @@ body:has(.modal-backdrop[data-state="open"]) {
   position: relative;
 }
 
-/* Pointer-transparent until revealed, so a hidden arrow never takes a
+/* Pointer-transparent at rest, so a resting or dropped arrow never takes a
    click meant for the card beneath; the disc inherits `auto` on hover
-   (`.picture-button` sets no pointer-events of its own). */
+   (`.picture-button` sets no pointer-events of its own). The reveal window
+   — `auto` from the hover, visible after the delay — is the play overlay's
+   too; `transition-behavior: allow-discrete` on pointer-events is the
+   tuning if it ever bites. */
 .scroll-row-arrow {
   position: absolute;
   top: 50%;

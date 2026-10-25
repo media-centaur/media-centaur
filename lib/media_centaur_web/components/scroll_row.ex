@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
     doc:
       "the track's card size: `:backdrop_lg` (Continue Watching), `:poster` (Recently Added), `:backdrop_sm` (the collection rail)"
 
-  attr :rest, :global, doc: "lands on the track"
+  attr :rest, :global, doc: "lands on the track — not `class`, the variant owns it"
 
   slot :inner_block, required: true, doc: "the cards"
 
@@ -45,6 +45,7 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
       <div class={["row-scroll", track_class(@variant)]} {@rest}>
         {render_slot(@inner_block)}
       </div>
+      <%!-- The arrows follow the track: the edge-state CSS reaches them with `~`. --%>
       <.edge_arrow direction="left" />
       <.edge_arrow direction="right" />
     </div>

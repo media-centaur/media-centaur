@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.ScrollRow do
           "data-at-start": true,
           "data-at-end": true
         },
-        slots: [cards(3)]
+        slots: [cards(2)]
       },
       %Variation{
         id: :backdrop_lg,
