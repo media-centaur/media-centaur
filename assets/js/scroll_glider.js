@@ -15,3 +15,9 @@ export const scrollGlider = createScrollGlide({
   requestAnimationFrame: (fn) => globalThis.requestAnimationFrame(fn),
   now: () => performance.now(),
 })
+
+// The debug handle, in the pattern of `window.__inputDebug`: a measurement
+// on the TV (`mc-tv-smooth --cond js:<file>`) swaps `glide` for another
+// animator through it, so two animators are compared on one page without a
+// code change between rounds.
+globalThis.__scrollGlider = scrollGlider
