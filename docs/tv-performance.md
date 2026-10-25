@@ -104,6 +104,9 @@ input system's motion is checked on the TV before it is done:
 
 ## Open (2026-10-25)
 
+Worked in `campaigns/tv-performance.md`.
+
+
 Key-press glides measured 59.9 fps on 2026-10-25 at midday and 35–42 fps
 from mid-afternoon on, with that midday commit, the current code, both
 debug app builds, either glide implementation, either scale and a freshly
