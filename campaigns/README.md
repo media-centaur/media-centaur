@@ -21,14 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`remote-players.md`](remote-players.md) —
-  **M9 done 2026-10-23: `MpvSession` is a thin GenServer over `Playback.Entry`, `Playback.MpvProperties`, `Playback.Chain`, `Playback.ProgressWriter` and `LanguageContext` as a struct (spec §2.4), verified on the simulator; M8 (the player model's quality pass — one player-id type, Playback free of Players, one kind dispatch, recovery per transport, media cut off on removal, each transport's helpers under it) done the same day. Nothing is left that an agent can do alone; the merge is not a near step. M1–M6 built and verified on the Sony 2026-10-22/23 on branch `remote-players` (unpushed, unmerged by the owner's instruction); M7's automation shipped 2026-10-23 — the TV app is public at `media-centaur/media-centaur-android` with CI and a tag-driven signed release, v0.1.0 published and installed on the Sony. Re-scoped 2026-10-23: the Play work moved to `google-play.md`. 2026-10-25: the TV page glides at 60 fps and shows the PC's composition; the owner's walk passed for now (more testing later). Next: the Play campaign, then the merge, a major host release, wiki push and closure.** The UI and playback on a Google TV
-  on the same network, at host fidelity. The TV runs a native Android TV
-  app (WebView shell + libmpv) that speaks mpv's IPC protocol to the host
-  over a WebSocket, so `MpvSession` stays the one session type and only
-  the transport varies per player. Milestones: bind address + `Players`
-  context + pairing and access plug; transport extraction; remote
-  transport + media endpoint; the TV app; owner checks on the TV.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV
@@ -165,6 +157,26 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
+* **Remote players** — **shipped v2.0.0 2026-10-25; file retired
+  (git history holds it: `campaigns/remote-players.md` at `593761f3`).**
+  The TV app: an Android TV WebView shell plus libmpv
+  (`media-centaur/media-centaur-android`, v0.1.2) pairs with an install
+  (Settings → Players, a six-digit code; the gate admits a LAN device only
+  as the paired player its session holds; `bind` stays loopback by
+  default), plays the library at native resolution and HDR over the player
+  channel and the media endpoint, and shows the host's own pages as its
+  UI and OSD. One `MpvSession` type over two transports (ADR-080); the
+  player model's quality pass (M8) and the session's shape (M9). On
+  2026-10-24/25 the TV's page was made smooth (no backdrop blur on a
+  remote player, the body gradient on a layer of its own), the TV draws
+  the 1920 composition, BACK from the main menu leaves the app, and
+  Audio & subtitles sits under the paused seek bar. Leftovers: the
+  Google Play listing and its review items → `google-play.md`; the TV
+  performance floor and its open glide slowdown (key glides 60 fps at
+  midday 2026-10-25, 35–42 fps after, cause not found), with the hero
+  memory measurement on the TV → `docs/tv-performance.md` (Open) and
+  UIDR-056, the first follow-up; per-player UI scale (decision 10) → a
+  future campaign *player operational status and settings*.
 * **Download phases** — **shipped v1.57.0 2026-10-13; file retired
   (git history holds it: `campaigns/download-phases.md` at `208e5783`).**
   Every surface on Incoming draws a download-client job as its phase on a
