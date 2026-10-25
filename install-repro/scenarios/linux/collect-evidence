@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Copies what a failed scenario needs into one directory: the app's
+# journal, every update handoff log, systemd state and the installed
+# tree's shape. Never copies secrets.env.
+set -uo pipefail
+. "$(dirname "$0")/../lib"
+
+out="${1:?usage: collect-evidence <dir>}"
+mkdir -p "$out/handoff"
+journalctl --user -u "$UNIT" --no-pager > "$out/journal.txt" 2>&1
+for log in "$HOME"/.cache/media-centaur/upgrade-staging/*/handoff.log; do
+    [ -f "$log" ] && cp "$log" "$out/handoff/$(basename "$(dirname "$log")").log"
+done
+systemctl --user status "$UNIT" --no-pager > "$out/systemctl-status.txt" 2>&1
+systemctl --user is-enabled "$UNIT" > "$out/systemctl-is-enabled.txt" 2>&1
+ls -laR "$INSTALL_ROOT" > "$out/install-root.txt" 2>&1
+ls -la "$CONFIG_DIR" > "$out/config-dir.txt" 2>&1
+cp "$SERVICE_FILE" "$out/" 2>/dev/null
+cp -R "$SCENARIO_LOG_DIR" "$out/scenario-logs" 2>/dev/null
+true

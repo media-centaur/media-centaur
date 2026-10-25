@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Scenario: installing a newer release over an older one switches to it.
+# From MC_FROM_TAG (the release before, installed the public way) to
+# MC_TAG (installed from the run's source). The installer moves the
+# `current` symlink to the new release; the agent must then run it.
+# Runs on a machine with no install, after uninstall.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+require_tag
+[ -n "${MC_FROM_TAG:-}" ] || fail "MC_FROM_TAG is not set"
+
+step "install $MC_FROM_TAG"
+sh "$REPO_ROOT/installer/install.sh" --version "$MC_FROM_TAG"
+assert_serving
+assert_version "$MC_FROM_TAG"
+
+step "install $MC_TAG over it"
+install_release "$MC_TAG"
+current=$(readlink "$INSTALL_ROOT/current")
+[ "$current" = "releases/${MC_TAG#v}" ] || fail "current points at '$current', expected releases/${MC_TAG#v}"
+pass "current points at releases/${MC_TAG#v}"
+assert_version "$MC_TAG"
+assert_serving
+
+assert_running_version "$MC_TAG"
+
+step "clean up"
+"$INSTALL_ROOT/current/bin/media-centaur-install" --uninstall

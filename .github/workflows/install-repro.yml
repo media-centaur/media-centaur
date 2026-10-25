@@ -1,8 +1,8 @@
-name: Install repro (macOS)
+name: Install repro
 
-# Runs the real macOS installer on a GitHub macOS runner through the
-# scenarios in install-repro/scenarios/macos/. Dispatched by hand, against
-# any published tag, when we decide to run it. See install-repro/README.md.
+# Runs the real installers on GitHub runners through the scenarios in
+# install-repro/scenarios/. Dispatched by hand, against any published tag,
+# when we decide to run it. See install-repro/README.md.
 
 on:
   workflow_dispatch:
@@ -11,8 +11,13 @@ on:
         description: Release tag to test (vX.Y.Z); empty means the latest release
         type: string
         required: false
+      platform:
+        description: Which platforms to run
+        type: choice
+        options: [all, macos, linux]
+        default: all
       installer:
-        description: "released: the public install path. checkout: the released tarball with this branch's macOS installer"
+        description: "released: the public install path. checkout: the released tarball with this branch's installer"
         type: choice
         options: [released, checkout]
         default: released
@@ -22,12 +27,13 @@ permissions:
 
 jobs:
   resolve:
-    name: Resolve tags
+    name: Resolve tags and platforms
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tags.outputs.tag }}
       from_tag: ${{ steps.tags.outputs.from_tag }}
       latest_tag: ${{ steps.tags.outputs.latest_tag }}
+      platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - name: Resolve the tag under test, the release before it, and the latest
         id: tags
@@ -50,76 +56,97 @@ jobs:
             echo "from_tag=$from"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Resolve the platforms to run
+        id: platforms
+        env:
+          REQUESTED: ${{ inputs.platform || 'all' }}
+        run: |
+          macos='{"platform":"macos","runner":"macos-14"}'
+          linux='{"platform":"linux","runner":"ubuntu-24.04"}'
+          case "$REQUESTED" in
+            all) platforms="[$macos,$linux]" ;;
+            macos) platforms="[$macos]" ;;
+            linux) platforms="[$linux]" ;;
+          esac
+          echo "platforms=$platforms" >> "$GITHUB_OUTPUT"
+
   lifecycle:
-    name: Install lifecycle (${{ needs.resolve.outputs.tag }}, ${{ inputs.installer }} installer)
+    name: Install lifecycle — ${{ matrix.platform }} (${{ needs.resolve.outputs.tag }}, ${{ inputs.installer || 'released' }} installer)
     needs: resolve
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.resolve.outputs.platforms) }}
+    runs-on: ${{ matrix.runner }}
     env:
       MC_TAG: ${{ needs.resolve.outputs.tag }}
       MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
       MC_INSTALLER: ${{ inputs.installer }}
+      SCENARIOS: install-repro/scenarios
     steps:
       - uses: actions/checkout@v7
 
       - name: Runner environment
-        run: |
-          sw_vers
-          id
-          launchctl managername || true
-          launchctl print "gui/$(id -u)" | head -20 || echo "no gui/$(id -u) domain"
-          command -v mpv || echo "mpv not installed"
+        run: $SCENARIOS/${{ matrix.platform }}/environment
 
       - name: 4. sudo is refused
-        run: install-repro/scenarios/macos/sudo-refused
+        run: $SCENARIOS/sudo-refused
       - name: 1. Fresh install without sudo
-        run: install-repro/scenarios/macos/fresh-install
+        run: $SCENARIOS/fresh-install
       - name: 2. Re-run over an existing install
-        run: install-repro/scenarios/macos/reinstall
-      - name: 3. Install over a disabled label
-        run: install-repro/scenarios/macos/disabled-label
+        run: $SCENARIOS/reinstall
+      - name: 3. Install over a disabled service
+        run: $SCENARIOS/${{ matrix.platform }}/disabled-service
       - name: 5. Manual start
-        run: install-repro/scenarios/macos/manual-start
+        run: $SCENARIOS/manual-start
       - name: 7. Uninstall
-        run: install-repro/scenarios/macos/uninstall
+        run: $SCENARIOS/uninstall
       - name: 8. Upgrade from the release before
         if: needs.resolve.outputs.from_tag != ''
-        run: install-repro/scenarios/macos/upgrade
+        run: $SCENARIOS/upgrade
       - name: Fresh install logged no error
         if: ${{ !cancelled() }}
-        run: install-repro/scenarios/macos/fresh-install-log
+        run: $SCENARIOS/fresh-install-log
 
       - name: Collect evidence
         if: always()
-        run: install-repro/scenarios/macos/collect-evidence "$RUNNER_TEMP/evidence"
+        run: $SCENARIOS/${{ matrix.platform }}/collect-evidence "$RUNNER_TEMP/evidence"
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: install-repro-macos-lifecycle-${{ needs.resolve.outputs.tag }}
+          name: install-repro-${{ matrix.platform }}-lifecycle-${{ needs.resolve.outputs.tag }}
           path: ${{ runner.temp }}/evidence
           retention-days: 30
 
   update:
-    name: In-app update (${{ needs.resolve.outputs.from_tag }} → ${{ needs.resolve.outputs.latest_tag }})
+    name: In-app update — ${{ matrix.platform }} (${{ needs.resolve.outputs.from_tag }} → ${{ needs.resolve.outputs.latest_tag }})
     needs: resolve
     if: needs.resolve.outputs.from_tag != ''
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.resolve.outputs.platforms) }}
+    runs-on: ${{ matrix.runner }}
     env:
       MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
       MC_LATEST_TAG: ${{ needs.resolve.outputs.latest_tag }}
+      SCENARIOS: install-repro/scenarios
     steps:
       - uses: actions/checkout@v7
 
+      - name: Runner environment
+        run: $SCENARIOS/${{ matrix.platform }}/environment
       - name: 6. In-app update
-        run: install-repro/scenarios/macos/in-app-update
+        run: $SCENARIOS/in-app-update
 
       - name: Collect evidence
         if: always()
-        run: install-repro/scenarios/macos/collect-evidence "$RUNNER_TEMP/evidence"
+        run: $SCENARIOS/${{ matrix.platform }}/collect-evidence "$RUNNER_TEMP/evidence"
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: install-repro-macos-update-${{ needs.resolve.outputs.from_tag }}
+          name: install-repro-${{ matrix.platform }}-update-${{ needs.resolve.outputs.from_tag }}
           path: ${{ runner.temp }}/evidence
           retention-days: 30

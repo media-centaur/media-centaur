@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Scenario: an install over a disabled unit keeps autostart off. The
+# Linux installer enables the unit only on a first install, so a user who
+# disabled it is not overruled by an upgrade. `service install` turns it
+# back on. (The macOS installer re-enables instead — see
+# ../macos/disabled-service.)
+set -euo pipefail
+. "$(dirname "$0")/../lib"
+require_tag
+
+step "disable the unit"
+systemctl --user disable --now "$UNIT"
+service_autostarts && fail "$UNIT is still enabled"
+pass "$UNIT is disabled and stopped"
+
+step "install over the disabled unit"
+out=$(mktemp)
+install_release "$MC_TAG" | tee "$out"
+grep -q "state     unit installed, not enabled" "$out" || fail "the summary does not report the unit as installed but not enabled"
+pass "the summary reports the unit installed, not enabled"
+service_autostarts && fail "the install enabled $UNIT"
+service_running && fail "the install started $UNIT"
+pass "the unit stays disabled and stopped"
+
+step "turn autostart back on"
+"$INSTALL_ROOT/current/bin/media-centaur-install" service install
+assert_serving

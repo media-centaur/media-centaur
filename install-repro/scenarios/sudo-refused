@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Scenario: both installers refuse to run under sudo and write nothing.
+# Runs first, on a machine with no Media Centaur install.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+require_tag
+
+[ ! -e "$INSTALL_ROOT" ] || fail "$INSTALL_ROOT exists before the scenario; it needs a clean machine"
+[ ! -e "$CONFIG_DIR" ] || fail "$CONFIG_DIR exists before the scenario; it needs a clean machine"
+
+step "public installer under sudo"
+if sudo -n sh "$REPO_ROOT/installer/install.sh" --version "$MC_TAG"; then
+    fail "the public installer ran under sudo"
+fi
+pass "the public installer refused sudo"
+
+step "bundled installer under sudo"
+version="${MC_TAG#v}"
+tmp=$(mktemp -d)
+tarball="media-centaur-${version}-${PLATFORM_TAG}.tar.gz"
+curl -fsSL -o "$tmp/$tarball" "https://github.com/media-centaur/media-centaur/releases/download/$MC_TAG/$tarball"
+mkdir "$tmp/extract"
+tar -xzf "$tmp/$tarball" -C "$tmp/extract"
+if sudo -n "$tmp/extract/bin/media-centaur-install"; then
+    fail "the bundled installer ran under sudo"
+fi
+pass "the bundled installer refused sudo"
+rm -rf "$tmp"
+
+step "nothing was written"
+[ ! -e "$INSTALL_ROOT" ] || fail "$INSTALL_ROOT was created"
+[ ! -e "$CONFIG_DIR" ] || fail "$CONFIG_DIR was created"
+[ ! -e "$SERVICE_FILE" ] || fail "$SERVICE_FILE was created"
+pass "no install root, config dir or service file"

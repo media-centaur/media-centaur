@@ -1,0 +1,27 @@
+# shellcheck shell=bash disable=SC2034
+# Linux service-manager adapter for the shared scenarios (see ../lib).
+# The app runs as the systemd user unit media-centaur.service.
+
+PLATFORM_TAG="linux-x86_64"
+PLATFORM_INSTALLER="$REPO_ROOT/rel/platforms/linux/bin/media-centaur-install"
+UNIT="media-centaur.service"
+SERVICE_FILE="$HOME/.config/systemd/user/$UNIT"
+SUMMARY_RUNNING="state     enabled + running"
+
+# The installer's own probe for a reachable user manager.
+service_manager_ok() { systemctl --user show-environment >/dev/null 2>&1; }
+
+service_autostarts() { systemctl --user is-enabled --quiet "$UNIT" 2>/dev/null; }
+
+service_running() { systemctl --user is-active --quiet "$UNIT"; }
+
+service_stop() { systemctl --user stop "$UNIT"; }
+
+assert_service_removed() {
+    service_running && fail "$UNIT is still running"
+    pass "$UNIT is not running"
+    service_autostarts && fail "$UNIT is still enabled"
+    pass "$UNIT is not enabled"
+    [ ! -e "$SERVICE_FILE" ] || fail "$SERVICE_FILE still exists"
+    pass "unit file removed"
+}
