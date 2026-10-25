@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.60.2 — 2026-10-25
+
+### Fixed
+
+- **Updating on a Mac restarts the app.** On 1.60.1, running the installer again or using **Settings → System → Update now** installed the new version but left the app stopped, with "Bootstrap failed: 5: Input/output error". It now stops the running app, waits for it to exit, and starts the new version. From 1.60.1, **Update now** brings you here.
+- **Settings shows the app's service on a Mac.** **Settings → System** said "Not running under systemd." on a Mac even when the app started at login, and hid the restart and stop controls. It now recognizes the Mac's login item, and **Stop** stops it.
+- **A first install no longer prints a database error.** The first install could print "database is locked" while it set up the database. Nothing was wrong with the install, and the message no longer appears.
+
 ## v1.60.1 — 2026-10-25
 
 ### Fixed
