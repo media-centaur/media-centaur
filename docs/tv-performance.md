@@ -112,3 +112,7 @@ is not found. Not yet ruled out: `mc-tv-smooth`'s own page probe (it reads
 every element's scroll offsets each frame, which costs a main-thread
 scroll and not a compositor one), and the WebView's draw on Android's
 render thread (`DrawFn_DrawGL`, up to 48 ms).
+
+Also open: the Home hero's memory saving on the TV is estimated (about 66
+to 16 MB on Home), not measured — read the debug app's PSS on Home before
+and after `e84dfd99`'s change with the TV free.
