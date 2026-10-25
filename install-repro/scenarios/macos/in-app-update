@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Scenario: from MC_FROM_TAG, the in-app update reaches the latest
+# release (MC_LATEST_TAG) and the agent ends on it. The update always
+# targets GitHub's latest release, so this proves the tag under test only
+# when that tag is the latest. The trigger is the pair of calls the
+# Settings → System → Update now flow makes: a manual check, then apply.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+[ -n "${MC_FROM_TAG:-}" ] || fail "MC_FROM_TAG is not set"
+[ -n "${MC_LATEST_TAG:-}" ] || fail "MC_LATEST_TAG is not set"
+
+step "install $MC_FROM_TAG"
+install_release "$MC_FROM_TAG"
+assert_serving
+assert_version "$MC_FROM_TAG"
+
+step "check and apply the update"
+result=$("$INSTALL_ROOT/current/bin/media_centaur" rpc '
+  IO.inspect(MediaCentaur.SelfUpdate.run_check(:manual), label: "check")
+  IO.inspect(MediaCentaur.SelfUpdate.apply_pending(), label: "apply")
+')
+printf '%s\n' "$result"
+printf '%s\n' "$result" | grep -q "^apply: :ok" || fail "apply_pending did not start the update"
+pass "the update started"
+
+reached_latest() { [ "$(installed_version)" = "${MC_LATEST_TAG#v}" ]; }
+wait_until "current points at $MC_LATEST_TAG" 300 reached_latest
+assert_serving
+assert_version "$MC_LATEST_TAG"

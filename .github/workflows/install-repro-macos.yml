@@ -1,0 +1,121 @@
+name: Install repro (macOS)
+
+# Runs the real macOS installer on a GitHub macOS runner through the
+# scenarios in install-repro/scenarios/macos/. Dispatched by hand, against
+# any published tag, when we decide to run it. See install-repro/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test (vX.Y.Z); empty means the latest release
+        type: string
+        required: false
+      installer:
+        description: "released: the public install path. checkout: the released tarball with this branch's macOS installer"
+        type: choice
+        options: [released, checkout]
+        default: released
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve tags
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tags.outputs.tag }}
+      from_tag: ${{ steps.tags.outputs.from_tag }}
+      latest_tag: ${{ steps.tags.outputs.latest_tag }}
+    steps:
+      - name: Resolve the tag under test, the release before it, and the latest
+        id: tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.tag }}
+        run: |
+          releases=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
+            --limit 50 --json tagName,isLatest)
+          latest=$(printf '%s' "$releases" | jq -r '.[] | select(.isLatest) | .tagName')
+          tag="${REQUESTED:-$latest}"
+          from=$(printf '%s' "$releases" | jq -r --arg tag "$tag" \
+            '[.[].tagName] | (index($tag)) as $i | if $i == null then "" else (.[$i + 1] // "") end')
+          printf '%s' "$releases" | jq -e --arg tag "$tag" 'any(.[]; .tagName == $tag)' >/dev/null \
+            || { echo "::error::$tag is not a published release"; exit 1; }
+          echo "tag=$tag latest=$latest from=$from"
+          {
+            echo "tag=$tag"
+            echo "latest_tag=$latest"
+            echo "from_tag=$from"
+          } >> "$GITHUB_OUTPUT"
+
+  lifecycle:
+    name: Install lifecycle (${{ needs.resolve.outputs.tag }}, ${{ inputs.installer }} installer)
+    needs: resolve
+    runs-on: macos-14
+    env:
+      MC_TAG: ${{ needs.resolve.outputs.tag }}
+      MC_INSTALLER: ${{ inputs.installer }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Runner environment
+        run: |
+          sw_vers
+          id
+          launchctl managername || true
+          launchctl print "gui/$(id -u)" | head -20 || echo "no gui/$(id -u) domain"
+          command -v mpv || echo "mpv not installed"
+
+      - name: 4. sudo is refused
+        run: install-repro/scenarios/macos/sudo-refused
+      - name: 1. Fresh install without sudo
+        run: install-repro/scenarios/macos/fresh-install
+      - name: 2. Re-run over an existing install
+        run: install-repro/scenarios/macos/reinstall
+      - name: 3. Install over a disabled label
+        run: install-repro/scenarios/macos/disabled-label
+      - name: 5. Manual start
+        run: install-repro/scenarios/macos/manual-start
+      - name: 7. Uninstall
+        run: install-repro/scenarios/macos/uninstall
+      - name: Fresh install logged no error
+        if: ${{ !cancelled() }}
+        run: install-repro/scenarios/macos/fresh-install-log
+
+      - name: Collect evidence
+        if: always()
+        run: install-repro/scenarios/macos/collect-evidence "$RUNNER_TEMP/evidence"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-repro-macos-lifecycle-${{ needs.resolve.outputs.tag }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 30
+
+  update:
+    name: In-app update (${{ needs.resolve.outputs.from_tag }} → ${{ needs.resolve.outputs.latest_tag }})
+    needs: resolve
+    if: needs.resolve.outputs.from_tag != ''
+    runs-on: macos-14
+    env:
+      MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
+      MC_LATEST_TAG: ${{ needs.resolve.outputs.latest_tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 6. In-app update
+        run: install-repro/scenarios/macos/in-app-update
+
+      - name: Collect evidence
+        if: always()
+        run: install-repro/scenarios/macos/collect-evidence "$RUNNER_TEMP/evidence"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-repro-macos-update-${{ needs.resolve.outputs.from_tag }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 30
