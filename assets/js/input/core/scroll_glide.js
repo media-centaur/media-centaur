@@ -44,7 +44,7 @@ const DEFAULT_TAU = 110
 /** Below this many px the animation is over — snap and stop. */
 const EPSILON = 0.5
 
-/** The two scroll axes: the target key and the box properties it moves. */
+/** The two scroll axes: the target key and the offset it moves and the extent/viewport it clamps against. */
 const AXES = [
   { key: "left", offset: "scrollLeft", extent: "scrollWidth", port: "clientWidth" },
   { key: "top", offset: "scrollTop", extent: "scrollHeight", port: "clientHeight" },
