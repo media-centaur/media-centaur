@@ -8,8 +8,13 @@
 
 import { Context } from "./core/index.js"
 import { createPageBehavior } from "./page_behavior.js"
+import { scrollGlider } from "../scroll_glider.js"
 
 export const inputConfig = {
+  // The page's one scroll animator (assets/js/scroll_glider.js); the DOM
+  // writer glides with it, and so does the scroll row hook.
+  glider: scrollGlider,
+
   // Context selectors — maps context keys to CSS selectors
   contextSelectors: {
     [Context.GRID]: "[data-nav-zone='grid'] [data-nav-item]",
