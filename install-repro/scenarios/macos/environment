@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Prints the facts the macOS scenarios depend on: the OS, the user, and
+# whether this user has a launchd gui domain — the installer skips
+# autostart without one.
+set -uo pipefail
+sw_vers
+id
+launchctl managername || true
+launchctl print "gui/$(id -u)" 2>&1 | head -12 || true
+command -v mpv || echo "mpv not installed"
+true

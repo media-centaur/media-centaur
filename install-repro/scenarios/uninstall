@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Scenario: uninstall removes the app and the service, leaves nothing set
+# to start at login, and keeps config and data.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+
+had_data=0
+[ -d "$DATA_DIR" ] && had_data=1
+
+step "uninstall"
+"$INSTALL_ROOT/current/bin/media-centaur-install" --uninstall
+
+assert_service_removed
+[ ! -e "$INSTALL_ROOT" ] || fail "$INSTALL_ROOT still exists"
+pass "install root removed"
+wait_until "the app stops answering" 60 app_down
+
+[ -f "$CONFIG_DIR/media-centaur.toml" ] || fail "config file was removed"
+[ -f "$CONFIG_DIR/secrets.env" ] || fail "secrets.env was removed"
+pass "config kept"
+if [ "$had_data" = 1 ]; then
+    [ -d "$DATA_DIR" ] || fail "$DATA_DIR was removed"
+    pass "data kept"
+fi

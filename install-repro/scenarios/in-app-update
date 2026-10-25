@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Scenario: from MC_FROM_TAG, the in-app update reaches the latest
+# release (MC_LATEST_TAG) and the agent ends on it. The update always
+# targets GitHub's latest release, so this proves the tag under test only
+# when that tag is the latest. The trigger is the pair of calls the
+# Settings → System → Update now flow makes: a manual check, then apply.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+[ -n "${MC_FROM_TAG:-}" ] || fail "MC_FROM_TAG is not set"
+[ -n "${MC_LATEST_TAG:-}" ] || fail "MC_LATEST_TAG is not set"
+
+step "install $MC_FROM_TAG"
+install_release "$MC_FROM_TAG"
+assert_serving
+assert_version "$MC_FROM_TAG"
+
+# A runner's shared IP often has used up GitHub's unauthenticated API
+# limit. The app reports the reset time; wait for it once, then check again.
+check_for_update() {
+    "$INSTALL_ROOT/current/bin/media_centaur" rpc '
+      case MediaCentaur.SelfUpdate.run_check(:manual) do
+        {:error, {:rate_limited, %DateTime{} = reset}} ->
+          IO.puts("rate_limited_for: #{max(DateTime.diff(reset, DateTime.utc_now()), 0) + 5}")
+        outcome ->
+          IO.inspect(outcome, label: "check")
+      end
+    '
+}
+
+step "check for the update"
+result=$(check_for_update)
+printf '%s\n' "$result"
+wait_seconds=$(printf '%s\n' "$result" | sed -n 's/^rate_limited_for: //p')
+if [ -n "$wait_seconds" ]; then
+    [ "$wait_seconds" -le 1500 ] || fail "GitHub's API is rate-limited for ${wait_seconds}s"
+    printf 'GitHub API rate-limited; waiting %ss for the reset\n' "$wait_seconds"
+    sleep "$wait_seconds"
+    result=$(check_for_update)
+    printf '%s\n' "$result"
+fi
+printf '%s\n' "$result" | grep -q "^check: {:update_available" || fail "the check did not find the update"
+pass "the check found the update"
+
+step "apply the update"
+result=$("$INSTALL_ROOT/current/bin/media_centaur" rpc 'IO.inspect(MediaCentaur.SelfUpdate.apply_pending(), label: "apply")')
+printf '%s\n' "$result"
+printf '%s\n' "$result" | grep -q "^apply: :ok" || fail "apply_pending did not start the update"
+pass "the update started"
+
+reached_latest() { [ "$(installed_version)" = "${MC_LATEST_TAG#v}" ]; }
+wait_until "current points at $MC_LATEST_TAG" 300 reached_latest
+assert_serving
+assert_version "$MC_LATEST_TAG"
+assert_running_version "$MC_LATEST_TAG"

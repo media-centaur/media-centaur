@@ -8,10 +8,14 @@
   substitution (launchd does NOT expand $HOME or ~ inside paths,
   only inside EnvironmentVariables values).
 
-  ProgramArguments points at a wrapper script (bin/media-centaur-launchd-start)
-  that loads secrets.env from ~/.config/media-centaur/, mirroring the
-  Linux unit's `EnvironmentFile=` behavior. The wrapper exec's the
-  release binary in foreground so launchd directly supervises the BEAM PID.
+  ProgramArguments runs the release binary in the foreground so launchd
+  supervises the BEAM PID directly. The release's env.sh loads
+  ~/.config/media-centaur/secrets.env before every command.
+
+  AbandonProcessGroup is the launchd analog of the Linux unit's
+  KillMode=process: when the agent stops, launchd signals only the BEAM.
+  The in-app updater's installer is a child of the BEAM and must outlive
+  the `launchctl bootout` it performs, and so must launched apps.
 
   KeepAlive restarts only on crash / non-zero exit — not on clean stops,
   so `launchctl bootout` actually stops the agent. ThrottleInterval
@@ -27,8 +31,12 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>%HOME%/.local/lib/media-centaur/current/bin/media-centaur-launchd-start</string>
+    <string>%HOME%/.local/lib/media-centaur/current/bin/media_centaur</string>
+    <string>start</string>
   </array>
+
+  <key>AbandonProcessGroup</key>
+  <true/>
 
   <key>RunAtLoad</key>
   <true/>

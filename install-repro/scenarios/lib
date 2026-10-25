@@ -1,0 +1,122 @@
+# shellcheck shell=bash disable=SC2034
+# Shared helpers for the install scenarios. Sourced, not executed.
+#
+# Every scenario runs as the invoking user against the real installed
+# paths, so it runs the same on a GitHub runner, in a VM and on a user's
+# machine. The service manager differs by platform; <platform>/platform
+# answers for it (launchctl on macOS, systemctl --user on Linux) with:
+#
+#   PLATFORM_TAG          release tarball platform, e.g. darwin-arm64
+#   PLATFORM_INSTALLER    the platform installer's path in this checkout
+#   SERVICE_FILE          the plist or unit file the installer writes
+#   SUMMARY_RUNNING       the installer summary's line for a started service
+#   service_manager_ok    the user's service manager is reachable
+#   service_autostarts    the service is set to start at login
+#   service_running       the service manager reports the app running
+#   service_stop          stop the service without removing it
+#   assert_service_removed   after uninstall: gone and not autostarting
+#
+# Bash 3.2 compatible: that is the bash macOS ships.
+
+case "$(uname -s)" in
+    Darwin) PLATFORM=macos ;;
+    Linux)  PLATFORM=linux ;;
+    *) printf 'FAIL: no scenarios for %s\n' "$(uname -s)" >&2; exit 1 ;;
+esac
+
+SCENARIOS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCENARIOS_DIR/../.." && pwd)"
+INSTALL_ROOT="$HOME/.local/lib/media-centaur"
+CONFIG_DIR="$HOME/.config/media-centaur"
+DATA_DIR="$HOME/.local/share/media-centaur"
+APP_URL="http://localhost:2160/"
+# Scenario output a later scenario reads, and collect-evidence keeps.
+SCENARIO_LOG_DIR="${MC_SCENARIO_LOG_DIR:-$HOME/install-repro-logs}"
+
+step() { printf '\n--- %s\n' "$1"; }
+fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
+pass() { printf 'PASS: %s\n' "$1"; }
+
+# The tag under test, from MC_TAG (vX.Y.Z).
+require_tag() {
+    [ -n "${MC_TAG:-}" ] || fail "MC_TAG is not set (expected a release tag such as v1.60.3)"
+}
+
+# Any HTTP status counts: the first page redirects to setup.
+app_answers() {
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$APP_URL" || true)
+    [ -n "$code" ] && [ "$code" != "000" ]
+}
+
+app_down() { ! app_answers; }
+
+wait_until() {
+    description="$1"
+    timeout="$2"
+    shift 2
+    elapsed=0
+    until "$@"; do
+        [ "$elapsed" -lt "$timeout" ] || fail "$description (waited ${timeout}s)"
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    pass "$description (${elapsed}s)"
+}
+
+installed_version() { "$INSTALL_ROOT/current/bin/media_centaur" version 2>/dev/null | awk '{print $NF}'; }
+
+assert_version() {
+    want="${1#v}"
+    got=$(installed_version)
+    [ "$got" = "$want" ] || fail "installed version is '$got', expected '$want'"
+    pass "installed version is $want"
+}
+
+# The version the running app reports — not the one `current` points at,
+# which a failed restart would leave out of step with it.
+assert_running_version() {
+    want="${1#v}"
+    got=$("$INSTALL_ROOT/current/bin/media_centaur" rpc 'IO.puts(MediaCentaur.Version.current_version())' 2>/dev/null || true)
+    [ "$got" = "$want" ] || fail "the running app reports '$got', expected '$want'"
+    pass "the running app reports $want"
+}
+
+# The service is set to start at login, is running, and the app answers.
+assert_serving() {
+    service_autostarts || fail "the service is not set to start at login"
+    pass "the service starts at login"
+    wait_until "the service is running" 30 service_running
+    wait_until "app answers at $APP_URL" 120 app_answers
+}
+
+# Installs a release tag. By default through the public installer, as
+# `curl … | sh` would. MC_INSTALLER=checkout instead runs the released
+# tarball with this checkout's platform installer in place of the bundled
+# one, to prove an installer fix before it ships. The in-app update
+# always runs the installer bundled in the release it downloads.
+install_release() {
+    tag="$1"
+    case "${MC_INSTALLER:-released}" in
+        released) sh "$REPO_ROOT/installer/install.sh" --version "$tag" ;;
+        checkout) install_with_checkout_installer "$tag" ;;
+        *) fail "MC_INSTALLER must be released or checkout, not '$MC_INSTALLER'" ;;
+    esac
+}
+
+install_with_checkout_installer() {
+    tag="$1"
+    tarball="media-centaur-${tag#v}-${PLATFORM_TAG}.tar.gz"
+    work=$(mktemp -d)
+    curl -fsSL -o "$work/$tarball" "https://github.com/media-centaur/media-centaur/releases/download/$tag/$tarball"
+    mkdir "$work/extract"
+    tar -xzf "$work/$tarball" -C "$work/extract"
+    cp "$PLATFORM_INSTALLER" "$work/extract/bin/media-centaur-install"
+    printf "==> Using this checkout's installer with the %s tarball\n" "$tag"
+    "$work/extract/bin/media-centaur-install"
+    status=$?
+    rm -rf "$work"
+    return "$status"
+}
+
+# shellcheck source=/dev/null
+. "$SCENARIOS_DIR/$PLATFORM/platform"

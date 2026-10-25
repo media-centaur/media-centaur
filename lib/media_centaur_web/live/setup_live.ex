@@ -577,12 +577,12 @@ defmodule MediaCentaurWeb.SetupLive do
             >
               themoviedb.org
             </.link>
-            and copy a key from <.link
+            and copy the API Key or the API Read Access Token from <.link
               href="https://www.themoviedb.org/settings/api"
               target="_blank"
               rel="noopener"
               class="link link-primary"
-            >Settings → API</.link>. Either the v4 read-access token or the shorter v3 key works.
+            >Settings → API</.link>. Either one works.
           </p>
           <label class="text-sm font-medium text-base-content/80 block">
             API key
@@ -590,7 +590,7 @@ defmodule MediaCentaurWeb.SetupLive do
           <input
             type="password"
             name="tmdb_api_key"
-            placeholder="paste your TMDB v4 token or v3 key"
+            placeholder="Paste the API Key or API Read Access Token"
             class="input input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"

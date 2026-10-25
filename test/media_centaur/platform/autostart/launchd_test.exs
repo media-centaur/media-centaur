@@ -19,9 +19,11 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
 
   defp fake_env(env), do: fn name -> Map.get(env, name) end
 
-  # When NOT launchd-supervised — no LAUNCHD_SOCKET env, no parent
-  # launchd domain — every probe should report the supervisor as
-  # unavailable.
+  defp under_agent_env, do: fake_env(%{"XPC_SERVICE_NAME" => @default_label})
+
+  # launchd sets XPC_SERVICE_NAME to the job's label in every process it
+  # starts. When it is absent — not started by the LaunchAgent — every
+  # probe should report the supervisor as unavailable.
   defp no_launchd_context, do: [env_fn: fake_env(%{})]
 
   # The behaviour's `state()` map is OS-neutral: every impl returns the
@@ -52,7 +54,7 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
           {"id", ["-u"]} => {"#{uid}\n", 0}
         })
 
-      env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
+      env = under_agent_env()
 
       assert %{
                under_supervisor: true,
@@ -62,7 +64,7 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
              } = Launchd.state(cmd_fn: cmd, env_fn: env)
     end
 
-    test "reports supervisor_available: false when LAUNCHD_SOCKET is absent" do
+    test "reports supervisor_available: false when XPC_SERVICE_NAME is absent" do
       assert %{supervisor_available: false, unit_installed: false, active: false} =
                Launchd.state(no_launchd_context())
     end
@@ -77,7 +79,7 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
           {"id", ["-u"]} => {"#{uid}\n", 0}
         })
 
-      env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
+      env = under_agent_env()
 
       assert %{supervisor_available: true, unit_installed: false, active: false} =
                Launchd.state(cmd_fn: cmd, env_fn: env)
@@ -86,13 +88,25 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
 
   describe "detected_unit/1" do
     test "returns the configured label when under launchd" do
-      env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
+      env = under_agent_env()
 
       assert Launchd.detected_unit(env_fn: env) == @default_label
     end
 
-    test "returns nil when LAUNCHD_SOCKET is absent" do
+    test "returns nil when XPC_SERVICE_NAME is absent" do
       refute Launchd.detected_unit(no_launchd_context())
+    end
+
+    # A process launchd started for another job, such as a terminal app,
+    # carries that job's name; macOS 14 does not set LAUNCHD_SOCKET at all.
+    test "returns nil when XPC_SERVICE_NAME names another job" do
+      env = fake_env(%{"XPC_SERVICE_NAME" => "application.com.apple.Terminal.1234"})
+      refute Launchd.detected_unit(env_fn: env)
+    end
+
+    test "returns nil when only the obsolete LAUNCHD_SOCKET is set" do
+      env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
+      refute Launchd.detected_unit(env_fn: env)
     end
   end
 
@@ -144,7 +158,9 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
 
       assert :ok = Launchd.stop(cmd_fn: cmd, env_fn: fake_env(%{}))
 
-      assert_receive {:cmd_called, "launchctl", ["bootout", "gui/" <> _, @default_label]}
+      # The service-target form: `bootout gui/<uid> <label>` reads the label
+      # as a plist path and fails with "Boot-out failed: 5".
+      assert_receive {:cmd_called, "launchctl", ["bootout", "gui/501/" <> @default_label]}
     end
   end
 
