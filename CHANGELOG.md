@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.60.1 — 2026-10-25
+
+### Fixed
+
+- **Installing on a Mac starts the app.** The macOS installer stopped with "Bootstrap failed: 5: Input/output error", which left the app installed but not running. It now starts the app and sets it to start at login. If a load ever fails, the installer still prints its summary with the commands to start the app by hand.
+- **The installer refuses to run with `sudo`.** On a Mac, installing with `sudo` skipped starting the app at login and left files owned by root in your home folder. On Linux it skipped the systemd service. The installer now stops with a message to run it as yourself.
+- **Starting the app by hand works.** Running `bin/media_centaur start` yourself failed with "environment variable SECRET_KEY_BASE is missing". The app now reads `~/.config/media-centaur/secrets.env` however it is started.
+- **Update now works on a Mac.** The in-app update could not start on macOS. If you are on 1.60.0 or earlier on a Mac, update once from the terminal with `~/.local/lib/media-centaur/current/bin/media-centaur-install --update`. After that, **Settings → System → Update now** works.
+- **Both TMDB credentials work.** TMDB's **API Read Access Token**, the long one, was always rejected. The app now accepts it as well as the shorter **API Key**, so paste whichever one you copied from TMDB.
+
 ## v1.60.0 — 2026-10-21
 
 ### New
