@@ -31,13 +31,14 @@ for every UI change, so the tooling outlives the slowdown.
 
 ## Status
 
-In progress. 2026-10-25 evening: the stored runs and traces, read
-offline, show the 59.9 fps baseline was a compositor scroll animation,
-not the JS glide (see *What is known*); the glide has measured 35–42 fps
-on the Sony all day. M4's cause is named from stored data and awaits one
-interleaved confirmation on the TV. M1 is at step 7 (execution): the
-probe and report rewrite is done offline; the probe-cost and A/A runs
-need the TV. Nothing in this session used the TV.
+In progress, paused 2026-10-25 evening at a clean cut (runs 41–43
+complete, run 44 not started; the TV handed back). The slowdown is
+explained and confirmed on the TV: the old page probe cost the glide
+16–19 fps (run 42), and the 59.9 baseline was a compositor scroll it
+could not slow. The JS glide presents at 60 fps on the Sony with the new
+probe or none (runs 41, 43). M1 lacks only the A/A run (44, seven
+minutes of TV); M4 is done; M5's fix is the tool itself and its guard
+the standing rule in `docs/tv-performance.md`. Next: run 44, then M2.
 
 ## Principles
 
@@ -97,12 +98,53 @@ need the TV. Nothing in this session used the TV.
   (eased, 60 fps, 25 presents) and 583–633 ms in the afternoon
   (exponential, 38–41 fps, 24 presents). The glide's tail of 1 px steps
   is where the time goes; the number of frames presented is the same.
-* So the glide did not slow down. The JS glide has presented at 35–42 fps
-  on the Sony in every measurement that actually ran it, with about half
-  its frames partial: the main thread's scroll write misses the
-  compositor's deadline every other frame while the main frame itself
-  takes under 5 ms (`SendBeginMainFrameToCommit` p50 4.7 ms;
+* **Run 41 (2026-10-25 evening, TV, new probe): both animators 60 fps.**
+  `--cond base` against `js:native-smooth.js` (the glider's `glide`
+  swapped for `scrollTo({behavior: "smooth"})` through
+  `window.__scrollGlider`), two rounds, both pages, one page identity
+  (`98e7b7ed @4d18f9b2`). The glide: 60 fps on both pages, `animator`
+  glide, 410 px in 550 ms on Home. The smooth scroll: 59–60 fps, `eased`,
+  410 px in 350 ms. Δ within noise. The TV sat at 15% CPU and 720 MB free,
+  against 31–40% and 580–900 MB in the afternoon runs. So in this device
+  state the JS glide is not slow, and the afternoon's 35–42 needs another
+  explanation than the animator: the old probe (a `querySelectorAll('*')`
+  and four layout reads per element on every frame, exactly during the
+  glide) or the TV's state. Run 42 reproduces the old probe as a
+  condition; run 43 is the probe-cost alternation; run 44 the A/A.
+* On the library page one DOWN glide travelled 156 px where the smooth
+  variant travelled 88 px for the same press: the glide chases a target
+  re-read per tick, the smooth scroll goes to the target as first
+  computed. Noted for M5, not pursued here.
+* **Run 42 (TV): the old probe was the cause.** `base` against
+  `js:oldprobe.js` (the pre-rewrite probe's per-frame
+  `querySelectorAll('*')` and layout reads, installed for the page's
+  life), two rounds, both pages. Library: 56.5 against 37.4 fps
+  (Δ −19.1, noise 7, beyond). Home: 60 against 43.6 (Δ −16.4, noise 0,
+  beyond). TV CPU 15% against 40%: the afternoon's "busy TV" was the
+  probe. The old probe ran at midday too, but a compositor scroll
+  animation needs no main-thread frame, so it could not slow the eased
+  scroll measured then. That closes the loop: 59.9 was a compositor scroll
+  the probe could not hurt; 35–42 was the JS glide under the probe; 60 is
+  the JS glide without it.
+* **Run 43 (TV): the new probe costs nothing measurable.** Probed and
+  `--no-probe` alternated twice over both pages: 60 fps in every row,
+  Δ 0.0. (A first reading of 39.9 on the library page was the no-probe
+  window counting a 400 ms idle gap after the glide; the glide without a
+  probe is now the first unbroken run of presents, and the stored
+  presents re-derive to 60.)
+* So the midday-to-afternoon drop compared two animators. In every
+  afternoon measurement the JS glide presented at 35–42 fps with about
+  half its frames partial: the main thread's scroll write missed the
+  compositor's deadline every other frame while the main frame itself took
+  under 5 ms (`SendBeginMainFrameToCommit` p50 4.7 ms;
   `EndActivateToSubmitCompositorFrame` p50 7.0 ms against 2.8 at midday).
+  Runs 41–43 then measured the same glide at 60 fps with the new probe or
+  none, and at 37–44 with the old probe reinstated: the old probe is what
+  made the afternoon glide miss its deadline.
+* Open, not pursued: `mc-tv-trace`'s own cost. The afternoon trace showed
+  the partial-frame glide without `mc-tv-smooth`'s probe, but Chromium
+  tracing with the devtools.timeline categories is itself main-thread
+  work. M2 measures it the same way before its numbers are believed.
 
 ## Open decisions
 
@@ -112,38 +154,40 @@ need the TV. Nothing in this session used the TV.
    server from a worktree on its own port against a copy of the real
    database (real artwork, nothing shared; needs the copy kept
    read-only and the debug app paired to it). Recommendation: (b).
-2. **Whether the glide becomes compositor-driven.** Now live: the stored
-   data says a compositor scroll animation presents at 60 fps on the
-   Sony and the main-thread glide at 35–42 with half its frames partial,
-   on the same page. Options: (a) keep the JS glide and accept its rate;
-   (b) a compositor-driven glide that still retargets under a held key
-   (the two native routes fail there, per the `scroll_glide.js`
-   moduledoc: `scrollIntoView` smooth stops retargeting, CSS
-   `scroll-behavior` restarts its ease-in from rest). Recommendation:
-   confirm on the TV first (M4), then design (b) in M5 as its own
-   milestone, because (a) leaves every D-pad move at the rate the owner
-   called choppy. The owner's call.
-3. **What the campaign's goal becomes.** The glide did not drop from
-   59.9 to 35–42; the baseline measured a different animator. The
-   tooling goal stands unchanged. For the glide the question is no
-   longer "what slowed it" but decision 2. Recommendation: rewrite Goal
-   once M4 confirms on the TV.
+2. **Whether the glide becomes compositor-driven.** Runs 41 and 43 put
+   the JS glide at 60 fps on the Sony, interleaved with a compositor
+   smooth scroll at 59–60. Recommendation: keep the glide; nothing
+   measured favours replacing it, and the two native routes fail under a
+   held key (`scroll_glide.js` moduledoc). The owner closes this.
+3. **What the campaign's goal becomes.** The glide never slowed; the
+   tool slowed it. Recommendation: the Goal's second half becomes "keep
+   the tooling from perturbing what it measures", which M1 delivered and
+   M2 extends to `mc-tv-trace`. The owner rewrites or confirms.
+4. **The 156 px against 88 px reveal.** On the library page one DOWN
+   press scrolled 156 px under the glide and 88 px under the smooth
+   variant (run 41). The glide re-reads its reachable target per tick, so
+   a layout change mid-glide moves it. Options: investigate as its own
+   small milestone, or leave it. Recommendation: investigate after M2; it
+   is the owner's eye that decides whether the glide lands where it should.
 
 ## Decisions made
 
 * `2026-10-25` — Tooling and technique first, the slowdown's cause after; the campaign opens as the first follow-up to v2.0.0. (owner)
 * `2026-10-25` — A measurement row records what it measured: the served bundle's digest and HEAD, each glide's distance and the animator read from its step profile; the probe is a scroll-event listener, not a per-frame poll; a repeated `--cond` is its own condition. (M1, `mc-tv-smooth`)
 * `2026-10-25` — No TV in this session, by the owner's word; every TV-dependent step is queued, not skipped. (owner)
+* `2026-10-25` — Later the same evening the owner freed the TV; runs 41–43 ran, then the owner asked for a pause that keeps the data whole: the chain stopped between runs, run 44 untouched. (owner)
+* `2026-10-25` — The glide slowdown's cause is the old page probe, confirmed interleaved on the TV (run 42); the fix is the scroll-event probe and the guard is the standing rule that a tool's cost is measured with `--no-probe` before its numbers are believed. (M4, M5)
+* `2026-10-25` — `window.__scrollGlider` is the page's debug handle for swapping the animator under measurement. (commit `4d18f9b2`)
 
 ## Milestones
 
 | | | |
 |---|---|---|
-| M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | tool rewritten 2026-10-25 offline (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); verified on stored runs converted to the new shape. Open: the probe-cost run and an A/A run on the TV. |
+| M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | tool rewritten 2026-10-25 (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); probe cost measured on the TV: zero (run 43, Δ 0.0 both pages). Open: the A/A run (`run --page /library --cond base --cond base --reps 3`, seven minutes). |
 | M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). | open |
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | open |
-| M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | named 2026-10-25 from stored data: the 59.9 baseline measured a compositor scroll animation, the 35–42 the JS glide (*What is known*). Open until one interleaved run on the TV shows the two animators side by side, told apart by the step profile the rewritten probe records. |
-| M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | open |
+| M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
+| M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open |
 
 Every milestone that changes an existing system runs the campaign
@@ -233,10 +277,14 @@ procedure and records each step here.
    afternoon runs converted to the new trial shape prints `eased` 59.9
    against `glide` 35–40, Δ beyond noise, the A/A pair's own spread
    (1.6–5.4 fps) and the dirty-tree marker. `docs/tv-performance.md`
-   Measuring and Open updated. Waiting for a free TV: one probed and one
-   `--no-probe` run of the default walk, alternated, and `--cond base
-   --cond base --reps 3`; and the M4 confirmation, a `js:` condition that
-   swaps the glide for a browser smooth scroll, interleaved with base.
+   Measuring and Open updated. On the TV the same evening: run 41 (glide
+   against `js:native-smooth.js`), run 42 (base against `js:oldprobe.js`),
+   run 43 (probed and `--no-probe` alternated into one directory). The
+   animator rule moved from "largest step among the first two" to "the
+   opening third outweighs the middle third" after a jittered glide
+   mislabelled; the no-probe glide window became the first unbroken run
+   of presents after an idle gap inflated one row. Both are derivations,
+   re-run over the stored events. Run 44 (A/A) waits for the TV.
 
 ## Completion criteria
 

@@ -22,15 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tv-performance.md`](tv-performance.md) —
-  **in progress, opened 2026-10-25; M1 built offline, its TV runs
-  queued.** Tooling first, then the cause: `mc-tv-smooth` now records
-  what each row measured (animator from the step profile, px/glide,
-  served bundle + HEAD, noise beside every comparison); next Android's
-  render-thread timing (Perfetto) and a one-command code-version A/B.
-  The stored data says the 59.9 fps baseline was a browser smooth scroll
-  and the JS glide has measured 35–42 all along; one interleaved TV run
-  confirms it, then the owner decides whether the glide becomes
-  compositor-driven.
+  **in progress, opened 2026-10-25; paused at a clean cut, M4–M5 done,
+  M1 lacks the A/A run.** The glide slowdown was the tool: the old
+  per-frame probe cost the glide 16–19 fps, and the 59.9 baseline was a
+  compositor scroll it could not slow (confirmed interleaved on the TV).
+  `mc-tv-smooth` now records what each row measured (animator, px/glide,
+  served bundle + HEAD, noise beside every comparison) and its probe
+  measures zero cost. Next: the A/A run, Android's render-thread timing
+  (Perfetto, with `mc-tv-trace`'s own cost measured first), a one-command
+  code-version A/B.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV
