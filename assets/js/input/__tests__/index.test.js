@@ -15,6 +15,18 @@ describe("App config", () => {
     expect(inputConfig.contextSelectors[Context.ZONE_TABS]).toBeDefined()
   })
 
+  // The page's scroll motion has one owner. The DOM writer glides toward
+  // the focused card with this instance; the scroll row hook glides on an
+  // arrow press with the same one, so the orchestrator's wheel rule
+  // (cancel every glide) reaches both and a cursor key mid-glide retargets
+  // rather than races.
+  test("hands the page's one glider to the DOM writer", async () => {
+    const { scrollGlider } = await import("../../scroll_glider")
+    expect(inputConfig.glider).toBe(scrollGlider)
+    expect(typeof scrollGlider.glide).toBe("function")
+    expect(typeof scrollGlider.cancelAll).toBe("function")
+  })
+
   test("has layouts for all zones", () => {
     expect(inputConfig.layouts.watching).toBeDefined()
     expect(inputConfig.layouts.library).toBeDefined()
