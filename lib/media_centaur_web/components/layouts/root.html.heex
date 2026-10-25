@@ -1,7 +1,10 @@
 <!DOCTYPE html>
+<%!-- data-player names a paired player (the TV app): its device's styles
+      key off it. The host renders without it. --%>
 <html
   lang="en"
   data-input="keyboard"
+  data-player={assigns[:player] not in [nil, :host] && "remote"}
   style={"--ui-scale-pref: #{MediaCentaur.Settings.Preferences.UIScale.cached_scale()}"}
 >
   <head>
