@@ -2228,6 +2228,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The disc's one size; the wide backdrop card's play button alone goes
+     larger (`.play-overlay-btn-lg`). */
+  width: 52px;
+  height: 52px;
   border-radius: 9999px;
   color: white;
   background: oklch(from var(--color-base-100) l c h / 0.75);
@@ -2263,6 +2267,37 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 }
 
+/* ── Pointer affordance reveal ──
+   The delay before a hovered pointer affordance reveals (the play overlay,
+   a scroll row's edge arrows): skimming the pointer across the page shows
+   nothing. Tune freely. */
+:root {
+  --hover-reveal-delay: 450ms;
+}
+
+/* The reveal, shared by every pointer affordance: the play overlay and a
+   scroll row's edge arrows. Each is a wrapper that fades in on hover of its
+   host — opacity only, after the intent delay — around a picture button
+   that presses. Gated on `(hover: hover)`, the same query the ScrollRow
+   hook asks, so there is one pointer truth: where no pointer can hover
+   there is neither chrome nor listener. Without the gate a touch device's
+   sticky hover would reveal arrows the unattached hook never answers. The
+   TV never hovers, so it sees neither. Pointer-events are deliberately not
+   here: each affordance decides who takes the pointer. */
+.play-overlay,
+.scroll-row-arrow {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+@media (hover: hover) {
+  .play-overlay-host:hover .play-overlay,
+  .scroll-row:hover .scroll-row-arrow {
+    opacity: 1;
+    transition-delay: var(--hover-reveal-delay);
+  }
+}
+
 /* ── Play overlay (UIDR-027) ──
    Hover-revealed direct-play button on browse cards. Opacity-only
    reveal — no scale, no translation — per UIDR-012's calm. The reveal
@@ -2272,18 +2307,9 @@ body:has(.modal-backdrop[data-state="open"]) {
    `.play-overlay-host` region, so keyboard/gamepad focus can never
    surface it. The wrapper is pointer-transparent (card clicks pass
    through to select_entity); only the button itself takes the pointer. */
-/* The delay before a hovered pointer affordance reveals (the play overlay,
-   a scroll row's edge arrows): skimming the pointer across the page shows
-   nothing. Tune freely. */
-:root {
-  --hover-reveal-delay: 450ms;
-}
-
 .play-overlay {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  transition: opacity 240ms ease;
   pointer-events: none;
   /* Soft achromatic halo centred on the button — darkens locally so the
      button pops against arbitrary artwork, without washing the card
@@ -2296,11 +2322,6 @@ body:has(.modal-backdrop[data-state="open"]) {
     oklch(0% 0 0 / 0.28) 40%,
     transparent 75%
   );
-}
-
-.play-overlay-host:hover .play-overlay {
-  opacity: 1;
-  transition-delay: var(--hover-reveal-delay);
 }
 
 /* The play button: a picture button centred in the card, with a release
@@ -2319,8 +2340,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  width: 52px;
-  height: 52px;
 }
 
 .play-overlay-btn::after {
@@ -2663,6 +2682,57 @@ body:has(.modal-backdrop[data-state="open"]) {
   --row-end-reserve: 0px;
   padding-block: 0;
   margin-block: 0;
+}
+
+/* ── Scroll row arrows ──
+   A scroll row's pointer chrome: an edge arrow at each end of the track —
+   a reveal wrapper (the grouped reveal rule beside `.play-overlay`) around
+   a picture button that glides the track one step that way (the ScrollRow
+   hook, assets/js/hooks/scroll_row.js). They sit inside the track's ends,
+   over the edge fade, centred on the cards, above a hovered card's
+   z-index. The wrapper's `position: relative` is what they are placed in;
+   the track keeps its negative inline margin, so the content edge is the
+   wrapper's edge.
+
+   The track's edge state (`data-at-start` / `data-at-end`, written by the
+   hook from the track's own geometry) drops the arrow that points at an
+   end already reached: `display: none`, not opacity 0, so a hidden arrow
+   can never take a click. A track that fits carries both and shows none. */
+.scroll-row {
+  position: relative;
+}
+
+/* Pointer-transparent at rest, so a resting or dropped arrow never takes a
+   click meant for the card beneath; the disc inherits `auto` on hover
+   (`.picture-button` sets no pointer-events of its own). The reveal window
+   — `auto` from the hover, visible after the delay — is the play overlay's
+   too; `transition-behavior: allow-discrete` on pointer-events is the
+   tuning if it ever bites. */
+.scroll-row-arrow {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .scroll-row:hover .scroll-row-arrow {
+    pointer-events: auto;
+  }
+}
+
+.scroll-row-arrow[data-scroll-row-arrow="left"] {
+  left: 0.5rem;
+}
+
+.scroll-row-arrow[data-scroll-row-arrow="right"] {
+  right: 0.5rem;
+}
+
+.row-scroll[data-at-start] ~ .scroll-row-arrow[data-scroll-row-arrow="left"],
+.row-scroll[data-at-end] ~ .scroll-row-arrow[data-scroll-row-arrow="right"] {
+  display: none;
 }
 
 /* ── Poster grid ──

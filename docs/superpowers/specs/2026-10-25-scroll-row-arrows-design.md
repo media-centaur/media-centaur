@@ -221,3 +221,12 @@ the same track instead of racing a second animation.
   is free. If it matches, the hook attaches on the TV at the cost of one passive
   scroll listener per row; the arrows still never show. Record the answer in
   the remote-players campaign.
+
+## Amendment 2026-10-25, after the browser walk
+
+The disc's size is `.picture-button`'s one size, 52 px; the 44 px rule above
+went (the arrows read too small, and a second size was a second
+representation). The story carries six variations, not four: a Credo check
+requires every `variant` value exercised, and a full-width template keeps the
+row in the sandbox's column. The walk's other findings are recorded in the
+plan's Task 7.

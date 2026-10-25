@@ -120,3 +120,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 053 | 2026-10-06 | [A profile is picked at the front door and drawn as the identity tile](user-interface/2026-10-06-053-a-profile-is-picked-at-the-front-door.md) | accepted |
 | 054 | 2026-10-21 | [A person has a page](user-interface/2026-10-21-054-the-person-page.md) | accepted |
 | 055 | 2026-10-22 | [A remote player's OSD is the host's page](user-interface/2026-10-22-055-a-remote-players-osd-is-the-hosts-page.md) | accepted |
+| 056 | 2026-10-25 | [The TV app is the performance floor](user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md) | accepted |

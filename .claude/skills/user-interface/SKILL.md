@@ -3,6 +3,12 @@ name: user-interface
 description: "Use this skill before any UI work — LiveView templates, components, CSS, styling, layout, modals, cards, badges, buttons, themes, or visual design. Contains all component recipes, styling conventions, and design principles."
 ---
 
+## The TV performance floor ([UIDR-056])
+
+Every UI change must hold on the TV app (Android WebView, MediaTek MT5895, 3 GB) — the slowest device the app supports. Read [`docs/tv-performance.md`](../../../docs/tv-performance.md) before touching CSS, layout, images, animation or scrolling. Standing rules: no backdrop blur on a remote player (off under `html[data-player="remote"]`); no `background-attachment: fixed` (test-enforced); animate only `transform`/`opacity`; nothing added to a scroll frame's main-thread work; images decoded no larger than the display; design at 1920 CSS px. Verify with `mc-tv-smooth` interleaved against the base and record the numbers.
+
+[UIDR-056]: ../../../decisions/user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md
+
 ## Design Values
 
 - **Readability first.** Every visual choice serves readability above aesthetics.
@@ -458,13 +464,14 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Identity and Episode mapping | ✅ |
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
-| `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
+| `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards (a `scroll_row/1` tenant) |
 | `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
-| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf |
+| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf (a `scroll_row/1` tenant) |
+| `scroll_row/1` | `scroll_row.ex` | A scrolling track with its edge arrows — the mouse user's way along Home's rows and the collection rail; a pointer affordance like the play overlay, drawn with `.picture-button` | ✅ |
 | `detail_panel/1` | `detail_panel.ex` | The title detail modal (CinematicShell tenant) for an owned or an unowned title, over `Title.Detail` + `Title.ModalState`; `detail/` holds its sub-views (Manage panel, seasons) | ✅ |
 | `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system, UIDR-021) |
 | `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
-| `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
+| `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027); its button is a `.picture-button`, the disc the scroll row arrows share |
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
 | `download_strip/1` | `acquisition/download_strip.ex` | The one drawing of a download-client job: phase ladder, phase word, figure bar, facts, cancel (the pursuit row, Other downloads, the pursuit modal) | ✅ |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
@@ -509,6 +516,8 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 
 ## Anti-Patterns
 
+- A hand-written `.row-scroll` track for a row of cards — render it through `scroll_row/1`, which owns the track and the mouse user's edge arrows. The hero's single full-bleed item is the one plain track.
+- A second disc over a picture — `.picture-button` is the one; the play overlay and the scroll row arrows both carry it.
 - Hand-rolled markup for something a component draws — a label over a control, a form's button row, a field — instead of composing from the kit (`settings_field`, `settings_input`, the form footer idiom in the acquisition section) or adding a component with a story. Two surfaces drawing one idea drift (CLAUDE.md § Compose from the kit).
 - Solid-fill semantic buttons (`btn-error` without `btn-soft`)
 - Hardcoded oklch color values for themeable colors

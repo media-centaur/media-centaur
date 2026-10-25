@@ -247,6 +247,8 @@ pattern (for the media endpoint); the bootstrap TOML tier in
 * `2026-10-23` — Names (open decision 14): `Transport.holds_one_viewing?/1`; `Playback.Entry` and `Playback.MpvProperties` for M9; *locators* become **media URLs** (`for_file`, `for_sidecar`, `presence_id`). The owner asked for plain, logical words and then took the agent's recommendations. (owner)
 * `2026-10-23` — The Google Play work (account, internal track, production) is its own campaign, `google-play.md`. The order from here: this campaign's remaining items, the owner's own exploration of the app and iteration on its usability, then Google Play, then the merge to main and a **major** host release. (owner)
 * `2026-10-23` — The owner's dev server runs the branch (open decision 15 → (a)): the worktree removed, `remote-players` checked out in `~/src/media-centaur/media-centaur-app`, the `players` migration applied to the real database, `bind = "0.0.0.0"` added to `~/.config/media-centaur/media-centaur-dev.toml`; `mc-sim-host` builds from that checkout. The agent works in the checkout as usual, every `mix` through `agent-mix`. (owner)
+* `2026-10-25` — Open decision 16 answered on the Sony: its WebView reports `hover: none` and `pointer: none`, so the scroll rows' arrows attach no listener on the TV — no cost. (measured with the debug app)
+* `2026-10-25` — The TV app is the performance floor: UIDR-056 and `docs/tv-performance.md` (the device, the standing rules, measuring), the CSS rules test-enforced (`tv_performance_css_test.exs`). Open there: key glides measured 59.9 fps at midday and 35–42 fps from mid-afternoon with every code version tried; cause not found. (owner)
 
 ## Open decisions
 

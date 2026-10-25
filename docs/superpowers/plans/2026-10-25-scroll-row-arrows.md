@@ -755,6 +755,17 @@ defmodule MediaCentaurWeb.Storybook.Composites.ScrollRow do
   def render_source, do: :function
   def layout, do: :one_column
 
+  # The sandbox centres a shrink-to-fit block, so a row wider than the
+  # column ran off both ends. A full-width wrapper gives the row the
+  # column's width, as a page does; hidden from the source preview.
+  def template do
+    """
+    <div class="w-full" psb-code-hidden>
+      <.psb-variation/>
+    </div>
+    """
+  end
+
   def variations do
     [
       %Variation{
@@ -786,6 +797,12 @@ defmodule MediaCentaurWeb.Storybook.Composites.ScrollRow do
         description: "The Continue Watching variant: 16:9 cards on the wider gap",
         attributes: %{id: "scroll-row-backdrop-lg", variant: :backdrop_lg},
         slots: [backdrop_cards(8)]
+      },
+      %Variation{
+        id: :backdrop_sm,
+        description: "The collection rail variant: small 16:9 tiles on the tighter gap",
+        attributes: %{id: "scroll-row-backdrop-sm", variant: :backdrop_sm},
+        slots: [backdrop_cards(14)]
       }
     ]
   end
@@ -1006,9 +1023,9 @@ Expected: all pass (five variations render; MC0009 finds the story).
 Run: `page-shot --url http://127.0.0.1:2160/storybook/composites/scroll_row --viewport 1920x1080 --wait-ms 3000` and Read the PNG: five tracks of placeholder cards. Then hover a row to see the arrows:
 
 ```
-chromium-probe http://127.0.0.1:2160/storybook/composites/scroll_row 'const a = document.querySelector("#scroll-row-mid-row .scroll-row-arrow"); getComputedStyle(a).display + " " + getComputedStyle(document.querySelector("#scroll-row-fits .scroll-row-arrow")).display + " " + document.querySelector("#scroll-row-mid-row .scroll-row-arrow .picture-button").getAttribute("aria-label")'
+chromium-probe http://127.0.0.1:2160/storybook/composites/scroll_row '(() => { const a = document.querySelector("#scroll-row-single-mid-row .scroll-row-arrow"); return getComputedStyle(a).display + " " + getComputedStyle(document.querySelector("#scroll-row-single-fits .scroll-row-arrow")).display + " " + document.querySelector("#scroll-row-single-mid-row .scroll-row-arrow .picture-button").getAttribute("aria-label") })()'
 ```
-Expected: `block none Scroll left`.
+Expected: `block none Scroll left`. Two things learnt the first time: `chromium-probe` takes an expression, so a `const` needs an IIFE; and the storybook rewrites a variation's element id to `<story>-single-<variation>`. The repo's Credo story check also requires every `attr values:` entry to be exercised, which is why the story carries a `backdrop_sm` variation too.
 
 - [ ] **Step 7: Commit**
 
@@ -1213,6 +1230,8 @@ git commit -m "fix(ui): scroll row arrows — inset and size settled against Hom
 ```
 
 (Skip if nothing changed.)
+
+**What the walk found (2026-10-25).** Headless Chromium answers `(hover: hover)` false, so neither the reveal nor the hook ran under the probes; `chromium-probe --pointer` and `page-shot --pointer` / `--hover <css>` / `--eval '<js>'` were added to `~/scripts/agents` (Blink's pointer settings at launch; a CDP mouse move for a real `:hover`). With them: edge state projects at mount and follows scroll; a right press on Continue Watching glides exactly one step (2227 px at 1920); the end hides the right arrow; the cursor walk is unchanged; a press never focuses the arrow. Three corrections came out of it, each its own commit: the disc's one size (52 px) moved onto `.picture-button` and the 44 px rule went (the arrows read too small); the glide could never converge under the root zoom when a step rounded back to the same device pixel and ticked forever, fixed in `scroll_glide.js` with a snapping-box test; and the chevron names were built from the direction, which Tailwind's scanner cannot see, so the left arrow was an empty disc — the names are literal now. The headless profile gate keeps the `?entity=` modal from opening for an entity without a TMDB identity, so the collection rail's arrows were checked on its story under hover instead; its markup is pinned by the smoke test.
 
 ---
 
