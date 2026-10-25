@@ -501,7 +501,7 @@ function mount({ hover = true, scrollLeft = 0, scrollWidth = 3000, clientWidth =
     target: { closest: (sel) => (sel === "[data-scroll-row-arrow]" ? { dataset: { scrollRowArrow: direction } } : null) },
   })
 
-  return { hook, el, track, glides, observers, press: (direction) => el.listeners.click(arrow(direction)) }
+  return { hook, el, track, glides, observers, arrow, press: (direction) => el.listeners.click(arrow(direction)) }
 }
 
 describe("ScrollRow", () => {
@@ -564,6 +564,24 @@ describe("ScrollRow", () => {
     expect(glides).toEqual([])
   })
 
+  // Chrome never takes the cursor: in the collection rail the arrows sit
+  // outside every nav zone, and a focused arrow would read as foreign focus
+  // to the input system's reconciler (`hasForeignFocus`), which would then
+  // cede the cursor to it.
+  test("mousedown on an arrow is prevented, so the button never takes focus", () => {
+    const { el, arrow } = mount()
+    let prevented = false
+    el.listeners.mousedown({ ...arrow("left"), preventDefault: () => (prevented = true) })
+    expect(prevented).toBe(true)
+  })
+
+  test("mousedown elsewhere in the row is left alone", () => {
+    const { el } = mount()
+    let prevented = false
+    el.listeners.mousedown({ target: { closest: () => null }, preventDefault: () => (prevented = true) })
+    expect(prevented).toBe(false)
+  })
+
   // No pointer, no chrome: the TV's glide frames carry no scroll listener.
   test("without a hovering pointer the hook attaches nothing", () => {
     const { el, track, observers } = mount({ hover: false })
@@ -616,6 +634,15 @@ export const ScrollRow = {
     }
     this.el.addEventListener("click", this.onClick)
 
+    // Chrome never takes the cursor. Chromium focuses a clicked
+    // `tabindex="-1"` button; in the collection rail the arrows sit outside
+    // every nav zone, and the input system's reconciler would read that
+    // focus as foreign (`hasForeignFocus`) and cede the cursor to it.
+    this.onMouseDown = (event) => {
+      if (event.target.closest?.("[data-scroll-row-arrow]")) event.preventDefault()
+    }
+    this.el.addEventListener("mousedown", this.onMouseDown)
+
     this.project()
   },
 
@@ -627,6 +654,7 @@ export const ScrollRow = {
     if (!this.track) return
     this.track.removeEventListener("scroll", this.onScroll)
     this.el.removeEventListener("click", this.onClick)
+    this.el.removeEventListener("mousedown", this.onMouseDown)
     this.observer.disconnect()
   },
 
@@ -653,7 +681,7 @@ export const ScrollRow = {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `bun test assets/js/hooks/scroll_row.test.js`
-Expected: 17 pass.
+Expected: 19 pass.
 
 - [ ] **Step 5: Register the hook**
 
@@ -795,11 +823,13 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
   `data-scroll-row` or `data-nav-zone` sit where they always did.
 
   The arrows are a pointer affordance in the play overlay's sense
-  (UIDR-027): hover reveals them (opacity only, after `--hover-reveal-delay`),
-  they are outside the input system (`tabindex="-1"`, no `data-nav-item`,
-  `aria-hidden` — the cards themselves carry the same movement for every
-  other reader), and the TV, which has no pointer, never sees them. Each is a
-  `.picture-button`, the disc the play overlay draws. The `ScrollRow` hook
+  (UIDR-027) and take its shape: a reveal wrapper (`.scroll-row-arrow`) that
+  hover fades in — opacity only, after `--hover-reveal-delay`, under
+  `(hover: hover)` — around a `.picture-button`, the disc the play overlay
+  draws. The button is outside the input system (`tabindex="-1"`, no
+  `data-nav-item`) and never takes the cursor (the hook prevents default on
+  mousedown); it keeps an `aria-label`, as every icon-only control does. The
+  TV, which has no pointer, never sees them. The `ScrollRow` hook
   (`assets/js/hooks/scroll_row.js`) writes the track's edge state onto it as
   `data-at-start` / `data-at-end`; CSS drops the arrow pointing at an end
   already reached, so a track that fits shows none.
@@ -836,15 +866,11 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
 
   defp edge_arrow(assigns) do
     ~H"""
-    <button
-      type="button"
-      class="picture-button scroll-row-arrow"
-      data-scroll-row-arrow={@direction}
-      tabindex="-1"
-      aria-hidden="true"
-    >
-      <.icon name={"hero-chevron-#{@direction}-mini"} class="size-5" />
-    </button>
+    <div class="scroll-row-arrow" data-scroll-row-arrow={@direction}>
+      <button type="button" class="picture-button" tabindex="-1" aria-label={"Scroll #{@direction}"}>
+        <.icon name={"hero-chevron-#{@direction}-mini"} class="size-5" />
+      </button>
+    </div>
     """
   end
 
@@ -856,26 +882,70 @@ end
 
 - [ ] **Step 4: Write the CSS**
 
-In `assets/css/app.css`, after the `.row-scroll-hero` block and before `/* ── Poster grid ──`:
+Two edits in `assets/css/app.css`.
+
+First, the reveal becomes one grouped rule for both pointer affordances. In the play overlay block (Task 1), replace
+
+```css
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 240ms ease;
+  pointer-events: none;
+```
+
+with
+
+```css
+/* The reveal, shared by every pointer affordance: the play overlay and a
+   scroll row's edge arrows. Each is a wrapper that fades in on hover of its
+   host — opacity only, after the intent delay — around a picture button
+   that presses. Gated on `(hover: hover)`, the same query the ScrollRow
+   hook asks, so there is one pointer truth: where no pointer can hover
+   there is neither chrome nor listener. Without the gate a touch device's
+   sticky hover would reveal arrows the unattached hook never answers. The
+   TV never hovers, so it sees neither. */
+.play-overlay,
+.scroll-row-arrow {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+
+@media (hover: hover) {
+  .play-overlay-host:hover .play-overlay,
+  .scroll-row:hover .scroll-row-arrow {
+    opacity: 1;
+    pointer-events: auto;
+    transition-delay: var(--hover-reveal-delay);
+  }
+}
+
+.play-overlay {
+  position: absolute;
+  inset: 0;
+```
+
+and delete the old `.play-overlay-host:hover .play-overlay { … }` rule below it (its declarations now live in the grouped rule). The play overlay keeps its halo `background` and the rest of its block.
+
+Second, after the `.row-scroll-hero` block and before `/* ── Poster grid ──`:
 
 ```css
 /* ── Scroll row arrows ──
-   A scroll row's pointer chrome: an edge arrow at each end of the track,
-   a picture button that glides the track one step that way (the
-   ScrollRow hook, assets/js/hooks/scroll_row.js). The arrows are a
-   pointer affordance in the play overlay's sense: hover reveals them,
-   opacity only, after the same intent delay, so the TV — which never
-   hovers — never sees them and keyboard/gamepad focus cannot surface
-   them. They sit inside the track's ends, over the edge fade, centred on
-   the cards, above a hovered card's z-index.
+   A scroll row's pointer chrome: an edge arrow at each end of the track —
+   a reveal wrapper (the grouped reveal rule beside `.play-overlay`) around
+   a picture button that glides the track one step that way (the ScrollRow
+   hook, assets/js/hooks/scroll_row.js). They sit inside the track's ends,
+   over the edge fade, centred on the cards, above a hovered card's
+   z-index. The wrapper's `position: relative` is what they are placed in;
+   the track keeps its negative inline margin, so the content edge is the
+   wrapper's edge.
 
    The track's edge state (`data-at-start` / `data-at-end`, written by the
    hook from the track's own geometry) drops the arrow that points at an
    end already reached: `display: none`, not opacity 0, so a hidden arrow
-   can never take a click. A track that fits carries both and shows none.
-   The wrapper's `position: relative` is what the arrows are placed in;
-   the track keeps its negative inline margin, so the content edge is the
-   wrapper's edge. */
+   can never take a click. A track that fits carries both and shows none. */
 .scroll-row {
   position: relative;
 }
@@ -885,11 +955,6 @@ In `assets/css/app.css`, after the `.row-scroll-hero` block and before `/* ─�
   top: 50%;
   translate: 0 -50%;
   z-index: 3;
-  width: 44px;
-  height: 44px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 240ms ease;
 }
 
 .scroll-row-arrow[data-scroll-row-arrow="left"] {
@@ -900,10 +965,9 @@ In `assets/css/app.css`, after the `.row-scroll-hero` block and before `/* ─�
   right: 0.5rem;
 }
 
-.scroll-row:hover .scroll-row-arrow {
-  opacity: 1;
-  pointer-events: auto;
-  transition-delay: var(--hover-reveal-delay);
+.scroll-row-arrow .picture-button {
+  width: 44px;
+  height: 44px;
 }
 
 .row-scroll[data-at-start] ~ .scroll-row-arrow[data-scroll-row-arrow="left"],
@@ -911,18 +975,6 @@ In `assets/css/app.css`, after the `.row-scroll-hero` block and before `/* ─�
   display: none;
 }
 ```
-
-Note the `.picture-button` transition shorthand sets `scale`, `background-color` and `border-color`; `.scroll-row-arrow` declares its own `transition` for opacity, which wins by order (it is declared after `.picture-button` in the file and has equal specificity). To keep the press feedback, write the arrow's transition as the union:
-
-```css
-  transition:
-    opacity 240ms ease,
-    background-color 100ms ease,
-    border-color 100ms ease,
-    scale 240ms cubic-bezier(0.3, 1.15, 0.5, 1);
-```
-
-and in the hover rule set only the opacity's delay: `transition-delay: var(--hover-reveal-delay), 0ms, 0ms, 0ms;`.
 
 - [ ] **Step 5: Run the storybook and Credo coverage tests**
 
@@ -934,9 +986,9 @@ Expected: all pass (five variations render; MC0009 finds the story).
 Run: `page-shot --url http://127.0.0.1:2160/storybook/composites/scroll_row --viewport 1920x1080 --wait-ms 3000` and Read the PNG: five tracks of placeholder cards. Then hover a row to see the arrows:
 
 ```
-chromium-probe http://127.0.0.1:2160/storybook/composites/scroll_row 'const a = document.querySelector("#scroll-row-mid-row .scroll-row-arrow"); getComputedStyle(a).display + " " + getComputedStyle(document.querySelector("#scroll-row-fits .scroll-row-arrow")).display'
+chromium-probe http://127.0.0.1:2160/storybook/composites/scroll_row 'const a = document.querySelector("#scroll-row-mid-row .scroll-row-arrow"); getComputedStyle(a).display + " " + getComputedStyle(document.querySelector("#scroll-row-fits .scroll-row-arrow")).display + " " + document.querySelector("#scroll-row-mid-row .scroll-row-arrow .picture-button").getAttribute("aria-label")'
 ```
-Expected: `flex none`.
+Expected: `block none Scroll left`.
 
 - [ ] **Step 7: Commit**
 
@@ -968,13 +1020,20 @@ In `test/media_centaur_web/live/home_live_test.exs`, inside `describe "See all d
       for id <- ["continue-watching-row", "recently-added-row"] do
         assert has_element?(view, ~s|##{id}.scroll-row[phx-hook="ScrollRow"]|)
         assert has_element?(view, ~s|##{id} > .row-scroll|)
-        assert has_element?(view, ~s|##{id} > [data-scroll-row-arrow="left"][tabindex="-1"]|)
-        assert has_element?(view, ~s|##{id} > [data-scroll-row-arrow="right"][tabindex="-1"]|)
-        refute has_element?(view, ~s|##{id} [data-scroll-row-arrow][data-nav-item]|)
+
+        for direction <- ["left", "right"] do
+          assert has_element?(
+                   view,
+                   ~s|##{id} > [data-scroll-row-arrow="#{direction}"] > .picture-button[tabindex="-1"][aria-label="Scroll #{direction}"]|
+                 )
+        end
+
+        refute has_element?(view, ~s|##{id} [data-scroll-row-arrow] [data-nav-item]|)
       end
 
       assert has_element?(view, ~s|#continue-watching-row > [data-component="continue-watching"]|)
       assert has_element?(view, ~s|#recently-added-row > [data-component="poster-row"]|)
+      refute has_element?(view, "[data-scroll-row]")
     end
 ```
 
@@ -1002,7 +1061,6 @@ In `lib/media_centaur_web/components/continue_watching_row.ex`, add `alias Media
       id="continue-watching-row"
       variant={:backdrop_lg}
       data-component="continue-watching"
-      data-scroll-row="continue-watching"
     >
       <%!-- A div, not a <button>: the play overlay nests a real button
             inside (UIDR-027) and buttons cannot nest. --%>
@@ -1029,7 +1087,6 @@ In `lib/media_centaur_web/components/poster_row.ex`, add `alias MediaCentaurWeb.
       id="recently-added-row"
       variant={:poster}
       data-component="poster-row"
-      data-scroll-row="poster-row"
     >
       …cards and the See all link, unchanged…
     </ScrollRow.scroll_row>
@@ -1058,20 +1115,24 @@ In `lib/media_centaur_web/components/detail/collection_rail.ex`, add `alias Medi
       </ScrollRow.scroll_row>
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 6: The orphan attribute goes from the hero too**
+
+`data-scroll-row` had three writers and no reader (app, tests, scripts, E2E). The rows above no longer set it; in `lib/media_centaur_web/live/home_live.ex` remove the line `data-scroll-row="hero"` from the hero's wrapper (the `div` carrying `data-nav-zone="hero"`), leaving `data-nav-zone` and `data-nav-reveal`.
+
+- [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/home_live_test.exs test/media_centaur_web/page_smoke_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: all pass, including the existing `[data-component="continue-watching"] [data-row-item]` click tests and the See all selectors.
 
-- [ ] **Step 7: Confirm no hand-written scroll track remains except the hero**
+- [ ] **Step 8: Confirm no hand-written scroll track and no orphan attribute remain**
 
-Run: `grep -rn 'class="row-scroll' lib storybook`
-Expected: only `lib/media_centaur_web/live/home_live.ex` (the hero's `row-scroll row-scroll-hero`).
+Run: `grep -rn 'class="row-scroll' lib storybook; grep -rn "data-scroll-row=" lib assets/js e2e`
+Expected: the first prints only `lib/media_centaur_web/live/home_live.ex` (the hero's `row-scroll row-scroll-hero`); the second prints nothing (the `data-scroll-row-arrow` attribute has a different name and does not match `data-scroll-row=`).
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add lib/media_centaur_web/components/continue_watching_row.ex lib/media_centaur_web/components/poster_row.ex lib/media_centaur_web/components/detail/collection_rail.ex test/media_centaur_web/live/home_live_test.exs test/media_centaur_web/page_smoke_test.exs
+git add lib/media_centaur_web/components/continue_watching_row.ex lib/media_centaur_web/components/poster_row.ex lib/media_centaur_web/components/detail/collection_rail.ex lib/media_centaur_web/live/home_live.ex test/media_centaur_web/live/home_live_test.exs test/media_centaur_web/page_smoke_test.exs
 git commit -m "feat(ui): Continue Watching, Recently Added and the collection rail are scroll rows — edge arrows for the mouse"
 ```
 
@@ -1218,8 +1279,9 @@ git commit -m "docs: scroll row in the component inventory; one glider in the in
 
 - Scroll row component with `id`, `variant`, `rest` to the track: Task 5. Tenants and the hero left alone: Task 6.
 - Picture button split with no visual change; `--hover-reveal-delay`: Task 1.
-- Reveal and edge-state CSS, `display: none` for a hidden arrow, no device gate: Task 5.
-- Hook: hover gate, `edges`, `step`, projection on scroll/resize/`updated`, clamped glide, delegated click: Tasks 3–4. Edge attributes live on the **track** (the spec's "on the row"; the track is the scrolling element and the story's fixtures reach it through `rest`), and the CSS uses the sibling selector accordingly.
+- The reveal as one grouped rule for both pointer affordances under `(hover: hover)`; the arrow as a wrapper around a `.picture-button`; edge-state CSS with `display: none` for a hidden arrow: Task 5.
+- `aria-label` on the arrow button, no `aria-hidden`; `data-scroll-row` removed from the rows and the hero: Tasks 5–6.
+- Hook: hover gate, `edges`, `step`, projection on scroll/resize/`updated`, clamped glide, delegated click, `mousedown` prevented so chrome never takes the cursor: Tasks 3–4. Edge attributes live on the **track** (the spec's "on the row"; the track is the scrolling element and the story's fixtures reach it through `rest`), and the CSS uses the sibling selector accordingly.
 - One glider through `inputConfig.glider`: Task 2.
 - Tests named in the spec: bun (Tasks 3–4, config in Task 2), ExUnit (Task 6), story (Task 5), browser (Task 7), precommit (Task 8).
 - Verification item on the TV: Task 8.

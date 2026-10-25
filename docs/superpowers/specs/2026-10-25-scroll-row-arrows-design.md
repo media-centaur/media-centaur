@@ -13,13 +13,13 @@ gives every scroll row a pair of pointer-revealed edge arrows.
 
 | Term | Meaning |
 |---|---|
-| **Scroll row** | A horizontally scrolling track of cards plus its pointer chrome. The markup already names it: `data-scroll-row`. Home's Continue Watching and Recently Added rows and the title detail's collection rail are scroll rows. The hero's single full-bleed item is not. |
+| **Scroll row** | A horizontally scrolling track of cards plus its pointer chrome. The markup named it in `data-scroll-row`, an attribute nothing read; the component takes the name and the attribute goes. Home's Continue Watching and Recently Added rows and the title detail's collection rail are scroll rows. The hero's single full-bleed item is not. |
 | **Track** | The `.row-scroll` element that scrolls. It owns the ring reserve, the hidden scrollbar, the cursor peek and the edge fades (`app.css`). |
 | **Edge arrow** | A button at one end of a scroll row that moves the track one step toward that end. Shown on hover, gone at the end it points to. |
 | **Edge state** | Whether the track is at its start, at its end, both (it fits) or neither. The track's own geometry, projected as `data-at-start` and `data-at-end` on the track. |
 | **Step** | How far one arrow press moves the track: one scrollport width minus one card and its gap, so the last visible card stays as the reader's anchor. |
 | **Picture button** | The house disc control over a picture: a dark translucent disc with a light border, primary on hover, sinking on press. The play overlay's button is one; an edge arrow is one. |
-| **Pointer affordance** | A control that exists only for a pointer: revealed on hover, opacity only, outside the input system (`tabindex="-1"`, no `data-nav-item`), never seen by keyboard, gamepad or the TV. The play overlay set the rule (UIDR-027). |
+| **Pointer affordance** | A control that exists only for a pointer: a reveal wrapper that fades in on hover (opacity only, after `--hover-reveal-delay`) around a control that is outside the input system (`tabindex="-1"`, no `data-nav-item`) and never takes the cursor; never seen by keyboard, gamepad or the TV. The play overlay set the rule (UIDR-027). |
 | **Glider** | The input system's scroll animator (`scroll_glide.js`). The page's one scroll motion. |
 
 ## Core idea
@@ -40,7 +40,7 @@ over the track's ends.
 
 ```heex
 <ScrollRow.scroll_row id="continue-watching-row" variant={:backdrop_lg}
-  data-component="continue-watching" data-scroll-row="continue-watching">
+  data-component="continue-watching">
   <div :for={item <- @items} ... data-row-item data-nav-item>…</div>
 </ScrollRow.scroll_row>
 ```
@@ -49,19 +49,24 @@ over the track's ends.
 - `variant`: `:backdrop_lg` (Continue Watching), `:poster` (Recently Added),
   `:backdrop_sm` (the collection rail). Each maps to the existing
   `.row-scroll-*` class. No default, as the CSS has none.
-- `rest` (global): lands on the track, so `data-component`, `data-scroll-row`
-  and the collection rail's `data-nav-zone="detail_rail"` keep their places and
-  every existing test selector and nav zone holds.
+- `rest` (global): lands on the track, so `data-component` and the collection
+  rail's `data-nav-zone="detail_rail"` keep their places and every existing
+  test selector and nav zone holds. The old `data-scroll-row` attribute, which
+  nothing read, goes from the rows and the hero.
 
-The arrows:
+The arrows, each the play overlay's shape — a reveal wrapper around the disc:
 
 ```heex
-<button type="button" class="picture-button scroll-row-arrow" data-scroll-row-arrow="left"
-  tabindex="-1" aria-hidden="true"><.icon name="hero-chevron-left-mini" class="size-5" /></button>
+<div class="scroll-row-arrow" data-scroll-row-arrow="left">
+  <button type="button" class="picture-button" tabindex="-1" aria-label="Scroll left">
+    <.icon name="hero-chevron-left-mini" class="size-5" />
+  </button>
+</div>
 ```
 
-`aria-hidden` because the same movement is available to assistive technology
-through the cards themselves; the arrow is pointer chrome.
+The wrapper fades and positions; the button presses. `aria-label`, not
+`aria-hidden`: an icon-only control keeps its accessible name (the house rule
+behind MC0042), and `tabindex="-1"` keeps it out of the tab order.
 
 Tenants: `ContinueWatchingRow`, `PosterRow` and `Detail.CollectionRail` render
 their track through `scroll_row/1`. The hero keeps its plain `.row-scroll-hero`
@@ -85,30 +90,40 @@ the page shows nothing.
 
 ### Reveal and edge state (CSS)
 
+The reveal is one rule for both pointer affordances, grouped:
+
+```css
+.play-overlay, .scroll-row-arrow { opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
+@media (hover: hover) {
+  .play-overlay-host:hover .play-overlay,
+  .scroll-row:hover .scroll-row-arrow { opacity: 1; pointer-events: auto; transition-delay: var(--hover-reveal-delay); }
+}
+```
+
+and the arrow's own rules place it and drop it at a reached end:
+
 ```css
 .scroll-row { position: relative; }
-.scroll-row-arrow {
-  position: absolute; top: 50%; translate: 0 -50%;
-  width: 44px; height: 44px;
-  opacity: 0; pointer-events: none;
-  transition: opacity 240ms ease;
-}
+.scroll-row-arrow { position: absolute; top: 50%; translate: 0 -50%; z-index: 3; }
 .scroll-row-arrow[data-scroll-row-arrow="left"]  { left: 0.5rem; }
 .scroll-row-arrow[data-scroll-row-arrow="right"] { right: 0.5rem; }
-.scroll-row:hover .scroll-row-arrow { opacity: 1; pointer-events: auto; transition-delay: var(--hover-reveal-delay); }
+.scroll-row-arrow .picture-button { width: 44px; height: 44px; }
 .row-scroll[data-at-start] ~ .scroll-row-arrow[data-scroll-row-arrow="left"],
 .row-scroll[data-at-end]   ~ .scroll-row-arrow[data-scroll-row-arrow="right"] { display: none; }
 ```
 
 The arrows sit inside the track's ends, over the edge fade, vertically centred
-on the cards. The exact inset is settled against a screenshot. Opacity is the
-only animated property. A row that fits carries both edge attributes and shows
-no arrows. The hidden arrow is `display: none`, not opacity 0, so it can never
-take a click.
+on the cards, above a hovered card's `z-index: 2`. The exact inset is settled
+against a screenshot. Opacity is the only animated property on the wrapper;
+the disc's own transitions stay on `.picture-button`. A row that fits carries
+both edge attributes and shows no arrows. The hidden arrow is `display: none`,
+not opacity 0, so it can never take a click.
 
-Nothing here is gated on the device. The TV draws the same composition and has
-no pointer, so the `:hover` rule never fires there, exactly as the play
-overlay's does not.
+The reveal is gated on `(hover: hover)`, the same query the hook asks, so there
+is one pointer truth: where no pointer can hover, neither chrome nor listener
+exists. Without the gate a touch device's sticky hover would reveal arrows that
+the unattached hook never answers. The TV draws the same composition and has
+no hovering pointer, so it sees none.
 
 ### The hook
 
@@ -134,10 +149,13 @@ overlay's does not.
   wrapper) calls `glider.glide(track, { left: target })` with the target
   clamped to `[0, scrollWidth - clientWidth]`. The glider clamps per frame as
   well.
-- **Focus.** The arrow is `tabindex="-1"`; a click may focus it in Chromium,
-  as a click on the play button may. The input system already lives with a
-  focused non-nav button in mouse mode and restores the cursor from memory on
-  the next cursor key; nothing new is asked of it.
+- **Focus.** Chrome never takes the cursor: the hook prevents default on
+  `mousedown` within `[data-scroll-row-arrow]`, so a press leaves focus where
+  it was. Without that, Chromium would focus the `tabindex="-1"` button, and
+  in the collection rail — where the arrows sit outside every nav zone — the
+  input system's reconciler would read that as *foreign focus*
+  (`hasForeignFocus`, ADR-053) and cede the cursor to a piece of chrome. The
+  play button has no such problem: it lives inside a card, inside a zone.
 
 ### One glider
 
