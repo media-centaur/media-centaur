@@ -7,25 +7,39 @@ last_updated: 2026-10-25
 
 ## Goal
 
-Build out a multi-distro, snapshot-driven reproduction environment for the Media Centaur and prowlarr-stack installers, so install bugs can be proven, fixed, and kept-fixed across releases. Phase 1 (Linux Mint only) is a focused start — this campaign carries the larger roadmap from the brainstorm so the deferred decisions are not lost.
+Every way a user installs, updates, starts and removes Media Centaur runs, on demand, on each supported platform, against real operating systems. A fault is then proven by a run, fixed, and proven fixed before the tag carrying the fix ships. Redesigned 2026-10-25 from what the macOS milestone (M0) taught: hosted runners are real machines, and GitHub's standard Linux runners can run KVM. So the whole matrix runs on GitHub by manual dispatch, with no local VM fleet.
 
 ## Glossary
 
 | Term | Meaning |
 |---|---|
-| **Scenario** | One scripted install path run against one environment, ending in pass or fail. |
-| **macOS runner** | A GitHub-hosted Apple Silicon machine that runs a workflow job (`macos-14` today). |
-| **LaunchAgent** | The launchd job that starts Media Centaur at login on macOS — the systemd user unit's counterpart. |
-| **Label** | The LaunchAgent's name, `com.media-centaur.app`. launchd keeps an enabled or disabled flag per label, separate from the plist file. |
-| **gui domain** | launchd's per-user login session, `gui/<uid>`. LaunchAgents load into it, and it exists only for a user with a GUI login. |
+| **Scenario** | One script that runs one install path and ends in pass or fail. It checks the outcome directly (the service manager's state, the HTTP port, the logs), never only the installer's own summary. |
+| **Scenario set** | The eight scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `disabled-label` (macOS) / `disabled-unit` (Linux), `manual-start`, `uninstall`, `fresh-install-log`, `in-app-update`. |
+| **Environment** | Where a scenario runs: a **bare runner** (the GitHub-hosted machine itself), a **runner VM** (a cloud-image VM booted with QEMU/KVM inside a Linux runner), or a **real machine** by hand. |
+| **Source** | What a run installs: `released` (the public install path for a published tag), `installer: checkout` (a released tarball with the branch's installer swapped in), or `branch` (a release built from the branch on the runner). |
+| **Matrix** | The environments × the scenario set, run by one dispatch. |
+| **Evidence** | What a job uploads whatever the outcome: app logs, update handoff logs, service-manager state, scenario output. |
+| **macOS runner** | A GitHub-hosted Apple Silicon machine (`macos-14`). It has an Aqua `gui/501` login domain, so LaunchAgents load. |
+| **LaunchAgent / label** | The launchd job that starts the app at login on macOS, named `com.media-centaur.app`. launchd keeps an enabled or disabled flag per label, separate from the plist file. |
+| **gui domain** | launchd's per-user login session, `gui/<uid>`. |
+| **Cloud image** | A distribution's official VM disk image that configures itself at first boot from cloud-init `user-data`. |
 
 ## Status
 
-**In progress; Phase 8 built on branch `install-repro-macos` and run on GitHub's macOS runners; it found four macOS faults, fixed on the branch. The install scenarios pass with the fixed installer; the in-app update and the app-side fixes wait on a release carrying them.** Added 2026-10-25 by the owner after the first macOS user report. *Reconciled 2026-10-25:* still no `install-repro/` directory and no code for any phase. Phase 1's earlier status: brainstorm complete; design spec written at [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md). Implementation plan to be written next via the writing-plans skill. No code yet.
+M0 (macOS) shipped in v1.60.2: the scenario set runs on the macOS runner and found four faults, all fixed. The redesign is decided. M1 (Linux on the bare ubuntu runner) is next.
 
-*Reconciled 2026-06-10:* no `install-repro/` directory exists — untouched
-since the spec. Note the macOS public-installer support (v0.72.10) does not
-change the scope decision here (macOS repro stays out, per Decisions).
+## Principles
+
+1. **Measure the environment before designing for it.** Every job starts with an environment step that prints the facts the scenarios depend on. An open question about the environment is answered by a temporary diagnostic step in one run, not by research alone.
+2. **Assert outcomes, not reports.** A scenario checks the service manager, the port and the logs itself. The installer once printed a summary while `2>/dev/null` hid the failure underneath.
+3. **Scenarios are plain scripts against the real installed paths.** The same script runs on a bare runner, in a runner VM and on a user's machine. The workflow is only the environment.
+4. **Manual dispatch only.** Runs start when we decide, never from `release.yml` (owner, 2026-10-25).
+5. **A fix carries its run.** A fix found by the matrix cites the run that found it, and is proven by a `checkout` or `branch` run before its tag where the source allows.
+6. **No secrets in evidence.** `collect-evidence` never copies `secrets.env`, and diagnostics never print the process environment unfiltered.
+
+## Open decisions
+
+None open. Each milestone's design step records its own.
 
 ## Decisions made
 
@@ -43,118 +57,77 @@ change the scope decision here (macOS repro stays out, per Decisions).
 * `2026-10-25` — **Phase 8 runs only by manual dispatch, periodically, when we decide to** (owner). Supersedes the entry above: no `release.yml` call.
 * `2026-10-25` — **Phase 8 runner image: `macos-14`**, taken at the recommendation, matching `ci.yml` and `release.yml`.
 * `2026-10-25` — **macOS scenarios live at `install-repro/scenarios/macos/`**, plain bash scripts against the real installed paths, so the same scripts run on a runner and on a real Mac. The workflow is only the environment, as `repro-vm` is for Phase 1.
+* `2026-10-25` — **Redesign: the matrix runs on GitHub, by manual dispatch** (owner). GitHub's standard Linux runners have had KVM since April 2024, which removes the premise of the 2026-05-27 "no CI" and libvirt entries. Supersedes both, and the Phase 1–7 roadmap: Linux runs on the bare ubuntu runner (M1) and in cloud-image runner VMs (M3); the local `repro-vm` driver and its Mint snapshot are dropped. The VM boot script also runs locally for interactive debugging.
+* `2026-10-25` — **Mint is covered by Ubuntu 24.04 first** (owner). Mint 22 is built on Ubuntu 24.04. A Mint image (autoinstall from the ISO) is built only if a Mint-specific fault appears, or a Mint report does not reproduce on Ubuntu. Supersedes "Phase 1 ships Mint 22.3 only".
+* `2026-10-25` — **prowlarr-stack's installer gets its own repro, in its repo, on this design** (owner). This campaign covers Media Centaur's installers only.
+* `2026-10-25` — **M1 first: Linux on the bare ubuntu runner** (owner) — the primary platform, the cheapest environment, and its first run answers the systemd user-session question.
+* `2026-10-25` — **Building from the branch (M2) factors the release build out of `release.yml` into one shared workflow**, so the repro and the release build the tarball the same way. Taken with the redesign; the alternative, a copy of the build steps, would let the two drift.
 
-## Roadmap
+## Milestones
 
-Phases are ordered by *value-per-unit-effort* given the failures we've actually seen. Each is independently shippable.
+| | | |
+|---|---|---|
+| M0 | macOS scenario set on the macOS runner | ✅ 2026-10-25 — eight scenarios, `install-repro-macos.yml` (dispatch, `installer: checkout`). Found four faults, all fixed in v1.60.2: reload over a running agent, Settings Stop, launchd detection, first-migration lock error. All install scenarios pass on v1.60.2. The in-app update result is in M0's notes below. |
+| M1 | Linux scenario set on the bare `ubuntu-24.04` runner | open |
+| M2 | `source: branch` — a release built from the branch, through a build workflow shared with `release.yml` | open |
+| M3 | Runner VMs: Debian 12, Ubuntu 22.04, Ubuntu 24.04, Fedora (current) | open |
+| M4 | One dispatch runs the whole matrix and writes a summary table | open |
 
-### Phase 1 — Mint-only repro (in progress)
+### M0 — macOS (done)
 
-Spec: [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md).
+Runs `40196579021`–`40199360910`. The macOS runner has an Aqua `gui/501` domain; mpv is absent and the app boots without it. Findings and fixes (v1.60.2):
 
-Validates the substrate against the bugs that triggered this work. Driver, two scenarios (`mc-fresh-install`, `prowlarr-fresh-install`), Mint VM bootstrapped once interactively.
+- `launchctl bootout gui/<uid> <label>` reads the label as a plist path and fails with "Boot-out failed: 5". The installer hid it, so a reinstall or in-app update never reloaded the agent. The fix uses the service-target form `gui/<uid>/<label>`, then waits: launchd keeps the label about a second after bootout exits 0.
+- `Platform.Autostart.Launchd.stop/1` used the same form.
+- macOS 14 does not set `LAUNCHD_SOCKET`; launchd sets `XPC_SERVICE_NAME` to the label. The app now detects its agent by that.
+- The migrator's two connections raced to switch a new database to WAL, logging "database is locked". Release tasks now use one connection (6/10 fresh databases logged it before, 0/10 after).
+- The in-app update depends on GitHub's API, which a runner's shared IP often has rate-limited. The scenario waits for the reported reset once, then checks again.
 
-### Phase 2 — Tier-1 cloud-image distros
+Not fixed (`macos-platform-support.md` owns them): the Settings service card says "Not running under systemd." on macOS when the app was started by hand; `Apps.Launcher` runs `setsid`, which macOS lacks.
 
-Add **Debian 12, Ubuntu 24.04 LTS, Fedora 41**. All three publish official cloud images + accept cloud-init; per-distro cost is ~15 min one-time. Introduces:
+### M1 — Linux on the bare ubuntu runner
 
-- `install-repro/matrix.toml` (or per-distro file) — pulls the one-distro Phase 1 driver into a multi-distro shape.
-- `install-repro/seeds/` — cloud-init `user-data` / `meta-data` templates.
-- The driver gains `repro-vm run <scenario> <distro>` semantics with `<distro>` no longer defaulting.
+The Linux installer through the scenario set on `ubuntu-24.04`, `released` and `installer: checkout`.
 
-Catches: glibc-version-skew bugs (Debian 12 has the oldest glibc of the supported set), Fedora-style packaging differences, the Ubuntu baseline.
+- **Measure first:** does a systemd user manager run for `runner` (`systemctl --user status`, `loginctl show-user runner`, `XDG_RUNTIME_DIR`)? Can `loginctl enable-linger` start one? The Linux installer's autostart depends on it, as macOS's depended on the gui domain.
+- **Port the scenarios:** `install-repro/scenarios/linux/`, sharing the macOS scenarios' structure. `disabled-unit` covers `systemctl --user disable` before an install. `manual-start` covers the release's `env.sh` loading `secrets.env` on Linux.
+- **Apply M0's checks to Linux:** does the Linux installer hide errors with `2>/dev/null` where the outcome matters? Is its "loaded" state checked against systemd?
+- **Done when** all eight scenarios pass against the latest release, or a scenario is dropped with a recorded reason.
 
-### Phase 3 — Pop!_OS 22.04
+### M2 — build from the branch
 
-ISO-only like Mint; same one-time-install + snapshot pattern. Worth doing because Pop has its own apt-pinning quirks for Firefox and an Nvidia-default kernel that diverges from Ubuntu's.
+- One build workflow (`workflow_call`) that both `release.yml` and the repro workflows call. It builds the release tarball for one platform from the checked-out ref.
+- The repro workflows gain `source: branch`: build, then install the tarball through its bundled installer, as the public installer does. It replaces `installer: checkout`, which a full build covers.
+- `in-app-update` stays `released`-only: it needs two published releases.
+- **Done when** a `source: branch` run on macOS and Linux passes the install scenarios, and `release.yml` builds through the shared workflow with an identical tarball file list.
 
-### Phase 4 — Pre-built shareable VM images
+### M3 — runner VMs
 
-This is the "build once, anyone pulls" idea from the brainstorm. **Scoped to ISO-only distros only** — cloud-image distros already get their cache from upstream and don't benefit.
+- One boot script: download the cloud image (cached), write cloud-init `user-data` (a user with passwordless `sudo`, an SSH key), boot with QEMU/KVM, wait for SSH, run a scenario inside, copy evidence out. The same script runs on this machine.
+- Distros: Debian 12 (oldest glibc of the set), Ubuntu 22.04, Ubuntu 24.04 (the Mint proxy), Fedora current.
+- Per distro: `fresh-install`, `reinstall`, `manual-start`, `uninstall`, `fresh-install-log`; `in-app-update` on Ubuntu 24.04.
+- The VM needs a graphical-session-like user login only if M1 shows systemd user services need one; cloud images start a user manager on SSH login.
+- **Done when** each distro passes its scenarios against the latest release.
 
-- `install-repro/packer/` — Packer HCL templates for Mint and Pop!_OS that take an ISO + autoinstall + post-install (`apt install sqlite3 mpv inotify-tools docker-ce …`) and produce a sealed qcow2.
-- GitHub Actions workflow (manual / monthly cron) runs Packer on a runner with KVM, uploads the qcow2 to **GHCR as an OCI artifact** via `oras`.
-- `install-repro/manifest.toml` — committed-in-repo `(distro, sha256, pull-url)` table. Driver gains `repro-vm pull <distro>` that fetches, verifies the sha256, and stages — same trust model as `installer/install.sh`'s tarball verification.
-- New ADR documenting the trust posture: recipe-in-repo, sha-in-repo, image-out-of-repo.
+### M4 — one dispatch, one summary
 
-Audience question to settle when Phase 4 starts: solo (across your own machines) vs. open-source contributors. Solo → checksum is enough. Contributors → add Sigstore/cosign signing.
-
-### Phase 5 — `--from-local` scenarios
-
-Default scenarios pull from released tarballs. Add `--from-local PATH` so a developer can test an *unreleased* change without tagging. For media-centaur: mounts `_build/prod/rel/media_centaur/`. For prowlarr-stack: mounts the sibling repo at `../prowlarr-stack`.
-
-### Phase 6 — Upgrade / uninstall scenarios
-
-- `mc-upgrade` — install prior released version, exercise in-app "Update now" (via `~/.local/lib/media-centaur/current/bin/media-centaur-install --update`), verify upgrade lands.
-- `mc-uninstall-reinstall` — full uninstall cycle followed by clean reinstall; asserts config/data preservation rules in the wiki are accurate.
-- `mc-rollback` — symlink-swap rollback flow per the wiki.
-
-### Phase 8 — macOS on GitHub's macOS runners (next)
-
-A workflow job on a macOS runner that installs Media Centaur with the real installer and runs these scenarios, each as its own step:
-
-1. **Fresh install without `sudo`.** The summary reports the agent loaded and running. `launchctl print gui/$(id -u)/com.media-centaur.app` succeeds, and `http://localhost:2160` answers.
-2. **Re-run over an existing install.** The upgrade path loads the agent again.
-3. **Install over a disabled label.** `launchctl disable` first, then install. The agent loads, which proves the v1.60.1 fix.
-4. **`sudo` is refused.** The installer exits non-zero and writes nothing.
-5. **Manual start.** Boot the agent out, run `bin/media_centaur start`, and the app boots with the secrets file loaded.
-6. **In-app update.** Install the previous release, trigger the update the way **Settings → System → Update now** does, and assert the agent ends on the new version.
-7. **Uninstall.** The agent is gone, the label is disabled, and config and data are kept.
-
-The job uploads the installer output, `handoff.log` and `~/Library/Logs/Media Centaur/` as artifacts, so a failure carries its evidence.
-
-Research before building:
-
-- Whether a macOS runner has a gui domain for its user. Scenarios 1–3, 6 and 7 need one. If it doesn't, the job can only cover `--no-service` installs, and real-Mac checks stay with users.
-- How scenario 6 triggers the update without a browser: a release command (`bin/media_centaur rpc`) or the HTTP route the Settings button uses.
-- Whether the app boots without `mpv` on the runner, or the job needs `brew install mpv`.
-
-Milestone record (2026-10-25):
-
-1. **Scope.** All seven scenarios. Moved out: nothing. A fresh install goes through the public `installer/install.sh`; the other scenarios use the installed `current/bin/media-centaur-install`.
-2. **Research.** *gui domain* — no source settles it for GitHub-hosted runners (GitLab and CircleCI report `gui/501` failing on headless EC2 Macs); the first run measures it in its "Runner environment" step, and `fresh-install` fails with a named reason if the domain is missing. *Update trigger* — `bin/media_centaur rpc` calling `SelfUpdate.run_check(:manual)` then `SelfUpdate.apply_pending()`, the same two calls the Settings button makes; `auto_update_enabled` defaults to false, so nothing updates before the scenario asks. *mpv* — read only by the setup wizard and playback, so the app boots without it (to confirm on the first run).
-3. **Decisions.** Trigger and runner image, above.
-4. **Design unification.** Scenarios follow Phase 1's `install-repro/scenarios/` layout; the workflow is the environment. Recorded, not fixed: the in-app update always targets GitHub's latest release, so `in-app-update` proves the tag under test only when that tag is the latest — true when `release.yml` calls it. The workflow's branch `push` trigger and a diagnostic step were development scaffolding, removed before merge.
-5. **Plan.** `install-repro/scenarios/macos/{lib,sudo-refused,fresh-install,reinstall,disabled-label,manual-start,uninstall,in-app-update,collect-evidence}`; `.github/workflows/install-repro-macos.yml` (resolve tags; lifecycle job runs scenarios 4,1,2,3,5,7 in order; update job runs 6 on a clean runner; evidence artifact per job); `install-repro/README.md`. (The `release.yml` call was dropped the same day: manual dispatch only.)
-6. **Plan unification.** No old path kept, no copied constants beyond the installer's own (label, paths, port), which a scenario must assert independently of the installer.
-7. **Execution.** Runs `40196579021`–`40197286363` on `macos-14` (14.8.9). The runner has an Aqua `gui/501` login domain, so every LaunchAgent scenario runs there; mpv is absent and the app boots without it. Found and fixed on the branch, each proven on the runner or locally:
-   - **Every install over a running install failed to load the agent** (v1.60.1): `launchctl bootout gui/<uid> <label>` reads the label as a plist path and fails with "Boot-out failed: 5", hidden by `2>/dev/null`, so the agent stayed loaded and the bootstrap was refused. The in-app update runs the same step. Fix: the service-target form `bootout gui/<uid>/<label>`, then wait until launchd drops the label — it still lists it for about a second after bootout exits 0. Proven: with the checkout's installer, `reinstall`, `disabled-label`, `manual-start` and `uninstall` pass.
-   - **`Platform.Autostart.Launchd.stop/1`** (the Settings Stop control) used the same failing form. Fixed, with a test.
-   - **The app never knew it ran under launchd**: `LAUNCHD_SOCKET` is not set on macOS 14; launchd sets `XPC_SERVICE_NAME` to the job's label. Settings → System showed "Not running under systemd." with no restart or stop controls. Fixed to `XPC_SERVICE_NAME == label`, with tests; seen on the runner via `rpc`.
-   - **The first install logged `[error] … database is locked`**: the migrator's two connections switch a new database to WAL at once, and exqlite sets `journal_mode` before `busy_timeout`. Fix: `Release` starts the repo with one connection. Measured locally: 6/10 fresh databases logged it before, 0/10 after. The `fresh-install-log` scenario checks it on the runner once a release carries the fix.
-   - Still red by design: `in-app-update` from v1.60.0 (its installer refuses its own bootstrap) and `fresh-install-log` against v1.60.1. Both need a release carrying the fixes; the runner can swap only the installer, not the app.
-
-
-### Phase 7 — CI integration (only if/when warranted)
-
-`larger` GitHub-hosted runner with KVM, or a self-hosted runner on a small workstation, running a subset of the matrix on release tag. Skip unless local iteration starts dropping regressions.
-
-## Next steps
-
-0. **Phase 8: close the loop** (owner, 2026-10-25) — merge `install-repro-macos`, ship v1.60.2, then `gh workflow run install-repro-macos.yml` with no tag: `in-app-update` then tests v1.60.1 → v1.60.2 and `fresh-install-log` the migrator fix; also check `Autostart.state()` reports `under_supervisor: true` via `rpc`. Then **Phase 8 first**, ahead of Phase 1: it covers the platform with no tester and no owned hardware. Start with its three research items. Its open decisions:
-   - **Trigger** — on every release tag after `release.yml` publishes, by manual dispatch, or as a gate before the tag. Recommendation: after release plus manual dispatch first. Gating before the tag needs a darwin tarball built from an untagged commit, which is Phase 5's `--from-local` idea on macOS.
-   - **Runner image** — `macos-14`, as `ci.yml` and `release.yml` use, or a newer image. Recommendation: `macos-14`, matching the build.
-1. **Write implementation plan** for Phase 1 via the writing-plans skill, using the spec as input.
-2. Execute Phase 1: driver script, Mint VM bootstrap, two scenarios, README.
-3. Reproduce the reported Mint installation failures end-to-end and capture the run logs; attach to whatever bug tickets/wiki notes those become.
-4. Fix the reproduced bugs (installer changes, wiki docs, prowlarr-stack codename override) — out of scope for *this* campaign but the trigger for it.
-5. Hold Phase 2 until Phase 1 has proven its value across at least one real fix cycle.
+- One `install-repro.yml` dispatch fans out to every environment (macOS runner, ubuntu runner, each runner VM) and writes a table — environment × scenario, pass/fail, each linked to its evidence — to the run summary.
+- **Done when** one `gh workflow run install-repro.yml` produces the full table.
 
 ## Completion criteria
 
-This campaign is **done** when:
-
-* All seven phases are shipped, *or* an explicit decision is made that a later phase will not happen (and recorded in **Decisions made** above with the reasoning).
-* `install-repro/README.md` documents the matrix and the bootstrap path for every supported distro.
-* At least one shipped media-centaur or prowlarr-stack fix references a `repro-vm` run-log as the bug evidence — proving the environment is being used, not just maintained.
-* The Phase 8 workflow runs by manual dispatch, and all seven of its scenarios pass, or a scenario is dropped with a recorded reason (for example, no gui domain on the runner).
+* One dispatch runs the full matrix: macOS runner, bare ubuntu runner, and the four runner VMs.
+* Every environment passes the scenario set against the latest release, or a scenario is dropped there with a recorded reason.
+* `source: branch` proves an app-side and an installer fix on macOS and Linux before a tag.
+* `install-repro/README.md` documents every environment, the sources, and how to run a scenario on a real machine.
+* At least one shipped fix cites a repro run as its evidence. ✅ v1.60.2 (runs `40196579021`, `40197286363`).
 
 ## Pointers
 
-* Spec: [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md)
-* Production installer: [`installer/install.sh`](../installer/install.sh)
-* Bundled installer: `rel/platforms/linux/bin/media-centaur-install`
-* prowlarr-stack installer: `../prowlarr-stack/install.sh`
-* Wiki Installation page: `~/src/media-centaur/media-centaur.wiki/Installation.md`
-* macOS: Phase 8 here owns the macOS test environment. [`campaigns/macos-platform-support.md`](macos-platform-support.md) owns the platform's features and parity.
-* macOS installer: `rel/platforms/darwin/bin/media-centaur-install`, plist `rel/platforms/darwin/share/launchd/com.media-centaur.app.plist`
+* Scenarios: `install-repro/scenarios/macos/`; README: `install-repro/README.md`
+* Workflow: `.github/workflows/install-repro-macos.yml`
+* Installers: `installer/install.sh` (public), `rel/platforms/linux/bin/media-centaur-install`, `rel/platforms/darwin/bin/media-centaur-install`
+* Release build: `.github/workflows/release.yml`
+* KVM on standard Linux runners: GitHub changelog, 2024-04-02, "GitHub Actions: hardware accelerated Android virtualization now available"
+* The 2026-05-27 Phase 1 spec, `docs/superpowers/specs/2026-05-27-install-repro-env-design.md`, is historical: its libvirt driver is superseded.
+* macOS platform features and parity: `campaigns/macos-platform-support.md`

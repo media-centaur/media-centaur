@@ -123,18 +123,13 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-037) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
-  **in progress; Phase 8 (added 2026-10-25) built on branch
-  `install-repro-macos`, awaiting its first runner run: the real macOS
-  installer on GitHub's macOS runners — fresh install, upgrade, disabled
-  label, sudo refused, manual start, in-app update, uninstall.** Reproducible install environments for media-centaur and
-  prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
-  ([`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md));
-  seven follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,
-  pre-built shareable images via Packer+GHCR, `--from-local`,
-  upgrade/uninstall scenarios, optional CI, macOS on GitHub's runners). Triggered by a tester
-  hitting missing-package, first-run, and Docker-without-sudo failures
-  on a fresh Mint install — and our inability to reproduce any of them
-  locally.
+  **in progress; redesigned 2026-10-25.** Every install, update, start and
+  removal path runs on demand against real operating systems on GitHub's
+  runners, by manual dispatch. M0 (macOS runner) shipped in v1.60.2 after
+  finding four macOS faults. Next: M1, Linux on the bare ubuntu runner;
+  then a build-from-branch source, cloud-image VMs via KVM (Debian,
+  Ubuntu, Fedora; Ubuntu 24.04 stands in for Mint), and one matrix
+  dispatch. prowlarr-stack gets its own repro in its repo.
 * [`macos-platform-support.md`](macos-platform-support.md) —
   **Phases 1–6 shipped 2026-05-21**: all seven `Platform.*` seams have
   Linux and macOS impls, CI is green on both OSes with
