@@ -26,6 +26,9 @@
  * Frame-rate independent: the fraction is derived from elapsed time, so a
  * dropped frame changes nothing about where the row ends up.
  *
+ * A write the browser rounds back to the same offset ends the glide at the
+ * target: under a root zoom, sub-device-pixel steps never close the gap.
+ *
  * All external dependencies (`requestAnimationFrame`, a clock) are injected,
  * following the same DI pattern as the rest of the framework.
  */
@@ -40,6 +43,12 @@ const DEFAULT_TAU = 110
 
 /** Below this many px the animation is over — snap and stop. */
 const EPSILON = 0.5
+
+/** The two scroll axes: the target key and the box properties it moves. */
+const AXES = [
+  { key: "left", offset: "scrollLeft", extent: "scrollWidth", port: "clientWidth" },
+  { key: "top", offset: "scrollTop", extent: "scrollHeight", port: "clientHeight" },
+]
 
 /**
  * @param {Object} config
@@ -101,6 +110,29 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
     return Math.min(Math.max(value, 0), Math.max(0, extent - port))
   }
 
+  /**
+   * Move one axis of `box` a frame closer to `value`. Returns whether the
+   * axis has arrived.
+   */
+  function settle(box, axis, value, fraction) {
+    const goal = reachable(value, box[axis.extent], box[axis.port])
+    const remaining = goal - box[axis.offset]
+    if (Math.abs(remaining) <= EPSILON) {
+      box[axis.offset] = goal
+      return true
+    }
+
+    const before = box[axis.offset]
+    box[axis.offset] = before + remaining * fraction
+    // The browser snaps offsets to device pixels; under a root zoom a step
+    // below half a device pixel rounds back to where it was, and the gap
+    // would never close. A write that moved nothing is the end: land on the
+    // target (its nearest representable offset).
+    if (box[axis.offset] !== before) return false
+    box[axis.offset] = goal
+    return true
+  }
+
   function tick() {
     const time = now()
     const elapsed = time - lastTime
@@ -113,29 +145,10 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
 
     for (const [box, target] of targets) {
       let arrived = true
-
-      if (target.left != null) {
-        const left = reachable(target.left, box.scrollWidth, box.clientWidth)
-        const remaining = left - box.scrollLeft
-        if (Math.abs(remaining) <= EPSILON) {
-          box.scrollLeft = left
-        } else {
-          box.scrollLeft = box.scrollLeft + remaining * fraction
-          arrived = false
-        }
+      for (const axis of AXES) {
+        if (target[axis.key] == null) continue
+        if (!settle(box, axis, target[axis.key], fraction)) arrived = false
       }
-
-      if (target.top != null) {
-        const top = reachable(target.top, box.scrollHeight, box.clientHeight)
-        const remaining = top - box.scrollTop
-        if (Math.abs(remaining) <= EPSILON) {
-          box.scrollTop = top
-        } else {
-          box.scrollTop = box.scrollTop + remaining * fraction
-          arrived = false
-        }
-      }
-
       if (arrived) targets.delete(box)
     }
 

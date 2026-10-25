@@ -28,6 +28,26 @@ function clampedBox({ maxLeft = 0, maxTop = 0 } = {}) {
 }
 
 /**
+ * A scroll container whose offset snaps to whole device pixels, exactly as
+ * Chromium stores a scroll offset. Under the app's root `zoom` one device
+ * pixel is more than one CSS px (10/7 at zoom 0.7), so a write that lands
+ * between two device pixels rounds to the nearer one — a step below half a
+ * device pixel rounds back to where it was.
+ */
+function snappingBox({ scrollLeft = 0, scrollWidth = 3000, clientWidth = 1000, devicePx = 10 / 7 } = {}) {
+  let offset = scrollLeft
+  return {
+    scrollWidth,
+    clientWidth,
+    get scrollLeft() { return offset },
+    set scrollLeft(value) { offset = Math.round(value / devicePx) * devicePx },
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+  }
+}
+
+/**
  * A hand-driven clock and frame pump, so tests advance time explicitly
  * instead of waiting on a real rAF.
  */
@@ -207,6 +227,29 @@ describe("createScrollGlide", () => {
     for (let i = 0; i < 200 && !h.idle; i++) h.frame(16)
 
     expect(box.scrollLeft).toBe(300)
+    expect(h.glide.isGliding(box)).toBe(false)
+    expect(h.idle).toBe(true)
+  })
+
+  // Measured on Home's Continue Watching track at zoom 0.7: a glide to 0
+  // rested at scrollLeft 2.857 (two device pixels). The remaining 2.857 is
+  // above EPSILON, but each frame's step (~0.39 px) is below half a device
+  // pixel, so the browser rounds the write back to 2.857 — the gap never
+  // closes and the loop requested frames for as long as the page lived. A
+  // write that moves nothing must end the glide at the target.
+  test("a step the browser rounds back to the same offset ends the glide at the target", () => {
+    const h = harness()
+    const box = snappingBox({ scrollLeft: 2 * (10 / 7) })
+
+    h.glide.glide(box, { left: 0 })
+    let frames = 0
+    while (h.glide.isGliding(box) && frames < 200) {
+      h.frame(16)
+      frames++
+    }
+
+    expect(frames).toBeLessThan(200)
+    expect(box.scrollLeft).toBe(0)
     expect(h.glide.isGliding(box)).toBe(false)
     expect(h.idle).toBe(true)
   })
