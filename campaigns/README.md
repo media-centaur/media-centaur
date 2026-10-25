@@ -125,9 +125,9 @@ Use [`template.md`](template.md) as a starter.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **in progress; redesigned 2026-10-25.** Every install, update, start and
   removal path runs on demand against real operating systems on GitHub's
-  runners, by manual dispatch. M0 (macOS runner) shipped in v1.60.2 after
-  finding four macOS faults. Next: M1, Linux on the bare ubuntu runner;
-  then a build-from-branch source, cloud-image VMs via KVM (Debian,
+  runners, by manual dispatch. M0 (macOS) found five macOS faults, fixed in
+  v1.60.2–v1.60.3; M1 (Linux) passed first time. One `install-repro.yml`
+  dispatch runs the nine scenarios on both. Next: a build-from-branch source, cloud-image VMs via KVM (Debian,
   Ubuntu, Fedora; Ubuntu 24.04 stands in for Mint), and one matrix
   dispatch. prowlarr-stack gets its own repro in its repo.
 * [`macos-platform-support.md`](macos-platform-support.md) —

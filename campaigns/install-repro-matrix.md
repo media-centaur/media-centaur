@@ -14,7 +14,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 | Term | Meaning |
 |---|---|
 | **Scenario** | One script that runs one install path and ends in pass or fail. It checks the outcome directly (the service manager's state, the HTTP port, the logs), never only the installer's own summary. |
-| **Scenario set** | The nine scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `disabled-label` (macOS) / `disabled-unit` (Linux), `manual-start`, `uninstall`, `upgrade`, `fresh-install-log`, `in-app-update`. |
+| **Scenario set** | The nine scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `<platform>/disabled-service`, `manual-start`, `uninstall`, `upgrade`, `fresh-install-log`, `in-app-update`. |
 | **Environment** | Where a scenario runs: a **bare runner** (the GitHub-hosted machine itself), a **runner VM** (a cloud-image VM booted with QEMU/KVM inside a Linux runner), or a **real machine** by hand. |
 | **Source** | What a run installs: `released` (the public install path for a published tag), `installer: checkout` (a released tarball with the branch's installer swapped in), or `branch` (a release built from the branch on the runner). |
 | **Matrix** | The environments × the scenario set, run by one dispatch. |
@@ -26,7 +26,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 
 ## Status
 
-M0 (macOS): v1.60.2 fixed four faults; the v1.60.2 in-app update run then found a fifth — no macOS upgrade ever switched versions — fixed on branch `install-repro-upgrade` (proven with `installer: checkout`), awaiting v1.60.3. The redesign is decided; M1 (Linux on the bare ubuntu runner) follows.
+M0 (macOS) and M1 (Linux, bare ubuntu runner) are done: one `install-repro.yml` dispatch runs the nine scenarios on both, and all pass on v1.60.3. M2 (build from the branch) is next.
 
 ## Principles
 
@@ -40,7 +40,7 @@ M0 (macOS): v1.60.2 fixed four faults; the v1.60.2 in-app update run then found 
 
 ## Open decisions
 
-None open. Each milestone's design step records its own.
+1. **An install over a disabled service: keep it off, or turn it back on?** After `service remove`, or after a user disabled autostart, a later install or update on Linux leaves autostart off ("unit installed, not enabled"); on macOS it turns autostart back on. One product should follow one rule. Recommendation: keep it off on both — a disable is the user's choice, and since v1.60.1 only `service remove` disables the macOS label. The cost: macOS installs left disabled by the pre-1.60.1 bug stay off after updating, so the macOS change needs a one-time re-enable of labels that were never deliberately removed, which an installer cannot tell apart. Until decided, each platform's `disabled-service` scenario asserts its current rule.
 
 ## Decisions made
 
@@ -68,13 +68,13 @@ None open. Each milestone's design step records its own.
 
 | | | |
 |---|---|---|
-| M0 | macOS scenario set on the macOS runner | 2026-10-25 — nine scenarios, `install-repro-macos.yml` (dispatch, `installer: checkout`). Found four faults, all fixed in v1.60.2: reload over a running agent, Settings Stop, launchd detection, first-migration lock error. A fifth, the version switch, is fixed for v1.60.3. Closes when `in-app-update` passes against v1.60.3. |
-| M1 | Linux scenario set on the bare `ubuntu-24.04` runner | open |
+| M0 | macOS scenario set on the macOS runner | ✅ 2026-10-25 — nine scenarios on `macos-14`, dispatch-only. Found five faults, fixed in v1.60.2 (reload over a running agent, Settings Stop, launchd detection, first-migration lock error) and v1.60.3 (no upgrade switched versions). Run `40202430776`: every scenario passes on v1.60.3, the in-app update from v1.60.2 included. |
+| M1 | Linux scenario set on the bare `ubuntu-24.04` runner | ✅ 2026-10-25 — shared scenarios with a per-platform adapter; `install-repro.yml` with a platform matrix (M4's first half). Run `40204388498`: all nine scenarios pass on Linux and macOS against v1.60.3, the in-app update from v1.60.2 included. No Linux fault found. |
 | M2 | `source: branch` — a release built from the branch, through a build workflow shared with `release.yml` | open |
 | M3 | Runner VMs: Debian 12, Ubuntu 22.04, Ubuntu 24.04, Fedora (current) | open |
-| M4 | One dispatch runs the whole matrix and writes a summary table | open |
+| M4 | One dispatch runs the whole matrix and writes a summary table | open — one dispatch already runs both platforms (M1); the VMs and the summary table remain |
 
-### M0 — macOS (done)
+### M0 — macOS ✅
 
 Runs `40196579021`–`40199360910`. The macOS runner has an Aqua `gui/501` domain; mpv is absent and the app boots without it. Findings and fixes (v1.60.2):
 
@@ -87,9 +87,18 @@ Runs `40196579021`–`40199360910`. The macOS runner has an Aqua `gui/501` domai
 
 Not fixed (`macos-platform-support.md` owns them): the Settings service card says "Not running under systemd." on macOS when the app was started by hand; `Apps.Launcher` runs `setsid`, which macOS lacks.
 
-### M1 — Linux on the bare ubuntu runner
+### M1 — Linux on the bare ubuntu runner ✅
 
 The Linux installer through the scenario set on `ubuntu-24.04`, `released` and `installer: checkout`.
+
+Record (2026-10-25):
+
+1. **Scope.** The scenario set on `ubuntu-24.04`. In: porting the scenarios, the systemd user-manager measurement, the 2>/dev/null and unchecked-state audit of the Linux installer. Moved to M4 early: one `install-repro.yml` with a platform matrix, because the Linux job is the macOS job with another adapter.
+2. **Research.** The Linux installer already flips `current` with GNU `mv -T`. It reports "enabled + running" from `systemctl --user enable --now` without checking the app; the scenarios check it. It enables the unit only on a first install, so an upgrade over a disabled unit keeps it off — the macOS installer re-enables instead (see Open decisions). The systemd user-manager question is measured by the first run's environment step.
+2a. **Measured** (run `40204212480`): Ubuntu 24.04.5, kernel 6.17 (azure). `runner` (uid 1001) is lingering with a reachable systemd user manager (`XDG_RUNTIME_DIR=/run/user/1001`), so autostart needs no setup. mpv is absent; the app boots without it.
+3. **Design unification.** Copying the nine macOS scripts would make two representations of every install path. Instead each scenario is written once in `install-repro/scenarios/`, and `<platform>/platform` answers the service-manager questions (`service_manager_ok`, `service_autostarts`, `service_running`, `service_stop`, `assert_service_removed`). Per platform stay only `disabled-service` (the two platforms' rules differ), `environment` and `collect-evidence`. `install-repro-macos.yml` becomes `install-repro.yml` with a `platform` input.
+4. **Plan unification.** The macOS scenarios moved, not copied (`git mv`), and run through the macOS adapter; the macOS lifecycle and update passed on the refactor before merge. The branch `push` trigger was scaffolding, removed before merge.
+5. **Execution.** First Linux run green; the audit of the Linux installer's `2>/dev/null` uses (stop and disable at uninstall and `service remove`) found none on a step whose outcome no scenario checks.
 
 - **Measure first:** does a systemd user manager run for `runner` (`systemctl --user status`, `loginctl show-user runner`, `XDG_RUNTIME_DIR`)? Can `loginctl enable-linger` start one? The Linux installer's autostart depends on it, as macOS's depended on the gui domain.
 - **Port the scenarios:** `install-repro/scenarios/linux/`, sharing the macOS scenarios' structure. `disabled-unit` covers `systemctl --user disable` before an install. `manual-start` covers the release's `env.sh` loading `secrets.env` on Linux.
@@ -126,8 +135,8 @@ The Linux installer through the scenario set on `ubuntu-24.04`, `released` and `
 
 ## Pointers
 
-* Scenarios: `install-repro/scenarios/macos/`; README: `install-repro/README.md`
-* Workflow: `.github/workflows/install-repro-macos.yml`
+* Scenarios: `install-repro/scenarios/` (shared) and `install-repro/scenarios/<platform>/`; README: `install-repro/README.md`
+* Workflow: `.github/workflows/install-repro.yml`
 * Installers: `installer/install.sh` (public), `rel/platforms/linux/bin/media-centaur-install`, `rel/platforms/darwin/bin/media-centaur-install`
 * Release build: `.github/workflows/release.yml`
 * KVM on standard Linux runners: GitHub changelog, 2024-04-02, "GitHub Actions: hardware accelerated Android virtualization now available"
