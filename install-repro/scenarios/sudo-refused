@@ -15,17 +15,13 @@ fi
 pass "the public installer refused sudo"
 
 step "bundled installer under sudo"
-version="${MC_TAG#v}"
-tmp=$(mktemp -d)
-tarball="media-centaur-${version}-${PLATFORM_TAG}.tar.gz"
-curl -fsSL -o "$tmp/$tarball" "https://github.com/media-centaur/media-centaur/releases/download/$MC_TAG/$tarball"
-mkdir "$tmp/extract"
-tar -xzf "$tmp/$tarball" -C "$tmp/extract"
-if sudo -n "$tmp/extract/bin/media-centaur-install"; then
+extract=$(mktemp -d)
+tar -xzf "$(release_tarball "$MC_TAG")" -C "$extract"
+if sudo -n "$extract/bin/media-centaur-install"; then
     fail "the bundled installer ran under sudo"
 fi
 pass "the bundled installer refused sudo"
-rm -rf "$tmp"
+rm -rf "$extract"
 
 step "nothing was written"
 [ ! -e "$INSTALL_ROOT" ] || fail "$INSTALL_ROOT was created"

@@ -4,7 +4,6 @@
 # gui/<uid> launchd domain.
 
 PLATFORM_TAG="darwin-arm64"
-PLATFORM_INSTALLER="$REPO_ROOT/rel/platforms/darwin/bin/media-centaur-install"
 LABEL="com.media-centaur.app"
 SERVICE_FILE="$HOME/Library/LaunchAgents/$LABEL.plist"
 SUMMARY_RUNNING="state     loaded + running"
