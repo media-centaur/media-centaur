@@ -713,6 +713,10 @@ Append-only log.
   migration logged "database is locked" (now one connection). Still
   open: the Settings service card says "Not running under systemd." on
   macOS when the app is started by hand.
+* `2026-10-25` — **No macOS upgrade ever switched versions** (found by
+  install-repro after v1.60.2): BSD `mv -f` followed the `current`
+  symlink and moved the new link into the old release, so the agent kept
+  running the old version. Fixed with `mv -fh` for v1.60.3.
 
 ## Next steps
 

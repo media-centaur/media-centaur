@@ -14,7 +14,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 | Term | Meaning |
 |---|---|
 | **Scenario** | One script that runs one install path and ends in pass or fail. It checks the outcome directly (the service manager's state, the HTTP port, the logs), never only the installer's own summary. |
-| **Scenario set** | The eight scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `disabled-label` (macOS) / `disabled-unit` (Linux), `manual-start`, `uninstall`, `fresh-install-log`, `in-app-update`. |
+| **Scenario set** | The nine scenarios every platform implements: `sudo-refused`, `fresh-install`, `reinstall`, `disabled-label` (macOS) / `disabled-unit` (Linux), `manual-start`, `uninstall`, `upgrade`, `fresh-install-log`, `in-app-update`. |
 | **Environment** | Where a scenario runs: a **bare runner** (the GitHub-hosted machine itself), a **runner VM** (a cloud-image VM booted with QEMU/KVM inside a Linux runner), or a **real machine** by hand. |
 | **Source** | What a run installs: `released` (the public install path for a published tag), `installer: checkout` (a released tarball with the branch's installer swapped in), or `branch` (a release built from the branch on the runner). |
 | **Matrix** | The environments × the scenario set, run by one dispatch. |
@@ -26,7 +26,7 @@ Every way a user installs, updates, starts and removes Media Centaur runs, on de
 
 ## Status
 
-M0 (macOS) shipped in v1.60.2: the scenario set runs on the macOS runner and found four faults, all fixed. The redesign is decided. M1 (Linux on the bare ubuntu runner) is next.
+M0 (macOS): v1.60.2 fixed four faults; the v1.60.2 in-app update run then found a fifth — no macOS upgrade ever switched versions — fixed on branch `install-repro-upgrade` (proven with `installer: checkout`), awaiting v1.60.3. The redesign is decided; M1 (Linux on the bare ubuntu runner) follows.
 
 ## Principles
 
@@ -35,7 +35,8 @@ M0 (macOS) shipped in v1.60.2: the scenario set runs on the macOS runner and fou
 3. **Scenarios are plain scripts against the real installed paths.** The same script runs on a bare runner, in a runner VM and on a user's machine. The workflow is only the environment.
 4. **Manual dispatch only.** Runs start when we decide, never from `release.yml` (owner, 2026-10-25).
 5. **A fix carries its run.** A fix found by the matrix cites the run that found it, and is proven by a `checkout` or `branch` run before its tag where the source allows.
-6. **No secrets in evidence.** `collect-evidence` never copies `secrets.env`, and diagnostics never print the process environment unfiltered.
+6. **Change the version.** Installing a release over itself proves nothing about the version switch. Every environment runs `upgrade` (the release before, then the tag) and checks the version the running app reports, not only the symlink.
+7. **No secrets in evidence.** `collect-evidence` never copies `secrets.env`, and diagnostics never print the process environment unfiltered.
 
 ## Open decisions
 
@@ -67,7 +68,7 @@ None open. Each milestone's design step records its own.
 
 | | | |
 |---|---|---|
-| M0 | macOS scenario set on the macOS runner | ✅ 2026-10-25 — eight scenarios, `install-repro-macos.yml` (dispatch, `installer: checkout`). Found four faults, all fixed in v1.60.2: reload over a running agent, Settings Stop, launchd detection, first-migration lock error. All install scenarios pass on v1.60.2. The in-app update result is in M0's notes below. |
+| M0 | macOS scenario set on the macOS runner | 2026-10-25 — nine scenarios, `install-repro-macos.yml` (dispatch, `installer: checkout`). Found four faults, all fixed in v1.60.2: reload over a running agent, Settings Stop, launchd detection, first-migration lock error. A fifth, the version switch, is fixed for v1.60.3. Closes when `in-app-update` passes against v1.60.3. |
 | M1 | Linux scenario set on the bare `ubuntu-24.04` runner | open |
 | M2 | `source: branch` — a release built from the branch, through a build workflow shared with `release.yml` | open |
 | M3 | Runner VMs: Debian 12, Ubuntu 22.04, Ubuntu 24.04, Fedora (current) | open |
@@ -82,6 +83,7 @@ Runs `40196579021`–`40199360910`. The macOS runner has an Aqua `gui/501` domai
 - macOS 14 does not set `LAUNCHD_SOCKET`; launchd sets `XPC_SERVICE_NAME` to the label. The app now detects its agent by that.
 - The migrator's two connections raced to switch a new database to WAL, logging "database is locked". Release tasks now use one connection (6/10 fresh databases logged it before, 0/10 after).
 - The in-app update depends on GitHub's API, which a runner's shared IP often has rate-limited. The scenario waits for the reported reset once, then checks again.
+- **No macOS upgrade ever switched versions** (found by run `40199360910`, after v1.60.2). The installer flips `current` with `mv -f current.new current`; BSD `mv` follows `current`, a symlink to a directory, and moves the new link into the old release. The installer reported the new version and restarted the agent, which kept running the old one — including the terminal `--update` workaround v1.60.1's notes gave. The scenarios missed it because no scenario changed version before `in-app-update`. Fix: `mv -fh`, the BSD counterpart of the Linux installer's GNU `mv -T`. A new `upgrade` scenario reproduces it with the released installer (run `40200911520`) and passes with the fixed one (run `40200918075`). Ships in v1.60.3; `in-app-update` (v1.60.2 → v1.60.3) proves it after the release.
 
 Not fixed (`macos-platform-support.md` owns them): the Settings service card says "Not running under systemd." on macOS when the app was started by hand; `Apps.Launcher` runs `setsid`, which macOS lacks.
 
@@ -92,7 +94,7 @@ The Linux installer through the scenario set on `ubuntu-24.04`, `released` and `
 - **Measure first:** does a systemd user manager run for `runner` (`systemctl --user status`, `loginctl show-user runner`, `XDG_RUNTIME_DIR`)? Can `loginctl enable-linger` start one? The Linux installer's autostart depends on it, as macOS's depended on the gui domain.
 - **Port the scenarios:** `install-repro/scenarios/linux/`, sharing the macOS scenarios' structure. `disabled-unit` covers `systemctl --user disable` before an install. `manual-start` covers the release's `env.sh` loading `secrets.env` on Linux.
 - **Apply M0's checks to Linux:** does the Linux installer hide errors with `2>/dev/null` where the outcome matters? Is its "loaded" state checked against systemd?
-- **Done when** all eight scenarios pass against the latest release, or a scenario is dropped with a recorded reason.
+- **Done when** all nine scenarios pass against the latest release, or a scenario is dropped with a recorded reason.
 
 ### M2 — build from the branch
 
@@ -105,7 +107,7 @@ The Linux installer through the scenario set on `ubuntu-24.04`, `released` and `
 
 - One boot script: download the cloud image (cached), write cloud-init `user-data` (a user with passwordless `sudo`, an SSH key), boot with QEMU/KVM, wait for SSH, run a scenario inside, copy evidence out. The same script runs on this machine.
 - Distros: Debian 12 (oldest glibc of the set), Ubuntu 22.04, Ubuntu 24.04 (the Mint proxy), Fedora current.
-- Per distro: `fresh-install`, `reinstall`, `manual-start`, `uninstall`, `fresh-install-log`; `in-app-update` on Ubuntu 24.04.
+- Per distro: `fresh-install`, `reinstall`, `upgrade`, `manual-start`, `uninstall`, `fresh-install-log`; `in-app-update` on Ubuntu 24.04.
 - The VM needs a graphical-session-like user login only if M1 shows systemd user services need one; cloud images start a user manager on SSH login.
 - **Done when** each distro passes its scenarios against the latest release.
 
