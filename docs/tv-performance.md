@@ -41,12 +41,13 @@ TV-only styles key off it.
 3. **Animate only `transform` and `opacity`.** A transform animation runs on
    the compositor and presented at a steady 60 fps on the floor device.
 4. **Prefer compositor scrolling; keep main-thread scrolling cheap.** A
-   compositor scroll held 57–58 fps in every device state measured. A
-   main-thread scroll (the glide) needs a commit and raster per frame and
-   measured anywhere from 30 to 60 fps on the same code as the device's
-   state changed. Nothing may add work to a scroll frame: scroll listeners
-   are passive and constant-time, and no per-frame `querySelectorAll` or
-   layout read runs during a glide.
+   compositor scroll held 57–60 fps in every device state measured. A
+   main-thread scroll (the glide) needs a commit and raster per frame: it
+   presents at 60 fps on the floor device when the frame is otherwise
+   empty, and lost 16–19 fps to one per-frame `querySelectorAll('*')`
+   with layout reads (2026-10-25, run 42). Nothing may add work to a
+   scroll frame: scroll listeners are passive and constant-time, and no
+   per-frame `querySelectorAll` or layout read runs during a glide.
 5. **Decode images no larger than the display.** The Home hero's bitmap is
    scaled to the display (`fitToScreen` in `hooks/hero_backdrop.js`); a 4K
    master held at full size spent three quarters of its memory on pixels
@@ -100,6 +101,14 @@ input system's motion is checked on the TV before it is done:
   presents at 60 fps on the Sony regardless. On 2026-10-25 a 59.9 fps
   "glide" was an `eased` scroll; the glide itself measured 35–42. Two rows
   compare only when `animator` and `px/glide` agree.
+* **Measure the tool's own cost before believing its numbers.** The
+  probe `mc-tv-smooth` used until 2026-10-25 evening polled every
+  element's scroll extents on every frame and cost the glide 16–19 fps;
+  a whole afternoon of "slow" readings was the tool. The present probe is
+  a passive scroll listener and measured zero cost (run 43). After any
+  change to the probe, alternate a probed and a `--no-probe` run into one
+  `--out` directory and read `Δ vs first`. `mc-tv-trace`'s tracing cost
+  is still unmeasured; treat its frame counts as indicative until it is.
 * **Check the page identity.** Each row's `page id` is the served
   bundle's digest and the checkout's HEAD (`*` when the tree is dirty).
   `MIXED` means the rounds measured different pages. Twice on 2026-10-25
@@ -123,17 +132,15 @@ input system's motion is checked on the TV before it is done:
 Worked in `campaigns/tv-performance.md`.
 
 
-Key-press glides measured 59.9 fps on 2026-10-25 at midday and 35–42 fps
-from mid-afternoon on. The stored traces, read that evening, show the
-midday figure measured a compositor scroll animation (the browser's own
-smooth scroll, `ScrollTree::OnScrollOffsetAnimated` on every frame, no
-`requestAnimationFrame`) and the afternoon figures the input system's
-main-thread glide (a commit every other frame, half the presented frames
-partial). The glide did not slow down; the two numbers measured two
-animators. Still to do on the TV: one interleaved run that shows both
-side by side with the rewritten probe's `animator` column; the probe's
-own cost (`--no-probe` against a probed run); and whether the glide
-becomes compositor-driven, which is decision 2 in the campaign.
+The 2026-10-25 glide slowdown is explained: the 59.9 fps midday reading
+was a compositor scroll animation (the browser's own smooth scroll), and
+the 35–42 fps afternoon readings were the input system's glide under the
+tool's old per-frame probe, which cost it 16–19 fps (run 42, interleaved).
+With the present probe or none the glide presents at 60 fps on the Sony,
+the same as a compositor smooth scroll (runs 41, 43). Still open in the
+campaign: the A/A noise run, `mc-tv-trace`'s own cost, Android's render
+thread per frame (Perfetto), a one-command code-version A/B, and a reveal
+that scrolled 156 px under the glide where the smooth variant scrolled 88.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
 to 16 MB on Home), not measured — read the debug app's PSS on Home before
