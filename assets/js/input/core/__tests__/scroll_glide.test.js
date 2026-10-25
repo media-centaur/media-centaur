@@ -254,6 +254,32 @@ describe("createScrollGlide", () => {
     expect(h.idle).toBe(true)
   })
 
+  // `start()` records the clock, and the first frame can land a fraction of
+  // a millisecond later (a key or click just before vsync). That frame's
+  // step is below half a device pixel on any snapping box, so its write
+  // rounds back — one stalled write must not end the glide, or a fresh glide
+  // becomes a snap. Only a stall that repeats on the next frame is genuine.
+  test("a sub-millisecond first frame does not end the glide", () => {
+    const h = harness()
+    const box = snappingBox()
+
+    h.glide.glide(box, { left: 460 })
+    h.frame(0.1)
+    expect(box.scrollLeft).toBe(0)
+    expect(h.glide.isGliding(box)).toBe(true)
+
+    let frames = 0
+    while (h.glide.isGliding(box) && frames < 200) {
+      h.frame(16)
+      frames++
+    }
+
+    expect(frames).toBeLessThan(200)
+    expect(frames).toBeGreaterThan(1) // it eased there; it did not snap
+    expect(box.scrollLeft).toBe(460)
+    expect(h.idle).toBe(true)
+  })
+
   // A wheel scroll hands scroll authority to the pointer: every glide, on
   // every box, must stop where it stands instead of fighting the user.
   test("cancelAll stops every glide in flight", () => {
