@@ -139,25 +139,43 @@ render_plist() {
 ctl_target() { printf '%s' "gui/$(id -u)/$LABEL"; }
 ctl_domain() { printf '%s' "gui/$(id -u)"; }
 
+# Unloads the LaunchAgent and waits until launchd has let go of the
+# label; until it is gone launchd refuses to bootstrap the label again
+# ("Bootstrap failed: 5: Input/output error"). The service-target form
+# is the one that addresses a loaded label: `bootout <domain> <arg>`
+# reads <arg> as a plist path. Bootout of a label that isn't loaded
+# fails harmlessly. Gives up after 30 seconds.
+launchd_unload() {
+    launchctl bootout "$(ctl_target)" 2>/dev/null || true
+    waited=0
+    while launchctl print "$(ctl_target)" >/dev/null 2>&1; do
+        if [ "$waited" -ge 60 ]; then
+            printf 'launchd still has %s loaded 30 seconds after bootout\n' "$LABEL" >&2
+            return 1
+        fi
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+}
+
 # Brings the LaunchAgent to enabled + loaded + running from any prior
 # state: never loaded, loaded and running an older release, or disabled
 # by `service remove`. launchd refuses to bootstrap a disabled label
-# ("Bootstrap failed: 5: Input/output error"), so the label is enabled
-# first. Bootout of a label that isn't loaded fails harmlessly. The
-# plist's RunAtLoad starts the agent as part of the bootstrap. The steps
-# are chained with && because `set -e` does not apply inside a function
+# (the same error 5), so the label is enabled first. The plist's
+# RunAtLoad starts the agent as part of the bootstrap. The steps are
+# chained with && because `set -e` does not apply inside a function
 # called as an `if` condition.
 launchd_load() {
     plist="$1"
     launchctl enable "$(ctl_target)" &&
-        { launchctl bootout "$(ctl_domain)" "$LABEL" 2>/dev/null || true; } &&
+        launchd_unload &&
         launchctl bootstrap "$(ctl_domain)" "$plist"
 }
 
 # Unloads the LaunchAgent and disables the label so launchd doesn't load
 # it again at the next login. Only removal disables.
 launchd_remove() {
-    launchctl bootout "$(ctl_domain)" "$LABEL" 2>/dev/null || true
+    launchd_unload || true
     launchctl disable "$(ctl_target)" 2>/dev/null || true
 }
 
