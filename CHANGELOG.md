@@ -4,6 +4,28 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.0.0 — 2026-10-25
+
+### New
+
+- **Watch on your Android TV.** The new Media Centaur TV app shows your library on a Google TV or Android TV and plays it there with its own player, at the TV's native resolution and with HDR. It works as the computer does: resume, the next episode, progress and the finish prompt, under the profile you pick on the TV. The remote drives everything: the arrows and OK move around the pages, and during playback they seek and pause. Download the app from the [TV app's release page](https://github.com/media-centaur/media-centaur-android/releases/latest); **Settings → Players** links to it.
+- **Pair a TV once.** **Settings → Players** shows a six-digit pairing code. Open the TV app, enter the code, and the TV joins your install. **Settings → Players** lists every paired TV and removes one with **Remove**. For a TV to reach the app, set `bind = "0.0.0.0"` in `~/.config/media-centaur/media-centaur.toml` and restart. By default the app still listens only on this computer.
+- **Playback controls on the TV.** During playback, OK pauses and resumes, left and right seek 10 seconds, and up and down seek a minute. The remote's rewind and fast-forward keys seek 30 seconds. Skip Intro and Next Episode appear as on the computer. Pause and press down to reach **Audio & subtitles**, or press the remote's Menu key. Change the keys under **Settings → Controls → During playback on a TV**.
+- **Arrows on the Home rows.** With a mouse, Continue Watching, Recently Added and a collection's movie rail show arrows at their edges to scroll the row.
+
+### Improved
+
+- **Back leaves the TV app.** On the TV, pressing Back from the main menu returns to the TV's home screen, as in other TV apps.
+- **Smoother scrolling on the TV.** Pages on the TV skip the frosted-glass blur and draw the background in a way the TV can scroll without repainting, so rows and pages glide instead of stuttering.
+- **Less memory for the Home backdrop.** The large picture behind Home is kept no bigger than your screen can show.
+
+### Fixed
+
+- **The season count is the show's.** A show's detail counted only the seasons in your library. It now shows how many seasons the show has.
+- **The finish prompt fits on one line.** The prompt at the end of a movie or episode no longer wraps its caught-up switch onto a second line.
+
+This release adds one table to your database, for paired players. It is created automatically when the app starts.
+
 ## v1.60.3 — 2026-10-25
 
 ### Fixed
