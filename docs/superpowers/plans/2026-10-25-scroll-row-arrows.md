@@ -1187,6 +1187,8 @@ chromium-probe http://127.0.0.1:2160/ 'const t = document.querySelector("#contin
 ```
 Expected: `after ≈ port − (card + gap)`, `atStart: false`. (If `chromium-probe` does not accept top-level `await`, wrap the expression in an async IIFE.)
 
+Also judge quick repeated presses by hand in the browser: a press measures `scrollLeft` mid-glide, so two presses 100 ms apart land about 1.6 steps out, not 2. If whole-step accumulation feels better, base the next target on the last requested one while `glider.isGliding(track)`; the trade-off is a stale remembered target after a keyboard retarget. Owner's call; record it either way.
+
 - [ ] **Step 3: The end hides the right arrow**
 
 ```
