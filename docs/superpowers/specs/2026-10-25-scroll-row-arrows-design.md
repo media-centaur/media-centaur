@@ -16,7 +16,7 @@ gives every scroll row a pair of pointer-revealed edge arrows.
 | **Scroll row** | A horizontally scrolling track of cards plus its pointer chrome. The markup already names it: `data-scroll-row`. Home's Continue Watching and Recently Added rows and the title detail's collection rail are scroll rows. The hero's single full-bleed item is not. |
 | **Track** | The `.row-scroll` element that scrolls. It owns the ring reserve, the hidden scrollbar, the cursor peek and the edge fades (`app.css`). |
 | **Edge arrow** | A button at one end of a scroll row that moves the track one step toward that end. Shown on hover, gone at the end it points to. |
-| **Edge state** | Whether the track is at its start, at its end, both (it fits) or neither. The track's own geometry, projected as `data-at-start` and `data-at-end` on the scroll row. |
+| **Edge state** | Whether the track is at its start, at its end, both (it fits) or neither. The track's own geometry, projected as `data-at-start` and `data-at-end` on the track. |
 | **Step** | How far one arrow press moves the track: one scrollport width minus one card and its gap, so the last visible card stays as the reader's anchor. |
 | **Picture button** | The house disc control over a picture: a dark translucent disc with a light border, primary on hover, sinking on press. The play overlay's button is one; an edge arrow is one. |
 | **Pointer affordance** | A control that exists only for a pointer: revealed on hover, opacity only, outside the input system (`tabindex="-1"`, no `data-nav-item`), never seen by keyboard, gamepad or the TV. The play overlay set the rule (UIDR-027). |
@@ -96,8 +96,8 @@ the page shows nothing.
 .scroll-row-arrow[data-scroll-row-arrow="left"]  { left: 0.5rem; }
 .scroll-row-arrow[data-scroll-row-arrow="right"] { right: 0.5rem; }
 .scroll-row:hover .scroll-row-arrow { opacity: 1; pointer-events: auto; transition-delay: var(--hover-reveal-delay); }
-.scroll-row[data-at-start] .scroll-row-arrow[data-scroll-row-arrow="left"],
-.scroll-row[data-at-end]   .scroll-row-arrow[data-scroll-row-arrow="right"] { display: none; }
+.row-scroll[data-at-start] ~ .scroll-row-arrow[data-scroll-row-arrow="left"],
+.row-scroll[data-at-end]   ~ .scroll-row-arrow[data-scroll-row-arrow="right"] { display: none; }
 ```
 
 The arrows sit inside the track's ends, over the edge fade, vertically centred
@@ -121,7 +121,7 @@ overlay's does not.
   when the TV is free; either answer is correct, the check is about cost.
 - **Edge state.** `edges({ scrollLeft, scrollWidth, clientWidth })` is a pure
   function returning `{ atStart, atEnd }` with a 1px tolerance. The hook writes
-  `data-at-start` / `data-at-end` on the wrapper from a passive `scroll`
+  `data-at-start` / `data-at-end` on the track from a passive `scroll`
   listener on the track and a `ResizeObserver` on it, and re-asserts them in
   `updated()`: morphdom syncs patched elements back to the server's markup and
   wipes client-written attributes (the branch's `DetailScrollGeometry` note).
@@ -179,7 +179,7 @@ the same track instead of racing a second animation.
   `[data-component]` selectors still hold. `detail_panel` tests: the
   collection rail's track keeps `data-nav-zone="detail_rail"`.
 - **Storybook:** `storybook/composites/scroll_row.story.exs` with placeholder
-  cards and four variations by attribute fixture: at start, mid-row, at end,
+  cards and four variations by attribute fixture (through `rest`, which lands on the track): at start, mid-row, at end,
   fits. The storybook iframe loads no hooks, so the fixtures are the state
   matrix. Enforced by MC0009 and the storybook compile and render tests. The
   existing `storybook/play_overlay/play_overlay.story.exs` renders unchanged.
