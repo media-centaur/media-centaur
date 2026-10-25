@@ -43,6 +43,11 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
   @impl MediaCentaur.Platform.Autostart
   def handoff_env_vars, do: @handoff_env_vars
 
+  # macOS ships no setsid. The plist's AbandonProcessGroup keeps launchd
+  # from killing the installer when it boots out the BEAM.
+  @impl MediaCentaur.Platform.Autostart
+  def handoff_detach, do: []
+
   @impl MediaCentaur.Platform.Autostart
   def tarball_required_paths, do: @tarball_required_paths
 

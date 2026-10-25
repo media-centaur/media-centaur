@@ -66,6 +66,10 @@ defmodule MediaCentaur.Platform.Autostart.Systemd do
   @impl MediaCentaur.Platform.Autostart
   def handoff_env_vars, do: @handoff_env_vars
 
+  # A new session, so the restart's SIGHUP can't reach the installer.
+  @impl MediaCentaur.Platform.Autostart
+  def handoff_detach, do: ["setsid", "--fork"]
+
   @impl MediaCentaur.Platform.Autostart
   def tarball_required_paths, do: @tarball_required_paths
 

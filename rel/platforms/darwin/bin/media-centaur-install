@@ -11,11 +11,11 @@
 #     ./bin/media-centaur-install [--no-service] [--no-start]
 #       Installs THIS release atomically into ~/.local/lib/media-centaur/,
 #       seeds config, runs migrations, flips the `current` symlink. On a
-#       first install, also templates the LaunchAgent plist (%HOME%
+#       install or upgrade, also templates the LaunchAgent plist (%HOME%
 #       substitution), drops it into ~/Library/LaunchAgents/, and
-#       bootstraps + kickstarts it via launchctl. Skips autostart steps
-#       gracefully when launchctl is unavailable (extremely unusual on
-#       macOS — would mean a stripped-down environment).
+#       enables and bootstraps it via launchctl. Skips
+#       autostart steps when launchctl's gui domain is unavailable (an
+#       ssh session without a GUI login). Refuses to run as root.
 #
 #   --update [--force]
 #     ~/.local/lib/media-centaur/current/bin/media-centaur-install --update
@@ -58,6 +58,11 @@ PLATFORM_TAG="darwin-arm64"
 
 banner() { printf '==> %s\n' "$1"; }
 die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
+
+# Media Centaur installs into, and runs as, the invoking user. Under sudo
+# the release tree would be owned by root, and launchd's gui/0 domain has
+# no login session, so autostart would be silently skipped.
+[ "$(id -u)" -ne 0 ] || die "Run this without sudo. Media Centaur installs into your home folder and runs as your user."
 
 # Resolve a SHA-256 verifier — macOS has `shasum -a 256` in the base
 # install but not `sha256sum`. Honor either if both happen to be present
@@ -134,31 +139,26 @@ render_plist() {
 ctl_target() { printf '%s' "gui/$(id -u)/$LABEL"; }
 ctl_domain() { printf '%s' "gui/$(id -u)"; }
 
-launchd_bootstrap() {
+# Brings the LaunchAgent to enabled + loaded + running from any prior
+# state: never loaded, loaded and running an older release, or disabled
+# by `service remove`. launchd refuses to bootstrap a disabled label
+# ("Bootstrap failed: 5: Input/output error"), so the label is enabled
+# first. Bootout of a label that isn't loaded fails harmlessly. The
+# plist's RunAtLoad starts the agent as part of the bootstrap. The steps
+# are chained with && because `set -e` does not apply inside a function
+# called as an `if` condition.
+launchd_load() {
     plist="$1"
-    launchctl bootstrap "$(ctl_domain)" "$plist"
+    launchctl enable "$(ctl_target)" &&
+        { launchctl bootout "$(ctl_domain)" "$LABEL" 2>/dev/null || true; } &&
+        launchctl bootstrap "$(ctl_domain)" "$plist"
 }
 
-launchd_bootout() {
-    # Two-step: bootout unloads, then disable persists across logouts so
-    # KeepAlive doesn't reload on next session.
+# Unloads the LaunchAgent and disables the label so launchd doesn't load
+# it again at the next login. Only removal disables.
+launchd_remove() {
     launchctl bootout "$(ctl_domain)" "$LABEL" 2>/dev/null || true
     launchctl disable "$(ctl_target)" 2>/dev/null || true
-}
-
-launchd_kickstart() {
-    # -k = SIGTERM-then-restart. Use on upgrades to pick up the new
-    # binary the symlink now points at.
-    launchctl kickstart -k "$(ctl_target)"
-}
-
-launchd_enable_start() {
-    launchctl enable "$(ctl_target)" 2>/dev/null || true
-    launchctl kickstart "$(ctl_target)"
-}
-
-launchd_is_loaded() {
-    launchctl print "$(ctl_target)" >/dev/null 2>&1
 }
 
 # ---- argument parsing ------------------------------------------------------
@@ -212,7 +212,7 @@ summary_uninstall_hint() {
 }
 
 summary_manual_start_hint() {
-    printf '\nAutostart not configured. Start the app with one of:\n'
+    printf '\nThe LaunchAgent is not running. Start the app with one of:\n'
     printf '  %s/current/bin/media_centaur start        # foreground\n' "$INSTALL_ROOT"
     printf '  %s/current/bin/media_centaur daemon       # background\n' "$INSTALL_ROOT"
     printf '  %s/current/bin/media_centaur start_iex    # foreground with IEx\n' "$INSTALL_ROOT"
@@ -276,7 +276,7 @@ fi
 
 if [ "$mode" = uninstall ]; then
     banner "Stopping LaunchAgent"
-    launchd_bootout
+    launchd_remove
 
     banner "Removing $INSTALL_ROOT"
     rm -rf "$INSTALL_ROOT"
@@ -309,11 +309,7 @@ if [ "$mode" = service_install ]; then
     mkdir -p "$LAUNCH_AGENT_DIR"
     render_plist "$plist_src" "$plist_dst"
 
-    # Bootout-then-bootstrap so a stale loaded plist (from a prior
-    # install) is replaced cleanly.
-    launchd_bootout
-    launchd_bootstrap "$plist_dst"
-    launchd_enable_start
+    launchd_load "$plist_dst" || die "launchctl could not load $LABEL (its error is above)"
 
     banner "Autostart installed"
     printf '\n  plist   %s\n' "$plist_dst"
@@ -324,7 +320,7 @@ if [ "$mode" = service_install ]; then
 fi
 
 if [ "$mode" = service_remove ]; then
-    launchd_bootout
+    launchd_remove
     rm -f "$LAUNCH_AGENT_DIR/$PLIST_NAME"
 
     banner "Autostart removed"
@@ -340,11 +336,6 @@ version=$(detect_version) || die "Could not detect release version from $release
 
 target="$INSTALL_ROOT/releases/$version"
 current_link="$INSTALL_ROOT/current"
-
-first_install=0
-if [ ! -L "$current_link" ]; then
-    first_install=1
-fi
 
 want_service=1
 if [ "$no_service" = 1 ]; then
@@ -397,9 +388,8 @@ if [ ! -f "$secrets_file" ]; then
     secret_key_base=$(head -c 48 /dev/urandom | base64 | tr -d '\n')
     umask 077
     cat > "$secrets_file" <<EOF
-# Media Centaur runtime secrets — loaded by media-centaur-launchd-start
-# (the LaunchAgent wrapper) and by the bundled installer when running
-# migrations.
+# Media Centaur runtime secrets — loaded by bin/media_centaur (the
+# release's env.sh) before every command: start, eval, remote.
 #
 # SECRET_KEY_BASE is auto-generated on first install. Do not change it
 # unless you know what you're doing — sessions and signed tokens are
@@ -420,8 +410,6 @@ mkdir -p "$LOG_DIR"
 
 # 6. Run migrations against the NEW release, before the symlink flip.
 banner "Running schema migrations against $version"
-# shellcheck source=/dev/null
-set -a; . "$secrets_file"; set +a
 "$target/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
 
 banner "Running data migrations against $version"
@@ -432,32 +420,21 @@ banner "Pointing current -> releases/$version"
 ln -sfn "releases/$version" "$current_link.new"
 mv -f "$current_link.new" "$current_link"
 
-# 8. Autostart handling.
-#    - First install + want_service + no --no-start → bootstrap + enable + kickstart.
-#    - Upgrade: kickstart -k if loaded; bootstrap+enable+kickstart if plist installed but not loaded; else leave alone.
+# 8. Autostart. A failure to load is reported in the summary, with the
+#    manual-start commands, and the installer then exits non-zero.
 autostart_state="not configured"
+autostart_failed=0
 if [ "$want_service" = 1 ]; then
-    if [ "$first_install" = 1 ] && [ "$no_start" != 1 ]; then
-        banner "Bootstrapping + starting $LABEL"
-        # Clean reload defensively in case a stale plist exists.
-        launchd_bootout
-        launchd_bootstrap "$plist_dst"
-        launchd_enable_start
-        autostart_state="loaded + running"
-    elif launchd_is_loaded; then
-        banner "Restarting $LABEL (kickstart -k)"
-        # Re-render+bootout+bootstrap to pick up plist changes between versions.
-        launchd_bootout
-        launchd_bootstrap "$plist_dst"
-        launchd_enable_start
-        autostart_state="loaded + running"
-    elif [ -f "$plist_dst" ]; then
-        banner "Bootstrapping $LABEL (plist installed but not loaded)"
-        launchd_bootstrap "$plist_dst"
-        launchd_enable_start
-        autostart_state="loaded + running"
+    if [ "$no_start" = 1 ]; then
+        autostart_state="plist installed, not loaded (--no-start)"
     else
-        autostart_state="plist installed, not loaded"
+        banner "Loading + starting $LABEL"
+        if launchd_load "$plist_dst"; then
+            autostart_state="loaded + running"
+        else
+            autostart_state="failed to load (launchctl's error is above)"
+            autostart_failed=1
+        fi
     fi
 fi
 
@@ -487,3 +464,5 @@ else
 fi
 
 summary_uninstall_hint
+
+[ "$autostart_failed" = 0 ] || exit 1

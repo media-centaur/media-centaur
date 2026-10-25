@@ -224,7 +224,8 @@ defmodule MediaCentaur.TMDB.ClientTest do
 
         send(
           test_pid,
-          {:credential_sent, conn.query_params["api_key"], Plug.Conn.get_req_header(conn, "authorization")}
+          {:credential_sent, conn.query_params["api_key"],
+           Plug.Conn.get_req_header(conn, "authorization")}
         )
 
         Req.Test.json(conn, %{"images" => %{}})

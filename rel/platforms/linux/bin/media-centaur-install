@@ -52,6 +52,11 @@ UNIT_NAME="media-centaur.service"
 banner() { printf '==> %s\n' "$1"; }
 die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
+# Media Centaur installs into, and runs as, the invoking user. Under sudo
+# the release tree would be owned by root, and root has no systemd-user
+# session for the invoking user, so autostart would be skipped.
+[ "$(id -u)" -ne 0 ] || die "Run this without sudo. Media Centaur installs into your home folder and runs as your user."
+
 # Detect a working systemd-user session. `systemctl` alone can lie (WSL2
 # without systemd, some container envs, ssh without linger) — the
 # `--user show-environment` probe confirms the session bus is actually
@@ -369,8 +374,8 @@ if [ ! -f "$secrets_file" ]; then
     secret_key_base=$(head -c 48 /dev/urandom | base64 | tr -d '\n')
     umask 077
     cat > "$secrets_file" <<EOF
-# Media Centaur runtime secrets — loaded by the systemd unit and the
-# bundled installer when running migrations.
+# Media Centaur runtime secrets — loaded by bin/media_centaur (the
+# release's env.sh) before every command: start, eval, remote.
 #
 # SECRET_KEY_BASE is auto-generated on first install. Do not change it
 # unless you know what you're doing — sessions and signed tokens are
@@ -390,8 +395,6 @@ fi
 #    is untouched. Schema migrations run first (fast, atomic), then data
 #    migrations (one-shot row backfills tracked in `data_migrations`).
 banner "Running schema migrations against $version"
-# shellcheck source=/dev/null
-set -a; . "$secrets_file"; set +a
 "$target/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
 
 banner "Running data migrations against $version"

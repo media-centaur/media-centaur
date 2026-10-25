@@ -27,6 +27,9 @@ defmodule MediaCentaur.Platform.AutostartTest do
     def handoff_env_vars, do: ["FAKE_ENV_VAR"]
 
     @impl true
+    def handoff_detach, do: ["fake-detach"]
+
+    @impl true
     def tarball_required_paths, do: ["share/fake/foo"]
   end
 
@@ -58,6 +61,10 @@ defmodule MediaCentaur.Platform.AutostartTest do
 
     test "handoff_env_vars/0 delegates" do
       assert ["FAKE_ENV_VAR"] = Autostart.handoff_env_vars()
+    end
+
+    test "handoff_detach/0 delegates" do
+      assert ["fake-detach"] = Autostart.handoff_detach()
     end
 
     test "tarball_required_paths/0 delegates" do
