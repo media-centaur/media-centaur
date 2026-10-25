@@ -552,6 +552,17 @@ the viewport stays where the user put it. The next cursor-driving keypress or
 gamepad input flips the method back before its action executes, so
 cursor-driven navigation reveals exactly as before.
 
+**One glider.** The page creates one scroll glide instance
+(`assets/js/scroll_glider.js`) and hands it to the DOM writer through
+`inputConfig.glider` — the writer requires it and builds none of its own; the
+`ScrollRow` hook glides a track on an edge-arrow press with the same instance.
+So the wheel rule above cancels an arrow glide like any other, and a cursor key
+pressed mid-glide retargets the track instead of racing a second animation. A
+new scroller that animates its scroll imports that instance; it never creates
+its own. The glide also knows when a step cannot land: under the root zoom the
+browser snaps offsets to device pixels, and a write that rounds back to the
+same offset ends the glide at the target instead of ticking forever.
+
 **The navigation owns mount-time scroll.** When `start()` runs — every live
 navigation and the initial load — the window still carries the *previous*
 page's scroll offset, and the navigation's own scroll write lands one frame
