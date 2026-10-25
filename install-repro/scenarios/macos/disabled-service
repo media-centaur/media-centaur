@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Scenario: an install over a disabled label still loads the agent. The
+# macOS installer re-enables the label (the Linux installer keeps a
+# disabled unit off instead — see ../linux/disabled-service).
+# launchd refuses to bootstrap a disabled label, which v1.60.1 fixed.
+set -euo pipefail
+. "$(dirname "$0")/../lib"
+require_tag
+
+step "disable the label"
+launchctl bootout "$(ctl_target)" 2>/dev/null || true
+launchctl disable "$(ctl_target)"
+label_disabled || fail "launchctl did not record $LABEL as disabled"
+pass "$LABEL is disabled"
+
+step "install over the disabled label"
+install_release "$MC_TAG"
+label_disabled && fail "$LABEL is still disabled after the install"
+pass "$LABEL is enabled"
+assert_serving

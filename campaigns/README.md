@@ -142,22 +142,22 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-037) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
-  **planning.** Reproducible install environments for media-centaur and
-  prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
-  ([`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md));
-  six follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,
-  pre-built shareable images via Packer+GHCR, `--from-local`,
-  upgrade/uninstall scenarios, optional CI). Triggered by a tester
-  hitting missing-package, first-run, and Docker-without-sudo failures
-  on a fresh Mint install — and our inability to reproduce any of them
-  locally.
+  **in progress; redesigned 2026-10-25.** Every install, update, start and
+  removal path runs on demand against real operating systems on GitHub's
+  runners, by manual dispatch. M0 (macOS) found five macOS faults, fixed in
+  v1.60.2–v1.60.3; M1 (Linux) passed first time. One `install-repro.yml`
+  dispatch runs the nine scenarios on both. Next: a build-from-branch source, cloud-image VMs via KVM (Debian,
+  Ubuntu, Fedora; Ubuntu 24.04 stands in for Mint), and one matrix
+  dispatch. prowlarr-stack gets its own repro in its repo.
 * [`macos-platform-support.md`](macos-platform-support.md) —
   **Phases 1–6 shipped 2026-05-21**: all seven `Platform.*` seams have
   Linux and macOS impls, CI is green on both OSes with
   `--warnings-as-errors`, every tag builds `darwin-arm64`, and the
   one-line installer supports Apple Silicon. Phase 7 (a real-Mac
-  install + self-update smoke) waits on hardware or the first macOS user
-  report — none has arrived.
+  install + self-update smoke) is under way: the first macOS user report
+  arrived 2026-10-25, and its four installer faults are fixed in
+  v1.60.1. The automated macOS test environment is
+  `install-repro-matrix.md` Phase 8.
 
 ## Complete
 

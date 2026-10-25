@@ -17,7 +17,6 @@ Type=exec
 ExecStartPre=-/usr/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE
 ExecStart=%h/.local/lib/media-centaur/current/bin/media_centaur start
 ExecStop=%h/.local/lib/media-centaur/current/bin/media_centaur stop
-EnvironmentFile=-%h/.config/media-centaur/secrets.env
 Restart=on-failure
 RestartSec=5
 KillMode=process

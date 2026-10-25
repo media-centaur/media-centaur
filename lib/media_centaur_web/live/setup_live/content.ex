@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Live.SetupLive.Content do
       short: "Metadata, posters, and release tracking",
       requirements: [
         "A free account at themoviedb.org",
-        "A key from Settings → API — the v4 read-access token or the v3 key"
+        "The API Key or the API Read Access Token from Settings → API"
       ]
     }
   end

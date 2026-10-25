@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-05-21
-last_updated: 2026-06-10
+last_updated: 2026-10-25
 ---
 # macOS platform support
 
@@ -34,7 +34,7 @@ Public-facing READMEs and the docs-site landing carry visible
 "UI overhaul in progress" + "macOS — experimental" status banners
 (commit `cb0ce0aa`).
 
-**Phase 7 next — real-Mac parity smoke.** Reconciled 2026-06-10:
+**Phase 7 under way: the first macOS user report arrived 2026-10-25.** It found four installer faults, all fixed in v1.60.1 (commit `66b9b74b`). The LaunchAgent never loaded, because the installer disabled its label before every bootstrap. A `sudo` install left root-owned files. A manual start had no `SECRET_KEY_BASE`. The in-app update needed `setsid`, which macOS lacks. The reporter is re-testing v1.60.1 by hand. The automated macOS test environment is Phase 8 of `install-repro-matrix.md`. Earlier status, reconciled 2026-06-10:
 every tag since v0.72.10 produces both tarballs, and the public
 one-line installer supports macOS (Apple Silicon) since
 `f85d49c6` / v0.72.10 — the funnel is fully open. **No macOS user
@@ -691,6 +691,32 @@ Append-only log.
   v0.72.10): `curl … install.sh | sh` detects Apple Silicon and
   installs the darwin-arm64 tarball — Phase 7's funnel needs no
   further plumbing, only a user with hardware.
+* `2026-10-25` — **v1.60.1 fixes the first macOS report** (`66b9b74b`).
+  The installer enables the label before it bootstraps, and only
+  removal disables it. Every installer refuses root. The release's
+  `env.sh` loads `secrets.env`, replacing the launcher wrapper. The
+  handoff's detach comes from `Platform.Autostart.handoff_detach/0`,
+  with no `setsid` under launchd, and the plist's
+  `AbandonProcessGroup` keeps the installer alive. Still open: the app
+  launcher (`Apps.Launcher`) runs `setsid -f`, so launching apps fails
+  on macOS with a clear message.
+* `2026-10-25` — **The macOS test environment lives in
+  `install-repro-matrix.md` Phase 8** (owner): a job on GitHub's macOS
+  runners that runs the real installer.
+* `2026-10-25` — **Phase 8's first runs found four more macOS faults**,
+  fixed for v1.60.2: an install over a running install never reloaded
+  the agent (`launchctl bootout gui/<uid> <label>` fails; the
+  service-target form is required, and launchd keeps the label about a
+  second after bootout); `Platform.Autostart.Launchd.stop/1` used the
+  same form; the app detected launchd by `LAUNCHD_SOCKET`, which macOS
+  14 does not set (now `XPC_SERVICE_NAME == label`); and the first
+  migration logged "database is locked" (now one connection). Still
+  open: the Settings service card says "Not running under systemd." on
+  macOS when the app is started by hand.
+* `2026-10-25` — **No macOS upgrade ever switched versions** (found by
+  install-repro after v1.60.2): BSD `mv -f` followed the `current`
+  symlink and moved the new link into the old release, so the agent kept
+  running the old version. Fixed with `mv -fh` for v1.60.3.
 
 ## Next steps
 

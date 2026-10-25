@@ -12,7 +12,7 @@ defmodule MediaCentaur.Platform.Autostart do
     phase). `launchctl print pid/$$` for detection, `launchctl
     kickstart/bootout` for control, plist `Label` for unit-name.
 
-  Three concerns live behind this seam, all owned by "the autostart
+  Four concerns live behind this seam, all owned by "the autostart
   system" architecturally:
 
   1. **State + control** — `state/1`, `detected_unit/1`, `restart/1`,
@@ -23,7 +23,12 @@ defmodule MediaCentaur.Platform.Autostart do
      detached installer can reach the user's supervisor. Linux needs
      XDG/DBUS; macOS launchd resolves from the caller's UID and
      needs nothing. Belongs to the supervisor, not the spawner.
-  3. **Tarball contract** — `tarball_required_paths/0`. The
+  3. **Handoff detach** — `handoff_detach/0`. The argv prefix that lets
+     the detached installer outlive the restart it performs. Linux uses
+     `setsid --fork`; macOS ships no `setsid`, and the LaunchAgent's
+     `AbandonProcessGroup` keeps launchd from killing the installer, so
+     the prefix is empty.
+  4. **Tarball contract** — `tarball_required_paths/0`. The
      OS-specific unit-file path `SelfUpdate.Stager` must find in
      incoming release tarballs. Linux ships
      `share/systemd/media-centaur.service`; macOS will ship
@@ -59,6 +64,7 @@ defmodule MediaCentaur.Platform.Autostart do
   @callback stop(opts :: keyword()) :: :ok | {:error, term()}
   @callback status_output(opts :: keyword()) :: {:ok, String.t()} | {:error, term()}
   @callback handoff_env_vars() :: [String.t()]
+  @callback handoff_detach() :: [String.t()]
   @callback tarball_required_paths() :: [String.t()]
 
   @doc "Current autostart-system state for this BEAM's unit."
@@ -87,6 +93,13 @@ defmodule MediaCentaur.Platform.Autostart do
   """
   @spec handoff_env_vars() :: [String.t()]
   def handoff_env_vars, do: impl().handoff_env_vars()
+
+  @doc """
+  The argv prefix `SelfUpdate.Handoff` puts before its shell so the
+  detached installer outlives this OS's restart of the service.
+  """
+  @spec handoff_detach() :: [String.t()]
+  def handoff_detach, do: impl().handoff_detach()
 
   @doc """
   Paths that release tarballs must contain so `SelfUpdate.Stager`

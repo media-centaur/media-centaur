@@ -23,6 +23,10 @@ die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
 banner() { printf '==> %s\n' "$1"; }
 need()   { command -v "$1" >/dev/null 2>&1 || die "$1 is required"; }
 
+# Checked here as well as in the bundled installer, so `curl … | sudo sh`
+# stops before downloading anything.
+[ "$(id -u)" -ne 0 ] || die "Run this without sudo. Media Centaur installs into your home folder and runs as your user."
+
 # Validate a tag string against the canonical release shape.
 # Rejected strings never reach URL construction or filesystem paths.
 # POSIX grep -E for a precise character class — shell `case` globs can't

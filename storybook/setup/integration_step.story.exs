@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.IntegrationStep do
             <label class="text-xs uppercase tracking-wide opacity-60">API key</label>
             <input
               type="password"
-              placeholder="paste your TMDB v4 read-access token"
+              placeholder="Paste the API Key or API Read Access Token"
               class="input w-full font-mono text-sm"
             />
           </:form>

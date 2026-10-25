@@ -1,0 +1,152 @@
+name: Install repro
+
+# Runs the real installers on GitHub runners through the scenarios in
+# install-repro/scenarios/. Dispatched by hand, against any published tag,
+# when we decide to run it. See install-repro/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test (vX.Y.Z); empty means the latest release
+        type: string
+        required: false
+      platform:
+        description: Which platforms to run
+        type: choice
+        options: [all, macos, linux]
+        default: all
+      installer:
+        description: "released: the public install path. checkout: the released tarball with this branch's installer"
+        type: choice
+        options: [released, checkout]
+        default: released
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve tags and platforms
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tags.outputs.tag }}
+      from_tag: ${{ steps.tags.outputs.from_tag }}
+      latest_tag: ${{ steps.tags.outputs.latest_tag }}
+      platforms: ${{ steps.platforms.outputs.platforms }}
+    steps:
+      - name: Resolve the tag under test, the release before it, and the latest
+        id: tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.tag }}
+        run: |
+          releases=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
+            --limit 50 --json tagName,isLatest)
+          latest=$(printf '%s' "$releases" | jq -r '.[] | select(.isLatest) | .tagName')
+          tag="${REQUESTED:-$latest}"
+          from=$(printf '%s' "$releases" | jq -r --arg tag "$tag" \
+            '[.[].tagName] | (index($tag)) as $i | if $i == null then "" else (.[$i + 1] // "") end')
+          printf '%s' "$releases" | jq -e --arg tag "$tag" 'any(.[]; .tagName == $tag)' >/dev/null \
+            || { echo "::error::$tag is not a published release"; exit 1; }
+          echo "tag=$tag latest=$latest from=$from"
+          {
+            echo "tag=$tag"
+            echo "latest_tag=$latest"
+            echo "from_tag=$from"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the platforms to run
+        id: platforms
+        env:
+          REQUESTED: ${{ inputs.platform || 'all' }}
+        run: |
+          macos='{"platform":"macos","runner":"macos-14"}'
+          linux='{"platform":"linux","runner":"ubuntu-24.04"}'
+          case "$REQUESTED" in
+            all) platforms="[$macos,$linux]" ;;
+            macos) platforms="[$macos]" ;;
+            linux) platforms="[$linux]" ;;
+          esac
+          echo "platforms=$platforms" >> "$GITHUB_OUTPUT"
+
+  lifecycle:
+    name: Install lifecycle — ${{ matrix.platform }} (${{ needs.resolve.outputs.tag }}, ${{ inputs.installer || 'released' }} installer)
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.resolve.outputs.platforms) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      MC_TAG: ${{ needs.resolve.outputs.tag }}
+      MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
+      MC_INSTALLER: ${{ inputs.installer }}
+      SCENARIOS: install-repro/scenarios
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Runner environment
+        run: $SCENARIOS/${{ matrix.platform }}/environment
+
+      - name: 4. sudo is refused
+        run: $SCENARIOS/sudo-refused
+      - name: 1. Fresh install without sudo
+        run: $SCENARIOS/fresh-install
+      - name: 2. Re-run over an existing install
+        run: $SCENARIOS/reinstall
+      - name: 3. Install over a disabled service
+        run: $SCENARIOS/${{ matrix.platform }}/disabled-service
+      - name: 5. Manual start
+        run: $SCENARIOS/manual-start
+      - name: 7. Uninstall
+        run: $SCENARIOS/uninstall
+      - name: 8. Upgrade from the release before
+        if: needs.resolve.outputs.from_tag != ''
+        run: $SCENARIOS/upgrade
+      - name: Fresh install logged no error
+        if: ${{ !cancelled() }}
+        run: $SCENARIOS/fresh-install-log
+
+      - name: Collect evidence
+        if: always()
+        run: $SCENARIOS/${{ matrix.platform }}/collect-evidence "$RUNNER_TEMP/evidence"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-repro-${{ matrix.platform }}-lifecycle-${{ needs.resolve.outputs.tag }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 30
+
+  update:
+    name: In-app update — ${{ matrix.platform }} (${{ needs.resolve.outputs.from_tag }} → ${{ needs.resolve.outputs.latest_tag }})
+    needs: resolve
+    if: needs.resolve.outputs.from_tag != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.resolve.outputs.platforms) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      MC_FROM_TAG: ${{ needs.resolve.outputs.from_tag }}
+      MC_LATEST_TAG: ${{ needs.resolve.outputs.latest_tag }}
+      SCENARIOS: install-repro/scenarios
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Runner environment
+        run: $SCENARIOS/${{ matrix.platform }}/environment
+      - name: 6. In-app update
+        run: $SCENARIOS/in-app-update
+
+      - name: Collect evidence
+        if: always()
+        run: $SCENARIOS/${{ matrix.platform }}/collect-evidence "$RUNNER_TEMP/evidence"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-repro-${{ matrix.platform }}-update-${{ needs.resolve.outputs.from_tag }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 30

@@ -1,0 +1,38 @@
+# shellcheck shell=bash disable=SC2034
+# macOS service-manager adapter for the shared scenarios (see ../lib).
+# The app runs as the LaunchAgent com.media-centaur.app in the user's
+# gui/<uid> launchd domain.
+
+PLATFORM_TAG="darwin-arm64"
+PLATFORM_INSTALLER="$REPO_ROOT/rel/platforms/darwin/bin/media-centaur-install"
+LABEL="com.media-centaur.app"
+SERVICE_FILE="$HOME/Library/LaunchAgents/$LABEL.plist"
+SUMMARY_RUNNING="state     loaded + running"
+
+ctl_domain() { printf 'gui/%s' "$(id -u)"; }
+ctl_target() { printf 'gui/%s/%s' "$(id -u)" "$LABEL"; }
+
+service_manager_ok() { launchctl print "$(ctl_domain)" >/dev/null 2>&1; }
+
+# A loaded LaunchAgent with RunAtLoad starts at login.
+service_autostarts() { launchctl print "$(ctl_target)" >/dev/null 2>&1; }
+
+service_running() { launchctl print "$(ctl_target)" 2>/dev/null | grep -q 'state = running'; }
+
+service_stop() { launchctl bootout "$(ctl_target)"; }
+
+# launchctl prints a disabled label as `"<label>" => disabled` on macOS 14
+# and as `"<label>" => true` on older releases.
+label_disabled() {
+    launchctl print-disabled "$(ctl_domain)" 2>/dev/null |
+        grep -Eq "\"$LABEL\" => (disabled|true)"
+}
+
+assert_service_removed() {
+    service_autostarts && fail "LaunchAgent $LABEL is still loaded"
+    pass "LaunchAgent is not loaded"
+    label_disabled || fail "$LABEL is not disabled"
+    pass "$LABEL is disabled"
+    [ ! -e "$SERVICE_FILE" ] || fail "$SERVICE_FILE still exists"
+    pass "plist removed"
+}

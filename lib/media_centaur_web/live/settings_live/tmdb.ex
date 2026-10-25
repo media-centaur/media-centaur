@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
                 }
               />
               <p class="mt-1 text-xs text-base-content/55">
-                Free at <a
+                The API Key or the API Read Access Token, free at <a
                   href="https://www.themoviedb.org/settings/api"
                   target="_blank"
                   rel="noopener noreferrer"
