@@ -112,7 +112,10 @@ describe("originOf — click target → card origin", () => {
 import { createDomWriter } from "../dom_adapter.js"
 
 const MODAL_ITEM_SELECTOR = "[data-detail-mode='modal'] [data-nav-item]"
+// These writers never scroll; the glider is required, so give them an inert one.
+const INERT_GLIDER = { glide() {}, cancel() {}, cancelAll() {}, isGliding: () => false }
 const SCOPED_CONFIG = {
+  glider: INERT_GLIDER,
   contextSelectors: {
     modal: MODAL_ITEM_SELECTOR,
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
@@ -242,7 +245,7 @@ describe("modal item scoping (writer)", () => {
 // ---------------------------------------------------------------------------
 
 const GRID_SELECTOR = "[data-nav-zone='grid'] [data-nav-item]"
-const GRID_CONFIG = { contextSelectors: { grid: GRID_SELECTOR } }
+const GRID_CONFIG = { glider: INERT_GLIDER, contextSelectors: { grid: GRID_SELECTOR } }
 
 function fakeGridItem(label, { disabled = false, hidden = false } = {}) {
   return {

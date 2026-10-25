@@ -11,7 +11,6 @@
  */
 
 import { Context } from "./focus_context"
-import { createScrollGlide } from "./scroll_glide"
 
 /**
  * The element that owns the active modal overlay — the first
@@ -505,16 +504,18 @@ export function createDomReader(config = {}) {
 /**
  * Create a DomWriter that modifies the DOM using the given config.
  * @param {Object} [config={}]
- * @param {Object} [config.glider] - Scroll glide instance; defaults to a real
- *   one driven by rAF. Injected so tests can drive frames by hand.
+ * @param {Object} config.glider - Required: the page's one scroll glider;
+ *   injected so tests can drive frames by hand.
  * @returns {Object} DomWriter interface
  */
-export function createDomWriter(config = {}) {
+export function createDomWriter(config) {
   const selectors = config.contextSelectors ?? {}
-  const glider = config.glider ?? createScrollGlide({
-    requestAnimationFrame: fn => globalThis.requestAnimationFrame(fn),
-    now: () => performance.now(),
-  })
+  const glider = config.glider
+  if (!glider) {
+    throw new Error(
+      "createDomWriter: config.glider is required — the page's one scroll glider (assets/js/scroll_glider.js)"
+    )
+  }
 
   // Focus an element, revealing it unless the caller opted out. A restore
   // while the pointer owns the scroll (mouse mode) passes { reveal: false }:

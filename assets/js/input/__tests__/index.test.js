@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { actionForId, shellLeave } from "../index"
 import { Action } from "../core/index.js"
 import { inputConfig } from "../config"
+import { scrollGlider } from "../../scroll_glider"
 import { Context, buildNavGraph, resolveCursorStart } from "../core/index"
 
 describe("App config", () => {
@@ -20,8 +21,7 @@ describe("App config", () => {
   // arrow press with the same one, so the orchestrator's wheel rule
   // (cancel every glide) reaches both and a cursor key mid-glide retargets
   // rather than races.
-  test("hands the page's one glider to the DOM writer", async () => {
-    const { scrollGlider } = await import("../../scroll_glider")
+  test("hands the page's one glider to the DOM writer", () => {
     expect(inputConfig.glider).toBe(scrollGlider)
     expect(typeof scrollGlider.glide).toBe("function")
     expect(typeof scrollGlider.cancelAll).toBe("function")
