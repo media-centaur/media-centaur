@@ -58,11 +58,17 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
     ~H"""
     <div class="scroll-row-arrow" data-scroll-row-arrow={@direction}>
       <button type="button" class="picture-button" tabindex="-1" aria-label={"Scroll #{@direction}"}>
-        <.icon name={"hero-chevron-#{@direction}-mini"} class="size-5" />
+        <.icon name={chevron(@direction)} class="size-5" />
       </button>
     </div>
     """
   end
+
+  # Literal names, never built from the direction: Tailwind generates an
+  # icon's CSS only for a class name its scanner finds in the source, and
+  # a `hero-chevron-#{dir}-mini` left the left arrow an empty disc.
+  defp chevron("left"), do: "hero-chevron-left-mini"
+  defp chevron("right"), do: "hero-chevron-right-mini"
 
   defp track_class(:backdrop_lg), do: "row-scroll-backdrop-lg"
   defp track_class(:poster), do: "row-scroll-poster"

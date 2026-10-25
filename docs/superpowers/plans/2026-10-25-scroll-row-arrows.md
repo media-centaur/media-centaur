@@ -1231,6 +1231,8 @@ git commit -m "fix(ui): scroll row arrows — inset and size settled against Hom
 
 (Skip if nothing changed.)
 
+**What the walk found (2026-10-25).** Headless Chromium answers `(hover: hover)` false, so neither the reveal nor the hook ran under the probes; `chromium-probe --pointer` and `page-shot --pointer` / `--hover <css>` / `--eval '<js>'` were added to `~/scripts/agents` (Blink's pointer settings at launch; a CDP mouse move for a real `:hover`). With them: edge state projects at mount and follows scroll; a right press on Continue Watching glides exactly one step (2227 px at 1920); the end hides the right arrow; the cursor walk is unchanged; a press never focuses the arrow. Three corrections came out of it, each its own commit: the disc's one size (52 px) moved onto `.picture-button` and the 44 px rule went (the arrows read too small); the glide could never converge under the root zoom when a step rounded back to the same device pixel and ticked forever, fixed in `scroll_glide.js` with a snapping-box test; and the chevron names were built from the direction, which Tailwind's scanner cannot see, so the left arrow was an empty disc — the names are literal now. The headless profile gate keeps the `?entity=` modal from opening for an entity without a TMDB identity, so the collection rail's arrows were checked on its story under hover instead; its markup is pinned by the smoke test.
+
 ---
 
 ### Task 8: Docs, precommit, wiki
