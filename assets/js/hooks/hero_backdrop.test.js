@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createBitmapCache, createHeroBackdropHook, warmHeroBackdrops } from "./hero_backdrop"
+import { createBitmapCache, createHeroBackdropHook, displaySize, fitToScreen, warmHeroBackdrops } from "./hero_backdrop"
 
 // A decoded bitmap stand-in: the cache only needs width/height and close().
 function fakeBitmap(name, width = 3840, height = 2160) {
@@ -227,5 +227,58 @@ describe("warmHeroBackdrops", () => {
 
     expect(cache.has("/a")).toBe(false)
     expect(cache.has("/b")).toBe(true)
+  })
+})
+
+// The resize the browser would do, recorded: a new bitmap at the asked size.
+function fakeResize() {
+  const calls = []
+  const resize = async (bitmap, options) => {
+    calls.push(options)
+    return fakeBitmap(`${bitmap.name}@${options.resizeWidth}`, options.resizeWidth, options.resizeHeight)
+  }
+  return { resize, calls }
+}
+
+describe("fitToScreen", () => {
+  test("a 4K picture on a 1080p screen is kept at the screen's size and the full one closed", async () => {
+    const full = fakeBitmap("hero", 3840, 2160)
+    const { resize, calls } = fakeResize()
+    const fitted = await fitToScreen(full, { width: 1920, height: 1080 }, resize)
+    expect([fitted.width, fitted.height]).toEqual([1920, 1080])
+    expect(calls[0].resizeQuality).toBe("high")
+    expect(full.closed).toBe(true)
+  })
+
+  test("a 4K picture on a 4K screen is kept as decoded", async () => {
+    const full = fakeBitmap("hero", 3840, 2160)
+    const { resize, calls } = fakeResize()
+    expect(await fitToScreen(full, { width: 3840, height: 2160 }, resize)).toBe(full)
+    expect(calls).toEqual([])
+    expect(full.closed).toBe(false)
+  })
+
+  test("a picture smaller than the screen is never enlarged", async () => {
+    const full = fakeBitmap("hero", 1920, 1080)
+    const { resize, calls } = fakeResize()
+    expect(await fitToScreen(full, { width: 3840, height: 2160 }, resize)).toBe(full)
+    expect(calls).toEqual([])
+  })
+
+  test("a picture of another shape still covers the screen, as the hero's object-fit does", async () => {
+    const wide = fakeBitmap("wide", 5120, 2160)
+    const { resize } = fakeResize()
+    const fitted = await fitToScreen(wide, { width: 1920, height: 1080 }, resize)
+    expect([fitted.width, fitted.height]).toEqual([2560, 1080])
+  })
+})
+
+describe("displaySize", () => {
+  test("is the screen in device pixels: CSS pixels times the device pixel ratio", () => {
+    expect(displaySize({ width: 960, height: 540 }, { width: 960, height: 540 }, 2)).toEqual({ width: 1920, height: 1080 })
+  })
+
+  test("a viewport larger than the reported screen wins: headless Chromium reports a small screen", () => {
+    expect(displaySize({ width: 800, height: 600 }, { width: 1920, height: 1080 }, 1)).toEqual({ width: 1920, height: 1080 })
   })
 })
