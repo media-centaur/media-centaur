@@ -123,9 +123,10 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-037) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
-  **planning; Phase 8 next (added 2026-10-25): the real macOS installer
-  on GitHub's macOS runners — fresh install, upgrade, disabled label,
-  sudo refused, manual start, in-app update, uninstall.** Reproducible install environments for media-centaur and
+  **in progress; Phase 8 (added 2026-10-25) built on branch
+  `install-repro-macos`, awaiting its first runner run: the real macOS
+  installer on GitHub's macOS runners — fresh install, upgrade, disabled
+  label, sudo refused, manual start, in-app update, uninstall.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
   ([`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md));
   seven follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,

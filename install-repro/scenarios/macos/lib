@@ -1,0 +1,106 @@
+# shellcheck shell=bash disable=SC2034
+# Shared helpers for the macOS scenarios. Sourced, not executed.
+#
+# Every scenario runs as the invoking user against the real installed
+# paths, so it runs the same on a GitHub macOS runner and on a real Mac.
+# Bash 3.2 compatible: that is the bash macOS ships.
+
+LABEL="com.media-centaur.app"
+INSTALL_ROOT="$HOME/.local/lib/media-centaur"
+CONFIG_DIR="$HOME/.config/media-centaur"
+DATA_DIR="$HOME/.local/share/media-centaur"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+APP_URL="http://localhost:2160/"
+# Scenario output a later scenario reads, and collect-evidence keeps.
+SCENARIO_LOG_DIR="${MC_SCENARIO_LOG_DIR:-$HOME/install-repro-logs}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+step() { printf '\n--- %s\n' "$1"; }
+fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
+pass() { printf 'PASS: %s\n' "$1"; }
+
+ctl_domain() { printf 'gui/%s' "$(id -u)"; }
+ctl_target() { printf 'gui/%s/%s' "$(id -u)" "$LABEL"; }
+
+# The tag under test, from MC_TAG (vX.Y.Z).
+require_tag() {
+    [ -n "${MC_TAG:-}" ] || fail "MC_TAG is not set (expected a release tag such as v1.60.1)"
+}
+
+agent_loaded() { launchctl print "$(ctl_target)" >/dev/null 2>&1; }
+
+agent_running() { launchctl print "$(ctl_target)" 2>/dev/null | grep -q 'state = running'; }
+
+# launchctl prints a disabled label as `"<label>" => disabled` on macOS 14
+# and as `"<label>" => true` on older releases.
+label_disabled() {
+    launchctl print-disabled "$(ctl_domain)" 2>/dev/null |
+        grep -Eq "\"$LABEL\" => (disabled|true)"
+}
+
+# Any HTTP status counts: the first page redirects to setup.
+app_answers() {
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$APP_URL" || true)
+    [ -n "$code" ] && [ "$code" != "000" ]
+}
+
+wait_until() {
+    description="$1"
+    timeout="$2"
+    shift 2
+    elapsed=0
+    until "$@"; do
+        [ "$elapsed" -lt "$timeout" ] || fail "$description (waited ${timeout}s)"
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    pass "$description (${elapsed}s)"
+}
+
+app_down() { ! app_answers; }
+
+installed_version() { "$INSTALL_ROOT/current/bin/media_centaur" version 2>/dev/null | awk '{print $NF}'; }
+
+assert_version() {
+    want="${1#v}"
+    got=$(installed_version)
+    [ "$got" = "$want" ] || fail "installed version is '$got', expected '$want'"
+    pass "installed version is $want"
+}
+
+# The agent is loaded, running, and the app answers on its port.
+assert_serving() {
+    agent_loaded || fail "LaunchAgent $LABEL is not loaded in $(ctl_domain)"
+    pass "LaunchAgent is loaded"
+    wait_until "LaunchAgent is running" 30 agent_running
+    wait_until "app answers at $APP_URL" 120 app_answers
+}
+
+# Installs a release tag. By default through the public installer, as
+# `curl … | sh` would. MC_INSTALLER=checkout instead runs the released
+# tarball with this checkout's macOS installer in place of the bundled
+# one, to prove an installer fix before it ships. The in-app update
+# always runs the installer bundled in the release it downloads.
+install_release() {
+    tag="$1"
+    case "${MC_INSTALLER:-released}" in
+        released) sh "$REPO_ROOT/installer/install.sh" --version "$tag" ;;
+        checkout) install_with_checkout_installer "$tag" ;;
+        *) fail "MC_INSTALLER must be released or checkout, not '$MC_INSTALLER'" ;;
+    esac
+}
+
+install_with_checkout_installer() {
+    tag="$1"
+    tarball="media-centaur-${tag#v}-darwin-arm64.tar.gz"
+    work=$(mktemp -d)
+    curl -fsSL -o "$work/$tarball" "https://github.com/media-centaur/media-centaur/releases/download/$tag/$tarball"
+    mkdir "$work/extract"
+    tar -xzf "$work/$tarball" -C "$work/extract"
+    cp "$REPO_ROOT/rel/platforms/darwin/bin/media-centaur-install" "$work/extract/bin/media-centaur-install"
+    printf '==> Using this checkout'"'"'s installer with the %s tarball\n' "$tag"
+    "$work/extract/bin/media-centaur-install"
+    status=$?
+    rm -rf "$work"
+    return "$status"
+}

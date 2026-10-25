@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Scenario: a fresh install without sudo, through the public installer,
+# ends with the LaunchAgent loaded and running and the app answering.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+require_tag
+
+step "launchd gui domain"
+launchctl print "$(ctl_domain)" >/dev/null || fail "no launchd $(ctl_domain) domain for this user; autostart cannot be tested here"
+pass "$(ctl_domain) exists"
+
+step "install $MC_TAG"
+mkdir -p "$SCENARIO_LOG_DIR"
+out="$SCENARIO_LOG_DIR/fresh-install.log"
+install_release "$MC_TAG" | tee "$out"
+grep -q "state     loaded + running" "$out" || fail "the installer summary does not report the agent loaded + running"
+pass "the summary reports loaded + running"
+
+assert_serving
+assert_version "$MC_TAG"
+[ -f "$CONFIG_DIR/secrets.env" ] || fail "secrets.env was not generated"
+pass "secrets.env generated"

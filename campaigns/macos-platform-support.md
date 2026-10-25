@@ -703,6 +703,16 @@ Append-only log.
 * `2026-10-25` — **The macOS test environment lives in
   `install-repro-matrix.md` Phase 8** (owner): a job on GitHub's macOS
   runners that runs the real installer.
+* `2026-10-25` — **Phase 8's first runs found four more macOS faults**,
+  fixed for v1.60.2: an install over a running install never reloaded
+  the agent (`launchctl bootout gui/<uid> <label>` fails; the
+  service-target form is required, and launchd keeps the label about a
+  second after bootout); `Platform.Autostart.Launchd.stop/1` used the
+  same form; the app detected launchd by `LAUNCHD_SOCKET`, which macOS
+  14 does not set (now `XPC_SERVICE_NAME == label`); and the first
+  migration logged "database is locked" (now one connection). Still
+  open: the Settings service card says "Not running under systemd." on
+  macOS when the app is started by hand.
 
 ## Next steps
 
