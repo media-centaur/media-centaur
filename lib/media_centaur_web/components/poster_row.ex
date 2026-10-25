@@ -6,7 +6,8 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   size as the library grid's — the row's "See all" lands on `/library`, and
   posters that resized across that step would read as two different objects.
   How many fit is left to `.row-scroll-poster`; the last one is deliberately
-  cut off, which is what says the row scrolls.
+  cut off, which is what says the row scrolls. The track is a
+  `ScrollRow.scroll_row/1`, which adds the mouse user's edge arrows.
 
   Each item is an `Item` struct (see below). `year` may be a string like
   "2023" or "S2 · 2026".
@@ -20,6 +21,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
   alias MediaCentaurWeb.Components.PlayOverlay
+  alias MediaCentaurWeb.Components.ScrollRow
 
   defmodule Item do
     @moduledoc """
@@ -54,11 +56,11 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   def poster_row(assigns) do
     ~H"""
-    <div
+    <ScrollRow.scroll_row
       :if={@items != []}
+      id="recently-added-row"
+      variant={:poster}
       data-component="poster-row"
-      data-scroll-row="poster-row"
-      class="row-scroll row-scroll-poster"
     >
       <%!-- A div, not a <button>: the play overlay nests a real button
             inside (UIDR-027) and buttons cannot nest. Same pattern as the
@@ -114,7 +116,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
         <.icon name="hero-arrow-right-circle" class="size-10" />
         <span class="text-sm font-medium">See all</span>
       </.link>
-    </div>
+    </ScrollRow.scroll_row>
     """
   end
 end

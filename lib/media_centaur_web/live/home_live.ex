@@ -145,7 +145,6 @@ defmodule MediaCentaurWeb.HomeLive do
         <div
           :if={@hero}
           class="relative z-[1] -mx-6 -mt-6"
-          data-scroll-row="hero"
           data-nav-zone="hero"
           data-nav-reveal
         >

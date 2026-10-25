@@ -414,6 +414,10 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # would silently exercise nothing.
       assert html =~ ~s(data-role="collection-rail")
       assert html =~ "rail-tile-"
+      # The rail is a scroll row; its track keeps the nav zone.
+      assert html =~ ~s(id="collection-rail-row")
+      assert html =~ ~s(data-scroll-row-arrow="right")
+      assert html =~ ~s(data-nav-zone="detail_rail")
     end
   end
 

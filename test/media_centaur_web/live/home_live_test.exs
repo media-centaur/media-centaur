@@ -134,6 +134,30 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       assert has_element?(view, ~s|[data-component="poster-row-see-all"][href="/library"]|)
     end
+
+    # Both rows are scroll rows: the track keeps its `data-component`, and
+    # the wrapper carries the two edge arrows a mouse user presses.
+    test "both rows render as scroll rows with edge arrows", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      for id <- ["continue-watching-row", "recently-added-row"] do
+        assert has_element?(view, ~s|##{id}.scroll-row[phx-hook="ScrollRow"]|)
+        assert has_element?(view, ~s|##{id} > .row-scroll|)
+
+        for direction <- ["left", "right"] do
+          assert has_element?(
+                   view,
+                   ~s|##{id} > [data-scroll-row-arrow="#{direction}"] > .picture-button[tabindex="-1"][aria-label="Scroll #{direction}"]|
+                 )
+        end
+
+        refute has_element?(view, ~s|##{id} [data-scroll-row-arrow] [data-nav-item]|)
+      end
+
+      assert has_element?(view, ~s|#continue-watching-row > [data-component="continue-watching"]|)
+      assert has_element?(view, ~s|#recently-added-row > [data-component="poster-row"]|)
+      refute has_element?(view, "[data-scroll-row]")
+    end
   end
 
   describe "debounce on entities_changed" do
