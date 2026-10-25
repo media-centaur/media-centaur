@@ -34,8 +34,11 @@ Defined before use; refined as the campaign proceeds.
 
 M1's research done 2026-10-25 (record under M1 below). A personal
 account (decided). BACK-to-home and the Menu-key dependency are built
-on the host and in the TV app (unreleased; verified in tests, not yet
-on the Sony); the banner artwork (open decision 6) is the owner's. Next:
+on the host and in the TV app (unreleased) and verified on the Sony
+2026-10-25 with the debug app on the sim host: BACK on the pairing page
+leaves at once; BACK from content enters the sidebar and BACK again
+leaves; paused, DOWN focuses Audio & subtitles, OK opens the track menu,
+BACK closes it, UP leaves the button and OK resumes; the banner artwork (open decision 6) is the owner's. Next:
 the owner opens the account (the M1 sit-down).
 
 ## Principles
