@@ -19,17 +19,21 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
     command, no caller deadlock because the new agent instance is
     spawned independently. The Linux analog is
     `systemctl --user restart --no-block`.
-  * **Stop**: `launchctl bootout gui/<uid> <label>` — fully unloads
-    the agent.
+  * **Stop**: `launchctl bootout gui/<uid>/<label>` — fully unloads
+    the agent. The service-target form is required: `bootout gui/<uid>
+    <label>` reads the label as a plist path and fails with
+    "Boot-out failed: 5".
   * **State**: `launchctl print gui/<uid>/<label>` — exits 0 if
     the label is loaded into the GUI domain, non-zero otherwise.
 
   ## under_launchd detection
 
-  Launchd doesn't set a single canonical env var the way systemd's
-  `INVOCATION_ID` does. The closest signal is `LAUNCHD_SOCKET` (set
-  per-session by launchd itself) — its presence indicates we're
-  inside a launchd-supervised session.
+  launchd sets `XPC_SERVICE_NAME` to the job's label in every process it
+  starts, so the app runs under its LaunchAgent exactly when
+  `XPC_SERVICE_NAME` equals the label — the counterpart of systemd's
+  `INVOCATION_ID`. A process launchd started for another job, such as
+  a terminal app, carries that job's name instead. (`LAUNCHD_SOCKET`,
+  used earlier, is not set on macOS 14; a macOS runner showed it.)
   """
 
   @behaviour MediaCentaur.Platform.Autostart
@@ -57,7 +61,7 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
     env_fn = Keyword.get(opts, :env_fn, &System.get_env/1)
     label = Keyword.get(opts, :label, @default_label)
 
-    under = under_launchd?(env_fn)
+    under = under_launchd?(env_fn, label)
     available = under
     installed_active = available and label_loaded?(cmd_fn, label)
 
@@ -74,7 +78,8 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
   @impl MediaCentaur.Platform.Autostart
   def detected_unit(opts \\ []) do
     env_fn = Keyword.get(opts, :env_fn, &System.get_env/1)
-    if under_launchd?(env_fn), do: Keyword.get(opts, :label, @default_label)
+    label = Keyword.get(opts, :label, @default_label)
+    if under_launchd?(env_fn, label), do: label
   end
 
   @impl MediaCentaur.Platform.Autostart
@@ -94,10 +99,10 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
   def stop(opts \\ []) do
     cmd_fn = Keyword.get(opts, :cmd_fn, &default_cmd/2)
     label = Keyword.get(opts, :label, @default_label)
-    domain = "gui/#{user_uid(cmd_fn)}"
+    target = "gui/#{user_uid(cmd_fn)}/#{label}"
     Log.info(:system, "stopping #{label} via launchctl bootout")
 
-    case cmd_fn.("launchctl", ["bootout", domain, label]) do
+    case cmd_fn.("launchctl", ["bootout", target]) do
       {_output, 0} -> :ok
       {output, code} -> {:error, {:launchctl_failed, code, String.trim(output)}}
     end
@@ -119,13 +124,7 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
 
   # --- Private ---
 
-  defp under_launchd?(env_fn) do
-    case env_fn.("LAUNCHD_SOCKET") do
-      nil -> false
-      "" -> false
-      _ -> true
-    end
-  end
+  defp under_launchd?(env_fn, label), do: env_fn.("XPC_SERVICE_NAME") == label
 
   defp label_loaded?(cmd_fn, label) do
     target = "gui/#{user_uid(cmd_fn)}/#{label}"
