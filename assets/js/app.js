@@ -37,6 +37,7 @@ import {PlanGridCaption} from "./hooks/plan_grid_caption"
 import {StripChart} from "./hooks/strip_chart"
 import {FeedHead} from "./hooks/feed_head"
 import {ImageCrop} from "./hooks/image_crop"
+import {ScrollRow} from "./hooks/scroll_row"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import {installNavReselect} from "./nav_reselect"
 import topbar from "../vendor/topbar"
@@ -58,6 +59,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     StripChart,
     FeedHead,
     ImageCrop,
+    ScrollRow,
     // Publishes the detail scroller's measured geometry as CSS vars for
     // the pinned orientation block's backing replicas — layout facts CSS
     // cannot read about itself:
