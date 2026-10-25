@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   Hover-revealed direct-play affordance for browse cards (UIDR-027).
 
   Renders inside a card's `relative` image region. Invisible at rest, it
-  fades in (opacity only, 240ms, after the `--play-overlay-reveal-delay`
+  fades in (opacity only, 240ms, after the `--hover-reveal-delay`
   hover-intent delay) while the pointer hovers the nearest
   `.play-overlay-host` ancestor — hover is the only trigger, so the
   affordance does not exist for keyboard/gamepad input. Fade-out is
@@ -12,10 +12,12 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   the shared `"play"` event (`MediaCentaur.Playback.play/2` in place —
   no detail modal).
 
-  The press answers on the spot, in CSS alone (`.play-overlay-btn` in
-  `app.css`): the disc sinks while the pointer is down, springs back on
-  release, and a ring leaves its edge — the player's window takes a
-  moment to appear, and without this the click reads as dropped.
+  The button is a picture button (`.picture-button` in `app.css`, the
+  house disc over a picture, shared with a scroll row's edge arrows): the
+  disc sinks while the pointer is down and springs back on release. The
+  release ring (`.play-overlay-btn::after`) is this button's own — the
+  player's window takes a moment to appear, and without this the click
+  reads as dropped.
 
   Deliberately outside the input system: `tabindex="-1"`, no
   `data-nav-item`. Clicks on the button never reach the card's
@@ -39,7 +41,7 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
     <div class="play-overlay">
       <button
         type="button"
-        class={["play-overlay-btn", @size == :lg && "play-overlay-btn-lg"]}
+        class={["picture-button play-overlay-btn", @size == :lg && "play-overlay-btn-lg"]}
         phx-click="play"
         phx-value-id={@entity_id}
         tabindex="-1"
