@@ -80,7 +80,9 @@ One dark theme via the daisyUI plugin (`name: "dark"`, `default: true`, `themes:
 | `.glass-inset` | Nested panels, image placeholders, toggle items | Subtler bg, no blur, no shadow |
 | `.glass-sidebar` | Left navigation | `backdrop-filter: blur(30px)`, border-right |
 
-Body has a fixed two-tone radial gradient background. Glass surfaces float above it.
+Body has a fixed two-tone radial gradient background, drawn on a fixed `body::before` layer — never `background-attachment: fixed`, which Chromium repaints on every scroll frame (it held the TV app's scrolling to 30 fps). Glass surfaces float above it.
+
+**A remote player draws glass without blur.** The root layout sets `data-player="remote"` on `<html>` for a paired player (the TV app), and `app.css` turns every `backdrop-filter` off under it: the TV's GPU took 93 ms a frame over the library's blurred poster cards. Keep a glass surface legible without its blur — it must not depend on the blur for contrast. Measure the TV's smoothness with `~/scripts/agents/mc-tv-smooth` (frames as presented on screen) and explain a slow frame with `mc-tv-trace`.
 
 ## Storybook (live catalog)
 

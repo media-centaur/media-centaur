@@ -130,10 +130,34 @@ body.media-centaur {
   /* `100dvh` would render at scale × viewport under the root zoom (see
      `--pvh`), padding every page with trailing whitespace. */
   min-height: calc(100 * var(--pvh));
+}
+
+/* The gradient sits on a fixed layer of its own rather than on the body
+   with `background-attachment: fixed`: Chromium cannot scroll a
+   fixed-attachment background on the compositor and repaints the whole
+   viewport every scroll frame, which held every scroll on the TV app to
+   30 fps (`mc-tv-smooth`, 2026-10-25). A fixed layer looks the same and
+   the compositor moves the page over it. */
+body.media-centaur::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
     radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%);
-  background-attachment: fixed;
+}
+
+/* A remote player (the TV app, `data-player` on <html>) draws glass
+   without the blur. Every backdrop blur is an offscreen pass over what
+   lies behind it, redone each frame anything beneath moves; the TV's GPU
+   took 93 ms a frame over the library's poster cards and glided at
+   9–14 fps, 27–31 fps without (`mc-tv-smooth`, 2026-10-25). */
+html[data-player="remote"] *,
+html[data-player="remote"] *::before,
+html[data-player="remote"] *::after {
+  backdrop-filter: none !important;
 }
 
 /* Global UI scale — two factors with different owners, composed here.
