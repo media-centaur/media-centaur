@@ -21,6 +21,13 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`tv-performance.md`](tv-performance.md) —
+  **planning, opened 2026-10-25; resume at M1.** Tooling first, then the
+  cause: make `mc-tv-smooth` / `mc-tv-trace` measure without perturbing
+  what they measure (the page probe's cost, A/A noise), add Android's
+  render-thread timing (Perfetto), make a code-version A/B one command,
+  then find and fix why key-press glides fell from 59.9 to 35–42 fps on
+  2026-10-25 with every code version tried.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV
