@@ -2228,6 +2228,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The disc's one size; the wide backdrop card's play button alone goes
+     larger (`.play-overlay-btn-lg`). */
+  width: 52px;
+  height: 52px;
   border-radius: 9999px;
   color: white;
   background: oklch(from var(--color-base-100) l c h / 0.75);
@@ -2335,8 +2339,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  width: 52px;
-  height: 52px;
 }
 
 .play-overlay-btn::after {
@@ -2725,11 +2727,6 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 .scroll-row-arrow[data-scroll-row-arrow="right"] {
   right: 0.5rem;
-}
-
-.scroll-row-arrow .picture-button {
-  width: 44px;
-  height: 44px;
 }
 
 .row-scroll[data-at-start] ~ .scroll-row-arrow[data-scroll-row-arrow="left"],
