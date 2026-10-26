@@ -149,7 +149,13 @@ input system's motion is checked on the TV before it is done:
   bundle's digest and the checkout's HEAD (`*` when the tree is dirty).
   `MIXED` means the rounds measured different pages. Twice on 2026-10-25
   the page on the TV was not the code the session believed it was
-  measuring; this column is what would have shown it.
+  measuring; this column is what would have shown it. The HEAD is the
+  checkout serving the page's own origin (the host registry in
+  `~/scripts/agents/_tv.py`: the dev server, the sim host and
+  `mc-tv-ab`'s servers). The digest identifies a build, not a commit:
+  dev's esbuild inlines the source map with the checkout's absolute
+  paths, so two worktrees at one commit serve two digests. Under
+  `mc-tv-ab`, compare the HEADs.
 * **Wait for a settled page.** The debug app loads with `LOAD_NO_CACHE`,
   so every page load refetches all artwork; `mc-tv-smooth` waits until
   loading stops before measuring.
@@ -190,9 +196,10 @@ against 60 (run 44) and `mc-tv-trace`'s tracing costs nothing measurable
 actual (the WebView runs a frame ahead of the display), the render
 thread waits 10 ms a frame in `dequeueBuffer`, half of Chromium's
 presented frames are partial, and the Compositor thread waited for a CPU
-42 ms in a 1.6 s window. Still open in the campaign: a one-command
-code-version A/B, and a reveal that scrolled 156 px under the glide
-where the smooth variant scrolled 88.
+42 ms in a 1.6 s window. `mc-tv-ab` is the one-command code-version
+A/B (its A/A read 60 against 60 on both pages, 2026-10-26). Still open
+in the campaign: a reveal that scrolled 156 px under the glide where
+the smooth variant scrolled 88.
 
 Measured and left alone: the WebView's `Gamepad polling thread` runs
 about 250 times a second while the page holds `gamepadconnected`

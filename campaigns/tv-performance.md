@@ -43,19 +43,17 @@ tooling outlives the slowdown. (Rewritten 2026-10-25 by decision 3.)
 
 ## Status
 
-In progress; the TV in standby after the 2026-10-26 sessions (runs
-46–49). M1, M2, M4 and M5 are done. The slowdown is explained (the old
-page probe, run 42); the glide presents at 60 fps on the Sony (runs 41,
-43, 44, 49); `mc-tv-trace` now records one Perfetto system trace with
-Chromium and Android on one clock, costs nothing measurable, and a
-first Home glide under it shows the WebView a frame ahead of the
-display (buffer stuffing, `dequeueBuffer` 10 ms a frame) at 60 fps.
-M8 measured the gamepad poller at zero cost on screen (run 50).
-Decisions 6–10 taken 2026-10-26: no gamepad source on remote players
-(M9), and M3's shape (one `background_services` bootstrap key, two
-worktree servers on 2161/2162 against database copies, the real image
-cache shared, bound on the LAN for the run). No decision is open. M3
-is in its design steps; then M9, M6, M7.
+In progress; the TV in standby after the 2026-10-26 sessions. M1, M2,
+M3, M4, M5 and M8 are done. The slowdown is explained (the old page
+probe, run 42); the glide presents at 60 fps on the Sony (runs 41, 43,
+44, 49); `mc-tv-trace` records one Perfetto system trace at zero
+measured cost; the gamepad poller costs nothing on screen (run 50);
+`mc-tv-ab <ref-a> <ref-b>` is the one-command code-version A/B, built
+on the new `background_services` bootstrap key (commit `6095f146`),
+and its A/A read 60 against 60 on both pages. No decision is open.
+Next: M9 (no gamepad source on remote players, decision 6), then M6
+(its before-half now has `mc-tv-ab up` for a server at any commit),
+then M7.
 
 ## Principles
 
@@ -256,10 +254,10 @@ M9.
 |---|---|---|
 | M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | ✅ 2026-10-25 — tool rewritten (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); probe cost zero on the TV (run 43, Δ 0.0 both pages); A/A on the library (run 44, three rounds): 60 against 60, Δ +0.0, the only off-reading 53 in the first trial after the app came forward, so the noise band on an idle TV is one slow first trial. `run` now brings the app to the front first (a run after a handback had recorded zero presents). |
 | M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). Also: `mc-tv-trace` reads the screen's presents beside its trace (run 45 showed its frame count is not a present count) and shares the held-key expression with `mc-tv-smooth`. | ✅ 2026-10-26 — `mc-tv-trace` rewritten in Python over one Perfetto system trace (the WebView's Chromium events join it, so the DevTools trace is gone): screen presents first, frame timeline, Chromium pipeline, render thread, per-thread running/runnable, CPU frequency; `_tv.py` shared with `mc-tv-smooth`. Its cost measured with `--cost`: zero (Δ −0.0, noise 3.8) once the DevTools action mark, which alone cost 6.5 fps, was removed. A Home glide: 60 fps, 24 frames buffer-stuffed, `dequeueBuffer` 10 ms a frame. |
-| M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | open |
+| M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | ✅ 2026-10-26 — `~/scripts/agents/mc-tv-ab` (`up`, `run`, `down`, `status`): two measurement servers from worktrees on 2161/2162, each `background_services = false` (new bootstrap key, commit `6095f146`; the test-only start flags converged on it) against a `sqlite3 .backup` of the dev database with the real data directory; `mc-tv-smooth --cond host:<label>` re-points the TV app per round and `page id` names each host's HEAD. The A/A (`mc-tv-ab HEAD HEAD`, run `20261026-141657`): 60 against 60 on both pages, Δ +0.0, noise 0. |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
-| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half needs M3's second server |
+| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half runs against `mc-tv-ab up <before> <after>` (M3) |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
 | M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | open — after M3 |
@@ -797,6 +795,37 @@ procedure and records each step here.
    call in the script; the A/B holds for refs whose schema is at or
    below the dev database's (Ecto never downgrades), stated in the doc.
    No incoherence left for a later milestone.
+7. **Execution (2026-10-26).** App: commit `6095f146` (key, converged
+   gates, `Settings.Services` gate, `SelfUpdate.enabled?`, Oban off in
+   `runtime.exs`, `config/test.exs` on the one key, BootHeal without its
+   env clauses, docs, defaults TOML, wiki key committed locally and not
+   pushed); `agent-mix precommit` green, 8744 tests. Two findings on the
+   way: an instance without background services no longer calls
+   `pause_auto_grab` at boot — it had persisted
+   `services:test:start_acquisition` into the test database on the
+   first run (every later test saw the row); and the four tests that
+   model a production instance now load one through
+   `MediaCentaur.ProductionInstance`, since a production instance with
+   the check running is one with background services. Tooling: `_tv`
+   holds the host registry (dev, sim, `~/.cache/mc-tv-ab/hosts.json`),
+   `set_host`, and `page_identity` from `location.origin`;
+   `mc-tv-smooth` has `host:` conditions, the round → condition → page
+   loop and the `host` subcommand through the registry; `mc-tv-ab` is
+   new. On the TV (woken from standby, standby after): `mc-tv-ab up HEAD
+   HEAD` built both sides in about 4 minutes each (deps, assets,
+   migrations, the `config:data_dir` row); the servers' logs show no
+   watcher, pipeline, relay or Oban queue, only the config listener's
+   idempotent retraction pass that dev also runs at boot. `mc-tv-ab run
+   --reps 2 --off`, run `20261026-141657`: library 60 against 60 (2
+   glides, 122 px), Home 60 against 60 (7 glides, 410 px), Δ +0.0, noise
+   0, every gap 16.7 ms; Home under host a had one stall of about 120 ms
+   in each round, b none — one frame in a seven-glide walk, within what
+   one tool's rounds show, not pursued. Note for reading `page id`: the
+   two sides' bundle digests differ for one commit (`8fc9d3fc` against
+   `e5e6afad`) because dev's esbuild inlines the source map with each
+   worktree's absolute paths; a code A/B compares HEADs, and the digest
+   says only that the two sides served different builds. `mc-tv-ab
+   down` left no worktree, server or copy behind.
 
 ## Completion criteria
 
