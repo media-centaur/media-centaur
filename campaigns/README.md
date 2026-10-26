@@ -22,17 +22,20 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tv-performance.md`](tv-performance.md) —
-  **in progress, opened 2026-10-25; M1, M4 and M5 done.** The glide
+  **in progress, opened 2026-10-25; M1, M2, M4 and M5 done.** The glide
   slowdown was the tool: the old per-frame probe cost the glide 16–19
   fps, and the 59.9 baseline was a compositor scroll it could not slow
   (confirmed interleaved on the TV). `mc-tv-smooth` now records what
   each row measured (animator, px/glide, served bundle + HEAD, noise
   beside every comparison); its probe measures zero cost, the A/A reads
   60 against 60, and `mc-tv-trace`'s tracing cost nothing measurable.
-  The glide stays as it is (decision 2). Next: Android's render-thread
-  timing (Perfetto, with `mc-tv-trace` reading the screen's presents
-  beside its trace), a one-command code-version A/B from a worktree
-  server on its own port, the hero's memory, the 156 px reveal.
+  The glide stays as it is (decision 2). `mc-tv-trace` records one
+  Perfetto system trace (Chromium and Android on one clock: frame
+  timeline, render thread, per-thread runnable time) at zero measured
+  cost, after a DevTools action mark that alone cost 6.5 fps was
+  removed. Next: a one-command code-version A/B from a worktree server
+  on its own port, the hero's memory, the 156 px reveal, and decision 5
+  (the WebView's gamepad poller, 250 polls a second with no gamepad).
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV

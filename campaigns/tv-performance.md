@@ -1,7 +1,7 @@
 ---
 status: in-progress
 opened: 2026-10-25
-last_updated: 2026-10-25
+last_updated: 2026-10-26
 ---
 # Campaign: TV performance tooling and the glide slowdown
 
@@ -19,6 +19,12 @@ last_updated: 2026-10-25
 | **Interleaved A/B** | Two conditions alternated within one run on one device state. |
 | **A/A run** | One condition measured repeatedly in one run, to establish the noise between rounds. |
 | **Code-version A/B** | An interleaved A/B where the two conditions are two commits of the app. |
+| **Action** | The one thing a measurement does to the page: a D-pad key press over adb, a held key simulated in the page, or a JavaScript expression. |
+| **Chromium trace** | Chromium's own trace of the WebView's threads and frame pipeline, recorded over the DevTools protocol (`Tracing.start`). Its clock is Chromium's. |
+| **System trace** | Android's Perfetto trace of the whole device: kernel scheduling and CPU frequency (ftrace), framework slices (atrace categories such as `gfx`, `view`, `webview`) and SurfaceFlinger's frame timeline. One clock for everything in it. |
+| **Frame timeline** | SurfaceFlinger's per-frame record on Android 12 and later: the time budget an app frame was given, the time it took, whether it presented on time, and who caused a late one (the app or SurfaceFlinger). |
+| **Render thread** | The Android app's `RenderThread`, which draws the WebView's frame into the window each vsync (`DrawFrames`, the WebView draw functor). Its time is invisible to the Chromium trace's pipeline stages. |
+| **Runnable time** | Time a thread spent ready to run but without a CPU; read from the system trace's scheduler data. |
 
 ## Goal
 
@@ -33,16 +39,15 @@ tooling outlives the slowdown. (Rewritten 2026-10-25 by decision 3.)
 
 ## Status
 
-In progress; the TV in standby after the 2026-10-25 night runs (44, 45).
-The slowdown is explained and confirmed on the TV: the old page probe
-cost the glide 16–19 fps (run 42), and the 59.9 baseline was a
-compositor scroll it could not slow. The JS glide presents at 60 fps on
-the Sony with the new probe or none (runs 41, 43), the A/A reads 60
-against 60 (run 44), and `mc-tv-trace`'s tracing cost nothing
-measurable in two traced glides (run 45). M1, M4 and M5 are done; no
-decision is open (1–4 approved as recommended). Next: M2 (Perfetto;
-`mc-tv-trace` reads presents and converges the held-key expression),
-then M3 (a worktree server on its own port), M6, M7.
+In progress; the TV in standby after the 2026-10-26 sessions (runs
+46–49). M1, M2, M4 and M5 are done. The slowdown is explained (the old
+page probe, run 42); the glide presents at 60 fps on the Sony (runs 41,
+43, 44, 49); `mc-tv-trace` now records one Perfetto system trace with
+Chromium and Android on one clock, costs nothing measurable, and a
+first Home glide under it shows the WebView a frame ahead of the
+display (buffer stuffing, `dequeueBuffer` 10 ms a frame) at 60 fps.
+Open decision 5 (the gamepad poller). Next: M3 (a worktree server on
+its own port), then M6, M7.
 
 ## Principles
 
@@ -182,9 +187,41 @@ then M3 (a worktree server on its own port), M6, M7.
   (`ps -A` for `sandboxed_process`, `dumpsys meminfo` by the WebView
   package, or `dumpsys gfxinfo`) before it compares the two commits.
 
+* **Runs 46–49 (TV, 2026-10-26): `mc-tv-trace`'s cost, and a first
+  look at Android's side.** The tracer's first config cost the glide
+  8.3 fps; bisecting found no data source at fault and the DevTools
+  session opened for the action mark right before the key at fault on
+  its own (6.5 fps). Without it the whole trace costs nothing (Δ −0.0,
+  noise 3.8). One Home glide under the finished tool: 60 fps on screen;
+  every app frame "Late Present, Buffer Stuffing" with 36 ms actual
+  (one frame of latency, no missed deadline); the render thread waits
+  10 ms a frame in `dequeueBuffer`; half of Chromium's presented frames
+  partial; over 1.6 s the Compositor thread was runnable 42 ms and the
+  gamepad poller ran 67 ms and waited 45 ms. Records:
+  `~/.cache/mc-tv-trace/4[6-9]-*`.
+* A DevTools session opened and closed right before an action costs the
+  glide that follows 6.5 fps. `mc-tv-smooth` installs its probe through
+  such a session, then clears presents over adb before the key (about
+  200 ms), and measured zero cost that way (run 43); the mechanism is
+  not understood (a focus or visibility change on detach is the
+  suspect). `hold` and `js` actions run through the same session at
+  the action itself, in both tools alike; their absolute fps carries
+  whatever that costs, and only comparisons within a tool hold for them.
+
 ## Open decisions
 
-None. Decisions 1–4 were taken 2026-10-25 night, as recommended (see
+5. **Whether the gamepad poller becomes a milestone (M8).** The
+   WebView's `Gamepad polling thread` runs about 250 times a second
+   whenever the page polls `navigator.getGamepads()`, with no gamepad
+   in use: in a 1.6 s glide window it ran 67 ms and waited for a CPU
+   45 ms, beside a Compositor thread that waited 42 ms. Options:
+   (a) measure it first with a `js:` condition that stops the input
+   system's polling, interleaved on both pages (one short run, no code
+   change); (b) leave it. Recommendation: (a), as M8, before M6/M7; a
+   core's worth of contention on a four-core TV is the kind of cost the
+   floor is about.
+
+Decisions 1–4 were taken 2026-10-25 night, as recommended (see
 *Decisions made*); the reveal became M7.
 
 ## Decisions made
@@ -200,13 +237,19 @@ None. Decisions 1–4 were taken 2026-10-25 night, as recommended (see
 * `2026-10-25` — `mc-tv-trace`'s frame count is not a present count (54 against 41 on one glide); M2 gives it SurfaceFlinger's presents and a glide window that skips the trace's own leading present. (run 45)
 * `2026-10-25` — The owner approved the four open recommendations at once: (1) a code-version A/B runs from a second server in a worktree on its own port against a read-only copy of the real database, never by switching the dev server's checkout; (2) the glide stays the input system's main-thread glide, nothing measured favours a compositor route and both native routes fail under a held key; (3) the Goal's second half is "keep the tooling from perturbing what it measures" (rewritten above); (4) the 156 px against 88 px reveal is investigated after M2, as M7, with the owner's eye deciding where a glide should land. (owner)
 * `2026-10-25` — The TV is used when it is asleep or already in the campaign's hands, never when someone else has it on; it goes back to standby when the session's TV work is done. (owner)
+* `2026-10-26` — `mc-tv-trace` is rewritten in Python; both TV tools import one module, `~/scripts/agents/_tv.py`, for the device, the page, the actions and the screen's presents; dependencies are declared inline and run through `uv`. (owner, M2 decision i)
+* `2026-10-26` — From here on every TV interaction is asked for first, one question per TV session, and the TV goes back to standby after it. (owner)
+* `2026-10-26` — Later: the TV may be woken for tests without asking as long as no sound comes out of it, and goes to standby when done. (owner)
+* `2026-10-26` — The DevTools trace is dropped: the WebView's Chromium track events join the Perfetto system trace on this TV, so one trace holds Chromium and Android on one clock. (M2 decision ii, probe)
+* `2026-10-26` — `mc-tv-trace` has no action mark: the DevTools session it took right before the key cost 6.5 fps; the window anchors on the screen's first present. Each tool carries its own cost check (`--no-probe`, `--cost`). (M2, runs 47–49)
+* `2026-10-26` — The page walks live once, in `_tv.WALKS`, with each press's glide flag. (M2)
 
 ## Milestones
 
 | | | |
 |---|---|---|
 | M1 | **Trustworthy measurement.** Measure the page probe's own cost: run the same glides with and without it (presents only, the glide window taken from the key press) and fix the probe to cost nothing on a scroll frame (record only the boxes that scroll, no per-frame `querySelectorAll`). Establish the noise with A/A runs, and make `mc-tv-smooth report` print it beside each comparison. | ✅ 2026-10-25 — tool rewritten (scroll-event probe, `--no-probe`, `px/glide`, `animator`, `page id`, `fps range`, `Δ vs first`, repeated `--cond` as A/A); probe cost zero on the TV (run 43, Δ 0.0 both pages); A/A on the library (run 44, three rounds): 60 against 60, Δ +0.0, the only off-reading 53 in the first trial after the app came forward, so the noise band on an idle TV is one slow first trial. `run` now brings the app to the front first (a run after a handback had recorded zero presents). |
-| M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). Also: `mc-tv-trace` reads the screen's presents beside its trace (run 45 showed its frame count is not a present count) and shares the held-key expression with `mc-tv-smooth`. | open — tracing cost measured first (run 45): none in two traced glides |
+| M2 | **Android's side of the frame.** Capture a Perfetto trace on the TV (gfx, view, webview, sched, CPU frequency) alongside the Chromium trace, so the render thread's `DrawFn` and the WebView threads' scheduling show as stages; one command (`mc-tv-trace --perfetto` or its own tool). Also: `mc-tv-trace` reads the screen's presents beside its trace (run 45 showed its frame count is not a present count) and shares the held-key expression with `mc-tv-smooth`. | ✅ 2026-10-26 — `mc-tv-trace` rewritten in Python over one Perfetto system trace (the WebView's Chromium events join it, so the DevTools trace is gone): screen presents first, frame timeline, Chromium pipeline, render thread, per-thread running/runnable, CPU frequency; `_tv.py` shared with `mc-tv-smooth`. Its cost measured with `--cost`: zero (Δ −0.0, noise 3.8) once the DevTools action mark, which alone cost 6.5 fps, was removed. A Home glide: 60 fps, 24 frames buffer-stuffed, `dequeueBuffer` 10 ms a frame. |
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | open |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
@@ -314,6 +357,239 @@ procedure and records each step here.
    TV's input app was in front after the handback, so `cmd_run` now
    calls `mc-tv launch` before its first trial and the empty directory
    was discarded. M1 closed.
+
+### M2 — Android's side of the frame
+
+1. **Scope.** In: (a) `mc-tv-trace` records a system trace of the
+   action beside its Chromium trace: scheduler and CPU frequency, the
+   `gfx`, `view` and `webview` atrace categories, the debug app's own
+   atrace slices, and SurfaceFlinger's frame timeline; (b) its report
+   gains, per presented frame, the frame timeline's verdict (on time or
+   late, app or SurfaceFlinger at fault) and, per WebView thread over
+   the action window, running and runnable time and the heaviest
+   slices, the render thread included; (c) `mc-tv-trace` reads the
+   screen's presents the way `mc-tv-smooth` does and prints that fps
+   first, with the glide window skipping the stray present a trace
+   attaching makes (run 45); (d) the held-key expression and the
+   action and present-reading code exist once, shared by both tools;
+   (e) `docs/tv-performance.md` Measuring says what the new report
+   shows and how to read a late frame's attribution. Out: serving two
+   commits (M3), the reveal (M7), the hero's memory (M6). Dropped: a
+   Perfetto UI workflow for humans is not built; the trace file is kept
+   for `ui.perfetto.dev` and the report is for the agent.
+2. **Research.** Perfetto ships in Android 12 and `adb shell perfetto`
+   records from the shell; its simple mode takes atrace categories on
+   the command line (`--time`, `--app`), and normal mode takes a text
+   config (`-c - --txt`) which is what the frame timeline data source
+   (`android.surfaceflinger.frametimeline`, Android 12 and later) and
+   `atrace_apps` need; output goes under `/data/misc/perfetto-traces/`
+   and is pulled with `adb pull` (perfetto.dev: CLI reference, atrace,
+   frame timeline). The frame timeline's SQL tables
+   (`actual_frame_timeline_slice`, `expected_frame_timeline_slice`)
+   carry `jank_type`, `present_type`, `on_time_finish` and
+   `layer_name` per app frame; thread scheduling is the `thread_state`
+   table. Reading a system trace from a script is the `perfetto`
+   Python package, which downloads a pinned `trace_processor` binary;
+   this machine has `uv`, so a script declares that dependency inline
+   (PEP 723) and installs nothing system-wide. Whether the WebView's
+   own Chromium track events join the system trace is not documented
+   for WebView (Chrome needs a `chrome://flags` entry on user builds);
+   if they do for a debuggable app, one trace holds everything on one
+   clock and the Chromium trace over CDP can go. Unverified until the
+   TV is free: that `perfetto` runs on the Sony with `traced` enabled;
+   that the `webview` category and the frame timeline produce data for
+   the debug app; whether the WebView's track events appear. The
+   Chromium trace's timestamps and the system trace's are different
+   clocks; the action mark (`console.timeStamp`) and the first present
+   after the action anchor the two if both traces stay.
+3. **Design decisions.** (i) *Language.* `mc-tv-trace` is Node (for the
+   DevTools WebSocket); the system trace is read in Python; and the
+   action and present-reading code it must share with `mc-tv-smooth`
+   is Python. Options: (a) keep Node and add a Python helper it calls
+   for the system trace, with the held-key expression in a file both
+   languages read; (b) rewrite `mc-tv-trace` in Python (the DevTools
+   client is thirty lines over the `websockets` package, declared
+   inline like `perfetto`), so both tools import one module for the
+   action, the presents and the held key. Recommendation: (b); one
+   language, one shared module, no cross-language file. Cost: the
+   Node file's summary logic (about 240 lines) is ported, not kept.
+   (ii) *If the WebView joins the system trace*: drop the CDP trace
+   and read Chromium's pipeline stages from the system trace too.
+   Decided by the TV probe, not by the owner. (iii) *The agent's
+   dependency manager* is `uv` with inline script metadata; nothing is
+   installed into the system Python.
+4. **Design unification.** Core idea: a TV measurement is one action on
+   one page, observed by the screen (its presents) and explained by
+   traces; `mc-tv-smooth` repeats and compares such observations,
+   `mc-tv-trace` explains one. Greenfield shape: one Python module
+   `~/scripts/agents/_tv.py` (the underscore convention of `_cdp.js`)
+   owns the device (the debug app, its layer, `adb` through `mc-tv`),
+   the page (eval through `mc-tv eval`, connected and quiet waits, page
+   identity), the actions (key over adb, the held-key expression, a JS
+   expression) and the screen observation (clear, act, read presents,
+   and the glide window). `mc-tv-smooth` imports it and keeps the
+   conditions, the probe, trials and the comparison report;
+   `mc-tv-trace` imports it and adds the two recordings and the
+   explanation. A trace record is one directory
+   `~/.cache/mc-tv-trace/<stamp>/` holding `chromium.json`,
+   `system.perfetto-trace`, `presents.json` and the printed report; a
+   run stays `~/.cache/mc-tv-smooth/runs/<name>/` (a run and a record
+   are different things; not merged). Diff against the code: (a) clean
+   seams used as they are: `mc-tv` for adb, launch, the DevTools
+   forward and `eval`; `mc-tv-smooth`'s `press`/`trial` split; the Node
+   summary's PipelineReporter and thread-table logic, ported line for
+   line. (b) Duplications unified into `_tv.py`: the held-key
+   expression (Python and Node copies), the app id and layer name,
+   the presents parse (in `mc-tv-smooth` and the run-45 scratch
+   script), the DevTools target lookup. (c) Incoherences decided: (i)
+   the glide window without scroll events had two rules, the first
+   unbroken run of presents in `mc-tv-smooth` and the longest in the
+   run-45 script; one rule, the longest unbroken run, lives in `_tv.py`
+   and `mc-tv-smooth` adopts it (fix now; the stored runs re-derive the
+   same, an idle gap after the glide was the only case and the glide is
+   still the longest run). (ii) `mc-tv-trace`'s headline was a trace
+   count; the report leads with the screen's presents and names the
+   PipelineReporter count as pipeline frames (fix now). (iii) Page
+   evaluation in Python reaches the page two ways: one-shot through
+   `mc-tv eval` (the owner's CLI, Node, in `_tv.py`), and inside
+   `mc-tv-trace`'s own tracing session, whose evaluates must be on the
+   session (the action mark is on its clock). Accepted and documented
+   in `_tv.py`; the one-shot path is the owner's tool, the session is
+   the trace. (iv) `mc-tv-stress` carries its own `APP` constant and
+   shell probe; it is a different rig (incidents, not frames) and is
+   left alone, named here so it is not an orphan. (v) The Chromium and
+   system traces are two clocks; if the WebView's track events join the
+   system trace the Chromium trace goes and the clock question with it,
+   otherwise the action mark and the first present after it anchor the
+   two. Decided by the probe. Coherence cost: `mc-tv-trace` is
+   rewritten in Python (about 300 lines, its summary ported) and
+   `mc-tv-smooth` moves about eighty lines into `_tv.py` and becomes a
+   `uv` script like its sibling; the owner's call, recorded under
+   decision (i) above.
+   **Research, continued (TV probe 2026-10-26 morning, owner's
+   go-ahead).** `perfetto` is at `/system/bin/perfetto` on the Sony,
+   `traced` and `traced_probes` run, `persist.traced.enable` is 1, and a
+   text config over stdin records and writes under
+   `/data/misc/perfetto-traces/` (4.9 MB for four seconds). The WebView's
+   Chromium track events **do** join the system trace without any flag:
+   the browser process (`app.mediacentaur.tv.debug`) and the renderer
+   (`com.google.android.webview:sandboxed_process0`) both emit
+   `PipelineReporter` with its `frame_reporter.*` args and its stage
+   children, plus `cc`, `viz`, `blink`, `v8`, `devtools.timeline` and
+   `input` slices, on `CrRendererMain`, `Compositor`,
+   `ThreadPoolForegroundWorker`, `VizWebView` and
+   `Chrome_InProcGpuThread`. So decision (ii) resolves to: the DevTools
+   trace goes, one system trace holds Chromium and Android on one clock,
+   and `websockets` is not needed. The render thread is visible:
+   `HardwareRenderer::Draw` four times in the probe, up to 72 ms each,
+   most of it `ScheduleOnVizAndBlock` (the draw functor waiting for
+   viz), which the Chromium pipeline stages never showed. Scheduler
+   data (`thread_state`: Running, R, S per thread) and `cpufreq`
+   counters are present. The frame timeline produced only three rows
+   for about twelve Choreographer frames, one of them the app's layer
+   ("Late Present, App Deadline Missed", duration 0): its coverage on
+   this TV is doubtful and is judged on a real glide. Two overheads to
+   measure in execution: Chromium's `PerfettoTrace` producer thread
+   carried about 1,500 slices per process in four seconds, and the
+   `track_event` category `*` is wide. Side finding, not pursued here:
+   the WebView's `Gamepad polling thread` ran about 250 times a second
+   throughout the trace (980 `GetGamepadData` in four seconds, 137 ms
+   running, 23 ms runnable), with no gamepad in use; the input system's
+   polling of `navigator.getGamepads()` keeps Chromium's poller alive.
+   Candidate M8.
+5. **Implementation plan.** (1) `~/scripts/agents/_tv.py` (stdlib
+   only): the device (`MC_TV`, `ENV`, `APP`, `LAYER`, `tv()`, `adb()`,
+   `launch()`, `off()`, `hdmi()`), the page (`js()` through `mc-tv
+   eval`, `wait_connected()`, `wait_quiet()`, `page_identity()` with
+   `BUNDLE`), the actions (`HOLD`, `HOLD_KEYS`, `act(action)` for a
+   key, `hold KEY N` or `js EXPR`), the screen (`clear_presents()`,
+   `presents()` as ms from the first, `GLIDE_BREAK_MS`,
+   `glide_run(presents)` = the longest unbroken run, `fps(run)`), each
+   with the comment that today sits beside its copy. (2) `mc-tv-smooth`
+   imports `_tv` and deletes its copies; `press()` becomes
+   clear → act → read through `_tv`; the no-probe window uses
+   `glide_run`; `report` and the trials are untouched; the stored runs
+   41–45 re-report identically (checked). Plain `python3` shebang, no
+   dependencies. (3) `mc-tv-trace` rewritten in Python as a `uv` script
+   declaring `perfetto`: same flags (`--key`, `--hold`, `--js`, `--ms`,
+   `--out DIR`, `--top`, `--from DIR`); brings the app forward; writes
+   the Perfetto text config (ftrace sched/freq, atrace `gfx view
+   webview`, `atrace_apps` the debug app, process stats, frame
+   timeline, `track_event` with the Chromium categories the Node tool
+   used plus `android_webview`), starts `adb shell perfetto -c - --txt`
+   with the duration = lead + `--ms`, waits for its "Connected" line,
+   clears presents, marks the action (`console.timeStamp`), acts, waits,
+   lets perfetto end, pulls `system.perfetto-trace`, reads presents to
+   `presents.json`, then reports from `TraceProcessor`: screen fps
+   first (the glide run), the frame timeline for the app's layer after
+   the mark, the Chromium pipeline (states, drivers, stage p50/p90/max
+   from `PipelineReporter` children, as the Node summary did), the
+   render thread (`HardwareRenderer::Draw`, `ScheduleOnVizAndBlock`,
+   `DrawFrames` n/p50/p90/max), per thread running and runnable ms with
+   the heaviest slices, and the CPU frequency range in the window. The
+   report is also written to `report.md` in the record. (4) The Node
+   `mc-tv-trace` is deleted; old `~/.cache/mc-tv-trace/*.json` traces
+   stay openable in `ui.perfetto.dev` and are not read by the tool.
+   (5) `docs/tv-performance.md`: glossary rows for system trace, frame
+   timeline, render thread; Measuring's "Explain with a trace" bullet
+   rewritten for the new output; Open gains the gamepad poller.
+   (6) Verification offline: `--from` over the probe record; then, with
+   the owner's go-ahead, one record of a real library glide, and the
+   tool's cost as run 46 (`mc-tv-smooth` plain presses alternated with
+   presses under `mc-tv-trace`, as run 45 did), recorded in the row
+   before the tool's numbers are believed.
+6. **Plan unification.** Checked against the design: (i) the design had
+   `mc-tv-smooth` become a `uv` script; the plan keeps its plain
+   `python3` shebang because `_tv.py` is stdlib-only and only
+   `mc-tv-trace` needs `perfetto`, a correction of the design, not a
+   second path. (ii) `websockets` is gone with the DevTools trace;
+   nothing in the plan reaches the page except `mc-tv eval`. (iii) Two
+   glide windows remain, one from scroll events (the probe's, in
+   `mc-tv-smooth`'s `summarize_press`) and one from presents alone
+   (`_tv.glide_run`); they take different inputs and are not two
+   representations of one idea, but the fps formula was about to exist
+   twice, so `_tv.fps(run)` is the one both use. (iv) The plan's cost
+   measurement reused the run-45 scratch script, a stand-in outside the
+   tools and a breach of principle 4; replaced: `mc-tv-trace --cost N`
+   alternates N plain presses with N traced presses of the same action
+   through `_tv` and prints both fps lists with Δ, so each tool carries
+   its own cost check (`mc-tv-smooth` has `--no-probe`). The scratch
+   script is retired. (v) "The app is on screen before measuring" is
+   one rule in `_tv.launch()` that both tools call first, not a line in
+   each. (vi) `--from` takes a record directory of the new shape only;
+   `docs/tv-performance.md` changes `--from FILE` to `--from DIR`. (vii)
+   Any other script that calls `mc-tv-trace` is found by grep before
+   the Node file is deleted. No old path, no copied constant, no
+   stand-in remains in the plan.
+7. **Execution (2026-10-26, TV sessions by the owner's go-ahead).**
+   `~/scripts/agents/_tv.py` written (device, page, actions, presents,
+   `glide_run`, `launch()`, and `WALKS` with each press's glide flag,
+   read from runs 43–44); `mc-tv-smooth` imports it and its stored runs
+   41–44 re-report identically; `mc-tv-trace` rewritten in Python as a
+   `uv` script over one Perfetto system trace, the Node file replaced
+   at the same path. Verified offline on the probe trace, then live.
+   The tool's own cost, measured with `--cost` on the Home walk (six
+   glides a side): the first config cost 8.3 fps (run 46: 51.7 against
+   60), and bisecting it (runs 47) found every data source free alone
+   (ftrace+atrace −6.4, Chromium events −6.4, light categories −6.2,
+   all the same) and the whole trace free without the action mark
+   (Δ +0.0): a DevTools session opened and closed right before the key
+   (`mc-tv eval` for `console.timeStamp`) cost 6.5 fps on its own
+   (frame timeline only, with the mark: −6.5, noise 1.9, beyond). The
+   mark is gone and the window anchors on the screen's first present
+   (the clock snapshots give the offset; zero on this TV). Final config
+   with the process scan: Δ −0.0 (noise 3.8), run 49. One Home glide
+   under the finished tool (`49-home-glide`): 60.0 fps on screen, every
+   gap 16.7 ms; frame timeline 24 app frames all "Late Present, Buffer
+   Stuffing", actual 36 ms (the WebView runs a frame ahead of the
+   display, never misses a deadline); Chromium pipeline whole frame
+   27 ms p50, half the presented frames partial, Submit→Presentation
+   19.7 ms; render thread `dequeueBuffer` 9.9 ms p50 per frame (waiting
+   for a buffer, the stuffing's other face), `HardwareRenderer::Draw`
+   4.0 ms, `DrawFrames` 16.4 ms; over the 1.6 s window the Compositor
+   thread was runnable 42 ms, the renderer main 37 ms, the gamepad
+   poller ran 67 ms and waited 45 ms. `docs/tv-performance.md` updated
+   (glossary, Measuring, Open). M2 closed.
 
 ## Completion criteria
 
