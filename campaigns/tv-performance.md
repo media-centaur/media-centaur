@@ -262,7 +262,7 @@ M9.
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | ✅ 2026-10-26 — `~/scripts/agents/mc-tv-ab` (`up`, `run`, `down`, `status`): two measurement servers from worktrees on 2161/2162, each `background_services = false` (new bootstrap key, commit `6095f146`; the test-only start flags converged on it) against a `sqlite3 .backup` of the dev database with the real data directory; `mc-tv-smooth --cond host:<label>` re-points the TV app per round and `page id` names each host's HEAD. The A/A (`mc-tv-ab HEAD HEAD`, run `20261026-141657`): 60 against 60 on both pages, Δ +0.0, noise 0. |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
-| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half runs against `mc-tv-ab up <before> <after>` (M3) |
+| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | in progress — 2026-10-26: the renderer's memory is a separate sandboxed process per app, never in the package's meminfo; `mc-tv-smooth` now reports `app+rend MB` per trial; the measurement runs as `mc-tv-ab e84dfd99~1 e84dfd99 -- --page / --reps 2` when the TV is free |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
 | M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | in progress — code landed 2026-10-26 (decision 11: Settings → Controls speaks only of keys on a remote player); the TV trace confirming no polling thread on the served page waits for the TV to be free |
@@ -956,6 +956,76 @@ procedure and records each step here.
    slept, left with a note if the owner is using it). Paused with the
    TV handed to the HDMI input at the owner's request; the trace runs
    when the TV is free again, then the row closes.
+
+### M6 — The hero's memory on the TV
+
+1. **Scope.** In: (a) find where the WebView renderer's memory is
+   accounted on this TV; (b) a per-trial reading of the page's memory in
+   `mc-tv-smooth`, taken after the presses (never between setup and
+   action); (c) the measurement itself, Home under `mc-tv-ab e84dfd99~1
+   e84dfd99`, both hosts interleaved, the memory column read per host.
+   Out: any change to the hero; a memory reading in `mc-tv-trace`
+   (the trace's threads already name the renderer).
+2. **Research (2026-10-26, read-only queries while the owner used the
+   TV).** The page is two processes. `dumpsys meminfo
+   app.mediacentaur.tv.debug` covers the app's process alone (68 MB
+   PSS on Home, backgrounded; `Graphics` 0, the GPU work is in-process
+   and lands under `Unknown`). The renderer is
+   `com.google.android.webview:sandboxed_process0:…` under an isolated
+   uid, one per app (the owner's release app has its own), 58 MB PSS at
+   the same moment; `dumpsys activity processes` ties it to its app by
+   the ProcessRecord suffix `/u0a<appid>i<n>` (appid = uid − 10000).
+   Blink's decoded-image cache and the hero hook's bitmaps live there,
+   so the number M6 compares is app plus renderer PSS.
+3. **Design decisions.** None for the owner: the reading is defined by
+   the row. Taken: the memory is one fact owned by `_tv.py`
+   (`renderer_pid`, `pss_mb`, `app_memory`), recorded per trial with its
+   two parts and reported as one column `app+rend MB` beside `tv mem
+   MB`, which stays (the TV's pressure is a different fact).
+4. **Design unification.** The device facts live in `_tv.py`, the
+   trial record and the report in `mc-tv-smooth`, as `tv cpu` and
+   `tv mem` already do; no second reader of `dumpsys`. An older record
+   without the parts reports `-`, not a guess.
+5. **Implementation plan.** `_tv.py` the three functions; `mc-tv-smooth`
+   records `app_mem` after `MemAvailable`, `app_mem_total` sums the
+   parts, the usage text and the report column; verify on the resident
+   app read-only, then re-report an old run; then the measurement (c)
+   when the TV is free: `mc-tv-ab e84dfd99~1 e84dfd99 -- --page /
+   --reps 2`, the column per host, recorded in the row with the
+   estimate it replaces (about 66 → 16 MB).
+6. **Plan unification.** One reader, one owner, one column; the old
+   `tv mem` column is not repurposed and no record format is kept in
+   two shapes (`app_mem` is new, absent before). Proceed.
+7. **Execution (2026-10-26, tooling half).** Steps 1–2 of the plan
+   done and checked: renderer pid 24403 for the debug app (pid 24374),
+   `app_memory()` read `{app: 68.4, renderer: 58.0}` MB, run
+   `20261026-141657` re-reports with `-` in the new column. The
+   measurement waits for the TV.
+
+### M7 — The 156 px against 88 px reveal
+
+1. **Scope.** In: name what moved the glide's target on the library
+   page (run 41: one DOWN press scrolled 156 px under the glide, 88 px
+   under the compositor smooth scroll), and whether the glide lands
+   where the owner's eye says it should (decision 4). Out: changing the
+   glide's motion.
+2. **Research (2026-10-26, code only; the TV in use).** `revealItem`
+   measures the destination once per press (an instant
+   `scrollIntoView`, read, rewind) and hands the glide that number; the
+   glide re-reads only the *clamp* per tick (`reachable`: the content
+   shrinking), so a growing or shifting layout never moves a recorded
+   target — the two animators were given different destinations at
+   press time, or one of them was cut short. Library tiles have a fixed
+   aspect (`aspect-[2/3]`), no `content-visibility`, no viewport
+   loading, so a layout shift from images is unlikely. Candidates for
+   the TV, in order: the measuring jump happening with the focused
+   card's hover/focus transform mid-transition (a scaled border box
+   asks `scrollIntoView` for more); the smooth variant interrupted by a
+   later instant write (a post-patch reconcile's focus, or the next
+   press) before it arrived; `scroll-padding` or a sticky header
+   counted by one route and not the other. Each is one `mc-nav-trace`
+   or `mc-tv-smooth` run with the probe's per-event scroll positions.
+   Steps 3–7 wait for the TV.
 
 ## Completion criteria
 
