@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tv-performance.md`](tv-performance.md) —
-  **in progress, opened 2026-10-25; M1, M2, M4 and M5 done.** The glide
+  **in progress, opened 2026-10-25; M1, M2, M4, M5 and M8 done.** The glide
   slowdown was the tool: the old per-frame probe cost the glide 16–19
   fps, and the 59.9 baseline was a compositor scroll it could not slow
   (confirmed interleaved on the TV). `mc-tv-smooth` now records what
@@ -33,9 +33,10 @@ Use [`template.md`](template.md) as a starter.
   Perfetto system trace (Chromium and Android on one clock: frame
   timeline, render thread, per-thread runnable time) at zero measured
   cost, after a DevTools action mark that alone cost 6.5 fps was
-  removed. Next: a one-command code-version A/B from a worktree server
-  on its own port, the hero's memory, the 156 px reveal, and decision 5
-  (the WebView's gamepad poller, 250 polls a second with no gamepad).
+  removed. The WebView's gamepad poller (250 polls a second with no
+  gamepad) measured at zero cost on screen and stays. Next: a
+  one-command code-version A/B from a worktree server on its own port,
+  the hero's memory, the 156 px reveal.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV

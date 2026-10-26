@@ -46,8 +46,9 @@ page probe, run 42); the glide presents at 60 fps on the Sony (runs 41,
 Chromium and Android on one clock, costs nothing measurable, and a
 first Home glide under it shows the WebView a frame ahead of the
 display (buffer stuffing, `dequeueBuffer` 10 ms a frame) at 60 fps.
-Open decision 5 (the gamepad poller). Next: M3 (a worktree server on
-its own port), then M6, M7.
+M8 measured the gamepad poller at zero cost on screen (run 50). No
+decision is open. Next: M3 (a worktree server on its own port), then
+M6, M7.
 
 ## Principles
 
@@ -210,19 +211,8 @@ its own port), then M6, M7.
 
 ## Open decisions
 
-5. **Whether the gamepad poller becomes a milestone (M8).** The
-   WebView's `Gamepad polling thread` runs about 250 times a second
-   whenever the page polls `navigator.getGamepads()`, with no gamepad
-   in use: in a 1.6 s glide window it ran 67 ms and waited for a CPU
-   45 ms, beside a Compositor thread that waited 42 ms. Options:
-   (a) measure it first with a `js:` condition that stops the input
-   system's polling, interleaved on both pages (one short run, no code
-   change); (b) leave it. Recommendation: (a), as M8, before M6/M7; a
-   core's worth of contention on a four-core TV is the kind of cost the
-   floor is about.
-
-Decisions 1–4 were taken 2026-10-25 night, as recommended (see
-*Decisions made*); the reveal became M7.
+None. Decisions 1–5 were taken as recommended (see *Decisions made*);
+the reveal became M7, the gamepad poller M8.
 
 ## Decisions made
 
@@ -243,6 +233,9 @@ Decisions 1–4 were taken 2026-10-25 night, as recommended (see
 * `2026-10-26` — The DevTools trace is dropped: the WebView's Chromium track events join the Perfetto system trace on this TV, so one trace holds Chromium and Android on one clock. (M2 decision ii, probe)
 * `2026-10-26` — `mc-tv-trace` has no action mark: the DevTools session it took right before the key cost 6.5 fps; the window anchors on the screen's first present. Each tool carries its own cost check (`--no-probe`, `--cost`). (M2, runs 47–49)
 * `2026-10-26` — The page walks live once, in `_tv.WALKS`, with each press's glide flag. (M2)
+* `2026-10-26` — Decision 5 approved: the gamepad poller is measured first, as M8, before M3, M6 and M7; M3 (a worktree server on its own port against a read-only copy of the database) is approved to proceed after it. (owner)
+* `2026-10-26` — The gamepad poller stays as it is: with the page's listeners gone Chromium's thread stops, and the glide reads 60 against 60 either way (run 50). (M8)
+* `2026-10-26` — After a TV session the display goes back to the PC's HDMI input when the owner asks for it, standby otherwise. (owner)
 
 ## Milestones
 
@@ -254,6 +247,7 @@ Decisions 1–4 were taken 2026-10-25 night, as recommended (see
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half needs M3's second server |
+| M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
 
 Every milestone that changes an existing system runs the campaign
@@ -590,6 +584,48 @@ procedure and records each step here.
    thread was runnable 42 ms, the renderer main 37 ms, the gamepad
    poller ran 67 ms and waited 45 ms. `docs/tv-performance.md` updated
    (glossary, Measuring, Open). M2 closed.
+
+### M8 — The gamepad poller
+
+1. **Scope.** In: price Chromium's gamepad polling thread against a
+   glide on the TV, interleaved on both pages, with the input system's
+   gamepad source stopped as the condition; a debug handle
+   (`window.__gamepadSource`) so the condition needs no code change
+   between rounds; then, only if the cost is beyond the noise, stop
+   paying it when no gamepad is present. Out: any change to how a
+   connected gamepad drives the UI.
+2. **Research.** `assets/js/input/core/gamepad.js` already polls
+   `getGamepads()` per frame only while a gamepad is connected; with
+   none, `start()` reads `getGamepads()` once and registers
+   `gamepadconnected`/`gamepaddisconnected` listeners on `window`. The
+   TV reports no gamepad (`navigator.getGamepads()` is eight nulls). So
+   the poller that ran 250 times a second in every trace is Chromium's
+   own, kept alive by the page's gamepad event listeners (Blink starts
+   the browser's gamepad sampling when a page listens for connection
+   events, so that it can deliver them). Stopping the source removes
+   the listeners; whether Chromium's thread then stops is what a trace
+   under the condition shows.
+3. **Design decisions.** The handle is `exposeGamepadSource(source,
+   globals)` in `assets/js/input/index.js`, in the pattern of
+   `window.__scrollGlider`, tested through that function (the hook's
+   `mounted` needs the whole DOM to run). No fix is designed before
+   the measurement.
+4–6. Skipped: a debug handle and a measurement change no system
+   (steps 3–6 of the procedure apply to a change; the handle follows
+   the `__scrollGlider` precedent, test-first, commit `c7f5c097`).
+7. **Execution (2026-10-26).** Run 50, `base` against `js:nogamepad.js`
+   (`window.__gamepadSource.stop()`), two rounds on Home and the
+   library: 60 against 60 on both pages, Δ +0.0 (noise 0), every gap
+   16.7 ms. A Home glide traced with the source stopped
+   (`50-home-glide-nogamepad`): the `Gamepad polling thread` is absent
+   from the window where the base glide (`49-home-glide`) had it
+   running 67 ms and runnable 45 ms, so Chromium's poller stops when
+   the page's listeners go; the Compositor thread's runnable time is
+   unchanged (42 ms) and the frame timeline reads the same (25 frames
+   buffer-stuffed). The poller costs nothing the screen shows at 60
+   fps. No code change; M8 closed. (The first base trial's page id read
+   `MIXED`: the round before commit `c7f5c097` ran on the dirty tree
+   with the same bundle digest, exactly what the column is for.)
 
 ## Completion criteria
 
