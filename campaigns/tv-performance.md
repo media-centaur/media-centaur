@@ -61,12 +61,15 @@ to land a trace on a gliding press (`mc-tv-trace --glide`), and to
 print the threads a trace lacks. M6 is measured (the hero commit saves
 about 24 MB of the page's 199 on the TV, run `20261026-201555`) and M7
 is closed (both animators land on the same position; the 156 against
-88 was a starting-position difference in run 41). Every milestone is
-done and every completion criterion is met; the campaign is ready to
-close once the owner has read the two leftovers: UP onto the first
-library row leaves the toolbar scrolled off (a design call), and the
-wiki sentence for Settings → Controls on the TV is committed locally,
-to push when the change ships.
+88 was a starting-position difference in run 41). M10 (decision 12)
+makes UP onto the library's first row return the page to its top, as
+the general rule that an item on its zone's first line reveals the
+scroller's start when it shows there whole; confirmed on the TV and
+60 against 60 interleaved. Every milestone is done and every
+completion criterion is met; the campaign is ready to close on the
+owner's word. One leftover outlives it: the wiki sentence for
+Settings → Controls on the TV is committed locally, to push when the
+change ships.
 
 ## Principles
 
@@ -275,7 +278,7 @@ M9.
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | ✅ 2026-10-26 — the page is two processes (the app's and the WebView renderer's, never in the package's meminfo); `mc-tv-smooth` reports `app+rend MB` per trial. Run `20261026-201555` (`mc-tv-ab e84dfd99~1 e84dfd99`, Home, two rounds): 198.8 MB before, 174.4 after — about 24 MB saved (renderer 108 → 92, app 91 → 82), replacing the estimate of about 50 (66 → 16). Glides 60 against 60 either way. |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | ✅ 2026-10-26 — nothing moved a target: run 41's own events show both animators landing on 156 (DOWN) and 68 (UP) every round; the smooth trial had started at 68 instead of 0. Reproduced at HEAD on the TV with a per-step read of scrollTop under both animators in both orders: identical, 0 → 0 → 0 → 156 → 156 → 156 → 68. Left for the owner's eye: UP onto the first library row stops at 68, the toolbar above the grid stays scrolled off — "nearest" never returns the page to its top (decided: M10). |
-| M10 | **The first row reveals the page top.** An item on the first line of its zone reveals its scroller's start when the start shows it whole (decision 12): UP onto the library's first row returns the page to the title and toolbar; a row's first tile returns the row to its start. | in progress — 2026-10-26 |
+| M10 | **The first row reveals the page top.** An item on the first line of its zone reveals its scroller's start when the start shows it whole (decision 12): UP onto the library's first row returns the page to the title and toolbar; a row's first tile returns the row to its start. | ✅ 2026-10-26 — `04cea17a`: `withinScrollport` (replacing `isFullyInView`), `scrolledAxes`, `onFirstLine` in `dom_adapter.js`; the start candidate measured inside the jump-and-rewind. On the TV the library walk reads 0 after UP onto the first row (was 68); a row's first tile rests at 0 (was 2). A/B against the parent (run `20261026-211916`, library and Home, two rounds): 60 against 60, Δ +0.0, noise 0; the library's px/glide 122 → 156 is the UP glide now travelling to the top. |
 | M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | ✅ 2026-10-26 — `a259085f`: `inputSources(remotePlayer(html), …)` gives a remote player's page the keyboard source alone; the handle and `exposeGamepadSource` gone; Settings → Controls takes `gamepad` (decision 11) with its story variation and a test mounting as a paired LAN player. Confirmed on the TV: trace `20261026T201413`, a Home glide at 60 fps on `6708c0af @d16c35f8 dev`, no `Gamepad polling thread` in any process of the trace (the report now prints an `absent from the trace` line; three non-gliding traces `201117`, `201133`, `201205` agree). |
 
 Every milestone that changes an existing system runs the campaign
@@ -1102,6 +1105,14 @@ procedure and records each step here.
    where it read 68; on Home the Continue row's first tile rests at 0
    (was 2) and the window stays at 0 throughout (the shelves declare
    `end`). A headless `mc-nav-trace` of the library walk shows no clip.
+   Precommit green (993 bun, the Elixir suite). Committed `04cea17a`,
+   then the interleaved check: `mc-tv-ab HEAD~1 HEAD -- --page /library
+   --page / --reps 2 --off`, run `20261026-211916`: 60 against 60 on
+   both pages, Δ +0.0, noise 0, stalls none on the library; the
+   library's px/glide rose from 122 to 156 because the UP glide now
+   travels the full 156 to the top instead of 88 to the row. `down`
+   pointed the app back at the dev server with the TV still on the app,
+   then put it in standby — the handback fix from M6 holds.
 
 ### M6 — The hero's memory on the TV
 
