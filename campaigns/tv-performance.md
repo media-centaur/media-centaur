@@ -704,6 +704,99 @@ procedure and records each step here.
    instead; the host→checkout map for `page id` is the A/B's manifest
    (`~/.cache/mc-tv-ab/hosts.json`, written by `mc-tv-ab`), which
    `mc-tv-smooth` reads for a `host:` condition.
+4. **Design unification (2026-10-26).** Core idea: an instance's
+   bootstrap state says which instance this is, decided before the VM
+   starts; "runs background services" is one such fact, read once and
+   asked by every child that would act unprompted. Greenfield: the key
+   lives in `Settings.Config` beside `showcase_mode`; `Settings.Services`
+   owns "may this toggled service run" and answers no when the key is
+   off, whatever its row says; every other unprompted child asks
+   `Config.get(:background_services)`; Oban is config, so `runtime.exs`
+   reads the same TOML key; the test env sets the key's app-env default
+   to false. Diff against the code: (a) seam — the `showcase_mode` path
+   through both TOML readers; (b) scattered — the three test-only start
+   flags, `BootHeal`'s `:test` clauses and `pubsub_listeners(:test)` are
+   four spellings of "no background work", all converge on the key
+   (fix now); the `:test` clauses that remain (`cache_children`,
+   `http_client_children`) are sandbox reasons, not inertness, and stay
+   as env checks; (c) `SelfUpdate.enabled?` is prod-only and gains the
+   key (fix now). Scope correction: `data_dir` is already a runtime
+   setting (`config:data_dir`, Settings → Library), not bootstrap, so
+   scope item (c) is dropped; the A/B writes that row into each copy.
+   Confirmed on the real database: `services:dev:start_pipeline` and
+   `start_watchers` are enabled, so without the key winning a copy would
+   run both. Tooling: `mc-tv-smooth`'s `HOSTS` and `_tv`'s `REPO` are two
+   sources for "which checkout serves which URL"; they become one host
+   registry in `_tv` (built-in dev and sim plus the A/B's manifest), and
+   `page id` reads the page's own `location.origin` to find its checkout
+   (fix now). The run loop becomes round → condition → page for every
+   condition kind, so a host switch happens once per condition per round
+   (fix now; an in-page condition is applied per page as before).
+   Coherence cost beyond the bolt-on: BootHeal's three skip tests go
+   (they tested env dispatch the key replaces), `config/test.exs` loses
+   five flags, three moduledocs change, the defaults TOML, the
+   configuration doc and the wiki gain one key. Accepted.
+5. **Implementation plan (2026-10-26).** Test-first throughout, in the
+   main checkout, `agent-mix` for every mix run. App: (1) `Config`:
+   bootstrap key `background_services` (TOML, default from app env,
+   `true`), tests in `config_toml_bootstrap_test.exs` (reads, defaults,
+   not runtime-settable). (2) `Services.enabled?/2` returns false when
+   the key is off, test in `services_test.exs` with an enabled row.
+   (3) `SelfUpdate.enabled?/0` = prod and the key, test. (4)
+   `Application`: `relay_sync_children`, `pubsub_listeners`, the BootHeal
+   calls gated by the key; `Social.Connections.init` and
+   `Playback.Supervisor` read the key; BootHeal's env argument and `:test`
+   clauses go, with their three tests. (5) `runtime.exs`: Oban
+   `queues: false, plugins: false` when the TOML key is false. (6)
+   `config/test.exs`: `background_services: false`, the five start flags
+   removed. (7) Docs: `defaults/media-centaur.toml` (commented key),
+   `docs/configuration.md`, wiki `Configuration-File.md`, the three
+   moduledocs. (8) `agent-mix precommit`. Tooling: (9) `_tv.py`: `HOSTS`
+   registry (dev, sim, plus `~/.cache/mc-tv-ab/hosts.json` entries
+   `{label: {url, checkout}}`), `host_of(url)`, `set_host(url)` (launch
+   with the address, wait connected), `page_identity()` from
+   `location.origin`; `mc-tv-smooth`: `host:<label|url>` condition
+   (apply = `set_host` when the origin differs), loop order round →
+   condition → page, `host` subcommand through the registry; stored runs
+   44 and 50 re-report unchanged. (10) `mc-tv-ab <ref-a> <ref-b>
+   [run args]` with `up | run | down` (default all three): worktrees
+   `~/src/media-centaur/ab/<label>` (`a`, `b`), per label a TOML under
+   `~/.cache/mc-tv-ab/<label>/` (port 2161/2162, bind `0.0.0.0`,
+   `database_path` beside it, `background_services = false`), `sqlite3
+   .backup` of the dev database, `deps.get` + `assets.setup` +
+   `assets.build` + `ecto.migrate` with the override, the `config:data_dir`
+   row set to the real data directory through `Config.update/2`
+   (`agent-mix run -e` with the override), `phx.server` in the
+   background with its log beside the TOML, readiness on HTTP 200,
+   `hosts.json` written; `run` = `mc-tv-smooth run --cond host:a --cond
+   host:b` plus the caller's args; `down` stops both servers and removes
+   the worktrees. (11) `docs/tv-performance.md`: step 1 of "How to
+   change UI safely" names `mc-tv-ab` for code that cannot be
+   overridden; Measuring gains its bullet. (12) On the TV: `mc-tv-ab
+   HEAD HEAD` as the A/A (60 against 60 expected, both page ids the same
+   HEAD), TV woken for it, standby after.
+6. **Plan unification (2026-10-26).** Checked against the plan failure
+   modes: the five flags leave `config/test.exs` in the same change
+   that adds the key (no old path kept; `start_pipeline` and
+   `start_watchers` stay in `dev.exs` only, where they are a toggle's
+   env default, a different idea); BootHeal's `:test` clauses are
+   removed with the env argument, all three functions and the one
+   caller at once, and `boot_heal_test.exs` goes whole (its only tests
+   were the dispatch); `HOSTS` moves from `mc-tv-smooth` to `_tv`, not
+   copied, and `REPO` becomes the dev entry's checkout; `page_identity`
+   reads `location.origin` for every condition, not only `host:`;
+   `mc-tv-ab` composes `mc-tv-smooth` through the manifest and the
+   command line, one direction, no shared code beyond `_tv`. Amendments
+   from the pass: the key's precedence is TOML, then app env, then
+   `true`, and the test for the silent TOML sets the app-env default
+   under the sandbox rather than asserting the test env's own value;
+   worktrees are named `mc-ab-a` and `mc-ab-b` so `agent-mix`'s build
+   root (keyed by basename) cannot collide with another repo; `mix run
+   -e` boots the inert tree against the copy, so the `data_dir` row is
+   written through `Config.update/2` with the override set on every mix
+   call in the script; the A/B holds for refs whose schema is at or
+   below the dev database's (Ecto never downgrades), stated in the doc.
+   No incoherence left for a later milestone.
 
 ## Completion criteria
 
