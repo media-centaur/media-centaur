@@ -25,6 +25,10 @@ last_updated: 2026-10-26
 | **Frame timeline** | SurfaceFlinger's per-frame record on Android 12 and later: the time budget an app frame was given, the time it took, whether it presented on time, and who caused a late one (the app or SurfaceFlinger). |
 | **Render thread** | The Android app's `RenderThread`, which draws the WebView's frame into the window each vsync (`DrawFrames`, the WebView draw functor). Its time is invisible to the Chromium trace's pipeline stages. |
 | **Runnable time** | Time a thread spent ready to run but without a CPU; read from the system trace's scheduler data. |
+| **Background services** | Everything a running host does on its own, with no page asking: file watchers, the import and image pipelines, auto-grab, Oban's queues and cron, relay connections and sync, playback recovery, the self-update check, boot backfills and the PubSub listeners that react to library and release events. The bootstrap key `background_services` turns all of it off at once. |
+| **Measurement server** | A host started with `background_services = false` against a database copy, so that it serves pages and does nothing else. One per commit under test. |
+| **Database copy** | A `sqlite3 .backup` of the dev database at its own path; a measurement server's migrations and writes land there and nowhere else. |
+| **Host** | The URL the TV app loads its pages from; `mc-tv launch --host <url>` re-points it. In an A/B each condition is a host. |
 
 ## Goal
 
@@ -46,9 +50,12 @@ page probe, run 42); the glide presents at 60 fps on the Sony (runs 41,
 Chromium and Android on one clock, costs nothing measurable, and a
 first Home glide under it shows the WebView a frame ahead of the
 display (buffer stuffing, `dequeueBuffer` 10 ms a frame) at 60 fps.
-M8 measured the gamepad poller at zero cost on screen (run 50). No
-decision is open. Next: M3 (a worktree server on its own port), then
-M6, M7.
+M8 measured the gamepad poller at zero cost on screen (run 50).
+Decisions 6–10 taken 2026-10-26: no gamepad source on remote players
+(M9), and M3's shape (one `background_services` bootstrap key, two
+worktree servers on 2161/2162 against database copies, the real image
+cache shared, bound on the LAN for the run). No decision is open. M3
+is in its design steps; then M9, M6, M7.
 
 ## Principles
 
@@ -211,8 +218,9 @@ M6, M7.
 
 ## Open decisions
 
-None. Decisions 1–5 were taken as recommended (see *Decisions made*);
-the reveal became M7, the gamepad poller M8.
+None. Decisions 1–10 are taken (see *Decisions made*); the reveal
+became M7, the gamepad poller M8, the gamepad source on remote players
+M9.
 
 ## Decisions made
 
@@ -236,6 +244,11 @@ the reveal became M7, the gamepad poller M8.
 * `2026-10-26` — Decision 5 approved: the gamepad poller is measured first, as M8, before M3, M6 and M7; M3 (a worktree server on its own port against a read-only copy of the database) is approved to proceed after it. (owner)
 * `2026-10-26` — The gamepad poller stays as it is: with the page's listeners gone Chromium's thread stops, and the glide reads 60 against 60 either way (run 50). (M8)
 * `2026-10-26` — After a TV session the display goes back to the PC's HDMI input when the owner asks for it, standby otherwise. (owner)
+* `2026-10-26` — Decision 6: the Android TV app needs no gamepad support for now; a page served to a remote player does not start the input system's gamepad source. Becomes M9. (owner)
+* `2026-10-26` — Decision 7: a measurement server is made inert by one bootstrap key in its override TOML, `background_services = false`, beside `showcase_mode`; nothing in the database copy can switch background work back on. The test-only start flags converge on it (M3 design). (owner, M3)
+* `2026-10-26` — Decision 8: the A/B runs two worktree servers on their own ports (2161, 2162), each against its own database copy; a round switch re-points the TV app (`mc-tv launch --host`). The paired TV needs no re-pairing: admission is a signed session cookie, dev's signing key and salt are fixed, cookies are per host not per port, and the copy carries the player row. (owner, M3)
+* `2026-10-26` — Decision 9: each server's database is a `sqlite3 .backup` of the dev database at its own path; artwork is the real image cache, shared, nothing in an inert server writes it. (owner, M3)
+* `2026-10-26` — Decision 10: the measurement servers bind `0.0.0.0` for the run, behind the paired-player gate, as the dev server already does. Accepted with reluctance; they are stopped when the run ends. (owner, M3)
 
 ## Milestones
 
@@ -249,6 +262,7 @@ the reveal became M7, the gamepad poller M8.
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half needs M3's second server |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
+| M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | open — after M3 |
 
 Every milestone that changes an existing system runs the campaign
 procedure and records each step here.
@@ -626,6 +640,70 @@ procedure and records each step here.
    fps. No code change; M8 closed. (The first base trial's page id read
    `MIXED`: the round before commit `c7f5c097` ran on the dirty tree
    with the same bundle digest, exactly what the column is for.)
+
+### M3 — Code-version A/B as a script
+
+1. **Scope.** In: (a) the bootstrap key `background_services` in the
+   override TOML, read like `showcase_mode`, that turns every background
+   service off at once and that no Settings row overrides; (b) the
+   test-only start flags (`:start_relay_sync`, `:start_relay_connections`,
+   `:start_playback_recovery`) converge on it; (c) a bootstrap `data_dir`
+   key so a database copy at a new path still reads the real
+   `image-derivatives`, avatars and profile pictures (today `data_dir` is
+   always the database's directory); (d) `mc-tv-ab <ref-a> <ref-b>`:
+   worktrees under `~/src/media-centaur/ab/`, each with its override
+   TOML, database copy, build and server on 2161/2162, then one
+   `mc-tv-smooth run` whose conditions are the two hosts, then the
+   servers stopped; (e) `mc-tv-smooth --cond host:<url>` as a condition
+   kind, with `page id` read from the host that served the page; (f) the
+   Measuring section of `docs/tv-performance.md` and `docs/configuration.md`
+   for the two keys. Out: any change to the pages; M6's before-half
+   (it uses this milestone's servers afterwards); keeping the worktrees
+   between runs beyond what `git worktree` keeps.
+2. **Research.** The override TOML is read twice before boot: in
+   `config/runtime.exs` (port, bind, database path) and in
+   `Settings.Config.load!/0` (`merge_toml/2`, the bootstrap keys incl.
+   `showcase_mode`), so a new bootstrap key follows both readers; Oban's
+   queues and plugins are config, so only `runtime.exs` can turn them
+   off (`queues: false, plugins: false`; Oban itself still starts, pages
+   may insert jobs that then wait in the copy). The dev TOML carries only
+   `port`, `bind` and `database_path`; media dirs and their image dirs
+   live in the database, so the copy inherits the real ones
+   (`<media dir>/.media-centaur/images` unless overridden). `data_dir`
+   defaults to the database's directory and is not settable; it holds
+   `image-derivatives` (made on demand), avatars, profile pictures and
+   themes, so a copy without it would regenerate every poster derivative
+   on first view and render without avatars. The services with a user
+   toggle (`should_start?/1`: watchers, pipeline, acquisition) consult
+   the Settings database over the config default, so the copy of a real
+   database switches them back on unless the key wins. Children that
+   reach out with no gate outside `:test`: `BootHeal` heals (ffprobe over
+   the library), the four acquisition and download PubSub listeners
+   (`Acquisition.Reactor`, `Downloads.QueueMonitor`, the two Pursuits
+   listeners), Oban's cron; `SelfUpdate.boot!` is already prod-only.
+   `agent-mix` keys its build root by the checkout's basename, so two
+   worktrees with distinct names get distinct roots. A worktree needs
+   `deps.get`, `assets.setup` and `assets.build` once. The paired TV
+   needs no re-pairing on a second port (decision 8, verified in
+   `config/dev.exs` and `endpoint.ex`). `mc-tv launch --host` force-stops
+   the app and restarts it with the new address; the first trial after
+   that is the known slow one (run 44). `mc-tv-smooth`'s `page id` takes
+   HEAD from the one checkout and the bundle digest from the page, so a
+   host condition needs HEAD from the host's checkout: the served page
+   carries no commit in dev (`Version.build_info/1` is `:dev_build`).
+   The `backups` skill routes database backups through Fae; a copy for
+   a measurement is a working file, not a backup, and `sqlite3 .backup`
+   is WAL-safe against the running server.
+3. **Design decisions.** Decisions 7–10 (owner). Taken here within
+   them: `data_dir` becomes a bootstrap key on the same criterion as
+   `database_path` (needed before the database is reachable; the
+   alternative, symlinks beside the copy, encodes the layout in a
+   script); with background services off no PubSub listener starts, as
+   under `:test`, rather than a judged subset; the three test-only start
+   flags are removed, `config/test.exs` sets `background_services: false`
+   instead; the host→checkout map for `page id` is the A/B's manifest
+   (`~/.cache/mc-tv-ab/hosts.json`, written by `mc-tv-ab`), which
+   `mc-tv-smooth` reads for a `host:` condition.
 
 ## Completion criteria
 
