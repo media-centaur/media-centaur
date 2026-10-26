@@ -51,13 +51,22 @@ measured cost; the gamepad poller costs nothing on screen (run 50);
 `mc-tv-ab <ref-a> <ref-b>` is the one-command code-version A/B, built
 on the new `background_services` bootstrap key (commit `6095f146`),
 and its A/A read 60 against 60 on both pages. No decision is open.
-M9's code is in (a remote player's page starts no gamepad source;
-Settings → Controls speaks only of keys there, decision 11) and waits
-for one TV trace to close; the measurement tooling learned to name the
+M9 is done: a remote player's page starts no gamepad source (Settings →
+Controls speaks only of keys there, decision 11), and trace
+`20261026T201413` of a Home glide on the dev server shows no polling
+thread in any process. The measurement tooling learned to name the
 host that served a measured page, to find the debug app's DevTools
-socket, and to point the app back at the dev server after `mc-tv-ab
-down`. Next: close M9 on the TV, then M6 (its before-half now has
-`mc-tv-ab up` for a server at any commit), then M7.
+socket, to point the app back at the dev server after `mc-tv-ab down`,
+to land a trace on a gliding press (`mc-tv-trace --glide`), and to
+print the threads a trace lacks. M6 is measured (the hero commit saves
+about 24 MB of the page's 199 on the TV, run `20261026-201555`) and M7
+is closed (both animators land on the same position; the 156 against
+88 was a starting-position difference in run 41). Every milestone is
+done and every completion criterion is met; the campaign is ready to
+close once the owner has read the two leftovers: UP onto the first
+library row leaves the toolbar scrolled off (a design call), and the
+wiki sentence for Settings → Controls on the TV is committed locally,
+to push when the change ships.
 
 ## Principles
 
@@ -262,10 +271,10 @@ M9.
 | M3 | **Code-version A/B as a script.** `mc-tv-ab <ref-a> <ref-b>` serves the two commits per decision 1 and alternates them in rounds, printing one table. | ✅ 2026-10-26 — `~/scripts/agents/mc-tv-ab` (`up`, `run`, `down`, `status`): two measurement servers from worktrees on 2161/2162, each `background_services = false` (new bootstrap key, commit `6095f146`; the test-only start flags converged on it) against a `sqlite3 .backup` of the dev database with the real data directory; `mc-tv-smooth --cond host:<label>` re-points the TV app per round and `page id` names each host's HEAD. The A/A (`mc-tv-ab HEAD HEAD`, run `20261026-141657`): 60 against 60 on both pages, Δ +0.0, noise 0. |
 | M4 | **The cause.** With M1–M3, find why glides went from 59.9 to 35–42 fps. | ✅ 2026-10-25 — the old page probe slowed the JS glide by 16–19 fps (run 42, interleaved on the TV); the 59.9 baseline was a compositor scroll the probe could not slow (runs 41–42, step profiles and Chromium traces). |
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
-| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | in progress — 2026-10-26: the renderer's memory is a separate sandboxed process per app, never in the package's meminfo; `mc-tv-smooth` now reports `app+rend MB` per trial; the measurement runs as `mc-tv-ab e84dfd99~1 e84dfd99 -- --page / --reps 2` when the TV is free |
+| M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | ✅ 2026-10-26 — the page is two processes (the app's and the WebView renderer's, never in the package's meminfo); `mc-tv-smooth` reports `app+rend MB` per trial. Run `20261026-201555` (`mc-tv-ab e84dfd99~1 e84dfd99`, Home, two rounds): 198.8 MB before, 174.4 after — about 24 MB saved (renderer 108 → 92, app 91 → 82), replacing the estimate of about 50 (66 → 16). Glides 60 against 60 either way. |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
-| M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
-| M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | in progress — code landed 2026-10-26 (decision 11: Settings → Controls speaks only of keys on a remote player); the TV trace confirming no polling thread on the served page waits for the TV to be free |
+| M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | ✅ 2026-10-26 — nothing moved a target: run 41's own events show both animators landing on 156 (DOWN) and 68 (UP) every round; the smooth trial had started at 68 instead of 0. Reproduced at HEAD on the TV with a per-step read of scrollTop under both animators in both orders: identical, 0 → 0 → 0 → 156 → 156 → 156 → 68. Left for the owner's eye: UP onto the first library row stops at 68, the toolbar above the grid stays scrolled off — "nearest" never returns the page to its top. |
+| M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | ✅ 2026-10-26 — `a259085f`: `inputSources(remotePlayer(html), …)` gives a remote player's page the keyboard source alone; the handle and `exposeGamepadSource` gone; Settings → Controls takes `gamepad` (decision 11) with its story variation and a test mounting as a paired LAN player. Confirmed on the TV: trace `20261026T201413`, a Home glide at 60 fps on `6708c0af @d16c35f8 dev`, no `Gamepad polling thread` in any process of the trace (the report now prints an `absent from the trace` line; three non-gliding traces `201117`, `201133`, `201205` agree). |
 
 Every milestone that changes an existing system runs the campaign
 procedure and records each step here.
@@ -928,7 +937,7 @@ procedure and records each step here.
    `@player == :host` read the same fact, not a parallel attribute on
    the hook element; the doc paragraph is rewritten, not appended to.
    No shim, no two-commit split. Proceed.
-7. **Execution (2026-10-26, in progress).** Code landed test-first:
+7. **Execution (2026-10-26, done).** Code landed test-first:
    `remotePlayer` and `inputSources` in `index.js` (bun 988 pass), the
    hook's bridge gets a button capture only with a source, the handle
    and its test gone; `binding_row` and `Controls.render` take
@@ -954,8 +963,23 @@ procedure and records each step here.
    `mc-tv-ab down` left the app pointed at the stopped side-b server
    (now `restore_host`: back to dev, woken and put to standby if it
    slept, left with a note if the owner is using it). Paused with the
-   TV handed to the HDMI input at the owner's request; the trace runs
-   when the TV is free again, then the row closes.
+   TV handed to the HDMI input at the owner's request. Resumed the same
+   evening with the TV free: `mc-tv-smooth host dev` put the debug app
+   on the dev server (page id `6708c0af @d16c35f8 dev`); traces
+   `20261026T201117`, `201133` (DPAD_DOWN) and `201205` (DPAD_RIGHT on
+   the Recently row) list no `Gamepad polling thread`, and a query of
+   the trace files themselves finds no thread named like it in any
+   process (the debug app, its renderer, the release app, the zygote);
+   but none of the three glided — DPAD_DOWN moves the cursor a row, and
+   the Recently row's 150 px tiles need no scroll after three presses —
+   so trace `20261026T201413`, the Continue row's third DPAD_RIGHT, is
+   the record: 28 presents at 60.0 fps, the same thread table, the
+   thread absent. Two things worked into the tooling: `mc-tv-trace
+   --glide [PAGE]` sends the app to the page and makes the walk's
+   presses before its first gliding one, so a trace lands on a glide
+   without three tries; and the report ends its thread table with an
+   `absent from the trace` line, so the evidence for "no poller" is
+   printed rather than inferred from a missing row.
 
 ### M6 — The hero's memory on the TV
 
@@ -996,11 +1020,25 @@ procedure and records each step here.
 6. **Plan unification.** One reader, one owner, one column; the old
    `tv mem` column is not repurposed and no record format is kept in
    two shapes (`app_mem` is new, absent before). Proceed.
-7. **Execution (2026-10-26, tooling half).** Steps 1–2 of the plan
-   done and checked: renderer pid 24403 for the debug app (pid 24374),
+7. **Execution (2026-10-26, done).** Steps 1–2 of the plan done and
+   checked: renderer pid 24403 for the debug app (pid 24374),
    `app_memory()` read `{app: 68.4, renderer: 58.0}` MB, run
    `20261026-141657` re-reports with `-` in the new column. The
-   measurement waits for the TV.
+   measurement, the same evening with the TV free: `mc-tv-ab e84dfd99~1
+   e84dfd99 -- --page / --reps 2`, run `20261026-201555`. Per trial,
+   app + renderer: a (`62e10117`) 200.2 and 197.4 MB; b (`e84dfd99`)
+   174.2 and 174.6 MB — the commit saves about 24 MB on Home (renderer
+   109/107 → 92, app 91/90 → 82), against the estimate of about 50. The
+   glides read 60 against 60, Δ +0.0, noise 0. Two asides: both sides
+   showed six stalls over 100 ms, all on the walk's vertical presses,
+   where at those commits the window scrolled 204 px on the first DOWN
+   and crept 1 px a frame on the next, with gaps of 150–400 ms; at HEAD
+   (runs `141657`, 50) the same presses scroll nothing and show one
+   present, so it is history, not a lead. And `mc-tv-ab`'s one-command
+   form handed the TV to HDMI inside `run`, so `down`'s host restore took
+   it for the owner's use and left the app on the dead side-b server;
+   now the run keeps the TV on the app (`--no-handback`) and the
+   handback or `--off` follows `down`.
 
 ### M7 — The 156 px against 88 px reveal
 
@@ -1025,7 +1063,36 @@ procedure and records each step here.
    press) before it arrived; `scroll-padding` or a sticky header
    counted by one route and not the other. Each is one `mc-nav-trace`
    or `mc-tv-smooth` run with the probe's per-event scroll positions.
-   Steps 3–7 wait for the TV.
+3. –6. Skipped: the milestone runs a check and changes no system
+   (the campaigns convention allows it; a finding that asks for a change
+   becomes its own milestone).
+7. **Execution (2026-10-26, in progress).** Run 41's own records
+   answer the first question before any new TV run. Per press, the
+   probe's scroll events on `/library` read: glide DOWN `html` 0 → 156,
+   glide UP 156 → 68; smooth DOWN 68 → 156, smooth UP 156 → 68. Both
+   animators landed on the same two positions, 156 and 68, in every
+   round; nothing moved a target mid-glide. The 156 against 88 is the
+   *starting* position: a glide trial began at scrollTop 0 and a smooth
+   trial at 68, so the same reveal travelled 156 px from the page top
+   and 88 px from the row above. What leaves the page at 68 before the
+   smooth trial's first press (no scroll event in the press windows;
+   `goto` is a full `location.href` load for every trial) was then
+   checked on the TV at HEAD (`d16c35f8`, dev server): a scripted read
+   of scrollTop, the focused item and the context after connect, after
+   quiet, after the override and after each of three DOWN and three UP
+   presses, under glide and smooth in both orders. All four trials
+   identical: 0 at connect and quiet (and after the override), 0 after
+   DOWN 1 and 2, 156 after DOWN 3, 156 after UP 1 and 2, 68 after UP 3,
+   the same items focused throughout. Nothing in today's code leaves the
+   page at 68 before a press; run 41's smooth trial had inherited a
+   position from its own sequence on an older build. Closed: the glide
+   lands where the smooth scroll lands. The second question (where the
+   owner's eye says a reveal should land) has no animator half: both
+   land on `scrollIntoView` "nearest". One observation for the owner,
+   not a milestone: UP onto the first row stops at 68, leaving the
+   toolbar above the grid scrolled off; "nearest" never brings the page
+   back to its top. Whether the first row should reveal the page top is
+   a design call outside this campaign.
 
 ## Completion criteria
 
