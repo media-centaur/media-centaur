@@ -177,12 +177,13 @@ presented frames are partial, and the Compositor thread waited for a CPU
 code-version A/B, and a reveal that scrolled 156 px under the glide
 where the smooth variant scrolled 88.
 
-Also open: the WebView's `Gamepad polling thread` ran about 250 times a
-second throughout a system trace with no gamepad in use (980
-`GetGamepadData` in four seconds, 137 ms running): the input system's
-polling of `navigator.getGamepads()` keeps Chromium's poller alive. In a
-1.6 s glide window it ran 67 ms and waited for a CPU 45 ms. Not yet
-measured against a glide (campaign decision 5).
+Measured and left alone: the WebView's `Gamepad polling thread` runs
+about 250 times a second while the page holds `gamepadconnected`
+listeners, with no gamepad in use (67 ms running and 45 ms runnable in a
+1.6 s glide window). With the input system's gamepad source stopped
+(`window.__gamepadSource.stop()` as a `js:` condition) the thread
+stops, and the glide reads 60 against 60 on both pages (run 50,
+2026-10-26): at the floor's 60 fps it costs nothing the screen shows.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
 to 16 MB on Home), not measured. The package's only process reads 79–83
