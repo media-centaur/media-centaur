@@ -40,7 +40,7 @@ defmodule MediaCentaur.SelfUpdate.IncidentContextAssessTest do
     end
 
     test "follows the preference where checks run" do
-      Application.put_env(:media_centaur, :environment, :prod)
+      MediaCentaur.ProductionInstance.production_instance!()
 
       Config.update(:update_check_enabled, true)
       assert SelfUpdate.scheduled_checks_enabled?()

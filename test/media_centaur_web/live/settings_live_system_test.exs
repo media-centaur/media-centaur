@@ -33,10 +33,10 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
       )
     end)
 
-    # Checks (scheduled, landing, and manual) only run on the prod release
-    # channel; flip the environment so the check flow under test actually
-    # executes.
-    Application.put_env(:media_centaur, :environment, :prod)
+    # Checks (scheduled, landing, and manual) only run in a production
+    # instance with background services; load that so the check flow under
+    # test actually executes.
+    MediaCentaur.ProductionInstance.production_instance!()
 
     :ok
   end

@@ -30,6 +30,15 @@ database_path = "~/.local/share/media-centaur/media-centaur.db"
 # ignored and edits live in the UI.
 # media_dirs = ["/mnt/media/movies", "/mnt/media/tv"]
 
+# Whether this instance does anything on its own: watching your media
+# directories, importing, fetching artwork, grabbing releases, talking to
+# relays, checking for updates. Default: true. Set false only for a second
+# instance pointed at a copy of your database (a measurement or
+# inspection server); it then serves pages and nothing else, and no
+# setting in the app can switch background work back on. Requires restart
+# to change.
+# background_services = true
+
 # ---------------------------------------------------------------------------
 # Everything else — TMDB, pipeline thresholds, playback paths, Prowlarr,
 # download client, the data directory, excluded directories, release

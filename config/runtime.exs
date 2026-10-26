@@ -64,6 +64,15 @@ if config_env() != :test do
     config :media_centaur, MediaCentaur.Repo, database: Path.expand(db)
   end
 
+  # Background services: TOML `background_services = false` starts an
+  # instance that serves pages and does nothing on its own (see
+  # `Settings.Config`). Oban's queues and plugins are config, so the only
+  # place to switch them off is here; Oban itself still starts, so a page
+  # may insert a job, which then waits in this instance's database.
+  if get_in(toml, ["background_services"]) == false do
+    config :media_centaur, Oban, queues: false, plugins: false
+  end
+
   # Durable diagnostics — incident minting (LogHandler) + unclean-shutdown
   # detection (ShutdownMonitor). On for the production release, and for a dev
   # instance that is acting as the always-on daily driver and opts in via

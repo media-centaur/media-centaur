@@ -10,11 +10,24 @@ defmodule MediaCentaur.Settings.Config do
 
   Configuration has two tiers with different sources of truth:
 
-  * **Bootstrap state** — `database_path`, `port`, `bind`, and the initial
-    `media_dirs` seed. These are read from the user's TOML config file
+  * **Bootstrap state** — `database_path`, `port`, `bind`, the initial
+    `media_dirs` seed, and the two keys that say which kind of instance
+    this is: `showcase_mode` and `background_services`. These are read
+    from the user's TOML config file
     (`~/.config/media-centaur/media-centaur.toml`) because the app needs
     them before the database is reachable. They fall back to application
     environment defaults.
+
+  `background_services` (default `true`) is whether this instance does
+  anything on its own: file watchers, the import and image pipelines,
+  auto-grab, Oban's queues and cron, relay connections and sync,
+  playback recovery, the self-update check, the boot heals and the
+  PubSub listeners that react to library and release events. An
+  instance started with it `false` serves pages and nothing else;
+  `Settings.Services` answers no for every toggled service whatever its
+  row says, so a copy of a real database cannot wake it. The test env
+  and a measurement server (`~/scripts/agents/mc-tv-ab`) are such
+  instances.
   * **Runtime preferences** — everything else (TMDB key, Prowlarr,
     download client, mpv/ffprobe paths, pipeline dirs, intervals, update
     flags, …). These live exclusively in the Settings database, are set
@@ -458,6 +471,7 @@ defmodule MediaCentaur.Settings.Config do
       usenet_download_client_url: nil,
       usenet_download_client_api_key: nil,
       showcase_mode: false,
+      background_services: Application.get_env(:media_centaur, :background_services, true),
       update_check_enabled: true,
       update_check_interval_minutes: @update_check_interval_default_minutes,
       auto_update_enabled: false,
@@ -512,21 +526,30 @@ defmodule MediaCentaur.Settings.Config do
     # intentionally ignored, so the DB is the single source of truth and
     # the TOML schema can't drift.
     #
-    # `showcase_mode` qualifies on that same criterion rather than
-    # widening it: it says *which instance this is*, it is decided by
-    # MEDIA_CENTAUR_CONFIG_OVERRIDE before the VM starts, and
-    # `Application.start/2` reads it to decide whether to supervise the
-    # demo's generators at all — long before Repo is up. It is
+    # `showcase_mode` and `background_services` qualify on that same
+    # criterion rather than widening it: each says *which instance this
+    # is*, is decided by MEDIA_CENTAUR_CONFIG_OVERRIDE before the VM
+    # starts, and is read by `Application.start/2` to decide which
+    # children to supervise at all — long before Repo is up. Both are
     # deliberately absent from `runtime_settable_keys/0`: no Settings
-    # screen may turn a real install into a demo.
+    # screen may turn a real install into a demo, or wake an instance
+    # started without background services.
     Map.merge(defaults, %{
       port: get_in(toml, ["port"]) || defaults.port,
       bind: BindAddress.parse!(get_in(toml, ["bind"])),
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       media_dirs: media_dirs,
       media_dir_images: media_dir_images,
-      showcase_mode: get_in(toml, ["showcase_mode"]) || defaults.showcase_mode
+      showcase_mode: get_in(toml, ["showcase_mode"]) || defaults.showcase_mode,
+      background_services: toml_boolean(toml, "background_services", defaults.background_services)
     })
+  end
+
+  defp toml_boolean(toml, key, default) do
+    case get_in(toml, [key]) do
+      value when is_boolean(value) -> value
+      _absent -> default
+    end
   end
 
   # Supports plain string lists and inline table arrays. `media_dir_images`

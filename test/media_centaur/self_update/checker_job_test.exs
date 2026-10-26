@@ -11,9 +11,9 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
 
     UpdateChecker.clear_cache()
 
-    # CheckerJob.perform/1 short-circuits when SelfUpdate.enabled?() is false.
-    # Override to :prod so the job body runs.
-    Application.put_env(:media_centaur, :environment, :prod)
+    # CheckerJob.perform/1 short-circuits when SelfUpdate.enabled?() is false:
+    # a production instance with background services, so the job body runs.
+    MediaCentaur.ProductionInstance.production_instance!()
 
     :ok
   end

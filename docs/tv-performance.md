@@ -72,9 +72,10 @@ input system's motion is checked on the TV before it is done:
 1. Measure the change against its base **interleaved**, at least two
    rounds: a CSS or JS override with `mc-tv-smooth run --cond base --cond
    css:<file>` (the override restores the old behaviour, or applies the
-   new one), or, for code that cannot be overridden, alternate the two
-   versions in the dev server's checkout between rounds (only when no
-   other agent works in it).
+   new one), or, for code that cannot be overridden, the two commits
+   served side by side with `~/scripts/agents/mc-tv-ab <ref-a> <ref-b>`
+   (never by switching the dev server's checkout; it is the owner's
+   daily driver).
 2. Accept no regression beyond the noise between rounds (a few fps).
    Record the numbers in the commit message or the campaign.
 3. When a result is slow, explain it with `mc-tv-trace` before changing
@@ -123,6 +124,22 @@ input system's motion is checked on the TV before it is done:
   Chromium's `PipelineReporter` count is not the screen's present count
   (54 against 41 on one glide), which is why the report leads with the
   presents.
+* **Compare two commits with `mc-tv-ab`.** `~/scripts/agents/mc-tv-ab
+  <ref-a> <ref-b>` serves each commit from its own worktree as a
+  measurement server (`background_services = false` in its override
+  TOML: it serves pages and does nothing on its own, whatever the
+  copied database's service toggles say) on ports 2161 and 2162,
+  against a `sqlite3 .backup` of the dev database with the real image
+  cache and data directory, then runs `mc-tv-smooth run --cond host:a
+  --cond host:b` and takes both down. A host condition re-points the TV
+  app (a restart, so the first trial after a switch is the slow one run
+  44 showed); `page id` names each host's HEAD. The paired TV needs no
+  pairing against them: admission is a signed session cookie, dev's
+  signing key is fixed and cookies are per host, not per port. Ecto
+  never downgrades, so a ref whose schema is older than the dev
+  database's runs against the newer schema. `mc-tv-ab up`, `run`,
+  `down` and `status` are the steps on their own (M6 reads a server's
+  memory between `up` and `down`).
 * **A run starts with the app on screen.** SurfaceFlinger presents
   nothing for a layer behind the TV's input, while the WebView still
   answers over CDP: a run after a handback recorded zero presents in

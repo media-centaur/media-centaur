@@ -18,6 +18,33 @@ defmodule MediaCentaur.SelfUpdateTest do
     :ok
   end
 
+  describe "enabled?/0" do
+    # The sandbox restores the app env and the loaded config at exit.
+    defp load_config(environment, background_services?) do
+      Application.put_env(:media_centaur, :environment, environment)
+      Application.put_env(:media_centaur, :background_services, background_services?)
+      :ok = MediaCentaur.Settings.Config.load!()
+    end
+
+    test "true only for a production instance that runs background services" do
+      load_config(:prod, true)
+      assert SelfUpdate.enabled?()
+    end
+
+    test "false in dev and test builds" do
+      load_config(:dev, true)
+      refute SelfUpdate.enabled?()
+
+      load_config(:test, true)
+      refute SelfUpdate.enabled?()
+    end
+
+    test "false for a production instance without background services" do
+      load_config(:prod, false)
+      refute SelfUpdate.enabled?()
+    end
+  end
+
   describe "subscribe/0" do
     test "subscribes the caller to the self_update status topic" do
       :ok = SelfUpdate.subscribe()
