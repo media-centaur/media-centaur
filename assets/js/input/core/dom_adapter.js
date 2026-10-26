@@ -153,20 +153,70 @@ function revealItem(element, glider) {
   // can outgrow the viewport at large UI scales, and honouring the alignment
   // then pushes the focused item off the opposite edge — worse than not framing
   // it. Keeping the item on screen wins.
-  if (declared && !isFullyInView(element)) {
+  if (declared && !withinScrollport(element, document.scrollingElement, "block")) {
     rewind()
     subject.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
   }
 
   const after = boxes.map(box => [box.scrollLeft, box.scrollTop])
+
+  // The scroller's start is a resting position of its own. "nearest" aligns
+  // the first row's leading edge to the scrollport's, hiding whatever stands
+  // above it — the library's title and toolbar — by exactly their own height,
+  // so UP onto the first row never brought the page back to its top. An item
+  // on the first line of its zone offers the start instead, measured the same
+  // way (jump, read, keep only if the item shows whole) per box and axis.
+  if (!declared) {
+    boxes.forEach((box, i) => {
+      for (const axis of scrolledAxes(box)) {
+        if (!onFirstLine(element, axis)) continue
+        const [offset, index] = axis === "block" ? ["scrollTop", 1] : ["scrollLeft", 0]
+        box[offset] = 0
+        if (withinScrollport(element, box, axis)) after[i][index] = 0
+        box[offset] = after[i][index]
+      }
+    })
+  }
+
   rewind()
   boxes.forEach((box, i) => glider.glide(box, { left: after[i][0], top: after[i][1] }))
 }
 
-/** Whether the element's block extent lies wholly within the viewport. */
-function isFullyInView(element) {
+/**
+ * Whether the element lies wholly within the box's scrollport along one axis
+ * ("block" or "inline"), read from the live rects — so it answers for a
+ * measuring jump the box has just made. The document's scroller is the one
+ * special case: its scrollport is the viewport, which its own rect is not.
+ */
+function withinScrollport(element, box, axis) {
+  const [start, end, size, inset] = axis === "block"
+    ? ["top", "bottom", "clientHeight", "clientTop"]
+    : ["left", "right", "clientWidth", "clientLeft"]
   const rect = element.getBoundingClientRect()
-  return rect.top >= 0 && rect.bottom <= document.documentElement.clientHeight
+  const viewport = box === document.scrollingElement
+  const from = viewport ? 0 : box.getBoundingClientRect()[start] + (box[inset] ?? 0)
+  const extent = viewport ? document.documentElement[size] : box[size]
+  return rect[start] >= from && rect[end] <= from + extent
+}
+
+/** The axes a box can scroll along: "block" and/or "inline". */
+function scrolledAxes(box) {
+  const axes = []
+  if (box.scrollHeight > box.clientHeight) axes.push("block")
+  if (box.scrollWidth > box.clientWidth) axes.push("inline")
+  return axes
+}
+
+/**
+ * Whether the element shares its leading edge along the axis with the first
+ * item of its zone — the first row of a grid or tree, the first tile of a
+ * row. An item outside any zone is on no first line.
+ */
+function onFirstLine(element, axis) {
+  const first = element.closest?.("[data-nav-zone]")?.querySelector("[data-nav-item]")
+  if (!first) return false
+  const edge = axis === "block" ? "top" : "left"
+  return Math.abs(first.getBoundingClientRect()[edge] - element.getBoundingClientRect()[edge]) < 1
 }
 
 /**

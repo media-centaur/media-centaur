@@ -532,6 +532,19 @@ focused item off the opposite edge — possible at large UI scales, where a
 reserve can outgrow the viewport — the reveal falls back to a minimal one,
 because keeping the item on screen beats framing it.
 
+**The first line reveals the scroller's start.** `"nearest"` aligns the
+first row's leading edge to the scrollport's, which hides whatever stands
+above it — the library's title and toolbar — by exactly their own height, so
+UP onto the first row never brought the page back to its top. An item on the
+first line of its zone (its leading edge is the zone's first item's: the
+first row of a grid or tree, the first tile of a row) offers the scroller's
+start as the destination instead, on each axis the box scrolls, and it is
+kept only when the start shows the item whole — the same test the declared
+alignment passes (`withinScrollport`), measured the same way (jump, read,
+rewind). A declared alignment keeps precedence. A single-line zone is its
+own first line, so a shelf in the first screenful reveals the page head with
+it; the home shelves declare `"end"` and are unaffected.
+
 **How the destination is computed.** `revealItem` scrolls instantly, reads
 where that landed, restores the offsets, and glides to the recorded target.
 Roundabout on purpose: computing it directly would mean reimplementing

@@ -550,6 +550,129 @@ describe("reveal — a single owner for making the focused item visible", () => 
     })
     expect(item.scrolledWith).toBeUndefined()
   })
+
+  // The scroller's start is a resting position of its own. "nearest" aligns
+  // the first row's leading edge to the scrollport's, which hides whatever
+  // stands above it — the library's title and toolbar — by exactly their own
+  // height. An item on the first line of its zone therefore offers the start
+  // as the destination, kept when the start shows the item whole, else the
+  // nearest position as before. A declared alignment keeps precedence.
+  describe("an item on its zone's first line reveals the scroller's start", () => {
+    let realComputed
+    beforeEach(() => {
+      realComputed = globalThis.getComputedStyle
+      globalThis.getComputedStyle = node => node.__style ?? { position: "static", overflowX: "visible", overflowY: "visible" }
+    })
+    afterEach(() => { globalThis.getComputedStyle = realComputed })
+
+    // A placed item: `at` is its content position inside `box`; its client
+    // rect follows the box's scroll offsets, so a measuring jump reads where
+    // the item would be — the stub scrollIntoView still moves nothing.
+    function placed(label, at, { box = null, declared = null } = {}) {
+      const item = fakeGridItem(label)
+      item.at = { width: 10, height: 10, ...at }
+      item.box = box
+      item.closest = (selector) => {
+        if (selector === "[data-nav-zone]") return item.zone ?? null
+        if (selector === "[data-nav-reveal-block]" && declared) return { dataset: { navRevealBlock: declared } }
+        return null
+      }
+      item.getBoundingClientRect = () => {
+        const scroller = item.box ?? globalThis.document.scrollingElement
+        const port = item.box ? item.box.getBoundingClientRect() : { top: 0, left: 0 }
+        const top = port.top + item.at.top - scroller.scrollTop
+        const left = port.left + item.at.left - scroller.scrollLeft
+        return { x: left, y: top, top, left, width: item.at.width, height: item.at.height,
+                 right: left + item.at.width, bottom: top + item.at.height }
+      }
+      return item
+    }
+
+    function zoneOf(...items) {
+      const zone = { querySelector: (selector) => (selector === "[data-nav-item]" ? items[0] : null) }
+      items.forEach(item => { item.zone = zone })
+    }
+
+    // The page: scrolled to (120, 40), 1000 px tall, scrolling vertically only.
+    function stubScrolledPage({ clientHeight = 1000 } = {}) {
+      stubScrollingDocument([], { clientHeight })
+      Object.assign(root, { scrollHeight: 5000, clientHeight, scrollWidth: 1800, clientWidth: 1800 })
+      globalThis.document.documentElement.clientWidth = 1800
+    }
+
+    test("the first row, shown whole at the top, glides the page to 0", () => {
+      const writer = writerWithFakeGlide()
+      const first = placed("a", { top: 68, left: 0 })
+      const item = placed("b", { top: 68, left: 200, height: 150 })
+      zoneOf(first, item)
+      stubScrolledPage()
+
+      writer.focusElement(item)
+
+      expect(glided).toEqual([{ box: root, target: { left: 120, top: 0 } }])
+      // The measuring jumps are undone before the glide, as ever.
+      expect(root.scrollTop).toBe(40)
+    })
+
+    test("the first row keeps the nearest destination when the top would not show it whole", () => {
+      const writer = writerWithFakeGlide()
+      const first = placed("a", { top: 68, left: 0 })
+      const item = placed("b", { top: 68, left: 200, height: 150 })
+      zoneOf(first, item)
+      stubScrolledPage({ clientHeight: 100 })
+
+      writer.focusElement(item)
+
+      expect(glided).toEqual([{ box: root, target: { left: 120, top: 40 } }])
+    })
+
+    test("a later row glides to the nearest destination", () => {
+      const writer = writerWithFakeGlide()
+      const first = placed("a", { top: 68, left: 0 })
+      const item = placed("b", { top: 300, left: 0, height: 150 })
+      zoneOf(first, item)
+      stubScrolledPage()
+
+      writer.focusElement(item)
+
+      expect(glided).toEqual([{ box: root, target: { left: 120, top: 40 } }])
+    })
+
+    test("a row's first tile glides the row to its start", () => {
+      const writer = writerWithFakeGlide()
+      // A media row resting 2 px in — its padding hidden by "nearest".
+      const row = {
+        scrollLeft: 2, scrollTop: 0, scrollWidth: 5000, clientWidth: 1800, scrollHeight: 200, clientHeight: 200,
+        clientTop: 0, clientLeft: 0, parentElement: null,
+        __style: { position: "static", overflowX: "auto", overflowY: "hidden" },
+        getBoundingClientRect: () => ({ top: 300 - root.scrollTop, left: 0 }),
+      }
+      const item = placed("tile", { top: 0, left: 16, width: 400, height: 200 }, { box: row })
+      item.parentElement = row
+      zoneOf(item)
+      stubScrolledPage()
+
+      writer.focusElement(item)
+
+      expect(glided).toEqual([
+        { box: row, target: { left: 0, top: 0 } },
+        { box: root, target: { left: 120, top: 0 } },
+      ])
+      expect(row.scrollLeft).toBe(2)
+    })
+
+    test("a declared alignment keeps precedence over the start", () => {
+      const writer = writerWithFakeGlide()
+      const item = placed("a", { top: 68, left: 0, height: 150 }, { declared: "end" })
+      zoneOf(item)
+      stubScrolledPage()
+
+      writer.focusElement(item)
+
+      expect(item.scrolledWith.block).toBe("end")
+      expect(glided).toEqual([{ box: root, target: { left: 120, top: 40 } }])
+    })
+  })
 })
 
 describe("getItemRects — geometry for spatial navigation", () => {
