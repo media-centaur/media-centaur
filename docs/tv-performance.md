@@ -17,6 +17,9 @@ this document is how to meet it and how to measure it.
 | **Main-thread scroll** | A scroll offset written from JavaScript. Each step needs a commit, then raster of any newly exposed tiles, before it can be shown. |
 | **Compositor scroll** | A scroll the browser animates itself (`scrollBy({behavior: "smooth"})`, a user fling). It moves already-rastered tiles without the main thread. |
 | **Interleaved A/B** | Conditions alternated within one run on one device state, so the device's own variance cancels out. |
+| **System trace** | Android's Perfetto trace of the whole device around one action: kernel scheduling and CPU frequency, framework slices (`gfx`, `view`, `webview`), SurfaceFlinger's frame timeline, and the WebView's own Chromium track events, all on one clock. What `mc-tv-trace` records. |
+| **Frame timeline** | SurfaceFlinger's per-frame verdict on Android 12 and later: the budget an app frame had, the time it took, on time or late, and whether the app or SurfaceFlinger was at fault. |
+| **Render thread** | The Android app's `RenderThread`, which draws the WebView's frame into the window each vsync (`HardwareRenderer::Draw`, waiting on viz in `ScheduleOnVizAndBlock`). Invisible to Chromium's pipeline stages. |
 
 ## The floor device
 
@@ -108,10 +111,18 @@ input system's motion is checked on the TV before it is done:
   a passive scroll listener and measured zero cost (run 43). After any
   change to the probe, alternate a probed and a `--no-probe` run into one
   `--out` directory and read `Δ vs first`. `mc-tv-trace`'s tracing cost
-  nothing measurable either (run 45: traced glides presented at 60 fps
-  with every gap 16.7 ms, alternated with plain presses), but its frame
-  count is the trace's `PipelineReporter` count, not the screen's
-  presents (54 against 41 on one glide); read fps from `mc-tv-smooth`.
+  nothing measurable (`mc-tv-trace --cost`, 2026-10-26: Δ −0.0, noise
+  3.8 over six glides a side), but only after its DevTools action mark
+  was removed: a DevTools session opened and closed right before the
+  key cost the glide that followed 6.5 fps on its own. **No DevTools
+  traffic between a measurement's setup and its action**; `mc-tv-smooth`
+  installs its probe, then clears presents over adb, then presses, and
+  measured zero cost in that order. A `hold` or `js` action runs through
+  such a session at the action itself, so its absolute fps carries
+  whatever that costs; compare such actions only within one tool.
+  Chromium's `PipelineReporter` count is not the screen's present count
+  (54 against 41 on one glide), which is why the report leads with the
+  presents.
 * **A run starts with the app on screen.** SurfaceFlinger presents
   nothing for a layer behind the TV's input, while the WebView still
   answers over CDP: a run after a handback recorded zero presents in
@@ -126,12 +137,22 @@ input system's motion is checked on the TV before it is done:
   so every page load refetches all artwork; `mc-tv-smooth` waits until
   loading stops before measuring.
 * **Explain with a trace.** `~/scripts/agents/mc-tv-trace --key DPAD_DOWN`
-  records a Chromium trace of one action and prints, per presented frame,
-  each pipeline stage's p50/p90 and what drove the frame.
+  records a system trace of one action into a record directory
+  (`~/.cache/mc-tv-trace/<stamp>/`) and prints, in this order: the
+  screen's presents over the glide (the same fps `mc-tv-smooth` would
+  print), the frame timeline's verdict on each app frame (late, and
+  whether the app or SurfaceFlinger was at fault), Chromium's pipeline
+  (frames by state and driver, each stage's p50/p90/max;
   `PRESENTED_PARTIAL` frames reached the screen without the main thread's
-  update — the mark of a main-thread scroll missing its deadline. The
-  first trace after a page load often catches only a few frames; take the
-  second. `--from FILE` re-reads a saved trace.
+  update, the mark of a main-thread scroll missing its deadline), the
+  render thread's draw and its wait on viz per frame, every WebView
+  thread's running and runnable time with its heaviest slices, and the
+  CPU frequency range. A long render-thread wait under a short pipeline
+  means Android, not Blink. The trace file opens in `ui.perfetto.dev`.
+  `--from DIR` re-reads a record; `--cost N` measures the tracer's own
+  cost (plain and traced presses alternated) and is run after any change
+  to its trace config. The first trace after a page load often catches
+  only a few frames; take the second.
 * **Never reboot the TV.** It is also the development machine's display;
   a reboot from the rig crashed the desktop session. Ask the owner.
 
@@ -147,9 +168,21 @@ tool's old per-frame probe, which cost it 16–19 fps (run 42, interleaved).
 With the present probe or none the glide presents at 60 fps on the Sony,
 the same as a compositor smooth scroll (runs 41, 43); the A/A reads 60
 against 60 (run 44) and `mc-tv-trace`'s tracing costs nothing measurable
-(run 45). Still open in the campaign: Android's render thread per frame
-(Perfetto), a one-command code-version A/B, and a reveal that scrolled
-156 px under the glide where the smooth variant scrolled 88.
+(run 49). Android's side of a glide is now visible per frame: on Home at
+60 fps every app frame is "Late Present, Buffer Stuffing" with 36 ms
+actual (the WebView runs a frame ahead of the display), the render
+thread waits 10 ms a frame in `dequeueBuffer`, half of Chromium's
+presented frames are partial, and the Compositor thread waited for a CPU
+42 ms in a 1.6 s window. Still open in the campaign: a one-command
+code-version A/B, and a reveal that scrolled 156 px under the glide
+where the smooth variant scrolled 88.
+
+Also open: the WebView's `Gamepad polling thread` ran about 250 times a
+second throughout a system trace with no gamepad in use (980
+`GetGamepadData` in four seconds, 137 ms running): the input system's
+polling of `navigator.getGamepads()` keeps Chromium's poller alive. In a
+1.6 s glide window it ran 67 ms and waited for a CPU 45 ms. Not yet
+measured against a glide (campaign decision 5).
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
 to 16 MB on Home), not measured. The package's only process reads 79–83
