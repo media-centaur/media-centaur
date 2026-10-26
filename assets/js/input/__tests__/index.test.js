@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionForId, shellLeave } from "../index"
+import { actionForId, exposeGamepadSource, shellLeave } from "../index"
 import { Action } from "../core/index.js"
 import { inputConfig } from "../config"
 import { scrollGlider } from "../../scroll_glider"
@@ -25,6 +25,17 @@ describe("App config", () => {
     expect(inputConfig.glider).toBe(scrollGlider)
     expect(typeof scrollGlider.glide).toBe("function")
     expect(typeof scrollGlider.cancelAll).toBe("function")
+  })
+
+  // The gamepad source is the page's debug handle `window.__gamepadSource`,
+  // in the pattern of `window.__scrollGlider`: a measurement on the TV stops
+  // it as a condition (`mc-tv-smooth --cond js:<file>`) to price Chromium's
+  // gamepad polling thread, without a code change between rounds.
+  test("exposes the page's gamepad source as its debug handle", () => {
+    const globals = {}
+    const source = { stop() {} }
+    expect(exposeGamepadSource(source, globals)).toBe(source)
+    expect(globals.__gamepadSource).toBe(source)
   })
 
   test("has layouts for all zones", () => {
