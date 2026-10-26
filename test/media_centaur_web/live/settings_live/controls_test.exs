@@ -1,9 +1,20 @@
 defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Settings.Controls
+
+  @lan {192, 168, 1, 20}
+
+  defp from_lan(conn) do
+    conn
+    |> Map.put(:remote_ip, @lan)
+    |> Plug.Test.put_peer_data(%{address: @lan, port: 40_000, ssl_cert: nil})
+  end
+
+  defp as_player(conn, player), do: Plug.Test.init_test_session(conn, %{"player_id" => player.id})
 
   describe "mount" do
     test "renders all bindings grouped by category", %{conn: conn} do
@@ -221,6 +232,26 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
 
       assert_receive {:controls_changed, _}
       assert Controls.glyph_style() == "playstation"
+    end
+  end
+
+  # A remote player (the TV app) starts no gamepad source, so its Controls
+  # page speaks only of keys: nothing it offered could capture a button.
+  describe "on a remote player" do
+    test "the section offers the Key slot alone: no Pad keycap, no glyph choice", %{conn: conn} do
+      player = create_player(name: "Living room TV")
+
+      {:ok, view, _html} =
+        conn |> from_lan() |> as_player(player) |> live_async!(~p"/settings?section=controls")
+
+      assert has_element?(
+               view,
+               "#binding-select [data-nav-sub-item][phx-click='controls:listen'][phx-value-kind='keyboard']"
+             )
+
+      refute has_element?(view, "[phx-click='controls:listen'][phx-value-kind='gamepad']")
+      refute has_element?(view, "[phx-click='controls:set_glyph']")
+      assert render(view) =~ "Every action has a key. Press a keycap, then the key to put there."
     end
   end
 end

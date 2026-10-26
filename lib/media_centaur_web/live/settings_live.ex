@@ -2137,6 +2137,7 @@ defmodule MediaCentaurWeb.SettingsLive do
               </div>
               <.section_content
                 active_section={@active_section}
+                player={@player}
                 identity_npub={@identity_npub}
                 profile_name={@profile_name}
                 profile_hue={@profile_hue}
@@ -2332,6 +2333,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       glyph_style={@glyph_style}
       listening={@listening}
       reset_armed={ArmGesture.armed?(@armed_gesture, "controls:reset_all")}
+      gamepad={@player == :host}
     />
     """
   end

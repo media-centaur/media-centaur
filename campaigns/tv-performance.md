@@ -51,9 +51,13 @@ measured cost; the gamepad poller costs nothing on screen (run 50);
 `mc-tv-ab <ref-a> <ref-b>` is the one-command code-version A/B, built
 on the new `background_services` bootstrap key (commit `6095f146`),
 and its A/A read 60 against 60 on both pages. No decision is open.
-Next: M9 (no gamepad source on remote players, decision 6), then M6
-(its before-half now has `mc-tv-ab up` for a server at any commit),
-then M7.
+M9's code is in (a remote player's page starts no gamepad source;
+Settings → Controls speaks only of keys there, decision 11) and waits
+for one TV trace to close; the measurement tooling learned to name the
+host that served a measured page, to find the debug app's DevTools
+socket, and to point the app back at the dev server after `mc-tv-ab
+down`. Next: close M9 on the TV, then M6 (its before-half now has
+`mc-tv-ab up` for a server at any commit), then M7.
 
 ## Principles
 
@@ -216,7 +220,7 @@ then M7.
 
 ## Open decisions
 
-None. Decisions 1–10 are taken (see *Decisions made*); the reveal
+None. Decisions 1–11 are taken (see *Decisions made*); the reveal
 became M7, the gamepad poller M8, the gamepad source on remote players
 M9.
 
@@ -247,6 +251,7 @@ M9.
 * `2026-10-26` — Decision 8: the A/B runs two worktree servers on their own ports (2161, 2162), each against its own database copy; a round switch re-points the TV app (`mc-tv launch --host`). The paired TV needs no re-pairing: admission is a signed session cookie, dev's signing key and salt are fixed, cookies are per host not per port, and the copy carries the player row. (owner, M3)
 * `2026-10-26` — Decision 9: each server's database is a `sqlite3 .backup` of the dev database at its own path; artwork is the real image cache, shared, nothing in an inert server writes it. (owner, M3)
 * `2026-10-26` — Decision 10: the measurement servers bind `0.0.0.0` for the run, behind the paired-player gate, as the dev server already does. Accepted with reluctance; they are stopped when the run ends. (owner, M3)
+* `2026-10-26` — Decision 11: Settings → Controls on a remote player speaks only of keys: no Pad slot in a binding row, no gamepad glyph choice. (owner, M9)
 
 ## Milestones
 
@@ -260,7 +265,7 @@ M9.
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | open — after-half read 2026-10-25: the package's only process reads 79–83 MB PSS on Home and the library, Graphics 0, so the renderer's memory is accounted elsewhere and M6 first finds where; the before-half runs against `mc-tv-ab up <before> <after>` (M3) |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
 | M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | open — after M2 (decision 4) |
-| M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | open — after M3 |
+| M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | in progress — code landed 2026-10-26 (decision 11: Settings → Controls speaks only of keys on a remote player); the TV trace confirming no polling thread on the served page waits for the TV to be free |
 
 Every milestone that changes an existing system runs the campaign
 procedure and records each step here.
@@ -826,6 +831,131 @@ procedure and records each step here.
    worktree's absolute paths; a code A/B compares HEADs, and the digest
    says only that the two sides served different builds. `mc-tv-ab
    down` left no worktree, server or copy behind.
+
+### M9 — No gamepad source on a remote player
+
+1. **Scope.** In: (a) `createInputHook` starts no gamepad source on a
+   page served to a remote player (`html[data-player="remote"]`), so
+   the page holds no `gamepadconnected` listeners and Chromium's
+   polling thread never starts there; (b) `exposeGamepadSource` and
+   `window.__gamepadSource` go, with their test, since M8 was their
+   only purpose; (c) whatever leans on the source copes with its
+   absence: the controls bridge's button capture, the rebind of maps;
+   (d) Settings → Controls on a remote player (decision 11); (e)
+   `docs/tv-performance.md` (the "Measured and left alone" paragraph
+   becomes the rule) and `docs/input-system.md` (the sources list).
+   Out: the host's gamepad path, untouched; the hint bar's gamepad
+   glyphs (never shown on a remote player once no source sets gamepad
+   mode); the TV app's own key handling.
+2. **Research.** `<html data-player="remote">` is written by
+   `root.html.heex` from `assigns[:player]` (`PlayerAware` assigns it on
+   every LiveView, the `RemoteAccess` plug on every conn), and
+   `app.js` and `hooks/mouse_autofocus.js` already read
+   `document.documentElement.dataset.*` from the app layer, so the hook
+   reads the player kind the same way (core stays DOM-free except
+   `dom_adapter.js`). The source is the second factory in the
+   orchestrator's `sources` list (`index.js`); the orchestrator starts
+   whatever factories it is given, so a list without the factory needs
+   no orchestrator change. Three things reach the source: `rebind`
+   (already guarded on null), `ControlsBridge.captureGamepadButton`
+   (`gamepadSource.captureNext` closed over at mount; the bridge treats
+   a missing capture as "cannot listen" and returns), and the M8
+   handle. `gamepadInputAllowed` (`input_gate.js`) gates a connected
+   pad per poll and is unrelated. On the Settings page the server
+   assigns `listening: {:gamepad, id}` before the browser is asked to
+   capture, so with no source the row stays listening (decision 11).
+   `controls_test.exs` covers the gamepad keycap's listen on the host;
+   `binding_row.story.exs` has six variations, none without a Pad
+   slot.
+3. **Design decisions.** The hook decides from the page: `remotePlayer
+   (documentElement)` is a pure function in `index.js` beside
+   `shellLeave`, tested like it, and the sources list is built by a
+   pure `inputSources({ remote, … })` so the choice is testable without
+   a DOM. Decision 11 (owner) settles the Controls section.
+4. **Design unification.** Core idea: the device a page is served to
+   says which input sources the page starts, and a surface that
+   configures a source exists only where the source does. The server
+   already projects the device as one fact, `assigns.player` (`:host`
+   or the paired player; `PlayerAware` on every LiveView, the
+   `RemoteAccess` plug on every conn) and `<html data-player="remote">`
+   from it; both sides read that one fact, no second signal. Greenfield
+   client: the hook composes its sources from the device
+   (`inputSources(remote, { keyboard, gamepad })`), hands the bridge a
+   button capture only when a gamepad source exists (the bridge's
+   constructor already declares the capture optional and "absent when
+   no gamepad source exists", so the hook's unconditional closure over a
+   possibly-null source was the incoherence; fixed now), and carries no
+   measurement handle. Greenfield server: the Controls section takes
+   `gamepad` (true on the host) and renders the Pad slot, the glyph
+   choice and the "key and button" instruction only then; `binding_row`
+   takes the same attr, so the component and the section agree and the
+   story shows the key-only row. No second representation: the TV
+   never sets gamepad input mode, so the hint bar's glyph labels need
+   no gate. Left as is, decided: the Settings overview's one-line
+   description "Keyboard and gamepad bindings." is a static catalogue
+   entry read on the host's overview; the wiki's rebinding steps say
+   "the Key or the Pad one" and gain one sentence for the TV. Coherence
+   cost: within scope (two attrs, one story variation, two tests).
+5. **Implementation plan.** Test-first throughout. (1) bun:
+   `index.test.js` gains `remotePlayer` (true for `data-player="remote"`,
+   false without it) and `inputSources` (keyboard alone on a remote
+   player, both otherwise); the `exposeGamepadSource` test goes; red,
+   then `index.js`: the two pure functions, `mounted` builds the
+   factories by name and passes them through `inputSources`, the
+   bridge gets `captureGamepadButton` only with a source,
+   `exposeGamepadSource` deleted. (2) Elixir: `controls_test.exs` gains
+   a describe "on a remote player" (conn with a paired player's session,
+   as `player_aware_test.exs` mounts one): no `phx-value-kind='gamepad'`
+   keycap, no glyph choice, the instruction reads "Every action has a
+   key."; red, then `binding_row` attr `gamepad` (default true) gating
+   the Pad slot, `Controls.render` attr `gamepad` gating the glyph choice
+   and the copy, `settings_live.ex` passes `gamepad={@player == :host}`;
+   the story gains `:key_only`. (3) Docs: `docs/tv-performance.md`'s
+   paragraph becomes the rule (a remote player's page starts no gamepad
+   source; the M8 measurement stays as its evidence);
+   `docs/input-system.md` sources wiring and the bridge row;
+   `binding_row` and `Controls` moduledocs; wiki
+   `Keyboard-and-Gamepad.md` one sentence (local commit, pushed when the
+   change ships). (4) `bun test assets/js/input/`, then precommit; then
+   on the TV a `mc-tv-trace` of a glide on HEAD to confirm the polling
+   thread is absent on the served page. (5) Campaign row, Status.
+6. **Plan unification.** Checked against what the design removed:
+   `exposeGamepadSource` is deleted, not kept "for measurements" (the
+   M8 condition file `nogamepad.js` is dead with it; the trace is the
+   check now); the bridge's capture is absent, not a closure over null;
+   `binding_row` and `Controls.render` both take the attr (no section
+   hiding what the row still draws); `remotePlayer` and the server's
+   `@player == :host` read the same fact, not a parallel attribute on
+   the hook element; the doc paragraph is rewritten, not appended to.
+   No shim, no two-commit split. Proceed.
+7. **Execution (2026-10-26, in progress).** Code landed test-first:
+   `remotePlayer` and `inputSources` in `index.js` (bun 988 pass), the
+   hook's bridge gets a button capture only with a source, the handle
+   and its test gone; `binding_row` and `Controls.render` take
+   `gamepad`, Settings passes `@player == :host` through the section
+   router (`player` was not among the explicit assigns it receives; it
+   is now), the story's `key_only` variation, the LiveView test mounting
+   as a paired LAN player; docs, moduledocs and the wiki sentence
+   (local commit). Precommit green (8745 tests). The TV check, a trace of
+   the dev server's Home glide on the new bundle showing no `Gamepad
+   polling thread`, is not yet done: six traces this session all read
+   the thread present, and every one measured a page of unknown
+   provenance (page id `@?`), because the tooling had three gaps found
+   and fixed on the way — `mc-tv` defaulted to the owner's release app,
+   so a bare `mc-tv stop`/`launch --host` from the agent shell restarted
+   the owner's app and `webview` forwarded to its pid (now the debug
+   app is the default, and `webview` takes the socket from the socket
+   list, filtered by the process's cmdline, newest first; `eval`
+   renews it per try and names the pid and sockets when none answers);
+   `_tv.js` returned a blank for an unreachable page, which
+   `page_identity` turned into `@?` (now it raises, `wait_connected`
+   tolerates it, and `page_label` ends with the host label or the raw
+   origin, so a page served by the wrong server shows in every row);
+   `mc-tv-ab down` left the app pointed at the stopped side-b server
+   (now `restore_host`: back to dev, woken and put to standby if it
+   slept, left with a note if the owner is using it). Paused with the
+   TV handed to the HDMI input at the owner's request; the trace runs
+   when the TV is free again, then the row closes.
 
 ## Completion criteria
 

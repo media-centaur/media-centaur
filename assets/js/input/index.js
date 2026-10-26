@@ -44,6 +44,26 @@ export function shellLeave(win) {
   return typeof shell?.leave === "function" ? () => shell.leave() : undefined
 }
 
+/**
+ * Whether the page is served to a remote player (the TV app): the root
+ * layout marks `<html data-player="remote">` from the request's player, and
+ * the host's page carries no player.
+ */
+export function remotePlayer(documentElement) {
+  return documentElement.dataset.player === "remote"
+}
+
+/**
+ * The input source factories a page starts, from the device it is served
+ * to. A remote player has no gamepad (the TV app is driven by the remote), so
+ * its page starts no gamepad source: it then holds no `gamepadconnected`
+ * listener, and Chromium's gamepad polling thread, which runs while a page
+ * does, never starts beside the glide (`docs/tv-performance.md`).
+ */
+export function inputSources(remote, { keyboard, gamepad }) {
+  return remote ? [keyboard] : [keyboard, gamepad]
+}
+
 /** The catalog's binding id → the input system's action; null for an id it does not know. */
 export function actionForId(idStr) {
   switch (idStr) {
@@ -91,18 +111,6 @@ function readBindings(el) {
   }
 }
 
-/**
- * The page's gamepad source as its debug handle, `window.__gamepadSource`, in
- * the pattern of `window.__scrollGlider`: a measurement on the TV stops it as
- * a condition (`mc-tv-smooth --cond js:<file>`) to price Chromium's gamepad
- * polling thread, which runs while the page holds gamepad listeners, without
- * a code change between rounds.
- */
-export function exposeGamepadSource(source, globals = globalThis) {
-  globals.__gamepadSource = source
-  return source
-}
-
 export function createInputHook() {
   let orchestrator = null
   let keyboardSource = null
@@ -124,44 +132,47 @@ export function createInputHook() {
       const reader = createDomReader(inputConfig)
       const writer = createDomWriter(inputConfig)
 
+      const keyboard = (callbacks, globals) => {
+        keyboardSource = new KeyboardSource({
+          document: globals.document,
+          keyMap,
+          onEditingChanged: (editing) => writer.setTextEditing(editing),
+          ...callbacks,
+        })
+        return keyboardSource
+      }
+
+      const gamepad = (callbacks, globals) => {
+        gamepadSource = new GamepadSource({
+          getGamepads: globals.getGamepads,
+          requestAnimationFrame: globals.requestAnimationFrame,
+          cancelAnimationFrame: globals.cancelAnimationFrame,
+          addEventListener: window.addEventListener.bind(window),
+          removeEventListener: window.removeEventListener.bind(window),
+          acceptsInput: globals.acceptsGamepadInput,
+          onControllerChanged: (type) => writer.setControllerType(type),
+          buttonMap,
+          ...callbacks,
+        })
+        return gamepadSource
+      }
+
       orchestrator = new Orchestrator({
         reader,
         writer,
         globals: BROWSER_GLOBALS,
-        sources: [
-          (callbacks, globals) => {
-            keyboardSource = new KeyboardSource({
-              document: globals.document,
-              keyMap,
-              onEditingChanged: (editing) => writer.setTextEditing(editing),
-              ...callbacks,
-            })
-            return keyboardSource
-          },
-          (callbacks, globals) => {
-            gamepadSource = exposeGamepadSource(new GamepadSource({
-              getGamepads: globals.getGamepads,
-              requestAnimationFrame: globals.requestAnimationFrame,
-              cancelAnimationFrame: globals.cancelAnimationFrame,
-              addEventListener: window.addEventListener.bind(window),
-              removeEventListener: window.removeEventListener.bind(window),
-              acceptsInput: globals.acceptsGamepadInput,
-              onControllerChanged: (type) => writer.setControllerType(type),
-              buttonMap,
-              ...callbacks,
-            }))
-            return gamepadSource
-          },
-        ],
+        sources: inputSources(remotePlayer(document.documentElement), { keyboard, gamepad }),
         ...inputConfig,
         leaveApp: shellLeave(window),
       })
       orchestrator.start(this)
 
+      // The bridge captures a gamepad button only where a gamepad source
+      // exists; a remote player's Controls page offers no Pad slot to ask.
       this.bridge = new ControlsBridge({
         window,
         pushEvent: (ev, payload) => this.pushEvent(ev, payload),
-        captureGamepadButton: (fn) => gamepadSource.captureNext(fn),
+        captureGamepadButton: gamepadSource ? (fn) => gamepadSource.captureNext(fn) : undefined,
       })
 
       this.handleEvent("controls:listen", ({ kind, id }) => {

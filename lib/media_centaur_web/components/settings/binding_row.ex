@@ -6,7 +6,10 @@ defmodule MediaCentaurWeb.Components.Settings.BindingRow do
   rebinds its slot: press it and the row listens for the next key or
   button. Unbind beside each keycap leaves the slot empty; it is inert
   (`aria-disabled`, no click) while the slot already is, and keeps its
-  place so the nav graph never shifts under focus.
+  place so the nav graph never shifts under focus. On a remote player
+  (the TV app) the page starts no gamepad source, so the row draws the
+  Key slot alone (`gamepad={false}`): a Pad keycap there could capture
+  nothing.
 
   ## Navigation
 
@@ -49,6 +52,10 @@ defmodule MediaCentaurWeb.Components.Settings.BindingRow do
   attr :listen_event, :string, required: true, doc: "pushed with `id` and `kind`."
   attr :unbind_event, :string, required: true, doc: "pushed with `id` and `kind`."
 
+  attr :gamepad, :boolean,
+    default: true,
+    doc: "whether the Pad slot is drawn; false on a remote player, whose page starts no gamepad source."
+
   def binding_row(assigns) do
     ~H"""
     <div
@@ -80,6 +87,7 @@ defmodule MediaCentaurWeb.Components.Settings.BindingRow do
           unbind_event={@unbind_event}
         />
         <.binding_slot
+          :if={@gamepad}
           kind={:gamepad}
           id={@id}
           name={@name}

@@ -10,6 +10,10 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
   DOWN walk the table and RIGHT steps into a row's keycaps. The parent
   `SettingsLive` delegates to `render/1` and hosts the event handlers
   that call into `MediaCentaur.Settings.Controls`.
+
+  On a remote player (the TV app) the page starts no gamepad source, so
+  the section speaks only of keys (`gamepad={false}`): no Pad slot in a
+  row, no glyph style, and the instruction names the key alone.
   """
 
   use MediaCentaurWeb, :html
@@ -28,6 +32,11 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
   attr :listening, :any, required: true, doc: "{kind, id} tuple or nil"
   attr :reset_armed, :boolean, default: false, doc: "Reset all is one click from firing."
 
+  attr :gamepad, :boolean,
+    required: true,
+    doc:
+      "whether the page's player drives the UI with a gamepad: true on the host, false on a remote player."
+
   def render(assigns) do
     assigns = assign(assigns, :groups, ControlsLogic.group_for_view(assigns.bindings))
 
@@ -35,7 +44,12 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
     <div data-page="controls" class="space-y-4">
       <.settings_card
         title="Bindings"
-        description="Every action has a key and a gamepad button. Press a keycap, then the key or button to put there."
+        description={
+          if @gamepad,
+            do:
+              "Every action has a key and a gamepad button. Press a keycap, then the key or button to put there.",
+            else: "Every action has a key. Press a keycap, then the key to put there."
+        }
       >
         <:action>
           <.armed_button
@@ -49,6 +63,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
           </.armed_button>
         </:action>
         <.settings_choice
+          :if={@gamepad}
           label="Gamepad glyphs"
           description="How gamepad buttons are drawn."
           options={[{"xbox", "Xbox"}, {"playstation", "PlayStation"}]}
@@ -86,6 +101,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
             listening={ControlsLogic.listening_kind(@listening, view.id)}
             listen_event="controls:listen"
             unbind_event="controls:unbind"
+            gamepad={@gamepad}
           />
         </.settings_card>
       </div>
