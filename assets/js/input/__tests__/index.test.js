@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionForId, exposeGamepadSource, shellLeave } from "../index"
+import { actionForId, inputSources, remotePlayer, shellLeave } from "../index"
 import { Action } from "../core/index.js"
 import { inputConfig } from "../config"
 import { scrollGlider } from "../../scroll_glider"
@@ -25,17 +25,6 @@ describe("App config", () => {
     expect(inputConfig.glider).toBe(scrollGlider)
     expect(typeof scrollGlider.glide).toBe("function")
     expect(typeof scrollGlider.cancelAll).toBe("function")
-  })
-
-  // The gamepad source is the page's debug handle `window.__gamepadSource`,
-  // in the pattern of `window.__scrollGlider`: a measurement on the TV stops
-  // it as a condition (`mc-tv-smooth --cond js:<file>`) to price Chromium's
-  // gamepad polling thread, without a code change between rounds.
-  test("exposes the page's gamepad source as its debug handle", () => {
-    const globals = {}
-    const source = { stop() {} }
-    expect(exposeGamepadSource(source, globals)).toBe(source)
-    expect(globals.__gamepadSource).toBe(source)
   })
 
   test("has layouts for all zones", () => {
@@ -553,5 +542,32 @@ describe("shellLeave", () => {
 
   test("is absent in a browser, which has no shell to leave", () => {
     expect(shellLeave({})).toBeUndefined()
+  })
+})
+
+describe("remotePlayer", () => {
+  test("is true on a page served to a remote player (the TV app)", () => {
+    expect(remotePlayer({ dataset: { player: "remote" } })).toBe(true)
+  })
+
+  test("is false on the host, whose page carries no player", () => {
+    expect(remotePlayer({ dataset: {} })).toBe(false)
+  })
+})
+
+// The device a page is served to says which input sources the page starts.
+// A remote player (the TV app) has no gamepad, so its page starts no gamepad
+// source: no `gamepadconnected` listener, and so no Chromium gamepad polling
+// thread beside the glide (tv-performance campaign, decision 6).
+describe("inputSources", () => {
+  const keyboard = () => "keyboard"
+  const gamepad = () => "gamepad"
+
+  test("a remote player's page starts the keyboard source alone", () => {
+    expect(inputSources(true, { keyboard, gamepad })).toEqual([keyboard])
+  })
+
+  test("the host's page starts both", () => {
+    expect(inputSources(false, { keyboard, gamepad })).toEqual([keyboard, gamepad])
   })
 })

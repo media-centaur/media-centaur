@@ -88,7 +88,7 @@ Input sources are decoupled peers behind a common duck-typed interface. The orch
 //   stop()   — clean up all listeners/timers
 ```
 
-**Wiring:** Sources are provided as factory functions in config. Each factory receives `(callbacks, globals)` and returns a source instance. The orchestrator calls `start()` on mount and `stop()` on destroy.
+**Wiring:** Sources are provided as factory functions in config. Each factory receives `(callbacks, globals)` and returns a source instance. The orchestrator calls `start()` on mount and `stop()` on destroy. The device a page is served to says which sources it starts: `inputSources(remote, { keyboard, gamepad })` in `index.js` gives a remote player's page (`<html data-player="remote">`, the TV app) the keyboard source alone, so the page holds no gamepad listener and Chromium's gamepad polling thread never runs there (`docs/tv-performance.md`); Settings → Controls offers no Pad slot on such a page, and the controls bridge gets no button capture.
 
 ```javascript
 sources: [

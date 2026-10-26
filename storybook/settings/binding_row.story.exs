@@ -53,6 +53,12 @@ defmodule MediaCentaurWeb.Storybook.Settings.BindingRow do
         attributes: Map.put(@row, :listening, :gamepad)
       },
       %Variation{
+        id: :key_only,
+        description:
+          "On a remote player (the TV app): the Key slot alone, since the page starts no gamepad source.",
+        attributes: Map.put(@row, :gamepad, false)
+      },
+      %Variation{
         id: :narrow,
         description: "A narrow card: the slots drop beneath the words.",
         template: @narrow,

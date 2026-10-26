@@ -201,13 +201,16 @@ A/B (its A/A read 60 against 60 on both pages, 2026-10-26). Still open
 in the campaign: a reveal that scrolled 156 px under the glide where
 the smooth variant scrolled 88.
 
-Measured and left alone: the WebView's `Gamepad polling thread` runs
-about 250 times a second while the page holds `gamepadconnected`
-listeners, with no gamepad in use (67 ms running and 45 ms runnable in a
-1.6 s glide window). With the input system's gamepad source stopped
-(`window.__gamepadSource.stop()` as a `js:` condition) the thread
-stops, and the glide reads 60 against 60 on both pages (run 50,
-2026-10-26): at the floor's 60 fps it costs nothing the screen shows.
+A page served to a remote player starts no gamepad source
+(`inputSources` in `assets/js/input/index.js`; the TV app is driven by
+the remote, and its Settings → Controls speaks only of keys). The
+WebView's `Gamepad polling thread` runs about 250 times a second while a
+page holds `gamepadconnected` listeners, with no gamepad in use (67 ms
+running and 45 ms runnable in a 1.6 s glide window); with the source
+stopped the thread stopped, and the glide read 60 against 60 on both
+pages either way (run 50, 2026-10-26), so the thread's absence is
+housekeeping at 60 fps, not a measured gain. A trace of the TV page
+shows no such thread now.
 
 Also open: the Home hero's memory saving on the TV is estimated (about 66
 to 16 MB on Home), not measured. The package's only process reads 79–83
