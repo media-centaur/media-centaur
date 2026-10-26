@@ -83,6 +83,13 @@ input system's motion is checked on the TV before it is done:
 
 ## Measuring
 
+The tools live in `~/scripts/agents/` and document themselves: each
+prints why it exists, its usage and how to read its report when run with
+`--help` or no arguments (`mc-tv`, `mc-tv-smooth`, `mc-tv-trace`,
+`mc-tv-ab`, `mc-tv-stress`; `_tv.py` is the shared module with the
+device facts). This page says which tool answers which question; the
+tool says how.
+
 * **Measure what the screen shows.** `~/scripts/agents/mc-tv-smooth`
   reads presented frames from SurfaceFlinger while a glide runs. The page's
   own `requestAnimationFrame` reports 60 fps throughout and `dumpsys

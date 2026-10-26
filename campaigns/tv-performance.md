@@ -261,6 +261,7 @@ M9.
 * `2026-10-26` — Decision 9: each server's database is a `sqlite3 .backup` of the dev database at its own path; artwork is the real image cache, shared, nothing in an inert server writes it. (owner, M3)
 * `2026-10-26` — Decision 10: the measurement servers bind `0.0.0.0` for the run, behind the paired-player gate, as the dev server already does. Accepted with reluctance; they are stopped when the run ends. (owner, M3)
 * `2026-10-26` — Decision 11: Settings → Controls on a remote player speaks only of keys: no Pad slot in a binding row, no gamepad glyph choice. (owner, M9)
+* `2026-10-26` — Decision 12: UP onto the first row of the library returns the page to its top, title and toolbar shown; carried out as the general reveal rule that an item on the first line of its zone reveals its scroller's start when the start shows it whole. (owner, M10)
 
 ## Milestones
 
@@ -273,7 +274,8 @@ M9.
 | M5 | **The fix and its guard.** Fix the cause; add whatever check would have caught it (a stored baseline the A/A noise bounds, or a rule in `docs/tv-performance.md` with a test where checkable). | ✅ 2026-10-25 — the fix is the scroll-event probe (M1); the guard is the Measuring rule in `docs/tv-performance.md` that a tool's own cost is measured with `--no-probe` before its numbers are believed, plus the `animator` and `page id` columns that would have shown both of the day's mix-ups. No stored baseline: principle 2. |
 | M6 | **The hero's memory on the TV.** Measure the debug app's memory on Home before and after `e84dfd99` (estimated about 66 → 16 MB). | ✅ 2026-10-26 — the page is two processes (the app's and the WebView renderer's, never in the package's meminfo); `mc-tv-smooth` reports `app+rend MB` per trial. Run `20261026-201555` (`mc-tv-ab e84dfd99~1 e84dfd99`, Home, two rounds): 198.8 MB before, 174.4 after — about 24 MB saved (renderer 108 → 92, app 91 → 82), replacing the estimate of about 50 (66 → 16). Glides 60 against 60 either way. |
 | M8 | **The gamepad poller.** Measure what Chromium's gamepad polling thread costs a glide on the TV (interleaved, both pages, the input system's gamepad source stopped as the condition); if beyond noise, stop paying it when no gamepad is present. | ✅ 2026-10-26 — measured (run 50, both pages, two rounds): 60 against 60, Δ +0.0, with the source stopped; the poller stops when the page's gamepad listeners go, and at the floor's 60 fps it costs nothing the screen shows. No change to the input system (principle 1); the handle `window.__gamepadSource` stays (commit `c7f5c097`). |
-| M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | ✅ 2026-10-26 — nothing moved a target: run 41's own events show both animators landing on 156 (DOWN) and 68 (UP) every round; the smooth trial had started at 68 instead of 0. Reproduced at HEAD on the TV with a per-step read of scrollTop under both animators in both orders: identical, 0 → 0 → 0 → 156 → 156 → 156 → 68. Left for the owner's eye: UP onto the first library row stops at 68, the toolbar above the grid stays scrolled off — "nearest" never returns the page to its top. |
+| M7 | **The 156 px against 88 px reveal.** On the library one DOWN press scrolled 156 px under the glide and 88 px under the smooth variant (run 41): the glide re-reads its reachable target per tick, so a layout change mid-glide moves it. Find what moves the target and whether the glide lands where the owner's eye says it should. | ✅ 2026-10-26 — nothing moved a target: run 41's own events show both animators landing on 156 (DOWN) and 68 (UP) every round; the smooth trial had started at 68 instead of 0. Reproduced at HEAD on the TV with a per-step read of scrollTop under both animators in both orders: identical, 0 → 0 → 0 → 156 → 156 → 156 → 68. Left for the owner's eye: UP onto the first library row stops at 68, the toolbar above the grid stays scrolled off — "nearest" never returns the page to its top (decided: M10). |
+| M10 | **The first row reveals the page top.** An item on the first line of its zone reveals its scroller's start when the start shows it whole (decision 12): UP onto the library's first row returns the page to the title and toolbar; a row's first tile returns the row to its start. | in progress — 2026-10-26 |
 | M9 | **No gamepad source on a remote player.** A page served to a remote player (`html[data-player="remote"]`) does not start the input system's gamepad source (decision 6); the measurement handle `window.__gamepadSource` goes with it, its only purpose was M8. | ✅ 2026-10-26 — `a259085f`: `inputSources(remotePlayer(html), …)` gives a remote player's page the keyboard source alone; the handle and `exposeGamepadSource` gone; Settings → Controls takes `gamepad` (decision 11) with its story variation and a test mounting as a paired LAN player. Confirmed on the TV: trace `20261026T201413`, a Home glide at 60 fps on `6708c0af @d16c35f8 dev`, no `Gamepad polling thread` in any process of the trace (the report now prints an `absent from the trace` line; three non-gliding traces `201117`, `201133`, `201205` agree). |
 
 Every milestone that changes an existing system runs the campaign
@@ -980,6 +982,126 @@ procedure and records each step here.
    without three tries; and the report ends its thread table with an
    `absent from the trace` line, so the evidence for "no poller" is
    printed rather than inferred from a missing row.
+
+### M10 — The first row reveals the page top
+
+1. **Scope.** In: `revealItem` (`dom_adapter.js`), the one owner of
+   where a reveal lands: an item on the first line of its zone, when
+   no alignment is declared, reveals its scroller's start — on the
+   library, UP onto the first row brings the page back to 0, showing
+   the title and toolbar, instead of stopping at 68 with them scrolled
+   off (M7's leftover; the owner's decision 12). The same rule on the
+   horizontal axis: a row's first tile reveals the row's start (today
+   the row rests 2 px in, the padding hidden). Tests in
+   `dom_adapter.test.js`; `docs/input-system.md` and the input-system
+   skill's reveal paragraph. Out: the glide's motion; declared
+   alignments (`data-nav-reveal-block`), which keep precedence; the last
+   row and the scroller's end (not asked; a later decision if wanted).
+2. **Research.** `revealItem` asks the browser for the destination
+   (instant `scrollIntoView` "nearest", read, rewind) and glides every
+   scrollable ancestor to it; `scrollableAncestors` ends with
+   `document.scrollingElement`, so the window is always the last box.
+   "nearest" aligns the item's leading edge to the scrollport's leading
+   edge (with `scroll-padding`), so what lies above the first row — the
+   page header and the toolbar on the library — stays hidden by exactly
+   its own height. The toolbar itself carries `data-nav-reveal` and
+   `data-nav-reveal-block="start"` with a page-top `scroll-margin`
+   (`library_cards.ex`, `library_behavior.js`), so UP once more, onto
+   the toolbar, does reach the top; the first row does not. A declared
+   alignment is already a precedence over "nearest" (`declared`), with
+   a fallback to "nearest" when honouring it would push the item off
+   screen (`isFullyInView`). Zones: every nav item lives in a
+   `[data-nav-zone]`; `zone.querySelector("[data-nav-item]")` is its
+   first item, and in a grid or a tree the first line's items share
+   that item's leading edge. Home's rows declare `end`, so they are
+   exempt; the hero is at 0 already. The tests stub items with
+   `closest() → null` and a root scroller without rects, so a rule
+   that reads rects only once a zone is found leaves them untouched.
+3. **Design decisions.** Decision 12 (owner): UP onto the first library
+   row returns the page to its top. Taken here: the rule is general,
+   not a library flag — "an item on the first line of its zone reveals
+   its scroller's start, when the start shows the item whole";
+   geometric (leading edges compared, the fit computed from rects and
+   the box's client size), per axis the box scrolls, after the
+   measuring jump is undone. Consequence accepted and recorded: a
+   single-line zone (a shelf, a feed row) is its own first line, so a
+   row in the first screenful glides the window to the top when
+   focused while the window is scrolled — the head shows with the row;
+   rows that declare an alignment are unaffected. No new attribute: the
+   case is the rule, not an opt-in.
+4. **Design unification.** Core idea: a reveal's destination is a
+   candidate position kept only if it shows the item whole, else
+   "nearest" — the reveal already works this way for one candidate (the
+   declared alignment, verified by `isFullyInView`, else nearest). The
+   scroller's start is a second candidate, offered to an item on its
+   zone's first line, verified the same way. Greenfield: one function
+   that measures candidates by instant jump and read (the browser
+   answers "where", as now), one fit test `withinScrollport(subject,
+   box)` per axis that both candidates use, declared alignment first,
+   then the start, then nearest; the first-line test compares the
+   element's leading edge with its zone's first item's. Diff against
+   the code: (a) the measure/rewind structure, the `declared`
+   precedence and `scrollableAncestors` are the seams, used as they
+   are; (b) `isFullyInView` is the fit test for the viewport only and
+   the block axis only — the start candidate needs it per box and per
+   axis (a row's first tile on the inline axis), so the one helper
+   replaces it and the declared check calls the same helper with the
+   root box; no second fit test; (c) the start candidate is measured
+   per box and axis (jump that axis to 0, read, keep or not) inside the
+   same jump-and-rewind, so there is still one owner of "where" and no
+   computed geometry beside the browser's. No library flag, no new
+   attribute, nothing in `library_behavior.js` (its comment on the
+   toolbar's resting place stays true). Coherence cost: one helper and
+   its tests, within scope.
+5. **Implementation plan.** Test-first in `dom_adapter.test.js`, in the
+   reveal describe: fake items gain rects (`top`/`left`/`bottom`/`right`
+   settable) and a `closest("[data-nav-zone]")` that returns a zone stub
+   whose `querySelector("[data-nav-item]")` is its first item; the root
+   stub gains `clientWidth`/`clientHeight`, `scrollHeight`/`scrollWidth`
+   and a rect that follows its scroll offsets. Tests: (1) an item on the
+   zone's first line, scroller at 40 with the item whole at 0, glides to
+   top 0; (2) the same item when the start would not show it whole
+   (clientHeight smaller than its bottom at 0) glides to the nearest
+   destination; (3) an item on a later line (its top below the first
+   item's) glides to nearest; (4) a row box scrolled 2 px with its first
+   tile on the inline axis glides to left 0; (5) a declared alignment
+   keeps precedence (existing test extended with a zone). Red, then
+   `dom_adapter.js`: `withinScrollport(subject, box, axis)` replaces
+   `isFullyInView` (the declared fallback calls it for the block axis on
+   the root); `onFirstLine(element, axis)` from the zone's first item;
+   in `revealItem`, after `after` is read, for each box and each axis
+   the box scrolls, when nothing is declared and the element is on the
+   first line: jump the axis to 0, keep 0 if `withinScrollport`, rewind
+   that axis — then the existing rewind and glide. Docs: the `revealItem`
+   docstring, `docs/input-system.md` reveal paragraph, the input-system
+   skill's bullet. `bun test assets/js/input/`, precommit, then
+   `mc-nav-trace` on the library (settled clip 0) and the TV: the M7
+   probe script reads 0 after UP 3; a `mc-tv-smooth` run of the library
+   walk against the base (interleaved) to see the glide costs nothing.
+6. **Plan unification.** Two corrections. The fit test is applied to
+   the *element* for both candidates, as the declared fallback does
+   today — the `[data-nav-reveal]` subject (the hero) can be taller
+   than the viewport, and the item is what must stay on screen. And the
+   fake items' rects follow the scroll offsets of their box (a content
+   position minus the box's scroll), otherwise the jump to 0 reads a
+   static rect and the test pins nothing; the existing fake is extended
+   with that, no second fake. Checked otherwise: `isFullyInView` goes,
+   not stays; the root scroller is the one special case of the helper
+   (its scrollport is the viewport, its rect is not), named once; no
+   `library_behavior.js` change; no attribute. Proceed.
+7. **Execution (2026-10-26).** Test-first: five tests in the reveal
+   describe (placed items whose rects follow their box's scroll, a zone
+   stub naming its first item), two red, then `withinScrollport`,
+   `scrolledAxes` and `onFirstLine` in `dom_adapter.js`, the start
+   candidate measured inside the jump-and-rewind, `isFullyInView` gone;
+   826 input tests pass (the whole bun suite's 13 failures predate the
+   change: 988 pass, 13 fail on the stashed tree too). Docs:
+   `docs/input-system.md` paragraph, the input-system skill's reveal
+   bullet. On the TV (dev server, the M7 probe script): the library
+   walk now reads 0 → 0 → 0 → 156 → 156 → 156 → **0** after UP 3,
+   where it read 68; on Home the Continue row's first tile rests at 0
+   (was 2) and the window stays at 0 throughout (the shelves declare
+   `end`). A headless `mc-nav-trace` of the library walk shows no clip.
 
 ### M6 — The hero's memory on the TV
 
