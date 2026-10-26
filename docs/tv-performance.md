@@ -197,9 +197,11 @@ actual (the WebView runs a frame ahead of the display), the render
 thread waits 10 ms a frame in `dequeueBuffer`, half of Chromium's
 presented frames are partial, and the Compositor thread waited for a CPU
 42 ms in a 1.6 s window. `mc-tv-ab` is the one-command code-version
-A/B (its A/A read 60 against 60 on both pages, 2026-10-26). Still open
-in the campaign: a reveal that scrolled 156 px under the glide where
-the smooth variant scrolled 88.
+A/B (its A/A read 60 against 60 on both pages, 2026-10-26). A reveal
+that scrolled 156 px under the glide where the smooth variant scrolled
+88 (run 41) was the two trials starting from different scroll positions:
+from the same start both animators land on the same `scrollIntoView`
+"nearest" position on the library, press for press (2026-10-26).
 
 A page served to a remote player starts no gamepad source
 (`inputSources` in `assets/js/input/index.js`; the TV app is driven by
@@ -212,9 +214,12 @@ pages either way (run 50, 2026-10-26), so the thread's absence is
 housekeeping at 60 fps, not a measured gain. A trace of the TV page
 shows no such thread now.
 
-Also open: the Home hero's memory saving on the TV is estimated (about 66
-to 16 MB on Home), not measured. The package's only process reads 79–83
-MB PSS on Home and the library at `f635aae4` with Graphics 0, so the
-WebView renderer's memory, where the bitmap lives, is accounted somewhere
-else on this TV; find where before comparing the commits before and
-after `e84dfd99`.
+The page's memory on the TV is two processes: the app's own and the
+WebView's renderer (`com.google.android.webview:sandboxed_process0:…`,
+an isolated uid, one per app), where the page's decoded images and
+bitmaps live and which `dumpsys meminfo <package>` never includes.
+`mc-tv-smooth` reports both as `app+rend MB` per trial. Measured with
+`mc-tv-ab e84dfd99~1 e84dfd99` on Home (run `20261026-201555`, two
+rounds): 199 MB before the hero bitmap was kept at display size, 174 MB
+after — the commit saves about 24 MB (renderer 108 to 92, app 91 to
+82), not the 50 estimated from the bitmap's dimensions.
