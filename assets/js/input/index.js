@@ -91,6 +91,18 @@ function readBindings(el) {
   }
 }
 
+/**
+ * The page's gamepad source as its debug handle, `window.__gamepadSource`, in
+ * the pattern of `window.__scrollGlider`: a measurement on the TV stops it as
+ * a condition (`mc-tv-smooth --cond js:<file>`) to price Chromium's gamepad
+ * polling thread, which runs while the page holds gamepad listeners, without
+ * a code change between rounds.
+ */
+export function exposeGamepadSource(source, globals = globalThis) {
+  globals.__gamepadSource = source
+  return source
+}
+
 export function createInputHook() {
   let orchestrator = null
   let keyboardSource = null
@@ -127,7 +139,7 @@ export function createInputHook() {
             return keyboardSource
           },
           (callbacks, globals) => {
-            gamepadSource = new GamepadSource({
+            gamepadSource = exposeGamepadSource(new GamepadSource({
               getGamepads: globals.getGamepads,
               requestAnimationFrame: globals.requestAnimationFrame,
               cancelAnimationFrame: globals.cancelAnimationFrame,
@@ -137,7 +149,7 @@ export function createInputHook() {
               onControllerChanged: (type) => writer.setControllerType(type),
               buttonMap,
               ...callbacks,
-            })
+            }))
             return gamepadSource
           },
         ],
