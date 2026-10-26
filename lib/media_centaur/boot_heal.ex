@@ -7,9 +7,11 @@ defmodule MediaCentaur.BootHeal do
   update reaches existing records on the next restart, with no operator
   action.
 
-  Every heal is skipped under `:test`: a boot-spawned task runs outside
-  the test's sandbox-owned process, so the sweeps are tested directly
-  instead (`Pipeline.ExtraRederive`, `Library.Files.backfill_extras/0`,
+  The heals are background work: `MediaCentaur.Application` runs them
+  only in an instance with `background_services` on (`Settings.Config`).
+  The test env has it off — a boot-spawned task runs outside the test's
+  sandbox-owned process — so the sweeps are tested directly instead
+  (`Pipeline.ExtraRederive`, `Library.Files.backfill_extras/0`,
   `Library.MediaInfo.probe_missing/0`). The operator-run versions of the
   same sweeps live in `MediaCentaur.Maintenance`.
   """
@@ -18,16 +20,12 @@ defmodule MediaCentaur.BootHeal do
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.ExtraRederive
 
-  @type outcome :: :skipped | :started
-
   @doc """
   Re-derives extra display names against the current parser rules, so a
   parser-rule improvement heals records already on disk.
   """
-  @spec heal_extra_names(atom()) :: outcome()
-  def heal_extra_names(:test), do: :skipped
-
-  def heal_extra_names(_env) do
+  @spec heal_extra_names() :: :started
+  def heal_extra_names do
     run_async(fn ->
       {:ok, summary} = ExtraRederive.rederive_all()
 
@@ -42,10 +40,8 @@ defmodule MediaCentaur.BootHeal do
   wrote them, so they become linked and stop being re-emitted by
   `rescan_unlinked`.
   """
-  @spec backfill_extra_files(atom()) :: outcome()
-  def backfill_extra_files(:test), do: :skipped
-
-  def backfill_extra_files(_env) do
+  @spec backfill_extra_files() :: :started
+  def backfill_extra_files do
     run_async(fn ->
       %{created: created} = Library.Files.backfill_extras()
 
@@ -60,10 +56,8 @@ defmodule MediaCentaur.BootHeal do
   `FileMediaInfo` row yet — pre-feature imports and files whose earlier
   probe failed (ADR-057).
   """
-  @spec probe_media_info(atom()) :: outcome()
-  def probe_media_info(:test), do: :skipped
-
-  def probe_media_info(_env) do
+  @spec probe_media_info() :: :started
+  def probe_media_info do
     run_async(fn ->
       %{probed: probed, skipped: skipped} = Library.MediaInfo.probe_missing()
 

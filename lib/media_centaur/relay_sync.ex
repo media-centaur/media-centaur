@@ -59,9 +59,10 @@ defmodule MediaCentaur.RelaySync do
 
   Paging steps `until` back by one second, so more than `page_limit`
   events sharing one second lose the excess; the alternative is an
-  endless page. Gated off under `:test` (`:start_relay_sync`); tests
-  start it by hand against `Nostr.FakeRelay`, with `page_limit:` lowered
-  to exercise paging.
+  endless page. Background work: started only in an instance with
+  `background_services` on (`Settings.Config`), so not under `:test`;
+  tests start it by hand against `Nostr.FakeRelay`, with `page_limit:`
+  lowered to exercise paging.
   """
   use Boundary, deps: [MediaCentaur.Activities, MediaCentaur.Nostr, MediaCentaur.Social], exports: []
   use GenServer

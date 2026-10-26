@@ -116,6 +116,66 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     end
   end
 
+  describe "background_services" do
+    # Whether this instance does anything on its own — watchers, the
+    # pipelines, Oban, relay connections, boot heals — is a property of
+    # *which instance this is*, like `showcase_mode`: the supervision tree
+    # reads it before the database is reachable, and no Settings row may
+    # switch background work back on in an instance started without it
+    # (a measurement server runs against a copy of a real database whose
+    # service toggles are on).
+    test "reads false from the TOML", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      background_services = false
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:background_services) == false
+    end
+
+    test "reads true from the TOML over an app env of false", %{toml_path: toml_path} do
+      Application.put_env(:media_centaur, :background_services, false)
+
+      File.write!(toml_path, """
+      background_services = true
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:background_services) == true
+    end
+
+    test "takes the app env's default when the TOML is silent", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      port = 9999
+      """)
+
+      Application.put_env(:media_centaur, :background_services, true)
+      :ok = Config.load!()
+      assert Config.get(:background_services) == true
+
+      Application.put_env(:media_centaur, :background_services, false)
+      :ok = Config.load!()
+      assert Config.get(:background_services) == false
+    end
+
+    test "is true when neither the TOML nor the app env says", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      port = 9999
+      """)
+
+      Application.delete_env(:media_centaur, :background_services)
+      :ok = Config.load!()
+
+      assert Config.get(:background_services) == true
+    end
+
+    test "is not runtime-settable — no Settings row may wake an inert instance" do
+      refute :background_services in Config.runtime_settable_keys()
+    end
+  end
+
   describe "bind" do
     # The address the endpoint listens on is decided before the database
     # is reachable, so it is bootstrap state like `port`. Loopback unless

@@ -121,7 +121,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.SelfUpdate.AutoApply,
           MediaCentaurWeb.IncomingLive.SearchSession
         ] ++
-        pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
+        pubsub_listeners(background_services?()) ++
         diagnostics_children(durable_diagnostics?()) ++
         [
           MediaCentaur.Playback.Supervisor,
@@ -193,12 +193,13 @@ defmodule MediaCentaur.Application do
         )
     end
 
-    env = Application.get_env(:media_centaur, :environment, :dev)
-
-    # Network-free, idempotent backfills, skipped under :test — see BootHeal.
-    MediaCentaur.BootHeal.heal_extra_names(env)
-    MediaCentaur.BootHeal.backfill_extra_files(env)
-    MediaCentaur.BootHeal.probe_media_info(env)
+    # Network-free, idempotent backfills — background work, so only in an
+    # instance that runs background services (see BootHeal).
+    if background_services?() do
+      MediaCentaur.BootHeal.heal_extra_names()
+      MediaCentaur.BootHeal.backfill_extra_files()
+      MediaCentaur.BootHeal.probe_media_info()
+    end
 
     if should_start?(:start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
@@ -210,7 +211,10 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Pipeline.Image.Supervisor.stop_pipeline()
     end
 
-    if !should_start?(:start_acquisition) do
+    # Pausing persists the preference and pauses the Oban queue; an instance
+    # without background services has neither the queue nor any business
+    # writing a preference into the database it was handed.
+    if background_services?() and !should_start?(:start_acquisition) do
       MediaCentaur.Acquisition.pause_auto_grab()
     end
   end
@@ -301,13 +305,12 @@ defmodule MediaCentaur.Application do
   # fight over the SAME marker file, minting false "did not shut down cleanly"
   # warnings. The opted-in daily driver (prod release, or dev with the env var)
   # is the sole instance, so it owns the marker.
-  # Gated like the relay-connection owner it rides on: under :test the
-  # sync would subscribe every FakeRelay a test stands up, so
-  # relay_sync_test starts its own by hand.
+  # Gated like the relay-connection owner it rides on: background work.
+  # Under :test (no background services) the sync would otherwise
+  # subscribe every FakeRelay a test stands up; relay_sync_test starts
+  # its own by hand.
   defp relay_sync_children do
-    if Application.get_env(:media_centaur, :start_relay_sync, true),
-      do: [MediaCentaur.RelaySync],
-      else: []
+    if background_services?(), do: [MediaCentaur.RelaySync], else: []
   end
 
   defp diagnostics_children(true), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
@@ -315,9 +318,13 @@ defmodule MediaCentaur.Application do
 
   defp durable_diagnostics?, do: Application.get_env(:media_centaur, :durable_diagnostics, false)
 
-  defp pubsub_listeners(:test), do: []
+  # The listeners react to library, release, playback and integration
+  # events on their own — background work. An instance without
+  # background services starts none (under :test the sandbox-owned
+  # process could not see their writes either).
+  defp pubsub_listeners(false), do: []
 
-  defp pubsub_listeners(_env) do
+  defp pubsub_listeners(true) do
     [
       MediaCentaur.Library.Inbound,
       MediaCentaur.Review.Intake,
@@ -339,6 +346,11 @@ defmodule MediaCentaur.Application do
     config_default = Application.get_env(:media_centaur, service, true)
     MediaCentaur.Settings.Services.enabled?(service, config_default)
   end
+
+  # Bootstrap state (`Settings.Config`): whether this instance does
+  # anything on its own. False in the test env and in a measurement
+  # server; every child that would act unprompted asks it.
+  defp background_services?, do: Config.get(:background_services)
 
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.

@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
   setup do
-    Application.put_env(:media_centaur, :environment, :prod)
+    MediaCentaur.ProductionInstance.production_instance!()
 
     UpdateChecker.cache_result(
       {:ok,

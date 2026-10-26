@@ -49,13 +49,16 @@ defmodule MediaCentaur.SelfUpdate do
   @type check_source :: :scheduled | :manual
 
   @doc """
-  True only when update checks should run. Returns false in dev and test —
-  dev builds update by rebuilding from source; test builds never hit the
-  network.
+  True only when update checks should run: a production build of an
+  instance that runs background services. Dev builds update by
+  rebuilding from source; test builds never hit the network; an instance
+  started with `background_services = false` (`Settings.Config`) does
+  nothing on its own.
   """
   @spec enabled?() :: boolean()
   def enabled? do
-    Application.get_env(:media_centaur, :environment, :dev) == :prod
+    Application.get_env(:media_centaur, :environment, :dev) == :prod and
+      MediaCentaur.Settings.Config.get(:background_services)
   end
 
   @doc """

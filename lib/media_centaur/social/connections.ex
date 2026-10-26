@@ -7,8 +7,10 @@ defmodule MediaCentaur.Social.Connections do
   `RelayAdded` / `RelayRemoved` / `IdentityChanged`, receives every
   connection's messages, and re-broadcasts them on `social:connections`.
 
-  Under `:test` the owner is not started (`:start_relay_connections` is
-  false); tests start it by hand against `Nostr.FakeRelay`.
+  Dialling relays is background work: the owner starts only in an
+  instance with `background_services` on (`Settings.Config`). Under
+  `:test` it is off; tests start the owner by hand against
+  `Nostr.FakeRelay`.
   """
 
   use Supervisor
@@ -49,7 +51,7 @@ defmodule MediaCentaur.Social.Connections do
 
   @impl true
   def init(_opts) do
-    owner = if Application.get_env(:media_centaur, :start_relay_connections, true), do: [Owner], else: []
+    owner = if MediaCentaur.Settings.Config.get(:background_services), do: [Owner], else: []
 
     children =
       [

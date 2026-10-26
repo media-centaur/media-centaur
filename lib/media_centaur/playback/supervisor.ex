@@ -25,12 +25,13 @@ defmodule MediaCentaur.Playback.Supervisor do
     Supervisor.init(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 30)
   end
 
-  # Skipped in test (config/test.exs) because the recovery scan reads from
-  # `mpv_socket_dir` and would attach to mpv instances the user is running on
-  # the dev box, leaking real playback sessions into every test that mounts a
-  # LiveView with `Playback.subscribe()`.
+  # Background work: only in an instance with `background_services` on
+  # (`Settings.Config`). Under :test the recovery scan would read
+  # `mpv_socket_dir` and attach to mpv instances the user is running on
+  # the dev box, leaking real playback sessions into every test that mounts
+  # a LiveView with `Playback.subscribe()`.
   defp recovery_children do
-    if Application.get_env(:media_centaur, :start_playback_recovery, true) do
+    if MediaCentaur.Settings.Config.get(:background_services) do
       [{Task, &recover_sessions/0}]
     else
       []

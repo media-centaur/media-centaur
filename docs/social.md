@@ -537,13 +537,12 @@ to the test process as `{:relay_in, decoded}`; `push/2` sends any frame to the
 client and `drop/1` closes the socket for reconnect tests. No network, no
 external relay, ever.
 
-Two application gates keep the real thing out of the suite, both `false` in
-`config/test.exs`:
-
-| Key | Gates |
-|---|---|
-| `:start_relay_connections` | `Social.Connections.Owner` — without it, no connection is opened for a configured relay |
-| `:start_relay_sync` | `MediaCentaur.RelaySync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
+One gate keeps the real thing out of the suite: the suite runs in an
+instance without background services (`config :media_centaur,
+:background_services, false` in `config/test.exs`; see
+`Settings.Config`), so neither `Social.Connections.Owner` (no connection
+is opened for a configured relay) nor `MediaCentaur.RelaySync` (nothing
+subscribes to every `FakeRelay` a test stands up) starts.
 
 `Activities.Publisher` is a pubsub listener, so it is not started under
 `:test` either; `publisher_test` starts it by hand.

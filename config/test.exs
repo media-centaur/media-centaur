@@ -46,6 +46,13 @@ config :media_centaur, MediaCentaurWeb.Endpoint,
 # production (ADR-077, rule 10). A test runs what it enqueued with
 # `MediaCentaur.JobRuns.run_enqueued_jobs/0`.
 config :media_centaur, Oban, testing: :manual
+# The suite runs in an instance without background services
+# (`Settings.Config`): no watchers, pipelines or auto-grab whatever a
+# Settings row says, no boot heals, no PubSub listeners, no relay owner
+# or sync (tests start them by hand against `Nostr.FakeRelay`), and no
+# mpv socket recovery (which would attach to live mpv instances on the
+# dev box and leak the user's playback into every LiveView test).
+config :media_centaur, :background_services, false
 
 # Bypass the BroadcastCoalescer in tests — concurrent tests would otherwise
 # mechanism end-to-end.
@@ -79,17 +86,6 @@ config :media_centaur, :req_test_stubs, %{
 }
 
 config :media_centaur, :skip_user_config, true
-config :media_centaur, :start_pipeline, false
-# Skip mpv socket recovery — otherwise the recovery task scans
-# `mpv_socket_dir` (a real /tmp path on dev machines) and attaches to live
-# mpv instances, leaking the user's playback session into every LiveView
-# test that subscribes to playback events.
-config :media_centaur, :start_playback_recovery, false
-config :media_centaur, :start_relay_connections, false
-# RelaySync would subscribe every FakeRelay a test stands up;
-# relay_sync_test starts its own by hand, as connections_test does.
-config :media_centaur, :start_relay_sync, false
-config :media_centaur, :start_watchers, false
 
 # Strip chart frames every 50 ms so LiveView tests can watch the tick.
 config :media_centaur, :strip_chart_tick_ms, 50
