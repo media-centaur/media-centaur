@@ -21,26 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`tv-performance.md`](tv-performance.md) —
-  **in progress, opened 2026-10-25; M1, M2, M3, M4, M5 and M8 done.** The glide
-  slowdown was the tool: the old per-frame probe cost the glide 16–19
-  fps, and the 59.9 baseline was a compositor scroll it could not slow
-  (confirmed interleaved on the TV). `mc-tv-smooth` now records what
-  each row measured (animator, px/glide, served bundle + HEAD, noise
-  beside every comparison); its probe measures zero cost, the A/A reads
-  60 against 60, and `mc-tv-trace`'s tracing cost nothing measurable.
-  The glide stays as it is (decision 2). `mc-tv-trace` records one
-  Perfetto system trace (Chromium and Android on one clock: frame
-  timeline, render thread, per-thread runnable time) at zero measured
-  cost, after a DevTools action mark that alone cost 6.5 fps was
-  removed. The WebView's gamepad poller (250 polls a second with no
-  gamepad) measured at zero cost on screen and stays. `mc-tv-ab <ref-a>
-  <ref-b>` is the one-command code-version A/B: two measurement servers
-  (`background_services = false`, a new bootstrap key) from worktrees
-  against copies of the dev database, `mc-tv-smooth` with `host:`
-  conditions; its A/A read 60 against 60 on both pages. Next: no
-  gamepad source on remote players (M9), the hero's memory, the 156 px
-  reveal.
 * [`google-play.md`](google-play.md) —
   **in progress: M1's research done 2026-10-25 (16 KB alignment passes;
   BACK-to-home, the Menu-key dependency and the banner fail the TV
@@ -177,6 +157,42 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
+* **TV performance tooling and the glide slowdown** — **complete
+  2026-10-27; file retired (git history holds it:
+  `campaigns/tv-performance.md` at `1e457c9b`).** Opened 2026-10-25 as
+  the first follow-up to v2.0.0, to explain the glide's fall from 59.9
+  to 35–42 fps and to make TV measurement trustworthy. The slowdown was
+  the tool: the old per-frame page probe cost the input system's glide
+  16–19 fps, and the 59.9 baseline was a compositor scroll it could not
+  slow; with the scroll-event probe or none the glide presents at 60 fps
+  on the Sony (runs 41–44, interleaved). The glide itself stays
+  (decision 2). Tooling in `~/scripts/agents/`, documented in
+  `docs/tv-performance.md`: `mc-tv-smooth` records what each row
+  measured (animator, px/glide, served bundle + HEAD + host, noise beside
+  every comparison, `app+rend MB`) and its probe costs zero;
+  `mc-tv-trace` is one Perfetto system trace at zero measured cost
+  (Chromium and Android on one clock) once a DevTools action mark that
+  alone cost 6.5 fps was removed, and `--glide` lands it on a gliding
+  press; `mc-tv-ab <ref-a> <ref-b>` is the one-command code-version
+  A/B, two inert worktree servers (`background_services = false`, a
+  bootstrap key, `6095f146`) against copies of the dev database, A/A 60
+  against 60. Found and done on the way: the WebView's gamepad poller
+  costs nothing on screen (run 50), and a remote player's page starts no
+  gamepad source, Settings → Controls speaking only of keys there
+  (`a259085f`, decisions 6 and 11); the hero commit `e84dfd99` saves
+  about 24 MB of Home's 199 MB on the TV (renderer and app together,
+  run `20261026-201555`), not the 50 estimated; the 156 against 88 px
+  reveal was two trials starting from different positions; and UP onto
+  the first row of the library returns the page to its top, as the
+  general reveal rule that an item on the first line of its zone reveals
+  its scroller's start when the start shows it whole (`04cea17a`,
+  decision 12, 60 against 60). Leftovers: the wiki commits for the
+  `background_services` key and Controls on a paired TV (`8e4d1ee`,
+  `71fb4c3`) are local, to push when the change ships; the owner's eye
+  on the library's UP to the top and on a first-screenful shelf gliding
+  the page top into view, the accepted consequence of decision 12, said
+  in `docs/input-system.md`; the standing rules and findings live in
+  `docs/tv-performance.md` (Findings) and UIDR-056.
 * **Remote players** — **shipped v2.0.0 2026-10-25; file retired
   (git history holds it: `campaigns/remote-players.md` at `593761f3`).**
   The TV app: an Android TV WebView shell plus libmpv
