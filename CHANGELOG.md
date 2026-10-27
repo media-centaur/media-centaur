@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.1.1 — 2026-10-27
+
+### Fixed
+
+- **Scrolling settles without a jolt.** When the keyboard, a controller or the TV remote scrolls a page or a row, the last few pixels used to crawl and then jump into place, most visibly when the Library returns to its top. The scroll now slows evenly and stops on its mark.
+
 ## v2.1.0 — 2026-10-27
 
 ### New
