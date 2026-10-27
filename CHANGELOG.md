@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.1.0 — 2026-10-27
+
+### New
+
+- **A read-only instance.** Setting `background_services = false` in `~/.config/media-centaur/media-centaur.toml` starts an instance that serves its pages and does nothing on its own: no folder watching, no importing, no downloads, no relay sync, no update check. Use it to look at a copy of your database without that copy changing anything.
+
+### Improved
+
+- **The sidebar is an icon rail.** The sidebar no longer expands. Each entry is an icon, and its name appears beside the rail when you hover it or move to it with the keyboard or a controller. The Collapse and Expand control is gone.
+- **Controls on a TV show keys only.** On a paired TV, **Settings → Controls** shows the Key slot alone. The TV app is driven by the remote, so the Pad slot and the controller glyph choice are hidden there.
+- **Smoother scrolling on the TV.** Pages served to the TV app no longer poll for a controller, so nothing runs beside a scroll.
+
+### Fixed
+
+- **Up to the top of the Library.** Moving up onto the first row of the Library brings the page back to its top, with the title and the filter bar in view. Before, the row stopped just under the bar and the top stayed scrolled off. On Home, moving onto a row's first tile brings the row all the way to its start.
+
 ## v2.0.0 — 2026-10-25
 
 ### New
