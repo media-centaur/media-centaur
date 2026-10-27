@@ -186,10 +186,9 @@ tool says how.
 * **Never reboot the TV.** It is also the development machine's display;
   a reboot from the rig crashed the desktop session. Ask the owner.
 
-## Open (2026-10-25)
+## Findings (2026-10-25 and 26)
 
-Worked in `campaigns/tv-performance.md`.
-
+Measured in `campaigns/tv-performance.md` (completed and removed 2026-10-27; see git history).
 
 The 2026-10-25 glide slowdown is explained: the 59.9 fps midday reading
 was a compositor scroll animation (the browser's own smooth scroll), and
