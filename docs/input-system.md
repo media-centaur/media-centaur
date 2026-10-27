@@ -571,9 +571,13 @@ cursor-driven navigation reveals exactly as before.
 So the wheel rule above cancels an arrow glide like any other, and a cursor key
 pressed mid-glide retargets the track instead of racing a second animation. A
 new scroller that animates its scroll imports that instance; it never creates
-its own. The glide also knows when a step cannot land: under the root zoom the
-browser snaps offsets to device pixels, and a write that rounds back to the
-same offset ends the glide at the target instead of ticking forever.
+its own. The glide's speed is a fraction of the distance remaining, with a
+floor of one pixel a frame: a smaller write the browser rounds away, and
+without the floor the last few pixels crawled in half-steps and then jumped
+into place (measured on the TV, 2026-10-27). The glide also knows when a step
+cannot land: under the root zoom a device pixel can be larger than a CSS
+pixel, and a write that rounds back to the same offset twice running ends the
+glide at the target instead of ticking forever.
 
 **The navigation owns mount-time scroll.** When `start()` runs — every live
 navigation and the initial load — the window still carries the *previous*

@@ -256,12 +256,14 @@ describe("createScrollGlide", () => {
 
   // `start()` records the clock, and the first frame can land a fraction of
   // a millisecond later (a key or click just before vsync). That frame's
-  // step is below half a device pixel on any snapping box, so its write
-  // rounds back — one stalled write must not end the glide, or a fresh glide
-  // becomes a snap. Only a stall that repeats on the next frame is genuine.
+  // step is the one-pixel floor, which at the smallest root zoom (0.45: a
+  // device pixel is over 2 CSS px) is below half a device pixel, so its
+  // write rounds back — one stalled write must not end the glide, or a fresh
+  // glide becomes a snap. Only a stall that repeats on the next frame is
+  // genuine.
   test("a sub-millisecond first frame does not end the glide", () => {
     const h = harness()
-    const box = snappingBox()
+    const box = snappingBox({ devicePx: 2.5 })
 
     h.glide.glide(box, { left: 460 })
     h.frame(0.1)
@@ -278,6 +280,32 @@ describe("createScrollGlide", () => {
     expect(frames).toBeGreaterThan(1) // it eased there; it did not snap
     expect(box.scrollLeft).toBe(460)
     expect(h.idle).toBe(true)
+  })
+
+  // Measured on the TV (run 20261026-211916): a 156 px glide's events ended
+  // "… 152, 152, 153, 153, 154, 154, (a dead frame), 156". Below about 7 px
+  // the fraction of the remaining distance is under a pixel, the browser
+  // rounds each write to a half-step or no step, and the stall rule then
+  // lands the last 2 px in one jump — a click into place after the eye has
+  // seen the page stop. The tail must move a whole pixel every frame and
+  // arrive the way it travelled.
+  test("the tail moves at least a pixel a frame and arrives without a jump", () => {
+    const h = harness()
+    const box = snappingBox({ devicePx: 1 })
+
+    h.glide.glide(box, { left: 156 })
+    const offsets = []
+    let frames = 0
+    while (h.glide.isGliding(box) && frames < 200) {
+      h.frame(16.7)
+      offsets.push(box.scrollLeft)
+      frames++
+    }
+
+    expect(box.scrollLeft).toBe(156)
+    const steps = offsets.map((offset, i) => offset - (i === 0 ? 0 : offsets[i - 1]))
+    expect(steps.every((step) => step >= 1)).toBe(true) // no dead frame
+    expect(steps[steps.length - 1]).toBe(1) // the last step is the smallest
   })
 
   // A wheel scroll hands scroll authority to the pointer: every glide, on
