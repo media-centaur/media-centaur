@@ -26,11 +26,18 @@
  * Frame-rate independent: the fraction is derived from elapsed time, so a
  * dropped frame changes nothing about where the row ends up.
  *
- * A write that rounds back to the same offset twice running ends the glide at
- * the target: under a root zoom, sub-device-pixel steps never close the gap.
- * Once is not enough — a first frame can land a fraction of a millisecond
- * after the glide starts, and its tiny step must not turn the glide into a
- * snap.
+ * The law has a floor. A write below one pixel moves nothing — the browser
+ * rounds it — and the approach's tail is where a fraction of the remaining
+ * distance falls below one. Left alone, the last few pixels crawled in
+ * half-steps and dead frames and then jumped into place (measured on the TV:
+ * "… 153, 153, 154, 154, 156"). So a step is never smaller than a pixel: the
+ * tail finishes at a steady pixel a frame and stops on the target.
+ *
+ * Under a root zoom a device pixel can be larger than a CSS pixel, and even
+ * a one-pixel write can round back to where it was. A write that rounds back
+ * twice running ends the glide at the target. Once is not enough — a first
+ * frame can land a fraction of a millisecond after the glide starts, and its
+ * tiny step must not turn the glide into a snap.
  *
  * All external dependencies (`requestAnimationFrame`, a clock) are injected,
  * following the same DI pattern as the rest of the framework.
@@ -44,8 +51,18 @@
  */
 const DEFAULT_TAU = 110
 
-/** Below this many px the animation is over — snap and stop. */
+/**
+ * A write that lands within this many px of the goal has arrived: the browser
+ * stores an offset to the nearest device pixel, so the goal itself may read
+ * back a fraction off.
+ */
 const EPSILON = 0.5
+
+/**
+ * The smallest step a frame takes, in px: the smallest write the browser
+ * does not round away. The tail of the approach runs at this speed.
+ */
+const MIN_STEP = 1
 
 /**
  * The two scroll axes: the target record's keys (the offset it is heading
@@ -128,14 +145,17 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
    */
   function settle(box, axis, target, fraction) {
     const goal = reachable(target[axis.key], box[axis.extent], box[axis.port])
-    const remaining = goal - box[axis.offset]
-    if (Math.abs(remaining) <= EPSILON) {
+    const before = box[axis.offset]
+    const remaining = goal - before
+
+    // A fraction of the gap, never less than a pixel, never past the goal.
+    const distance = Math.abs(remaining)
+    const step = Math.min(Math.max(distance * fraction, MIN_STEP), distance)
+    box[axis.offset] = before + Math.sign(remaining) * step
+    if (Math.abs(goal - box[axis.offset]) <= EPSILON) {
       box[axis.offset] = goal
       return true
     }
-
-    const before = box[axis.offset]
-    box[axis.offset] = before + remaining * fraction
     if (box[axis.offset] !== before) {
       target[axis.stalled] = false
       return false
