@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.2.1 — 2026-10-28
+
+### Fixed
+
+- **Who's watching? is centred when you switch.** Opened from the sidebar, the profile picker sat left of centre on a wide screen. It now centres on the space beside the sidebar, as it does when the app starts.
+
 ## v2.2.0 — 2026-10-28
 
 ### Improved
