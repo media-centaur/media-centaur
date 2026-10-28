@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTile do
   it, 1 px for a friend and 2 px for one of this install. The recipe is
   `.identity-tile*` in `app.css`. Four sizes: 32 in the title detail's
   social panel and lead review and the sidebar's profile switcher, 40 on a Feed row and the rail's person
-  card, 48 on the Friends page's and the Settings cards, 96 on the
+  card, 48 on the Friends page's and the Settings cards, 128 on the
   "Who's watching?" picker. `person_attrs/1` is how a `Social.Person`
   becomes those facts (UIDR-053 rule 4); `crop_previews/1` draws the
   same filled recipe around the crop stage's preview canvases.
@@ -47,8 +47,8 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTile do
 
   attr :size, :integer,
     required: true,
-    values: [32, 40, 48, 96],
-    doc: "32, 40, 48 or 96; the moduledoc says which surface uses which"
+    values: [32, 40, 48, 128],
+    doc: "32, 40, 48 or 128; the moduledoc says which surface uses which"
 
   def identity_tile(assigns) do
     assigns =
@@ -149,13 +149,13 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTile do
   defp size_classes(32), do: "size-8 text-sm"
   defp size_classes(40), do: "size-10 text-base"
   defp size_classes(48), do: "size-12 text-[19px]"
-  defp size_classes(96), do: "size-24 text-[38px]"
+  defp size_classes(128), do: "size-32 text-[51px]"
 
   defp size_classes(size),
-    do: raise(ArgumentError, "identity_tile size must be 32, 40, 48 or 96, got: #{inspect(size)}")
+    do: raise(ArgumentError, "identity_tile size must be 32, 40, 48 or 128, got: #{inspect(size)}")
 
   defp glyph_classes(32), do: "size-4"
   defp glyph_classes(40), do: "size-5"
   defp glyph_classes(48), do: "size-6"
-  defp glyph_classes(96), do: "size-12"
+  defp glyph_classes(128), do: "size-16"
 end

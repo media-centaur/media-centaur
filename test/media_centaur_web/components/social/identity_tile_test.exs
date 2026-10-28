@@ -59,10 +59,10 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTileTest do
     assert mark(render(name: "", size: 40)) == ["glyph"]
   end
 
-  test "96 is accepted, its glyph sized to match" do
-    html = render(size: 96)
-    assert html |> tile() |> LazyHTML.attribute("data-size") == ["96"]
-    assert count(html, "[data-component='identity-tile'] .hero-user-solid.size-12") == 1
+  test "128 is accepted, its glyph sized to match" do
+    html = render(size: 128)
+    assert html |> tile() |> LazyHTML.attribute("data-size") == ["128"]
+    assert count(html, "[data-component='identity-tile'] .hero-user-solid.size-16") == 1
   end
 
   test "crop_previews/1 draws the two preview canvases, 48 then 40" do
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.Components.Social.IdentityTileTest do
   end
 
   test "a size no surface renders raises" do
-    assert_raise ArgumentError, ~r/48 or 96/, fn -> render(name: "Cleo", size: 56) end
+    assert_raise ArgumentError, ~r/48 or 128/, fn -> render(name: "Cleo", size: 56) end
   end
 
   describe "person_attrs/1 — a Social.Person as the tile's facts" do

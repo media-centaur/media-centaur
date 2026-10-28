@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Storybook.Composites.ProfileTile do
   @moduledoc """
-  A profile on the "Who's watching?" picker (UIDR-053): the 96px filled
+  A profile on the "Who's watching?" picker (UIDR-053): the 128px filled
   identity tile over the name, which truncates to the tile's column.
   """
 

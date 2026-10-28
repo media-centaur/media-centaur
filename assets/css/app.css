@@ -3385,6 +3385,24 @@ body:has(.modal-backdrop[data-state="open"]) {
   transform: scale(1.05);
 }
 
+/* Keyboard/gamepad focus draws on the circle, not the generic rounded-rect
+   button ring (app.css:1812) — the "current profile" ring below is already
+   a circle hugging the same mark, and the rect ring landed around the tile
+   AND its name, a different shape nested around the same spot. A box-shadow
+   (not outline) so the two can coexist when a tile is both current and
+   focused, instead of one outline property clobbering the other. */
+[data-input=keyboard] .profile-pick[data-nav-item]:focus,
+[data-input=gamepad] .profile-pick[data-nav-item]:focus {
+  outline: none;
+}
+
+[data-input=keyboard] .profile-pick[data-nav-item]:focus .identity-tile,
+[data-input=gamepad] .profile-pick[data-nav-item]:focus .identity-tile,
+[data-input=keyboard] .profile-pick[data-nav-item]:focus .profile-add-mark,
+[data-input=gamepad] .profile-pick[data-nav-item]:focus .profile-add-mark {
+  box-shadow: 0 0 0 4px var(--color-base-100), 0 0 0 7px var(--color-primary);
+}
+
 .profile-tile-current .identity-tile {
   outline: 2px solid var(--color-base-content);
   outline-offset: 3px;
