@@ -22,3 +22,14 @@ The sidebar rendered one idea three ways: the Status count cleared on visit, the
 
 The rail no longer expands, so rule 1 has one placement: the icon's
 top-right corner.
+
+## Amendment 2026-10-28 — the pill is primary; red is the dot's
+
+The consequence above came due: with the pill and the dot both error
+red, "waiting for you" and "something is wrong" read alike, against the
+house rule that colour marks problems. Rule 1's one variant is now
+**primary** for all three sources; red belongs to the condition dot
+alone. The pill is also a 14px chip at the link box's corner rather than
+daisyUI's 16px `badge-xs`, which covered the whole top of the 20px icon
+it annotates. The rail's entries are `Components.SidebarLink` (story:
+`/storybook/navigation/sidebar_link`).

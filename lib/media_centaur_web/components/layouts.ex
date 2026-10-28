@@ -11,9 +11,8 @@ defmodule MediaCentaurWeb.Layouts do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaurWeb.Components.FollowUpPill
+  alias MediaCentaurWeb.Components.SidebarLink
   alias MediaCentaurWeb.Components.ViewingLayer
-  alias MediaCentaurWeb.Components.Social.IdentityTile
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -127,163 +126,118 @@ defmodule MediaCentaurWeb.Layouts do
         aria-hidden="true"
       >
       </div>
-      <%!-- The sidebar: a fixed 52px icon rail. Every entry is an icon-only
-            link named by aria-label; the same words are its data-tip, which
-            the Tooltip hook shows beside the icon on hover and on
-            keyboard/gamepad focus. A hairline separates the Watch group
-            from the System group. --%>
+      <%!-- The sidebar: a fixed 52px icon rail of `SidebarLink.sidebar_link`
+            entries in two groups. Watch sits at the top; System is pinned
+            to the bottom, the space between them its group marker. --%>
       <aside
         id="sidebar"
         class="sidebar glass-sidebar"
         data-nav-zone="sidebar"
         data-tip-placement="right"
       >
-        <nav class="flex flex-col gap-0.5">
-          <.link
+        <nav aria-label="Watch" class="flex flex-col gap-0.5">
+          <SidebarLink.sidebar_link
+            id="sidebar-home"
             navigate="/"
-            class={sidebar_link_class(@current_path, "/")}
-            aria-label="Home"
-            data-tip="Home"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-home" class="size-5 flex-shrink-0" />
-          </.link>
-          <.link
+            label="Home"
+            icon="hero-home"
+            active={current?(@current_path, "/")}
+            remember
+          />
+          <SidebarLink.sidebar_link
+            id="sidebar-library"
             navigate="/library"
-            class={sidebar_link_class(@current_path, "/library")}
-            aria-label="Library"
-            data-tip="Library"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
-          </.link>
-          <.link
+            label="Library"
+            icon="hero-book-open"
+            active={current?(@current_path, "/library")}
+            remember
+          />
+          <SidebarLink.sidebar_link
             :if={@show_social}
+            id="sidebar-social"
             navigate="/social"
-            class={sidebar_link_class(@current_path, ["/social", "/social/friends"])}
-            aria-label="Social"
-            data-tip="Social"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-users" class="size-5 flex-shrink-0" />
-          </.link>
+            label="Social"
+            icon="hero-users"
+            active={current?(@current_path, ["/social", "/social/friends"])}
+            remember
+          />
           <%!-- One entry for the whole collection-growth story (UIDR-015) —
                 unconditional: without acquisition the page degrades to an
                 honest forecast instead of disappearing. --%>
-          <.link
+          <SidebarLink.sidebar_link
+            id="sidebar-incoming"
             navigate="/incoming"
-            class={sidebar_link_class(@current_path, "/incoming")}
-            aria-label="Incoming"
-            data-tip="Incoming"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-inbox-arrow-down" class="size-5 flex-shrink-0" />
-            <FollowUpPill.follow_up_pill
-              id="sidebar-incoming-follow-up"
-              count={@badges.plans_awaiting_review}
-            />
-          </.link>
-          <.link
+            label="Incoming"
+            icon="hero-inbox-arrow-down"
+            active={current?(@current_path, "/incoming")}
+            count={@badges.plans_awaiting_review}
+            remember
+          />
+          <SidebarLink.sidebar_link
             :if={@show_apps}
+            id="sidebar-apps"
             navigate="/apps"
-            class={sidebar_link_class(@current_path, "/apps")}
-            aria-label="Apps"
-            data-tip="Apps"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-rocket-launch" class="size-5 flex-shrink-0" />
-          </.link>
+            label="Apps"
+            icon="hero-rocket-launch"
+            active={current?(@current_path, "/apps")}
+            remember
+          />
         </nav>
 
-        <nav id="sidebar-system" class="sidebar-group-system flex flex-col gap-0.5">
+        <nav
+          id="sidebar-system"
+          aria-label="System"
+          class="sidebar-group-system flex flex-col gap-0.5"
+        >
           <%!-- The profile switcher (UIDR-053 rule 3): a System entry like
                 the others, a person icon in the profile's hue — no picture —
                 linking to the picker, which opens inside this shell and
                 lights this entry; present only when there is someone to
                 switch to. Its name carries the active profile's name, since
-                the icon alone cannot. data-nav-defer-activate: sidebar
-                entries activate on focus, but merely walking the cursor over
-                the switcher must not open the picker — only an explicit
-                SELECT does. --%>
-          <.link
+                the icon alone cannot. Activates on focus like every
+                sibling: landing on it during keyboard/gamepad navigation
+                only visits the picker page, the same low-risk preview
+                every other entry already gives — switching profiles still
+                needs a second, explicit SELECT on a tile within it. --%>
+          <SidebarLink.sidebar_link
             :if={length(@profiles) > 1}
             id="sidebar-profile"
             navigate={~p"/profiles"}
-            class={
-              sidebar_link_class(@current_path, "/profiles") <>
-                " sidebar-link-system sidebar-link-profile"
-            }
-            aria-label={profile_switch_label(@profile)}
-            data-tip={profile_switch_label(@profile)}
-            data-hue={@profile.hue}
-            data-nav-item
-            data-nav-defer-activate
-            tabindex="0"
-            {IdentityTile.hue_style(@profile.hue)}
-          >
-            <.icon name="hero-user-circle" class="size-5 flex-shrink-0 sidebar-profile-mark" />
-          </.link>
-          <.link
+            label={profile_switch_label(@profile)}
+            icon="hero-user-circle"
+            active={current?(@current_path, "/profiles")}
+            system
+            hue={@profile.hue}
+          />
+          <SidebarLink.sidebar_link
+            id="sidebar-status"
             navigate="/status"
-            class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}
-            aria-label="Status"
-            data-tip="Status"
-            data-nav-item
-            tabindex="0"
-          >
-            <span class="relative inline-flex flex-shrink-0">
-              <.icon name="hero-squares-2x2" class="size-5" />
-              <span
-                :if={@badges.status_errors > 0}
-                id="sidebar-status-error-dot"
-                class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-error"
-                aria-hidden="true"
-              />
-            </span>
-            <FollowUpPill.follow_up_pill
-              id="sidebar-status-follow-up"
-              count={@badges.diagnostics_unseen}
-            />
-          </.link>
-          <.link
+            label="Status"
+            icon="hero-squares-2x2"
+            active={current?(@current_path, "/status")}
+            system
+            count={@badges.diagnostics_unseen}
+            condition={@badges.status_errors > 0}
+          />
+          <SidebarLink.sidebar_link
             :if={@badges.review_pending + @badges.mapping_pending > 0}
+            id="sidebar-review"
             navigate={if @badges.review_pending > 0, do: "/review", else: "/episode-mapping"}
-            class={
-              sidebar_link_class(@current_path, ["/review", "/episode-mapping"]) <>
-                " sidebar-link-system"
-            }
-            aria-label="Review"
-            data-tip="Review"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
-            <FollowUpPill.follow_up_pill
-              id="sidebar-review-follow-up"
-              count={@badges.review_pending + @badges.mapping_pending}
-            />
-          </.link>
-          <.link
+            label="Review"
+            icon="hero-document-text"
+            active={current?(@current_path, ["/review", "/episode-mapping"])}
+            system
+            count={@badges.review_pending + @badges.mapping_pending}
+          />
+          <SidebarLink.sidebar_link
+            id="sidebar-settings"
             navigate="/settings"
-            class={sidebar_link_class(@current_path, "/settings") <> " sidebar-link-system"}
-            aria-label="Settings"
-            data-tip="Settings"
-            data-nav-item
-            data-nav-remember
-            tabindex="0"
-          >
-            <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
-          </.link>
+            label="Settings"
+            icon="hero-cog-6-tooth"
+            active={current?(@current_path, "/settings")}
+            system
+            remember
+          />
         </nav>
       </aside>
 
@@ -451,17 +405,7 @@ defmodule MediaCentaurWeb.Layouts do
 
   # `paths` may be a list when one nav entry fronts several routes — the
   # Review entry covers both review dimensions (/review and /episode-mapping).
-  # The rail's tooltips come from the Tooltip hook reading each link's
-  # data-tip — no tooltip classes here.
-  defp sidebar_link_class(current_path, paths) do
-    base = "sidebar-link"
-
-    if current_path in List.wrap(paths) do
-      base <> " sidebar-link-active"
-    else
-      base
-    end
-  end
+  defp current?(current_path, paths), do: current_path in List.wrap(paths)
 
   # The switcher's name and tip: who is active, and what the entry does.
   defp profile_switch_label(profile), do: "#{profile.name} · Switch profile"

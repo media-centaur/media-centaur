@@ -36,9 +36,11 @@ defmodule MediaCentaurWeb.DiagnosticsBadgeTest do
           build_log_incident_attrs(fingerprint: "fp_nav", occurred_at: DateTime.utc_now())
         )
 
-      {:ok, _view, html} = live(conn, ~p"/history")
+      {:ok, view, _html} = live(conn, ~p"/history")
 
-      assert html =~ "badge-error"
+      # The pill is primary (UIDR-030, 2026-10-28): a count waiting on a
+      # decision, not a fault — red is the condition dot's.
+      assert has_element?(view, "#sidebar-status-follow-up.badge-primary", "1")
     end
 
     test "clears the badge after visiting /status", %{conn: conn} do
@@ -52,8 +54,8 @@ defmodule MediaCentaurWeb.DiagnosticsBadgeTest do
 
       assert DiagnosticsBadge.count() == 0
 
-      {:ok, _view, html} = live(conn, ~p"/history")
-      refute html =~ "badge-error"
+      {:ok, view, _html} = live(conn, ~p"/history")
+      refute has_element?(view, "#sidebar-status-follow-up")
     end
   end
 end

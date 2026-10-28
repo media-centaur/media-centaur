@@ -28,8 +28,8 @@ defmodule MediaCentaurWeb.Live.ProfileAwareTest do
     ana = create_profile(name: "Ana")
     {:ok, view, _html} = conn |> with_profile(ana) |> live_async!(@page)
     assert has_element?(view, "#sidebar-profile[aria-label='Ana · Switch profile']")
-    # Walking the cursor over it must not open the picker; only SELECT does.
-    assert has_element?(view, "#sidebar-profile[data-nav-defer-activate]")
+    # Activates on focus like every sidebar sibling — no data-nav-defer-activate.
+    refute has_element?(view, "#sidebar-profile[data-nav-defer-activate]")
   end
 
   test "the switcher is the first System entry, in the profile's hue, with no picture", %{
