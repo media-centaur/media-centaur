@@ -152,6 +152,16 @@ Use [`template.md`](template.md) as a starter.
   v1.60.1. The automated macOS test environment is
   `install-repro-matrix.md` Phase 8.
 
+* [`test-sweep.md`](test-sweep.md) —
+  **planning 2026-10-28.** Retire the tests that fail only if a
+  deliberate removal is reintroduced, or that pin markup internals no
+  contract names. A deterministic sweep script lists candidates by
+  signature; a judgment pass bins each as delete, rewrite or keep
+  against one criterion (a plausible accidental breakage, and a failure
+  that names the behaviour); the owner rules; one commit per bin; the
+  commonest pattern becomes a Credo check beside MC0024. ADR-027's
+  append-only files are out of scope.
+
 ## Complete
 
 Files retired; git history holds the verbatim record. Each entry names
