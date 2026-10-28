@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.2.0 — 2026-10-28
+
+### Improved
+
+- **The sidebar reads at a glance.** The entry for the page you are on is washed in its colour and its icon is lit; moving the pointer over it no longer dims the icon. A count of items waiting for you is now a small blue chip at the corner of the icon instead of a red label covering it, so blue means "something to look at" and the red dot on **Status** alone means "something is wrong". The System entries (your profile, **Status**, **Review**, **Settings**) sit at the bottom of the rail, apart from the Watch entries at the top.
+- **The profile switcher wears your colour.** The sidebar's profile entry takes the active profile's colour for its wash and for the keyboard or controller ring, matching its icon. Moving onto it with the keyboard or a controller now opens the **Who's watching?** page like every other entry; switching still takes a press on a profile.
+- **A bigger picker.** The tiles on **Who's watching?** are a third larger, and when you open the page from the sidebar it has the same dimmed backdrop as at start-up. With the keyboard or a controller, the ring on a tile follows its circle instead of boxing the tile and its name.
+
 ## v2.1.1 — 2026-10-27
 
 ### Fixed
