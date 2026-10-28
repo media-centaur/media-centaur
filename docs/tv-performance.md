@@ -186,7 +186,7 @@ tool says how.
 * **Never reboot the TV.** It is also the development machine's display;
   a reboot from the rig crashed the desktop session. Ask the owner.
 
-## Findings (2026-10-25 and 26)
+## Findings (2026-10-25 to 28)
 
 Measured in `campaigns/tv-performance.md` (completed and removed 2026-10-27; see git history).
 
@@ -229,3 +229,18 @@ bitmaps live and which `dumpsys meminfo <package>` never includes.
 rounds): 199 MB before the hero bitmap was kept at display size, 174 MB
 after — the commit saves about 24 MB (renderer 108 to 92, app 91 to
 82), not the 50 estimated from the bitmap's dimensions.
+
+The sidebar rail rebuild (v2.2.0: one `SidebarLink` component, the
+`--rail-accent` wash and ring, the 14px primary pill, the System group
+pinned to the bottom, the hover transition removed) holds the floor:
+`mc-tv-ab v2.1.1 v2.2.1` (run `20261028-220212`, two rounds, interleaved)
+read 60 against 60 fps on Home and on the Library, gap p50 and p90 16.7 ms
+on both sides, no stall over 100 ms, settle 462 against 462.5 ms on the
+Library and 567 against 566.5 ms on Home, page memory within 5 MB. The
+rail is static during a glide, so the result is the expected one; it is
+recorded because the rule is to measure, not to expect. The run also
+found three tool faults, fixed in `~/scripts/agents`: a lapsed adb
+connection (the tools now reconnect), the DevTools forward colliding
+with the dev browser's port 9222 (now 9322), and the in-use guard
+reading an idle HDMI input as the owner using the TV (`MC_TV_FREE=1`
+is the owner's word that it is free, for one run).
