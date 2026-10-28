@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-10-05
-last_updated: 2026-10-08
+last_updated: 2026-10-27
 ---
 # Viewer profiles: who has watched what
 
@@ -43,7 +43,14 @@ session with its own active profile.
 
 ## Status
 
-**Shipped v1.55.0 on 2026-10-11.** The branch was merged into main on
+**2026-10-27** — the sidebar activate-on-focus fix and the picker visual/UX
+pass are built (Decisions made), closing the switcher-accent and TV-tile-sizing
+items from Next steps. Owner's visual check next; `mix precommit` and the
+affected test files to confirm before calling it done. The context-map R1
+findings stay open.
+
+**Shipped v1.55.0 on 2026-10-11, v1.55.1 same day** (every picker place a
+tile, hue at birth — Decisions made). The branch was merged into main on
 2026-10-08 (fast-forward), the switcher redesigned as a System entry
 and the picker made a page of the shell on 2026-10-09 and 2026-10-10
 (Decisions below), then released with the five migrations and the
@@ -399,12 +406,33 @@ three releases.
   `navigate` link across live sessions logged a LiveView warning on every
   press (surfaced under Status → System); the move removes the second
   live session, so the link is a live navigation again.
+* `2026-10-11` — **Every place in the row is a tile; a profile is born
+  with a hue.** Shipped v1.55.1 (`c3e40f90`): the Add tile is a dashed
+  circle with a plus in the tile column instead of a field-and-button
+  beside the row; a profile takes the first swatch hue no profile holds
+  at birth instead of staying hueless until Settings. UIDR-053 amended.
+* `2026-10-27` — **The switcher activates on focus; the picker gets a
+  visual pass.** Closes two of the three Next-steps items below (owner,
+  after a visual-companion brainstorm). `data-nav-defer-activate` comes
+  off `#sidebar-profile`: a gamepad arrowing onto it now just visits
+  `/profiles`, same as every other entry, instead of doing nothing until
+  SELECT; switching a profile still needs an explicit pick on a tile
+  within the page. The sidebar's active wash and keyboard/gamepad focus
+  ring take the profile's hue instead of the generic primary tint, one
+  color story with the icon; the generic focus ring's radius now matches
+  the sidebar link's own 6px, nav-wide. The picker tile grows 96→128px
+  (identity tile's largest, now used nowhere else); the in-shell switch
+  gains the door's dim atmosphere it was missing; a focused tile's ring
+  draws on the identity tile's circle instead of the generic rect button
+  ring, so it reads as one shape with the "current profile" ring instead
+  of two nested shapes. UIDR-053 rules 1 and 3 amended.
 
 ## Next steps
 
 1. Owner's check, on the released build: the picker inside the shell
-   and at the door, the switcher's accent, Settings → Profiles (TV
-   sizing is open: 96 is the largest tile and the heading is 3xl); two
+   and at the door, the switcher's hue wash and focus ring (2026-10-27),
+   the picker at 128px, Settings → Profiles (its own TV sizing is still
+   open — the heading is 3xl, untouched by today's change); two
    profiles watching the same title (progress, resume, Continue
    Watching, History, remembered tracks, the finish prompt); the
    context-map R1 findings above; a read of the wiki `Profiles.md`

@@ -4,10 +4,10 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
   three facts — the name, the picture, the hue — and whether the person
   is of this install (filled) or a friend (tinted). The marks: the
   picture, else the first letter of the name, else the person glyph for
-  a friend with no name at all. Four sizes: 32 in the title detail's
+  a friend with no name at all. Five sizes: 32 in the title detail's
   social panel and lead review and the sidebar's profile switcher, 40 on
   a Feed row and the rail's person card, 48 on the Friends page's card
-  and the Settings cards, 96 on the "Who's watching?" picker. The last
+  and the Settings cards, 128 on the "Who's watching?" picker. The last
   group is the palette (UIDR-048).
   """
 
@@ -38,14 +38,14 @@ defmodule MediaCentaurWeb.Storybook.Social.IdentityTile do
         variations: states(48)
       },
       %VariationGroup{
-        id: :picker_96,
+        id: :picker_128,
         description:
-          "96px: a profile on the picker — always filled, never the glyph (a profile's name is required)",
+          "128px: a profile on the picker — always filled, never the glyph (a profile's name is required)",
         variations: [
-          %Variation{id: :letter, attributes: %{name: "Ana", hue: 150, own?: true, size: 96}},
+          %Variation{id: :letter, attributes: %{name: "Ana", hue: 150, own?: true, size: 128}},
           %Variation{
             id: :picture,
-            attributes: %{name: "Ana", picture_url: @photo, hue: 150, own?: true, size: 96}
+            attributes: %{name: "Ana", picture_url: @photo, hue: 150, own?: true, size: 128}
           }
         ]
       },

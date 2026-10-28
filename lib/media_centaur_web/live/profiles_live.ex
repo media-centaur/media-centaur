@@ -80,7 +80,11 @@ defmodule MediaCentaurWeb.ProfilesLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <%!-- The shell's main pads 1.5rem top and bottom; the rest of the
-            viewport centres the question as the door does. --%>
+            viewport centres the question as the door does. Same dim ramp
+            as the door (picker/1's own "relative z-[1]" root is the content
+            layer) — one surface, two situations (UIDR-053 rule 1), so both
+            share the atmosphere instead of the switch reading flatter. --%>
+      <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
       <.picker
         profiles={@profiles}
         current_id={@profile.id}
