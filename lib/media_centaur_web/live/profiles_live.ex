@@ -78,8 +78,12 @@ defmodule MediaCentaurWeb.ProfilesLive do
       flash={@flash}
       current_path="/profiles"
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
+      full_width
     >
-      <%!-- The shell's main pads 1.5rem top and bottom; the rest of the
+      <%!-- full_width: the picker centres on the whole area beside the rail,
+            as it does at the door; inside the shell's reading-width container
+            it would sit left of centre on a wide screen. The shell's main pads
+            1.5rem top and bottom; the rest of the
             viewport centres the question as the door does. Same dim ramp
             as the door (picker/1's own "relative z-[1]" root is the content
             layer) — one surface, two situations (UIDR-053 rule 1), so both
