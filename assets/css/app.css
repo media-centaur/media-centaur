@@ -463,9 +463,9 @@ html.psb .psb-variation-block .media-centaur {
 }
 
 /* ── Sidebar ──
-   A fixed 52px icon rail. It never expands: the app tooltip (hooks/tooltip.js)
-   labels the hovered or focused icon beside the rail. Content sits at a
-   52px margin. */
+   A fixed 52px icon rail of SidebarLink entries. It never expands: the app
+   tooltip (hooks/tooltip.js) labels the hovered or focused icon beside the
+   rail. Content sits at a 52px margin. */
 
 .sidebar {
   width: 52px;
@@ -481,7 +481,10 @@ html.psb .psb-variation-block .media-centaur {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  padding: 1rem 0.5rem;
+  /* 1.5rem at the bottom: the System group is pinned there, and on a TV
+     overscan eats the picture's edge — the same reserve the gamepad hint bar
+     keeps (bottom: 1.5rem). */
+  padding: 1rem 0.5rem 1.5rem;
   gap: 0.25rem;
   overflow-x: hidden;
   overflow-y: auto;
@@ -491,9 +494,24 @@ html.psb .psb-variation-block .media-centaur {
   margin-left: 52px;
 }
 
-/* Sidebar navigation links — a 36px square around the icon; colors use
-   theme variables. The pill is positioned against this box. */
+/* The System group is pinned to the rail's bottom; the space between the
+   groups is the rail's group marker, since it carries no text. When the
+   rail scrolls (a scaled column taller than the viewport) the auto margin
+   collapses and the padding keeps the groups apart. */
+.sidebar-group-system {
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+/* An entry: a 36px square around the icon; the pill and dot are positioned
+   against this box. Its three states — rest, hover, active — are drawn in
+   `--rail-accent`, primary for a page and the person's hue for the profile
+   switcher, so the wash, the icon and the keyboard ring (app.css, the
+   focus-ring rules) of one entry always share one colour. No transition:
+   hover feedback snaps, since colour and background are not compositor
+   properties (docs/tv-performance.md). */
 .sidebar-link {
+  --rail-accent: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -501,7 +519,6 @@ html.psb .psb-variation-block .media-centaur {
   border-radius: 0.375rem;
   position: relative;
   color: oklch(from var(--color-base-content) l c h / 0.7);
-  transition: background 0.15s, color 0.15s;
 }
 
 .sidebar-link:hover {
@@ -509,39 +526,7 @@ html.psb .psb-variation-block .media-centaur {
   color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
-/* The profile switcher (UIDR-053 rule 3): a System entry whose person
-   icon carries the profile's hue on the person ring (--hue from the
-   link's style attribute), damped to the rail's text opacity so it reads
-   as an accent, not a badge; hover lifts it with the label. */
-.sidebar-link-profile .sidebar-profile-mark {
-  color: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.7);
-  transition: color 0.15s;
-}
-
-.sidebar-link-profile:hover .sidebar-profile-mark {
-  color: oklch(var(--person-l) var(--person-c) var(--hue, 250) / 0.95);
-}
-
-.sidebar-link-active {
-  background: oklch(from var(--color-primary) l c h / 0.1);
-  color: var(--color-primary);
-}
-
-.sidebar-link-active:hover {
-  background: oklch(from var(--color-primary) l c h / 0.15);
-  color: oklch(from var(--color-primary) l c h / 0.8);
-}
-
-/* The System group sits under a hairline that separates it from the Watch
-   group — the rail's one group marker, since it carries no text. */
-.sidebar-group-system {
-  margin-top: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--glass-border);
-}
-
-/* Demoted system-group links — slightly dimmer.
-   Stack with .sidebar-link (e.g. class="sidebar-link sidebar-link-system"). */
+/* System entries sit dimmer at rest. */
 .sidebar-link-system {
   color: oklch(from var(--color-base-content) l c h / 0.55);
 }
@@ -550,18 +535,56 @@ html.psb .psb-variation-block .media-centaur {
   color: oklch(from var(--color-base-content) l c h / 0.75);
 }
 
-.sidebar-link-system.sidebar-link-active {
-  color: var(--color-primary);
-  background: oklch(from var(--color-primary) l c h / 0.10);
+/* The profile switcher (UIDR-053 rule 3): its accent is the person's hue
+   (--hue from the link's style attribute), and the icon carries it at rest
+   too, damped to the rail's text opacity so it reads as an accent, not a
+   badge. */
+.sidebar-link-profile {
+  --rail-accent: oklch(var(--person-l) var(--person-c) var(--hue, 250));
+  color: oklch(from var(--rail-accent) l c h / 0.7);
 }
 
-/* Follow-up pill (UIDR-030) — anchored to the link box's top-right corner,
-   over the icon's corner. The condition dot lives at the icon's
-   bottom-right, so the two never overlap. */
+.sidebar-link-profile:hover {
+  color: oklch(from var(--rail-accent) l c h / 0.95);
+}
+
+/* The current page: a wash and the full accent on the icon. Hover lifts the
+   wash and leaves the icon alone — an active entry never dims under the
+   pointer. These come after every group rule so they win at equal
+   specificity whichever group the entry is in. */
+.sidebar-link-active {
+  background: oklch(from var(--rail-accent) l c h / 0.14);
+  color: var(--rail-accent);
+}
+
+.sidebar-link-active:hover {
+  background: oklch(from var(--rail-accent) l c h / 0.2);
+  color: var(--rail-accent);
+}
+
+/* Follow-up pill (UIDR-030) — a 14px chip at the link box's top-right
+   corner, so it overlaps the 20px icon's corner and no more (daisyUI's
+   badge-xs is 16px and wide enough to cover the icon's whole top). The
+   condition dot lives at the icon's bottom-right, so the two never overlap. */
 .sidebar-follow-up {
   position: absolute;
-  right: 0.125rem;
-  top: 0;
+  top: 0.0625rem;
+  right: 0.0625rem;
+  height: 0.875rem;
+  min-width: 0.875rem;
+  padding-inline: 0.25rem;
+  font-size: 0.5625rem;
+  line-height: 1;
+}
+
+.sidebar-condition-dot {
+  position: absolute;
+  bottom: -0.125rem;
+  right: -0.125rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-error);
 }
 
 /* The tooltip — one element in <body> for every data-tip anchor in the
@@ -1801,6 +1824,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-box, 0.5rem);
+}
+
+/* The sidebar's own ring hugs its 6px link radius instead of the generic
+   8px default — a 2px gap between two different roundings on a 36px box
+   read as unfinished — and takes the entry's accent (`--rail-accent`, the
+   sidebar rules above): an entry activates on focus, so the ring sits on
+   the active wash most of the time and must tell the same colour story,
+   which for the profile switcher is the person's hue. */
+[data-input=keyboard] .sidebar-link[data-nav-item]:focus,
+[data-input=gamepad] .sidebar-link[data-nav-item]:focus {
+  border-radius: 0.375rem;
+  outline-color: var(--rail-accent);
 }
 
 /* Keep the ring inside the scrollport it was scrolled into.

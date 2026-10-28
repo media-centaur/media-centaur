@@ -4,5 +4,6 @@ defmodule MediaCentaurWeb.Storybook.Navigation do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "signs-post", :light, "psb:mr-1"}
 
+  def entry("sidebar_link"), do: [icon: {:fa, "sidebar", :thin}, name: "Sidebar link"]
   def entry("tab_strip"), do: [icon: {:fa, "folder-tree", :thin}, name: "Tab strip"]
 end

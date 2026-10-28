@@ -1,9 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Navigation.FollowUpPill do
   @moduledoc """
   The sidebar follow-up pill (UIDR-030) — a count of items waiting on the
-  user, one variant for every entry that has a source. Zero renders
-  nothing. Placement against the icon is a CSS rule on the rail itself,
-  so this story shows the element; verify placement on the live sidebar.
+  user, one primary variant for every entry that has a source; red stays
+  with the condition dot. Zero renders nothing. Placement and size against
+  the icon are a CSS rule on the rail itself, so this story shows the
+  element; see the sidebar link story for it in place.
   """
 
   use PhoenixStorybook.Story, :component

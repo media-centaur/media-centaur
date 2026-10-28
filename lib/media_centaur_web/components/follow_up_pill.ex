@@ -7,9 +7,12 @@ defmodule MediaCentaurWeb.Components.FollowUpPill do
   defines handling: approve or discard a plan, review a file, look at
   an incident (the Status source's seen-marker is its definition).
 
-  Placement is one CSS rule (`.sidebar-follow-up`): the icon's top-right
-  corner in the 52px rail. The condition dot sits at the icon's
-  bottom-right so the two never overlap.
+  Placement and size are one CSS rule (`.sidebar-follow-up`): a 14px chip
+  at the link box's top-right corner in the 52px rail, overlapping only
+  the icon's corner. The condition dot sits at the icon's bottom-right so
+  the two never overlap. The pill is primary, not error: a count waiting
+  on a decision is a call to act, and red is kept for the dot, which means
+  something is wrong (UIDR-030, 2026-10-28 amendment).
   """
 
   use Phoenix.Component
@@ -24,7 +27,7 @@ defmodule MediaCentaurWeb.Components.FollowUpPill do
     <.badge
       :if={@count > 0}
       id={@id}
-      variant="error"
+      variant="primary"
       size="xs"
       class="sidebar-follow-up"
       data-component="follow-up-pill"

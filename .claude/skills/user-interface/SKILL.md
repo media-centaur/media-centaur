@@ -316,9 +316,10 @@ Sizes: `size-3` (12px), `size-4` (16px default), `size-5` (20px), `size-6` (24px
 
 Fixed left, a 52px icon rail. It never expands and has no toggle.
 
-- Links: `.sidebar-link` — icon-only, named by `aria-label`; muted by default, primary color when `.sidebar-link-active`
-- Labels: the link's `data-tip`, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
-- Groups: the System `<nav>` carries `.sidebar-group-system`, a hairline above it
+- Entries: `SidebarLink.sidebar_link/1` — icon-only, named by `label` (its `aria-label` and `data-tip`); muted at rest, `active` draws the wash, the icon and `aria-current="page"` in the entry's accent (`--rail-accent`: primary, or the person's `hue` on the profile switcher), and the keyboard/gamepad ring takes the same accent. An active entry never dims on hover.
+- What waits: `count` draws the follow-up pill (primary, a 14px chip at the box's corner) and `condition` the red dot at the icon (UIDR-030)
+- Labels: the tip, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
+- Groups: two named `<nav>`s. Watch at the top; System (`.sidebar-group-system`) pinned to the bottom, the space between them the group marker
 
 ### Zone Tabs
 
@@ -476,6 +477,8 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `download_strip/1` | `acquisition/download_strip.ex` | The one drawing of a download-client job: phase ladder, phase word, figure bar, facts, cancel (the pursuit row, Other downloads, the pursuit modal) | ✅ |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
+| `sidebar_link/1` | `sidebar_link.ex` | One entry of the main navigation rail: where you are (`active`), what waits (`count`, `condition`), in one accent (UIDR-030, UIDR-053) | ✅ |
+| `follow_up_pill/1` | `follow_up_pill.ex` | The rail's count of items waiting on a decision, primary (UIDR-030) | ✅ |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Home's Coming up shelf, over `ReleaseTracking.Views.ComingUp`; the only surface the words name (UIDR-050 §5) |
 | `identity_tile/1`, `crop_previews/1` | `social/identity_tile.ex` | The app's one drawing of a person from three facts — name, picture, hue — filled (`own?`) or tinted, at 32, 40, 48 or 96 (UIDR-047, UIDR-053); `person_attrs/1` turns a `Social.Person` into them; the crop stage's two preview frames | ✅ |

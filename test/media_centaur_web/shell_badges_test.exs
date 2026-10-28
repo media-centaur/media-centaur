@@ -142,7 +142,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
 
       {:ok, view, _html} = live(build_conn(), ~p"/history")
 
-      assert has_element?(view, "#sidebar-status-error-dot")
+      assert has_element?(view, "#sidebar-status-condition-dot")
     end
 
     test "no dot without error-severity buckets" do
@@ -150,7 +150,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
 
       {:ok, view, _html} = live(build_conn(), ~p"/history")
 
-      refute has_element?(view, "#sidebar-status-error-dot")
+      refute has_element?(view, "#sidebar-status-condition-dot")
     end
   end
 end
