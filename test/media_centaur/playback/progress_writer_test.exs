@@ -16,7 +16,7 @@ defmodule MediaCentaur.Playback.ProgressWriterTest do
         %{
           entry: entry(Map.merge(%{entity_id: "movie-1", movie_id: "movie-1"}, entry_fields)),
           properties: %MpvProperties{duration: 6000.0},
-          tracker: %{WatchingTracker.new() | saveable_position: 5500.0},
+          tracker: %{WatchingTracker.new() | saveable_position: 5850.0},
           completed: MapSet.new()
         },
         overrides
@@ -29,8 +29,20 @@ defmodule MediaCentaur.Playback.ProgressWriterTest do
     test "adds the playing movie once its saved position completes it" do
       {reason, completed} = judge(watching_state(%{}))
 
-      assert reason =~ "reached 92.0%"
+      assert reason =~ "reached estimated credits start"
       assert MapSet.equal?(completed, MapSet.new([{:movie, "movie-1"}]))
+    end
+
+    test "allows a movie longer credits than an episode" do
+      # 400 s from the end: inside a movie's 8-minute credits, outside an
+      # episode's 3 minutes.
+      tracker = %{WatchingTracker.new() | saveable_position: 5600.0}
+
+      assert {reason, _completed} = judge(watching_state(%{tracker: tracker}))
+      assert reason
+
+      assert {nil, _completed} =
+               judge(watching_state(%{tracker: tracker, movie_id: nil, episode_id: "episode-1"}))
     end
 
     test "judges the saved position, not a seek target ahead of it" do

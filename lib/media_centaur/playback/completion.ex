@@ -1,22 +1,26 @@
 defmodule MediaCentaur.Playback.Completion do
   @moduledoc """
   When a viewing is complete: the one judgment `MpvSession` applies to
-  every position it persists (`reason/3`). Two triggers, the first that
-  holds wins:
+  every position it persists (`reason/4`). A viewing is complete once the
+  position reaches the **content end** — where the story stops and the
+  credits begin (`content_end_seconds/3`).
 
-    * a credits/outro chapter reached — the end of *content*, independent
-      of how long the credits tail runs (`content_end_seconds/2`); and
-    * 90% of the duration, for the majority of files that carry no usable
-      chapter markers.
+  The content end comes from the best source the file offers:
 
-  ## Why chapters
+    * a credits/outro chapter — measured, per file, independent of how
+      long the credits run; otherwise
+    * an estimate: the duration less the **assumed credits length**, which
+      is 10% of the duration capped at 8 minutes for a movie and 3 minutes
+      for anything else (an episode, an extra, a standalone video).
 
-  Completion otherwise triggers at `position / duration >= 0.90` (or true
-  end-of-file). That fraction is of the *whole* file, credits included, so
-  a title with a long credits tail marks the natural ending well before
-  90% — the user finishes the story but the item isn't recorded as watched
-  until they sit through the credits. A chapter that demarcates the credits
-  is a per-file, tail-length-independent signal for "content is over."
+  ## Why the assumed credits length is capped
+
+  Credits do not grow with the runtime. Without the cap a 156-minute film
+  completes with 15 minutes left — before its final scene. With it, every
+  file up to 80 minutes (episodes) or 30 minutes (anything else) keeps the
+  plain 10% tail, and a long film completes once the last 8 minutes remain.
+  A movie gets the longer cap because feature credits run 5–10 minutes; an
+  episode's run 1–2, plus a preview of the next one.
 
   ## Detection is title-based and back-loaded on purpose
 
@@ -31,11 +35,12 @@ defmodule MediaCentaur.Playback.Completion do
       generic titles ("Chapter 7") would let a purely structural
       "last chapter" rule complete *early* (e.g. at 82%), cutting off the
       climax. Requiring a credits title avoids that; untitled scene
-      markers simply fall through to the existing 90%/eof path.
+      markers simply fall through to the estimate.
 
-  Erring toward completing *late* (via the fallback) is the safe direction
-  — marking a title watched before the user has seen the ending is worse
-  than a few minutes' delay.
+  Erring toward completing *late* is the safe direction — marking a title
+  watched before the user has seen the ending is worse than a few
+  minutes' delay, and completion is what offers the finish prompt's
+  Delete.
   """
 
   alias MediaCentaur.Format
@@ -43,8 +48,11 @@ defmodule MediaCentaur.Playback.Completion do
   # A credits chapter must start at or after this fraction of the runtime.
   @outro_floor 0.80
 
-  # Without a credits chapter, a viewing is complete at this fraction.
-  @position_fraction 0.90
+  # Without a credits chapter, the credits are assumed to run this
+  # fraction of the runtime, up to the playable kind's cap.
+  @credits_fraction 0.10
+  @movie_credits_cap_seconds 480
+  @credits_cap_seconds 180
 
   # Case-insensitive whole-word match. `credits` covers "End Credits",
   # "Closing Credits", "Credits"; `outro` covers "Outro". Deliberately
@@ -72,41 +80,46 @@ defmodule MediaCentaur.Playback.Completion do
 
   @doc """
   Why a viewing at `position` of `duration` (seconds) is complete — a
-  human-readable reason for the log — or `nil` while it is not. The
-  chapter trigger is checked first, so a title with a long tail completes
-  at the credits boundary instead of grinding to 90%.
+  human-readable reason for the log — or `nil` while it is not. `kind` is
+  the playable's kind (`Entry.item/1`'s first element), nil for a file the
+  library does not know.
   """
-  @spec reason(number() | nil, number() | nil, list()) :: String.t() | nil
-  def reason(position, duration, chapters)
+  @spec reason(number() | nil, number() | nil, list() | nil, atom() | nil) :: String.t() | nil
+  def reason(position, duration, chapters, kind)
       when is_number(position) and is_number(duration) and duration > 0 do
-    content_end = content_end_seconds(chapters, duration)
+    case credits_chapter_start(chapters, duration) do
+      nil ->
+        content_end = estimated_content_end(duration, kind)
 
-    cond do
-      content_end && position >= content_end ->
-        "reached credits chapter at #{Format.format_seconds(content_end)}"
+        if position >= content_end,
+          do:
+            "#{Format.format_seconds(position)} reached estimated credits start at #{Format.format_seconds(content_end)} of #{Format.format_seconds(duration)}"
 
-      position / duration >= @position_fraction ->
-        "#{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
-
-      true ->
-        nil
+      chapter_start ->
+        if position >= chapter_start,
+          do: "reached credits chapter at #{Format.format_seconds(chapter_start)}"
     end
   end
 
-  def reason(_position, _duration, _chapters), do: nil
+  def reason(_position, _duration, _chapters, _kind), do: nil
 
   @doc """
-  Returns the start time (seconds) of the credits chapter that marks the
-  end of content, or `nil` when no such chapter is present.
+  The content end (seconds) of a file of `duration` playing a `kind`
+  playable: the start of its credits chapter, or the estimate when it has
+  none. `nil` while the duration is unknown.
 
   `chapters` is mpv's `chapter-list` payload — a list of maps carrying a
   `title` and a `time` (string or atom keys tolerated). When several
-  chapters qualify, the earliest is returned (the true content end; any
-  later "End Credits Song" split is still within the credits).
+  chapters qualify, the earliest is the content end (any later "End
+  Credits Song" split is still within the credits).
   """
-  @spec content_end_seconds(list() | any(), number() | any()) :: number() | nil
-  def content_end_seconds(chapters, duration)
-      when is_list(chapters) and is_number(duration) and duration > 0 do
+  @spec content_end_seconds(list() | nil, number() | nil, atom() | nil) :: number() | nil
+  def content_end_seconds(chapters, duration, kind) when is_number(duration) and duration > 0,
+    do: credits_chapter_start(chapters, duration) || estimated_content_end(duration, kind)
+
+  def content_end_seconds(_chapters, _duration, _kind), do: nil
+
+  defp credits_chapter_start(chapters, duration) when is_list(chapters) do
     floor_time = duration * @outro_floor
 
     chapters
@@ -120,7 +133,13 @@ defmodule MediaCentaur.Playback.Completion do
     end
   end
 
-  def content_end_seconds(_chapters, _duration), do: nil
+  defp credits_chapter_start(_chapters, _duration), do: nil
+
+  defp estimated_content_end(duration, kind),
+    do: duration - min(duration * @credits_fraction, credits_cap_seconds(kind))
+
+  defp credits_cap_seconds(:movie), do: @movie_credits_cap_seconds
+  defp credits_cap_seconds(_kind), do: @credits_cap_seconds
 
   defp normalize(chapter) when is_map(chapter) do
     %{

@@ -112,6 +112,11 @@ defmodule MediaCentaur.Playback.Viewing do
   successor queued, else Skip Intro while an intro chapter plays and a
   chapter follows it. The countdown replaces the credits pill, so auto-play
   never lands unannounced.
+
+  Next Episode needs a measured credits chapter; it never uses
+  `Completion`'s estimated content end. Completion can afford an estimate
+  that is a few minutes off, but a pill drawn over the picture on an
+  estimate would cover the closing scene of a file without chapters.
   """
   @spec prompt(t()) :: prompt()
   def prompt(%__MODULE__{duration_seconds: duration} = viewing)

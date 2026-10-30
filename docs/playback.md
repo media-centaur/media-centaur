@@ -48,7 +48,7 @@ graph TD
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
-**Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.Completion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses. The session judges each persisted position itself (`MpvSession.judge_completion/1`) and keeps the set of items it completed; only the write runs in a task.
+**Completion trigger:** reaching the content end — where the credits begin (`Playback.Completion`). That is the start of a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file) when the file has one; otherwise the duration less an assumed credits length of 10%, capped at 8 minutes for a movie and 3 minutes for anything else, so a long film is not marked watched before its final scene. Completion is monotonic — once marked complete, it never regresses. The session judges each persisted position itself (`MpvSession.judge_completion/1`) and keeps the set of items it completed; only the write runs in a task.
 
 **Session end:** `finalize/1` broadcasts `PlaybackStateChanged :stopped` and then `SessionEnded` with that set. The title detail hosts read it to open a finished title with the finish prompt (UIDR-052): a movie, standalone or in a collection, or a show whose latest aired episode (TMDB's `last_episode_to_air`) the session completed. The web layer judges that, since Playback does not read TMDB (`TitleDetailHost.Finish`).
 
@@ -124,7 +124,7 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 | On stop / EOF | Save immediately |
 | During seeking | No save |
 
-Each save goes through `Playback.ProgressWriter`: `judge/4` reads the tracker's `saveable_position` (guards against seek corruption) and, when `Completion.reason/3` says it completes the entry, adds `Entry.item/1` to the session's completed set; `persist/5` runs the write in a task — `Library.Progress.record/4`, then `LibraryProgress.complete/2` (monotonic) — and broadcasts the changed record. An unattributed entry (a file the library does not know) is observed and never written.
+Each save goes through `Playback.ProgressWriter`: `judge/4` reads the tracker's `saveable_position` (guards against seek corruption) and, when `Completion.reason/4` (given the entry's kind of playable) says it completes the entry, adds `Entry.item/1` to the session's completed set; `persist/5` runs the write in a task — `Library.Progress.record/4`, then `LibraryProgress.complete/2` (monotonic) — and broadcasts the changed record. An unattributed entry (a file the library does not know) is observed and never written.
 
 #### Progress Broadcasting
 
@@ -208,7 +208,7 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.SessionRecovery` | The shared half of recovery: a property reader and a host path into the profile and the entry to reattach | `lib/media_centaur/playback/session_recovery.ex` |
 | `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
 | `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
-| `MediaCentaur.Playback.Completion` | When a viewing is complete: credits chapter or 90% | `lib/media_centaur/playback/completion.ex` |
+| `MediaCentaur.Playback.Completion` | When a viewing is complete: the credits chapter, or the duration less an assumed credits length | `lib/media_centaur/playback/completion.ex` |
 | `MediaCentaur.Playback.Resolver` | UUID → play params (the profile and the entry) | `lib/media_centaur/playback/resolver.ex` |
 | `MediaCentaur.Library.EpisodeList` | TV episode walking helpers | `lib/media_centaur/library/episode_list.ex` |
 | `MediaCentaur.Playback.NextEpisode` | The successor's entry and a playing path's entry (ADR-062) | `lib/media_centaur/playback/next_episode.ex` |
