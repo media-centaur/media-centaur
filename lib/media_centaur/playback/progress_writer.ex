@@ -5,7 +5,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
 
   `judge/4` is pure: it reads the saved position (the tracker's saveable
   position, else what mpv reports), judges it against
-  `Completion.reason/3` and adds the entry's item to the session's
+  `Completion.reason/4` and adds the entry's item to the session's
   completed set. `persist/5` runs the Library write in a task under
   `MediaCentaur.TaskSupervisor` — the hot-path write lands in the
   `Library.Progress` in-memory table in microseconds, the debounced flush
@@ -23,17 +23,24 @@ defmodule MediaCentaur.Playback.ProgressWriter do
   alias MediaCentaur.Playback.{Completion, Entry, MpvProperties, ProgressBroadcaster, WatchingTracker}
 
   @doc """
-  Judges the saved position against `Completion.reason/3`; a complete one
-  adds `Entry.item/1` to `completed`. Returns the reason (nil while
+  Judges the saved position against `Completion.reason/4` for the entry's
+  kind of playable; a complete one adds `Entry.item/1` to `completed`. Returns the reason (nil while
   incomplete) with the set.
   """
   @spec judge(MapSet.t(Entry.item()), Entry.t(), MpvProperties.t(), WatchingTracker.t()) ::
           {String.t() | nil, MapSet.t(Entry.item())}
   def judge(completed, %Entry{} = entry, %MpvProperties{} = properties, tracker) do
-    reason =
-      Completion.reason(saveable_position(tracker, properties), properties.duration, properties.chapters)
+    item = Entry.item(entry)
 
-    case {reason, Entry.item(entry)} do
+    reason =
+      Completion.reason(
+        saveable_position(tracker, properties),
+        properties.duration,
+        properties.chapters,
+        item && elem(item, 0)
+      )
+
+    case {reason, item} do
       {nil, _item} -> {nil, completed}
       {reason, nil} -> {reason, completed}
       {reason, item} -> {reason, MapSet.put(completed, item)}
