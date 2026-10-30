@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.2.2 — 2026-10-30
+
+### Fixed
+
+- **A long film is no longer marked watched before its ending.** When a file has no chapter marking its credits, Media Centaur assumes the credits take the last tenth of it. On a long film that could be a quarter of an hour, so a film stopped 14 minutes from the end counted as finished. The credits are now assumed to run at most 8 minutes for a movie and 3 minutes for an episode, so a film counts as watched once you reach its closing minutes. Files with a credits chapter still finish where that chapter starts.
+
 ## v2.2.1 — 2026-10-28
 
 ### Fixed
