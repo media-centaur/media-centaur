@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in-progress
 started: 2026-10-28
-last_updated: 2026-10-28
+last_updated: 2026-10-29
 ---
 # Test sweep: retire tests that pin a removal or an implementation detail
 
@@ -36,8 +36,10 @@ next one is caught at precommit instead of in a review.
 
 ## Status
 
-Planning, no code. Opened 2026-10-28 after the picker-centring fix,
-where a `refute has_element?(view, "main .max-w-7xl #profile-picker")`
+M1 done 2026-10-29: `scripts/test-sweep` lists 360 candidates in 145
+files out of 8,091 tests. Next is M2, the judgment pass over that table.
+Opened 2026-10-28 after the picker-centring fix, where a
+`refute has_element?(view, "main .max-w-7xl #profile-picker")`
 assertion was written to drive the fix and removed the same session as
 red-green residue; the owner asked how a sweep of the whole suite would
 go and then for this campaign.
@@ -64,17 +66,7 @@ go and then for this campaign.
 
 ## Open decisions
 
-1. **Where the sweep script lives.** `scripts/test-sweep` in this repo
-   (project-specific signatures, reviewable, runnable by any
-   contributor) or `~/scripts/agents/` (the agent's tooling).
-   Recommendation: the repo. The signatures are this codebase's, and the
-   script is worth re-running after any large UI change.
-2. **Whether a rewrite may end as no automated test.** Some intents
-   ("the picker is centred") are geometric and are verified by looking,
-   not by asserting a class. Recommendation: yes. The commit names the
-   check that replaces the test (a `page-shot` measurement, a storybook
-   variation), so the intent is not lost, and the `automated-testing`
-   skill gains a line saying when that is the right outcome.
+None.
 
 ## Decisions made
 
@@ -83,6 +75,22 @@ go and then for this campaign.
 * `2026-10-28` — The sweep is two passes: a mechanical pass that only
   lists, and a judgment pass with the criterion written down. The
   passes never merge; a script that judges would encode today's taste.
+* `2026-10-29` — The sweep script lives in the repo as
+  `scripts/test-sweep`, on the owner's condition that it exposes none of
+  their data: it reads tracked test sources and git history, writes a
+  markdown table to stdout, and opens no database and no configuration.
+* `2026-10-29` — A rewrite may end as no automated test when the intent
+  is verified by looking (a geometric fact such as centring). The commit
+  names the replacement check (a `page-shot` measurement, a storybook
+  variation) and the `automated-testing` skill gains a line saying when
+  that is the right outcome (M4).
+* `2026-10-29` — Two calibrations of the signatures, from the first run:
+  S1 skips refutes on the contract hooks Principle 2 names (ids,
+  `data-nav-*`, `aria-*`, `data-component`, `data-tip`), since a refute
+  on a hook is a behaviour assertion; and S5 (originating commit says
+  remove/rename/…) is a column but not a candidacy test on its own,
+  because almost any fix commit matches it. S1, S2 and S4 read markup
+  assertions only (`has_element?`, `element(`, `=~` on rendered HTML).
 
 ## Next steps
 
@@ -106,6 +114,16 @@ seven.
    Excludes `test/media_centaur/parser_test.exs` and the pipeline
    regression files (ADR-027). Re-runnable; the count is recorded here
    each time it runs.
+
+   ✅ 2026-10-29 — `scripts/test-sweep` (an Elixir script; a row is a
+   test case, each signature a column, sorted by signatures matched).
+   Runs: `2026-10-29` at `d7704b57`: 360 candidates in 145 files, of
+   8,091 tests in 672 files. S1 127, S2 4, S3 220 (still 132, removed 33,
+   old 26, legacy 15, no longer 14), S4 18, S5 46. The S2 count says
+   utility-class assertions are already rare; "still" is three fifths of
+   S3 and mostly reads as behaviour ("still deletes the rest of the
+   batch"), which M2 will confirm row by row rather than the script
+   dropping the word.
 2. **M2 — the judgment pass.** For every candidate: what diff would make
    it fail, and would we want to be stopped by that diff. Bin and a
    one-line reason. Mutation check on the borderline ones. The result is
@@ -135,6 +153,8 @@ seven.
 
 ## Pointers
 
+* `scripts/test-sweep` — the sweep script (M1); its header is the
+  signature list as implemented.
 * MC0024, `credo_checks/no_markup_substring_assertion.ex` — the check
   that already blocks `=~` on `data-`/`phx-`/`class=`/`id=` literals;
   the sweep finds what predates it or routes around it through

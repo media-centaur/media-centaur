@@ -1,0 +1,359 @@
+#!/usr/bin/env elixir
+# test-sweep — list the ExUnit tests whose assertions look like they pin a
+# removal or an implementation detail, for the judgment pass to rule on.
+#
+#   scripts/test-sweep                 every test/**/*_test.exs
+#   scripts/test-sweep test/a_test.exs test/b_test.exs
+#
+# The script proposes and never judges (`campaigns/test-sweep.md`,
+# Principle 4). A row is a test case; each signature is its own column so a
+# test can match several. A test is a candidate when it matches S1–S4; S5 is
+# a column only, because almost any fix commit says "rename" or "remove"
+# somewhere.
+#
+#   S1 refute-selector    a `refute` whose selector names a class or an
+#                         attribute and gives no visible text (a pure id is a
+#                         contract hook and is not flagged)
+#   S2 utility-class      any assertion whose selector carries a Tailwind
+#                         utility or layout class (`max-w-7xl`, `flex`,
+#                         `hidden`, `gap-2`), as opposed to a component's own
+#                         class recipe
+#   S3 removal-name       the test's name says "no longer", "does not
+#                         render", "removed", "old", "legacy" or "still"
+#   S4 singleton-selector a class, id or attribute token in an assertion
+#                         that occurs on one line of lib/ and one line of
+#                         test/: the test is its only reader
+#   S5 removal-commit     the commit that introduced the flagged assertion
+#                         (git blame) says remove, retire, drop, rename or
+#                         delete
+#
+# Out of scope, whatever they match: `test/media_centaur/parser_test.exs`
+# and `test/media_centaur/pipeline/` (ADR-027, append-only). The script
+# reads tracked test sources and git history and writes a markdown table to
+# stdout; it opens no database and no configuration.
+
+defmodule TestSweep do
+  @excluded_prefixes ["test/media_centaur/parser_test.exs", "test/media_centaur/pipeline/"]
+
+  @removal_name ~r/no longer|does ?n[o']t render|not rendered|\bremoved\b|\bold\b|\blegacy\b|\bstill\b/i
+  @removal_commit ~r/\b(remov|retir|drop|renam|delet)\w*/i
+
+  # Tailwind utility and layout prefixes. A component's own class
+  # (`sidebar-link-active`, `progress-fill`, daisyUI's `badge`) is not here.
+  @utility ~r/^(?:(?:sm|md|lg|xl|2xl|hover|focus|group-hover|dark):)*(?:max-w|min-w|max-h|min-h|w|h|size|flex|inline-flex|inline-block|inline|block|grid|hidden|gap|space|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|text|bg|rounded|border|items|justify|col-span|row-span|truncate|overflow|absolute|relative|fixed|sticky|top|left|right|bottom|inset|z|opacity|shadow|font|leading|tracking|uppercase|lowercase|capitalize|sr-only|order|self|place|content|aspect|object|cursor|pointer-events|select|transition|duration|ease|scale|rotate|translate|basis|grow|shrink|divide|ring|outline|whitespace|break|list|table|float|clear|columns|isolate|visible|invisible|underline|italic|antialiased|line-clamp)(?:-|$)/
+
+  def main(args) do
+    files = if args == [], do: all_test_files(), else: args
+    files = Enum.reject(files, &excluded?/1)
+    tests = Enum.flat_map(files, &tests_in/1)
+    candidates = tests |> Enum.map(&flag/1) |> resolve_singletons() |> Enum.filter(&candidate?/1)
+    candidates = resolve_origins(candidates)
+    print(candidates, length(tests), length(files))
+  end
+
+  defp all_test_files do
+    {out, 0} = System.cmd("git", ["ls-files", "test/**/*_test.exs"])
+    out |> String.split("\n", trim: true) |> Enum.sort()
+  end
+
+  defp excluded?(file), do: Enum.any?(@excluded_prefixes, &String.starts_with?(file, &1))
+
+  # --- test cases -----------------------------------------------------------
+
+  # Each `test "name" do` block with its assertion statements. A statement is
+  # the assert/refute line joined with the lines that close its parentheses.
+  defp tests_in(file) do
+    lines = file |> File.read!() |> String.split("\n")
+    indexed = Enum.with_index(lines, 1)
+
+    indexed
+    |> Enum.filter(fn {line, _} -> Regex.match?(~r/^\s*test\s+"/, line) end)
+    |> Enum.map(fn {line, number} ->
+      indent = line |> String.length() |> Kernel.-(String.length(String.trim_leading(line)))
+      body = body_lines(indexed, number, indent)
+      [_, name] = Regex.run(~r/^\s*test\s+"((?:[^"\\]|\\.)*)"/, line)
+      %{file: file, line: number, name: name, assertions: statements(body)}
+    end)
+  end
+
+  defp body_lines(indexed, start, indent) do
+    closer = ~r/^\s{#{indent}}end\b/
+
+    indexed
+    |> Enum.drop(start)
+    |> Enum.take_while(fn {line, _} -> not Regex.match?(closer, line) end)
+  end
+
+  defp statements([]), do: []
+
+  defp statements([{line, number} | rest]) do
+    if Regex.match?(~r/^\s*(assert|refute)\b/, line) do
+      {joined, rest} = balance(line, rest)
+      [%{line: number, text: squeeze(joined)} | statements(rest)]
+    else
+      statements(rest)
+    end
+  end
+
+  defp balance(acc, rest) do
+    if depth(acc) <= 0 or rest == [] do
+      {acc, rest}
+    else
+      [{line, _} | rest] = rest
+      balance(acc <> "\n" <> line, rest)
+    end
+  end
+
+  defp depth(text) do
+    opens = text |> String.graphemes() |> Enum.count(&(&1 in ["(", "[", "{"]))
+    closes = text |> String.graphemes() |> Enum.count(&(&1 in [")", "]", "}"]))
+    opens - closes
+  end
+
+  defp squeeze(text), do: text |> String.split(~r/\s+/) |> Enum.join(" ") |> String.trim()
+
+  # --- signatures -----------------------------------------------------------
+
+  defp flag(test) do
+    flagged = Enum.map(test.assertions, &flag_assertion/1)
+    s3 = Regex.run(@removal_name, test.name)
+
+    # `scanned` carries every assertion with a token for the S4 lookup;
+    # `flagged` is narrowed to S1/S2/S4 once the singletons are known.
+    Map.merge(test, %{scanned: Enum.filter(flagged, &(&1.tokens != [])), s3: s3 && hd(s3)})
+  end
+
+  defp candidate?(test), do: test.flagged != [] or test.s3 != nil
+
+  # S1, S2 and S4 read markup assertions only: `has_element?`, `element(`,
+  # or `=~` against a rendered page. A refute on a plain value is not a
+  # markup pin whatever its string looks like.
+  defp flag_assertion(assertion) do
+    strings = if markup?(assertion.text), do: string_literals(assertion.text), else: []
+    selectors = Enum.filter(strings, &selector_like?/1)
+    texts = strings -- selectors
+    refute? = String.starts_with?(assertion.text, "refute")
+    tokens = selectors |> Enum.flat_map(&tokens/1) |> Enum.uniq()
+    classes = for {:class, name} <- tokens, do: name
+    # Contract hooks (Principle 2) are not S1: a refute on them is a
+    # behaviour assertion. Ids never reach `attrs`.
+    attrs = for {:attr, name} <- tokens, not contract_hook?(name), do: name
+
+    Map.merge(assertion, %{
+      s1: refute? and texts == [] and (classes != [] or attrs != []),
+      s2: Enum.any?(classes, &Regex.match?(@utility, &1)),
+      tokens: tokens
+    })
+  end
+
+  defp contract_hook?(attr) do
+    attr in ["id", "data-component", "data-tip", "data-testid"] or
+      String.starts_with?(attr, "data-nav-") or String.starts_with?(attr, "aria-")
+  end
+
+  defp markup?(text) do
+    String.contains?(text, "has_element?(") or String.contains?(text, "element(") or
+      Regex.match?(~r/\b(html|rendered|render\([^)]*\)|render_async\([^)]*\))\s*=~/, text)
+  end
+
+  # Double-quoted and `~s` sigil literals; the interpolated ones are kept,
+  # their `#{…}` parts dropped from the token scan.
+  defp string_literals(text) do
+    sigils =
+      ~r/~s(?:\(([^)]*)\)|\|([^|]*)\||\[([^\]]*)\]|\{([^}]*)\})/
+      |> Regex.scan(text)
+      |> Enum.map(fn [_ | groups] -> Enum.find(groups, "", &(&1 != "")) end)
+
+    without_sigils = Regex.replace(~r/~s(?:\([^)]*\)|\|[^|]*\||\[[^\]]*\]|\{[^}]*\})/, text, "")
+
+    quoted =
+      ~r/"((?:[^"\\]|\\.)*)"/
+      |> Regex.scan(without_sigils)
+      |> Enum.map(fn [_, s] -> s end)
+
+    Enum.map(sigils ++ quoted, &String.replace(&1, ~r/#\{[^}]*\}/, ""))
+  end
+
+  # A selector, a markup fragment, or a bare class-like word
+  # (`progress-fill`): not something a user reads.
+  defp selector_like?(s) do
+    Regex.match?(~r/^[.#\[]/, s) or
+      Regex.match?(~r/^[a-z][a-z0-9]*[.#\[]/, s) or
+      Regex.match?(~r/^[a-z][a-z0-9]*(\s+[a-z][a-z0-9]*)*\s+[.#\[]/, s) or
+      Regex.match?(~r/(^|\s)(class|id|data-[\w-]+|phx-[\w-]+|aria-[\w-]+)=/, s) or
+      Regex.match?(~r/^<\w/, s) or
+      Regex.match?(~r/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+$/, s)
+  end
+
+  defp tokens(s) do
+    classes = ~r/\.([a-zA-Z][\w-]*)/ |> Regex.scan(s) |> Enum.map(fn [_, c] -> {:class, c} end)
+    ids = ~r/#([a-zA-Z][\w-]*)/ |> Regex.scan(s) |> Enum.map(fn [_, i] -> {:id, i} end)
+    attrs = ~r/\[([a-zA-Z][\w-]*)/ |> Regex.scan(s) |> Enum.map(fn [_, a] -> {:attr, a} end)
+
+    markup_classes =
+      ~r/class="([^"]*)"/
+      |> Regex.scan(s)
+      |> Enum.flat_map(fn [_, list] -> list |> String.split() |> Enum.map(&{:class, &1}) end)
+
+    bare = if Regex.match?(~r/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+$/, s), do: [{:class, s}], else: []
+
+    classes ++ ids ++ attrs ++ markup_classes ++ bare
+  end
+
+  # --- S4: tokens with one reader --------------------------------------------
+
+  defp resolve_singletons(tests) do
+    tokens =
+      tests
+      |> Enum.flat_map(& &1.scanned)
+      |> Enum.flat_map(& &1.tokens)
+      |> Enum.map(&elem(&1, 1))
+      |> Enum.uniq()
+      |> Enum.reject(&Regex.match?(@utility, &1))
+
+    singles =
+      tokens
+      |> Enum.filter(fn token -> line_count(token, "lib") == 1 and line_count(token, "test") == 1 end)
+      |> MapSet.new()
+
+    Enum.map(tests, fn test ->
+      flagged =
+        test.scanned
+        |> Enum.map(fn a ->
+          Map.put(a, :s4, a.tokens |> Enum.map(&elem(&1, 1)) |> Enum.filter(&MapSet.member?(singles, &1)) |> Enum.uniq())
+        end)
+        |> Enum.filter(&(&1.s1 or &1.s2 or &1.s4 != []))
+
+      Map.put(test, :flagged, flagged)
+    end)
+  end
+
+  defp line_count(token, dir) do
+    {out, _} = System.cmd("git", ["grep", "-c", "-w", "-F", "--", token, dir])
+
+    out
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line -> line |> String.split(":") |> List.last() |> String.to_integer() end)
+    |> Enum.sum()
+  end
+
+  # --- S5: the originating commit ---------------------------------------------
+
+  defp resolve_origins(candidates) do
+    blames =
+      candidates
+      |> Enum.map(& &1.file)
+      |> Enum.uniq()
+      |> Map.new(fn file -> {file, blame(file)} end)
+
+    with_sha =
+      Enum.map(candidates, fn test ->
+        line = case test.flagged do
+          [first | _] -> first.line
+          [] -> test.line
+        end
+
+        Map.put(test, :sha, Map.fetch!(blames[test.file], line))
+      end)
+
+    subjects =
+      with_sha
+      |> Enum.map(& &1.sha)
+      |> Enum.uniq()
+      |> Map.new(fn sha -> {sha, subject(sha)} end)
+
+    Enum.map(with_sha, fn test ->
+      subject = subjects[test.sha]
+      Map.merge(test, %{subject: subject, s5: Regex.match?(@removal_commit, subject)})
+    end)
+  end
+
+  defp blame(file) do
+    {out, 0} = System.cmd("git", ["blame", "--porcelain", "--", file])
+
+    out
+    |> String.split("\n")
+    |> Enum.reduce({%{}, nil}, fn line, {acc, sha} ->
+      case Regex.run(~r/^([0-9a-f]{40}) \d+ (\d+)/, line) do
+        [_, sha, number] -> {Map.put(acc, String.to_integer(number), sha), sha}
+        nil -> {acc, sha}
+      end
+    end)
+    |> elem(0)
+  end
+
+  defp subject("0000000000000000000000000000000000000000"), do: "(uncommitted)"
+
+  defp subject(sha) do
+    {out, 0} = System.cmd("git", ["show", "-s", "--format=%h %s", sha])
+    String.trim(out)
+  end
+
+  # --- output ----------------------------------------------------------------
+
+  defp print(candidates, tests, files) do
+    {head, 0} = System.cmd("git", ["rev-parse", "--short", "HEAD"])
+    IO.puts("# test-sweep — #{Date.utc_today()} at #{String.trim(head)}\n")
+
+    IO.puts(
+      "#{length(candidates)} candidates in #{candidates |> Enum.map(& &1.file) |> Enum.uniq() |> length()} files, " <>
+        "of #{tests} tests in #{files} files scanned (ADR-027 files excluded).\n"
+    )
+
+    counts = %{
+      "S1 refute-selector" => Enum.count(candidates, &Enum.any?(&1.flagged, fn a -> a.s1 end)),
+      "S2 utility-class" => Enum.count(candidates, &Enum.any?(&1.flagged, fn a -> a.s2 end)),
+      "S3 removal-name" => Enum.count(candidates, & &1.s3),
+      "S4 singleton-selector" => Enum.count(candidates, &Enum.any?(&1.flagged, fn a -> a.s4 != [] end)),
+      "S5 removal-commit" => Enum.count(candidates, & &1.s5)
+    }
+
+    for {name, count} <- Enum.sort(counts), do: IO.puts("* #{name}: #{count}")
+
+    IO.puts("\n| test | signatures | assertion | origin |")
+    IO.puts("|---|---|---|---|")
+
+    for test <- Enum.sort_by(candidates, &{-signature_count(&1), &1.file, &1.line}) do
+      IO.puts("| #{cell("#{test.file}:#{test.line}")} #{cell(test.name)} | #{signatures(test)} | #{assertion(test)} | #{cell(test.subject)} |")
+    end
+  end
+
+  defp signature_count(test) do
+    Enum.count(
+      [
+        Enum.any?(test.flagged, & &1.s1),
+        Enum.any?(test.flagged, & &1.s2),
+        test.s3,
+        Enum.any?(test.flagged, &(&1.s4 != [])),
+        test.s5
+      ],
+      & &1
+    )
+  end
+
+  defp signatures(test) do
+    singles = test.flagged |> Enum.flat_map(& &1.s4) |> Enum.uniq()
+
+    [
+      Enum.any?(test.flagged, & &1.s1) && "S1",
+      Enum.any?(test.flagged, & &1.s2) && "S2",
+      test.s3 && "S3 (#{String.downcase(test.s3)})",
+      singles != [] && "S4 (#{Enum.join(singles, ", ")})",
+      test.s5 && "S5"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(", ")
+  end
+
+  defp assertion(%{flagged: []}), do: "—"
+
+  defp assertion(%{flagged: [first | rest]}) do
+    more = if rest == [], do: "", else: " (+#{length(rest)})"
+    "`#{first.text |> String.slice(0, 110) |> escape()}`#{more}"
+  end
+
+  defp cell(text), do: text |> escape() |> String.replace("`", "'")
+  defp escape(text), do: String.replace(text, "|", "\\|")
+end
+
+TestSweep.main(System.argv())

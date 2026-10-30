@@ -153,7 +153,8 @@ Use [`template.md`](template.md) as a starter.
   `install-repro-matrix.md` Phase 8.
 
 * [`test-sweep.md`](test-sweep.md) —
-  **planning 2026-10-28.** Retire the tests that fail only if a
+  **in progress 2026-10-29; M1 done, `scripts/test-sweep` lists 360
+  candidates; next M2, the judgment pass.** Retire the tests that fail only if a
   deliberate removal is reintroduced, or that pin markup internals no
   contract names. A deterministic sweep script lists candidates by
   signature; a judgment pass bins each as delete, rewrite or keep
