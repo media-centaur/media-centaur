@@ -207,6 +207,44 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert LetterboxdLinks.enabled?() == true
     end
 
+    test "Feature flags lists one row per registry feature; a row toggles the flag", %{conn: conn} do
+      {:ok, view, html} = live_async!(conn, ~p"/settings?section=features")
+
+      for feature <- MediaCentaur.Features.all() do
+        assert html =~ feature.name
+        assert has_element?(view, "[phx-click=toggle_feature][phx-value-feature='#{feature.id}']")
+      end
+
+      refute MediaCentaur.Features.enabled?(:apps)
+      view |> element("[phx-click=toggle_feature][phx-value-feature='apps']") |> render_click()
+      assert MediaCentaur.Features.enabled?(:apps)
+      view |> element("[phx-click=toggle_feature][phx-value-feature='apps']") |> render_click()
+      refute MediaCentaur.Features.enabled?(:apps)
+    end
+
+    test "a feature's section leaves the nav while it is off, and its URL shows the off state with Turn on",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=social")
+      assert has_element?(view, "[data-nav-zone='sections'] a[href='/settings?section=social']")
+      refute has_element?(view, "#settings-social-off")
+
+      MediaCentaur.Features.set(:social, false)
+
+      render_until(view, fn _html -> has_element?(view, "#settings-social-off") end)
+      refute has_element?(view, "[data-nav-zone='sections'] a[href='/settings?section=social']")
+      assert render(view) =~ "Social is off"
+
+      view |> element("#settings-social-off-turn-on") |> render_click()
+      assert MediaCentaur.Features.enabled?(:social)
+      assert_redirect(view, "/settings?section=social")
+    end
+
+    test "every feature-tagged section names a registered feature", %{conn: _conn} do
+      for %{feature: id} <- MediaCentaurWeb.SettingsLive.sections(), is_atom(id) do
+        assert MediaCentaur.Features.get(id), "section names unregistered feature #{inspect(id)}"
+      end
+    end
+
     # Personal display preferences live together — this toggle moved here
     # from the Library section's one-row Display card.
     test "toggling poster titles persists the flag from Preferences", %{conn: conn} do

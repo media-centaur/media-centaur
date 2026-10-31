@@ -48,6 +48,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.IntegrationHealth
   alias MediaCentaurWeb.SettingsLive.ConnectionState
+  alias MediaCentaurWeb.SettingsLive.FeatureFlags
+  alias MediaCentaurWeb.SettingsLive.SectionsLogic
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Watcher
   alias MediaCentaurWeb.Live.Subscriptions
@@ -114,6 +118,13 @@ defmodule MediaCentaurWeb.SettingsLive do
       description: "How the app looks and behaves for you."
     },
     %{
+      id: "features",
+      label: "Feature flags",
+      group: :general,
+      description:
+        "Optional parts of the app. A feature that is off has no page, no settings, and runs nothing."
+    },
+    %{
       id: "profiles",
       label: "Profiles",
       group: :general,
@@ -121,10 +132,12 @@ defmodule MediaCentaurWeb.SettingsLive do
         "Who watches on this install. With more than one, each person picks theirs on the Who's watching? screen."
     },
     %{id: "controls", label: "Controls", group: :general, description: "Keyboard and gamepad bindings."},
+    # Feature-gated (ADR-081): listed, and drawn, while the feature is on.
     %{
       id: "players",
       label: "Players",
       group: :general,
+      feature: :players,
       description: "The TVs and other devices on your network that are paired with this install."
     },
     # Media workflow — the arr stack. (Release tracking's refresh interval
@@ -146,6 +159,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       id: "social",
       label: "Social",
       group: :media,
+      feature: :social,
       description:
         "Your social profile and identity, the relays your activity travels over, and what you share. Friends are managed on the Social page."
     },
@@ -354,8 +368,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> assign(active_section: section)
       |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
-      |> load_social(section)
-      |> load_players(section)
+      |> load_section(section)
       |> open_media_dir_dialog(MediaDirsLogic.new_entry())
 
     {:noreply, socket}
@@ -371,10 +384,19 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> assign(active_section: section)
       |> refresh_update_labels(section)
       |> assign_update_snapshot(section)
-      |> load_social(section)
-      |> load_players(section)
+      |> load_section(section)
 
     {:noreply, socket}
+  end
+
+  # A section hidden by its feature (ADR-081) is drawn as the feature's off
+  # state and reads nothing; a visible one loads what it alone shows.
+  defp load_section(socket, section) do
+    if SectionsLogic.hidden_feature(@sections, section, socket.assigns.features) do
+      socket
+    else
+      socket |> load_social(section) |> load_players(section)
+    end
   end
 
   # The Players section's reads: the paired players, the open pairing code,
@@ -967,6 +989,19 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.letterboxd_links
     MediaCentaur.Settings.Preferences.LetterboxdLinks.set(enabled)
     {:noreply, assign(socket, letterboxd_links: enabled)}
+  end
+
+  # The Feature flags section (ADR-081). The row reads `:features`, which
+  # `Live.FeaturesAware` re-assigns on the flag's broadcast.
+  def handle_event("toggle_feature", %{"feature" => id}, socket) do
+    case Features.find(id) do
+      nil ->
+        {:noreply, socket}
+
+      feature ->
+        Features.set(feature.id, feature.id not in socket.assigns.features)
+        {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_spoiler_free", _params, socket) do
@@ -2027,6 +2062,15 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   @impl true
   def render(assigns) do
+    # The feature hiding the open section, if any (ADR-081): read here, so a
+    # flag flipped while the page is open redraws it.
+    assigns =
+      assign(
+        assigns,
+        :hidden_feature,
+        SectionsLogic.hidden_feature(@sections, assigns.active_section, assigns.features)
+      )
+
     ~H"""
     <Layouts.app
       profile={@profile}
@@ -2095,7 +2139,12 @@ defmodule MediaCentaurWeb.SettingsLive do
               data-nav-zone="sections"
               class="w-40 shrink-0 sticky top-6 self-start flex flex-col gap-0.5"
             >
-              <div :for={{group, index} <- Enum.with_index(Enum.chunk_by(@sections, & &1.group))}>
+              <div :for={
+                {group, index} <-
+                  Enum.with_index(
+                    Enum.chunk_by(SectionsLogic.visible(@sections, @features), & &1.group)
+                  )
+              }>
                 <div :if={index > 0} class="my-2 mx-3 h-px bg-base-content/10"></div>
                 <.link
                   :for={section <- group}
@@ -2122,7 +2171,13 @@ defmodule MediaCentaurWeb.SettingsLive do
                   {section_meta(@active_section).description}
                 </p>
               </div>
+              <FeatureOff.feature_off
+                :if={@hidden_feature}
+                id={"settings-#{@active_section}-off"}
+                feature={@hidden_feature}
+              />
               <.section_content
+                :if={!@hidden_feature}
                 active_section={@active_section}
                 player={@player}
                 identity_npub={@identity_npub}
@@ -2308,6 +2363,12 @@ defmodule MediaCentaurWeb.SettingsLive do
       finish_prompt={@finish_prompt}
       letterboxd_links={@letterboxd_links}
     />
+    """
+  end
+
+  defp section_content(%{active_section: "features"} = assigns) do
+    ~H"""
+    <FeatureFlags.render features={@features} />
     """
   end
 
