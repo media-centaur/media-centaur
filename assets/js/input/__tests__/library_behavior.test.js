@@ -64,8 +64,8 @@ describe("Library behavior", () => {
   // on zone change fights the reveal glide already in flight: the jump reads
   // as a jerk, and the glide's surviving target then drags the page back down,
   // scrolling the toolbar and cursor off the top. The toolbar's resting place
-  // is declared on its markup (`data-nav-reveal-block="start"` + a page-top
-  // scroll-margin) so revealItem glides there — the single scroll owner.
+  // is revealItem's — a zone's first line rests at the scroller's start — so
+  // the glide lands there, from the single scroll owner.
   test("does not scroll the window when focus reaches the toolbar — the reveal owns the scroll", () => {
     const dom = mockDom()
     const behavior = createLibraryBehavior(dom)

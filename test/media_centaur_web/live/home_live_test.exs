@@ -49,6 +49,29 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching"
   end
 
+  test "each shelf's section is its reveal subject and shows the shelf below it",
+       %{conn: conn} do
+    # Descending to a shelf shows the shelf below it. `data-nav-reveal-next`
+    # has assets/js/input/core/dom_adapter.js measure that shelf where it is;
+    # the fixed reserve it replaced was sized to the Coming Up marquee, so with
+    # Recently Added last the page overshot and then came back up. The section
+    # as `data-nav-reveal` subject keeps the heading in view without a guessed
+    # scroll-margin. No JS test can see this template, so the attributes are
+    # pinned here.
+    movie = create_standalone_movie(%{name: "Sample Movie"})
+    _ = create_linked_file(%{movie_id: movie.id})
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+    {:ok, view, _html} = live_async!(conn, "/")
+
+    for zone <- ["continue", "recently"] do
+      assert has_element?(
+               view,
+               "section[data-nav-zone='#{zone}'][data-nav-reveal][data-nav-reveal-next]"
+             )
+    end
+  end
+
   test "the Continue Watching shelf is the session's profile's", %{conn: conn} do
     ana = create_profile(%{name: "Ana"})
     hers = create_standalone_movie(%{name: "Hers Only"})

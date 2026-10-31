@@ -373,8 +373,9 @@ layer out.
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from — grounding the user before the new items get walked | — |
-| `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item (hero: show the whole backdrop, not just the CTA) | — |
+| `data-nav-reveal` | The vertical reveal subject: scroll THIS ancestor into view instead of the focused item (hero: the whole backdrop, not just the CTA; a home shelf: its section, heading included). Sideways the item still reveals itself | — |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
+| `data-nav-reveal-next` | On a zone container: a reveal in this zone also shows the next zone (home: descending to a shelf shows the shelf below), unless that would push the focused item off screen | — |
 | `data-nav-enter-scroll-top` | On a zone container: a spatial crossing into the zone glides its nearest scrollable ancestor to the top. For pinned zones, where reveal is rightly a no-op (detail action row: climbing out of the episode list brings the hero back). BACK and post-patch restores don't move the scroll | — |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
@@ -505,12 +506,16 @@ the property intercepts direct `scrollLeft`/`scrollTop` assignment too, so it
 would launch a competing browser animation on each of the glide's per-frame
 writes.
 
-**Reveal the right subject.** `revealItem` scrolls the nearest
-`[data-nav-reveal]` ancestor when there is one, else the item itself. The home
-hero uses it: its CTAs sit low in a full-bleed backdrop, so revealing a button
-alone parks it at the viewport's bottom edge with the title and artwork
-stranded above. This replaced a page behavior that scrolled the window
-separately and raced the reveal for the same scroll box.
+**Reveal the right subject.** Vertically, `revealItem` scrolls the nearest
+`[data-nav-reveal]` ancestor when there is one, else the item itself.
+Sideways, the item always reveals itself, so a row scrolls to the focused card
+whatever the vertical subject is. The home hero uses it: its CTAs sit low in a
+full-bleed backdrop, so revealing a button alone parks it at the viewport's
+bottom edge with the title and artwork stranded above. This replaced a page
+behavior that scrolled the window separately and raced the reveal for the same
+scroll box. Each home shelf declares its section, so the reveal shows the
+heading with the row; a `scroll-margin-top` sized to the heading used to stand
+in for it.
 
 The default — frame the item — is right only while every item in the surface
 shares a bottom edge. Rows satisfy that by construction. A surface whose items
@@ -528,22 +533,45 @@ different place depending on whether it was approached from above or below.
 `data-nav-reveal-block` states the alignment instead; the home shelves use
 `"end"`, which is why descending to a shelf and ascending to it land on the
 same offset. It is a preference, not a promise: if honouring it would push the
-focused item off the opposite edge — possible at large UI scales, where a
-reserve can outgrow the viewport — the reveal falls back to a minimal one,
+focused item off the opposite edge — possible at large UI scales, where the
+subject can outgrow the viewport — the reveal falls back to a minimal one,
 because keeping the item on screen beats framing it.
+
+**Show the next zone when the layout looks ahead.** A home shelf rests with
+the shelf below it in view. A zone declaring `data-nav-reveal-next` puts the
+next zone's subject (its first item, or that item's `[data-nav-reveal]`
+ancestor) aligned to the scrollport end first among the vertical
+destinations. The next zone's own row is rewound, so only the focused item's
+scrollers glide. This replaced a fixed
+`scroll-margin-bottom` reserve sized to the tallest shelf, the Coming Up
+marquee: with a shorter shelf below, Continue Watching overshot, and the last
+shelf, reserving nothing, then pulled the page back up. Measuring the next
+zone gives every shelf the same resting position as the shelf below it when
+that shelf is last.
+
+**One ordered list of vertical destinations.** The next zone, then the
+declared alignment, then the least scrolling: each is tried in turn from the
+same sideways offsets, and the first that keeps the focused item whole on
+screen wins; the last is kept regardless. A new vertical preference joins the
+list rather than adding its own try-check-undo.
 
 **The first line reveals the scroller's start.** `"nearest"` aligns the
 first row's leading edge to the scrollport's, which hides whatever stands
 above it — the library's title and toolbar — by exactly their own height, so
 UP onto the first row never brought the page back to its top. An item on the
-first line of its zone (its leading edge is the zone's first item's: the
-first row of a grid or tree, the first tile of a row) offers the scroller's
+first line of its zone (it overlaps the zone's first item along the axis: the
+first row of a grid or tree, the first tile of a row, every control of a
+toolbar whose controls differ in height) offers the scroller's
 start as the destination instead, on each axis the box scrolls, and it is
 kept only when the start shows the item whole — the same test the declared
 alignment passes (`withinScrollport`), measured the same way (jump, read,
 rewind). A declared alignment keeps precedence. A single-line zone is its
 own first line, so a shelf in the first screenful reveals the page head with
-it; the home shelves declare `"end"` and are unaffected.
+it; the home shelves declare `"end"` and are unaffected. The library toolbar
+relies on this rule alone: it used to declare `start` plus a
+`scroll-margin-top: 100vh` the browser clamped to the page top, a second
+mechanism for the same resting position. A toolbar wrapped onto two lines
+gets the least scrolling on its second line.
 
 **How the destination is computed.** `revealItem` scrolls instantly, reads
 where that landed, restores the offsets, and glides to the recorded target.

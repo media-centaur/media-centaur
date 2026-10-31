@@ -124,9 +124,11 @@ function revealItem(element, glider) {
   element.focus({ preventScroll: true })
 
   // What to show is not always the item itself. A `[data-nav-reveal]` ancestor
-  // claims the reveal for a larger region — the home hero's Play button sits
-  // low in a full-bleed backdrop, so revealing the button alone would park it
-  // at the bottom edge with the title and artwork above it off-screen.
+  // claims the vertical reveal for a larger region — the home hero's Play
+  // button sits low in a full-bleed backdrop, so revealing the button alone
+  // would park it at the bottom edge with the title and artwork above it
+  // off-screen; a home shelf's section carries its heading. Sideways, the item
+  // itself is always what must show: a row brings the focused card into view.
   const subject = element.closest?.("[data-nav-reveal]") ?? element
 
   // "nearest" scrolls as little as possible, which means it aligns to whichever
@@ -141,24 +143,41 @@ function revealItem(element, glider) {
   // cannot put back.
   if (boxes.length === 0) return
 
-  const before = boxes.map(box => [box.scrollLeft, box.scrollTop])
-  const rewind = () => boxes.forEach((box, i) => {
-    box.scrollLeft = before[i][0]
-    box.scrollTop = before[i][1]
-  })
+  // A zone declaring `data-nav-reveal-next` also shows the zone after it: a
+  // home shelf rests with the shelf below in view. Revealing that zone's own
+  // subject measures the room it needs; a fixed reserve sized to one shelf
+  // was wrong for every other shelf that could follow.
+  const next = nextZoneSubject(element)
+  // Revealing it also scrolls its own row, which must be put back as found.
+  const recorded = next ? [...new Set([...boxes, ...scrollableAncestors(next)])] : boxes
 
-  subject.scrollIntoView({ block: declared ?? "nearest", inline: "nearest", behavior: "instant" })
+  const before = offsetsOf(recorded)
 
-  // The declared alignment is a preference, not a promise. A shelf's reserve
-  // can outgrow the viewport at large UI scales, and honouring the alignment
-  // then pushes the focused item off the opposite edge — worse than not framing
-  // it. Keeping the item on screen wins.
-  if (declared && !withinScrollport(element, document.scrollingElement, "block")) {
-    rewind()
-    subject.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+  // Sideways from the item; the vertical offsets go back for the subject. A
+  // destination that is the item reveals it sideways itself, so the pass runs
+  // only when some destination is not.
+  if (subject !== element || next) {
+    element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+    recorded.forEach((box, i) => { box.scrollTop = before[i][1] })
+  }
+  const sideways = offsetsOf(recorded)
+
+  // Vertical destinations in order of preference. Every one but the last is a
+  // preference, not a promise: it is kept only while the focused item stays
+  // whole on screen. A declared alignment can push the item off the opposite
+  // edge at large UI scales, and so can showing the next zone.
+  const destinations = [
+    next && { target: next, block: "end" },
+    declared && { target: subject, block: declared },
+    { target: subject, block: "nearest" },
+  ].filter(Boolean)
+  for (const [i, { target, block }] of destinations.entries()) {
+    restoreOffsets(recorded, sideways)
+    target.scrollIntoView({ block, inline: "nearest", behavior: "instant" })
+    if (i === destinations.length - 1 || withinScrollport(element, document.scrollingElement, "block")) break
   }
 
-  const after = boxes.map(box => [box.scrollLeft, box.scrollTop])
+  const after = offsetsOf(boxes)
 
   // The scroller's start is a resting position of its own. "nearest" aligns
   // the first row's leading edge to the scrollport's, hiding whatever stands
@@ -166,7 +185,7 @@ function revealItem(element, glider) {
   // so UP onto the first row never brought the page back to its top. An item
   // on the first line of its zone offers the start instead, measured the same
   // way (jump, read, keep only if the item shows whole) per box and axis.
-  if (!declared) {
+  if (!declared && !next) {
     boxes.forEach((box, i) => {
       for (const axis of scrolledAxes(box)) {
         if (!onFirstLine(element, axis)) continue
@@ -178,8 +197,21 @@ function revealItem(element, glider) {
     })
   }
 
-  rewind()
+  restoreOffsets(recorded, before)
   boxes.forEach((box, i) => glider.glide(box, { left: after[i][0], top: after[i][1] }))
+}
+
+/** Each box's [scrollLeft, scrollTop]. */
+function offsetsOf(boxes) {
+  return boxes.map(box => [box.scrollLeft, box.scrollTop])
+}
+
+/** Put each box back to offsets read by `offsetsOf`. */
+function restoreOffsets(boxes, offsets) {
+  boxes.forEach((box, i) => {
+    box.scrollLeft = offsets[i][0]
+    box.scrollTop = offsets[i][1]
+  })
 }
 
 /**
@@ -199,6 +231,18 @@ function withinScrollport(element, box, axis) {
   return rect[start] >= from && rect[end] <= from + extent
 }
 
+/**
+ * What to reveal of the zone after the element's `[data-nav-reveal-next]`
+ * zone: its first item, or that item's `[data-nav-reveal]` ancestor. Null when
+ * the element's zone does not declare it or no zone follows.
+ */
+function nextZoneSubject(element) {
+  let zone = element.closest?.("[data-nav-reveal-next]")?.nextElementSibling
+  while (zone && !zone.matches("[data-nav-zone]")) zone = zone.nextElementSibling
+  const first = zone?.querySelector("[data-nav-item]")
+  return first ? (first.closest("[data-nav-reveal]") ?? first) : null
+}
+
 /** The axes a box can scroll along: "block" and/or "inline". */
 function scrolledAxes(box) {
   const axes = []
@@ -208,15 +252,19 @@ function scrolledAxes(box) {
 }
 
 /**
- * Whether the element shares its leading edge along the axis with the first
- * item of its zone — the first row of a grid or tree, the first tile of a
- * row. An item outside any zone is on no first line.
+ * Whether the element shares a line with the first item of its zone along the
+ * axis — the first row of a grid or tree, the first tile of a row. Sharing a
+ * line is overlapping along the axis, not sharing an edge: controls of
+ * different heights centred on one line (the library toolbar) have different
+ * top edges. An item outside any zone is on no first line.
  */
 function onFirstLine(element, axis) {
   const first = element.closest?.("[data-nav-zone]")?.querySelector("[data-nav-item]")
   if (!first) return false
-  const edge = axis === "block" ? "top" : "left"
-  return Math.abs(first.getBoundingClientRect()[edge] - element.getBoundingClientRect()[edge]) < 1
+  const [start, end] = axis === "block" ? ["top", "bottom"] : ["left", "right"]
+  const line = first.getBoundingClientRect()
+  const rect = element.getBoundingClientRect()
+  return rect[start] < line[end] && rect[end] > line[start]
 }
 
 /**

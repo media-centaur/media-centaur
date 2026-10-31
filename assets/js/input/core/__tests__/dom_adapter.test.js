@@ -533,7 +533,8 @@ describe("reveal — a single owner for making the focused item visible", () => 
   // below parks it at the bottom of the viewport with the title and artwork
   // above it off-screen. `data-nav-reveal` on an ancestor says "show this
   // instead", so the reveal is still one mechanism rather than a page behavior
-  // racing it with a second scroll of the same box.
+  // racing it with a second scroll of the same box. The region answers the
+  // vertical question only: sideways, the item is what the row must show.
   test("reveal targets the nearest [data-nav-reveal] ancestor when there is one", () => {
     const writer = writerWithFakeGlide()
     const section = { ...fakeGridItem("hero-section"), scrolledWith: undefined }
@@ -548,7 +549,6 @@ describe("reveal — a single owner for making the focused item visible", () => 
     expect(section.scrolledWith).toEqual({
       block: "nearest", inline: "nearest", behavior: "instant",
     })
-    expect(item.scrolledWith).toBeUndefined()
   })
 
   // The scroller's start is a resting position of its own. "nearest" aligns
@@ -614,6 +614,21 @@ describe("reveal — a single owner for making the focused item visible", () => 
       expect(root.scrollTop).toBe(40)
     })
 
+    // Controls of different heights centred on one line have different top
+    // edges — the library toolbar's search field sits 3 px above its tabs.
+    // Sharing a line is overlapping along the axis, not sharing an edge.
+    test("an item centred beside a taller first item is on the first line", () => {
+      const writer = writerWithFakeGlide()
+      const first = placed("tab", { top: 68, left: 0, height: 30 })
+      const item = placed("search", { top: 71, left: 200, height: 24 })
+      zoneOf(first, item)
+      stubScrolledPage()
+
+      writer.focusElement(item)
+
+      expect(glided).toEqual([{ box: root, target: { left: 120, top: 0 } }])
+    })
+
     test("the first row keeps the nearest destination when the top would not show it whole", () => {
       const writer = writerWithFakeGlide()
       const first = placed("a", { top: 68, left: 0 })
@@ -671,6 +686,153 @@ describe("reveal — a single owner for making the focused item visible", () => 
 
       expect(item.scrolledWith.block).toBe("end")
       expect(glided).toEqual([{ box: root, target: { left: 120, top: 40 } }])
+    })
+  })
+
+  // Descending to a home shelf shows the shelf below it. That room used to be
+  // a fixed scroll-margin sized to the tallest shelf (the Coming Up marquee),
+  // so with a shorter shelf below, Continue Watching overshot, and the cursor
+  // arriving on Recently Added — the last shelf — pulled the page back up.
+  // `data-nav-reveal-next` on a zone reveals the next zone's own subject
+  // instead: measured, never estimated.
+  describe("data-nav-reveal-next shows the zone after the focused one", () => {
+    let realComputed
+    beforeEach(() => {
+      realComputed = globalThis.getComputedStyle
+      globalThis.getComputedStyle = node => node.__style ?? { position: "static", overflowX: "visible", overflowY: "visible" }
+    })
+    afterEach(() => { globalThis.getComputedStyle = realComputed })
+
+    // A page that scrolls vertically, `clientHeight` tall. Its items' rects
+    // follow the page's scrollTop, and scrollIntoView really moves it, so the
+    // glide target is what the browser would have computed.
+    function stubPage(clientHeight) {
+      stubScrollingDocument([], { clientHeight })
+      Object.assign(root, { scrollTop: 0, scrollLeft: 0, scrollHeight: 5000, clientHeight, scrollWidth: 1800, clientWidth: 1800 })
+      globalThis.document.documentElement.clientWidth = 1800
+    }
+
+    // A card `height` tall at content offset `top`, optionally in a
+    // horizontal row whose scrollLeft "nearest" resets to show it.
+    function card(label, top, height, { row = null } = {}) {
+      const item = fakeGridItem(label)
+      item.parentElement = row
+      item.closest = (selector) => {
+        if (selector === "[data-nav-reveal-block]") return { dataset: { navRevealBlock: "end" } }
+        if (selector === "[data-nav-reveal-next]") return item.zone?.revealNext ? item.zone : null
+        if (selector === "[data-nav-zone]") return item.zone ?? null
+        return null
+      }
+      item.getBoundingClientRect = () => {
+        const y = top - globalThis.document.scrollingElement.scrollTop
+        return { x: 0, y, top: y, left: 0, width: 100, height, right: 100, bottom: y + height }
+      }
+      item.scrollIntoView = (options) => {
+        item.scrolledWith = options
+        const page = globalThis.document.scrollingElement
+        const viewport = page.clientHeight
+        const clamp = (offset) => Math.max(0, Math.min(offset, page.scrollHeight - viewport))
+        if (options.block === "end") page.scrollTop = clamp(top + height - viewport)
+        else if (top < page.scrollTop) page.scrollTop = clamp(top)
+        else if (top + height > page.scrollTop + viewport) page.scrollTop = clamp(top + height - viewport)
+        if (row) row.scrollLeft = 0
+      }
+      return item
+    }
+
+    // Zones in document order, each holding its cards.
+    function zones(...members) {
+      const built = members.map(({ items, revealNext = false }) => ({
+        revealNext,
+        matches: (selector) => selector === "[data-nav-zone]",
+        querySelector: (selector) => (selector === "[data-nav-item]" ? items[0] : null),
+      }))
+      built.forEach((zone, i) => {
+        zone.nextElementSibling = built[i + 1] ?? null
+        members[i].items.forEach(item => { item.zone = zone })
+      })
+    }
+
+    function horizontalRow(scrollLeft) {
+      return {
+        scrollLeft, scrollTop: 0, scrollWidth: 5000, clientWidth: 1800, scrollHeight: 225, clientHeight: 225,
+        parentElement: null,
+        __style: { position: "static", overflowX: "auto", overflowY: "hidden" },
+      }
+    }
+
+    test("a shelf rests where the shelf below it, the last, rests too", () => {
+      const continueCard = card("continue", 400, 225)
+      const recentlyCard = card("recently", 700, 225)
+      zones({ items: [continueCard], revealNext: true }, { items: [recentlyCard] })
+      stubPage(800)
+
+      writerWithFakeGlide().focusElement(continueCard)
+      const continueRest = glided[0].target.top
+      writerWithFakeGlide().focusElement(recentlyCard)
+      const recentlyRest = glided[0].target.top
+
+      expect(continueRest).toBe(125)
+      expect(recentlyRest).toBe(125)
+      expect(root.scrollTop).toBe(0)
+    })
+
+    test("the next zone is not shown when that would push the focused item off screen", () => {
+      const continueCard = card("continue", 400, 225)
+      const recentlyCard = card("recently", 700, 225)
+      zones({ items: [continueCard], revealNext: true }, { items: [recentlyCard] })
+      stubPage(300)
+
+      writerWithFakeGlide().focusElement(continueCard)
+
+      expect(glided).toEqual([{ box: root, target: { left: 0, top: 325 } }])
+    })
+
+    test("the next zone's row keeps its horizontal offset", () => {
+      const row = horizontalRow(500)
+      const continueCard = card("continue", 400, 225)
+      const recentlyCard = card("recently", 700, 225, { row })
+      zones({ items: [continueCard], revealNext: true }, { items: [recentlyCard] })
+      stubPage(800)
+
+      writerWithFakeGlide().focusElement(continueCard)
+
+      expect(row.scrollLeft).toBe(500)
+      expect(glided.map(({ box }) => box)).toEqual([root])
+    })
+
+    // A shelf's vertical subject is its section — heading included — so no
+    // scroll-margin has to guess the heading's height. Sideways, the row still
+    // brings the focused card into view.
+    test("a section subject sets the page; the item sets its row", () => {
+      const row = horizontalRow(900)
+      const item = card("tile", 440, 225, { row })
+      const section = card("section", 400, 277)
+      item.closest = (selector) => {
+        if (selector === "[data-nav-reveal]") return section
+        if (selector === "[data-nav-reveal-block]") return { dataset: { navRevealBlock: "end" } }
+        return null
+      }
+      stubPage(500)
+
+      writerWithFakeGlide().focusElement(item)
+
+      expect(section.scrolledWith.block).toBe("end")
+      expect(glided).toEqual([
+        { box: row, target: { left: 0, top: 0 } },
+        { box: root, target: { left: 0, top: 177 } },
+      ])
+      expect(row.scrollLeft).toBe(900)
+    })
+
+    test("a zone without a zone after it reveals as declared", () => {
+      const continueCard = card("continue", 400, 225)
+      zones({ items: [continueCard], revealNext: true })
+      stubPage(500)
+
+      writerWithFakeGlide().focusElement(continueCard)
+
+      expect(glided).toEqual([{ box: root, target: { left: 0, top: 125 } }])
     })
   })
 })

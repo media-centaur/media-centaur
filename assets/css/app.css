@@ -1868,8 +1868,6 @@ body:has(.modal-backdrop[data-state="open"]) {
    pair, and an inline scroll-margin here would additionally offset their
    snap positions. */
 :root {
-  /* Named because the home shelves have to add it to their own reserve — see
-     --shelf-reserve-below. Two consumers, one number. */
   --nav-ring-reserve: 1rem;
 }
 
@@ -1878,18 +1876,6 @@ body:has(.modal-backdrop[data-state="open"]) {
 [data-nav-focus-ring],
 [data-nav-reveal] {
   scroll-margin-block: var(--nav-ring-reserve);
-}
-
-/* A reveal subject whose resting place is the very top of the PAGE, not its
-   own top edge — the library toolbar sits below the page header, and cursoring
-   up into it should show the header too. Pair with
-   `data-nav-reveal-block="start"`: the oversized margin makes the requested
-   scroll position negative, which the browser clamps to 0, so the reveal
-   glide lands at the document top. This is destination-by-declaration — the
-   alternative, a page behavior calling scrollTo, is an instant jump that
-   fights the reveal glide already in flight. */
-.nav-reveal-page-top {
-  scroll-margin-top: 100vh;
 }
 
 /* Pre-set the ring color on UNfocused items too. Tailwind v4's
@@ -2380,11 +2366,6 @@ body:has(.modal-backdrop[data-state="open"]) {
 :root {
   --card-poster-w: 150px;
   --card-backdrop-w: 400px;
-  /* Coming Up marquee height. Lives here rather than inline in the component
-     because the shelf framing below has to know it: the reserve under a shelf
-     is sized to fully reveal the shelf beneath it, and the marquee is the
-     tallest one. One number, two consumers. */
-  --marquee-h: 360px;
 }
 
 /* ── Horizontally scrolling rows ──
@@ -2574,58 +2555,6 @@ body:has(.modal-backdrop[data-state="open"]) {
    wrong, which beats silently inheriting somebody else's size. */
 .row-scroll > * {
   flex: 0 0 var(--card-w);
-}
-
-/* Shelf framing — how much of the page moves when the cursor changes rows.
-
-   The rule: **descending to a shelf scrolls far enough to fully reveal the
-   shelf below it.** Not a per-step pixel amount — that would drift out of
-   alignment the moment a card size or row header changed, and it has no
-   relationship to what is actually down there.
-
-   `scroll-margin` states the rule directly. A shelf's cards reserve space
-   beneath themselves for scrolling purposes only, so "bring this card into
-   view" can no longer be satisfied by the card merely being on screen: the row
-   must lift far enough to expose the reserve, and the next shelf is what
-   occupies it. Nobody computes a distance; the reveal falls out of geometry.
-
-   The reserve is therefore sized as *one whole shelf* — the tallest one, the
-   marquee — plus the row heading above it and the gap between sections
-   (measured: 28px + 12px + 40px = 5rem), plus `--nav-ring-reserve`. That last
-   term is what makes the descent land cleanly: without it the next shelf is
-   revealed flush to the scrollport edge, so focusing it immediately scrolls
-   again by the ring reserve above. Including it up front means arriving at a
-   shelf costs no further movement. Sizing all of this from the tokens rather
-   than a round number is what keeps it true when the marquee is resized.
-
-   The top reserve is smaller and does a different job: it keeps a row's
-   heading (and a little air) on screen when the cursor arrives from below,
-   which bare `scrollIntoView` would clip.
-
-   UI SCALE: these are `rem`/`px` lengths on purpose. The shell scales with
-   `zoom` (see --ui-scale), which multiplies every rendered length — so the
-   reserve and the shelf it is sized to reveal grow together and the rule holds
-   at every scale. Never express this in `vh`: under `zoom` a bare `Nvh`
-   renders at N × scale (the trap `--pvh` exists for), which would make the
-   reserve balloon relative to its shelf as the user scales up. */
-.home-shelf {
-  --shelf-reserve-above: 4rem;
-  --shelf-reserve-below: calc(var(--marquee-h) + 5rem + var(--nav-ring-reserve));
-}
-
-.home-shelf [data-nav-item] {
-  scroll-margin-top: var(--shelf-reserve-above);
-}
-
-/* Only a shelf that HAS a shelf beneath it reserves room — the reserve is
-   room for the next shelf, and the last one has no next shelf. Given it one
-   anyway and it still demands the space, finds none, and saturates against
-   the page bottom: descending onto the final shelf dragged the page down the
-   last few pixels of its padding for no gain, since everything below was
-   already on screen. `:has(~ .home-shelf)` states the condition directly and
-   keeps holding when a shelf renders empty and drops out. */
-.home-shelf:has(~ .home-shelf) [data-nav-item] {
-  scroll-margin-bottom: var(--shelf-reserve-below);
 }
 
 /* 16:9 backdrop row — Continue Watching. A slightly bigger gap keeps the

@@ -7,9 +7,9 @@
  * - BACK navigates to the sidebar
  *
  * Deliberately no scrolling here. The toolbar's resting place (page top,
- * header included) is declared on its markup via `data-nav-reveal-block`
- * plus a page-top scroll-margin, so `revealItem` glides there — an instant
- * window scroll from a behavior fights the glide already in flight.
+ * header included) is `revealItem`'s: its controls are the first line of
+ * their zone, which rests at the scroller's start — an instant window scroll
+ * from a behavior fights the glide already in flight.
  *
  * All external dependencies are injected via the `dom` parameter,
  * following the same DI pattern as the orchestrator itself.
