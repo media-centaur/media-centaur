@@ -83,7 +83,7 @@ This repository uses **git** directly.
 mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:2160 via the dev TOML; bare fallback 1080)
 mix test               # run tests
-mix precommit          # compile + format + credo + boundaries + deps.audit + sobelow + test
+mix precommit          # compile + format + credo + boundaries + test-sweep + hex.audit + sobelow + test
 mix seed.review        # populate review UI test cases (one-shot, idempotent)
 ```
 
@@ -150,7 +150,7 @@ First-time install on a new machine uses the public installer (`curl … install
 
 ## Static Analysis
 
-`mix precommit` runs format (with the **Quokka** plugin auto-rewriting many Credo violations), `credo --strict`, JS dependency-cruiser via `mix boundaries`, `scripts/test-sweep check` (tests whose assertions look like they pin a removal or a markup detail, against the owner's keeps in `test/sweep-keeps.md`; see the `automated-testing` skill), `deps.audit`, `sobelow`, and `test`. Tool configs: `.credo.exs`, `.sobelow-conf`, `.formatter.exs`, `.dependency-cruiser.cjs`. Each tuned/disabled check carries a comment explaining why.
+`mix precommit` runs format (with the **Quokka** plugin auto-rewriting many Credo violations), `credo --strict`, JS dependency-cruiser via `mix boundaries`, `scripts/test-sweep check` (tests whose assertions look like they pin a removal or a markup detail, against the owner's keeps in `test/sweep-keeps.md`; see the `automated-testing` skill), `hex.audit` (Hex's own advisory feed against `mix.lock`; the `mix_audit` mirror lagged it by two weeks), `sobelow`, `bun audit` on the Playwright dependencies under `test/e2e`, and `test`. Tool configs: `.credo.exs`, `.sobelow-conf`, `.formatter.exs`, `.dependency-cruiser.cjs`. Each tuned/disabled check carries a comment explaining why.
 
 **Custom Credo checks** live in `credo_checks/` — each `.ex` file's moduledoc explains its rule. **Boundary** is enforced as a Mix compiler — read each context's `use Boundary, deps: [...]` declaration as the canonical inter-context dependency list (see [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md)).
 

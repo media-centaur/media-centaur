@@ -21,7 +21,7 @@ raw badge/button classes, typed component attrs, storybook coverage, typed-event
 chokepoints, destructive file queries, `on_exit` DB access, markup-substring
 assertions, Repo setup in tests, owned async in web, platform branching, native
 confirm dialogs, artwork width, and more), Boundary as a Mix compiler, dependency-
-cruiser for `assets/js`, `deps.audit`, `sobelow`, and the Elixir + bun suites. Assume
+cruiser for `assets/js`, the test sweep, `hex.audit`, `sobelow`, `bun audit`, and the Elixir + bun suites. Assume
 it is green. A finding that a Credo check or Boundary would catch is not a finding;
 if you believe a mechanical rule is missing, propose a new Credo check (the house
 preference is code-as-spec over prose).

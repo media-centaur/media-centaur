@@ -122,7 +122,7 @@ defmodule MediaCentaur.MixProject do
       {:bitcoinex, "~> 0.3"},
       # bitcoinex 0.3.0 still requires `decimal ~> 1.0 or ~> 2.0`, and every
       # decimal < 3.0.0 carries GHSA-rhv4-8758-jx7v (unbounded exponent in
-      # `Decimal.new`), which `mix deps.audit` fails on. bitcoinex touches
+      # `Decimal.new`), a dependency audit failure. bitcoinex touches
       # Decimal only in `LightningNetwork.Invoice` (mult/round/equal?/
       # to_integer/from_float — all unchanged in 3.x) and we never call it, so
       # we override to the patched line instead of pinning a vulnerable dep.
@@ -138,7 +138,6 @@ defmodule MediaCentaur.MixProject do
       {:credo_envvar, "~> 0.1", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.13", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.15", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:boundary, "~> 0.10", runtime: false},
       {:benchee, "~> 1.5", only: [:dev, :test], runtime: false}
     ]
@@ -177,16 +176,16 @@ defmodule MediaCentaur.MixProject do
         # Tests whose assertions pin a removal or a markup detail, against
         # the owner's recorded keeps in test/sweep-keeps.md.
         "cmd scripts/test-sweep check",
-        # GHSA-52mm-h59v-f3c7 is stored XSS in earmark's HTML *render* path
-        # (Earmark.Transform). We never render: GuideMarkdown calls
-        # Earmark.Parser.as_ast and emits HEEx (Phoenix auto-escapes), and the
-        # only markdown is trusted, repo-authored guide content — no untrusted
-        # input reaches it. earmark is retired with no patched version, and the
-        # maintained alternative (MDEx) is a Rust NIF we keep out of the
-        # release (phoenix_storybook pulls it into :dev/:test only).
-        # Unreachable advisory; ignored until we replace earmark_parser.
-        "deps.audit --ignore-advisory-ids GHSA-52mm-h59v-f3c7",
+        # Hex's own advisory feed (the EEF CNA via OSV) against mix.lock. It
+        # replaced mix_audit, whose community mirror lagged the feed by two
+        # weeks and reported clean over twelve Bandit advisories (2026-10-31).
+        # The earmark advisory mix_audit needed an ignore for (GHSA-52mm-h59v-
+        # f3c7, stored XSS in a render path we never call) is not in this feed.
+        # Through `cmd`: Hex's tasks are loaded by the CLI, not inside an alias.
+        "cmd mix hex.audit",
         "sobelow",
+        # The Playwright dependencies are the repo's only JavaScript lockfile.
+        "cmd --cd test/e2e bun audit",
         "test.all"
       ],
       "test.all": [

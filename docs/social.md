@@ -584,7 +584,7 @@ Both are pure Elixir — no NIF, nothing added to a user's install footprint.
 - `mint_web_socket` — the relay socket.
 - `{:decimal, "~> 3.0", override: true}` — `bitcoinex` 0.3.0 still requires
   `decimal ~> 1.0 or ~> 2.0`, and every `decimal` below 3.0.0 carries
-  GHSA-rhv4-8758-jx7v, which `mix deps.audit` fails on. `bitcoinex` touches
+  GHSA-rhv4-8758-jx7v, a dependency audit failure. `bitcoinex` touches
   `Decimal` only in `LightningNetwork.Invoice` (calls unchanged in 3.x) and we
   never call it, so the override beats a vulnerable pin. Drop it when `bitcoinex`
   widens its requirement.
