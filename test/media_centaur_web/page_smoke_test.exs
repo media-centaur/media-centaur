@@ -65,7 +65,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/history", "watch history"},
           {"/guide", "guide index"},
           {"/guide/#{@guide_slug}", "guide chapter"},
-          {"/apps", "apps"}
+          {"/apps", "apps"},
+          {"/discovery", "discovery"}
         ] ++ @subsystem_routes do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = smoke!(conn, unquote(path))

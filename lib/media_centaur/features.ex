@@ -56,6 +56,13 @@ defmodule MediaCentaur.Features do
       stage: :optional
     },
     %Feature{
+      id: :discovery,
+      name: "Discovery",
+      description: "Movies that recently became available to stream, rent or buy, from TMDB.",
+      default: false,
+      stage: :development
+    },
+    %Feature{
       id: :apps,
       name: "Apps",
       description: "A launcher for Steam games and other programs outside your library.",

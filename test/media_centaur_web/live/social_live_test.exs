@@ -20,7 +20,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
-  alias MediaCentaur.Settings
   alias MediaCentaur.Features
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.IncomingLive.PlanQuery

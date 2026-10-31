@@ -510,6 +510,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **History** | `/history` | Watch history |
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
+| **Discovery** | `/discovery` | Recent digital releases from TMDB — a feature in development (`campaigns/discovery.md`); its off state while off |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
