@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.2.3 — 2026-10-31
+
+### Fixed
+
+- **Home holds still between Continue Watching and Recently Added.** With the keyboard or a controller, moving down from Continue Watching to Recently Added pulled the page back up a little when your Home had no Coming Up section. Each shelf now stops so the shelf below it shows too, and the page never jumps back when you move down.
+
 ## v2.2.2 — 2026-10-30
 
 ### Fixed
