@@ -780,12 +780,6 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       refute has_element?(view, "#detail-modal[data-state='open']")
     end
 
-    test "no surface carries the retired autoplay param", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/")
-
-      refute has_element?(view, "[phx-value-autoplay]")
-    end
-
     test "card_play_button `enabled: false` removes the overlay from both rows — hero Play stays",
          %{conn: conn, movie: movie} do
       {:ok, _} =

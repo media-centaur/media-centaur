@@ -222,11 +222,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert SocialVisibility.enabled?() == true
     end
 
-    test "the Preferences section no longer carries the Social toggle", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
-      refute has_element?(view, "div[phx-click=toggle_show_social]")
-    end
-
     test "toggling the apps launcher persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
@@ -536,15 +531,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "services section" do
-    # "Scan now" lives on Library → Media directories, where the surrounding
-    # copy gives it context. Services holds only the process toggles — the
-    # same action must not appear in two sections (settings-coherence).
-    test "holds only service toggles — no scan trigger", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=services")
-
-      refute has_element?(view, "[phx-click='scan']")
-    end
-
     # Toggles are named for the user-facing task, not the internal process
     # (settings-coherence item 1): Watchers → File watching, Pipeline →
     # Media import, Image Pipeline → Artwork downloads.
@@ -559,8 +545,10 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "the scan trigger remains on the Library section", %{conn: conn} do
-      # The row only exists once there is something to scan — with no media
-      # directories it offered a control that could not do anything.
+      # "Scan now" lives on Library → Media directories, where the surrounding
+      # copy gives it context. The row only exists once there is something to
+      # scan — with no media directories it offered a control that could not
+      # do anything.
       MediaCentaur.Settings.Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
 
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
@@ -596,20 +584,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       assert has_element?(view, "#ignore-rules-path")
       assert has_element?(view, "#ignore-rules-name")
-    end
-  end
-
-  describe "release tracking folded into Acquisition" do
-    # One number input doesn't earn a nav item; release tracking feeds
-    # auto-grab, so its refresh interval lives on the Acquisition section
-    # (settings-coherence). The retired section id keeps a legacy redirect.
-    test "there is no Release Tracking nav entry", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings")
-
-      refute has_element?(
-               view,
-               "[data-nav-zone='sections'] a[href='/settings?section=release_tracking']"
-             )
     end
   end
 

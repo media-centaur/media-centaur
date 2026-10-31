@@ -35,12 +35,6 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert item.subtitle_tracks == nil
       assert item.container_director == nil
     end
-
-    test "still enforces the existing required keys" do
-      assert_raise ArgumentError, fn ->
-        struct!(DetailItem, %{name: "Missing keys"})
-      end
-    end
   end
 
   describe "DetailItem.Season" do

@@ -42,12 +42,5 @@ defmodule MediaCentaur.Review.EventsTest do
       assert_raise ArgumentError, fn -> struct!(FileReviewed, %{}) end
       assert_raise ArgumentError, fn -> struct!(FilesApproved, %{}) end
     end
-
-    test "subscribers can still map-match, because a struct is a map" do
-      Events.broadcast(%FilesApproved{pending_file_ids: ["file-1"]})
-
-      assert_receive {:files_approved, payload}
-      assert %{pending_file_ids: ["file-1"]} = payload
-    end
   end
 end

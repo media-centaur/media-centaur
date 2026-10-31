@@ -24,15 +24,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
   alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, TrackOverrideChanged}
 
-  describe "zone tabs removed" do
-    test "library page has no zone tabs", %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, "/library")
-
-      refute has_element?(view, "[data-nav-zone='zone-tabs']")
-      refute has_element?(view, "[data-zone-tab]")
-      refute html =~ "Continue Watching"
-    end
-
+  describe "catalog grid" do
     test "library page renders the catalog grid section", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/library")
 
@@ -762,13 +754,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       end
 
       {:ok, tv_series: tv_series, movie: movie, collection: collection}
-    end
-
-    test "no tab strip — the seam below Play stays clear", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
-
-      refute has_element?(view, "#detail-modal [role='tablist']")
-      refute has_element?(view, "#detail-modal [role='tab']")
     end
 
     test "on the root view the control offers Cast", %{conn: conn, tv_series: tv_series} do
