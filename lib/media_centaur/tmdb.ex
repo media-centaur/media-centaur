@@ -40,7 +40,7 @@ defmodule MediaCentaur.TMDB do
   domain attrs), `Identifiers` (how a title spells itself on IMDb /
   TVDB), and `MetadataStats` for use by Pipeline, Library, and Review. `Title` is the
   app-wide title value — an embedded schema every title-carrying context
-  (release tracking, discovery (watchlist), and the web layer) reuses — and
+  (release tracking, the watchlist, and the web layer) reuses — and
   `TitleSearch` is the normalized title search built on it, for the omnibox
   and track flow. `ReleaseWindow` reads where a movie stands in its release
   sequence from a payload, for the surfaces that diagnose an empty search.
