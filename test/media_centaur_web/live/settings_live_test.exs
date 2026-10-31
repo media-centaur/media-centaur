@@ -231,7 +231,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       MediaCentaur.Features.set(:social, false)
 
       render_until(view, fn _html -> has_element?(view, "#settings-social-off") end)
-      refute has_element?(view, "[data-nav-zone='sections'] a[href='/settings?section=social']")
+      refute has_element?(view, "[data-nav-zone='sections']", "Social")
       assert render(view) =~ "Social is off"
 
       view |> element("#settings-social-off-turn-on") |> render_click()

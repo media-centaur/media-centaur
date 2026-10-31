@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.RemoteAccessTest do
     assert RemoteAccess.admit(@lan, player.id) == :unpaired
   end
 
-  test "while remote players is off, a paired player is unpaired and the host is still the host" do
+  test "while remote players is off, a paired player is unpaired and the host is admitted as the host" do
     player = create_player(name: "Living room TV")
     MediaCentaur.Features.set(:players, false)
 

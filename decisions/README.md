@@ -69,6 +69,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 078 | 2026-10-06 | [A profile is a watching identity, and the browser session holds the active one](architecture/2026-10-06-078-a-profile-is-a-watching-identity-held-by-the-session.md) | accepted |
 | 079 | 2026-10-22 | [A device is admitted by pairing, and the browser session holds the player](architecture/2026-10-22-079-a-device-is-admitted-by-pairing-and-the-session-holds-the-player.md) | accepted |
 | 080 | 2026-10-22 | [One playback session type over two transports](architecture/2026-10-22-080-one-playback-session-type-over-two-transports.md) | accepted |
+| 081 | 2026-10-31 | [Features are flagged](architecture/2026-10-31-081-features-are-flagged.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

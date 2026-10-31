@@ -2170,7 +2170,6 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, view, _html} = live(conn, "/social")
       assert has_element?(view, "#social-off")
       assert render(view) =~ "Social is off"
-      refute has_element?(view, ".social-page")
 
       view |> element("#social-off-turn-on") |> render_click()
       assert Features.enabled?(:social)
@@ -2178,7 +2177,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       {:ok, view, _html} = live(conn, "/social")
       refute has_element?(view, "#social-off")
-      assert has_element?(view, ".social-page")
+      assert has_element?(view, "h1", "Social")
     end
   end
 end

@@ -280,10 +280,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # CardPlayButtonAware (UIDR-027 toggle) adds one more key = +2.
       # AutoPlayNextEpisode (ADR-062 toggle) adds one more key = +2.
       # LetterboxdLinks (detail-modal Letterboxd link) adds one more = +2.
-      # SocialVisibility (sidebar entry, session-wide on_mount) adds
-      # one more key on every page = +2.
-      # AppsVisibility (Apps sidebar entry, session-wide on_mount) adds
-      # one more key on every page = +2.
+      # FeaturesAware (the enabled feature set, session-wide on_mount,
+      # ADR-081) reads every flag in one query on each mount phase = +2.
       mount_and_assert(
         conn,
         "/settings",
@@ -295,9 +293,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     test "GET /setup mounts within budget", %{conn: conn} do
       # ReviewBadge (session-wide on_mount) adds two bounded counts on
       # each mount phase = +4 aggregates on every page.
-      # SocialVisibility (session-wide on_mount) adds one settings key
-      # on each mount phase = +2 cache-miss reads.
-      # AppsVisibility (session-wide on_mount) adds one more = +2.
+      # FeaturesAware (session-wide on_mount, ADR-081) reads every feature
+      # flag in one query on each mount phase = +2 cache-miss reads.
       # ShellBadges' Incoming follow-up pill (UIDR-030) adds one bounded
       # count (plans awaiting review) on each mount phase = +2 aggregates.
       mount_and_assert(conn, "/setup", 25, "Initial setup wizard — minimal reads")

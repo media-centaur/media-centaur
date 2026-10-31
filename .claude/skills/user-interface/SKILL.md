@@ -316,6 +316,8 @@ Sizes: `size-3` (12px), `size-4` (16px default), `size-5` (20px), `size-6` (24px
 
 Fixed left, a 52px icon rail. It never expands and has no toggle.
 
+- A feature's entry exists while its flag is on: `:if={:social in @features}` on the `sidebar_link`, the set from `Live.FeaturesAware` ([ADR-081](../../../decisions/architecture/2026-10-31-081-features-are-flagged.md)). Never a `show_x` preference.
+
 - Entries: `SidebarLink.sidebar_link/1` — icon-only, named by `label` (its `aria-label` and `data-tip`); muted at rest, `active` draws the wash, the icon and `aria-current="page"` in the entry's accent (`--rail-accent`: primary, or the person's `hue` on the profile switcher), and the keyboard/gamepad ring takes the same accent. An active entry never dims on hover.
 - What waits: `count` draws the follow-up pill (primary, a 14px chip at the box's corner) and `condition` the red dot at the icon (UIDR-030)
 - Labels: the tip, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
@@ -477,6 +479,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `download_strip/1` | `acquisition/download_strip.ex` | The one drawing of a download-client job: phase ladder, phase word, figure bar, facts, cancel (the pursuit row, Other downloads, the pursuit modal) | ✅ |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
+| `feature_off/1` | `feature_off.ex` | The one drawing of a feature that is off (ADR-081): "<Name> is off", the registry line, **Turn on <Name>** — a gated page, a hidden Settings section's URL, a Status drill-in, the pairing page (no action there) | ✅ |
 | `sidebar_link/1` | `sidebar_link.ex` | One entry of the main navigation rail: where you are (`active`), what waits (`count`, `condition`), in one accent (UIDR-030, UIDR-053) | ✅ |
 | `follow_up_pill/1` | `follow_up_pill.ex` | The rail's count of items waiting on a decision, primary (UIDR-030) | ✅ |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
@@ -505,8 +508,8 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
 | **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050) |
 | **History** | `/history` | Watch history |
-| **Social** | `/social`, `/social/friends` | Feed, friends |
-| **Apps** | `/apps` | App launcher |
+| **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
+| **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
@@ -535,7 +538,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 
 ### Settings kit ([UIDR-041])
 
-Every Settings section is cards of rows, composed from `MediaCentaurWeb.Components.Settings` (stories under `/storybook/settings/*`). The shell renders the section's title and one line; a section module renders `settings_card`s only, and no card carries a Save.
+Every Settings section is cards of rows, composed from `MediaCentaurWeb.Components.Settings` (stories under `/storybook/settings/*`). The shell renders the section's title and one line; a section module renders `settings_card`s only, and no card carries a Save. A feature's section carries `feature:` in `@sections` and is listed, and drawn, while the feature is on; its flag's row lives under **Feature flags** (`SettingsLive.FeatureFlags`, from the registry), never in the section itself (ADR-081).
 
 | Row kind | Component | Use |
 |---|---|---|
