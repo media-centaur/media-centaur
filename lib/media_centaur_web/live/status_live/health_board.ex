@@ -91,6 +91,13 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     social: :social
   }
 
+  # The feature a subsystem belongs to (ADR-081). A subsystem absent from
+  # this map is the app's own and always shows; one whose feature is off
+  # leaves the board, and its drill-in is the feature's off state.
+  @feature %{
+    social: :social
+  }
+
   # The one action that takes a dormant subsystem out of dormancy. Named for
   # the destination the reader has to reach, not for the mechanism.
   @remedies %{
@@ -108,6 +115,25 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
 
   @spec board_subsystems() :: [atom()]
   def board_subsystems, do: @board_subsystems
+
+  @doc "The feature a subsystem belongs to, or nil for one of the app's own."
+  @spec feature(atom()) :: atom() | nil
+  def feature(component), do: Map.get(@feature, component)
+
+  @doc "The board's tiles whose feature, if any, is on."
+  @spec visible([SubsystemView.t()], MapSet.t(atom())) :: [SubsystemView.t()]
+  def visible(board, features) do
+    Enum.filter(board, fn %{component: component} -> visible?(component, features) end)
+  end
+
+  @doc "Whether a subsystem shows: the app's own always, a feature's while the feature is on."
+  @spec visible?(atom(), MapSet.t(atom())) :: boolean()
+  def visible?(component, features) do
+    case feature(component) do
+      nil -> true
+      feature -> feature in features
+    end
+  end
 
   @doc """
   Builds the ordered list of subsystem tile view-models from all buckets.

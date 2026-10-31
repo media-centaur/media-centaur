@@ -21,6 +21,28 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
     end
   end
 
+  describe "feature/1, visible?/2 and visible/2 (ADR-081)" do
+    test "social belongs to the Social feature; the app's own subsystems belong to none" do
+      assert HealthBoard.feature(:social) == :social
+      assert HealthBoard.feature(:library) == nil
+      assert HealthBoard.feature(:system) == nil
+    end
+
+    test "a feature's subsystem shows while the feature is on; the app's own always" do
+      assert HealthBoard.visible?(:social, MapSet.new([:social]))
+      refute HealthBoard.visible?(:social, MapSet.new())
+      assert HealthBoard.visible?(:library, MapSet.new())
+    end
+
+    test "visible/2 drops the tiles whose feature is off and keeps the order" do
+      board = HealthBoard.build_board([], MapSet.new())
+      assert Enum.map(board, & &1.component) == HealthBoard.board_subsystems()
+
+      visible = HealthBoard.visible(board, MapSet.new())
+      assert Enum.map(visible, & &1.component) == HealthBoard.board_subsystems() -- [:social]
+    end
+  end
+
   describe "label/1 and glyph/1" do
     test "maps each subsystem to a friendly label and a heroicon glyph" do
       assert HealthBoard.label(:pipeline) == "Media import"

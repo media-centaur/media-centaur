@@ -132,6 +132,23 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     assert has_element?(view, "#health-drill-in", "No issues")
   end
 
+  describe "a feature's subsystem (ADR-081)" do
+    test "the Social tile leaves the board while Social is off, and its drill-in is the off state", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, ~p"/status?subsystem=social")
+      assert has_element?(view, "#subsystem-tile-social")
+      assert has_element?(view, "#health-drill-in")
+
+      MediaCentaur.Features.set(:social, false)
+
+      render_until(view, fn _html -> has_element?(view, "#status-social-off") end)
+      refute has_element?(view, "#subsystem-tile-social")
+      refute has_element?(view, "#health-drill-in")
+      assert render(view) =~ "Social is off"
+    end
+  end
+
   describe "dormant subsystems" do
     test "an unconfigured subsystem reads Not configured, not healthy", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/status?subsystem=tmdb")

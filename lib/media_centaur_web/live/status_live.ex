@@ -23,6 +23,8 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
   alias MediaCentaurWeb.StatusLive.JournalPanel
   alias MediaCentaurWeb.StatusLive.TrafficFrame
   alias MediaCentaurWeb.Components.StripChart
@@ -765,14 +767,22 @@ defmodule MediaCentaurWeb.StatusLive do
               class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
             >
               <.subsystem_tile
-                :for={view <- @board}
+                :for={view <- HealthBoard.visible(@board, @features)}
                 view={view}
                 selected={view.component == @selected_subsystem}
               />
             </div>
 
+            <%!-- A feature's subsystem while the feature is off (ADR-081):
+                  the drill-in is the feature's off state. --%>
+            <FeatureOff.feature_off
+              :if={@selected_subsystem && !HealthBoard.visible?(@selected_subsystem, @features)}
+              id={"status-#{@selected_subsystem}-off"}
+              feature={Features.get(HealthBoard.feature(@selected_subsystem))}
+            />
+
             <.health_drill_in
-              :if={@selected_subsystem}
+              :if={@selected_subsystem && HealthBoard.visible?(@selected_subsystem, @features)}
               view={drill_in_view(@board, @selected_subsystem)}
               buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
               retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
