@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Activities do
   use Boundary,
     deps: [
+      MediaCentaur.Features,
       MediaCentaur.Watchlist,
       MediaCentaur.Library,
       MediaCentaur.Nostr,

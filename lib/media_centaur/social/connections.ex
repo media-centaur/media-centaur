@@ -7,10 +7,11 @@ defmodule MediaCentaur.Social.Connections do
   `RelayAdded` / `RelayRemoved` / `IdentityChanged`, receives every
   connection's messages, and re-broadcasts them on `social:connections`.
 
-  Dialling relays is background work: the owner starts only in an
-  instance with `background_services` on (`Settings.Config`). Under
-  `:test` it is off; tests start the owner by hand against
-  `Nostr.FakeRelay`.
+  Part of the Social feature's runtime (`Features.Runtime`, ADR-081): up
+  while the feature is on. Dialling relays is also background work: the
+  owner starts only in an instance with `background_services` on
+  (`Settings.Config`). Under `:test` it is off; tests start the owner by
+  hand against `Nostr.FakeRelay`.
   """
 
   use Supervisor

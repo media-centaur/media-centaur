@@ -14,8 +14,10 @@ defmodule MediaCentaurWeb.PairingControllerTest do
   test "while remote players is off, a LAN device sees the feature's off state and cannot pair", %{
     conn: conn
   } do
-    MediaCentaur.Features.set(:players, false)
     %{code: code} = Players.start_pairing()
+    MediaCentaur.Features.set(:players, false)
+    # The runtime stops the pairing process on the broadcast; settle it.
+    MediaCentaur.Features.Runtime.reconcile()
 
     html = conn |> from_lan() |> get(~p"/pair") |> html_response(200)
     assert html =~ "Remote players is off"

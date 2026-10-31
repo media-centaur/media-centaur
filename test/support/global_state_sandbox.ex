@@ -103,6 +103,11 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Watcher.Supervisor =>
       {:reset, {MediaCentaur.Watcher.Supervisor, :stop_watchers, []},
        "a test that calls start_watchers/0 leaves watcher children running; the flag is a :persistent_term"},
+    MediaCentaur.Features.Runtime =>
+      {:reset, {MediaCentaur.Features.Runtime, :reset, []},
+       "a test that turns a feature off stops its runtime; reset/0 puts every runtime at the registry default without reading the rolled-back flag"},
+    # Not a top-level child (it runs under the players feature's runtime),
+    # but its reset still runs: the one open pairing code.
     MediaCentaur.Players.Pairing =>
       {:reset, {MediaCentaur.Players.Pairing, :cancel, []},
        "the one open pairing code; a test that starts pairing would leave the next test's pairing page able to pair"},
@@ -119,9 +124,6 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:reset, {MediaCentaur.Pipeline.Discovery.InflightSet, :clear, []},
        "Broadway state is per-message, but the discovery in-flight set is a public ETS table with a read API"},
     MediaCentaur.Pipeline.Image.Supervisor => {:unobservable, "Broadway topology; state is per-message"},
-    MediaCentaur.Social.Connections =>
-      {:unobservable, "the relay-connection owner is not started under :test"},
-    MediaCentaur.RelaySync => {:unobservable, "not started under :test; relay_sync_test starts its own"},
     MediaCentaur.Console.JournalSource => {:unobservable, "reads journald; no public read"},
     MediaCentaur.Library.BroadcastCoalescer => {:unobservable, "enqueue/1 is its only public function"},
     MediaCentaur.Library.FileEventHandler => {:unobservable, "debounce timers only; no public read"},

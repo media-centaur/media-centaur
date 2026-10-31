@@ -24,9 +24,12 @@ defmodule MediaCentaur.Players.Pairing do
   @spec start() :: Code.t()
   def start, do: GenServer.call(__MODULE__, :start)
 
-  @doc "The open code, or nil when none is open or the open one has expired."
+  @doc """
+  The open code, or nil when none is open or the open one has expired —
+  or when remote players is off and this process is not running (ADR-081).
+  """
   @spec current() :: Code.t() | nil
-  def current, do: GenServer.call(__MODULE__, :current)
+  def current, do: if_running(fn -> GenServer.call(__MODULE__, :current) end, nil)
 
   @doc """
   Offers `attempt` against the open code. `:ok` consumes the code. A miss
@@ -38,9 +41,15 @@ defmodule MediaCentaur.Players.Pairing do
   @spec redeem(String.t()) :: :ok | {:error, :invalid_code, :open | :closed}
   def redeem(attempt) when is_binary(attempt), do: GenServer.call(__MODULE__, {:redeem, attempt})
 
-  @doc "Closes the open code. `true` when one was open."
+  @doc "Closes the open code. `true` when one was open; false when none is, or the feature is off."
   @spec cancel() :: boolean()
-  def cancel, do: GenServer.call(__MODULE__, :cancel)
+  def cancel, do: if_running(fn -> GenServer.call(__MODULE__, :cancel) end, false)
+
+  # Reading the code is a question anyone may ask; minting and redeeming
+  # reach here only through surfaces the feature gates.
+  defp if_running(call, absent) do
+    if GenServer.whereis(__MODULE__), do: call.(), else: absent
+  end
 
   @impl true
   def init(nil), do: {:ok, %{code: nil}}

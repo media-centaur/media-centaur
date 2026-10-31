@@ -6,6 +6,8 @@ defmodule MediaCentaur.Application do
     top_level?: true,
     deps: [
       MediaCentaur.Capabilities,
+      MediaCentaur.Features,
+      MediaCentaur.Players,
       MediaCentaur.Social,
       MediaCentaur.Activities,
       MediaCentaur.RelaySync,
@@ -88,10 +90,7 @@ defmodule MediaCentaur.Application do
          Application.get_env(:media_centaur, MediaCentaur.Console.JournalSource, [])},
         # Before the cache workers: the ShellBadges cache prime reads
         # `ErrorReports.list_buckets/0` synchronously during its init.
-        MediaCentaur.ErrorReports.Buckets,
-        # The one open pairing code (Settings → Players mints it, the pairing
-        # page redeems it). In every env: tests pair through the public API.
-        MediaCentaur.Players.Pairing
+        MediaCentaur.ErrorReports.Buckets
       ] ++
         cache_children(Application.get_env(:media_centaur, :environment)) ++
         [
@@ -102,9 +101,10 @@ defmodule MediaCentaur.Application do
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
-          MediaCentaur.Social.Connections
+          # Each feature's processes, started while its flag is on and
+          # stopped when it goes off (ADR-081).
+          {MediaCentaur.Features.Runtime, runtimes: feature_runtimes()}
         ] ++
-        relay_sync_children() ++
         [
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.MediaFileAvailability,
@@ -309,9 +309,22 @@ defmodule MediaCentaur.Application do
   # Under :test (no background services) the sync would otherwise
   # subscribe every FakeRelay a test stands up; relay_sync_test starts
   # its own by hand.
-  defp relay_sync_children do
-    if background_services?(), do: [MediaCentaur.RelaySync], else: []
+  # Each feature's runtime (ADR-081): the children `Features.Runtime` runs
+  # while the flag is on. Social dials relays, syncs with them and publishes
+  # the person's acts; remote players holds the one open pairing code. The
+  # children that are background work keep the instance rule: none in an
+  # instance without background services (the connection owner applies the
+  # same rule to itself).
+  defp feature_runtimes do
+    %{
+      social:
+        [MediaCentaur.Social.Connections] ++
+          background_only([MediaCentaur.RelaySync, MediaCentaur.Activities.Publisher]),
+      players: [MediaCentaur.Players.Pairing]
+    }
   end
+
+  defp background_only(children), do: if(background_services?(), do: children, else: [])
 
   defp diagnostics_children(true), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
   defp diagnostics_children(false), do: []
@@ -334,7 +347,6 @@ defmodule MediaCentaur.Application do
       MediaCentaur.ReleaseTracking.TmdbListener,
       MediaCentaur.Pipeline.TmdbProjection,
       MediaCentaur.WatchHistory.Recorder,
-      MediaCentaur.Activities.Publisher,
       MediaCentaur.Acquisition.Reactor,
       MediaCentaur.Downloads.QueueMonitor,
       MediaCentaur.Acquisition.Pursuits.InboundListener,

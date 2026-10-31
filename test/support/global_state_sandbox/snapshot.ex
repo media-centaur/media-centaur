@@ -14,7 +14,8 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
     test that made it.
 
   The app's share of each store is derived, never listed: `:persistent_term`
-  keys and registered names under the `MediaCentaur` namespace, the
+  keys and registered names under the `MediaCentaur` namespace (present or
+  not; a reset may restart one), the
   `:media_centaur` application env, named ETS tables owned by an app
   process (registered under the namespace, or started from a module in
   it), every child of `MediaCentaur.TaskSupervisor`, and every
@@ -30,7 +31,7 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
   @type t :: %__MODULE__{
           persistent_term: %{term() => term()},
           application_env: %{atom() => term()},
-          registered: %{atom() => pid()},
+          registered: %{atom() => true},
           ets: %{atom() => non_neg_integer()},
           tasks: [pid()],
           stub_orphans: [String.t()],
@@ -185,12 +186,16 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
   defp owned_key?(module) when is_atom(module), do: namespaced?(module)
   defp owned_key?(_other), do: false
 
+  # A registered name is judged by its presence, not its pid: a singleton a
+  # reset restarts (a feature's runtime, `Features.Runtime.reset/0`) is at
+  # its baseline state with a new pid, while a name that appeared or
+  # vanished is what a test left behind.
   defp registered_names do
     for name <- Process.registered(),
         namespaced?(name),
-        pid = Process.whereis(name),
+        Process.whereis(name) != nil,
         into: %{},
-        do: {name, pid}
+        do: {name, true}
   end
 
   defp owned_tables do
