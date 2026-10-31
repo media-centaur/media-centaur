@@ -164,18 +164,13 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     assigns = assign(assigns, :sort_options, @sort_options)
 
     ~H"""
-    <%!-- The toolbar is the page's topmost context: revealing it means showing
-          the page header above it too, so it declares its resting place — a
-          `start` alignment plus `.nav-reveal-page-top`'s oversized
-          scroll-margin, which clamps the reveal glide to the very top of the
-          page. Never scroll the window from the page behavior instead: an
-          instant jump fights the glide in flight (see library_behavior.js). --%>
-    <div
-      class="flex items-center gap-3 flex-wrap nav-reveal-page-top"
-      data-nav-zone="toolbar"
-      data-nav-reveal
-      data-nav-reveal-block="start"
-    >
+    <%!-- The toolbar is the page's topmost context: revealing it shows the
+          page header above it too. Nothing here declares that — its controls
+          are the first line of their zone, and `revealItem` rests a first line
+          at the scroller's start. Never scroll the window from the page
+          behavior instead: an instant jump fights the glide in flight (see
+          library_behavior.js). --%>
+    <div class="flex items-center gap-3 flex-wrap" data-nav-zone="toolbar">
       <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls --%>
       <div class="flex items-center gap-2">
         <.segmented_control

@@ -157,7 +157,16 @@ defmodule MediaCentaurWeb.HomeLive do
           </div>
         </div>
 
-        <%!-- ── Content rows (z-index 2) ── --%>
+        <%!-- ── Content rows (z-index 2) ──
+              Each shelf's section is its vertical reveal subject
+              (`data-nav-reveal`), so a reveal shows the heading with the row
+              and every tile shares one resting position — the marquee's tiles
+              differ in height, and framing each one moved the page between
+              them. Sideways, the row still scrolls to the focused card. `end`
+              gives one resting position whichever way the cursor arrived.
+              Every shelf but the last declares `data-nav-reveal-next`:
+              descending to it also shows the shelf below, measured where that
+              shelf actually is. --%>
         <div class={[
           "relative z-[2] space-y-10",
           @hero && "-mt-8"
@@ -166,8 +175,9 @@ defmodule MediaCentaurWeb.HomeLive do
             :if={@continue_items != []}
             data-row="continue-watching"
             data-nav-zone="continue"
-            class="home-shelf"
+            data-nav-reveal
             data-nav-reveal-block="end"
+            data-nav-reveal-next
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
@@ -188,8 +198,9 @@ defmodule MediaCentaurWeb.HomeLive do
             :if={@recently_added != []}
             data-row="recently-added"
             data-nav-zone="recently"
-            class="home-shelf"
+            data-nav-reveal
             data-nav-reveal-block="end"
+            data-nav-reveal-next
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
@@ -204,20 +215,10 @@ defmodule MediaCentaurWeb.HomeLive do
             />
           </section>
 
-          <%!-- `data-nav-reveal` on the section, unlike the rows above: the
-                mosaic's tiles differ in HEIGHT (one tall primary, two half-height
-                secondaries), and a reveal frames whatever it is given. Framing
-                each tile individually scrolled the page up 129px on the way to a
-                secondary — its shorter bottom edge, aligned to the viewport
-                bottom, sits higher. The tiles are one composition and want one
-                resting position, so the composition is what gets revealed. The
-                rows above need no such declaration because every card in a row
-                shares the row's block extent. --%>
           <section
             :if={@coming_up_marquee.hero != nil}
             data-row="coming-up"
             data-nav-zone="coming_up"
-            class="home-shelf"
             data-nav-reveal
             data-nav-reveal-block="end"
           >
