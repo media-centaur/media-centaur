@@ -882,6 +882,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   describe "/apps with apps present" do
     setup do
+      MediaCentaur.Features.set(:apps, true)
       create_app(%{name: "Sample Smoke App"})
       :ok
     end

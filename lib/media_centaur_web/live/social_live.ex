@@ -84,6 +84,8 @@ defmodule MediaCentaurWeb.SocialLive do
   import MediaCentaurWeb.Components.TabStrip, only: [tab_strip: 1]
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
   alias MediaCentaur.Acquisition.{PlanEvents, TitleStates}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
@@ -163,6 +165,13 @@ defmodule MediaCentaurWeb.SocialLive do
   # link carries it while the Feed is active. Re-projecting is pure; the
   # rows were loaded on mount.
   @impl true
+  # While Social is off (ADR-081) the page is its off state: nothing is
+  # projected, and the template draws `FeatureOff` in place of the columns.
+  def handle_params(_params, _uri, %{assigns: %{features: features}} = socket)
+      when not is_map_key(features.map, :social) do
+    {:noreply, socket}
+  end
+
   def handle_params(params, _uri, socket) do
     scope = FeedEntries.parse_scope(params["scope"])
 
@@ -670,8 +679,7 @@ defmodule MediaCentaurWeb.SocialLive do
       profile={@profile}
       profiles={@profiles}
       viewing_layer={assigns[:viewing_layer]}
-      show_social={@show_social}
-      show_apps={@show_apps}
+      features={@features}
       flash={@flash}
       current_path={current_path(@live_action)}
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
@@ -683,7 +691,7 @@ defmodule MediaCentaurWeb.SocialLive do
           state={@modal_state}
           armed_gesture={@armed_gesture}
           today={@today}
-          review?={@show_social}
+          review?={:social in @features}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           tmdb_ready={@tmdb_ready}
@@ -699,7 +707,13 @@ defmodule MediaCentaurWeb.SocialLive do
       <%!-- The modal's params are modal state: stripped from the
             remembered URL so leaving the section closes the modal rather
             than reopening it on return. --%>
+      <FeatureOff.feature_off
+        :if={:social not in @features}
+        id="social-off"
+        feature={Features.get(:social)}
+      />
       <div
+        :if={:social in @features}
         class="relative"
         data-page-behavior="social"
         data-nav-default-zone="social"

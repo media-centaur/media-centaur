@@ -133,7 +133,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :review?, :boolean,
     default: false,
-    doc: "whether the Review control is offered — the host passes `show_social`."
+    doc: "whether the Review control is offered — the host passes `:social in @features` (ADR-081)."
 
   attr :finished_id, :string,
     default: nil,

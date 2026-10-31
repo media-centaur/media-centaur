@@ -91,8 +91,7 @@ defmodule MediaCentaurWeb.HomeLive do
       profile={@profile}
       profiles={@profiles}
       viewing_layer={assigns[:viewing_layer]}
-      show_social={@show_social}
-      show_apps={@show_apps}
+      features={@features}
       flash={@flash}
       current_path="/"
       full_width
@@ -249,7 +248,7 @@ defmodule MediaCentaurWeb.HomeLive do
           state={@modal_state}
           armed_gesture={@armed_gesture}
           today={@today}
-          review?={@show_social}
+          review?={:social in @features}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           tmdb_ready={@tmdb_ready}

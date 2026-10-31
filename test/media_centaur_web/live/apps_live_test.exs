@@ -21,6 +21,11 @@ defmodule MediaCentaurWeb.AppsLiveTest do
 
     on_exit(fn -> File.rm_rf!(data_dir) end)
 
+    # The launcher is a feature that is off by default (ADR-081); these
+    # tests are about the page, so it is on. The sidebar and off-state
+    # tests below set it themselves.
+    MediaCentaur.Features.set(:apps, true)
+
     :ok
   end
 
@@ -386,17 +391,37 @@ defmodule MediaCentaurWeb.AppsLiveTest do
   end
 
   describe "sidebar entry" do
-    test "hidden by default, shown when the preference is on", %{conn: conn} do
+    test "hidden by default, shown when the feature is on", %{conn: conn} do
+      MediaCentaur.Features.set(:apps, false)
       {:ok, view, _html} = live(conn, "/apps")
       refute has_element?(view, "[data-tip='Apps']")
 
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.AppsVisibility.setting_key(),
-        value: %{"enabled" => true}
-      })
+      MediaCentaur.Features.set(:apps, true)
 
       {:ok, view, _html} = live(conn, "/apps")
       assert has_element?(view, "[data-tip='Apps']")
+    end
+  end
+
+  describe "the feature off (ADR-081)" do
+    test "the page is its off state and reads no apps; Turn on sets the flag and mounts the page", %{
+      conn: conn
+    } do
+      MediaCentaur.Features.set(:apps, false)
+      create_app(%{name: "Sample Game", command: "true"})
+
+      {:ok, view, _html} = live(conn, "/apps")
+      assert has_element?(view, "#apps-off")
+      assert render(view) =~ "Apps is off"
+      refute render(view) =~ "Sample Game"
+
+      view |> element("#apps-off-turn-on") |> render_click()
+      assert MediaCentaur.Features.enabled?(:apps)
+      assert_redirect(view, "/apps")
+
+      {:ok, view, _html} = live(conn, "/apps")
+      refute has_element?(view, "#apps-off")
+      assert render(view) =~ "Sample Game"
     end
   end
 end

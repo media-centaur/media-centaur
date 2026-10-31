@@ -44,8 +44,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     been pointed at Activity.
 
   and keeps `:today`, `:spoiler_free`, `:letterboxd_links`,
-  `:tmdb_ready` and `:show_social` assigns (the settings traits and
-  the router's `CapabilitiesAware`), which the panel reads.
+  `:tmdb_ready` and `:features` assigns (the settings traits, the
+  router's `CapabilitiesAware` and `FeaturesAware`), which the panel
+  reads; Review is offered while `:social` is in the set.
 
   ## Resolving a title
 

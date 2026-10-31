@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.PairingController do
   use MediaCentaurWeb, :controller
 
   alias MediaCentaur.Players
+  alias MediaCentaur.Features
   alias MediaCentaur.Settings.Config.BindAddress
 
   def show(conn, _params) do
@@ -24,6 +25,14 @@ defmodule MediaCentaurWeb.PairingController do
   end
 
   def create(conn, %{"pairing" => %{"name" => name, "code" => code}}) do
+    if Features.enabled?(:players),
+      do: pair(conn, name, code),
+      else: render_form(conn, name, nil)
+  end
+
+  def create(conn, _params), do: render_form(conn, "", :invalid_code)
+
+  defp pair(conn, name, code) do
     case Players.pair(String.trim(code), name) do
       {:ok, player} ->
         conn
@@ -35,11 +44,9 @@ defmodule MediaCentaurWeb.PairingController do
     end
   end
 
-  def create(conn, _params), do: render_form(conn, "", :invalid_code)
-
   defp render_form(conn, name, reason) do
     conn
     |> assign(:page_title, "Pair this device")
-    |> render(:pair, name: name, reason: reason)
+    |> render(:pair, name: name, reason: reason, players_on?: Features.enabled?(:players))
   end
 end

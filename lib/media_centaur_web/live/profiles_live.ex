@@ -73,8 +73,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
       profile={@profile}
       profiles={@profiles}
       viewing_layer={assigns[:viewing_layer]}
-      show_social={@show_social}
-      show_apps={@show_apps}
+      features={@features}
       flash={@flash}
       current_path="/profiles"
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}

@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :auto_play_next_episode, :boolean, required: true
   attr :finish_prompt, :boolean, required: true
   attr :letterboxd_links, :boolean, required: true
-  attr :show_apps, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -64,13 +63,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Movie pages link to the film on Letterboxd"
           checked={@letterboxd_links}
           event="toggle_letterboxd_links"
-        />
-
-        <.settings_row
-          label="Apps"
-          description="Show the Apps launcher in the sidebar"
-          checked={@show_apps}
-          event="toggle_show_apps"
         />
 
         <.settings_stepper

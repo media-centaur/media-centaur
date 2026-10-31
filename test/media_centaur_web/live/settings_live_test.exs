@@ -7,10 +7,8 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   alias MediaCentaur.Playback.LanguagePolicy
 
   alias MediaCentaur.Settings.Preferences.{
-    AppsVisibility,
     AutoPlayNextEpisode,
     FinishPrompt,
-    SocialVisibility,
     LetterboxdLinks,
     LibraryCardInfo,
     UIScale,
@@ -207,31 +205,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       view |> element("div[phx-click=toggle_letterboxd_links]") |> render_click()
       assert LetterboxdLinks.enabled?() == true
-    end
-
-    test "toggling Social in the sidebar persists the flag — on the Social section, on by default",
-         %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=social")
-
-      assert SocialVisibility.enabled?() == true
-
-      view |> element("div[phx-click=toggle_show_social]") |> render_click()
-      assert SocialVisibility.enabled?() == false
-
-      view |> element("div[phx-click=toggle_show_social]") |> render_click()
-      assert SocialVisibility.enabled?() == true
-    end
-
-    test "toggling the apps launcher persists the flag", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
-
-      assert AppsVisibility.enabled?() == false
-
-      view |> element("div[phx-click=toggle_show_apps]") |> render_click()
-      assert AppsVisibility.enabled?() == true
-
-      view |> element("div[phx-click=toggle_show_apps]") |> render_click()
-      assert AppsVisibility.enabled?() == false
     end
 
     # Personal display preferences live together — this toggle moved here

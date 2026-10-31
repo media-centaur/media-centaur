@@ -11,6 +11,27 @@ defmodule MediaCentaurWeb.PairingControllerTest do
     assert redirected_to(get(conn, ~p"/pair")) == "/"
   end
 
+  test "while remote players is off, a LAN device sees the feature's off state and cannot pair", %{
+    conn: conn
+  } do
+    MediaCentaur.Features.set(:players, false)
+    %{code: code} = Players.start_pairing()
+
+    html = conn |> from_lan() |> get(~p"/pair") |> html_response(200)
+    assert html =~ "Remote players is off"
+    assert html =~ "Settings → Feature flags"
+    refute html =~ ~s|name="pairing[code]"|
+
+    html =
+      conn
+      |> from_lan()
+      |> post(~p"/pair", %{"pairing" => %{"name" => "Living room TV", "code" => code}})
+      |> html_response(200)
+
+    assert html =~ "Remote players is off"
+    assert Players.list() == []
+  end
+
   test "a LAN device sees the pairing form", %{conn: conn} do
     html = conn |> from_lan() |> get(~p"/pair") |> html_response(200)
     assert html =~ "Pair this device"

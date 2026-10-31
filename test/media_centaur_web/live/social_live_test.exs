@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
-  alias MediaCentaur.Settings.Preferences.SocialVisibility
+  alias MediaCentaur.Features
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaur.TmdbStubs
@@ -1424,17 +1424,14 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     end
 
     test "with Social switched off, neither the entry nor the modal offers Review", %{conn: conn} do
-      Settings.find_or_create_entry!(%{
-        key: SocialVisibility.setting_key(),
-        value: %{"enabled" => false}
-      })
+      Features.set(:social, false)
 
       {:ok, _item} =
         list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
       {:ok, view, _html} = live(conn, "/social?title=movie-777")
       refute render(view) =~ "Share a review"
-      # `show_social` is off here, so the modal's Review control is
+      # Social is off here, so the modal's Review control is
       # never rendered and nothing can open the flow.
       refute has_element?(view, "#detail-review")
       # The container itself mounts unconditionally, same as every other
@@ -1775,14 +1772,11 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, ~p"/social?title=movie-777")
 
-      # `show_social` is on by default; Review is the one control on this
+      # Social is on by default; Review is the one control on this
       # modal that belongs to the Social page, so it follows the switch.
       assert has_element?(view, "#detail-review")
 
-      Settings.find_or_create_entry!(%{
-        key: SocialVisibility.setting_key(),
-        value: %{"enabled" => false}
-      })
+      Features.set(:social, false)
 
       render_until(view, fn _html -> not has_element?(view, "#detail-review") end)
     end
@@ -2166,6 +2160,25 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#detail-activity-delete")
       refute html =~ "wants to watch"
       await_supervised_tasks()
+    end
+  end
+
+  describe "the feature off (ADR-081)" do
+    test "the page is its off state; Turn on sets the flag and mounts the page", %{conn: conn} do
+      Features.set(:social, false)
+
+      {:ok, view, _html} = live(conn, "/social")
+      assert has_element?(view, "#social-off")
+      assert render(view) =~ "Social is off"
+      refute has_element?(view, ".social-page")
+
+      view |> element("#social-off-turn-on") |> render_click()
+      assert Features.enabled?(:social)
+      assert_redirect(view, "/social")
+
+      {:ok, view, _html} = live(conn, "/social")
+      refute has_element?(view, "#social-off")
+      assert has_element?(view, ".social-page")
     end
   end
 end

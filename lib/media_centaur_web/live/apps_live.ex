@@ -22,6 +22,8 @@ defmodule MediaCentaurWeb.AppsLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.Apps
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Apps.App
   alias MediaCentaur.Apps.Steam
@@ -43,7 +45,12 @@ defmodule MediaCentaurWeb.AppsLive do
      |> assign(banner_removed?: false)
      |> allow_upload(:banner, PictureField.upload_options())
      |> assign_manual_form(App.create_changeset(%{}))
-     |> load_apps()}
+     |> load_apps_while_on()}
+  end
+
+  # Apps off (ADR-081): the page is its off state and reads nothing.
+  defp load_apps_while_on(%{assigns: %{features: features}} = socket) do
+    if :apps in features, do: load_apps(socket), else: assign(socket, apps: [])
   end
 
   @impl true
@@ -169,13 +176,22 @@ defmodule MediaCentaurWeb.AppsLive do
       profile={@profile}
       profiles={@profiles}
       viewing_layer={assigns[:viewing_layer]}
-      show_social={@show_social}
-      show_apps={@show_apps}
+      features={@features}
       flash={@flash}
       current_path="/apps"
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
-      <div class="relative" data-page-behavior="apps" data-nav-default-zone="apps">
+      <FeatureOff.feature_off
+        :if={:apps not in @features}
+        id="apps-off"
+        feature={Features.get(:apps)}
+      />
+      <div
+        :if={:apps in @features}
+        class="relative"
+        data-page-behavior="apps"
+        data-nav-default-zone="apps"
+      >
         <div data-nav-zone="toolbar">
           <div class="flex items-baseline justify-between">
             <.page_header title="Apps" />

@@ -32,8 +32,7 @@ defmodule MediaCentaurWeb.Layouts do
       <Layouts.app
         flash={@flash}
         badges={@badges}
-        show_social={@show_social}
-        show_apps={@show_apps}
+        features={@features}
         profile={@profile}
         profiles={@profiles}
         viewing_layer={assigns[:viewing_layer]}
@@ -54,24 +53,13 @@ defmodule MediaCentaurWeb.Layouts do
     pills and the condition dot (UIDR-030).
     """
 
-  attr :show_social, :boolean,
-    default: true,
+  attr :features, MapSet,
+    required: true,
     doc: """
-    Whether the sidebar shows the Social entry — the `show_social`
-    preference (`MediaCentaur.Settings.Preferences.SocialVisibility`, default on;
-    switched under Settings → Social). Seeded app-wide by the
-    `SettingAware` on_mount in the default `live_session`; only the nav
-    entry is gated — `/social` stays reachable by URL.
-    """
-
-  attr :show_apps, :boolean,
-    default: false,
-    doc: """
-    Whether the sidebar shows the Apps launcher entry — the `show_apps`
-    preference (`MediaCentaur.Settings.Preferences.AppsVisibility`, default off).
-    Seeded app-wide by the `SettingAware` on_mount in the default
-    `live_session`; only the nav entry is gated — `/apps` stays reachable
-    by URL.
+    The features that are on (`MediaCentaur.Features.enabled/0`, ADR-081),
+    seeded app-wide by `Live.FeaturesAware` in the default `live_session`
+    and re-assigned live. A feature's sidebar entry exists while its id is
+    in the set; its page renders the off state otherwise.
     """
 
   attr :profile, MediaCentaur.Profiles.Profile,
@@ -153,7 +141,7 @@ defmodule MediaCentaurWeb.Layouts do
             remember
           />
           <SidebarLink.sidebar_link
-            :if={@show_social}
+            :if={:social in @features}
             id="sidebar-social"
             navigate="/social"
             label="Social"
@@ -174,7 +162,7 @@ defmodule MediaCentaurWeb.Layouts do
             remember
           />
           <SidebarLink.sidebar_link
-            :if={@show_apps}
+            :if={:apps in @features}
             id="sidebar-apps"
             navigate="/apps"
             label="Apps"

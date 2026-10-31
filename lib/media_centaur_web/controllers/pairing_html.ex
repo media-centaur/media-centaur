@@ -3,12 +3,21 @@ defmodule MediaCentaurWeb.PairingHTML do
   The pairing page's one template (`PairingController`): a glass card in
   the root layout, no shell — the device is not admitted yet. Composed
   from the kit: `input/1` for the two fields, `button/1` for Pair. The
-  reason a `POST` failed renders as that field's error.
+  reason a `POST` failed renders as that field's error. While remote
+  players is off (ADR-081) the card is the feature's off state with no
+  form: the flag is the host's to set.
   """
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
+
   attr :name, :string, required: true, doc: "the device name the form carries, kept across a miss"
+
+  attr :players_on?, :boolean,
+    required: true,
+    doc: "whether remote players is on (ADR-081); off, the card says so and offers no form"
 
   attr :reason, :atom,
     required: true,
@@ -18,7 +27,12 @@ defmodule MediaCentaurWeb.PairingHTML do
   def pair(assigns) do
     ~H"""
     <main class="page-side-dim-calm flex min-h-[calc(100*var(--pvh))] items-center justify-center p-6">
-      <div class="glass-surface w-full max-w-md space-y-5 rounded-xl p-6">
+      <div :if={!@players_on?} class="glass-surface w-full max-w-md rounded-xl p-6">
+        <FeatureOff.feature_off id="pairing-off" feature={Features.get(:players)} action?={false}>
+          Turn it on under Settings → Feature flags on the computer running Media Centaur, then pair this device.
+        </FeatureOff.feature_off>
+      </div>
+      <div :if={@players_on?} class="glass-surface w-full max-w-md space-y-5 rounded-xl p-6">
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Pair this device</h1>
           <p class="text-base-content/70">

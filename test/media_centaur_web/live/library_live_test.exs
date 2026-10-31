@@ -502,10 +502,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the Review control is absent while Social is off", %{conn: conn} do
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.SocialVisibility.setting_key(),
-        value: %{"enabled" => false}
-      })
+      MediaCentaur.Features.set(:social, false)
 
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})

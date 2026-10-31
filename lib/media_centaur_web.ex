@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb do
     deps: [
       MediaCentaur.Apps,
       MediaCentaur.ErrorReports,
+      MediaCentaur.Features,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
       MediaCentaur.Pipeline,

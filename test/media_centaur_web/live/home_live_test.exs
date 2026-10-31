@@ -27,12 +27,9 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
       assert has_element?(view, "#sidebar a[href='/social']")
 
-      # The Settings write broadcasts {:setting_changed, "show_social", _};
-      # the session-wide SettingAware hook re-assigns without a remount.
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.SocialVisibility.setting_key(),
-        value: %{"enabled" => false}
-      })
+      # The flag's write broadcasts {:setting_changed, "feature:social", _};
+      # the session-wide FeaturesAware hook re-assigns without a remount.
+      MediaCentaur.Features.set(:social, false)
 
       render_until(view, fn _html -> not has_element?(view, "#sidebar a[href='/social']") end)
     end

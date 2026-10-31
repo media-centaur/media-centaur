@@ -6,11 +6,9 @@ defmodule MediaCentaur.Settings.Preferences do
     top_level?: true,
     deps: [MediaCentaur.Settings],
     exports: [
-      AppsVisibility,
       AutoPlayNextEpisode,
       BooleanSetting,
       CardPlayButton,
-      SocialVisibility,
       LetterboxdLinks,
       LibraryCardInfo,
       FinishPrompt,

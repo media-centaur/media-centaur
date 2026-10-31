@@ -7,8 +7,9 @@ defmodule MediaCentaurWeb.RemoteAccess do
   other address it is admitted only when its browser session holds the id
   of a paired player (`"player_id"`, written by `PairingController`
   beside ADR-078's `"profile_id"`), read back from `Players` on every
-  judgement so a removed player is cut off at once. Anything else is
-  `:unpaired`.
+  judgement so a removed player is cut off at once — and only while the
+  remote players feature is on (`MediaCentaur.Features`, ADR-081).
+  Anything else is `:unpaired`.
 
   Three enforcement points carry it and act on a player's removal:
   `Plugs.RemoteAccess` for HTTP requests (judged on every request),
@@ -16,6 +17,7 @@ defmodule MediaCentaurWeb.RemoteAccess do
   `PlayerSocket` for the player channel. None judges anything itself.
   """
 
+  alias MediaCentaur.Features
   alias MediaCentaur.Playback
   alias MediaCentaur.Players
   alias MediaCentaur.Settings.Config.BindAddress
@@ -29,6 +31,9 @@ defmodule MediaCentaurWeb.RemoteAccess do
   def admit(address, player_id) do
     cond do
       BindAddress.loopback?(address) -> {:ok, :host}
+      # Remote players off (ADR-081): nothing off the host is admitted,
+      # paired or not; the device lands on the pairing page, which says so.
+      not Features.enabled?(:players) -> :unpaired
       player = Players.get(player_id) -> {:ok, player.id}
       true -> :unpaired
     end

@@ -40,14 +40,10 @@ defmodule MediaCentaurWeb.Router do
         MediaCentaurWeb.Live.DisclosureState,
         MediaCentaurWeb.Live.CapabilitiesAware,
         {MediaCentaurWeb.ShellBadges, :default},
-        # The sidebar renders on every page, so its Social entry needs
-        # `:show_social` seeded session-wide (and re-assigned live on
-        # toggle) rather than per-LiveView.
-        {MediaCentaurWeb.Live.SettingAware,
-         {MediaCentaur.Settings.Preferences.SocialVisibility, :show_social, :setting_aware_show_social}},
-        # Same deal for the Apps launcher entry.
-        {MediaCentaurWeb.Live.SettingAware,
-         {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}
+        # Which features are on (ADR-081): the sidebar renders on every
+        # page, so `:features` is seeded session-wide and re-assigned live;
+        # the hook also answers a gated page's Turn on action.
+        MediaCentaurWeb.Live.FeaturesAware
       ] do
       live "/", HomeLive, :index
       # The picker (UIDR-053): the one view ProfileAware mounts without an

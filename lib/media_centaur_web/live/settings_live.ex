@@ -969,18 +969,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
-  def handle_event("toggle_show_social", _params, socket) do
-    enabled = !socket.assigns.show_social
-    MediaCentaur.Settings.Preferences.SocialVisibility.set(enabled)
-    {:noreply, assign(socket, show_social: enabled)}
-  end
-
-  def handle_event("toggle_show_apps", _params, socket) do
-    enabled = !socket.assigns.show_apps
-    MediaCentaur.Settings.Preferences.AppsVisibility.set(enabled)
-    {:noreply, assign(socket, show_apps: enabled)}
-  end
-
   def handle_event("toggle_spoiler_free", _params, socket) do
     enabled = !socket.assigns.spoiler_free
     MediaCentaur.Settings.Preferences.SpoilerFree.set(enabled)
@@ -2044,8 +2032,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       profile={@profile}
       profiles={@profiles}
       viewing_layer={assigns[:viewing_layer]}
-      show_social={@show_social}
-      show_apps={@show_apps}
+      features={@features}
       flash={@flash}
       current_path="/settings"
       full_width
@@ -2181,8 +2168,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 auto_play_next_episode={@auto_play_next_episode}
                 finish_prompt={@finish_prompt}
                 letterboxd_links={@letterboxd_links}
-                show_social={@show_social}
-                show_apps={@show_apps}
+                features={@features}
                 connections={@connections}
                 editing={@editing}
                 auto_grab={@auto_grab}
@@ -2321,7 +2307,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       auto_play_next_episode={@auto_play_next_episode}
       finish_prompt={@finish_prompt}
       letterboxd_links={@letterboxd_links}
-      show_apps={@show_apps}
     />
     """
   end
@@ -2387,7 +2372,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       status={@relay_status}
       share_watched?={@share_watched?}
       share_watchlist?={@share_watchlist?}
-      show_social?={@show_social}
     />
     """
   end
