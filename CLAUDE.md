@@ -150,7 +150,7 @@ First-time install on a new machine uses the public installer (`curl … install
 
 ## Static Analysis
 
-`mix precommit` runs format (with the **Quokka** plugin auto-rewriting many Credo violations), `credo --strict`, JS dependency-cruiser via `mix boundaries`, `deps.audit`, `sobelow`, and `test`. Tool configs: `.credo.exs`, `.sobelow-conf`, `.formatter.exs`, `.dependency-cruiser.cjs`. Each tuned/disabled check carries a comment explaining why.
+`mix precommit` runs format (with the **Quokka** plugin auto-rewriting many Credo violations), `credo --strict`, JS dependency-cruiser via `mix boundaries`, `scripts/test-sweep check` (tests whose assertions look like they pin a removal or a markup detail, against the owner's keeps in `test/sweep-keeps.md`; see the `automated-testing` skill), `deps.audit`, `sobelow`, and `test`. Tool configs: `.credo.exs`, `.sobelow-conf`, `.formatter.exs`, `.dependency-cruiser.cjs`. Each tuned/disabled check carries a comment explaining why.
 
 **Custom Credo checks** live in `credo_checks/` — each `.ex` file's moduledoc explains its rule. **Boundary** is enforced as a Mix compiler — read each context's `use Boundary, deps: [...]` declaration as the canonical inter-context dependency list (see [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md)).
 

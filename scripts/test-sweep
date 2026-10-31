@@ -2,18 +2,27 @@
 # test-sweep — list the ExUnit tests whose assertions look like they pin a
 # removal or an implementation detail, for the judgment pass to rule on.
 #
-#   scripts/test-sweep                 every test/**/*_test.exs
+#   scripts/test-sweep                 list: every test/**/*_test.exs
 #   scripts/test-sweep test/a_test.exs test/b_test.exs
+#   scripts/test-sweep check           fail on a candidate with no recorded
+#                                      keep, or a keep for a test the sweep
+#                                      no longer flags (run by mix precommit)
 #
-# The script proposes and never judges (`campaigns/test-sweep.md`,
-# Principle 4). A row is a test case; each signature is its own column so a
-# test can match several. A test is a candidate when it matches S1–S4; S5 is
-# a column only, because almost any fix commit says "rename" or "remove"
-# somewhere.
+# The script proposes and never judges. A row is a test case; each signature
+# is its own column so a test can match several. A test is a candidate when
+# it matches S1–S4; S5 is a column only, because almost any fix commit says
+# "rename" or "remove" somewhere. The judgment is the owner's and is
+# recorded in `test/sweep-keeps.md`, one row per candidate that earns its
+# place (a plausible accidental breakage, and a failure that names the
+# behaviour); `check` is the diff between the two. The `automated-testing`
+# skill carries the criterion and the vocabulary.
 #
 #   S1 refute-selector    a `refute` whose selector names a class or an
-#                         attribute and gives no visible text (a pure id is a
-#                         contract hook and is not flagged)
+#                         attribute and gives no visible text. A contract
+#                         hook is not flagged: an id, `data-component`,
+#                         `data-role`, `data-tip`, `data-testid`,
+#                         `data-nav-*`, `aria-*` — a refute on one of those
+#                         is a behaviour assertion
 #   S2 utility-class      any assertion whose selector carries a Tailwind
 #                         utility or layout class (`max-w-7xl`, `flex`,
 #                         `hidden`, `gap-2`), as opposed to a component's own
@@ -42,13 +51,24 @@ defmodule TestSweep do
   # (`sidebar-link-active`, `progress-fill`, daisyUI's `badge`) is not here.
   @utility ~r/^(?:(?:sm|md|lg|xl|2xl|hover|focus|group-hover|dark):)*(?:max-w|min-w|max-h|min-h|w|h|size|flex|inline-flex|inline-block|inline|block|grid|hidden|gap|space|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|text|bg|rounded|border|items|justify|col-span|row-span|truncate|overflow|absolute|relative|fixed|sticky|top|left|right|bottom|inset|z|opacity|shadow|font|leading|tracking|uppercase|lowercase|capitalize|sr-only|order|self|place|content|aspect|object|cursor|pointer-events|select|transition|duration|ease|scale|rotate|translate|basis|grow|shrink|divide|ring|outline|whitespace|break|list|table|float|clear|columns|isolate|visible|invisible|underline|italic|antialiased|line-clamp)(?:-|$)/
 
+  @keeps "test/sweep-keeps.md"
+
+  def main(["check"]) do
+    files = Enum.reject(all_test_files(), &excluded?/1)
+    candidates = files |> Enum.flat_map(&tests_in/1) |> candidates()
+    check(candidates, read_keeps())
+  end
+
   def main(args) do
     files = if args == [], do: all_test_files(), else: args
     files = Enum.reject(files, &excluded?/1)
     tests = Enum.flat_map(files, &tests_in/1)
-    candidates = tests |> Enum.map(&flag/1) |> resolve_singletons() |> Enum.filter(&candidate?/1)
-    candidates = resolve_origins(candidates)
+    candidates = tests |> candidates() |> resolve_origins()
     print(candidates, length(tests), length(files))
+  end
+
+  defp candidates(tests) do
+    tests |> Enum.map(&flag/1) |> resolve_singletons() |> Enum.filter(&candidate?/1)
   end
 
   defp all_test_files do
@@ -147,7 +167,7 @@ defmodule TestSweep do
   end
 
   defp contract_hook?(attr) do
-    attr in ["id", "data-component", "data-tip", "data-testid"] or
+    attr in ["id", "data-component", "data-role", "data-tip", "data-testid"] or
       String.starts_with?(attr, "data-nav-") or String.starts_with?(attr, "aria-")
   end
 
@@ -289,6 +309,60 @@ defmodule TestSweep do
     String.trim(out)
   end
 
+  # --- check: candidates against the recorded keeps -----------------------------
+
+  # A keep row is `| `file` "test name" | failing diff | reason |`. The key is
+  # the file and the name as written in the source; a renamed test is a new
+  # candidate. A `|` in a name is written `\|`.
+  defp read_keeps do
+    @keeps
+    |> File.read!()
+    |> String.split("\n")
+    |> Enum.flat_map(fn line ->
+      case Regex.run(~r/^\| `([^`]+)` "((?:[^"\\]|\\.)*)" \|/, line) do
+        [_, file, name] -> [{file, String.replace(name, "\\|", "|")}]
+        nil -> []
+      end
+    end)
+    |> MapSet.new()
+  end
+
+  defp check(candidates, keeps) do
+    flagged = MapSet.new(candidates, &{&1.file, &1.name})
+    unrecorded = Enum.reject(candidates, &MapSet.member?(keeps, {&1.file, &1.name}))
+    stale = keeps |> Enum.reject(&MapSet.member?(flagged, &1)) |> Enum.sort()
+
+    if unrecorded != [] do
+      IO.puts(
+        "test-sweep check: #{length(unrecorded)} test(s) match a sweep signature and have no row in #{@keeps}.\n" <>
+          "Re-aim each at the behaviour a user or caller sees, or record it there with the diff that\n" <>
+          "would turn it red and the reason it earns its place. Rows, ready to fill in:\n"
+      )
+
+      for test <- Enum.sort_by(unrecorded, &{&1.file, &1.line}) do
+        IO.puts("| #{keep_key(test)} | | |")
+        IO.puts("    #{test.file}:#{test.line} — #{signatures(test)} — #{assertion(test)}")
+      end
+    end
+
+    if stale != [] do
+      IO.puts(
+        "\ntest-sweep check: #{length(stale)} row(s) in #{@keeps} name a test the sweep no longer flags\n" <>
+          "(renamed, re-aimed or gone). Remove the row:\n"
+      )
+
+      for {file, name} <- stale, do: IO.puts("| #{keep_key(%{file: file, name: name})} |")
+    end
+
+    if unrecorded == [] and stale == [] do
+      IO.puts("test-sweep check: #{length(candidates)} candidates, every one with a recorded keep.")
+    else
+      System.halt(1)
+    end
+  end
+
+  defp keep_key(%{file: file, name: name}), do: "`#{file}` \"#{String.replace(name, "|", "\\|")}\""
+
   # --- output ----------------------------------------------------------------
 
   defp print(candidates, tests, files) do
@@ -339,7 +413,7 @@ defmodule TestSweep do
       Enum.any?(test.flagged, & &1.s2) && "S2",
       test.s3 && "S3 (#{String.downcase(test.s3)})",
       singles != [] && "S4 (#{Enum.join(singles, ", ")})",
-      test.s5 && "S5"
+      Map.get(test, :s5) && "S5"
     ]
     |> Enum.filter(& &1)
     |> Enum.join(", ")

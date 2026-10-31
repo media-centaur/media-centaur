@@ -174,6 +174,9 @@ defmodule MediaCentaur.MixProject do
         "format",
         "credo --strict",
         "boundaries",
+        # Tests whose assertions pin a removal or a markup detail, against
+        # the owner's recorded keeps in test/sweep-keeps.md.
+        "cmd scripts/test-sweep check",
         # GHSA-52mm-h59v-f3c7 is stored XSS in earmark's HTML *render* path
         # (Earmark.Transform). We never render: GuideMarkdown calls
         # Earmark.Parser.as_ast and emits HEEx (Phoenix auto-escapes), and the

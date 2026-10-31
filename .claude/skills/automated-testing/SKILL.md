@@ -20,6 +20,29 @@ A test authored against already-fixed code can silently pass against the broken
 code too, so without the red step you have no proof it catches the regression. If
 you fixed it before remembering this, revert, write the failing test, re-apply.
 
+**A red-first test can be residue.** Every test is held to one criterion: a
+plausible accidental breakage exists, and the failure would name the behaviour.
+A test that drove a fix by refuting the thing the fix removed, or by pinning a
+wrapper's shape, a utility class, or a selector nothing in `lib/` reads, met its
+purpose on the red run; when it fails the criterion it comes out with the fix
+(the commit says so) or is re-aimed at what a user or caller sees. A re-aim may
+end as no automated test when the intent is a geometric or visual fact (a
+centred picker, a field's width): then the commit names the replacement check,
+a `page-shot` measurement or a storybook variation. Contract hooks are fair game
+to assert on; utility classes are not. `scripts/test-sweep` lists the tests
+whose shape suggests residue, and `mix precommit` fails on any that has no row
+in `test/sweep-keeps.md`: the owner's verdict, with the diff that would turn the
+test red and the reason it earns its place. Record a keep only when the
+criterion holds; a row is never a way to quiet the check.
+
+| Term | Meaning |
+|---|---|
+| **Pinning test** | A test whose only failing diff is reintroducing something deliberately removed: a class, an attribute, an element, a code path. |
+| **Implementation-detail assertion** | An assertion on markup or structure that no user, caller or contract observes: a Tailwind utility class, a wrapper's shape, a selector with one reader in `lib/` and one in `test/`. |
+| **Contract hook** | A marker the app treats as a contract: an `id`, `data-component`, `data-role`, `data-tip`, `data-nav-*`, `aria-*`, a component's own class recipe (`.progress-fill`), visible copy. |
+| **Behaviour test** | A test that fails when something a user or a caller can observe changes, with a failure message that names that behaviour. |
+| **Red-green residue** | A red-first test whose value ended when the fix landed. |
+
 **Zero tolerance for flaky tests.** A flaky test is a bug — diagnose the root
 cause. Never skip, retry, or mark as expected failure.
 
