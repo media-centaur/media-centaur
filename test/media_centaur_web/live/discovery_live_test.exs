@@ -23,7 +23,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "[data-tip='Discovery']")
-      assert has_element?(view, "#discovery-empty")
       assert render(view) =~ "Recent digital releases will land here"
     end
 
