@@ -46,10 +46,10 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       assert html =~ "Welcome to Media Centaur"
     end
 
-    test "renders a visual step-progress indicator", %{conn: conn} do
+    test "the step-progress bar reports the current step to assistive tech", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=tmdb")
 
-      assert has_element?(view, "[data-setup-progress]")
+      assert has_element?(view, "[role='progressbar'][aria-valuenow='3'][aria-valuemax='8']")
     end
 
     test "step copy is concise — no 'what this is' / 'why it matters' essays", %{conn: conn} do

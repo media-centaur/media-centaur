@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
 
       assert Config.get(:prowlarr_url) == "http://prowlarr.example.com:9696"
       html = await_test(view, :prowlarr)
-      refute html =~ "connection-prowlarr-form"
+      refute has_element?(view, "#connection-prowlarr-form")
       assert html =~ "Connected"
     end
 

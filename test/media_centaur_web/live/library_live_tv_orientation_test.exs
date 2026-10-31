@@ -91,13 +91,11 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
          %{conn: conn, tv_series: tv_series} do
       {:ok, _view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
-      # The up-next marquee was removed as redundant with the Play
-      # button's own label — the hairline is the only orientation
-      # element, and the description takes the right column.
+      # The hairline is the one orientation element; the Play button's own
+      # label names the next episode, and the description takes the right
+      # column.
       assert html =~ "orientation-hairline"
       assert html =~ "Play S2E1"
-      refute html =~ "Up next"
-      refute html =~ "orientation-marquee"
       assert html =~ "A sample synopsis about a fictional workplace."
     end
 

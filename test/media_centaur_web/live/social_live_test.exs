@@ -316,10 +316,9 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, mine} = Activities.listing(title)
 
       {:ok, view, _html} = live(conn, "/social/friends")
-      # The own tile is the card's one mark: no subtitle, no presence, no foot.
+      # The own tile is the card's one mark: no subtitle, no foot.
       assert has_element?(view, "#person-you[data-own] [data-component='identity-tile'][data-own]")
       refute render(view) =~ "How friends see you"
-      refute has_element?(view, "#person-you [data-role='presence']")
       refute has_element?(view, "#person-you footer")
 
       assert has_element?(

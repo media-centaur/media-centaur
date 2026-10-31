@@ -432,7 +432,14 @@ defmodule MediaCentaurWeb.SetupLive do
           </div>
 
           <div class="mt-5 flex items-center gap-3">
-            <div data-setup-progress class="flex flex-1 gap-1.5">
+            <div
+              role="progressbar"
+              aria-label="Setup progress"
+              aria-valuemin="1"
+              aria-valuenow={@step_index}
+              aria-valuemax={@total}
+              class="flex flex-1 gap-1.5"
+            >
               <div
                 :for={i <- 1..@total}
                 class={[

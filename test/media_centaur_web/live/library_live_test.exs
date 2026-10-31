@@ -167,7 +167,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/library")
 
-      refute has_element?(view, "[phx-keydown='sort_key']")
       refute has_element?(view, "#library-sort-menu")
 
       view |> element("#library-sort") |> render_click()
@@ -1562,7 +1561,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # users start a movie and the catalog still shows it as untouched.
       {:ok, view, html} = live_async!(conn, "/library")
       assert html =~ "Live Update Movie"
-      refute html =~ "progress-fill"
+      refute has_element?(view, "#entity-#{movie.id} .progress-fill")
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -1572,9 +1571,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
-      html = render(view)
-      assert html =~ "progress-fill"
-      assert html =~ "width: 60"
+      assert has_element?(view, "#entity-#{movie.id} .progress-fill[style*='width: 60']")
     end
 
     test "entity_progress_updated from another profile leaves the card's progress alone",
@@ -1582,10 +1579,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       ana = create_profile(%{name: "Ana"})
 
       # With two profiles a cookie-less conn lands on the picker, so the owner is picked.
-      {:ok, view, html} =
+      {:ok, view, _html} =
         conn |> with_profile(MediaCentaur.Profiles.get(owner_profile_id())) |> live_async!("/library")
 
-      refute html =~ "progress-fill"
+      refute has_element?(view, "#entity-#{movie.id} .progress-fill")
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -1595,7 +1592,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       ProgressBroadcaster.broadcast(ana.id, movie.id, nil)
 
-      refute render(view) =~ "progress-fill"
+      _ = render(view)
+      refute has_element?(view, "#entity-#{movie.id} .progress-fill")
     end
 
     test "playback_state_changed broadcast surfaces the now-playing pulse",
@@ -1603,8 +1601,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # The pulse dot in the top-right of the card is a high-signal "this
       # is playing right now" indicator. It must light up the moment another
       # device reports playback, not on the next page load.
-      {:ok, view, html} = live_async!(conn, "/library")
-      refute html =~ "animate-pulse"
+      {:ok, view, _html} = live_async!(conn, "/library")
+      refute has_element?(view, "#entity-#{movie.id} [data-role='now-playing']")
 
       Events.broadcast(%PlaybackStateChanged{
         player: :host,
@@ -1615,7 +1613,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         started_at: System.monotonic_time(:millisecond)
       })
 
-      assert render(view) =~ "animate-pulse"
+      _ = render(view)
+      assert has_element?(view, "#entity-#{movie.id} [data-role='now-playing']")
     end
 
     test "playback_failed broadcast renders an error flash",

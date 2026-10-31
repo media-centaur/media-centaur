@@ -117,10 +117,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
 
     test "is inert and unfocusable without acquisition" do
       html = render_component(&SeasonList.season_list/1, assigns(%{acquisition?: false}))
+      document = LazyHTML.from_fragment(html)
 
-      assert html =~ ~s(data-role="missing-episode-row")
-      refute html =~ "download_missing_episode"
-      refute html =~ ~s(data-nav-item tabindex="0"><div class="flex items-center gap-3 text-sm">)
+      assert Enum.count(LazyHTML.query(document, "[data-role='missing-episode-row']")) == 1
+      assert Enum.empty?(LazyHTML.query(document, "[data-role='missing-episode-row'][phx-click]"))
+      assert Enum.empty?(LazyHTML.query(document, "[data-role='missing-episode-row'][data-nav-item]"))
+      assert Enum.empty?(LazyHTML.query(document, "[data-role='missing-episode-row'][tabindex]"))
     end
 
     test "an old air date is not shown — the gap already says it aired" do

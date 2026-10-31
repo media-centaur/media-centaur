@@ -86,6 +86,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         <%!-- Now-playing pulse --%>
         <div
           :if={@playing}
+          data-role="now-playing"
           class="absolute top-2 right-2 size-3 rounded-full bg-primary animate-pulse"
         />
 

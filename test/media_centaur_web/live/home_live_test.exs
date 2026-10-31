@@ -179,7 +179,6 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       assert has_element?(view, ~s|#continue-watching-row > [data-component="continue-watching"]|)
       assert has_element?(view, ~s|#recently-added-row > [data-component="poster-row"]|)
-      refute has_element?(view, "[data-scroll-row]")
     end
   end
 

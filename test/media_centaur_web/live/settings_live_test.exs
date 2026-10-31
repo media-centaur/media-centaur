@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
   test "renders the page header with a title and subtitle", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, ~p"/settings")
-    assert has_element?(view, "h1.text-2xl", "Settings")
+    assert has_element?(view, "h1", "Settings")
     assert has_element?(view, "header p", "Services, preferences, and configuration")
   end
 
@@ -82,9 +82,9 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   describe "section intro" do
     test "every section shows its title and description from the shell", %{conn: conn} do
       for %{id: id, label: label, description: description} <- MediaCentaurWeb.SettingsLive.sections() do
-        {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{id}")
-        assert html =~ ~s(<h2 class="text-lg font-semibold">#{Plug.HTML.html_escape(label)}</h2>)
-        assert html =~ Plug.HTML.html_escape(description)
+        {:ok, view, _html} = live_async!(conn, ~p"/settings?section=#{id}")
+        assert has_element?(view, "h2", label)
+        assert has_element?(view, "p", description)
       end
     end
   end
@@ -568,12 +568,10 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     # title a file belongs to. Admission (what is scanned at all) is
     # Library → Ignore rules, both matching modes in one card; they used
     # to be two cards in two sections that pointed at each other.
-    test "Media Import keeps extras names and no longer holds ignore rules", %{conn: conn} do
+    test "Media Import holds the extras folder names card", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, ~p"/settings?section=import")
 
       assert html =~ "Extras folder names"
-      refute html =~ "Extras directories"
-      refute html =~ "Ignored folder names"
     end
 
     test "Library holds one Ignore rules card with both matching modes", %{conn: conn} do

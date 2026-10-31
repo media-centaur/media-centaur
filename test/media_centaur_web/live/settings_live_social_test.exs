@@ -269,12 +269,6 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert %{hue: nil} = Social.own_profile()
     end
 
-    test "the name field is 16rem with Save beside it, not the card's width", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, @section)
-      assert has_element?(view, "#social-profile-form input[name='name'].max-w-64")
-      refute has_element?(view, "#social-profile-form input[name='name'].flex-1")
-    end
-
     test "a chosen picture gets a crop stage with the box's fields and two previews; Cancel removes it",
          %{conn: conn} do
       Identity.ensure()

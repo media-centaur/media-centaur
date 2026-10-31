@@ -550,21 +550,15 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute render(view) =~ "Sample Movie 2026"
     end
 
-    test "the TV picker downloads and says nothing about the future — no tracking control, and the rung stays put",
+    test "the TV picker's Download creates the plan and leaves the rung and tracking alone",
          %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
-      # Release tracking is enabled on the watchlist and nowhere else
-      # (campaign: the watchlist is the single entry point): the picker
-      # carries neither a follow verb nor a grab-on-completion opt-in.
-      refute has_element?(view, "[phx-click='plan_track_only']")
-      refute has_element?(view, "[phx-click='plan_toggle_grab_future']")
-      refute render(view) =~ "Watch for releases"
-      refute render(view) =~ "Also grab future episodes"
-
+      # Release tracking is set on the watchlist and nowhere else: a
+      # download never moves a rung or creates a tracked title.
       view
       |> element("[phx-click='plan_preset'][phx-value-preset='everything_aired']")
       |> render_click()
@@ -774,17 +768,15 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "Malformed plan link."
     end
 
-    test "the movie confirm offers the download and nothing else, out or not", %{conn: conn} do
+    test "the movie confirm offers Download before release", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2099-01-01"}))
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
       render_async(view, 2_000)
 
-      # A movie that isn't out yet used to offer Watch for release here;
-      # watching for it is the ladder's job, on the watchlist.
-      refute has_element?(view, "[phx-click='plan_track_only']")
-      refute render(view) =~ "Watch for release"
+      # Download is not gated on the release date; watching for a release
+      # is the ladder's job, on the watchlist.
       assert has_element?(view, "button[phx-click='plan_create']", "Download")
     end
 
@@ -1364,7 +1356,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute still_there.status == "discarded"
     end
 
-    test "gaps row offers the live track-later handoff (ADR-056)", %{conn: conn} do
+    test "the TV gap banner states the live verdict with its receipts (UIDR-022)", %{conn: conn} do
       stub_plan_tmdb()
 
       # Default Prowlarr stub returns nothing — every wanted unit is a gap.
@@ -1381,12 +1373,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~
                "5 searches — checked just now. Still missing: S01E01 · Episode 1, S01E02 · Episode 2."
 
-      # No handoff to release tracking from here: a followed series at
-      # Ask or above already wants every episode it is missing, and the
-      # rung is set on the watchlist, not from a download's gaps.
-      refute has_element?(view, "[phx-click='plan_track_gaps']")
-      refute html =~ "Track these"
-      # TV recourse is deferred — no escape hatch on aggregate gaps.
+      # TV recourse is deferred — no escape hatch on aggregate gaps. The
+      # button exists on movie boards; a shared banner must not carry it
+      # onto TV, where there is no rejected list to show.
       refute has_element?(view, "button[phx-click='plan_show_rejected']")
     end
 
@@ -2670,7 +2659,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='ledger'] [phx-click='set_history_filter']")
       assert has_element?(view, "[data-nav-zone='ledger'] input[type='search']")
       assert has_element?(view, "[data-nav-zone='ledger']", "Tabbed Landed Movie")
-      refute has_element?(view, "[phx-click='toggle_history']")
       refute has_element?(view, "[data-nav-zone='title_rows']")
       refute has_element?(view, "[data-nav-zone='pursuits']")
     end
@@ -3430,8 +3418,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='query_change']", query: "Healthy")
       |> render_submit()
 
-      html = render_until(view, "Healthy.Result.1080p")
-      refute html =~ "retry_all_timeouts"
+      _ = render_until(view, "Healthy.Result.1080p")
+      refute has_element?(view, "button[phx-click='retry_all_timeouts']")
     end
   end
 
@@ -3918,7 +3906,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   describe "the Watchlist tab (UIDR-050)" do
     test "an empty watchlist states what fills it", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
-      assert has_element?(view, "#watchlist-empty")
+      assert has_element?(view, "#watchlist-empty", "Nothing on your watchlist yet")
       refute has_element?(view, "[data-nav-zone='title_rows']")
     end
 

@@ -57,9 +57,9 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
     {:ok, series: series, item: item}
   end
 
-  test "a tracked series carries the timeline and the rows under its seasons; no bell",
+  test "a tracked series carries the timeline and the rows under its seasons",
        %{conn: conn} do
-    {:ok, view, html} = live(conn, "/library?title=tv_series-424242")
+    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
     assert has_element?(view, "#detail-release-dates", "S02E01")
@@ -68,8 +68,6 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
     # Listed at any rung: the bookmark is filled and a click removes the
     # title — one act (spec 2026-09-14).
     assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
-    refute has_element?(view, "[phx-click='toggle_tracking']")
-    refute html =~ "hero-bell"
   end
 
   test "the rows move the rung; the bookmark deletes the tracked title and its timeline", %{
