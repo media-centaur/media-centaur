@@ -248,8 +248,9 @@ defmodule TestSweep do
     end)
   end
 
+  # The keeps ledger quotes the selectors it rules on; it is not a reader.
   defp line_count(token, dir) do
-    {out, _} = System.cmd("git", ["grep", "-c", "-w", "-F", "--", token, dir])
+    {out, _} = System.cmd("git", ["grep", "-c", "-w", "-F", "--", token, dir, ":(exclude)#{@keeps}"])
 
     out
     |> String.split("\n", trim: true)
