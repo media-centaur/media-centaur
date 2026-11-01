@@ -10,9 +10,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   alias MediaCentaur.NewReleases.Member
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TitleArtwork
-  alias MediaCentaurWeb.Components.PosterRow
+  alias MediaCentaurWeb.Components.{HeroCard, PosterRow}
   alias MediaCentaurWeb.Components.Title.{Grade, Logic, SocialWords, ToolbarSlots}
+  alias MediaCentaurWeb.LibraryFormatters
   alias MediaCentaurWeb.TitleRef
+
+  @hero_pool 5
 
   @typedoc "A listed title as `Watchlist.list_watchlist/0` returns it."
   @type listed :: %{intent: MediaCentaur.Watchlist.TitleIntent.t(), library_owner_id: String.t() | nil}
@@ -61,6 +64,60 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
       end
     end)
   end
+
+  @doc """
+  The hero's pool (decision 1): the first #{@hero_pool} New Releases
+  members whose backdrop the referenced artwork tier holds on disk — the
+  canvas decodes a local file, never a hotlink — each as a `HeroCard.Item`
+  from the store's record: the lockup or name, year, genres, runtime,
+  overview, the local backdrop and logo. `HeroRotation.select/2` picks
+  one of them per seven-hour block, as Home picks among its candidates.
+  """
+  @spec hero_candidates(
+          [Member.t()],
+          %{MediaCentaur.TMDB.Store.ref() => Title.t()},
+          %{MediaCentaur.TMDB.Store.ref() => map()}
+        ) :: [HeroCard.Item.t()]
+  def hero_candidates(members, snapshots, payloads) do
+    members
+    |> Enum.flat_map(fn member ->
+      ref = Member.ref(member)
+
+      with %Title{} = title <- Map.get(snapshots, ref),
+           %{} = payload <- Map.get(payloads, ref),
+           %{backdrop_url: "/media-images/" <> _} = urls <- TitleArtwork.urls(title, %{}, :w342) do
+        [hero_item(ref, title, payload, urls)]
+      else
+        _absent_or_hotlinked -> []
+      end
+    end)
+    |> Enum.take(@hero_pool)
+  end
+
+  defp hero_item(ref, %Title{} = title, payload, urls) do
+    %HeroCard.Item{
+      id: TitleRef.param(ref),
+      ref: ref,
+      name: title.name,
+      year: title.year,
+      runtime: runtime(payload["runtime"]),
+      genre_label: genres(payload["genres"]),
+      overview: title.overview || payload["overview"],
+      backdrop_url: urls.backdrop_url,
+      logo_url: urls.logo_url
+    }
+  end
+
+  defp runtime(minutes) when is_integer(minutes) and minutes > 0,
+    do: LibraryFormatters.format_human_duration(minutes * 60)
+
+  defp runtime(_minutes), do: nil
+
+  defp genres(genres) when is_list(genres) and genres != [] do
+    genres |> Enum.map(& &1["name"]) |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
+  end
+
+  defp genres(_genres), do: nil
 
   @doc """
   The watchlist by release stage (decisions 13–15): every listed title

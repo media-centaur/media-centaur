@@ -117,6 +117,49 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the hero is a member with a backdrop on disk: the canvas, the lockup or name, and its three actions",
+         %{conn: conn} = context do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache(context)
+      store_movie(901, "Movie A")
+      store_movie(902, "Movie B")
+      backdrop = MediaCentaur.TmdbArtwork.on_disk_path(:backdrop, :movie, 902)
+      File.mkdir_p!(Path.dirname(backdrop))
+      File.write!(backdrop, "jpeg")
+      :ok = NewReleases.replace([digital(901), digital(902)])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(
+               view,
+               "canvas#hero-backdrop[phx-hook='HeroBackdrop'][data-src*='movie-902/backdrop.jpg']"
+             )
+
+      assert has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie B")
+      assert has_element?(view, "#discovery-hero-list[aria-pressed='false']", "Add to watchlist")
+      assert has_element?(view, "#discovery-hero-download")
+      refute has_element?(view, "h1", "Discovery")
+
+      view |> element("#discovery-hero-list") |> render_click()
+      assert MediaCentaur.Watchlist.rung(902, :movie) == :list
+      assert render_until(view, "On your watchlist") =~ "On your watchlist"
+
+      view |> element("#discovery-hero-more") |> render_click()
+      assert_patch(view, "/discovery?title=movie-902")
+      await_supervised_tasks()
+    end
+
+    test "no member with a backdrop on disk: no hero, no canvas, the page title stays", %{conn: conn} do
+      store_movie(901, "Movie A")
+      :ok = NewReleases.replace([digital(901)])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      refute has_element?(view, "canvas#hero-backdrop")
+      refute has_element?(view, "[data-nav-zone='hero']")
+      assert has_element?(view, "h1", "Discovery")
+    end
+
     test "the shelf follows the membership", %{conn: conn} do
       store_movie(901, "Movie A")
       store_movie(902, "Movie B")

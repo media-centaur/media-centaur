@@ -412,16 +412,17 @@ export const inputConfig = {
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
     // Discovery: Home's construction over the titles you do not own yet —
-    // a vertical stack of horizontal shelves: Out Now, New Releases,
-    // Reviewed by Friends, the Watchlist grouped row (campaign
+    // the hero over a vertical stack of horizontal shelves: Out Now, New
+    // Releases, Reviewed by Friends, the Watchlist grouped row (campaign
     // discovery.md). Candidate lists skip shelves the page did not render;
-    // the hero and the search zone join the chain as their milestones land.
+    // the search zone joins the chain when it lands.
     discovery: {
-      out_now:      { down: ["new_releases", "friends", "watchlist"] },
-      new_releases: { up: ["out_now"], down: ["friends", "watchlist"] },
-      friends:      { up: ["new_releases", "out_now"], down: ["watchlist"] },
-      watchlist:    { up: ["friends", "new_releases", "out_now"] },
-      sidebar:      { right: ["out_now", "new_releases", "friends", "watchlist"] },
+      hero:         { down: ["out_now", "new_releases", "friends", "watchlist"] },
+      out_now:      { up: ["hero"], down: ["new_releases", "friends", "watchlist"] },
+      new_releases: { up: ["out_now", "hero"], down: ["friends", "watchlist"] },
+      friends:      { up: ["new_releases", "out_now", "hero"], down: ["watchlist"] },
+      watchlist:    { up: ["friends", "new_releases", "out_now", "hero"] },
+      sidebar:      { right: ["hero", "out_now", "new_releases", "friends", "watchlist"] },
     },
     // Setup tour: a sidebar-less first-run wizard. A single `grid` context
     // holds the whole step card (form fields + footer buttons); there is
@@ -455,7 +456,7 @@ export const inputConfig = {
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
-    discovery: ["out_now", "new_releases", "friends", "watchlist", "sidebar"],
+    discovery: ["hero", "out_now", "new_releases", "friends", "watchlist", "sidebar"],
     setup:     ["grid"],
     profiles:  ["profile_picker", "sidebar"],
   },

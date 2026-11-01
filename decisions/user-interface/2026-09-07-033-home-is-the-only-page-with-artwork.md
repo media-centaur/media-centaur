@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-07
-amended: 2026-10-03
+amended: 2026-11-01
 ---
 # Home is the only page that carries artwork
+
+> **Amendment 2026-11-01 (campaign `discovery.md`, M12).** Rule 1 widens to the two assembled pages: `.page-backdrop` is the page-artwork surface of **Home and Discovery**, each painting its hero's backdrop through the UIDR-032 canvas, whose decoded-bitmap cache now holds **two** slots so moving between the pages keeps both. Discovery's hero is a TMDB identity whose backdrop the referenced artwork tier holds on disk; the canvas never decodes a hotlink. Rule 2 stands for every other page. The title of this record names the state before the amendment.
 
 Supersedes the Library and Incoming halves of UIDR-032.
 

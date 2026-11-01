@@ -6,6 +6,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   this page exist while the `:discovery` flag is on, and the page is its
   off state otherwise.
 
+  Discovery is the second artwork page (UIDR-010 and UIDR-033, amended
+  2026-11-01): a full-bleed backdrop painted by the hero canvas from the
+  referenced artwork tier, and a hero card for the most notable new
+  release — one of the shelf's first five members with a backdrop on disk,
+  rotated every seven hours as Home rotates its own (`HeroRotation`) —
+  whose actions are **Add to watchlist** (the bookmark at hero size,
+  UIDR-039), **Download** (the host's `title_download`, absent once the
+  library has it or a plan runs) and **More info** (decision 12). Without
+  a hero the page keeps its title and the scrim alone.
+
   The shelves, in order (decisions 13–16): **Out Now**, the listed titles
   at the home release stage, first because it is the actionable one;
   **New Releases**, `NewReleases.members/0` as a poster row of TMDB
@@ -43,7 +53,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.TMDB.{ReleaseStages, Store}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
+  alias MediaCentaurWeb.Components.{HeroBackdrop, HeroCard}
+  alias MediaCentaurWeb.Components.Title.{ToolbarSlots, WatchlistToggle}
   alias MediaCentaurWeb.DiscoveryLive.Shelves
+  alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.IncomingLive.PlanQuery
 
@@ -65,6 +78,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        today: Date.utc_today(),
        loaded?: false,
        reload_timer: nil,
+       hero: nil,
+       hero_slots: nil,
        out_now: [],
        new_releases: [],
        friends: [],
@@ -107,8 +122,21 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     owners = ExternalIds.tmdb_owners(refs)
     states = TitleStates.for_refs(refs)
 
-    new_releases =
-      Shelves.new_releases_items(members, Store.snapshots(member_refs), rungs, owners, states)
+    member_snapshots = Store.snapshots(member_refs)
+    new_releases = Shelves.new_releases_items(members, member_snapshots, rungs, owners, states)
+
+    payloads =
+      member_refs |> Store.get_many() |> Map.new(fn {ref, record} -> {ref, record.payload} end)
+
+    hero = members |> Shelves.hero_candidates(member_snapshots, payloads) |> HeroRotation.select()
+
+    hero_slots =
+      hero &&
+        ToolbarSlots.resolve(%{
+          rung: Map.get(rungs, hero.ref),
+          library_owner_id: Map.get(owners, hero.ref),
+          acquisition_state: Map.get(states, hero.ref)
+        })
 
     watchlist =
       Shelves.watchlist_shelves(listed, ReleaseStages.for_refs(listed_refs, today), states, today)
@@ -121,6 +149,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         length(watchlist.out_now) + length(watchlist.in_theaters) + length(watchlist.coming_up)
 
     assign(socket,
+      hero: hero,
+      hero_slots: hero_slots,
       out_now: watchlist.out_now,
       new_releases: new_releases,
       friends: friends,
@@ -214,7 +244,64 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         data-nav-default-zone="discovery"
         data-nav-transient-params="title,entity,view,activity"
       >
-        <.page_header title="Discovery" />
+        <%!-- Page atmosphere, as Home's: the backdrop painted by the hero
+              canvas fades into base-100; the side dim continues down the
+              page so every shelf head sits on the same calm band. --%>
+        <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
+          <HeroBackdrop.hero_backdrop backdrop_url={@hero.backdrop_url} />
+        </div>
+        <div class="page-side-dim" aria-hidden="true"></div>
+
+        <%!-- The hero: a plain full-bleed track, not a ScrollRow (one item
+              has nothing to scroll); `data-nav-reveal` shows the whole hero
+              when one of its actions takes focus. --%>
+        <div :if={@hero} class="relative z-[1] -mx-6 -mt-6" data-nav-zone="hero" data-nav-reveal>
+          <div class="row-scroll row-scroll-hero">
+            <div class="w-full" data-row-item>
+              <HeroCard.hero_card item={@hero}>
+                <:actions>
+                  <WatchlistToggle.watchlist_toggle
+                    id="discovery-hero-list"
+                    rung={@hero_slots.rung}
+                    event="set_rung"
+                    size="lg"
+                    phx-value-ref={@hero.id}
+                    data-entity-id={@hero.id}
+                  />
+                  <.button
+                    :if={@hero_slots.download == :download}
+                    id="discovery-hero-download"
+                    variant="secondary"
+                    size="lg"
+                    class="text-white"
+                    phx-click="title_download"
+                    phx-value-ref={@hero.id}
+                    data-nav-item
+                    data-entity-id={@hero.id}
+                    tabindex="0"
+                  >
+                    <.icon name="hero-arrow-down-tray" class="size-5" /> Download
+                  </.button>
+                  <.button
+                    id="discovery-hero-more"
+                    variant="secondary"
+                    size="lg"
+                    class="text-white"
+                    phx-click="open_title"
+                    phx-value-ref={@hero.id}
+                    data-nav-item
+                    data-entity-id={@hero.id}
+                    tabindex="0"
+                  >
+                    <.icon name="hero-information-circle-mini" class="size-5" /> More info
+                  </.button>
+                </:actions>
+              </HeroCard.hero_card>
+            </div>
+          </div>
+        </div>
+
+        <.page_header :if={!@hero} title="Discovery" />
         <%!-- Ignore shows no state to reverse, so it gets an undo toast; the
               host keeps the undo (`:ignore_undo`), this page draws it. --%>
         <ActionToast.action_toast
@@ -225,7 +312,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           on_action={JS.push("ignore_undo")}
           on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
         />
-        <div class="space-y-10">
+        <div class={["relative z-[2] space-y-10", @hero && "-mt-8"]}>
           <%!-- Each shelf's section is its vertical reveal subject, as on
                 Home: a reveal shows the heading with the row; every shelf
                 but the last also shows the one below it. --%>

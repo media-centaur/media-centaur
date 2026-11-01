@@ -77,7 +77,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
-| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted, amended 2026-10-03 |
+| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted, amended 2026-11-01 |
 | 011 | 2026-05-12 | [Text and logos over imagery use shared `.text-on-image*` utilities](user-interface/2026-05-12-011-text-on-imagery.md) | accepted |
 | 012 | 2026-05-20 | [Desktop-app rendering defaults — eager, sync, stable, immutable](user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) | accepted, amended 2026-10-08 |
 | 013 | 2026-06-08 | [Modals declare an ephemeral or persistent dismissal mode through one seam](user-interface/2026-06-08-013-modal-dismissal-modes.md) | accepted |
@@ -98,7 +98,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted, amended 2026-09-07 |
-| 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted, amended 2026-10-03 |
+| 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted, amended 2026-11-01 |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty, and the one action that changes it](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | accepted, amended 2026-10-02 |
 | 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted, amended 2026-09-14 |

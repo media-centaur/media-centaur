@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-04-27
-amended: 2026-10-03
+amended: 2026-11-01
 ---
 # Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History
 
+> **Amendment 2026-11-01 (campaign `discovery.md`, M5 and M12).** Rule 1's "the one assembled cinematic page" and the consequence "the only page that does" widen to **two assembled pages**, each about titles: Home, where you watch what you own, and Discovery (`/discovery`), where you choose what you do not own yet — a hero and shelves over TMDB, Activities and the watchlist, composed from the same kit (`HeroCard`, `ShelfHead`, `PosterRow`). Every other page stays single-purpose. The Watch group gains Discovery between Library and Incoming while the feature is on.
+>
 > **Amendment 2026-10-03 (UIDR-051).** The Watch group's Discovery entry (rule 2) is **Social**, the Social page at `/social`.
 
 ## Context and Problem Statement
