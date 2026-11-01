@@ -91,11 +91,11 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       refute DetailPanel.body?(owned(%{type: :movie, extras: [extra]}), :main)
     end
 
-    test "an unowned title scrolls only for its tracking card" do
+    test "an unowned title scrolls for its tracking card, which it always has: Ignore unlisted, the switches listed" do
       title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       unowned = %TitleDetail{ref: {777, :movie}, title: title}
 
-      refute DetailPanel.body?(unowned, :main)
+      assert DetailPanel.body?(unowned, :main)
       assert DetailPanel.body?(%{unowned | rung: :list}, :main)
     end
   end

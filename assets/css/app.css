@@ -2258,6 +2258,17 @@ body:has(.modal-backdrop[data-state="open"]) {
     pointer-events: auto;
     transition-delay: var(--hover-reveal-delay);
   }
+
+  /* The strip takes the marker's seat; the marker yields on the same cue. */
+  .play-overlay-host:hover .poster-tile-marker,
+  .play-overlay-host:focus-within .poster-tile-marker {
+    opacity: 0;
+    transition-delay: var(--hover-reveal-delay);
+  }
+}
+
+.poster-tile-marker {
+  transition: opacity 150ms ease-out;
 }
 
 .poster-tile-tool {
