@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.3.1 — 2026-11-01
+
+### New
+
+- **Settings → Feature Flags.** Every optional part of Media Centaur is now one switch on a single page: Social, Remote players, Apps, and Discovery. A feature that is off has no sidebar entry and no settings section, and nothing of it runs in the background. Its page says so and offers a **Turn on** button, so you can switch a feature back on from wherever you land.
+- **Discovery, in development.** A new feature that will show movies that recently became available to stream, rent or buy, from TMDB. It is off by default and the page is empty for now; the row under Feature Flags marks it as in development, so you can turn it on to follow along as it takes shape.
+
+### Improved
+
+- **Turning Social off now turns all of it off.** Before, the switch only hid the sidebar entry while the Social page, its settings and the relay connections carried on. Now the page, the Social settings section, the Review control on title pages and the relay connections all go off together, and come back together when you turn it on.
+- **Remote players is a feature you can switch off.** With it off, TVs and other devices on your network cannot pair or reach this install, and the Players settings section is hidden. It is on by default, so nothing changes unless you turn it off.
+- **Apps moved to Feature Flags.** The Apps switch under Preferences is gone. If you had the launcher turned on, turn it on once more under Settings → Feature Flags; it is off by default.
+
 ## v2.2.3 — 2026-10-31
 
 ### Fixed
