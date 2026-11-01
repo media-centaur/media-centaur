@@ -254,11 +254,13 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
 
     test "GET /discovery mounts within budget", %{conn: conn} do
       # Discovery (campaign `discovery.md`) reads the New Releases
-      # membership, the store's snapshots for it, the watchlist's rungs,
-      # the library's TMDB owners and the acquisition states — five
-      # bounded reads per shelf, run on both renders (ADR-051) — plus the
-      # on_mount hooks' settings cache-miss reads in test mode. Seeded
-      # with the feature on and three members so the shelf path runs.
+      # membership, the listed titles, the friends' reviews, and for
+      # their refs together the store's snapshots and release stages,
+      # the rungs, the library's TMDB owners, the acquisition states and
+      # the friends' activity rows — a dozen bounded reads, run on both
+      # renders (ADR-051) — plus the on_mount hooks' settings cache-miss
+      # reads in test mode. Seeded with the feature on and three members
+      # so the shelf path runs.
       MediaCentaur.Features.set(:discovery, true)
 
       for tmdb_id <- [901, 902, 903] do
@@ -273,8 +275,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       mount_and_assert(
         conn,
         "/discovery",
-        40,
-        "five bounded shelf reads on both renders + on_mount hooks (settings cache-miss in test mode)"
+        60,
+        "a dozen bounded shelf reads on both renders + on_mount hooks (settings cache-miss in test mode)"
       )
     end
 

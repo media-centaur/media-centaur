@@ -6,15 +6,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   this page exist while the `:discovery` flag is on, and the page is its
   off state otherwise.
 
-  What it holds so far: the **New Releases** shelf — `NewReleases.members/0`
-  drawn as a poster row of TMDB identities from the store's snapshots,
-  each tile opening the title detail (`TitleDetailHost`), with the quiet
-  marker a title the library owns or the watchlist holds carries. Opening
-  the page reads the database only; nothing here calls TMDB. The shelf
-  follows the membership, the store, the watchlist and the library,
-  debounced (`Shelves.reloads?/1`). The watchlist shelves, Reviewed by
-  Friends, the verbs on a tile, the hero and media search are later
-  milestones of the campaign.
+  The shelves, in order (decisions 13–16): **Out Now**, the listed titles
+  at the home release stage, first because it is the actionable one;
+  **New Releases**, `NewReleases.members/0` as a poster row of TMDB
+  identities from the store's snapshots; **Reviewed by Friends**, the
+  titles friends have reviewed with their social glyphs, while the Social
+  feature is on; the **Watchlist** grouped row, In Theaters · Coming Up,
+  what waits. Each tile opens the title detail (`TitleDetailHost`) and
+  carries the quiet marker a title the library owns or the watchlist
+  holds. Opening the page reads the database only; nothing here calls
+  TMDB. The shelves follow the membership, the store, the watchlist, the
+  library, Activities and the Social flag, debounced
+  (`Shelves.reloads?/1`). The verbs on a tile, the hero and media search
+  are later milestones of the campaign.
 
   Empty, the page says why (UIDR-034, `Shelves.empty_reason/3`): TMDB
   never configured is the capability gap with the one action; TMDB down
@@ -30,12 +34,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   alias MediaCentaur.Acquisition.TitleStates
+  alias MediaCentaur.Activities
   alias MediaCentaur.Features
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.NewReleases
   alias MediaCentaur.NewReleases.Member
-  alias MediaCentaur.TMDB.Store
+  alias MediaCentaur.TMDB.{ReleaseStages, Store}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.{DetailPanel, FeatureOff, PosterRow, ShelfHead}
   alias MediaCentaurWeb.DiscoveryLive.Shelves
@@ -43,6 +48,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.IncomingLive.PlanQuery
 
   @reload_debounce_ms 500
+  @friends_limit 40
 
   @impl true
   def mount(_params, _session, socket) do
@@ -59,7 +65,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        today: Date.utc_today(),
        loaded?: false,
        reload_timer: nil,
+       out_now: [],
        new_releases: [],
+       friends: [],
+       watchlist_groups: [],
        empty_reason: nil
      )}
   end
@@ -77,27 +86,50 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       else: socket
   end
 
+  # Every read is bounded and local: the membership, the listed titles,
+  # the friends' reviews, then for their refs together the store's
+  # snapshots, the release stages, the rungs, the library's owners, the
+  # acquisition states and the friends' activity rows.
   defp load_shelves(socket) do
+    today = socket.assigns.today
     members = NewReleases.members()
-    refs = Enum.map(members, &Member.ref/1)
+    member_refs = Enum.map(members, &Member.ref/1)
+    listed = Watchlist.list_watchlist()
+    listed_refs = Enum.map(listed, &{&1.intent.tmdb_id, &1.intent.media_type})
 
-    items =
-      Shelves.new_releases_items(
-        members,
-        Store.snapshots(refs),
-        Watchlist.rungs(),
-        ExternalIds.tmdb_owners(refs),
-        TitleStates.for_refs(refs)
-      )
+    reviewed =
+      if :social in socket.assigns.features, do: Activities.reviewed_by_friends(@friends_limit), else: []
+
+    reviewed_refs = Enum.map(reviewed, & &1.ref)
+
+    refs = Enum.uniq(member_refs ++ listed_refs ++ reviewed_refs)
+    rungs = Watchlist.rungs()
+    owners = ExternalIds.tmdb_owners(refs)
+    states = TitleStates.for_refs(refs)
+
+    new_releases =
+      Shelves.new_releases_items(members, Store.snapshots(member_refs), rungs, owners, states)
+
+    watchlist =
+      Shelves.watchlist_shelves(listed, ReleaseStages.for_refs(listed_refs, today), states, today)
+
+    friends =
+      Shelves.friends_items(reviewed, Activities.activity_for(reviewed_refs), rungs, owners, states)
+
+    tiles =
+      length(new_releases) + length(friends) + length(watchlist.out_now) + length(watchlist.in_theaters) +
+        length(watchlist.coming_up)
 
     assign(socket,
-      new_releases: items,
+      out_now: watchlist.out_now,
+      new_releases: new_releases,
+      friends: friends,
+      watchlist_groups: [
+        %{label: "In Theaters", items: watchlist.in_theaters},
+        %{label: "Coming Up", items: watchlist.coming_up}
+      ],
       empty_reason:
-        Shelves.empty_reason(
-          socket.assigns.tmdb_ready,
-          IntegrationAvailability.up?(:tmdb),
-          length(items)
-        )
+        Shelves.empty_reason(socket.assigns.tmdb_ready, IntegrationAvailability.up?(:tmdb), tiles)
     )
   end
 
@@ -185,18 +217,59 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <.page_header title="Discovery" />
         <div class="space-y-10">
           <%!-- Each shelf's section is its vertical reveal subject, as on
-                Home: a reveal shows the heading with the row. --%>
+                Home: a reveal shows the heading with the row; every shelf
+                but the last also shows the one below it. --%>
+          <section
+            :if={@out_now != []}
+            data-row="out-now"
+            data-nav-zone="out_now"
+            data-nav-reveal
+            data-nav-reveal-block="end"
+            data-nav-reveal-next
+          >
+            <ShelfHead.shelf_head title="Out Now" see_all_href="/incoming" />
+            <PosterRow.poster_row id="out-now-row" items={@out_now} show_play_button={false} />
+          </section>
+
           <section
             :if={@new_releases != []}
             data-row="new-releases"
             data-nav-zone="new_releases"
             data-nav-reveal
             data-nav-reveal-block="end"
+            data-nav-reveal-next
           >
             <ShelfHead.shelf_head title="New Releases" />
             <PosterRow.poster_row
               id="new-releases-row"
               items={@new_releases}
+              show_play_button={false}
+            />
+          </section>
+
+          <section
+            :if={:social in @features and @friends != []}
+            data-row="friends"
+            data-nav-zone="friends"
+            data-nav-reveal
+            data-nav-reveal-block="end"
+            data-nav-reveal-next
+          >
+            <ShelfHead.shelf_head title="Reviewed by Friends" see_all_href="/social" />
+            <PosterRow.poster_row id="friends-row" items={@friends} show_play_button={false} />
+          </section>
+
+          <section
+            :if={Enum.any?(@watchlist_groups, &(&1.items != []))}
+            data-row="watchlist"
+            data-nav-zone="watchlist"
+            data-nav-reveal
+            data-nav-reveal-block="end"
+          >
+            <ShelfHead.shelf_head title="Watchlist" see_all_href="/incoming" />
+            <PosterRow.grouped_poster_row
+              id="watchlist-row"
+              groups={@watchlist_groups}
               show_play_button={false}
             />
           </section>

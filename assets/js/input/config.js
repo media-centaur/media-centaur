@@ -81,7 +81,10 @@ export const inputConfig = {
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
     // Discovery page shelves (campaign discovery.md): one SHELF per shelf,
     // stacked like Home's.
+    out_now: "[data-nav-zone='out_now'] [data-nav-item]",
     new_releases: "[data-nav-zone='new_releases'] [data-nav-item]",
+    friends: "[data-nav-zone='friends'] [data-nav-item]",
+    watchlist: "[data-nav-zone='watchlist'] [data-nav-item]",
     // Incoming page (single column: omnibox → the Watchlist's title_rows →
     // drafts → pursuits → ledger); the ledger hosts both the glimpse rows
     // and the expanded archive (chips + search).
@@ -114,7 +117,10 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
+    out_now: Context.SHELF,
     new_releases: Context.SHELF,
+    friends: Context.SHELF,
+    watchlist: Context.SHELF,
     // Incoming zones are vertical item lists (the home pages keep their
     // horizontal `coming_up` SHELF instance above).
     title_rows: Context.MENU,
@@ -406,12 +412,16 @@ export const inputConfig = {
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
     // Discovery: Home's construction over the titles you do not own yet —
-    // a vertical stack of horizontal shelves. One shelf so far (campaign
-    // discovery.md, M9); the watchlist shelves, the hero and the search
-    // zone join the chain as their milestones land.
+    // a vertical stack of horizontal shelves: Out Now, New Releases,
+    // Reviewed by Friends, the Watchlist grouped row (campaign
+    // discovery.md). Candidate lists skip shelves the page did not render;
+    // the hero and the search zone join the chain as their milestones land.
     discovery: {
-      new_releases: {},
-      sidebar:      { right: ["new_releases"] },
+      out_now:      { down: ["new_releases", "friends", "watchlist"] },
+      new_releases: { up: ["out_now"], down: ["friends", "watchlist"] },
+      friends:      { up: ["new_releases", "out_now"], down: ["watchlist"] },
+      watchlist:    { up: ["friends", "new_releases", "out_now"] },
+      sidebar:      { right: ["out_now", "new_releases", "friends", "watchlist"] },
     },
     // Setup tour: a sidebar-less first-run wizard. A single `grid` context
     // holds the whole step card (form fields + footer buttons); there is
@@ -445,7 +455,7 @@ export const inputConfig = {
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
-    discovery: ["new_releases", "sidebar"],
+    discovery: ["out_now", "new_releases", "friends", "watchlist", "sidebar"],
     setup:     ["grid"],
     profiles:  ["profile_picker", "sidebar"],
   },

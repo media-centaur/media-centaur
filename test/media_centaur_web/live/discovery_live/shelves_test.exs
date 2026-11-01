@@ -1,8 +1,11 @@
 defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
   use MediaCentaur.Case, async: true
 
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.NewReleases.Member
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaurWeb.Components.PosterRow.Item
   alias MediaCentaurWeb.DiscoveryLive.Shelves
 
@@ -60,6 +63,131 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
     end
   end
 
+  describe "watchlist_shelves/4" do
+    @today ~D[2026-11-01]
+
+    defp listed(tmdb_id, rung, media_type \\ :movie, owner \\ nil) do
+      %{
+        intent: %TitleIntent{
+          tmdb_id: tmdb_id,
+          media_type: media_type,
+          rung: rung,
+          title:
+            Title.new!(%{
+              tmdb_id: tmdb_id,
+              media_type: media_type,
+              name: "Title #{tmdb_id}",
+              year: "2026"
+            })
+        },
+        library_owner_id: owner
+      }
+    end
+
+    test "placed by stage: Out Now newest home date first, In Theaters newest opening first with the day, Coming Up nearest first with the month" do
+      stages = %{
+        {1, :movie} => %{stage: :home, date: ~D[2026-10-20]},
+        {2, :movie} => %{stage: :home, date: ~D[2026-10-28]},
+        {3, :movie} => %{stage: :theatrical, date: ~D[2026-10-10]},
+        {4, :movie} => %{stage: :theatrical, date: ~D[2026-10-24]},
+        {5, :movie} => %{stage: :unreleased, date: ~D[2027-02-01]},
+        {6, :tv_series} => %{stage: :unreleased, date: ~D[2026-12-05]},
+        {7, :movie} => %{stage: :unknown, date: nil}
+      }
+
+      listed = [
+        listed(1, :list),
+        listed(2, :follow),
+        listed(3, :list),
+        listed(4, :grab),
+        listed(5, :list),
+        listed(6, :follow, :tv_series),
+        listed(7, :list)
+      ]
+
+      shelves = Shelves.watchlist_shelves(listed, stages, %{{1, :movie} => :downloading}, @today)
+
+      assert Enum.map(shelves.out_now, &{&1.id, &1.marker, &1.chip}) == [
+               {"movie-2", "Tracking", nil},
+               {"movie-1", "Downloading", nil}
+             ]
+
+      assert Enum.map(shelves.in_theaters, &{&1.id, &1.marker, &1.chip}) == [
+               {"movie-4", "Auto-grab", "Oct 24"},
+               {"movie-3", "On your list", "Oct 10"}
+             ]
+
+      assert Enum.map(shelves.coming_up, &{&1.id, &1.chip}) == [
+               {"tv_series-6", "Dec"},
+               {"movie-5", "Feb 2027"}
+             ]
+    end
+
+    test "an owned title and a title the store lacks are off every shelf" do
+      stages = %{{1, :movie} => %{stage: :home, date: ~D[2026-10-20]}}
+      listed = [listed(1, :list, :movie, "owner-uuid"), listed(2, :list)]
+
+      assert %{out_now: [], in_theaters: [], coming_up: []} =
+               Shelves.watchlist_shelves(listed, stages, %{}, @today)
+    end
+  end
+
+  describe "friends_items/5" do
+    defp review(tmdb_id, author, sentiment) do
+      %{
+        activity: %Activity{
+          kind: :review,
+          sentiment: sentiment,
+          author_pubkey: author,
+          tmdb_id: tmdb_id,
+          media_type: :movie
+        },
+        author: %Person{own?: false}
+      }
+    end
+
+    test "one tile per reviewed title with the flags friends flew at their grade; an ignored title is dropped; an owned one is marked" do
+      reviewed = [
+        %{ref: {1, :movie}, title: title(1, "Movie A")},
+        %{ref: {2, :movie}, title: title(2, "Movie B")},
+        %{ref: {3, :movie}, title: title(3, "Movie C")}
+      ]
+
+      activity = %{
+        {1, :movie} => [review(1, "aa", :love), review(1, "bb", :love), review(1, "cc", :like)],
+        {3, :movie} => [review(3, "aa", nil)]
+      }
+
+      items =
+        Shelves.friends_items(
+          reviewed,
+          activity,
+          %{{2, :movie} => :ignored},
+          %{{3, :movie} => "owner"},
+          %{}
+        )
+
+      assert [
+               %Item{
+                 id: "movie-1",
+                 marker: nil,
+                 glyphs: %{flags: [:love, :like], grades: %{love: :silver, like: :plain}}
+               },
+               %Item{id: "movie-3", marker: "In library", glyphs: %{flags: [:review]}}
+             ] = items
+    end
+  end
+
+  describe "date_chip/3" do
+    test "the day for an opening, the month for a release ahead, the year when it is another year's" do
+      assert Shelves.date_chip(:day, ~D[2026-10-24], ~D[2026-11-01]) == "Oct 24"
+      assert Shelves.date_chip(:day, ~D[2025-10-24], ~D[2026-11-01]) == "Oct 24 2025"
+      assert Shelves.date_chip(:month, ~D[2026-12-05], ~D[2026-11-01]) == "Dec"
+      assert Shelves.date_chip(:month, ~D[2027-02-01], ~D[2026-11-01]) == "Feb 2027"
+      assert Shelves.date_chip(:day, nil, ~D[2026-11-01]) == nil
+    end
+  end
+
   describe "empty_reason/3" do
     test "TMDB never configured is the capability gap, whatever else holds" do
       assert Shelves.empty_reason(false, true, 0) == :tmdb_unconfigured
@@ -82,6 +210,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       assert Shelves.reloads?({:tmdb_title_changed, {901, :movie}})
       assert Shelves.reloads?({:title_intent_changed, %{}})
       assert Shelves.reloads?({:entities_changed, %{}})
+      assert Shelves.reloads?({:activity_received, %{}})
+      assert Shelves.reloads?({:activity_deleted, %{}})
+      assert Shelves.reloads?({:setting_changed, "feature:social", %{}})
+      refute Shelves.reloads?({:setting_changed, "feature:apps", %{}})
       assert Shelves.reloads?({:integration_availability_changed, :tmdb, :up})
       refute Shelves.reloads?({:integration_availability_changed, :prowlarr, :up})
       refute Shelves.reloads?({:playback_state_changed, %{}})

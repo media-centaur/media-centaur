@@ -116,4 +116,118 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert html =~ "New releases arrive when TMDB is back"
     end
   end
+
+  describe "the watchlist shelves" do
+    setup do
+      Features.set(:discovery, true)
+      TmdbStubs.mark_ready!()
+      :ok
+    end
+
+    defp typed(dates) do
+      %{
+        "results" => [
+          %{
+            "iso_3166_1" => "US",
+            "release_dates" =>
+              Enum.map(dates, fn {type, date} ->
+                %{"type" => type, "release_date" => "#{date}T00:00:00.000Z"}
+              end)
+          }
+        ]
+      }
+    end
+
+    defp list_movie(tmdb_id, name, rung, dates) do
+      create_title_intent(%{
+        tmdb_id: tmdb_id,
+        media_type: :movie,
+        name: name,
+        rung: rung,
+        payload:
+          TmdbStubs.movie_detail(%{
+            "id" => tmdb_id,
+            "title" => name,
+            "release_date" => nil,
+            "release_dates" => typed(dates)
+          })
+      })
+    end
+
+    test "Out Now first, the Watchlist grouped row last with In Theaters and Coming Up chips; an owned title is on neither",
+         %{conn: conn} do
+      today = Date.utc_today()
+      list_movie(901, "Movie Out", :follow, [{3, Date.add(today, -60)}, {4, Date.add(today, -5)}])
+      list_movie(902, "Movie Opened", :list, [{3, Date.add(today, -12)}])
+      list_movie(903, "Movie Ahead", :list, [{3, Date.add(today, 45)}])
+      list_movie(904, "Movie Owned", :list, [{4, Date.add(today, -5)}])
+      movie = create_movie(%{name: "Movie Owned", tmdb_id: "904"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, html} = live(conn, "/discovery")
+
+      assert has_element?(view, "#out-now-row-movie-901", "Tracking")
+
+      assert has_element?(
+               view,
+               "#watchlist-row [data-group='In Theaters'] #watchlist-row-movie-902",
+               MediaCentaur.Format.month_day(Date.add(today, -12))
+             )
+
+      assert has_element?(view, "#watchlist-row [data-group='Coming Up'] #watchlist-row-movie-903")
+      refute html =~ "Movie Owned"
+      assert :binary.match(html, "Out Now") < :binary.match(html, "data-row=\"watchlist\"")
+    end
+  end
+
+  describe "Reviewed by Friends" do
+    alias MediaCentaur.Activities
+    alias MediaCentaur.Activities.Translation
+    alias MediaCentaur.Nostr.Event
+    alias MediaCentaur.Secret
+    alias MediaCentaur.Social
+    alias MediaCentaur.Social.Identity
+    alias MediaCentaur.TMDB.Title
+
+    import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+
+    @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    setup context do
+      Features.set(:discovery, true)
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache(context)
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+
+      title = Title.new!(%{tmdb_id: 905, media_type: :movie, name: "Movie Reviewed"})
+
+      event =
+        Event.sign(
+          Translation.to_event(:review, title, [sentiment: :love, text: "yes"], @friend_pubkey),
+          @friend_secret
+        )
+
+      {:ok, _activity} = Activities.ingest(event)
+      await_supervised_tasks()
+      :ok
+    end
+
+    test "a friend's review puts the title on the shelf with its glyph; the shelf links to Social", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "#friends-row-movie-905 [data-role='social-glyphs']")
+      assert has_element?(view, "[data-row='friends'] a[href='/social']", "See all")
+    end
+
+    test "with Social off the shelf is gone", %{conn: conn} do
+      Features.set(:social, false)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      refute has_element?(view, "#friends-row")
+    end
+  end
 end
