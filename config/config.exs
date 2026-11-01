@@ -114,6 +114,13 @@ config :media_centaur, Oban,
        # withdrawal's PubSub path lost one (campaign durable-work, F8).
        {"@reboot", MediaCentaur.Activities.StaleListingsJob},
        {"23 * * * *", MediaCentaur.Activities.StaleListingsJob},
+       # Rewrites the New Releases shelf membership from TMDB's discover
+       # query and ensures its members' records and artwork (campaign
+       # `discovery.md`); does nothing while the Discovery feature is off.
+       # Before the retention sweep, so a member that stays referenced is
+       # never swept between the two. The feature's runtime enqueues the
+       # same job at boot and at turn-on (`NewReleases.Kickoff`).
+       {"3 4 * * *", MediaCentaur.NewReleases.RefreshJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset
@@ -182,7 +189,8 @@ config :media_centaur, :tmdb_reference_providers, [
   MediaCentaur.Acquisition.TmdbReferences,
   MediaCentaur.Watchlist.TmdbReferences,
   MediaCentaur.Activities.TmdbReferences,
-  MediaCentaur.Pipeline.TmdbReferences
+  MediaCentaur.Pipeline.TmdbReferences,
+  MediaCentaur.NewReleases.TmdbReferences
 ]
 
 config :media_centaur,

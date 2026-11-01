@@ -185,8 +185,8 @@ defmodule MediaCentaur.Topics do
   @doc "`{:tmdb_title_changed, {tmdb_id, media_type}}` when a stored TMDB title's payload changed (`MediaCentaur.TMDB.Store`)."
   def tmdb_titles, do: "tmdb:titles"
 
-  @doc "`{:new_releases_changed}` when the New Releases shelf membership was rewritten (`MediaCentaur.TMDB.NewReleases`)."
-  def tmdb_new_releases, do: "tmdb:new_releases"
+  @doc "`{:new_releases_changed}` when the New Releases shelf membership was rewritten (`MediaCentaur.NewReleases`)."
+  def new_releases_updates, do: "new_releases:updates"
 
   def watch_history_events, do: "watch_history:events"
   def console_logs, do: "console:logs"

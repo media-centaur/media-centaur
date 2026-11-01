@@ -1,9 +1,9 @@
-defmodule MediaCentaur.TMDB.NewReleases.Member do
+defmodule MediaCentaur.NewReleases.Member do
   @moduledoc """
   One place on the New Releases shelf: a TMDB movie id, its position in
   the shelf's order and the US digital release date it qualified with.
   The shelf is movies only, so a member's ref is always `{tmdb_id,
-  :movie}`. Rows are written whole by `MediaCentaur.TMDB.NewReleases.replace/1`
+  :movie}`. Rows are written whole by `MediaCentaur.NewReleases.replace/1`
   and never edited one by one.
   """
   use Ecto.Schema
@@ -18,7 +18,7 @@ defmodule MediaCentaur.TMDB.NewReleases.Member do
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @timestamps_opts [type: :utc_datetime]
 
-  schema "tmdb_new_release_members" do
+  schema "new_release_members" do
     field :tmdb_id, :integer
     field :position, :integer
     field :digital_date, :date

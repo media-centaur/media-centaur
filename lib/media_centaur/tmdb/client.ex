@@ -25,7 +25,7 @@ defmodule MediaCentaur.TMDB.Client do
   - **Search endpoints:** `/search/movie`, `/search/tv`, `/search/multi`
   - **Discover endpoint:** `/discover/movie` — a filtered, sorted, paged
     list of movies, for the New Releases shelf refresh
-    (`MediaCentaur.TMDB.NewReleases`)
+    (`MediaCentaur.NewReleases`)
   - **Detail endpoints:** `/movie/{id}`, `/tv/{id}`, `/tv/{id}/season/{n}`, `/collection/{id}`
   - **Image URL:** `https://image.tmdb.org/t/p/original{path}`
 
