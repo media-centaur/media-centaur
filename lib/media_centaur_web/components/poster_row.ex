@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.PosterRow do
   @moduledoc """
-  Horizontal poster row. Used on Home for the "Recently Added" row.
+  Horizontal poster row: Home's "Recently Added" and Discovery's shelves.
 
   Cards are the shared 2:3 poster (`--card-poster-w`), so they are the same
   size as the library grid's — the row's "See all" lands on `/library`, and
@@ -10,7 +10,14 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   `ScrollRow.scroll_row/1`, which adds the mouse user's edge arrows.
 
   Each item is an `Item` struct (see below). `year` may be a string like
-  "2023" or "S2 · 2026".
+  "2023" or "S2 · 2026". A tile's subject is a library entity
+  (`entity_id`, opened by `select_entity`, with the play overlay) or a
+  TMDB identity (`ref`, opened by `open_title`, no Play: nothing to play),
+  the two openings the title detail host already has. `marker` is the
+  quiet state chip at the poster's foot, in `Title.Logic.row_markers/2`'s
+  words. The row's `id` names the `ScrollRow`, and each tile's DOM id
+  is derived from it, so one page may hold several rows and a title may
+  sit on two of them.
 
   When `see_all_href` is set, a "See all" card renders as the last slot in
   the scrollable row, mirroring the Continue Watching row.
@@ -22,27 +29,38 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
+  alias MediaCentaurWeb.TitleRef
 
   defmodule Item do
     @moduledoc """
-    View-model for a single PosterRow card. `available?` is whether the
+    View-model for a single PosterRow card. The subject is one of
+    `entity_id` (a library entity) or `ref` (a TMDB identity,
+    `{tmdb_id, :movie | :tv_series}`). `available?` is whether the
     entry's media directory is reachable; an offline card renders a
     neutral block, the name, and no Play (the same treatment as the
-    Library card).
+    Library card). `marker` is the state chip, or nil for none.
     """
-    @enforce_keys [:id, :entity_id, :name, :year, :poster_url]
-    defstruct [:id, :entity_id, :name, :year, :poster_url, available?: true]
+    @enforce_keys [:id, :name, :year, :poster_url]
+    defstruct [:id, :entity_id, :ref, :name, :year, :poster_url, :marker, available?: true]
 
     @type t :: %__MODULE__{
             id: term(),
-            entity_id: String.t(),
+            entity_id: String.t() | nil,
+            ref: {pos_integer(), :movie | :tv_series} | nil,
             name: String.t(),
             year: String.t() | nil,
             poster_url: String.t() | nil,
+            marker: String.t() | nil,
             available?: boolean()
           }
+
+    @doc "What the tile's DOM id and `data-entity-id` carry: the entity id, or the ref as a URL param."
+    @spec key(t()) :: String.t()
+    def key(%__MODULE__{entity_id: entity_id}) when is_binary(entity_id), do: entity_id
+    def key(%__MODULE__{ref: {_tmdb_id, _media_type} = ref}), do: TitleRef.param(ref)
   end
 
+  attr :id, :string, required: true, doc: "the row's DOM id; tile ids derive from it"
   attr :items, :list, required: true, doc: "list of `Item.t()`"
 
   attr :see_all_href, :string,
@@ -56,24 +74,20 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   def poster_row(assigns) do
     ~H"""
-    <ScrollRow.scroll_row
-      :if={@items != []}
-      id="recently-added-row"
-      variant={:poster}
-      data-component="poster-row"
-    >
+    <ScrollRow.scroll_row :if={@items != []} id={@id} variant={:poster} data-component="poster-row">
       <%!-- A div, not a <button>: the play overlay nests a real button
             inside (UIDR-027) and buttons cannot nest. Same pattern as the
             library poster card. --%>
       <div
         :for={item <- @items}
-        id={"poster-row-#{item.entity_id}"}
-        phx-click="select_entity"
+        id={"#{@id}-#{Item.key(item)}"}
+        phx-click={if item.entity_id, do: "select_entity", else: "open_title"}
         phx-value-id={item.entity_id}
+        phx-value-ref={if is_nil(item.entity_id), do: Item.key(item)}
         class="card-hover play-overlay-host relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
         data-row-item
         data-nav-item
-        data-entity-id={item.entity_id}
+        data-entity-id={Item.key(item)}
         tabindex="0"
       >
         <img
@@ -97,9 +111,12 @@ defmodule MediaCentaurWeb.Components.PosterRow do
           <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
         </div>
 
-        <%!-- Offline storage cannot play (UIDR-027). --%>
+        <span :if={item.marker} class="poster-tile-marker">{item.marker}</span>
+
+        <%!-- Offline storage cannot play (UIDR-027); a TMDB identity has
+              nothing to play. --%>
         <PlayOverlay.play_overlay
-          :if={@show_play_button && item.available?}
+          :if={@show_play_button && item.available? && item.entity_id}
           entity_id={item.entity_id}
         />
       </div>

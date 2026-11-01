@@ -4,15 +4,18 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
 
   ## Contract shape (typed)
 
-  The component takes `attr :items, :list, required: true` of
+  The component takes `attr :id` (the row's DOM id — a page may hold
+  several rows) and `attr :items, :list, required: true` of
   `MediaCentaurWeb.Components.PosterRow.Item.t()` structs:
 
       %Item{
         id: term(),
-        entity_id: String.t(),
+        entity_id: String.t() | nil,   # a library entity, opened by `select_entity`
+        ref: {tmdb_id, :movie | :tv_series} | nil,   # a TMDB identity, opened by `open_title`
         name: String.t(),
         year: String.t() | nil,
-        poster_url: String.t() | nil
+        poster_url: String.t() | nil,
+        marker: String.t() | nil        # the quiet state chip: In library, Tracking, Auto-grab
       }
 
   Variations construct literal `%Item{}` structs — the contract is
@@ -21,6 +24,8 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
   ## Variation matrix
 
     * Items axis — full row (8), single item, empty list (renders nothing).
+    * Subject axis — library entities (Home), TMDB identities (Discovery).
+    * Marker axis — a tile with and without its state chip.
     * Artwork axis — all-with-posters, all-fallback, mixed.
     * Edge cases — long name (truncate), no year, TV-style year, numeric year.
     * See-all axis — trailing "See all" card when `see_all_href` is set.
@@ -60,6 +65,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
             "Demonstrates the 8-up horizontal layout. The placeholder image URL " <>
             "404s in storybook chrome but the layout still resolves correctly.",
         attributes: %{
+          id: "story-full-row",
           items:
             for i <- 1..8 do
               %Item{
@@ -79,6 +85,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
             "slot in the scrollable row, matching the Continue Watching row. " <>
             "Navigates to the linked library view.",
         attributes: %{
+          id: "story-see-all-row",
           see_all_href: "/library",
           items:
             for i <- 1..6 do
@@ -99,6 +106,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
             "withheld the poster URL, so the card shows a neutral block, the " <>
             "name and year, and no Play overlay.",
         attributes: %{
+          id: "story-offline-row",
           items: [
             %Item{
               id: "offline",
@@ -124,6 +132,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
           "One item — verifies the row renders cleanly with a single card and " <>
             "the scroll layout doesn't collapse.",
         attributes: %{
+          id: "story-single-row",
           items: [
             %Item{
               id: "single",
@@ -140,7 +149,60 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
         description:
           "`items: []` — the `:if={@items != []}` guard suppresses the wrapper " <>
             "entirely. Preview should be blank (no row rendered).",
-        attributes: %{items: []}
+        attributes: %{id: "story-empty-row", items: []}
+      },
+      %Variation{
+        id: :tmdb_identities,
+        description:
+          "Tiles keyed by `ref`, a TMDB identity, as Discovery's shelves draw them: " <>
+            "the tile opens the title detail (`open_title`) and carries no Play; " <>
+            "`marker` is the quiet state chip at the poster's foot — In library, " <>
+            "Tracking, Auto-grab — and absent for a title the app has no stance on.",
+        attributes: %{
+          id: "story-tmdb-row",
+          show_play_button: false,
+          items: [
+            %Item{
+              id: "ref-1",
+              ref: {101, :movie},
+              name: "Movie A",
+              year: "2026",
+              poster_url: poster_placeholder(1),
+              marker: "In library"
+            },
+            %Item{
+              id: "ref-2",
+              ref: {102, :movie},
+              name: "Movie B",
+              year: "2026",
+              poster_url: poster_placeholder(2),
+              marker: "Tracking"
+            },
+            %Item{
+              id: "ref-3",
+              ref: {103, :tv_series},
+              name: "Sample Show",
+              year: "2026",
+              poster_url: poster_placeholder(3),
+              marker: "Auto-grab"
+            },
+            %Item{
+              id: "ref-4",
+              ref: {104, :movie},
+              name: "Movie D",
+              year: "2026",
+              poster_url: poster_placeholder(4)
+            },
+            %Item{
+              id: "ref-5",
+              ref: {105, :movie},
+              name: "Movie Without Artwork",
+              year: "2026",
+              poster_url: nil,
+              marker: "In library"
+            }
+          ]
+        }
       },
       %Variation{
         id: :play_button_disabled,
@@ -150,6 +212,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
             "card shows nothing. The default (`true`) reveals a play button " <>
             "on hover in every other variation.",
         attributes: %{
+          id: "story-no-play-row",
           show_play_button: false,
           items: [
             %Item{
@@ -168,6 +231,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
           "All items have `poster_url: nil` — every card renders the fallback " <>
             "name + year overlay instead of an `<img>`. Verifies the fallback path.",
         attributes: %{
+          id: "story-fallback-row",
           items:
             for i <- 1..4 do
               %Item{
@@ -186,6 +250,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
           "Six items, alternating poster vs. no-poster. Verifies that real " <>
             "images and fallback overlays render side-by-side without layout drift.",
         attributes: %{
+          id: "story-mixed-row",
           items:
             for i <- 1..6 do
               %Item{
@@ -209,6 +274,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
             "real card width and lets the truncate / suppression behaviour be " <>
             "compared at a glance.",
         attributes: %{
+          id: "story-edge-row",
           items: [
             %Item{
               id: "long",

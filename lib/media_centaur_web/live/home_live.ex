@@ -208,6 +208,7 @@ defmodule MediaCentaurWeb.HomeLive do
               </.link>
             </div>
             <PosterRow.poster_row
+              id="recently-added-row"
               items={@recently_added}
               see_all_href="/library"
               show_play_button={@show_play_button}

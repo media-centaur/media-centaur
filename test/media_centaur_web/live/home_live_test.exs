@@ -734,7 +734,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       assert has_element?(
                view,
-               ~s|#poster-row-#{movie.id} button[phx-click="play"][phx-value-id="#{movie.id}"]|
+               ~s|#recently-added-row-#{movie.id} button[phx-click="play"][phx-value-id="#{movie.id}"]|
              )
     end
 
@@ -787,7 +787,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
 
       refute has_element?(view, ~s|#continue-watching-#{movie.id} button[phx-click="play"]|)
-      refute has_element?(view, ~s|#poster-row-#{movie.id} button[phx-click="play"]|)
+      refute has_element?(view, ~s|#recently-added-row-#{movie.id} button[phx-click="play"]|)
 
       # The hero's Play is a standing control, not the hover overlay —
       # the toggle must not touch it.
