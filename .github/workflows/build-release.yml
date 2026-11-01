@@ -8,7 +8,7 @@ name: Build release
 # We CAN'T cross-compile: priv/mac_listener (a file_system dep) is a
 # per-platform binary that Hex ships pre-compiled for the host OS.
 # ubuntu-22.04 = older glibc → wider compatibility on user Linuxes.
-# macos-14     = first GHA runner image on Apple Silicon arm64.
+# macos-15     = Apple Silicon arm64; macos-14 was retired on 2026-11-02.
 
 on:
   workflow_call:
@@ -25,7 +25,7 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.platform }} ${{ inputs.version }}
-    runs-on: ${{ inputs.platform == 'macos' && 'macos-14' || 'ubuntu-22.04' }}
+    runs-on: ${{ inputs.platform == 'macos' && 'macos-15' || 'ubuntu-22.04' }}
     env:
       PLATFORM_TAG: ${{ inputs.platform == 'macos' && 'darwin-arm64' || 'linux-x86_64' }}
       REQUIRED_UNIT_PATH: ${{ inputs.platform == 'macos' && 'share/launchd/com.media-centaur.app.plist' || 'share/systemd/media-centaur.service' }}

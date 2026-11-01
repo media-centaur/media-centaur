@@ -70,7 +70,7 @@ jobs:
   # campaign Phase 5 — see campaigns/macos-platform-support.md.
   macos:
     name: lint + compile (macos)
-    runs-on: macos-14
+    runs-on: macos-15
     # MIX_ENV=test mirrors the Linux precommit (configured via
     # preferred_envs: [precommit: :test] in mix.exs). Avoids pulling
     # path-only dev deps like ex_code_view that don't exist on CI.

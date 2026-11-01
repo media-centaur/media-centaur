@@ -79,7 +79,7 @@ jobs:
         env:
           REQUESTED: ${{ inputs.platform || 'all' }}
         run: |
-          macos='{"platform":"macos","runner":"macos-14","platform_tag":"darwin-arm64"}'
+          macos='{"platform":"macos","runner":"macos-15","platform_tag":"darwin-arm64"}'
           linux='{"platform":"linux","runner":"ubuntu-24.04","platform_tag":"linux-x86_64"}'
           case "$REQUESTED" in
             all) platforms="[$macos,$linux]"; build='["macos","linux"]' ;;
