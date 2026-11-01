@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
     * Items axis — full row (8), single item, empty list (renders nothing).
     * Subject axis — library entities (Home), TMDB identities (Discovery).
     * Marker axis — a tile with and without its state chip.
+    * Chip and glyphs axis — a date chip at the head, the social glyphs' pill.
     * Artwork axis — all-with-posters, all-fallback, mixed.
     * Edge cases — long name (truncate), no year, TV-style year, numeric year.
     * See-all axis — trailing "See all" card when `see_all_href` is set.
@@ -150,6 +151,59 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
           "`items: []` — the `:if={@items != []}` guard suppresses the wrapper " <>
             "entirely. Preview should be blank (no row rendered).",
         attributes: %{id: "story-empty-row", items: []}
+      },
+      %Variation{
+        id: :chips_and_glyphs,
+        description:
+          "The two other things a Discovery tile can carry: `chip`, a date at the " <>
+            "poster's head (an opening date on In Theaters, a release month on " <>
+            "Coming Up), and `glyphs`, the title's social glyphs at their grade in " <>
+            "a dark pill at the top right (Reviewed by Friends) — with and without " <>
+            "the marker.",
+        attributes: %{
+          id: "story-chips-row",
+          show_play_button: false,
+          items: [
+            %Item{
+              id: "chip-1",
+              ref: {201, :movie},
+              name: "Movie A",
+              year: "2026",
+              poster_url: poster_placeholder(1),
+              chip: "Oct 24",
+              marker: "Tracking"
+            },
+            %Item{
+              id: "chip-2",
+              ref: {202, :movie},
+              name: "Movie B",
+              year: "2027",
+              poster_url: poster_placeholder(2),
+              chip: "Dec"
+            },
+            %Item{
+              id: "glyph-1",
+              ref: {203, :movie},
+              name: "Movie C",
+              year: "2026",
+              poster_url: poster_placeholder(3),
+              glyphs: %{flags: [:love], grades: %{love: :plain}, tips: %{love: "A friend loved it"}}
+            },
+            %Item{
+              id: "glyph-2",
+              ref: {204, :movie},
+              name: "Movie D",
+              year: "2026",
+              poster_url: poster_placeholder(4),
+              marker: "In library",
+              glyphs: %{
+                flags: [:like, :dislike, :review],
+                grades: %{like: :gold, dislike: :plain, review: :silver},
+                tips: %{}
+              }
+            }
+          ]
+        }
       },
       %Variation{
         id: :tmdb_identities,

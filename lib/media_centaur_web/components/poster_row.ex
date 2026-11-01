@@ -1,6 +1,10 @@
 defmodule MediaCentaurWeb.Components.PosterRow do
   @moduledoc """
-  Horizontal poster row: Home's "Recently Added" and Discovery's shelves.
+  Horizontal poster row: Home's "Recently Added" and Discovery's shelves —
+  and the **grouped row** (`grouped_poster_row/1`), one scroll row holding
+  labelled groups of the same tiles with a hairline between them
+  (Discovery's Watchlist shelf: In Theaters · Coming Up); one nav zone,
+  an empty group omitted, the row gone when every group is empty.
 
   Cards are the shared 2:3 poster (`--card-poster-w`), so they are the same
   size as the library grid's — the row's "See all" lands on `/library`, and
@@ -15,7 +19,9 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   TMDB identity (`ref`, opened by `open_title`, no Play: nothing to play),
   the two openings the title detail host already has. `marker` is the
   quiet state chip at the poster's foot, in `Title.Logic.row_markers/2`'s
-  words. The row's `id` names the `ScrollRow`, and each tile's DOM id
+  words; `chip` a date at the poster's head (an opening date, a release
+  month); `glyphs` the title's social glyphs in a dark pill at the top
+  right (`Title.SocialGlyph`, UIDR-049), each a flag at its grade. The row's `id` names the `ScrollRow`, and each tile's DOM id
   is derived from it, so one page may hold several rows and a title may
   sit on two of them.
 
@@ -29,6 +35,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
+  alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.TitleRef
 
   defmodule Item do
@@ -38,10 +45,25 @@ defmodule MediaCentaurWeb.Components.PosterRow do
     `{tmdb_id, :movie | :tv_series}`). `available?` is whether the
     entry's media directory is reachable; an offline card renders a
     neutral block, the name, and no Play (the same treatment as the
-    Library card). `marker` is the state chip, or nil for none.
+    Library card). `marker` is the state chip, `chip` the date chip,
+    `glyphs` the social glyphs (`%{flags, grades, tips}`, the attrs of
+    `SocialGlyph.social_glyphs/1`); each nil for none.
     """
     @enforce_keys [:id, :name, :year, :poster_url]
-    defstruct [:id, :entity_id, :ref, :name, :year, :poster_url, :marker, available?: true]
+    defstruct [
+      :id,
+      :entity_id,
+      :ref,
+      :name,
+      :year,
+      :poster_url,
+      :marker,
+      :chip,
+      :glyphs,
+      available?: true
+    ]
+
+    @type glyphs :: %{flags: [atom()], grades: %{atom() => atom()}, tips: %{atom() => String.t()}}
 
     @type t :: %__MODULE__{
             id: term(),
@@ -51,6 +73,8 @@ defmodule MediaCentaurWeb.Components.PosterRow do
             year: String.t() | nil,
             poster_url: String.t() | nil,
             marker: String.t() | nil,
+            chip: String.t() | nil,
+            glyphs: glyphs() | nil,
             available?: boolean()
           }
 
@@ -75,51 +99,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   def poster_row(assigns) do
     ~H"""
     <ScrollRow.scroll_row :if={@items != []} id={@id} variant={:poster} data-component="poster-row">
-      <%!-- A div, not a <button>: the play overlay nests a real button
-            inside (UIDR-027) and buttons cannot nest. Same pattern as the
-            library poster card. --%>
-      <div
-        :for={item <- @items}
-        id={"#{@id}-#{Item.key(item)}"}
-        phx-click={if item.entity_id, do: "select_entity", else: "open_title"}
-        phx-value-id={item.entity_id}
-        phx-value-ref={if is_nil(item.entity_id), do: Item.key(item)}
-        class="card-hover play-overlay-host relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
-        data-row-item
-        data-nav-item
-        data-entity-id={Item.key(item)}
-        tabindex="0"
-      >
-        <img
-          :if={item.available? && item.poster_url}
-          src={poster_src(item.poster_url)}
-          alt={item.name}
-          class="absolute inset-0 w-full h-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <div
-          :if={!item.available?}
-          class="absolute inset-0 bg-base-content/5"
-          aria-label="Artwork unavailable — storage not mounted"
-        />
-        <%!-- Fallback only when artwork is missing or offline — the poster
-              image itself already carries the title, so showing it again is
-              redundant. --%>
-        <div :if={!item.available? || !item.poster_url} class="absolute inset-x-2 bottom-2">
-          <div class="text-xs font-semibold text-white text-on-image truncate">{item.name}</div>
-          <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
-        </div>
-
-        <span :if={item.marker} class="poster-tile-marker">{item.marker}</span>
-
-        <%!-- Offline storage cannot play (UIDR-027); a TMDB identity has
-              nothing to play. --%>
-        <PlayOverlay.play_overlay
-          :if={@show_play_button && item.available? && item.entity_id}
-          entity_id={item.entity_id}
-        />
-      </div>
+      <.tile :for={item <- @items} row_id={@id} item={item} show_play_button={@show_play_button} />
 
       <.link
         :if={@see_all_href}
@@ -134,6 +114,105 @@ defmodule MediaCentaurWeb.Components.PosterRow do
         <span class="text-sm font-medium">See all</span>
       </.link>
     </ScrollRow.scroll_row>
+    """
+  end
+
+  attr :id, :string, required: true, doc: "the row's DOM id; tile ids derive from it"
+
+  attr :groups, :list,
+    required: true,
+    doc: "`%{label: String.t(), items: [Item.t()]}` in order; an empty group is omitted"
+
+  attr :show_play_button, :boolean, default: true, doc: "as `poster_row/1`'s"
+
+  @doc """
+  One scroll row of labelled groups of poster tiles, a hairline between
+  the groups: Discovery's Watchlist shelf (In Theaters · Coming Up). One
+  nav zone; the items navigate by geometry across the groups.
+  """
+  def grouped_poster_row(assigns) do
+    assigns = assign(assigns, :groups, Enum.reject(assigns.groups, &(&1.items == [])))
+
+    ~H"""
+    <ScrollRow.scroll_row
+      :if={@groups != []}
+      id={@id}
+      variant={:poster}
+      data-component="grouped-poster-row"
+    >
+      <div :for={group <- @groups} class="poster-group" data-group={group.label}>
+        <span class="poster-group-label">{group.label}</span>
+        <div class="poster-group-tiles">
+          <.tile
+            :for={item <- group.items}
+            row_id={@id}
+            item={item}
+            show_play_button={@show_play_button}
+          />
+        </div>
+      </div>
+    </ScrollRow.scroll_row>
+    """
+  end
+
+  attr :row_id, :string, required: true
+  attr :item, Item, required: true
+  attr :show_play_button, :boolean, required: true
+
+  # A div, not a <button>: the play overlay nests a real button inside
+  # (UIDR-027) and buttons cannot nest. Same pattern as the library
+  # poster card.
+  defp tile(assigns) do
+    ~H"""
+    <div
+      id={"#{@row_id}-#{Item.key(@item)}"}
+      phx-click={if @item.entity_id, do: "select_entity", else: "open_title"}
+      phx-value-id={@item.entity_id}
+      phx-value-ref={if is_nil(@item.entity_id), do: Item.key(@item)}
+      class="card-hover play-overlay-host relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
+      data-row-item
+      data-nav-item
+      data-entity-id={Item.key(@item)}
+      tabindex="0"
+    >
+      <img
+        :if={@item.available? && @item.poster_url}
+        src={poster_src(@item.poster_url)}
+        alt={@item.name}
+        class="absolute inset-0 w-full h-full object-cover"
+        loading="eager"
+        decoding="sync"
+      />
+      <div
+        :if={!@item.available?}
+        class="absolute inset-0 bg-base-content/5"
+        aria-label="Artwork unavailable — storage not mounted"
+      />
+      <%!-- Fallback only when artwork is missing or offline — the poster
+            image itself already carries the title, so showing it again is
+            redundant. --%>
+      <div :if={!@item.available? || !@item.poster_url} class="absolute inset-x-2 bottom-2">
+        <div class="text-xs font-semibold text-white text-on-image truncate">{@item.name}</div>
+        <div :if={@item.year} class="text-[10px] text-white/70 text-on-image">{@item.year}</div>
+      </div>
+
+      <span :if={@item.chip} class="poster-tile-chip">{@item.chip}</span>
+      <SocialGlyph.social_glyphs
+        :if={@item.glyphs && @item.glyphs.flags != []}
+        flags={@item.glyphs.flags}
+        grades={@item.glyphs.grades}
+        tips={@item.glyphs.tips}
+        class="poster-tile-glyphs"
+      />
+      <span :if={@item.marker} class="poster-tile-marker">{@item.marker}</span>
+
+      <%!-- Offline storage cannot play (UIDR-027); a TMDB identity has
+            nothing to play. --%>
+      <PlayOverlay.play_overlay
+        :if={@show_play_button && @item.available? && @item.entity_id}
+        entity_id={@item.entity_id}
+      />
+    </div>
     """
   end
 end
