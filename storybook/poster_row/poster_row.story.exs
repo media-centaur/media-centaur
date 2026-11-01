@@ -27,6 +27,8 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
     * Subject axis — library entities (Home), TMDB identities (Discovery).
     * Marker axis — a tile with and without its state chip.
     * Chip and glyphs axis — a date chip at the head, the social glyphs' pill.
+    * Toolbar axis — `slots`: the bookmark, Download and Ignore at the foot on hover,
+      in each state the slots resolve to.
     * Artwork axis — all-with-posters, all-fallback, mixed.
     * Edge cases — long name (truncate), no year, TV-style year, numeric year.
     * See-all axis — trailing "See all" card when `see_all_href` is set.
@@ -35,6 +37,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaurWeb.Components.PosterRow.Item
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
 
   def function, do: &MediaCentaurWeb.Components.PosterRow.poster_row/1
   def render_source, do: :function
@@ -201,6 +204,71 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
                 grades: %{like: :gold, dislike: :plain, review: :silver},
                 tips: %{}
               }
+            }
+          ]
+        }
+      },
+      %Variation{
+        id: :toolbar,
+        description:
+          "`slots` set (`Title.ToolbarSlots`): hover a tile for its toolbar — the " <>
+            "bookmark (outline off the list, filled on it, filled and inert above " <>
+            "List), Download (absent once the library has it or a plan runs), Ignore. " <>
+            "Left to right: unlisted; listed; tracking; in the library; downloading.",
+        attributes: %{
+          id: "story-toolbar-row",
+          show_play_button: false,
+          items: [
+            %Item{
+              id: "tool-1",
+              ref: {401, :movie},
+              name: "Movie A",
+              year: "2026",
+              poster_url: poster_placeholder(1),
+              slots: ToolbarSlots.resolve(%{rung: nil, library_owner_id: nil, acquisition_state: nil})
+            },
+            %Item{
+              id: "tool-2",
+              ref: {402, :movie},
+              name: "Movie B",
+              year: "2026",
+              poster_url: poster_placeholder(2),
+              marker: "On your list",
+              slots: ToolbarSlots.resolve(%{rung: :list, library_owner_id: nil, acquisition_state: nil})
+            },
+            %Item{
+              id: "tool-3",
+              ref: {403, :movie},
+              name: "Movie C",
+              year: "2026",
+              poster_url: poster_placeholder(3),
+              marker: "Tracking",
+              slots:
+                ToolbarSlots.resolve(%{rung: :follow, library_owner_id: nil, acquisition_state: nil})
+            },
+            %Item{
+              id: "tool-4",
+              ref: {404, :movie},
+              name: "Movie D",
+              year: "2026",
+              poster_url: poster_placeholder(4),
+              marker: "In library",
+              slots:
+                ToolbarSlots.resolve(%{rung: nil, library_owner_id: "owner", acquisition_state: nil})
+            },
+            %Item{
+              id: "tool-5",
+              ref: {405, :movie},
+              name: "Movie E",
+              year: "2026",
+              poster_url: poster_placeholder(5),
+              marker: "Downloading",
+              slots:
+                ToolbarSlots.resolve(%{
+                  rung: nil,
+                  library_owner_id: nil,
+                  acquisition_state: :downloading
+                })
             }
           ]
         }

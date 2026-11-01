@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.DiscoveryLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
@@ -87,6 +88,33 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#new-releases-row-movie-902")
       refute has_element?(view, "#new-releases-row-movie-904")
       assert has_element?(view, "#new-releases-row-movie-903", "In library")
+    end
+
+    test "the tile's toolbar: the bookmark lists the title, Ignore hides it, Undo brings it back",
+         %{conn: conn} = context do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache(context)
+      store_movie(901, "Movie A")
+      :ok = NewReleases.replace([digital(901)])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "#new-releases-row-movie-901-list[aria-label='Add to watchlist']")
+
+      view |> element("#new-releases-row-movie-901-list") |> render_click()
+      assert MediaCentaur.Watchlist.rung(901, :movie) == :list
+      assert render_until(view, "On your list") =~ "On your list"
+      assert has_element?(view, "#new-releases-row-movie-901-list[aria-label='Remove from watchlist']")
+
+      view |> element("#new-releases-row-movie-901-ignore") |> render_click()
+      assert MediaCentaur.Watchlist.rung(901, :movie) == :ignored
+      assert has_element?(view, "#ignore-undo", "Movie A ignored")
+      assert render_until(view, "New releases are on their way") =~ "New releases are on their way"
+
+      view |> element("#ignore-undo-action") |> render_click()
+      assert MediaCentaur.Watchlist.rung(901, :movie) == :list
+      assert render_until(view, "Movie A") =~ "Movie A"
+      refute has_element?(view, "#ignore-undo")
+      await_supervised_tasks()
     end
 
     test "the shelf follows the membership", %{conn: conn} do
@@ -188,8 +216,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     alias MediaCentaur.Social
     alias MediaCentaur.Social.Identity
     alias MediaCentaur.TMDB.Title
-
-    import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"

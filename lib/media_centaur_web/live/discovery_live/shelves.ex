@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TitleArtwork
   alias MediaCentaurWeb.Components.PosterRow
-  alias MediaCentaurWeb.Components.Title.{Grade, Logic, SocialWords}
+  alias MediaCentaurWeb.Components.Title.{Grade, Logic, SocialWords, ToolbarSlots}
   alias MediaCentaurWeb.TitleRef
 
   @typedoc "A listed title as `Watchlist.list_watchlist/0` returns it."
@@ -163,7 +163,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
       name: title.name,
       year: title.year,
       poster_url: TitleArtwork.urls(title, %{}, :w342).poster_url,
-      marker: facts |> Logic.row_markers(false) |> List.first()
+      marker: facts |> Logic.row_markers(false) |> List.first(),
+      slots:
+        ToolbarSlots.resolve(%{
+          rung: rung,
+          library_owner_id: owner_id,
+          acquisition_state: acquisition_state
+        })
     }
   end
 

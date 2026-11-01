@@ -21,7 +21,13 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   quiet state chip at the poster's foot, in `Title.Logic.row_markers/2`'s
   words; `chip` a date at the poster's head (an opening date, a release
   month); `glyphs` the title's social glyphs in a dark pill at the top
-  right (`Title.SocialGlyph`, UIDR-049), each a flag at its grade. The row's `id` names the `ScrollRow`, and each tile's DOM id
+  right (`Title.SocialGlyph`, UIDR-049), each a flag at its grade;
+  `slots` the title's toolbar (`Title.ToolbarSlots`): the bookmark, the
+  one-click Download and Ignore in a strip at the poster's foot, revealed
+  on hover, sending the title detail host's events by ref (UIDR-038 rule
+  4, amended). A pointer affordance: the strip's buttons are not nav
+  items, so a shelf's keyboard and gamepad path to the verbs stays the
+  detail the tile opens. The row's `id` names the `ScrollRow`, and each tile's DOM id
   is derived from it, so one page may hold several rows and a title may
   sit on two of them.
 
@@ -36,6 +42,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
   alias MediaCentaurWeb.Components.Title.SocialGlyph
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.TitleRef
 
   defmodule Item do
@@ -47,7 +54,8 @@ defmodule MediaCentaurWeb.Components.PosterRow do
     neutral block, the name, and no Play (the same treatment as the
     Library card). `marker` is the state chip, `chip` the date chip,
     `glyphs` the social glyphs (`%{flags, grades, tips}`, the attrs of
-    `SocialGlyph.social_glyphs/1`); each nil for none.
+    `SocialGlyph.social_glyphs/1`), `slots` the toolbar's positions
+    (`Title.ToolbarSlots`); each nil for none.
     """
     @enforce_keys [:id, :name, :year, :poster_url]
     defstruct [
@@ -60,6 +68,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
       :marker,
       :chip,
       :glyphs,
+      :slots,
       available?: true
     ]
 
@@ -75,6 +84,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
             marker: String.t() | nil,
             chip: String.t() | nil,
             glyphs: glyphs() | nil,
+            slots: ToolbarSlots.t() | nil,
             available?: boolean()
           }
 
@@ -208,6 +218,71 @@ defmodule MediaCentaurWeb.Components.PosterRow do
         class="poster-tile-glyphs"
       />
       <span :if={@item.marker} class="poster-tile-marker">{@item.marker}</span>
+
+      <%!-- The toolbar's verbs in the tile's own form (the Feed row wears
+            them labelled): tabindex -1 and no nav attribute, so the shelf's
+            cursor passes over them and the keyboard's path is the detail. --%>
+      <div :if={@item.slots} class="poster-tile-tools" data-role="toolbar">
+        <button
+          :if={@item.slots.list == :list}
+          id={"#{@row_id}-#{Item.key(@item)}-list"}
+          type="button"
+          class="poster-tile-tool"
+          tabindex="-1"
+          phx-click="title_list"
+          phx-value-ref={Item.key(@item)}
+          aria-label="Add to watchlist"
+          data-tip="Add to watchlist"
+        >
+          <.icon name="hero-bookmark" class="size-4" />
+        </button>
+        <button
+          :if={@item.slots.list == :listed}
+          id={"#{@row_id}-#{Item.key(@item)}-list"}
+          type="button"
+          class="poster-tile-tool poster-tile-tool-on"
+          tabindex="-1"
+          phx-click="title_list"
+          phx-value-ref={Item.key(@item)}
+          aria-label="Remove from watchlist"
+          data-tip="On your watchlist"
+        >
+          <.icon name="hero-bookmark-solid" class="size-4" />
+        </button>
+        <span
+          :if={@item.slots.list == :following}
+          class="poster-tile-tool poster-tile-tool-on"
+          aria-label="Tracking"
+          data-tip="Tracking"
+        >
+          <.icon name="hero-bookmark-solid" class="size-4" />
+        </span>
+        <button
+          :if={@item.slots.download == :download}
+          id={"#{@row_id}-#{Item.key(@item)}-download"}
+          type="button"
+          class="poster-tile-tool"
+          tabindex="-1"
+          phx-click="title_download"
+          phx-value-ref={Item.key(@item)}
+          aria-label="Download"
+          data-tip="Download"
+        >
+          <.icon name="hero-arrow-down-tray" class="size-4" />
+        </button>
+        <button
+          id={"#{@row_id}-#{Item.key(@item)}-ignore"}
+          type="button"
+          class="poster-tile-tool"
+          tabindex="-1"
+          phx-click="title_ignore"
+          phx-value-ref={Item.key(@item)}
+          aria-label="Ignore"
+          data-tip="Ignore — hide from the Feed and Discovery"
+        >
+          <.icon name="hero-eye-slash" class="size-4" />
+        </button>
+      </div>
 
       <%!-- Offline storage cannot play (UIDR-027); a TMDB identity has
             nothing to play. --%>

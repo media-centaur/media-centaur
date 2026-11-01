@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.NewReleases.Member
   alias MediaCentaur.TMDB.{ReleaseStages, Store}
   alias MediaCentaur.Watchlist
-  alias MediaCentaurWeb.Components.{DetailPanel, FeatureOff, PosterRow, ShelfHead}
+  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
   alias MediaCentaurWeb.DiscoveryLive.Shelves
   alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -215,6 +215,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         data-nav-transient-params="title,entity,view,activity"
       >
         <.page_header title="Discovery" />
+        <%!-- Ignore shows no state to reverse, so it gets an undo toast; the
+              host keeps the undo (`:ignore_undo`), this page draws it. --%>
+        <ActionToast.action_toast
+          :if={@ignore_undo}
+          id="ignore-undo"
+          message={"#{@ignore_undo.title.name} ignored"}
+          action="Undo"
+          on_action={JS.push("ignore_undo")}
+          on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
+        />
         <div class="space-y-10">
           <%!-- Each shelf's section is its vertical reveal subject, as on
                 Home: a reveal shows the heading with the row; every shelf
