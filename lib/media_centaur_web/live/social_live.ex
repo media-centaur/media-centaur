@@ -60,11 +60,14 @@ defmodule MediaCentaurWeb.SocialLive do
   (`PersonPage.find/2` over the known people, the hidden included); a key
   nobody holds returns to Friends, and a hex key patches to the npub.
 
-  A listing or an ignore made from a row carries that row's activity
-  as provenance (`TitleIntent.friend_provenance/2`), the way the
-  modal's ladder does. Because Ignore shows no state to reverse, it
-  gets an undo toast (`ignore_undo` restores the rung the title had;
-  `ignore_undo_dismiss` clears the toast, by click or by expiry).
+  The row's verbs are the title detail host's events (`title_list`,
+  `title_download`, `title_ignore`), sent with the row's ref and its
+  activity, so a listing or an ignore made from a row carries that
+  row's activity as provenance (`TitleIntent.friend_provenance/2`), the
+  way the modal's ladder does. Because Ignore shows no state to reverse,
+  the host keeps an undo (`:ignore_undo`; `ignore_undo` restores the rung
+  the title had, `ignore_undo_dismiss` clears it) and this page draws
+  the toast.
 
   Every feed row carries its acquisition state (Planning / Downloading /
   Needs review) stamped from one `TitleStates` read per load; the page
@@ -91,12 +94,9 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
   alias MediaCentaur.Watchlist
-  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Artwork
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Hue
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Person
@@ -107,8 +107,6 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.Components.Social.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
-  alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.SocialLive.ActivityArtwork
@@ -152,7 +150,6 @@ defmodule MediaCentaurWeb.SocialLive do
        person_key: nil,
        people: [],
        hidden_people: [],
-       ignore_undo: nil,
        warmed_artwork: MapSet.new(),
        today: Date.utc_today()
      )
@@ -340,82 +337,6 @@ defmodule MediaCentaurWeb.SocialLive do
   # The pill patches the address; handle_params does the rest.
   def handle_event("feed_scope", %{"choice" => choice}, socket),
     do: {:noreply, push_patch(socket, to: feed_path(FeedEntries.parse_scope(choice)))}
-
-  # The bottom rung as a toggle. Following is plain state: the ladder is
-  # in the modal for that.
-  def handle_event("feed_list", %{"activity" => id}, socket) do
-    case shown_entry(socket, id) do
-      %FeedEntry{slots: %ToolbarSlots{list: :list}} = entry ->
-        {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :list, entry_provenance(entry))
-        {:noreply, socket}
-
-      %FeedEntry{slots: %ToolbarSlots{list: :listed}} = entry ->
-        {:ok, nil} = ReleaseTracking.set_rung(entry.title, :off)
-        {:noreply, socket}
-
-      _following_or_unknown ->
-        {:noreply, socket}
-    end
-  end
-
-  # The row's plain Download performs the default planning mode on the
-  # default scope (season 1 for a series); the full control is in the
-  # modal. The host's acquisition module owns the two paths.
-  def handle_event("feed_download", %{"activity" => id}, socket) do
-    case shown_entry(socket, id) do
-      %FeedEntry{slots: %ToolbarSlots{download: :download}} = entry ->
-        scope = if entry.title.media_type == :tv_series, do: :first_season
-
-        {:noreply,
-         TitleDetailHost.Acquisition.start_download(
-           socket,
-           entry.title,
-           PlanningMode.value(),
-           scope,
-           :stay
-         )}
-
-      _state_or_unknown ->
-        {:noreply, socket}
-    end
-  end
-
-  # The rung the title had is kept for Undo; nil is Off, which
-  # set_rung/2 spells as such.
-  def handle_event("ignore_title", %{"activity" => id}, socket) do
-    case shown_entry(socket, id) do
-      %FeedEntry{} = entry ->
-        {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :ignored, entry_provenance(entry))
-
-        {:noreply,
-         assign(socket, :ignore_undo, %{title: entry.title, previous_rung: entry.slots.rung || :off})}
-
-      nil ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("ignore_undo", _params, %{assigns: %{ignore_undo: %{} = undo}} = socket) do
-    {:ok, _intent} = ReleaseTracking.set_rung(undo.title, undo.previous_rung)
-    {:noreply, assign(socket, :ignore_undo, nil)}
-  end
-
-  def handle_event("ignore_undo", _params, socket), do: {:noreply, socket}
-
-  def handle_event("ignore_undo_dismiss", _params, socket),
-    do: {:noreply, assign(socket, :ignore_undo, nil)}
-
-  # The row a toolbar verb names: on the Feed, or on the person page.
-  defp shown_entry(socket, id),
-    do: Enum.find(socket.assigns.feed, &(&1.activity_id == id)) || person_row(socket, id)
-
-  defp person_row(%{assigns: %{person_card: %People.Card{acts: acts}}}, id),
-    do: Enum.find(acts, &(&1.activity_id == id))
-
-  defp person_row(_socket, _id), do: nil
-
-  defp entry_provenance(%FeedEntry{activity_id: id, text: text}),
-    do: TitleIntent.friend_provenance(id, text)
 
   @impl true
   def handle_info({:title_intent_changed, _event}, socket), do: {:noreply, load_activities(socket)}

@@ -65,6 +65,10 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     required: true,
     doc: "nothing left to release — a movie the library owns. No switches."
 
+  attr :owned?, :boolean,
+    default: false,
+    doc: "whether the library holds the title at all — an owned title is never offered Ignore"
+
   attr :approval_policy, :string,
     values: ["automatic", "review"],
     required: true,
@@ -79,7 +83,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   def tracking_controls(assigns) do
     rows = rows(assigns)
-    assigns = assign(assigns, form: control_form(assigns.rung), rows: rows)
+    assigns = assign(assigns, form: control_form(assigns.rung, assigns.owned?), rows: rows)
 
     ~H"""
     <div
@@ -89,6 +93,22 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
       data-rung={@rung || :off}
       data-form={@form}
     >
+      <div :if={@form == :ignore} class="flex items-center justify-between gap-3">
+        <p class="text-sm text-base-content/70">{ignore_line()}</p>
+        <.button
+          id={"#{@id}-ignore"}
+          variant="neutral"
+          size="xs"
+          class="shrink-0"
+          phx-click="set_rung"
+          phx-value-choice="ignored"
+          phx-value-ref={@ref}
+          data-nav-item
+          tabindex="0"
+        >
+          {ignore_label()}
+        </.button>
+      </div>
       <div :if={@form == :ignored} class="flex items-center justify-between gap-3">
         <p class="text-sm text-base-content/70">{ignored_line()}</p>
         <.button
@@ -180,10 +200,12 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   one line saying the Feed hides it; `:controls` — the switches — for a
   title on the list.
   """
-  @spec control_form(TitleIntent.rung() | nil) :: :none | :ignored | :controls
-  def control_form(nil), do: :none
-  def control_form(:ignored), do: :ignored
-  def control_form(_listed), do: :controls
+  @spec control_form(TitleIntent.rung() | nil, boolean()) :: :none | :ignore | :ignored | :controls
+  def control_form(rung, owned? \\ false)
+  def control_form(nil, true), do: :none
+  def control_form(nil, false), do: :ignore
+  def control_form(:ignored, _owned?), do: :ignored
+  def control_form(_listed, _owned?), do: :controls
 
   @doc """
   Which switches a listed title gets. A movie the library owns is
@@ -241,7 +263,15 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   @doc "The line an ignored title shows in place of the switches."
   @spec ignored_line() :: String.t()
-  def ignored_line, do: "Hidden from the Feed, every friend's row for it."
+  def ignored_line, do: "Hidden from the Feed and from Discovery's shelves."
+
+  @doc "The unlisted form's line: what Ignore does."
+  @spec ignore_line() :: String.t()
+  def ignore_line, do: "Not for you? Hide it from the Feed and Discovery."
+
+  @doc "The unlisted form's button."
+  @spec ignore_label() :: String.t()
+  def ignore_label, do: "Ignore"
 
   @doc "The button beside it: back to no record, so the Feed shows the title again."
   @spec unignore_label() :: String.t()

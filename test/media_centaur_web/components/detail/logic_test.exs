@@ -872,8 +872,9 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
   end
 
   describe "tracking_card?/1 — one rule for the card under the body" do
-    test "nothing listed, tracked, dated or accepted: no card" do
-      refute Logic.tracking_card?(detail())
+    test "an unlisted title the library does not hold offers Ignore: a card; an owned one with nothing else has none" do
+      assert Logic.tracking_card?(detail())
+      refute Logic.tracking_card?(detail(%{library: struct(TitleDetail.Library, [])}))
     end
 
     test "a listed title shows its switches" do

@@ -540,7 +540,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   """
   @spec tracking_card?(TitleDetail.t()) :: boolean()
   def tracking_card?(%TitleDetail{} = detail) do
-    release_dates?(detail) or TrackingControls.control_form(detail.rung) != :none or
+    release_dates?(detail) or TrackingControls.control_form(detail.rung, detail.library != nil) != :none or
       lower_quality_note?(detail)
   end
 

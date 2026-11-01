@@ -49,6 +49,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
 
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Social.FeedEntry
+  alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.SocialLive.ActivityWords
@@ -145,7 +146,8 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             type="button"
             class={@verb_class}
             data-nav-sub-item
-            phx-click="feed_list"
+            phx-click="title_list"
+            phx-value-ref={TitleRef.param(@entry.ref)}
             phx-value-activity={@entry.activity_id}
           >
             <.icon name="hero-bookmark" class="size-4" /> List
@@ -156,7 +158,8 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             type="button"
             class={[@verb_class, "text-base-content/90"]}
             data-nav-sub-item
-            phx-click="feed_list"
+            phx-click="title_list"
+            phx-value-ref={TitleRef.param(@entry.ref)}
             phx-value-activity={@entry.activity_id}
           >
             <.icon name="hero-bookmark-solid" class="size-4" /> Listed
@@ -169,8 +172,8 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             type="button"
             class={@verb_class}
             data-nav-sub-item
-            phx-click="feed_download"
-            phx-value-activity={@entry.activity_id}
+            phx-click="title_download"
+            phx-value-ref={TitleRef.param(@entry.ref)}
           >
             <.icon name="hero-arrow-down-tray" class="size-4" /> Download
           </button>
@@ -190,7 +193,8 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             type="button"
             class={[@verb_class, "ml-2.5"]}
             data-nav-sub-item
-            phx-click="ignore_title"
+            phx-click="title_ignore"
+            phx-value-ref={TitleRef.param(@entry.ref)}
             phx-value-activity={@entry.activity_id}
           >
             Ignore

@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-11
-amended: 2026-09-12
+amended: 2026-11-01
 ---
 # Add to watchlist first, then the tracking controls
+
+> **Amendment 2026-11-01 (campaign `discovery.md`, decision 16).** Rule 5 is retired and rule 1's last sentence narrowed: Ignore for an unlisted title lives wherever an uninvited title is shown — the Feed entry, a Discovery tile's toolbar, and the tracking block of the title detail, which for a title with no record that the library does not hold offers **Ignore** (`TrackingControls.control_form/2`'s `:ignore` form; an owned title still gets nothing). The ignored title's line says the Feed and Discovery hide it. The verbs are the title detail host's events (UIDR-038 rule 4, amended the same day).
 
 Amends UIDR-036: the bookmark is the listing verb on every title surface, and the tracking controls appear only once it has been used. UIDR-040 (2026-09-12) is folded in.
 

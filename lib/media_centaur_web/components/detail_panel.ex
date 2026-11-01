@@ -675,7 +675,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       assigns
       |> assign(
         :controls?,
-        TrackingControls.control_form(assigns.detail.rung) != :none or
+        TrackingControls.control_form(assigns.detail.rung, assigns.detail.library != nil) != :none or
           Logic.lower_quality_note?(assigns.detail)
       )
       |> assign(:lower_quality_note?, Logic.lower_quality_note?(assigns.detail))
@@ -695,6 +695,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             media_type={@detail.title.media_type}
             release_ahead?={TitleLogic.release_ahead?(@detail, @today)}
             complete?={@detail.complete?}
+            owned?={@detail.library != nil}
             approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
             acquisition?={@detail.acquisition?}
           />

@@ -32,14 +32,23 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
     [
       %Variation{
         id: :not_listed,
-        description: "A title with no record: nothing — listing is the bookmark's act (UIDR-039).",
+        description:
+          "A title with no record the library does not hold: Ignore, which hides it from " <>
+            "the Feed and Discovery (UIDR-039 rule 5, amended 2026-11-01) — listing is the " <>
+            "bookmark's act.",
         attributes: base(%{rung: nil})
+      },
+      %Variation{
+        id: :not_listed_owned,
+        description:
+          "A title with no record the library holds: nothing — an owned title is never offered Ignore.",
+        attributes: base(%{rung: nil, owned?: true})
       },
       %Variation{
         id: :ignored,
         description:
-          "An ignored title: the line that says the Feed is hiding it, and Stop ignoring, " <>
-            "which sets it Off.",
+          "An ignored title: the line that says the Feed and Discovery are hiding it, and " <>
+            "Stop ignoring, which sets it Off.",
         attributes: base(%{rung: :ignored})
       },
       %VariationGroup{

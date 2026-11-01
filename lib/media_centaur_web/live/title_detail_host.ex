@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) with `view` and `activity`, or from `?entity=<uuid>` — canonicalised to the title address when the entity has a TMDB identity, else the residue |
-  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, and the library sections' (`LibraryEvents.events/0`) |
+  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, the library sections' (`LibraryEvents.events/0`), and the toolbar's verbs on a title shown outside its detail — `title_list`, `title_download`, `title_ignore` by `ref` (with `activity` for a friend's provenance), `ignore_undo`, `ignore_undo_dismiss`; `:ignore_undo` is the host's assign, the page draws the toast |
   | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load, the delete and the TMDB check — each landing by subject and dropped when the person moved on |
   | `:handle_info` | refreshes the open detail by identity on the topics below, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `review_open` opens it on the detail's title |
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view refresh_from_tmdb)
   @library_events LibraryEvents.events()
-  @rungs ~w(off list follow grab)
+  @rungs ~w(off list follow grab ignored)
 
   @topics [
     Library,
@@ -188,7 +188,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         modal_state: ModalState.new(),
         title_opening: nil,
         title_playback: LiveHelpers.load_playback_sessions(socket.assigns.player),
-        finished_id: nil
+        finished_id: nil,
+        ignore_undo: nil
       )
       |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
@@ -1080,6 +1081,86 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # Play needs no modal: the hero and the cards fire it too (UIDR-027).
   def handle_title_event("play", %{"id" => id}, socket), do: {:halt, LibraryEvents.play(socket, id)}
 
+  # --- The toolbar's verbs ---
+  #
+  # The bookmark, the one-click Download and Ignore on a title shown
+  # outside its detail (UIDR-038 rule 4; campaign `discovery.md`,
+  # decision 16): the Feed's row, the person page's row, a Discovery
+  # tile. Each names the title by ref and an optional `activity` for a
+  # friend's provenance, and reads the fact fresh — a toolbar drawn
+  # before a change sets what the title's rung allows now, never what
+  # the drawing believed.
+  def handle_title_event("title_list", %{"ref" => param} = params, socket) do
+    case title_for_param(socket, param) do
+      %Title{} = title ->
+        socket =
+          case Watchlist.rung(title.tmdb_id, title.media_type) do
+            rung when rung in [nil, :ignored] ->
+              Acquisition.apply_rung(socket, title, :list, activity_provenance(params))
+
+            :list ->
+              Acquisition.apply_rung(socket, title, :off, %{})
+
+            _following ->
+              socket
+          end
+
+        {:halt, refresh_title_detail(socket)}
+
+      nil ->
+        {:halt, socket}
+    end
+  end
+
+  # The plain Download performs the default planning mode on the default
+  # scope (season 1 for a series); the full control is in the detail. A
+  # title the library owns, or one a plan or pursuit already holds, has
+  # nothing to start.
+  def handle_title_event("title_download", %{"ref" => param}, socket) do
+    case title_for_param(socket, param) do
+      %Title{} = title ->
+        ref = {title.tmdb_id, title.media_type}
+
+        if Library.ExternalIds.tmdb_owners([ref]) == %{} and TitleStates.for_refs([ref]) == %{} do
+          scope = if title.media_type == :tv_series, do: :first_season
+
+          {:halt, Acquisition.start_download(socket, title, PlanningMode.value(), scope, :stay)}
+        else
+          {:halt, socket}
+        end
+
+      nil ->
+        {:halt, socket}
+    end
+  end
+
+  # The rung the title had is kept for Undo; nil is Off.
+  def handle_title_event("title_ignore", %{"ref" => param} = params, socket) do
+    case title_for_param(socket, param) do
+      %Title{} = title ->
+        previous = Watchlist.rung(title.tmdb_id, title.media_type) || :off
+        socket = Acquisition.apply_rung(socket, title, :ignored, activity_provenance(params))
+
+        {:halt,
+         socket
+         |> assign(:ignore_undo, %{title: title, previous_rung: previous})
+         |> refresh_title_detail()}
+
+      nil ->
+        {:halt, socket}
+    end
+  end
+
+  def handle_title_event("ignore_undo", _params, %{assigns: %{ignore_undo: %{} = undo}} = socket) do
+    socket = Acquisition.apply_rung(socket, undo.title, undo.previous_rung, %{})
+    {:halt, socket |> assign(:ignore_undo, nil) |> refresh_title_detail()}
+  end
+
+  def handle_title_event("ignore_undo", _params, socket), do: {:halt, socket}
+
+  def handle_title_event("ignore_undo_dismiss", _params, socket),
+    do: {:halt, assign(socket, :ignore_undo, nil)}
+
   def handle_title_event(event, params, %{assigns: %{title_detail: %TitleDetail{library: %{}}}} = socket)
       when event in @library_events, do: {:halt, LibraryEvents.handle(event, params, socket)}
 
@@ -1118,6 +1199,21 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp provenance(_detail), do: %{}
 
+  # A toolbar verb sent from a friend's activity carries the activity's
+  # id; the listing then records the friend and their words. An own
+  # activity, or none, records nothing.
+  defp activity_provenance(%{"activity" => id}) when is_binary(id) do
+    case Activities.get_row(id) do
+      %{author: %Person{own?: false}, activity: %{id: id, text: text}} ->
+        TitleIntent.friend_provenance(id, text)
+
+      _own_or_none ->
+        %{}
+    end
+  end
+
+  defp activity_provenance(_params), do: %{}
+
   # The title a click names, resolved as an open is: the open detail's,
   # else by identity, else the page's in-memory copy.
   defp title_for_param(socket, param) do
@@ -1135,6 +1231,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp rung_atom("list"), do: :list
   defp rung_atom("follow"), do: :follow
   defp rung_atom("grab"), do: :grab
+  defp rung_atom("ignored"), do: :ignored
 
   # --- Addresses ---
 

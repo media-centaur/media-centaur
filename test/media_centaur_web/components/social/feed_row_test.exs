@@ -169,11 +169,11 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
 
   test "Ignore follows the subject, not the author: none when the subject is You" do
     assert Enum.empty?(
-             LazyHTML.query(render(%{author: nil, subject: :you}), "button[phx-click='ignore_title']")
+             LazyHTML.query(render(%{author: nil, subject: :you}), "button[phx-click='title_ignore']")
            )
 
     assert render(%{author: nil, subject: :friend})
-           |> LazyHTML.query("button[phx-click='ignore_title']")
+           |> LazyHTML.query("button[phx-click='title_ignore']")
            |> Enum.count() == 1
   end
 end

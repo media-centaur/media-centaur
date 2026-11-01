@@ -174,7 +174,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # modal.
       assert_patch(view, "/incoming?title=movie-424242")
       assert has_element?(view, "#detail-modal[data-state='open']", "Sample Movie")
-      refute has_element?(view, "#detail-tracking-controls"), "no record, so no switches"
+
+      assert has_element?(view, "#detail-tracking-controls-ignore", "Ignore"),
+             "no record: no switches, only Ignore (UIDR-039 rule 5, amended)"
+
+      refute has_element?(view, "#detail-tracking-controls-track")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()

@@ -1178,9 +1178,11 @@ defmodule MediaCentaurWeb.SocialLiveTest do
                "#detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"
              )
 
-      # No record and, for a friend's snapshot, no dates yet: no card at all.
-      refute has_element?(view, "#detail-tracking-controls")
-      refute has_element?(view, "[data-nav-zone='detail_tracking'] [data-nav-item]")
+      # No record and, for a friend's snapshot, no dates yet: no switches —
+      # the block's one item is Ignore (UIDR-039 rule 5, amended).
+      refute has_element?(view, "#detail-tracking-controls-track")
+      refute has_element?(view, "#detail-tracking-controls-grab")
+      assert has_element?(view, "[data-nav-zone='detail_tracking'] #detail-tracking-controls-ignore")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
@@ -1211,7 +1213,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element("#detail-watchlist-toggle") |> render_click()
       assert Watchlist.rung(777, :movie) == nil
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
-      refute has_element?(view, "#detail-tracking-controls")
+      refute has_element?(view, "#detail-tracking-controls-track")
+      refute has_element?(view, "#detail-tracking-controls-grab")
     end
 
     test "an ignored title says so and offers Add to watchlist, which replaces Ignore", %{conn: conn} do
@@ -1379,9 +1382,9 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       refute has_element?(view, "#detail-modal #detail-tracking-controls")
       render_click(view, "set_rung", %{"choice" => "list", "ref" => "movie-1"})
-      render_click(view, "feed_list", %{"activity" => Ecto.UUID.generate()})
-      render_click(view, "feed_download", %{"activity" => Ecto.UUID.generate()})
-      render_click(view, "ignore_title", %{"activity" => Ecto.UUID.generate()})
+      render_click(view, "title_list", %{"ref" => "movie-1", "activity" => Ecto.UUID.generate()})
+      render_click(view, "title_download", %{"ref" => "movie-1"})
+      render_click(view, "title_ignore", %{"ref" => "book-1"})
 
       assert Process.alive?(view.pid)
       assert Watchlist.list_watchlist() == []
@@ -1630,7 +1633,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
                "#detail-modal[data-state='open'] #detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"
              )
 
-      refute has_element?(view, "#detail-tracking-controls")
+      refute has_element?(view, "#detail-tracking-controls-track")
+      refute has_element?(view, "#detail-tracking-controls-grab")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
       assert Watchlist.rung(777, :movie) == :list
@@ -1684,7 +1688,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
                "#detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"
              )
 
-      refute has_element?(view, "#detail-tracking-controls")
+      refute has_element?(view, "#detail-tracking-controls-track")
+      refute has_element?(view, "#detail-tracking-controls-grab")
 
       # Every verb works on it: the bookmark lists it and the modal stays.
       view |> element("#detail-watchlist-toggle") |> render_click()
@@ -1791,7 +1796,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       await_supervised_tasks()
 
       assert Watchlist.rung(777, :movie) == nil
-      refute has_element?(view, "#detail-tracking-controls")
+      refute has_element?(view, "#detail-tracking-controls-track")
+      refute has_element?(view, "#detail-tracking-controls-grab")
       # Off, the title offers the bookmark again.
       assert has_element?(view, "#detail-watchlist-toggle")
     end

@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-09-11
-amended: 2026-10-03
+amended: 2026-11-01
 ---
 # The Feed is friends' actions, one entry each
 
+> **Amendment 2026-11-01 (campaign `discovery.md`, decision 16).** Rule 4's toolbar is no longer the Feed's alone: its three positions are one model, `Components.Title.ToolbarSlots`, and its verbs are the title detail host's events (`title_list`, `title_download`, `title_ignore`, with `ignore_undo`), which the Feed row, the person page's row and a Discovery poster tile all send by the title's ref. Ignore lives wherever an uninvited title is shown — the Feed, the Discovery shelves, and the title detail for an unlisted title the library does not hold (UIDR-039 rule 5, amended the same day).
+>
 > **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page: `/discovery` is `/social`, `/discovery/friends` is `/social/friends`, and `Components.Discovery` is `Components.Social`.
 
 Supersedes UIDR-031 (retired); its Friends card and You card rules are carried here. Amends UIDR-036 (Ignore and the bookmark move into the entry's toolbar) and UIDR-037 (the feed has no mast). UIDR-040 (2026-09-12) is folded in.

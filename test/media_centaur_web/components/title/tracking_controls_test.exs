@@ -4,8 +4,9 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
   alias MediaCentaurWeb.Components.Title.TrackingControls
 
   describe "control_form/1 — which form the block takes (UIDR-039)" do
-    test "no record: nothing — listing is the bookmark's act" do
-      assert TrackingControls.control_form(nil) == :none
+    test "no record: Ignore for a title the library does not hold, nothing for one it does — listing is the bookmark's act" do
+      assert TrackingControls.control_form(nil) == :ignore
+      assert TrackingControls.control_form(nil, true) == :none
     end
 
     test "ignored: the one line" do
