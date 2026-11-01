@@ -28,7 +28,8 @@ defmodule MediaCentaurWeb.HomeLive do
     DetailPanel,
     HeroBackdrop,
     HeroCard,
-    PosterRow
+    PosterRow,
+    ShelfHead
   }
 
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -178,15 +179,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-nav-reveal-block="end"
             data-nav-reveal-next
           >
-            <div class="flex items-baseline justify-between mb-3">
-              <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
-              <.link
-                navigate="/library?sort=watched"
-                class="text-sm text-base-content/60 hover:text-primary"
-              >
-                See all →
-              </.link>
-            </div>
+            <ShelfHead.shelf_head title="Continue Watching" see_all_href="/library?sort=watched" />
             <ContinueWatchingRow.continue_watching_row
               items={@continue_items}
               show_play_button={@show_play_button}
@@ -201,12 +194,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-nav-reveal-block="end"
             data-nav-reveal-next
           >
-            <div class="flex items-baseline justify-between mb-3">
-              <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
-              <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
-                See all →
-              </.link>
-            </div>
+            <ShelfHead.shelf_head title="Recently Added" see_all_href="/library" />
             <PosterRow.poster_row
               id="recently-added-row"
               items={@recently_added}
@@ -222,12 +210,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-nav-reveal
             data-nav-reveal-block="end"
           >
-            <div class="flex items-baseline justify-between mb-3">
-              <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
-              <.link navigate="/incoming" class="text-sm text-base-content/60 hover:text-primary">
-                See all →
-              </.link>
-            </div>
+            <ShelfHead.shelf_head title="Coming Up" see_all_href="/incoming" />
             <ComingUpMarquee.coming_up_marquee marquee={@coming_up_marquee} />
           </section>
 

@@ -12,4 +12,5 @@ defmodule MediaCentaurWeb.Storybook.Composites do
   def entry("progress_hairline"), do: [icon: {:fa, "wave-square", :thin}, name: "Progress hairline"]
   def entry("strip_chart"), do: [icon: {:fa, "chart-column", :thin}, name: "Strip chart"]
   def entry("scroll_row"), do: [icon: {:fa, "arrows-left-right", :thin}, name: "Scroll row"]
+  def entry("shelf_head"), do: [icon: {:fa, "heading", :thin}, name: "Shelf head"]
 end

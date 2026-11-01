@@ -79,6 +79,9 @@ export const inputConfig = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
+    // Discovery page shelves (campaign discovery.md): one SHELF per shelf,
+    // stacked like Home's.
+    new_releases: "[data-nav-zone='new_releases'] [data-nav-item]",
     // Incoming page (single column: omnibox → the Watchlist's title_rows →
     // drafts → pursuits → ledger); the ledger hosts both the glimpse rows
     // and the expanded archive (chips + search).
@@ -111,6 +114,7 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
+    new_releases: Context.SHELF,
     // Incoming zones are vertical item lists (the home pages keep their
     // horizontal `coming_up` SHELF instance above).
     title_rows: Context.MENU,
@@ -401,6 +405,14 @@ export const inputConfig = {
       coming_up: { up: ["recently", "continue", "hero"] },
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
+    // Discovery: Home's construction over the titles you do not own yet —
+    // a vertical stack of horizontal shelves. One shelf so far (campaign
+    // discovery.md, M9); the watchlist shelves, the hero and the search
+    // zone join the chain as their milestones land.
+    discovery: {
+      new_releases: {},
+      sidebar:      { right: ["new_releases"] },
+    },
     // Setup tour: a sidebar-less first-run wizard. A single `grid` context
     // holds the whole step card (form fields + footer buttons); there is
     // nowhere else to navigate, so the context has no edges. Up/down walks the
@@ -433,6 +445,7 @@ export const inputConfig = {
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
+    discovery: ["new_releases", "sidebar"],
     setup:     ["grid"],
     profiles:  ["profile_picker", "sidebar"],
   },

@@ -252,6 +252,32 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       )
     end
 
+    test "GET /discovery mounts within budget", %{conn: conn} do
+      # Discovery (campaign `discovery.md`) reads the New Releases
+      # membership, the store's snapshots for it, the watchlist's rungs,
+      # the library's TMDB owners and the acquisition states — five
+      # bounded reads per shelf, run on both renders (ADR-051) — plus the
+      # on_mount hooks' settings cache-miss reads in test mode. Seeded
+      # with the feature on and three members so the shelf path runs.
+      MediaCentaur.Features.set(:discovery, true)
+
+      for tmdb_id <- [901, 902, 903] do
+        MediaCentaur.TestFactory.create_title_record(%{tmdb_id: tmdb_id, media_type: :movie})
+      end
+
+      :ok =
+        MediaCentaur.NewReleases.replace(
+          for tmdb_id <- [901, 902, 903], do: %{tmdb_id: tmdb_id, digital_date: ~D[2026-10-30]}
+        )
+
+      mount_and_assert(
+        conn,
+        "/discovery",
+        40,
+        "five bounded shelf reads on both renders + on_mount hooks (settings cache-miss in test mode)"
+      )
+    end
+
     test "GET /settings mounts within budget", %{conn: conn} do
       # The Library-maintenance card reads the missing-images summary from
       # the Overview projection (audit P4); in test mode no Cache.Worker
