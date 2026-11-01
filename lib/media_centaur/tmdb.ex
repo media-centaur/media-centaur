@@ -15,6 +15,8 @@ defmodule MediaCentaur.TMDB do
       Identifiers,
       Mapper,
       MetadataStats,
+      NewReleases,
+      NewReleases.Member,
       ProbeJob,
       RateLimiter,
       References,
