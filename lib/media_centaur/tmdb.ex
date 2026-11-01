@@ -19,6 +19,7 @@ defmodule MediaCentaur.TMDB do
       RateLimiter,
       References,
       References.Provider,
+      ReleaseStages,
       ReleaseWindow,
       Schedule,
       Store,
