@@ -508,11 +508,11 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **Home** | `/` | Hero + Continue Watching + shelves (UIDR-010) |
 | **Profiles** | `/profiles` | Who's watching? (UIDR-053) |
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
-| **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050) |
+| **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050); its media mode is `Live.MediaSearch`, shared with Discovery until the campaign's cutover |
 | **History** | `/history` | Watch history |
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
-| **Discovery** | `/discovery` | The page for titles you do not own yet, built like Home: a hero over the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); a feature in development, its off state while off |
+| **Discovery** | `/discovery` | The page for titles you do not own yet, built like Home: media search (`Live.MediaSearch`, UIDR-014 amended) over a hero from the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); a feature in development, its off state while off |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
