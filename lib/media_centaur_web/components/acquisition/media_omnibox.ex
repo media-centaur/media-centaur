@@ -41,6 +41,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     doc:
       "Incoming-page front-door treatment: centered column, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
 
+  attr :hint, :boolean,
+    default: true,
+    doc:
+      "Whether the hero form shows its mode line beneath the box. Discovery passes false: the placeholder alone (campaign `discovery.md`, decision 11)."
+
   attr :release_mode_available, :boolean,
     default: true,
     doc:
@@ -68,7 +73,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
       />
 
       <.hero_mode_hint
-        :if={@hero}
+        :if={@hero and @hint}
         mode={@mode}
         session={@session}
         release_mode_available={@release_mode_available}

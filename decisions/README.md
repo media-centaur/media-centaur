@@ -81,7 +81,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 011 | 2026-05-12 | [Text and logos over imagery use shared `.text-on-image*` utilities](user-interface/2026-05-12-011-text-on-imagery.md) | accepted |
 | 012 | 2026-05-20 | [Desktop-app rendering defaults — eager, sync, stable, immutable](user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) | accepted, amended 2026-10-08 |
 | 013 | 2026-06-08 | [Modals declare an ephemeral or persistent dismissal mode through one seam](user-interface/2026-06-08-013-modal-dismissal-modes.md) | accepted |
-| 014 | 2026-06-10 | [Media-search front door — omnibox, coverage language, and imagery discipline](user-interface/2026-06-10-014-media-search-front-door.md) | accepted |
+| 014 | 2026-06-10 | [Media-search front door — omnibox, coverage language, and imagery discipline](user-interface/2026-06-10-014-media-search-front-door.md) | accepted, amended 2026-11-01 |
 | 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted, amended 2026-10-02 |
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted, amended 2026-08-02 |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |

@@ -299,4 +299,59 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#friends-row")
     end
   end
+
+  describe "media search (UIDR-014, amended)" do
+    setup do
+      Features.set(:discovery, true)
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.mark_ready!()
+      :ok
+    end
+
+    test "a query owns the page: the hero and the shelves go, the results answer flat, a row opens the detail, clearing brings the page back",
+         %{conn: conn} do
+      create_title_record(%{
+        tmdb_id: 901,
+        media_type: :movie,
+        payload: TmdbStubs.movie_detail(%{"id" => 901, "title" => "Movie A"})
+      })
+
+      :ok = NewReleases.replace([%{tmdb_id: 901, digital_date: ~D[2026-10-30]}])
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 424_242,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "[data-nav-zone='omnibox'] #omnibox-media-input")
+      assert has_element?(view, "#new-releases-row-movie-901")
+
+      view |> form("form[phx-change='omnibox_change']", %{query: "sample"}) |> render_change()
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#omnibox-result-movie-424242", "Sample Movie")
+      refute has_element?(view, "#new-releases-row-movie-901")
+      refute has_element?(view, "[data-nav-zone='hero']")
+
+      view |> element("#omnibox-result-movie-424242") |> render_click()
+      assert_patch(view, "/discovery?title=movie-424242")
+
+      render_click(view, "omnibox_clear", %{})
+      assert has_element?(view, "#new-releases-row-movie-901")
+      refute has_element?(view, "#omnibox-result-movie-424242")
+    end
+
+    test "without TMDB the box is not offered; the capability gap says what to do", %{conn: conn} do
+      TmdbStubs.mark_unconfigured!()
+
+      {:ok, view, html} = live(conn, "/discovery")
+      refute has_element?(view, "#omnibox-media-input")
+      assert html =~ "Connect TMDB to fill this page"
+    end
+  end
 end

@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-06-10
+amended: 2026-11-01
 ---
 # Media-search front door — omnibox, coverage language, and imagery discipline
+
+> **Amendment 2026-11-01 (campaign `discovery.md`, M5 decision 1 and M13).** Rule 1's omnibox is no longer Incoming's alone. Media search — the TMDB title search, "What do you want to watch?" — is one trait, `Live.MediaSearch`, hosted by **Discovery**, where it sits centred over the hero's artwork with the placeholder alone and a query owns the page; Incoming hosts it too, with its release-mode flip, until the campaign's cutover removes media search from Incoming and leaves release search there as its own field. The results stay flat in the page, as `Title.Row`s that open the title detail, on both hosts.
 
 ## Context and Problem Statement
 

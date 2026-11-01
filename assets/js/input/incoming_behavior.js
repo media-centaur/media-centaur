@@ -20,26 +20,11 @@
  * @property {function(): {value: string, clear: function}|null} getHistorySearch
  */
 
-/** Wrap an input element in the {value, clear} interface, or null. */
-function clearableInput(el) {
-  if (!el) return null
-  return {
-    get value() { return el.value },
-    clear() {
-      el.value = ""
-      el.dispatchEvent(new Event("input", { bubbles: true }))
-    },
-  }
-}
+import { clearableInput, omniboxInput } from "./omnibox_clear"
 
 /** Default DOM implementation for production use. */
 const REAL_DOM = {
-  getOmniboxInput() {
-    // One mode's input is rendered at a time (media vs release search).
-    const el = document.getElementById("omnibox-media-input")
-      ?? document.getElementById("omnibox-release-input")
-    return clearableInput(el)
-  },
+  getOmniboxInput: omniboxInput,
   getHistorySearch() {
     return clearableInput(document.querySelector("[data-nav-zone='ledger'] input[type='search']"))
   },

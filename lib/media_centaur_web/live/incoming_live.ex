@@ -81,6 +81,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.MediaSearch
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
@@ -113,7 +114,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Activities
-  alias MediaCentaur.Library.ExternalIds
 
   alias MediaCentaurWeb.IncomingLive.{
     HistoryLogic,
@@ -128,13 +128,13 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.Live.MediaSearch
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaur.TMDB.TitleSearch
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.Ledger
@@ -226,13 +226,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          pursuit_detail: nil,
          alternatives_fetches_in_flight: MapSet.new(),
          omnibox_mode: :media,
-         omnibox_query: "",
-         omnibox_results: [],
-         omnibox_searching?: false,
-         omnibox_searched: nil,
-         omnibox_scope: :all,
-         in_library_refs: MapSet.new(),
-         social_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
          plan_menu_open?: false,
@@ -254,9 +247,6 @@ defmodule MediaCentaurWeb.IncomingLive do
        )
      )}
   end
-
-  defp social_activity_for_results(rows),
-    do: Activities.activity_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
 
   defp subscribe_acquisition(socket) do
     socket
@@ -466,20 +456,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   @impl TitleDetailHost
   def download_started(socket) do
     socket
-    |> clear_omnibox()
+    |> MediaSearch.clear()
     |> push_patch(to: Logic.zone_path(:activity))
-  end
-
-  # The media search's reset: an empty query owns nothing, so the zones
-  # come back. Shared by Clear search and a started download.
-  defp clear_omnibox(socket) do
-    assign(socket,
-      omnibox_query: "",
-      omnibox_results: [],
-      omnibox_searching?: false,
-      omnibox_searched: nil,
-      omnibox_scope: :all
-    )
   end
 
   # Fetches one row past the window so `history_has_older?` is a fact
@@ -1306,14 +1284,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         # before this point keeps the query alive for another pick.)
         socket =
           socket
-          |> assign(
-            plan_drafts: load_drafts(),
-            omnibox_query: "",
-            omnibox_results: [],
-            omnibox_searching?: false,
-            omnibox_searched: nil,
-            omnibox_scope: :all
-          )
+          |> assign(plan_drafts: load_drafts())
+          |> MediaSearch.clear()
           |> build_view()
 
         # The ending follows the mode (spec 2026-09-23 §7): manual selection
@@ -1534,55 +1506,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Omnibox (UIDR-014) — one search surface, two modes.
   # ---------------------------------------------------------------------------
 
-  def handle_event("omnibox_change", %{"query" => query}, socket) do
-    trimmed = String.trim(query)
-    socket = assign(socket, omnibox_query: query)
-
-    cond do
-      String.length(trimmed) < 2 ->
-        {:noreply,
-         assign(socket,
-           omnibox_results: [],
-           omnibox_searching?: false,
-           omnibox_searched: nil
-         )}
-
-      # TMDB citizenship: a re-fire of the same effective query (trailing
-      # space, blur/focus echo) never searches again — each debounce fire
-      # costs one API call (multi), up to three when the query carries a
-      # trailing year (movie + tv, plus the year-less fallback).
-      trimmed == socket.assigns.omnibox_searched ->
-        {:noreply, socket}
-
-      true ->
-        {:noreply,
-         socket
-         |> assign(omnibox_searching?: true, omnibox_searched: trimmed)
-         |> cancel_async(:omnibox_search, :superseded)
-         |> start_async(:omnibox_search, fn -> {query, TitleSearch.search(trimmed)} end)}
-    end
-  end
-
-  # The flat results section's one reset — clearing the query is the
-  # only dismissal (results are page content, not an overlay). The
-  # refocus puts pointer users straight into the next search; the
-  # client-side input wipe rides the button's JS.dispatch (see
-  # MediaResults).
-  def handle_event("omnibox_clear", _params, socket) do
-    {:noreply, socket |> clear_omnibox() |> push_event("omnibox:refocus", %{})}
-  end
-
-  # The upcoming/released chips between the box and the rows. Clicking
-  # the active chip toggles back to everything; the scope survives query
-  # refinements (the chips stay visible, so the state stays legible) and
-  # resets with the query.
-  def handle_event("omnibox_scope", %{"scope" => scope}, socket) when scope in ~w(upcoming released) do
-    scope = String.to_existing_atom(scope)
-    current = socket.assigns.omnibox_scope
-
-    {:noreply, assign(socket, omnibox_scope: if(current == scope, do: :all, else: scope))}
-  end
-
+  # The media search's own events (`omnibox_change`, `omnibox_clear`,
+  # `omnibox_scope`) are `Live.MediaSearch`'s; this page keeps the mode
+  # flip, which is Incoming's alone.
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
     # Release mode does not exist without an indexer — ignore a stale flip
     # (the hint hides the control, but a lagging DOM can still fire it).
@@ -1590,14 +1516,9 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:noreply, socket}
     else
       {:noreply,
-       assign(socket,
-         omnibox_mode: String.to_existing_atom(mode),
-         omnibox_results: [],
-         omnibox_query: "",
-         omnibox_searching?: false,
-         omnibox_searched: nil,
-         omnibox_scope: :all
-       )}
+       socket
+       |> MediaSearch.clear()
+       |> assign(omnibox_mode: String.to_existing_atom(mode))}
     end
   end
 
@@ -1835,13 +1756,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # activity, and a relay sync is a burst.
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
-    {:noreply,
-     socket
-     |> assign(
-       :social_activity_by_ref,
-       social_activity_for_results(socket.assigns.omnibox_results)
-     )
-     |> debounce(:forecast_reload_timer, :reload_forecast, 500)}
+    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
   end
 
   def handle_info({:run_search_one, query}, socket) do
@@ -2064,38 +1979,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_async({:plan_release_window, _plan_id}, {:ok, {:error, reason}}, socket) do
     Log.debug(:tmdb, "release window unavailable — #{inspect(reason)}")
     {:noreply, socket}
-  end
-
-  def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
-    # Stale guard: only the newest query's results land.
-    if query == socket.assigns.omnibox_query do
-      # One TMDB page, relevance-ranked — the dropdown scrolls; depth
-      # past 20 is a query-refinement problem, not a pagination one.
-      rows = Enum.take(results, 20)
-
-      # Which of these titles the library already presents — one bulk
-      # lookup per landed result set, decorating the In library marker.
-      in_library_refs =
-        rows
-        |> Enum.map(&{&1.tmdb_id, &1.media_type})
-        |> ExternalIds.tmdb_owners()
-        |> Map.keys()
-        |> MapSet.new()
-
-      {:noreply,
-       assign(socket,
-         omnibox_results: rows,
-         omnibox_searching?: false,
-         in_library_refs: in_library_refs,
-         social_activity_by_ref: social_activity_for_results(rows)
-       )}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_async(:omnibox_search, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, omnibox_searching?: false)}
   end
 
   def handle_async({:alternatives_fetch, pursuit_id}, {:ok, decision}, socket) do

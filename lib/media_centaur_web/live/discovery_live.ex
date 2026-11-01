@@ -6,6 +6,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   this page exist while the `:discovery` flag is on, and the page is its
   off state otherwise.
 
+  **Media search** lives at the top of the page (UIDR-014, amended
+  2026-11-01; `Live.MediaSearch`): the omnibox centred over the hero's
+  artwork, the placeholder alone (decision 11). While a query owns the
+  page the hero, its artwork and the shelves are not rendered and the
+  results answer flat over the scrim as title rows (decision 10); a row
+  opens the detail, where a result is listed or downloaded. Clearing the
+  query is the one dismissal, by the box's X or CLEAR
+  (`discovery_behavior.js`).
+
   Discovery is the second artwork page (UIDR-010 and UIDR-033, amended
   2026-11-01): a full-bleed backdrop painted by the hero canvas from the
   referenced artwork tier, and a hero card for the most notable new
@@ -40,6 +49,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.MediaSearch
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
@@ -50,14 +60,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.NewReleases
   alias MediaCentaur.NewReleases.Member
-  alias MediaCentaur.TMDB.{ReleaseStages, Store}
+  alias MediaCentaur.TMDB.{ReleaseStages, Store, Title}
   alias MediaCentaur.Watchlist
+  alias MediaCentaurWeb.Components.Acquisition.{MediaOmnibox, MediaResults}
   alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
   alias MediaCentaurWeb.Components.{HeroBackdrop, HeroCard}
   alias MediaCentaurWeb.Components.Title.{ToolbarSlots, WatchlistToggle}
   alias MediaCentaurWeb.DiscoveryLive.Shelves
   alias MediaCentaurWeb.HeroRotation
-  alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
+  alias MediaCentaurWeb.Live.{MediaSearch, ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.IncomingLive.PlanQuery
 
   @reload_debounce_ms 500
@@ -80,6 +91,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        reload_timer: nil,
        hero: nil,
        hero_slots: nil,
+       title_rungs: %{},
        out_now: [],
        new_releases: [],
        friends: [],
@@ -151,6 +163,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     assign(socket,
       hero: hero,
       hero_slots: hero_slots,
+      title_rungs: rungs,
       out_now: watchlist.out_now,
       new_releases: new_releases,
       friends: friends,
@@ -184,9 +197,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # --- TitleDetailHost ---
 
-  # Every title here is a store identity the host reads on its own.
+  # A shelf's title is a store identity the host reads on its own; a
+  # search result is the page's in-memory snapshot until the store holds
+  # it.
   @impl TitleDetailHost
-  def page_facts(_socket, _ref, _params), do: {nil, %{}}
+  def page_facts(socket, ref, _params),
+    do: {Enum.find(MediaSearch.results(socket), &(Title.ref(&1) == ref)), %{}}
 
   @impl TitleDetailHost
   def title_detail_path(_socket, []), do: ~p"/discovery"
@@ -200,6 +216,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :search_owns?, MediaSearch.owns_page?(assigns))
+
     ~H"""
     <Layouts.app
       profile={@profile}
@@ -241,21 +259,62 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       <div
         :if={:discovery in @features}
         class="relative"
+        data-page-behavior="discovery"
         data-nav-default-zone="discovery"
         data-nav-transient-params="title,entity,view,activity"
       >
         <%!-- Page atmosphere, as Home's: the backdrop painted by the hero
               canvas fades into base-100; the side dim continues down the
-              page so every shelf head sits on the same calm band. --%>
-        <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
+              page so every shelf head sits on the same calm band. While a
+              query owns the page the artwork goes with the hero: the
+              results read over the scrim alone (decision 10). --%>
+        <div
+          :if={@hero && @hero.backdrop_url && !@search_owns?}
+          class="page-backdrop"
+          aria-hidden="true"
+        >
           <HeroBackdrop.hero_backdrop backdrop_url={@hero.backdrop_url} />
         </div>
         <div class="page-side-dim" aria-hidden="true"></div>
 
+        <%!-- Media search, centred in the backdrop's top band: the one
+              control on the page that is not a tile. Without TMDB the box
+              cannot answer and the capability gap below says so. --%>
+        <div :if={@tmdb_ready} class="relative z-[3] pb-4">
+          <MediaOmnibox.media_omnibox
+            hero
+            hint={false}
+            mode={:media}
+            query={@omnibox_query}
+            release_mode_available={false}
+          />
+        </div>
+
+        <%!-- A query owns the page: the results, flat, in the title rows
+              every search surface draws; nothing else until it clears. --%>
+        <div :if={@search_owns?} class="relative z-[2] max-w-6xl mx-auto">
+          <MediaResults.media_results
+            query={@omnibox_query}
+            results={@omnibox_results}
+            searching?={@omnibox_searching?}
+            metadata_available={@tmdb_ready}
+            scope={@omnibox_scope}
+            today={@today}
+            title_rungs={@title_rungs}
+            in_library_refs={@in_library_refs}
+            social_activity_by_ref={@social_activity_by_ref}
+          />
+        </div>
+
         <%!-- The hero: a plain full-bleed track, not a ScrollRow (one item
               has nothing to scroll); `data-nav-reveal` shows the whole hero
               when one of its actions takes focus. --%>
-        <div :if={@hero} class="relative z-[1] -mx-6 -mt-6" data-nav-zone="hero" data-nav-reveal>
+        <div
+          :if={@hero && !@search_owns?}
+          class="relative z-[1] -mx-6 -mt-6"
+          data-nav-zone="hero"
+          data-nav-reveal
+        >
           <div class="row-scroll row-scroll-hero">
             <div class="w-full" data-row-item>
               <HeroCard.hero_card item={@hero}>
@@ -301,7 +360,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </div>
         </div>
 
-        <.page_header :if={!@hero} title="Discovery" />
+        <.page_header :if={!@hero && !@search_owns?} title="Discovery" />
         <%!-- Ignore shows no state to reverse, so it gets an undo toast; the
               host keeps the undo (`:ignore_undo`), this page draws it. --%>
         <ActionToast.action_toast
@@ -312,7 +371,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           on_action={JS.push("ignore_undo")}
           on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
         />
-        <div class={["relative z-[2] space-y-10", @hero && "-mt-8"]}>
+        <div :if={!@search_owns?} class={["relative z-[2] space-y-10", @hero && "-mt-8"]}>
           <%!-- Each shelf's section is its vertical reveal subject, as on
                 Home: a reveal shows the heading with the row; every shelf
                 but the last also shows the one below it. --%>
