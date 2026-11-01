@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Social.PersonCard do
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
 
   def function, do: &MediaCentaurWeb.Components.Social.PersonCard.person_card/1
   def render_source, do: :function

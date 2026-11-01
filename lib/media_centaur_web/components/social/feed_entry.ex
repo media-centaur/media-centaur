@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedEntry do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.Grade
 

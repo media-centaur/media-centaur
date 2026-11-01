@@ -1,11 +1,14 @@
-defmodule MediaCentaurWeb.Components.Social.ToolbarSlots do
+defmodule MediaCentaurWeb.Components.Title.ToolbarSlots do
   @moduledoc """
-  The two resolved positions of a row's toolbar (UIDR-045, UIDR-046)
-  and the three facts they come from: the title's rung on the reader's
-  watchlist, the library entity that owns it, and its acquisition
-  state. Facts about the reader and a title, never about an action —
-  one value per title, carried by every row for it: the Feed's row for
-  one action and the person page's row for one title.
+  The two resolved positions of a title's toolbar (UIDR-045, UIDR-046,
+  campaign `discovery.md` decision 16) and the three facts they come
+  from: the title's rung on the reader's watchlist, the library entity
+  that owns it, and its acquisition state. Facts about the reader and a
+  title, never about an action — one value per title, carried by every
+  surface that offers the verbs for it: the Feed's row for one action,
+  the person page's row for one title, a Discovery poster tile. The
+  verbs themselves are the title detail host's events (`title_list`,
+  `title_download`, `title_ignore`), whichever surface sends them.
 
   `list` is what the List position holds: the verb `:list`, the filled
   `:listed`, or the state `:following` (Follow and above; the row

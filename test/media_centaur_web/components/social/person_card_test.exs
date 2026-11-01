@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Social.PersonCardTest do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Social.FeedEntry
   alias MediaCentaurWeb.Components.Social.PersonCard
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
 
   @slots %ToolbarSlots{
     rung: nil,

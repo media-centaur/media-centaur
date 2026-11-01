@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRowTest do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Social.FeedEntry
   alias MediaCentaurWeb.Components.Social.FeedRow
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
 
   @slots %ToolbarSlots{
     rung: nil,

@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.SocialLive.ActivityArtwork

@@ -1,7 +1,7 @@
-defmodule MediaCentaurWeb.Components.Social.ToolbarSlotsTest do
+defmodule MediaCentaurWeb.Components.Title.ToolbarSlotsTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
 
   defp facts(overrides),
     do: Map.merge(%{rung: nil, library_owner_id: nil, acquisition_state: nil}, overrides)

@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntriesTest do
 
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Social.FeedEntry
-  alias MediaCentaurWeb.Components.Social.ToolbarSlots
+  alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.SocialLive.FeedEntries
 
