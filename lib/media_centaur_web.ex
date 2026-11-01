@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Apps,
       MediaCentaur.ErrorReports,
       MediaCentaur.Features,
+      MediaCentaur.NewReleases,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
       MediaCentaur.Pipeline,
