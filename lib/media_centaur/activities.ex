@@ -272,6 +272,40 @@ defmodule MediaCentaur.Activities do
   end
 
   @doc """
+  The titles the reader's friends have reviewed, newest review first:
+  one entry per title, `%{ref, title, reviewed_at}`, from live reviews
+  by visible people other than the reader. The title is the review's
+  embedded snapshot. Discovery's Reviewed by Friends shelf reads it, then
+  `activity_for/1` for the glyphs, as every title surface does.
+  """
+  @spec reviewed_by_friends(pos_integer()) ::
+          [%{ref: {integer(), atom()}, title: Title.t(), reviewed_at: DateTime.t()}]
+  def reviewed_by_friends(limit) when is_integer(limit) and limit > 0 do
+    people = Social.visible_people()
+
+    Activity
+    |> live()
+    |> where([a], a.kind == :review)
+    |> order_by(desc: :acted_at)
+    |> Repo.all()
+    |> Enum.filter(fn activity ->
+      case Map.get(people, activity.author_pubkey) do
+        %Person{own?: false} -> true
+        _other -> false
+      end
+    end)
+    |> Enum.uniq_by(&{&1.tmdb_id, &1.media_type})
+    |> Enum.take(limit)
+    |> Enum.map(fn activity ->
+      %{
+        ref: {activity.tmdb_id, activity.media_type},
+        title: activity.title,
+        reviewed_at: activity.acted_at
+      }
+    end)
+  end
+
+  @doc """
   The live activity on the titles in `refs`, as `%{ref => [activity_row]}`
   — every kind every visible person has broadcast for the title (review,
   watched, listing), the reader's own included, each row with its
