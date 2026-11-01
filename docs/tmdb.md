@@ -139,6 +139,7 @@ Sliding window using Erlang `:queue`:
 | `MediaCentaur.TMDB.Store.TitleRecord` | Schema for `tmdb_titles` | `lib/media_centaur/tmdb/store/title_record.ex` |
 | `MediaCentaur.TMDB.Store.SeasonRecord` | Schema for `tmdb_seasons` | `lib/media_centaur/tmdb/store/season_record.ex` |
 | `MediaCentaur.TMDB.Schedule` | Pure due-time rule: settled titles, next known event, open seasons | `lib/media_centaur/tmdb/schedule.ex` |
+| `MediaCentaur.TMDB.ReleaseStages` | Each stored title's release stage and the date it rests on, for a set of refs — movies through `ReleaseWindow`, series by first air date; Discovery's watchlist shelves | `lib/media_centaur/tmdb/release_stages.ex` |
 | `MediaCentaur.TMDB.Confidence` | Jaro distance scoring | `lib/media_centaur/tmdb/confidence.ex` |
 | `MediaCentaur.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centaur/tmdb/mapper.ex` |
 | `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter + its `Req` request step | `lib/media_centaur/tmdb/rate_limiter.ex` |

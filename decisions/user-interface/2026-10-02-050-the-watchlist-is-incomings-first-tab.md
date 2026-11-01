@@ -1,11 +1,13 @@
 ---
 status: accepted
 date: 2026-10-02
-amended: 2026-10-03
+amended: 2026-11-01
 ---
 # The watchlist is Incoming's first tab, and the schedule is on its rows
 
 > **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`.
+>
+> **Amendment 2026-11-01 (campaign `discovery.md`, decision 13).** Rule 5's reservation of the words *Coming up* for Home's shelf is narrowed: Discovery's Watchlist row (`PosterRow.grouped_poster_row/1`) also names its group of unreleased listed titles **Coming Up**, beside **In Theaters**, with **Out Now** a row of its own — the watchlist by release stage (`TMDB.ReleaseStages`). The two answer different questions: Home's marquee, *when* (tracked releases on a calendar); Discovery's group, *what* (every listed title still ahead). Rule 5's first sentence stands: Home's shelf is unchanged.
 >
 > **Amendment 2026-10-03 (owner).** Rules 2–3, two changes. A followed title's row shows the release that just landed as well as the next one still to come: a quiet line above the next release — the episode, how long ago, the Landed pill — while the feed still keeps it (seven days, `UpcomingFeed.landed_per_title/1`); the next-release rule itself stands. And the In pursuit pill is a button that switches to the Activity tab, where the pursuit's row is (no scroll); the shelf-era anchor stays retired.
 

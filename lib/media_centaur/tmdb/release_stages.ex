@@ -61,8 +61,7 @@ defmodule MediaCentaur.TMDB.ReleaseStages do
 
   defp date_for(%ReleaseWindow{stage: :unreleased} = window, today) do
     [window.theatrical, window.digital, window.physical, window.primary]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.filter(&Date.after?(&1, today))
+    |> Enum.filter(&(&1 != nil and Date.after?(&1, today)))
     |> Enum.min(Date, fn -> nil end)
   end
 

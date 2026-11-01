@@ -469,7 +469,8 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards (a `scroll_row/1` tenant) |
 | `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
-| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf (a `scroll_row/1` tenant): Home's Recently Added over library entities, Discovery's shelves over TMDB identities (`Item.ref`), with the quiet marker chip | ✅ |
+| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf (a `scroll_row/1` tenant): Home's Recently Added over library entities, Discovery's shelves over TMDB identities (`Item.ref`), with the quiet marker chip, a date chip and the social glyphs' pill | ✅ |
+| `grouped_poster_row/1` | `poster_row.ex` | One scroll row of labelled groups of poster tiles with a hairline between them, one nav zone — Discovery's Watchlist shelf (In Theaters · Coming Up) | ✅ |
 | `shelf_head/1` | `shelf_head.ex` | The line above a shelf on an assembled page: the title and *See all* when the shelf has a page of its own (Home, Discovery) | ✅ |
 | `scroll_row/1` | `scroll_row.ex` | A scrolling track with its edge arrows — the mouse user's way along Home's rows and the collection rail; a pointer affordance like the play overlay, drawn with `.picture-button` | ✅ |
 | `detail_panel/1` | `detail_panel.ex` | The title detail modal (CinematicShell tenant) for an owned or an unowned title, over `Title.Detail` + `Title.ModalState`; `detail/` holds its sub-views (Manage panel, seasons) | ✅ |
@@ -511,7 +512,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **History** | `/history` | Watch history |
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
-| **Discovery** | `/discovery` | The page for titles you do not own yet, shelved like Home — the New Releases shelf so far (`campaigns/discovery.md`); a feature in development, its off state while off |
+| **Discovery** | `/discovery` | The page for titles you do not own yet, shelved like Home: Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); a feature in development, its off state while off |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |

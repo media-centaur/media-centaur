@@ -117,8 +117,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Shelves.friends_items(reviewed, Activities.activity_for(reviewed_refs), rungs, owners, states)
 
     tiles =
-      length(new_releases) + length(friends) + length(watchlist.out_now) + length(watchlist.in_theaters) +
-        length(watchlist.coming_up)
+      length(new_releases) + length(friends) +
+        length(watchlist.out_now) + length(watchlist.in_theaters) + length(watchlist.coming_up)
 
     assign(socket,
       out_now: watchlist.out_now,
