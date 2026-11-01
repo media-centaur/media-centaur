@@ -33,8 +33,9 @@ defmodule MediaCentaurWeb.Storybook.Title.WatchlistToggle do
       },
       %Variation{
         id: :off_the_list,
-        description: "No record: the outline bookmark, and a click sets List.",
-        attributes: base(%{rung: nil})
+        description:
+          "No record: the outline bookmark (`size=\"sm\"`, the action strip's circle), and a click sets List.",
+        attributes: base(%{rung: nil, size: "sm"})
       },
       %Variation{
         id: :ignored,

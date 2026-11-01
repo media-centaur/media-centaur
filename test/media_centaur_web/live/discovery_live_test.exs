@@ -137,7 +137,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie B")
       assert has_element?(view, "#discovery-hero-list[aria-pressed='false']", "Add to watchlist")
-      assert has_element?(view, "#discovery-hero-download")
+      assert has_element?(view, "[data-nav-zone='hero'] button", "Download")
       refute has_element?(view, "h1", "Discovery")
 
       view |> element("#discovery-hero-list") |> render_click()
