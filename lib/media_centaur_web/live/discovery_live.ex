@@ -146,6 +146,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       features={@features}
       flash={@flash}
       current_path="/discovery"
+      full_width
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>

@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       assert Shelves.empty_reason(true, false, 1) == nil
     end
 
-    test "nothing to show says whether TMDB is down or the refresh is still to run" do
+    test "nothing to show says whether TMDB is down or the first refresh has not run" do
       assert Shelves.empty_reason(true, false, 0) == :tmdb_down
       assert Shelves.empty_reason(true, true, 0) == :filling
     end

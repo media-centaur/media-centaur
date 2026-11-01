@@ -40,11 +40,11 @@ defmodule MediaCentaur.NewReleases.RefreshJobTest do
     assert NewReleases.members() == []
   end
 
-  test "held while TMDB is down: no request, the membership untouched" do
+  test "held while TMDB is down: no request, the membership untouched, and the run snoozes to try again" do
     Features.set(:discovery, true)
     {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
 
-    assert :ok = perform()
+    assert {:snooze, 300} = perform()
     refute_receive {:tmdb_hit, _path}
     assert NewReleases.members() == []
   end
