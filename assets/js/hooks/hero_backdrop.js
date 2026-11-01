@@ -17,13 +17,15 @@
 //
 // `data-src` is the cache key. The root layout marks the same URL on its
 // prefetch hint (`data-hero-backdrop`) and app.js pre-decodes it at idle, so
-// the first visit is warm too. Cache capacity is one: Home's hero is the only
-// backdrop-bearing surface, so exactly one URL is live at a time. A bitmap is
-// kept no larger than the screen can show (`fitToScreen`): ~33 MB for a 4K
-// master on a 4K screen, ~8 MB on the TV app's 1080p page — the cache and the
-// canvas sized from it each hold one. The hero rotates and a `?v=` bump changes the URL —
-// either way the outgoing bitmap is never asked for again, so evicting it is
-// the right move, and invalidation is the key itself.
+// the first visit is warm too. Cache capacity is two: the two assembled
+// pages, Home and Discovery, each carry one backdrop (UIDR-033, amended
+// 2026-11-01), so moving between them keeps both bitmaps instead of
+// re-decoding on every return. A bitmap is kept no larger than the screen can
+// show (`fitToScreen`): ~33 MB for a 4K master on a 4K screen, ~8 MB on the
+// TV app's 1080p page — the cache holds two at most and a canvas sized from
+// its own. The hero rotates and a `?v=` bump changes the URL — either way the
+// outgoing bitmap is never asked for again, so evicting it is the right move,
+// and invalidation is the key itself.
 //
 // `data-hero-state` reports the slot's state — `pending` (decoding),
 // `drawn`, or `failed` — for tests and runtime probes; nothing styles it.
@@ -177,5 +179,5 @@ export function warmHeroBackdrops(urls, cache) {
   )
 }
 
-export const heroBitmapCache = createBitmapCache()
+export const heroBitmapCache = createBitmapCache({ capacity: 2 })
 export const HeroBackdrop = createHeroBackdropHook(heroBitmapCache)

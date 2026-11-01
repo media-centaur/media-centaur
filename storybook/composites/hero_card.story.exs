@@ -9,7 +9,8 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
   the previews show the component as it actually appears.
 
   Variations are minimally-shaped `HeroCard.Item` structs — no factories,
-  generic placeholder titles only.
+  generic placeholder titles only. Each passes Home's pair of actions in
+  the `actions` slot; Discovery passes its own three.
   """
 
   use PhoenixStorybook.Story, :component
@@ -17,6 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
   alias MediaCentaurWeb.Components.HeroCard
 
   def function, do: &HeroCard.hero_card/1
+  def imports, do: [{MediaCentaurWeb.CoreComponents, button: 1, icon: 1}]
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -48,6 +50,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
         description:
           "Happy path — title text, year, genre, runtime meta line, overview paragraph, " <>
             "and Play / More info actions over the page-level backdrop.",
+        slots: [actions()],
         attributes: %{item: sample_item()}
       },
       %Variation{
@@ -55,6 +58,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
         description:
           "No `logo_url` — the component falls back to the large title typography " <>
             "(`text-7xl` heading) instead of the brand logo image.",
+        slots: [actions()],
         attributes: %{item: %{sample_item() | logo_url: nil}}
       },
       %Variation{
@@ -62,6 +66,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
         description:
           "Long title — verifies that the title heading wraps cleanly without the " <>
             "meta line or buttons being pushed off the visible hero area.",
+        slots: [actions()],
         attributes: %{
           item: %{
             sample_item()
@@ -77,6 +82,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
           "All meta fields present — year, genre label, and runtime separated by " <>
             "middle-dot dividers. The component hides each absent field, so this is " <>
             "the densest meta line the component will render.",
+        slots: [actions()],
         attributes: %{
           item: %{
             sample_item()
@@ -94,6 +100,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
             "the document is in keyboard input mode (`[data-input=\"keyboard\"]`); " <>
             "the storybook iframe stays in mouse mode, so this preview shows resting " <>
             "button styling rather than a focus ring.",
+        slots: [actions()],
         attributes: %{item: sample_item()}
       }
     ]
@@ -117,5 +124,20 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
       backdrop_url: nil,
       logo_url: nil
     }
+  end
+
+  # Home's pair, as the page passes them; Discovery passes Add to
+  # watchlist, Download and More info the same way.
+  defp actions do
+    """
+    <:actions>
+      <.button variant="primary" size="lg" data-nav-item tabindex="0">
+        <.icon name="hero-play-mini" class="size-5" /> Play
+      </.button>
+      <.button variant="secondary" size="lg" class="text-white" data-nav-item tabindex="0">
+        <.icon name="hero-information-circle-mini" class="size-5" /> More info
+      </.button>
+    </:actions>
+    """
   end
 end

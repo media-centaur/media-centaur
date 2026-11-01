@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
       structural, not a promise: posters go through
       `LiveHelpers.poster_src/1` — the same function every 2:3 poster
       surface renders — and the hero backdrop through
-      `Logic.select_hero/2`, the same pick Home makes, through
+      `HeroRotation.select/2`, the same pick Home makes, through
       `LiveHelpers.hero_backdrop_src/1` — the cache key the
       `HeroBackdrop` hook paints from. **Never re-derive a URL here.** A new warmed surface exposes the function it renders with
       and this module calls it.
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaurWeb.HomeLive.Logic
+  alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.LiveHelpers
 
   @poster_limit 30
@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   """
   @spec hero_backdrop_url() :: String.t() | nil
   def hero_backdrop_url do
-    case Logic.select_hero(Library.Views.hero_candidates()) do
+    case HeroRotation.select(Library.Views.hero_candidates()) do
       %{backdrop_url: url} -> LiveHelpers.hero_backdrop_src(url)
       _ -> nil
     end

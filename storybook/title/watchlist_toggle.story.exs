@@ -20,6 +20,18 @@ defmodule MediaCentaurWeb.Storybook.Title.WatchlistToggle do
   def variations do
     [
       %Variation{
+        id: :hero_off_the_list,
+        description:
+          "At hero size (`size=\"lg\"`), off the list: the solid primary *Add to watchlist* " <>
+            "with the outline bookmark — Discovery's hero.",
+        attributes: base(%{rung: nil, size: "lg"})
+      },
+      %Variation{
+        id: :hero_listed,
+        description: "At hero size, listed: soft, the solid bookmark, *On your watchlist*.",
+        attributes: base(%{rung: :list, size: "lg"})
+      },
+      %Variation{
         id: :off_the_list,
         description: "No record: the outline bookmark, and a click sets List.",
         attributes: base(%{rung: nil})

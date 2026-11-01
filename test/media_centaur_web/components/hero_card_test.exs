@@ -3,17 +3,21 @@ defmodule MediaCentaurWeb.Components.HeroCardTest do
 
   alias MediaCentaurWeb.Components.HeroCard.Item
 
-  test "Item struct enforces required identity fields at construction time" do
+  test "an item needs its name and the fields the card draws; its subject may be an entity or a ref" do
+    fields = %{
+      year: "2024",
+      runtime: nil,
+      genre_label: nil,
+      overview: nil,
+      backdrop_url: nil,
+      logo_url: nil
+    }
+
     assert_raise ArgumentError, fn ->
-      struct!(Item, %{
-        id: 1,
-        name: "Foo",
-        year: "2024",
-        runtime: nil,
-        genre_label: nil,
-        overview: nil,
-        backdrop_url: nil
-      })
+      struct!(Item, Map.merge(fields, %{id: 1, entity_id: "e"}))
     end
+
+    assert %Item{} = struct!(Item, Map.merge(fields, %{id: 1, entity_id: "e", name: "Movie A"}))
+    assert %Item{} = struct!(Item, Map.merge(fields, %{id: 2, ref: {7, :movie}, name: "Movie B"}))
   end
 end

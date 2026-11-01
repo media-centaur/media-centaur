@@ -35,7 +35,35 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggle do
     required: true,
     doc: "the `phx-click` event the host handles; it receives `choice` as `list` or `off`"
 
+  attr :size, :string,
+    values: ["sm", "lg"],
+    default: "sm",
+    doc:
+      "`sm`: the circle in an action strip; `lg`: the hero's labelled button — solid primary *Add to watchlist* off the list, soft *On your watchlist* on it (campaign `discovery.md`, decision 12)"
+
   attr :rest, :global, doc: "`phx-value-ref` and anything else the host's handler needs"
+
+  def watchlist_toggle(%{size: "lg"} = assigns) do
+    assigns = assign(assigns, choice: choice(assigns.rung), listed?: listed?(assigns.rung))
+
+    ~H"""
+    <.button
+      id={@id}
+      variant={if @listed?, do: "secondary", else: "primary"}
+      size="lg"
+      class={@listed? && "text-white"}
+      phx-click={@event}
+      phx-value-choice={@choice}
+      data-nav-item
+      tabindex="0"
+      aria-pressed={to_string(@listed?)}
+      {@rest}
+    >
+      <.icon name={if @listed?, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-5" />
+      {if @listed?, do: "On your watchlist", else: "Add to watchlist"}
+    </.button>
+    """
+  end
 
   def watchlist_toggle(assigns) do
     assigns =

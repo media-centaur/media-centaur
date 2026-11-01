@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
 
   alias MediaCentaurWeb.ArtworkWarmup
   alias MediaCentaurWeb.LiveHelpers
-  alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
+  alias MediaCentaurWeb.HeroRotation
 
   describe "urls/0" do
     test "returns the library grid's poster derivatives, byte-identical to what the grid requests" do
@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
 
       expected =
         MediaCentaur.Library.Views.hero_candidates()
-        |> HomeLogic.select_hero()
+        |> HeroRotation.select()
         |> Map.fetch!(:backdrop_url)
         |> LiveHelpers.hero_backdrop_src()
 

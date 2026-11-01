@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.HomeLive do
     ShelfHead
   }
 
+  alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.Live.Subscriptions
@@ -152,7 +153,37 @@ defmodule MediaCentaurWeb.HomeLive do
         >
           <div class="row-scroll row-scroll-hero">
             <div class="w-full" data-row-item>
-              <HeroCard.hero_card item={@hero} />
+              <HeroCard.hero_card item={@hero}>
+                <:actions>
+                  <%!-- Play starts playback in place (UIDR-027) — no modal;
+                        More info is the modal's front door. The shared entity
+                        id lets modal-close focus restoration target the hero
+                        shelf. --%>
+                  <.button
+                    variant="primary"
+                    size="lg"
+                    phx-click="play"
+                    phx-value-id={@hero.entity_id}
+                    data-nav-item
+                    data-entity-id={@hero.entity_id}
+                    tabindex="0"
+                  >
+                    <.icon name="hero-play-mini" class="size-5" /> Play
+                  </.button>
+                  <.button
+                    variant="secondary"
+                    size="lg"
+                    class="text-white"
+                    phx-click="select_entity"
+                    phx-value-id={@hero.entity_id}
+                    data-nav-item
+                    data-entity-id={@hero.entity_id}
+                    tabindex="0"
+                  >
+                    <.icon name="hero-information-circle-mini" class="size-5" /> More info
+                  </.button>
+                </:actions>
+              </HeroCard.hero_card>
             </div>
           </div>
         </div>
@@ -406,7 +437,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :hero,
-      Logic.hero_card_item(Logic.select_hero(hero_candidates))
+      Logic.hero_card_item(HeroRotation.select(hero_candidates))
     )
   end
 

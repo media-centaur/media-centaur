@@ -1,25 +1,26 @@
 defmodule MediaCentaurWeb.Components.HeroCard do
   @moduledoc """
-  Full-bleed hero card for the Home page. One large title with backdrop,
-  meta line, overview, and Play / More info actions.
+  Full-bleed hero card for an assembled page: one large title with its
+  backdrop (painted by the page), lockup or name, meta line, overview, and
+  the page's actions in the `actions` slot — Home's Play and More info,
+  Discovery's Add to watchlist, Download and More info. One card, two
+  pages (UIDR-010 and UIDR-033, amended 2026-11-01).
 
-  Item is an `Item` struct (see below). All fields except `:id`, `:name`,
-  `:play_url`, and `:detail_url` may be nil — the template hides absent
-  ones.
+  Item is an `Item` struct (see below): a library entity (`entity_id`) on
+  Home, a TMDB identity (`ref`) on Discovery. Every field but `:id` and
+  `:name` may be nil — the template hides absent ones.
   """
 
   use Phoenix.Component
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   # The lockup logo is capped at `max-w-md` (448 CSS px), which doubles on a
   # 4K panel. The card's backdrop is painted by the page, not here.
 
   defmodule Item do
-    @moduledoc "View-model for the HeroCard."
+    @moduledoc "View-model for the HeroCard: a library entity (`entity_id`) or a TMDB identity (`ref`)."
     @enforce_keys [
       :id,
-      :entity_id,
       :name,
       :year,
       :runtime,
@@ -31,6 +32,7 @@ defmodule MediaCentaurWeb.Components.HeroCard do
     defstruct [
       :id,
       :entity_id,
+      :ref,
       :name,
       :year,
       :runtime,
@@ -42,7 +44,8 @@ defmodule MediaCentaurWeb.Components.HeroCard do
 
     @type t :: %__MODULE__{
             id: term(),
-            entity_id: String.t(),
+            entity_id: String.t() | nil,
+            ref: {pos_integer(), :movie | :tv_series} | nil,
             name: String.t(),
             year: String.t() | nil,
             runtime: String.t() | nil,
@@ -54,6 +57,11 @@ defmodule MediaCentaurWeb.Components.HeroCard do
   end
 
   attr :item, :any, required: true, doc: "an `Item.t()` or nil"
+
+  slot :actions,
+    required: true,
+    doc:
+      "the card's buttons, each a nav item: Home's Play and More info; Discovery's Add to watchlist, Download and More info"
 
   def hero_card(assigns) do
     ~H"""
@@ -106,35 +114,11 @@ defmodule MediaCentaurWeb.Components.HeroCard do
         >
           {@item.overview}
         </p>
-        <%!-- Both CTAs are focusable nav items: Left/Right toggles between
-              Play and More info, Select activates the focused one. Play
-              starts playback in place (UIDR-027) — no modal; More info is
-              the modal's front door. The shared entity id lets modal-close
-              focus restoration target the hero shelf. --%>
+        <%!-- The page's actions, each a focusable nav item: Left/Right moves
+              between them, Select activates the focused one; the hero zone's
+              entry anchor is the first. --%>
         <div class="flex gap-3 mt-2">
-          <.button
-            variant="primary"
-            size="lg"
-            phx-click="play"
-            phx-value-id={@item.entity_id}
-            data-nav-item
-            data-entity-id={@item.entity_id}
-            tabindex="0"
-          >
-            <.icon name="hero-play-mini" class="size-5" /> Play
-          </.button>
-          <.button
-            variant="secondary"
-            size="lg"
-            class="text-white"
-            phx-click="select_entity"
-            phx-value-id={@item.entity_id}
-            data-nav-item
-            data-entity-id={@item.entity_id}
-            tabindex="0"
-          >
-            <.icon name="hero-information-circle-mini" class="size-5" /> More info
-          </.button>
+          {render_slot(@actions)}
         </div>
       </div>
     </section>

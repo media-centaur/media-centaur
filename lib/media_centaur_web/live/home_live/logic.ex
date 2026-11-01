@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.HomeLive.Logic do
   @moduledoc """
-  Pure helpers for HomeLive — date math, hero selection, row assembly.
+  Pure helpers for HomeLive — date math, row assembly (the hero pick is
+  `MediaCentaurWeb.HeroRotation`).
   No DB, no PubSub. Tested with `async: true` per ADR-030.
 
   HomeLive composes data from Library, ReleaseTracking, and WatchHistory
@@ -20,30 +21,6 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     monday = Date.add(date, 1 - Date.day_of_week(date))
     sunday = Date.add(monday, 6)
     {monday, sunday}
-  end
-
-  @rotation_hours 7
-
-  @doc """
-  Picks one candidate from `candidates` deterministically based on `now`.
-
-  Rotation interval is #{@rotation_hours} hours: every #{@rotation_hours}-hour
-  block of UTC unix time selects the next candidate. The interval is
-  deliberately coprime with 24 — a habitual viewer who only opens the
-  app at the same time each day still cycles through the full pool over
-  ~#{Float.round(@rotation_hours * 12 / 24, 1)} days for a 12-candidate
-  pool. Picking a divisor of 24 (4/6/8/12 h) would lock such a viewer
-  into a single time-of-day slot and reduce variety.
-
-  Returns `nil` for an empty list.
-  """
-  @spec select_hero([map()], DateTime.t()) :: map() | nil
-  def select_hero(candidates, now \\ DateTime.utc_now())
-  def select_hero([], _now), do: nil
-
-  def select_hero(candidates, %DateTime{} = now) do
-    blocks = div(DateTime.to_unix(now), @rotation_hours * 3600)
-    Enum.at(candidates, rem(blocks, length(candidates)))
   end
 
   @doc "Shape Library progress rows into ContinueWatchingRow items."
