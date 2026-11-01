@@ -66,6 +66,55 @@ defmodule MediaCentaur.TMDB.ClientTest do
     refute_receive {:tmdb_hit, _path}
   end
 
+  describe "discover_movies/2" do
+    test "asks /discover/movie with the filters as TMDB spells them" do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        conn = Plug.Conn.fetch_query_params(conn)
+        send(test_pid, {:discover, conn.request_path, conn.query_params})
+        Req.Test.json(conn, %{"page" => 2, "total_pages" => 3, "results" => [%{"id" => 7}]})
+      end)
+
+      assert {:ok, %{results: [%{"id" => 7}], total_pages: 3}} =
+               Client.discover_movies(
+                 region: "US",
+                 release_type: 4,
+                 released_from: ~D[2026-10-18],
+                 released_to: ~D[2026-11-01],
+                 min_vote_count: 20,
+                 page: 2
+               )
+
+      assert_receive {:discover, "/3/discover/movie", params}
+
+      assert %{
+               "region" => "US",
+               "with_release_type" => "4",
+               "release_date.gte" => "2026-10-18",
+               "release_date.lte" => "2026-11-01",
+               "vote_count.gte" => "20",
+               "sort_by" => "popularity.desc",
+               "page" => "2"
+             } = params
+    end
+
+    test "the same question twice is one request" do
+      filters = [
+        region: "US",
+        release_type: 4,
+        released_from: ~D[2026-10-18],
+        released_to: ~D[2026-11-01]
+      ]
+
+      assert {:ok, _page} = Client.discover_movies(filters)
+      assert {:ok, _page} = Client.discover_movies(filters)
+
+      assert_receive {:tmdb_hit, "/3/discover/movie"}
+      refute_receive {:tmdb_hit, _path}
+    end
+  end
+
   describe "detail/2" do
     setup do
       test_pid = self()

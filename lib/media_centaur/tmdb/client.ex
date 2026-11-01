@@ -23,6 +23,9 @@ defmodule MediaCentaur.TMDB.Client do
     transport from the value's form, so the user pastes whichever one
     they copied.
   - **Search endpoints:** `/search/movie`, `/search/tv`, `/search/multi`
+  - **Discover endpoint:** `/discover/movie` — a filtered, sorted, paged
+    list of movies, for the New Releases shelf refresh
+    (`MediaCentaur.TMDB.NewReleases`)
   - **Detail endpoints:** `/movie/{id}`, `/tv/{id}`, `/tv/{id}/season/{n}`, `/collection/{id}`
   - **Image URL:** `https://image.tmdb.org/t/p/original{path}`
 
@@ -141,6 +144,53 @@ defmodule MediaCentaur.TMDB.Client do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} TV results")
       {:ok, results}
+    end
+  end
+
+  @typedoc """
+  The filters of a discover query, spelled as the app thinks of them:
+  `:region` (ISO 3166-1), `:release_type` (TMDB's 1–6; 4 is digital),
+  `:released_from` / `:released_to` (`Date`, inclusive, the region's
+  dates of that type), `:min_vote_count`, `:sort_by` (TMDB's sort key,
+  `"popularity.desc"` by default) and `:page` (1 by default).
+  """
+  @type discover_filters :: [
+          region: String.t(),
+          release_type: pos_integer(),
+          released_from: Date.t(),
+          released_to: Date.t(),
+          min_vote_count: non_neg_integer(),
+          sort_by: String.t(),
+          page: pos_integer()
+        ]
+
+  @doc """
+  One page of `/discover/movie`: twenty movies matching `filters`, with
+  enough fields to draw a poster shelf, and how many pages there are.
+  A list endpoint, like search: not a store identity, so any module may
+  call it; the only caller is the New Releases refresh.
+  """
+  @spec discover_movies(discover_filters(), opts()) ::
+          {:ok, %{results: [map()], total_pages: pos_integer()}} | {:error, any()}
+  def discover_movies(filters, opts \\ []) do
+    page = Keyword.get(filters, :page, 1)
+
+    params =
+      Enum.flat_map(filters, fn
+        {:region, region} -> [region: region]
+        {:release_type, type} -> [with_release_type: type]
+        {:released_from, %Date{} = date} -> ["release_date.gte": Date.to_iso8601(date)]
+        {:released_to, %Date{} = date} -> ["release_date.lte": Date.to_iso8601(date)]
+        {:min_vote_count, count} -> ["vote_count.gte": count]
+        {:sort_by, sort} -> [sort_by: sort]
+        {:page, _page} -> []
+      end)
+
+    params = Keyword.put_new(params, :sort_by, "popularity.desc") ++ [page: page]
+
+    with {:ok, body} <-
+           get(opts, [url: "/discover/movie", params: params], "discovered movies page #{page}") do
+      {:ok, %{results: body["results"] || [], total_pages: body["total_pages"] || 1}}
     end
   end
 
