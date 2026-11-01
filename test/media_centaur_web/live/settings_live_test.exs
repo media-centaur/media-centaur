@@ -85,6 +85,15 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         assert has_element?(view, "p", description)
       end
     end
+
+    test "every section label is Title Case, as the Settings menu reads" do
+      for %{label: label} <- MediaCentaurWeb.SettingsLive.sections() do
+        for word <- String.split(label) do
+          assert String.first(word) == String.upcase(String.first(word)),
+                 "Settings section label #{inspect(label)} is not Title Case"
+        end
+      end
+    end
   end
 
   describe "interface scale" do

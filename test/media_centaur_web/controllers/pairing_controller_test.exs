@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.PairingControllerTest do
 
     html = conn |> from_lan() |> get(~p"/pair") |> html_response(200)
     assert html =~ "Remote players is off"
-    assert html =~ "Settings → Feature flags"
+    assert html =~ "Settings → Feature Flags"
     refute html =~ ~s|name="pairing[code]"|
 
     html =

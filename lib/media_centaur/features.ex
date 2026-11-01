@@ -22,7 +22,7 @@ defmodule MediaCentaur.Features do
     * `MediaCentaurWeb.Live.FeaturesAware` assigns the enabled set to every
       LiveView and owns the turn-on action; the layout, the sidebar, the
       Settings shell, the Status board and the gated pages read the set.
-    * Settings → Feature flags lists the registry, one row per feature.
+    * Settings → Feature Flags lists the registry, one row per feature.
 
   A feature's **stage** says why a row exists: `:development` (unfinished;
   the row says so) or `:optional` (finished; a user may still not want it).

@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.PairingHTML do
     <main class="page-side-dim-calm flex min-h-[calc(100*var(--pvh))] items-center justify-center p-6">
       <div :if={!@players_on?} class="glass-surface w-full max-w-md rounded-xl p-6">
         <FeatureOff.feature_off id="pairing-off" feature={Features.get(:players)} action?={false}>
-          Turn it on under Settings → Feature flags on the computer running Media Centaur, then pair this device.
+          Turn it on under Settings → Feature Flags on the computer running Media Centaur, then pair this device.
         </FeatureOff.feature_off>
       </div>
       <div :if={@players_on?} class="glass-surface w-full max-w-md space-y-5 rounded-xl p-6">

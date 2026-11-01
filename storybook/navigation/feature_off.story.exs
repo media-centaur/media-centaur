@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.Storybook.Navigation.FeatureOff do
           "A device that is not the host (the pairing page): the flag is the host's, so the body says where and there is no action.",
         attributes: %{id: "feature-off-players", feature: Features.get(:players), action?: false},
         slots: [
-          "Turn it on under Settings → Feature flags on the computer running Media Centaur, then pair this device."
+          "Turn it on under Settings → Feature Flags on the computer running Media Centaur, then pair this device."
         ]
       }
     ]

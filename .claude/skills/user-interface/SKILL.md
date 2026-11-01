@@ -539,7 +539,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 
 ### Settings kit ([UIDR-041])
 
-Every Settings section is cards of rows, composed from `MediaCentaurWeb.Components.Settings` (stories under `/storybook/settings/*`). The shell renders the section's title and one line; a section module renders `settings_card`s only, and no card carries a Save. A feature's section carries `feature:` in `@sections` and is listed, and drawn, while the feature is on; its flag's row lives under **Feature flags** (`SettingsLive.FeatureFlags`, from the registry), never in the section itself (ADR-081).
+Every Settings section is cards of rows, composed from `MediaCentaurWeb.Components.Settings` (stories under `/storybook/settings/*`). The shell renders the section's title and one line; a section's label is Title Case ("Media Import", "Feature flags", "Danger Zone"), test-enforced; a section module renders `settings_card`s only, and no card carries a Save. A feature's section carries `feature:` in `@sections` and is listed, and drawn, while the feature is on; its flag's row lives under **Feature Flags** (`SettingsLive.FeatureFlags`, from the registry), never in the section itself (ADR-081).
 
 | Row kind | Component | Use |
 |---|---|---|

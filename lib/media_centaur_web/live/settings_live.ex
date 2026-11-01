@@ -119,7 +119,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     },
     %{
       id: "features",
-      label: "Feature flags",
+      label: "Feature Flags",
       group: :general,
       description:
         "Optional parts of the app. A feature that is off has no page, no settings, and runs nothing."

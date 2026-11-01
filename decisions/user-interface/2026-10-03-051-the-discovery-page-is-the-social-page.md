@@ -5,7 +5,7 @@ amended: 2026-10-03
 ---
 # The Discovery page is the Social page
 
-> **Amendment 2026-10-31 (ADR-081).** Social is a **feature**: its flag is `feature:social` under **Settings → Feature flags**, and off means the page, the Social section, the Review control and the relay processes are all off. `show_social` is not read; the "Show Social in the sidebar" row under Settings → Social is gone. Point 1's gate and the 2026-10-03 amendment below describe the state before this.
+> **Amendment 2026-10-31 (ADR-081).** Social is a **feature**: its flag is `feature:social` under **Settings → Feature Flags**, and off means the page, the Social section, the Review control and the relay processes are all off. `show_social` is not read; the "Show Social in the sidebar" row under Settings → Social is gone. Point 1's gate and the 2026-10-03 amendment below describe the state before this.
 
 > **Amendment 2026-10-03.** `show_social` is on by default and its switch is **Show Social in the sidebar** under Settings → Social, not under Preferences: the preference belongs with the identity, relays and sharing it gates, and the page is no longer treated as an opt-in preview. Point 1's "default off" and point 3's "switched on again" describe the morning of 2026-10-03 only.
 
