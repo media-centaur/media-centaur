@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
+defmodule MediaCentaurWeb.DownloadsLive.OrphanQueue do
   @moduledoc """
   "Other downloads" residual section — jobs in the download clients that
   did not pair with any tracked pursuit.

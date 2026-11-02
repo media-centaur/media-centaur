@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.Artwork do
   Batch artwork-URL resolution by entity reference and role — the poster,
   the backdrop or the logo — for surfaces outside the Library views that
   need artwork for a heterogeneous list of entities (the Feed's rows, the
-  Status page's recently-watched feed, the release rows on Incoming). The
+  Status page's recently-watched feed, the release rows on Downloads). The
   **library tier** of `MediaCentaur.TitleArtwork`'s ladder.
 
   Episodes resolve to their **series'** image in every role — episodes

@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.HomeLive do
   }
 
   alias MediaCentaurWeb.HeroRotation
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost

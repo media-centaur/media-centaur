@@ -69,7 +69,7 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
         identity_from: "a TMDB detail it fetches itself — the only door holding no payload already"
       },
       %{
-        module: MediaCentaurWeb.IncomingLive,
+        module: MediaCentaurWeb.DownloadsLive,
         function: :handle_event,
         opens: "the Create plan button in the plan modal, for a series or a film",
         identity_from:

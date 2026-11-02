@@ -36,7 +36,7 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
     end
   end
 
-  test "R3: the Incoming search surface carries the ignored marker", %{findings: findings} do
+  test "R3: the Downloads search surface carries the ignored marker", %{findings: findings} do
     logic =
       Enum.find(
         findings,
@@ -46,7 +46,7 @@ defmodule MediaCentaur.ContextMap.FixtureInstancesTest do
         )
       )
 
-    assert MediaCentaurWeb.IncomingLive in logic.surfaces
+    assert MediaCentaurWeb.DownloadsLive in logic.surfaces
   end
 
   test "R1: TitleIntent.activity_id is never read by Watchlist", %{findings: findings} do

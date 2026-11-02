@@ -74,7 +74,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
         value: "ignored",
         consumer: "MediaCentaurWeb.Components.Title.Logic",
         consumer_context: "web",
-        surfaces: ["MediaCentaurWeb.IncomingLive"],
+        surfaces: ["MediaCentaurWeb.DownloadsLive"],
         anchored: true,
         file: "lib/x.ex",
         line: 189,
@@ -99,7 +99,7 @@ defmodule MediaCentaur.ContextMap.HtmlTest do
     assert html |> query(~s(.panel[data-context="MediaCentaur.Watchlist"])) |> LazyHTML.text() =~
              "title_intents"
 
-    assert html |> query(".consumer") |> LazyHTML.text() =~ "MediaCentaurWeb.IncomingLive"
+    assert html |> query(".consumer") |> LazyHTML.text() =~ "MediaCentaurWeb.DownloadsLive"
 
     assert html
            |> LazyHTML.from_document()

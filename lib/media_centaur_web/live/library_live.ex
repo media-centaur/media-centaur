@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Pipeline.Stats
 
   alias MediaCentaurWeb.Components.LibraryCards
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
 
   import MediaCentaurWeb.LibraryHelpers

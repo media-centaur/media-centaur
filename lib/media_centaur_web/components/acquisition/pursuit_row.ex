@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   @moduledoc """
-  Renders one pursuit row on the Incoming page's in-flight zone.
+  Renders one pursuit row on the Downloads page's in-flight zone.
 
   Three surfaces per card:
 

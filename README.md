@@ -45,7 +45,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 - **Library management** — watches your directories for new video files, identifies movies and TV shows via TMDB, and downloads artwork automatically. Low-confidence matches wait for manual review instead of polluting your library with wrong guesses.
 - **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
-- **Watchlist and release tracking** — the Incoming page lists the titles you want. Turn tracking on for one and its row shows its next release as TMDB posts it; auto-grab can download it when it drops.
+- **Discovery, the watchlist and release tracking** — Discovery shows what is new to watch beyond your library: new digital releases, your friends' reviews and your watchlist by release stage. Turn tracking on for a title and its page shows its next release as TMDB posts it; auto-grab can download it when it drops.
 - **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centaur is a full library manager without it.
 - **Social** — a Feed of your friends' reviews and watchlists, and the Friends roster: each install has a Nostr identity, friends are followed keys, and a friend's review is one click from your acquisition path. You host your own private server ([social-relay](https://github.com/media-centaur/social-relay)); no data collection.
 - **Apps** — a launcher for Steam games and other local applications from the same couch UI.

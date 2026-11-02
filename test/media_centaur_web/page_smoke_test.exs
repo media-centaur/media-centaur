@@ -554,7 +554,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/incoming without Prowlarr" do
+  describe "/downloads without Prowlarr" do
     # UIDR-015 (amended 2026-11-02): without Prowlarr the page MOUNTS and
     # renders its diagnosed empty state (UIDR-034) — no search box, no
     # tabs, no acquisition section — instead of navigating away.
@@ -565,8 +565,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       :ok
     end
 
-    test "/incoming renders its gap state without crashing", %{conn: conn} do
-      assert {:ok, view, html} = smoke!(conn, "/incoming")
+    test "/downloads renders its gap state without crashing", %{conn: conn} do
+      assert {:ok, view, html} = smoke!(conn, "/downloads")
       assert is_binary(html)
 
       assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
@@ -576,7 +576,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/incoming (Prowlarr configured and tested)" do
+  describe "/downloads (Prowlarr configured and tested)" do
     setup do
       config = :persistent_term.get({Config, :config}, %{})
 
@@ -589,7 +589,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       )
 
       MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
-      # /incoming probes indexer health on mount; a configured Prowlarr is
+      # /downloads probes indexer health on mount; a configured Prowlarr is
       # asked, so it must answer.
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
@@ -668,10 +668,10 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Activity, the bare path)", %{conn: conn} do
-      assert {:ok, view, html} = smoke!(conn, "/incoming")
+      assert {:ok, view, html} = smoke!(conn, "/downloads")
       assert is_binary(html)
 
-      # `IncomingLive.ensure_loaded/1` runs the pursuit-row + ledger +
+      # `DownloadsLive.ensure_loaded/1` runs the pursuit-row + ledger +
       # history reads on the first render; `live_async!` drained any owned
       # async work at mount, so `render/1` reflects the loaded state.
       html = render(view)
@@ -688,14 +688,14 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       watchlist_item: watchlist_item
     } do
       assert {:ok, view, _html} =
-               smoke!(conn, "/incoming?title=tv_series-#{watchlist_item.tmdb_id}")
+               smoke!(conn, "/downloads?title=tv_series-#{watchlist_item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
       assert has_element?(view, "#detail-modal", "Smoke Watchlist Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do
-      assert {:ok, view, _html} = smoke!(conn, "/incoming?zone=history")
+      assert {:ok, view, _html} = smoke!(conn, "/downloads?zone=history")
 
       # The History tab IS the archive: filter chips + search render
       # immediately (no disclosure), default filter :all, and the two
@@ -709,7 +709,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/incoming?selected=:pursuit_id (pursuit detail modal)" do
+  describe "/downloads?selected=:pursuit_id (pursuit detail modal)" do
     setup do
       config = :persistent_term.get({Config, :config}, %{})
 
@@ -722,7 +722,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       )
 
       MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
-      # /incoming probes indexer health on mount; a configured Prowlarr is
+      # /downloads probes indexer health on mount; a configured Prowlarr is
       # asked, so it must answer.
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
@@ -743,7 +743,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = smoke!(conn, "/incoming?selected=#{pursuit_id}")
+      assert {:ok, _view, html} = smoke!(conn, "/downloads?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
       assert html =~ ~s|data-state="open"|
@@ -751,7 +751,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
       assert {:ok, _view, html} =
-               smoke!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
+               smoke!(conn, "/downloads?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
     end

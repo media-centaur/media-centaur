@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   action; `menu_select/1` under a trigger that shows the current value.
   The tenants are the title detail modal's Download control and scope
   select, the library sort control (spec 2026-09-12 §12–16), and the
-  picker's Download control on Incoming (spec 2026-09-23 follow-up).
+  picker's Download control on Downloads (spec 2026-09-23 follow-up).
 
   ## Placement
 

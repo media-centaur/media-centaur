@@ -3,7 +3,7 @@
  *
  * Tests grid spatial navigation, grid ↔ toolbar transitions, drawer/modal
  * lifecycle, focus memory, filter input, and empty grid fallback on `/library`,
- * plus zone-tab cycling on `/incoming` (the one page with a tab strip).
+ * plus zone-tab cycling on `/downloads` (the one page with a tab strip).
  */
 import { test, expect } from "./fixtures/input-method.js"
 import { expectContext, expectFocusInZone, getFocusedNavItem, getFocusedIndex, getZoneItemCount, establishFocus } from "./helpers/input.js"
@@ -154,9 +154,9 @@ test.describe("library grid ↔ toolbar transitions", () => {
   })
 })
 
-test.describe("incoming zone tabs", () => {
+test.describe("downloads zone tabs", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    await navigateTo("/incoming")
+    await navigateTo("/downloads")
   })
 
   test("zone tab switch resets grid content", async ({ page, inputAction }) => {
@@ -187,7 +187,7 @@ test.describe("incoming zone tabs", () => {
     await inputAction("ZONE_PREV")
     await waitForSettle(page, 500)
 
-    // Should still be on the Incoming page
+    // Should still be on the Downloads page
     await expect(page).toHaveURL(/\/incoming/)
   })
 })

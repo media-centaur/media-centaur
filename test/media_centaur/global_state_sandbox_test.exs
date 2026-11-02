@@ -9,7 +9,7 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
   alias MediaCentaur.GlobalStateSandbox
   alias MediaCentaur.GlobalStateSandbox.Leak
   alias MediaCentaur.GlobalStateSandbox.Snapshot
-  alias MediaCentaurWeb.IncomingLive.SearchSession
+  alias MediaCentaurWeb.DownloadsLive.SearchSession
 
   @config_key {MediaCentaur.Settings.Config, :config}
 

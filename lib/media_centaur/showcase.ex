@@ -44,7 +44,7 @@ defmodule MediaCentaur.Showcase do
       title string itself ships in screenshots, so an IMDb-style fair-use
       bridge does **not** apply here. Use PD/CC titles only.
     * Acquisition grab titles in `seed_acquisition_activity!` — visible on
-      `/incoming?zone=activity`; subject to the same rule.
+      `/downloads?zone=activity`; subject to the same rule.
     * Pending review fixtures in `pending_file_data` — visible in the
       Review queue screenshots.
     * Console log lines in `seed_console_entries!` — visible in the
@@ -737,12 +737,12 @@ defmodule MediaCentaur.Showcase do
 
   # Drives:
   #
-  #   - HomeLive "Coming Up This Week" + the next-release pills on Incoming's
-  #     Watchlist tab — four releases scheduled within the next seven days, each tied to
+  #   - HomeLive "Coming Up This Week" + the release dates in the title detail
+  #     — four releases scheduled within the next seven days, each tied to
   #     a grab in a *different* status so all four pill variants render
   #     side-by-side: Grabbed, Searching, Pending (snoozed), Scheduled
   #     (no grab row).
-  #   - `/incoming?zone=activity` — at least one grab per status filter chip
+  #   - `/downloads?zone=activity` — at least one grab per status filter chip
   #     (`searching`, `grabbed`, `snoozed`, `abandoned`, `cancelled`),
   #     mixing `auto` and `manual` origin.
   #
@@ -815,7 +815,7 @@ defmodule MediaCentaur.Showcase do
     end
   end
 
-  # `/incoming?zone=activity` needs every status chip populated. The
+  # `/downloads?zone=activity` needs every status chip populated. The
   # next-release slots already cover seeking / acquired / failed; here we add cancelled,
   # plus one manual-origin pursuit so the activity feed shows a mix of
   # auto vs user-initiated work.
@@ -914,7 +914,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"
-  # test result so `/incoming` renders its acquisition zones.
+  # test result so `/downloads` renders its acquisition zones.
   # Real integrations would still fail at runtime (the URLs don't point
   # anywhere), but the UI renders the search form + empty queue card
   # which is what the screenshot needs.

@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.Search do
+defmodule MediaCentaurWeb.DownloadsLive.Search do
   @moduledoc """
   Release search on the Downloads page (UIDR-014, amended 2026-11-02):
   the field at the top of the page and the results zone below it.
@@ -22,8 +22,8 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
   import MediaCentaurWeb.Components.Disclosure
 
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
-  alias MediaCentaurWeb.IncomingLive.SearchSession
-  alias MediaCentaurWeb.IncomingLive.Logic
+  alias MediaCentaurWeb.DownloadsLive.SearchSession
+  alias MediaCentaurWeb.DownloadsLive.Logic
   alias Phoenix.LiveView.JS
 
   attr :session, SearchSession, required: true

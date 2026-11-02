@@ -1,6 +1,6 @@
 defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   @moduledoc """
-  The release-forecast view-model behind the Incoming page's Watchlist tab
+  The release-forecast view-model behind Home's Coming Up marquee
   and per-title detail timeline.
 
   A pure transform from `ReleaseTracking.Release` structs (with `:item`

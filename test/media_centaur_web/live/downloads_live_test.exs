@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLiveTest do
+defmodule MediaCentaurWeb.DownloadsLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Watchlist
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaurWeb.IncomingLive.SearchSession
+  alias MediaCentaurWeb.DownloadsLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.Secret
   alias MediaCentaur.TMDB.Title
 
-  # `IncomingLive.ensure_loaded/1` defers the initial reads (search
+  # `DownloadsLive.ensure_loaded/1` defers the initial reads (search
   # session, capability flag, active pursuit rows, history rows) to an
   # owned `start_async(:acquisition_load, …)` (ADR-049). `render_async/1`
   # awaits it deterministically — no wall-clock sleep.
@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         now: DateTime.add(DateTime.utc_now(), -600, :second)
       )
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#needs-attention-client", "Prowlarr can't hand releases")
     end
@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         Map.merge(config, %{prowlarr_url: nil, prowlarr_api_key: nil})
       )
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
       assert has_element?(view, "#downloads-empty a[href='/settings?section=acquisition']")
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "a configured but untested Prowlarr is the same gap", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
       refute has_element?(view, "#omnibox-release-input")
@@ -125,7 +125,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       Capabilities.clear_test_result(:download_client)
 
-      {:ok, view, html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, html} = live_async!(conn, ~p"/downloads")
 
       # Scoped to the live-activity zones — a whole-page `=~ "Downloading"`
       # refute also sweeps the Console drawer, whose GLOBAL log ring buffer
@@ -137,16 +137,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "renders the page when Prowlarr is configured", %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, html} = live_async!(conn, ~p"/downloads")
 
-      assert html =~ "Incoming"
+      assert html =~ "Downloads"
       # The release search box is the page's front door; no heading above it.
       assert has_element?(view, "[data-nav-zone='omnibox'] #omnibox-release-input")
-      assert has_element?(view, "[data-page-behavior='incoming']")
+      assert has_element?(view, "[data-page-behavior='downloads']")
       # The default-zone value is the LAYOUT KEY in input config.js, not a
       # context within it — `"pursuits"` here once left the page's nav graph
       # empty and keyboard/gamepad navigation dead.
-      assert has_element?(view, "[data-nav-default-zone='incoming']")
+      assert has_element?(view, "[data-nav-default-zone='downloads']")
     end
 
     test "first paint (disconnected render) reflects loaded capability, not the unloaded default",
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # enabled queue section. The previously-gated behavior left
       # `download_client_ready` at its mount default (false) on the static
       # render and flashed the "Connect a download client" empty state.
-      html = conn |> get(~p"/incoming") |> html_response(200)
+      html = conn |> get(~p"/downloads") |> html_response(200)
 
       refute html =~ "Connect a download client",
              "download-client capability must be loaded on the disconnected first paint"
@@ -179,7 +179,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       flush_prowlarr_calls()
 
       {:ok, view: view}
@@ -223,7 +223,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
   describe "query_change" do
     test "updates expansion preview for valid syntax", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       html =
         view
@@ -234,7 +234,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "shows error for invalid brace syntax", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       html =
         view
@@ -256,13 +256,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     # `submit_search` still guards empty/invalid queries server-side.
 
     test "the release form has no submit button — Enter is the only submit path", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       refute has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
     end
 
     test "submitting a fresh valid query starts a search (Enter path)", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -379,7 +379,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the TV picker introduces the series in the pinned lockup", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       # The identity lives in the cinematic frame's orientation block —
@@ -392,7 +392,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the TV picker dresses the modal in the series backdrop", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       # tv_detail fixture default backdrop, w1280 on the cinematic shell —
@@ -426,7 +426,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       render_async(view, 2_000)
 
       assert has_element?(
@@ -444,7 +444,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       # Prefix-matched: the assertion is "this row wears the cached artwork",
       # not "at this display width" — the `?w=` hint is a rendering decision
@@ -463,7 +463,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan_b} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Other Movie"})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan_a.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan_a.id}")
 
       send(
         view.pid,
@@ -477,7 +477,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert render(view) =~ "Searched: Sample Movie 2026 — 54 found"
 
-      render_patch(view, ~p"/incoming?plan=#{plan_b.id}")
+      render_patch(view, ~p"/downloads?plan=#{plan_b.id}")
       refute render(view) =~ "Sample Movie 2026"
     end
 
@@ -485,7 +485,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       # Release tracking is set on the watchlist and nowhere else: a
@@ -511,16 +511,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} =
         live_async!(
           conn,
-          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+          ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
         )
 
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
       # A started download lands on Activity, where it shows up, and points
-      # the sidebar's Incoming entry there for the next visit.
-      assert_patch(view, "/incoming")
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
+      # the sidebar's Downloads entry there for the next visit.
+      assert_patch(view, "/downloads")
+      assert_push_event(view, "nav-remember", %{path: "/downloads", url: "/downloads"})
       refute has_element?(view, "#plan-modal[data-state='open']")
       assert render(view) =~ "Finding a release for Sample Show"
       await_supervised_tasks()
@@ -536,7 +536,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} =
         live_async!(
           conn,
-          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=manually_select_release"
+          ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv&mode=manually_select_release"
         )
 
       render_async(view, 2_000)
@@ -544,19 +544,19 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert [plan] = Plans.list_drafts()
       assert plan.approval_policy == "review"
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
     end
 
     test "a link without a mode performs the person's default", %{conn: conn} do
       PlanningMode.set(:auto_select_best_release)
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
 
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       await_supervised_tasks()
       assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
     end
@@ -568,13 +568,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} =
         live_async!(
           conn,
-          ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie&mode=auto_select_best_release"
+          ~p"/downloads?plan=new&tmdb_id=550&tmdb_type=movie&mode=auto_select_best_release"
         )
 
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       assert render(view) =~ "Finding a release for Sample Movie"
       await_supervised_tasks()
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
@@ -587,7 +587,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} =
         live_async!(
           conn,
-          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+          ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
         )
 
       render_async(view, 2_000)
@@ -608,13 +608,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert [plan] = Plans.list_drafts()
       assert plan.approval_policy == "review"
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
     end
 
     test "the picker's menu closes on its close event and starts closed on a new open", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       view |> element("#plan-download-toggle") |> render_click()
@@ -629,7 +629,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # The same title under another mode is a new open: the menu starts closed.
       render_patch(
         view,
-        ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+        ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
       )
 
       render_async(view, 2_000)
@@ -640,7 +640,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "with nothing selected the split is inert but stays a nav item", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       view |> element("[phx-click='plan_preset'][phx-value-preset='clear']") |> render_click()
@@ -662,7 +662,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} =
         live_async!(
           conn,
-          ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie&mode=manually_select_release"
+          ~p"/downloads?plan=new&tmdb_id=550&tmdb_type=movie&mode=manually_select_release"
         )
 
       render_async(view, 2_000)
@@ -674,7 +674,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("#plan-download-other[phx-value-mode='auto_select_best_release']")
       |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       await_supervised_tasks()
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
     end
@@ -683,7 +683,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_tmdb()
 
       {:ok, view, _html} =
-        live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=grab_everything")
+        live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv&mode=grab_everything")
 
       html = render_async(view, 2_000)
       refute has_element?(view, "#plan-modal[data-state='open']")
@@ -693,7 +693,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "a plan id that is not one closes the modal instead of crashing the page", %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, ~p"/incoming?plan=abc")
+      {:ok, view, html} = live_async!(conn, ~p"/downloads?plan=abc")
 
       refute has_element?(view, "#plan-modal[data-state='open']")
       assert html =~ "Malformed plan link."
@@ -703,7 +703,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2099-01-01"}))
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=550&tmdb_type=movie")
       render_async(view, 2_000)
 
       # Download is not gated on the release date; watching for a release
@@ -714,7 +714,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the picker's seasons start collapsed and expand on demand", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
       # Collapsed by default — the season header renders, the episode rows don't.
@@ -737,7 +737,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "Clear selected empties the picker's selection", %{conn: conn} do
       stub_plan_tmdb()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
       html = render_async(view, 2_000)
 
       # Opens with the everything-aired default — Clear selected empties it.
@@ -755,7 +755,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=550&tmdb_type=movie")
       html = render_async(view, 2_000)
 
       assert html =~ "Sample Movie"
@@ -773,7 +773,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=550&tmdb_type=movie")
       html = render_async(view, 2_000)
 
       # movie_detail fixture: overview, 139min runtime, Drama genre.
@@ -788,7 +788,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_tmdb()
       stub_plan_prowlarr()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=new&tmdb_id=246810&tmdb_type=tv")
 
       # Targeting stage loads async; default preset = everything aired.
       html = render_async(view, 2_000)
@@ -827,7 +827,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       _ = render(view)
       [draft] = Plans.list_drafts()
-      assert_patch(view, "/incoming?plan=#{draft.id}")
+      assert_patch(view, "/downloads?plan=#{draft.id}")
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       # The board: ready, both cells assigned to the pack (a capsule),
@@ -851,7 +851,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # click into for detail, rather than a modal opening over the user.
       {:ok, plan} = Plans.fetch(draft.id)
       assert plan.status == "committed"
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
 
       units = Units.for_pursuit(plan.pursuit_id)
       assert length(units) == 2
@@ -916,7 +916,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       [unit | _] = Plans.units_for(plan.id)
 
@@ -1020,7 +1020,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       [unit | _] = Plans.units_for(plan.id)
 
@@ -1118,7 +1118,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       # Ready board, no progress event yet, panel not seeded (only
       # still-planning boards seed the initial itinerary).
@@ -1180,7 +1180,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#plan-draft-#{plan.id}", "Nothing found")
       refute has_element?(view, "#plan-draft-#{plan.id}", "review and approve")
@@ -1193,7 +1193,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#plan-draft-#{plan.id}", "review and approve")
       refute has_element?(view, "#plan-draft-#{plan.id}", "Nothing found")
@@ -1207,7 +1207,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "#plan-draft-#{plan.id}")
 
@@ -1215,7 +1215,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
 
       view
       |> element("button[phx-click='plan_discard']")
@@ -1226,7 +1226,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       _ = render(view)
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
 
       {:ok, discarded} = Plans.fetch(plan.id)
       assert discarded.status == "discarded"
@@ -1241,13 +1241,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       view
       |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
 
       # First click only arms: the control relabels, the plan is untouched
       # (MC0027 tier 2 — no overlay, so nothing can open behind anything).
@@ -1291,7 +1291,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       html = render(view)
 
       # The adaptive verdict (UIDR-022): zero raw results, checked live —
@@ -1361,7 +1361,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1990})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       html = render(view)
 
       assert html =~ "2 results came back, but none looked like this movie."
@@ -1397,7 +1397,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "no pursuits renders no empty-state banner — the omnibox is the affordance", %{
       conn: conn
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       refute has_element?(view, "section", "No active pursuits")
       refute has_element?(view, "button", "Search for something to watch")
@@ -1412,7 +1412,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       [unit | _] = Plans.units_for(plan.id)
 
       assert has_element?(view, "[data-plan-modal][data-nav-overlay='plan']")
@@ -1437,7 +1437,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       [unit | _] = Plans.units_for(plan.id)
 
       view |> element("#plan-cell-#{unit.id}") |> render_click()
@@ -1459,7 +1459,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       view
       |> element("button[phx-click='plan_accept_lower_quality']")
@@ -1493,7 +1493,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       assert render(view) =~ "nothing at your quality preference"
     end
@@ -1508,7 +1508,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, ready} = Plans.fetch(plan.id)
       force_attrs(ready, status: "planning")
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       assert has_element?(view, "button[phx-click='plan_stop_searching']")
       refute has_element?(view, "button[phx-click='plan_discard']")
@@ -1574,7 +1574,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       html = render(view)
 
       assert html =~ "This movie is available only in lower quality — 2 releases found."
@@ -1655,7 +1655,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       html = render(view)
 
       # The calendar is the diagnosis; the search receipts stay beneath it.
@@ -1689,7 +1689,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       assert render(view) =~ "Not out yet — in theaters from #{MediaCentaur.Format.month_day(opens)}"
     end
@@ -1704,7 +1704,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       # A payload with no dates leaves the search diagnosis in place.
       assert render(view) =~ "No indexer had anything for this title."
@@ -1720,7 +1720,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       assert render(view) =~ "No indexer had anything for this title."
       assert has_element?(view, "#plan-add-to-watchlist")
@@ -1732,7 +1732,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
       assert has_element?(view, "#plan-add-to-watchlist")
 
       view |> element("#plan-add-to-watchlist") |> render_click()
@@ -1749,7 +1749,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan.id}")
 
       assert has_element?(view, "button[phx-click='plan_approve']")
       refute has_element?(view, "#plan-add-to-watchlist")
@@ -1759,7 +1759,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
   describe "the release search box (UIDR-014, amended 2026-11-02)" do
     test "the in-input X dismisses the session", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       refute has_element?(view, "#omnibox-release-clear")
 
@@ -1777,26 +1777,26 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "an active session survives a fresh mount", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       view
       |> form("form[phx-change='query_change']", query: "Sample Show S01E0{1,2}")
       |> render_change()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       assert has_element?(view, "#omnibox-release-input[value='Sample Show S01E0{1,2}']")
     end
   end
 
   describe "the plan flow from the title detail (UIDR-014)" do
-    test "Download in the title detail on Incoming patches to the new plan's board", %{conn: conn} do
+    test "Download in the title detail on Downloads patches to the new plan's board", %{conn: conn} do
       enable_tmdb!()
       TmdbStubs.setup_tmdb_client()
       # The address fetches the series from TMDB, and the targeting fetch
       # behind Download reads its universe: one stub serves both.
       TmdbStubs.stub_series_universe_for_targeting()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-246810")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-246810")
       assert has_element?(view, "#detail-modal[data-state='open']", "Sample Show")
 
       view |> element("#detail-download") |> render_click()
@@ -1806,25 +1806,25 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "review"
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
       assert has_element?(view, "#plan-modal[data-state='open']")
       refute has_element?(view, "#detail-modal[data-state='open']")
     end
 
-    test "Download in the title detail on Incoming under auto-select lands on Activity", %{conn: conn} do
+    test "Download in the title detail on Downloads under auto-select lands on Activity", %{conn: conn} do
       PlanningMode.set(:auto_select_best_release)
       enable_tmdb!()
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_series_universe_for_targeting()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-246810")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-246810")
 
       view |> element("#detail-download") |> render_click()
 
       # One patch: the modal is gone and Activity is showing, where the
       # download appears; the sidebar's entry points there too.
-      assert_patch(view, "/incoming")
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
+      assert_patch(view, "/downloads")
+      assert_push_event(view, "nav-remember", %{path: "/downloads", url: "/downloads"})
       refute has_element?(view, "#detail-modal[data-state='open']")
       assert render(view) =~ "Finding a release for Sample Show"
       MediaCentaur.JobRuns.run_enqueued_jobs()
@@ -1859,7 +1859,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       conn: conn
     } do
       seed_all_zones()
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Activity")
       assert has_element?(view, "[data-nav-zone='pursuits']")
@@ -1869,13 +1869,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "clicking History names the zone in the URL; clicking Activity patches back to the bare path",
          %{conn: conn} do
       seed_all_zones()
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       view
       |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='history']")
       |> render_click()
 
-      assert_patch(view, "/incoming?zone=history")
+      assert_patch(view, "/downloads?zone=history")
       assert has_element?(view, "[data-nav-zone='ledger']")
       refute has_element?(view, "[data-nav-zone='pursuits']")
 
@@ -1883,14 +1883,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='activity']")
       |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       assert has_element?(view, "[data-nav-zone='pursuits']")
       refute has_element?(view, "[data-nav-zone='ledger']")
     end
 
     test "?zone=history mounts straight into the open archive", %{conn: conn} do
       seed_all_zones()
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "History")
       # The tab IS "View all": filter chips and search render immediately,
@@ -1915,7 +1915,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         pursuit |> Ecto.Changeset.change(state: state) |> MediaCentaur.Repo.update!()
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       # One colored outcome word per row plus relative time…
       assert has_element?(view, "[data-nav-zone='ledger']", "Landed")
@@ -1932,7 +1932,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "the archive loads a bounded window; Show older reveals the rest", %{conn: conn} do
-      page_size = MediaCentaurWeb.IncomingLive.HistoryLogic.page_size()
+      page_size = MediaCentaurWeb.DownloadsLive.HistoryLogic.page_size()
 
       for index <- 1..(page_size + 1) do
         {pursuit, _target} =
@@ -1947,7 +1947,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         )
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       assert has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie 1")
       refute has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie #{page_size + 1}")
@@ -1979,7 +1979,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         )
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       month_label =
         Calendar.strftime(DateTime.add(DateTime.utc_now(), -40, :day), "%B %Y")
@@ -2006,7 +2006,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         )
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       assert has_element?(view, "[data-nav-zone='ledger']", "Recent Week Movie 1")
       refute has_element?(view, "[data-nav-zone='ledger']", "Beyond Week Movie")
@@ -2034,7 +2034,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         )
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       # One entry this week is too sparse — the window widens to the
       # month (5 entries), deferring only the quarter-old row.
@@ -2052,7 +2052,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       conn: conn
     } do
       seed_all_zones()
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       assert has_element?(view, "[data-nav-zone='zone-tabs']")
       assert has_element?(view, "[data-nav-zone='pursuits']")
@@ -2071,12 +2071,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "empty Activity and History tabs say so instead of rendering a void", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
 
       # History has no separate zone-empty line — the always-open archive
       # carries its own honest per-filter empty state.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
       assert has_element?(view, "section[data-nav-zone='ledger']", "No past pursuits on record.")
     end
 
@@ -2087,23 +2087,23 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       view
       |> element("#plan-draft-#{plan.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
 
       render_click(view, "close_plan", %{})
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Activity")
     end
 
     test "without Prowlarr there is no tab bar — a zone param conjures nothing", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
 
       refute has_element?(view, "[data-nav-zone='zone-tabs']")
       refute has_element?(view, "[data-nav-zone='ledger']")
@@ -2113,7 +2113,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       # Allow the LiveView (and tasks it spawns via $callers) to use the stub.
       Req.Test.allow(:prowlarr, self(), view.pid)
@@ -2157,7 +2157,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "brace-expanded batch grab collapses into ONE composite pursuit (ADR-055)", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2272,7 +2272,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       # Seed the queue via the same PubSub broadcast QueueMonitor emits.
@@ -2341,7 +2341,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       stale_item = %QueueItem{
@@ -2392,7 +2392,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       send(
@@ -2463,7 +2463,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       items =
@@ -2515,7 +2515,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   describe "retry_search (per-group)" do
     test "a single timed-out search becomes retryable; retry resolves to results",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2562,7 +2562,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   describe "retry_all_timeouts (footer button)" do
     test "appears only after every search completes and at least one timed out",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2604,7 +2604,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "does not appear when no searches timed out", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2642,13 +2642,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # (500ms) rather than calling load_activity on every message. Coalescing
       # is pinned by `LiveHelpers.debounce/4`'s tests; `render/1` is a sync
       # round trip, so the burst has been handled when it returns.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       for _ <- 1..5 do
         send(view.pid, %TargetEvents.Picked{target: %Target{}})
       end
 
-      assert render(view) =~ "Incoming"
+      assert render(view) =~ "Downloads"
     end
   end
 
@@ -2656,7 +2656,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "search query and results persist across navigation", %{conn: conn} do
       stub_prowlarr_with([sample_release()])
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
@@ -2670,7 +2670,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, _other_view, _other_html} = live_async!(conn, "/")
 
-      {:ok, view2, _html2} = live_async!(conn, "/incoming")
+      {:ok, view2, _html2} = live_async!(conn, "/downloads")
       html2 = render_after_async_load(view2)
 
       assert html2 =~ "Sample Show"
@@ -2683,7 +2683,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         sample_release(guid: "guid-2", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
       ])
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2700,7 +2700,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert session_before.selections == %{"Sample Show" => "guid-2"}
 
       {:ok, _other_view, _other_html} = live_async!(conn, "/")
-      {:ok, _view2, _html2} = live_async!(conn, "/incoming")
+      {:ok, _view2, _html2} = live_async!(conn, "/downloads")
 
       session_after = SearchSession.current()
       assert session_after.selections == %{"Sample Show" => "guid-2"}
@@ -2711,7 +2711,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         sample_release(guid: "guid-1", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
       ])
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       view
@@ -2751,7 +2751,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
@@ -2767,7 +2767,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       session_after = await_session_groups(:abandoned)
       assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
 
-      {:ok, view2, _html2} = live_async!(conn, "/incoming")
+      {:ok, view2, _html2} = live_async!(conn, "/downloads")
       assert render_after_async_load(view2) =~ "Retry"
 
       # The blocked searches are this test's async work: release every one
@@ -2799,7 +2799,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       item = %QueueItem{
         id: "hash-snapshot",
@@ -2822,8 +2822,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       # QueueMonitor pre-filters completed items, but the LV defends in
       # depth — a stale snapshot from cache or a future driver that emits
-      # completed entries must not surface seeded torrents on /incoming.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      # completed entries must not surface seeded torrents on /downloads.
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
       live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
@@ -2837,7 +2837,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "empty queue_snapshot transitions to the empty state",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [seed]}})
@@ -2866,7 +2866,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       monitor = start_supervised!(QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
       # Two polls precede the one under test: init's, and the one mount's
       # subscriber registration triggers. A call lands behind both in the
@@ -2915,7 +2915,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       matching = %QueueItem{
         id: "hash-paired",
@@ -2945,7 +2945,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "a matched usenet job in post-processing draws its phase, not a text dump", %{conn: conn} do
       pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       unpacking = %QueueItem{
         id: "nzo-unpacking",
@@ -2970,7 +2970,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       _pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       unrelated = %QueueItem{
         id: "hash-orphan",
@@ -2995,7 +2995,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "an unmatched job under Other downloads is drawn by the strip — phase word as text, no badge",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       fetching = %QueueItem{
         id: "nzo-orphan-fetch",
@@ -3029,7 +3029,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           status: "seeking"
         })
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       assert render_after_async_load(view) =~ "Sample Show S01E03"
     end
@@ -3044,25 +3044,25 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "five rapid grab_failed events coalesce into one reload",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       for _ <- 1..5 do
         send(view.pid, {:target_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
       end
 
       # No crash, page still renders History zone (`render/1` is a sync round trip).
-      assert render(view) =~ "Incoming"
+      assert render(view) =~ "Downloads"
     end
 
     test "grab_submitted broadcast triggers a debounced reload without crashing",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       send(view.pid, {:target_picked, %{id: Ecto.UUID.generate()}})
       send(view.pid, {:target_armed, %{id: Ecto.UUID.generate()}})
       send(view.pid, {:target_snoozed, %{id: Ecto.UUID.generate()}})
 
-      assert render(view) =~ "Incoming"
+      assert render(view) =~ "Downloads"
     end
   end
 
@@ -3121,7 +3121,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     } do
       {item, _release} = tracked_with_release(%{name: "Detail Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
       opened = render(view)
@@ -3131,7 +3131,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#detail-release-dates")
 
       render_hook(view, "close_title", %{})
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       assert has_element?(view, "#detail-modal[data-state=closed]")
     end
 
@@ -3172,7 +3172,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, _rec} = Activities.ingest(event)
       await_supervised_tasks()
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
       # What friends did is the social capsule, on every title surface —
@@ -3195,7 +3195,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           content_url: "/tv/owned-show/s01e01.mkv"
         })
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-246810")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-246810")
 
       assert has_element?(view, "#detail-modal[data-state=open]", "Owned Show")
       assert has_element?(view, "#detail-modal [data-nav-zone='detail_list']", "Episode S1E1")
@@ -3203,7 +3203,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#detail-download")
     end
 
-    test "a link naming a friend's activity shows their words on Incoming too — read by identity",
+    test "a link naming a friend's activity shows their words on Downloads too — read by identity",
          %{conn: conn} do
       friend_secret = Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
@@ -3233,7 +3233,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
 
       # The activity's own snapshot opens the title — no page row, no fetch.
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=movie-424242&activity=#{rec.id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=movie-424242&activity=#{rec.id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]", "Noted Movie")
       assert has_element?(view, "#detail-note", "Sample Friend")
@@ -3243,7 +3243,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "mounting with ?title= opens the modal directly (shareable URL)", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Deep Link Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-modal[data-state=open]")
       assert render(view) =~ "Deep Link Show"
@@ -3251,10 +3251,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "a deep link to a title this page does not know, without TMDB, says what it needs and drops the param",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-424242")
 
       render_async(view, 1_000)
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/downloads")
       assert has_element?(view, "#detail-modal[data-state=closed]")
       assert render(view) =~ "TMDB API key"
     end
@@ -3272,7 +3272,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         })
       )
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-424242")
 
       html = render_async(view, 1_000)
       assert has_element?(view, "#detail-modal[data-state=open]")
@@ -3289,7 +3289,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the rows move the rung; the bookmark deletes the tracked title and its row", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Mode Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-#{item.tmdb_id}")
 
       # Tracked at Grab: Auto-grab holds the Track row on.
       assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
@@ -3313,7 +3313,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Kept Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, "/downloads?title=tv_series-#{item.tmdb_id}")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
       assert Watchlist.rung(item.tmdb_id, item.media_type) == nil
@@ -3352,7 +3352,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           min_quality: "any"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-lower-quality")
 
@@ -3371,7 +3371,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     } do
       {item, _release} = tracked_with_release(%{name: "Default Show"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#detail-tracking-controls")
       refute has_element?(view, "#detail-lower-quality")
@@ -3396,7 +3396,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # would render if one were wired.
       MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/downloads")
 
       assert has_element?(view, ".page-side-dim.page-side-dim-calm")
       refute has_element?(view, ~s|canvas[phx-hook="HeroBackdrop"]|)
@@ -3442,7 +3442,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end)
   end
 
-  describe "a missing episode of an owned series, from the title detail on Incoming" do
+  describe "a missing episode of an owned series, from the title detail on Downloads" do
     setup do
       TmdbStubs.stub_series_universe_for_targeting()
 
@@ -3460,7 +3460,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       :ok
     end
 
-    # The board is Incoming's own modal: landing on it from here is a
+    # The board is Downloads' own modal: landing on it from here is a
     # patch that swaps the title detail for it, never a full navigate.
     test "under manual selection the plan's board opens by a patch", %{conn: conn} do
       series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
@@ -3482,7 +3482,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         content_url: "/tv/sample-show/s01e01.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-246810")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-246810")
 
       view
       |> element("[data-role='missing-episode-row'][phx-value-episode='2']")
@@ -3492,7 +3492,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert [plan] = Plans.list_drafts()
       assert plan.approval_policy == "review"
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/downloads?plan=#{plan.id}")
       assert has_element?(view, "#plan-modal[data-state='open']")
       refute has_element?(view, "#detail-modal[data-state='open']")
     end

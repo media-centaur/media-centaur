@@ -89,7 +89,7 @@ LiveViews are thin wiring — mount, event dispatch, rendering. Any
 pure function and unit tested ([ADR-030]): same module for 1–3 small helpers, a
 dedicated helper module for larger clusters. Test with `async: true` and `build_*`
 factories — no database, no rendering. Examples: `HomeLive.Logic.select_hero/2`,
-`IncomingLive.PlanLogic.chosen_in_order/2`, `SettingsLive.MediaDirsLogic.default_images_dir_hint/1`.
+`DownloadsLive.PlanLogic.chosen_in_order/2`, `SettingsLive.MediaDirsLogic.default_images_dir_hint/1`.
 
 ## Async Ownership ([ADR-049])
 

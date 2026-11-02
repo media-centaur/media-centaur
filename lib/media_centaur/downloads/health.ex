@@ -183,7 +183,7 @@ defmodule MediaCentaur.Downloads.Health do
   Whether a status is "stuck enough" that a future automation pass
   should consider replacing the release.
 
-  Read by the Incoming page's row logic (`MediaCentaurWeb.IncomingLive.Logic`)
+  Read by the Downloads page's row logic (`MediaCentaurWeb.DownloadsLive.Logic`)
   to flag a download as stuck.
   """
   @spec degraded?(status() | nil) :: boolean()

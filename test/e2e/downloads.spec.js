@@ -1,15 +1,15 @@
 /**
- * Incoming page E2E tests (the merged Upcoming + Downloads page, UIDR-015;
- * the Watchlist as its first tab, UIDR-050).
+ * Downloads page E2E tests (UIDR-015, amended at the Discovery campaign's
+ * cutover: the get stage, UIDR-057).
  *
- * Covers cursor start on the Watchlist rows, the vertical zone chain
- * (omnibox → zone tabs → the active tab's zone), BACK to the sidebar and
+ * Covers cursor start on the pursuits, the vertical zone chain (the release
+ * search box → zone tabs → the active tab's zone), BACK to the sidebar and
  * LEFT never reaching it. One tab's content renders at a time: a fresh
- * mount lands on the Watchlist (`title_rows`) unless live activity pulls
- * it to Activity (`pursuits`). Zone presence depends on live data (listed
- * titles, active pursuits, terminal history), so each cross-zone test
- * skips when its target zone is empty rather than asserting a fixed page
- * shape.
+ * mount lands on Activity (`pursuits`, `drafts`); History holds the
+ * `ledger`. Zone presence depends on live data (active pursuits, terminal
+ * history), so each cross-zone test skips when its target zone is empty
+ * rather than asserting a fixed page shape. Without Prowlarr the page is
+ * its gap state and has no zones but the sidebar.
  */
 import { test, expect } from "./fixtures/input-method.js"
 import {
@@ -19,36 +19,36 @@ import {
 } from "./helpers/input.js"
 import { waitForInputSystem } from "./helpers/liveview.js"
 
-test.describe("incoming navigation", () => {
+test.describe("downloads navigation", () => {
   test.beforeEach(async ({ page, navigateTo }) => {
-    await navigateTo("/incoming")
+    await navigateTo("/downloads")
     await waitForInputSystem(page)
   })
 
   test("initial focus follows the cursor start priority", async ({ page }) => {
-    const watchlistCount = await getZoneItemCount(page, "title_rows")
     const pursuitCount = await getZoneItemCount(page, "pursuits")
+    const tabCount = await getZoneItemCount(page, "zone-tabs")
 
-    if (watchlistCount > 0) {
-      await expectContext(page, "title_rows")
-      await expectFocusInZone(page, "title_rows")
-    } else if (pursuitCount > 0) {
+    if (pursuitCount > 0) {
       await expectContext(page, "pursuits")
+      await expectFocusInZone(page, "pursuits")
+    } else if (tabCount > 0) {
+      await expectContext(page, "zone_tabs")
     } else {
-      await expectContext(page, "omnibox")
+      await expectContext(page, "sidebar")
     }
   })
 
-  test("up from the watchlist reaches the zone tabs, then the omnibox", async ({
+  test("up from the pursuits reaches the zone tabs, then the search box", async ({
     page,
     inputAction,
   }) => {
-    const watchlistCount = await getZoneItemCount(page, "title_rows")
-    test.skip(watchlistCount === 0, "no listed titles in this environment")
+    const pursuitCount = await getZoneItemCount(page, "pursuits")
+    test.skip(pursuitCount === 0, "nothing in flight in this environment")
 
-    await expectContext(page, "title_rows")
+    await expectContext(page, "pursuits")
     // Walk up until the top row, then one more step crosses to the tabs.
-    for (let step = 0; step < watchlistCount; step++) {
+    for (let step = 0; step < pursuitCount; step++) {
       await inputAction("NAVIGATE_UP")
       const context = await page.evaluate(() =>
         document.documentElement.getAttribute("data-nav-context")
@@ -62,9 +62,9 @@ test.describe("incoming navigation", () => {
   })
 
   test("down from the zone tabs enters the active tab's zone", async ({ page, inputAction }) => {
-    const watchlistCount = await getZoneItemCount(page, "title_rows")
     const pursuitCount = await getZoneItemCount(page, "pursuits")
-    test.skip(watchlistCount === 0 && pursuitCount === 0, "no tab content in this environment")
+    const draftCount = await getZoneItemCount(page, "drafts")
+    test.skip(pursuitCount === 0 && draftCount === 0, "no tab content in this environment")
 
     // From wherever the cursor started, climb to the tabs.
     for (let step = 0; step < 12; step++) {
@@ -80,10 +80,13 @@ test.describe("incoming navigation", () => {
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    expect(["title_rows", "drafts", "pursuits"]).toContain(context)
+    expect(["drafts", "pursuits"]).toContain(context)
   })
 
   test("back reaches the sidebar; right returns", async ({ page, inputAction }) => {
+    const tabCount = await getZoneItemCount(page, "zone-tabs")
+    test.skip(tabCount === 0, "no indexer in this environment: the page has no zones to return to")
+
     const before = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
@@ -98,7 +101,7 @@ test.describe("incoming navigation", () => {
     expect(after).toBe(before)
   })
 
-  test("left in an incoming zone never reaches the sidebar", async ({
+  test("left in a downloads zone never reaches the sidebar", async ({
     page,
     inputAction,
   }) => {

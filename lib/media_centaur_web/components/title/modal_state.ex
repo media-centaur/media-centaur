@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
 
   @typedoc """
   The scope select's value: a rule `DownloadScope` resolves to episodes,
-  or `:choose_episodes` — the person picks them in the picker on Incoming,
+  or `:choose_episodes` — the person picks them in the picker on Downloads,
   so the Download control opens it instead of planning (spec 2026-09-23
   §1, §3). Not a `DownloadScope.scope/0`: it resolves to nothing here.
   """

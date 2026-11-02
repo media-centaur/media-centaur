@@ -88,9 +88,9 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:reset, {MediaCentaur.Console.Buffer, :reset, []},
        "ring buffer; unscoped log assertions false-match, and a resize's " <>
          "settings-persist debounce would fire inside a later test's sandbox"},
-    MediaCentaurWeb.IncomingLive.SearchSession =>
-      {:reset, {MediaCentaurWeb.IncomingLive.SearchSession, :clear, []},
-       "singleton search session, rendered by /incoming on mount"},
+    MediaCentaurWeb.DownloadsLive.SearchSession =>
+      {:reset, {MediaCentaurWeb.DownloadsLive.SearchSession, :clear, []},
+       "singleton search session, rendered by /downloads on mount"},
     MediaCentaur.ErrorReports.Buckets =>
       {:reset, {MediaCentaur.ErrorReports.Buckets, :clear, []},
        "Status-board tests ingest into this named process; the board reads only it"},

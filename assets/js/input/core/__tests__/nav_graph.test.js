@@ -34,7 +34,7 @@ const TEST_LAYOUTS = {
     "drill-in": { up: ["grid"], left: ["sidebar"] },
     sidebar:    { right: ["grid", "toolbar"] },
   },
-  incoming: {
+  downloads: {
     omnibox:         { down: ["grid", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
     grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
     drafts:          { up: ["grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
@@ -60,7 +60,7 @@ const TEST_CURSOR_START_PRIORITY = {
   upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
   status:    ["grid", "toolbar", "sidebar"],
-  incoming:  ["pursuits", "omnibox", "sidebar"],
+  downloads:  ["pursuits", "omnibox", "sidebar"],
   home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
 }
 
@@ -425,7 +425,7 @@ describe("buildNavGraph", () => {
 
   describe("download zone, all populated (search results + drafts + pursuits + orphans)", () => {
     const counts = { omnibox: 3, grid: 5, drafts: 2, pursuits: 4, ledger: 1, other_downloads: 2, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, CONFIG)
+    const graph = buildNavGraph("downloads", counts, CONFIG)
 
     test("omnibox down goes to grid (search results, first candidate)", () => {
       expect(graph.omnibox.down).toBe("grid")
@@ -464,7 +464,7 @@ describe("buildNavGraph", () => {
       expect(graph.sidebar.right).toBe("pursuits")
     })
 
-    test("no zone_tabs, toolbar, or drawer in incoming layout", () => {
+    test("no zone_tabs, toolbar, or drawer in downloads layout", () => {
       expect(graph.zone_tabs).toBeUndefined()
       expect(graph.toolbar).toBeUndefined()
       expect(graph.drawer).toBeUndefined()
@@ -473,7 +473,7 @@ describe("buildNavGraph", () => {
 
   describe("download zone, conditional zones absent (no search, no drafts, no orphans)", () => {
     const counts = { omnibox: 3, grid: 0, drafts: 0, pursuits: 4, ledger: 1, other_downloads: 0, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, CONFIG)
+    const graph = buildNavGraph("downloads", counts, CONFIG)
 
     test("omnibox down skips empty grid and drafts, lands on pursuits", () => {
       expect(graph.omnibox.down).toBe("pursuits")
@@ -492,9 +492,9 @@ describe("buildNavGraph", () => {
     })
   })
 
-  describe("incoming zone, nothing tracked yet (only omnibox and the ledger toggle)", () => {
+  describe("downloads zone, nothing in flight yet (only the search box and the ledger toggle)", () => {
     const counts = { omnibox: 3, grid: 0, drafts: 0, pursuits: 0, ledger: 1, other_downloads: 0, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, CONFIG)
+    const graph = buildNavGraph("downloads", counts, CONFIG)
 
     test("omnibox down reaches ledger via its disclosure toggle", () => {
       expect(graph.omnibox.down).toBe("ledger")
@@ -641,15 +641,15 @@ describe("resolveCursorStart", () => {
   })
 
   test("download zone with active pursuits starts at pursuits", () => {
-    expect(resolveCursorStart("incoming", { pursuits: 4, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("pursuits")
+    expect(resolveCursorStart("downloads", { pursuits: 4, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("pursuits")
   })
 
   test("download zone with no pursuits falls back to omnibox", () => {
-    expect(resolveCursorStart("incoming", { pursuits: 0, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("omnibox")
+    expect(resolveCursorStart("downloads", { pursuits: 0, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("omnibox")
   })
 
   test("download zone with nothing rendered falls back to sidebar", () => {
-    expect(resolveCursorStart("incoming", { pursuits: 0, omnibox: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sidebar")
+    expect(resolveCursorStart("downloads", { pursuits: 0, omnibox: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sidebar")
   })
 
   test("home zone returns hero when populated", () => {

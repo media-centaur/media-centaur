@@ -65,7 +65,8 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `library_behavior.js` | Yes* | Library: CLEAR → filter, sort tracking |
 | `review_behavior.js` | Yes | Review: no page-specific hooks |
 | `settings_behavior.js` | Yes | Settings: activateOnFocus for sections |
-| `incoming_behavior.js` | Yes | Incoming (`/incoming`) page navigation |
+| `downloads_behavior.js` | Yes | Downloads (`/downloads`): CLEAR → the release search box, then the History search |
+| `discovery_behavior.js` | Yes | Discovery (`/discovery`): CLEAR → the media search box |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
 | `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Settings.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
@@ -364,7 +365,7 @@ layer out.
 | `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `apps`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status` (Home and History run the default behaviour) |
+| `data-page-behavior` | Page behavior to activate | `apps`, `discovery`, `downloads`, `guide`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status` (Home and History run the default behaviour) |
 | `data-nav-default-zone` | Default zone for pages without zone tabs | a zone name from `config.js` (e.g. `home`, `library`, `settings`, `status`, `review`) |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
@@ -384,7 +385,7 @@ layer out.
 
 **A zone may contain a zone; an item counts once, for its nearest zone.** The adapter's item query (`queryContextItems`) keeps an item only when its nearest `[data-nav-zone]` ancestor matches the context selector's zone compound (`[data-nav-zone='X']`), or when it has none, so an outer zone's descendant selector never double-counts a menu list opened inside it. The glass menu (`GlassMenu.menu_list`) relies on this.
 
-**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-nested`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the Incoming page; the viewing layer's track menu over its OSD). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/incoming`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals. The orchestrator remembers the active overlay's `data-nav-overlay` name: a different name while the presentation stays modal is an overlay opening over, or closing back to, another, and is entered fresh like any open (`_syncState`). While an overlay is open the cursor never seeds the page beneath; an empty overlay waits for its items (`_ensureCursorStart`).
+**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-nested`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the Downloads page; the viewing layer's track menu over its OSD). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/downloads`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals. The orchestrator remembers the active overlay's `data-nav-overlay` name: a different name while the presentation stays modal is an overlay opening over, or closing back to, another, and is entered fresh like any open (`_syncState`). While an overlay is open the cursor never seeds the page beneath; an empty overlay waits for its items (`_ensureCursorStart`).
 
 ## Page Behavior System
 

@@ -149,6 +149,18 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, "/discovery")}
             remember
           />
+          <%!-- Downloads, the get stage (UIDR-015 amended, UIDR-057) —
+                unconditional: without acquisition the page says what it
+                needs instead of disappearing. --%>
+          <SidebarLink.sidebar_link
+            id="sidebar-downloads"
+            navigate="/downloads"
+            label="Downloads"
+            icon="hero-arrow-down-tray"
+            active={current?(@current_path, "/downloads")}
+            count={@badges.plans_awaiting_review}
+            remember
+          />
           <SidebarLink.sidebar_link
             :if={:social in @features}
             id="sidebar-social"
@@ -156,18 +168,6 @@ defmodule MediaCentaurWeb.Layouts do
             label="Social"
             icon="hero-users"
             active={current?(@current_path, ["/social", "/social/friends"])}
-            remember
-          />
-          <%!-- One entry for the whole collection-growth story (UIDR-015) —
-                unconditional: without acquisition the page degrades to an
-                honest forecast instead of disappearing. --%>
-          <SidebarLink.sidebar_link
-            id="sidebar-incoming"
-            navigate="/incoming"
-            label="Incoming"
-            icon="hero-inbox-arrow-down"
-            active={current?(@current_path, "/incoming")}
-            count={@badges.plans_awaiting_review}
             remember
           />
           <SidebarLink.sidebar_link

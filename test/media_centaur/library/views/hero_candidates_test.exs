@@ -159,7 +159,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
 
   describe "projection bounding" do
     # Every production caller reads this projection with no `:limit`
-    # (HomeLive, LibraryLive, IncomingLive, ArtworkWarmup) and then picks a
+    # (HomeLive, LibraryLive, DownloadsLive, ArtworkWarmup) and then picks a
     # single hero from it. Without a cap in `refresh_cache/0` the ETS table
     # grows with the library and each of those reads copies the whole thing
     # out — carrying `overview`, `genres`, and four URLs per row — to render

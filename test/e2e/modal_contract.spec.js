@@ -52,11 +52,11 @@ test.describe("generic modal input contract", () => {
  * Tailwind's utilities live in `@layer utilities`, and unlayered declarations
  * beat layered ones at equal specificity — so a `z-*` utility silently lost to
  * the base `z-index: 50`, every backdrop tied, and DOM order decided. On
- * Incoming the confirmations are rendered before the modals they belong to, so
+ * Downloads the confirmations are rendered before the modals they belong to, so
  * a discard confirm opened *behind* the plan modal with no way to reach it.
  *
  * Every backdrop is in the DOM regardless of open state, so this needs no
- * fixture data. Incoming's two confirmations have since become MC0027 arm
+ * fixture data. Downloads' two confirmations have since become MC0027 arm
  * gestures with no overlay at all, so the probe moved to Library, where the
  * review modal opens over a title's detail modal — the one raised-over-
  * ordinary pair left in the app.

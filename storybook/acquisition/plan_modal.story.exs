@@ -1147,7 +1147,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   end
 
   defp rejected_items do
-    MediaCentaurWeb.IncomingLive.PlanLogic.rejected_items(movie_evidence(-45, 3, rejected_evidence()))
+    MediaCentaurWeb.DownloadsLive.PlanLogic.rejected_items(movie_evidence(-45, 3, rejected_evidence()))
   end
 
   defp cell(season, episode, state, guid) do

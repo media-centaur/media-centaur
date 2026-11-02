@@ -2,8 +2,8 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
   @moduledoc """
   The one identity block for a TMDB title that is not necessarily a
   library entry: poster thumb, name, quiet type/year text, and a
-  secondary line (the overview by default). Search rows, watchlist rows
-  and feed rows render this and add their own decorations through the
+  secondary line (the overview by default). Search rows and feed rows
+  render this and add their own decorations through the
   `markers` slot (Tracked, In library) and the `secondary` slot (a
   watchlist note). Owns no state and no actions; renders as spans so a
   host may wrap it in a button or a link.

@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   alias MediaCentaur.Secret
   alias MediaCentaur.Features
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
 
@@ -1075,7 +1075,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # The plan is made under the view's own task; its board opens once
       # the plan exists, so the redirect is the one thing to wait on.
       {path, _flash} = assert_redirect(view, 2_000)
-      "/incoming?plan=" <> plan_id = path
+      "/downloads?plan=" <> plan_id = path
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.approval_policy == "review"
     end
@@ -1091,7 +1091,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element(entry(rec) <> "-download") |> render_click()
 
       assert render(view) =~ "Finding a release for Sample Movie 777"
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
+      assert_push_event(view, "nav-remember", %{path: "/downloads", url: "/downloads"})
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
@@ -1802,7 +1802,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "#detail-watchlist-toggle")
     end
 
-    test "Download under the default mode plans for manual selection and opens its board on Incoming",
+    test "Download under the default mode plans for manual selection and opens its board on Downloads",
          %{conn: conn} do
       {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/social?title=movie-777")
@@ -1817,7 +1817,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # The plan is made under the view's own task; its board opens once
       # the plan exists, so the redirect is the one thing to wait on.
       {path, _flash} = assert_redirect(view, 2_000)
-      "/incoming?plan=" <> plan_id = path
+      "/downloads?plan=" <> plan_id = path
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.approval_policy == "review"
       assert plan.tmdb_type == "movie"
@@ -1833,7 +1833,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       assert_patch(view, "/social")
       assert render(view) =~ "Finding a release for Sample Movie"
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
+      assert_push_event(view, "nav-remember", %{path: "/downloads", url: "/downloads"})
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
@@ -1896,7 +1896,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element("#detail-download") |> render_click()
 
       {path, _flash} = assert_redirect(view, 2_000)
-      "/incoming?plan=" <> plan_id = path
+      "/downloads?plan=" <> plan_id = path
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.tmdb_type == "tv"
       assert plan.approval_policy == "review"

@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
       [chevron] <Title> · <N> episodes · <severity-colored verb>
 
   The header is a `disclosure/1` head whose state is the page's
-  `DisclosureState` under `id` (`IncomingLive.Logic.pursuit_group_id/1`,
+  `DisclosureState` under `id` (`DownloadsLive.Logic.pursuit_group_id/1`,
   stable per bucket). When open, the per-episode compact `PursuitRow`
   list renders below it.
   """

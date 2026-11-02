@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { inputConfig } from "../config"
 import { Context } from "../core/index"
-import { createIncomingBehavior } from "../incoming_behavior"
+import { createDownloadsBehavior } from "../downloads_behavior"
 
 function fakeInput(initialValue) {
   return {
@@ -23,17 +23,17 @@ function mockDom({ omnibox = null, historySearch = null } = {}) {
 
 describe("download behavior", () => {
   test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
-    const behavior = createIncomingBehavior(mockDom())
+    const behavior = createDownloadsBehavior(mockDom())
     expect(behavior.onEscape).toBeUndefined()
   })
 
-  test("the search box is a MENU like every other Incoming zone — the input and its clear", () => {
+  test("the search box is a MENU like every other Downloads zone — the input and its clear", () => {
     expect(inputConfig.contextSelectors.omnibox).toBe("[data-nav-zone='omnibox'] [data-nav-item]")
     expect(inputConfig.instanceTypes.omnibox).toBe(Context.MENU)
   })
 
   test("onAttach and onDetach are no-ops (callable)", () => {
-    const behavior = createIncomingBehavior(mockDom())
+    const behavior = createDownloadsBehavior(mockDom())
     expect(() => behavior.onAttach()).not.toThrow()
     expect(() => behavior.onDetach()).not.toThrow()
   })
@@ -42,7 +42,7 @@ describe("download behavior", () => {
     test("clears the omnibox query when it has content", () => {
       const omnibox = fakeInput("sample show")
       const historySearch = fakeInput("old query")
-      const behavior = createIncomingBehavior(mockDom({ omnibox, historySearch }))
+      const behavior = createDownloadsBehavior(mockDom({ omnibox, historySearch }))
 
       expect(behavior.onClear()).toBeUndefined()
       expect(omnibox.cleared).toBe(true)
@@ -52,7 +52,7 @@ describe("download behavior", () => {
     test("falls through to the history search when the omnibox is empty", () => {
       const omnibox = fakeInput("")
       const historySearch = fakeInput("failed grabs")
-      const behavior = createIncomingBehavior(mockDom({ omnibox, historySearch }))
+      const behavior = createDownloadsBehavior(mockDom({ omnibox, historySearch }))
 
       behavior.onClear()
       expect(omnibox.cleared).toBe(false)
@@ -62,7 +62,7 @@ describe("download behavior", () => {
     test("does nothing when both inputs are empty", () => {
       const omnibox = fakeInput("")
       const historySearch = fakeInput("")
-      const behavior = createIncomingBehavior(mockDom({ omnibox, historySearch }))
+      const behavior = createDownloadsBehavior(mockDom({ omnibox, historySearch }))
 
       expect(behavior.onClear()).toBeUndefined()
       expect(omnibox.cleared).toBe(false)
@@ -70,7 +70,7 @@ describe("download behavior", () => {
     })
 
     test("tolerates absent inputs (zones not rendered)", () => {
-      const behavior = createIncomingBehavior(mockDom())
+      const behavior = createDownloadsBehavior(mockDom())
       expect(() => behavior.onClear()).not.toThrow()
     })
   })

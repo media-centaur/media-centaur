@@ -18,7 +18,7 @@ base_url="${1:-http://127.0.0.1:2160}"
 shift || true
 paths=("$@")
 if [ ${#paths[@]} -eq 0 ]; then
-  paths=(/library /incoming /status /review /reconcile /history /settings / /library /status / /library)
+  paths=(/library /downloads /status /review /reconcile /history /settings / /library /status / /library)
 fi
 
 paths_json=$(printf '"%s",' "${paths[@]}")

@@ -36,7 +36,7 @@ defmodule MediaCentaur.Credo.Checks.LiveSubscriptions do
           end
 
       A module under `live/` that *defines* a `subscribe/0` is a facade of
-      its own topic (`IncomingLive.SearchSession`) and may subscribe
+      its own topic (`DownloadsLive.SearchSession`) and may subscribe
       through `Topics`; the door itself is the one caller of a context's
       `subscribe/0`.
       """

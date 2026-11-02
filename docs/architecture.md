@@ -78,7 +78,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
 | `MediaCentaur.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
 | `MediaCentaur.ReleaseTracking` | `release_tracking_*` tables | Tracked titles and their release calendars, rebuilt from the TMDB store when a title changes (ADR-071). |
-| `MediaCentaur.Watchlist` | `title_intents` table | The watchlist — one title intent per title, carrying the rung (Ignored, List, Follow, Grab) that says what the app should do about the title's releases; shown whole on Incoming's Watchlist tab. Broadcasts `{:title_intent_changed, %RungChanged{}}` on `watchlist:updates`. Named `Discovery` until 2026-10-03 (ADR-075). |
+| `MediaCentaur.Watchlist` | `title_intents` table | The watchlist — one title intent per title, carrying the rung (Ignored, List, Follow, Grab) that says what the app should do about the title's releases; drawn on Discovery by release stage (Out Now, In Theaters · Coming Up). Broadcasts `{:title_intent_changed, %RungChanged{}}` on `watchlist:updates`. Named `Discovery` until 2026-10-03 (ADR-075). |
 | `MediaCentaur.Social` | `relays`, `contacts`, `relay_members` and `social_profiles` tables, `{data_dir}/images/social/` (the avatar files, `Social.AvatarStore`), this install's Nostr identity in the sensitive `nostr_secret_key` config key, one live `Nostr.Connection` per relay | The friend network's configuration: `Social.Identity` (one secp256k1 keypair, minted by `Social.save_profile/3` when the reader creates their profile in Settings, or by a first review; opening the section mints nothing), `Relay` (each under the reader's follow rule), `Contact` (one row per key the reader has a view of; a friend when added by hand), `RelayMember` (the keys seen publishing on a members-rule relay), `Profile` (what a key published about itself), `Person` (a followed key as the reader sees it, `people/0`), and `Connections` (Registry + DynamicSupervisor + owner). Broadcasts on `social:updates`, and re-broadcasts every connection's messages on `social:connections`. See [docs/social.md](social.md). |
 | `MediaCentaur.RelaySync` | No tables; one GenServer over `social:connections` and `social:updates` | The loop that keeps stored rows in step with the relays (ADR-074): on every connect it subscribes the activity kinds and the profile kind, ingests what arrives through the owning context (`Activities.ingest/1`, `Social.ingest_profile/1`), and publishes every own activity, deletion and profile a relay lacks. Sits above `Activities` and `Social`, since neither may depend on the other. Background work: not started in an instance without `background_services` (`Settings.Config`), the test env included. See [docs/social.md](social.md). |
 | `MediaCentaur.Activities` | `activities` table | What this install told its friends and what they told it: signed activity events — a title reviewed (kind 32164), watched (32161), listed (32163) — translated into rows (`Translation`), kept one per author + kind + title, synced with the relays by `RelaySync`; `Activities.Publisher` turns watch completions and rung moves onto List into activities behind the sharing toggles. Knows nothing about the watchlist — the web layer joins those. Broadcasts on `activities:updates`. See [docs/social.md](social.md). |
@@ -154,7 +154,7 @@ graph TD
     App --> FileEvents[Library.FileEventHandler]
     App --> SelfUpdater[SelfUpdate.Updater]
     App --> AutoApply[SelfUpdate.AutoApply]
-    App --> SearchSession[IncomingLive.SearchSession]
+    App --> SearchSession[DownloadsLive.SearchSession]
     App --> Listeners[PubSub listeners<br/>Inbound, Intake, LibraryListener, Recorder,<br/>Acquisition.Reactor, Downloads.QueueMonitor,<br/>Pursuits.InboundListener]
     App --> ShutdownMonitor[ErrorReports.ShutdownMonitor<br/>durable diagnostics only]
     App --> PlaybackSup[Playback.Supervisor]
@@ -202,8 +202,8 @@ A LiveView process subscribes to any of these through one door,
 `MediaCentaurWeb.Live.Subscriptions.subscribe/2`, which subscribes a
 topic once per process whichever consumer declares it — a page for its
 rows, a mounted trait, the title detail host (`Live.TitleDetailHost`,
-the one host of the title detail modal on Home, Library, Social and
-Incoming) for the open modal. Credo MC0011 refuses a direct `subscribe/0`
+the one host of the title detail modal on Home, Library, Discovery, Social
+and Downloads) for the open modal. Credo MC0011 refuses a direct `subscribe/0`
 call under `live/`.
 
 ## Key Principles

@@ -323,7 +323,7 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     end
   end
 
-  # The page heroes (Home backdrop, Library and Incoming atmosphere bands) are
+  # The page heroes (Home backdrop, Library and Downloads atmosphere bands) are
   # painted by the HeroBackdrop hook from a decoded-bitmap cache keyed by URL.
   # The hook, the `<link rel="prefetch">` hints, and the idle warm-up all key
   # on this one function's output, so it must be the master URL untouched.

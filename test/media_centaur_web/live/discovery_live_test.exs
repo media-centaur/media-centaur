@@ -326,7 +326,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
   end
 
-  describe "media search — the results (UIDR-014, amended; moved from Incoming at the cutover)" do
+  describe "media search — the results (UIDR-014, amended; moved from Downloads at the cutover)" do
     setup do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.mark_ready!()

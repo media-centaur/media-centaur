@@ -17,7 +17,7 @@ defmodule MediaCentaur.Search.IncidentContext do
 
   A partly backed-off roster (`IndexerHealth` `:degraded`) and an empty
   one (`:unconfigured`) leave `:prowlarr` available and never fault —
-  the former is partial capability the Incoming page surfaces
+  the former is partial capability the Downloads page surfaces
   contextually, the latter is a setup state.
 
   ## Grace, and why there is no staleness rule

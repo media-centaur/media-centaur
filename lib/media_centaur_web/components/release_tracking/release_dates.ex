@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates do
 
   The word beside a row is the forecast status that matters here: "Will
   download" when auto-grab will fire, "Downloading" (a link to the
-  pursuit on Incoming) while it is, "In your library" once it landed.
+  pursuit on Downloads) while it is, "In your library" once it landed.
   Everything else is silent — the switches beside the readout already
   say what the app will do. `movie_rows/2` and `series_rows/1` are the
   pure rules; the host decides whether there is anything to read out at
@@ -102,7 +102,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates do
   defp status_word(%{row: %{status: :under_pursuit, pursuit_id: id}} = assigns) when is_binary(id) do
     ~H"""
     <.link
-      navigate={"/incoming?selected=#{@row.pursuit_id}"}
+      navigate={"/downloads?selected=#{@row.pursuit_id}"}
       class="inline-flex items-center gap-1 text-xs text-info hover:underline"
     >
       Downloading <.icon name="hero-arrow-top-right-on-square-mini" class="size-3.5 opacity-70" />

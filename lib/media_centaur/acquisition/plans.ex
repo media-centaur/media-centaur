@@ -419,7 +419,7 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   @doc """
   How many plans are waiting on a person: status `ready`, any origin.
-  The Incoming follow-up pill's source (`MediaCentaurWeb.ShellBadges`).
+  The Downloads follow-up pill's source (`MediaCentaurWeb.ShellBadges`).
   """
   @spec count_awaiting_review() :: non_neg_integer()
   def count_awaiting_review do

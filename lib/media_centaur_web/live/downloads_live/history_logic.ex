@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
+defmodule MediaCentaurWeb.DownloadsLive.HistoryLogic do
   @moduledoc """
   Pure helpers for the History zone of the unified Downloads page —
   extracted per the LiveView logic-extraction policy ([ADR-030]).

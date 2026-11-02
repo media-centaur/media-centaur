@@ -8,7 +8,7 @@ order: 13
 Acquisition is optional, and it needs two things before any of the chapters that follow
 work: **Prowlarr** (an indexer aggregator that searches your trackers) and a **download
 client**. This chapter sets both up. Until they're configured and their connection tests
-pass, the Incoming page shows only its tracking side, and every grab button stays hidden —
+pass, the Downloads page says only what to connect, and every grab button stays hidden —
 nothing here breaks the rest of the app.
 
 The chain — and the one rule that catches everyone:
@@ -47,7 +47,7 @@ Settings → Acquisition:
 
 1. **Prowlarr** — enter the **URL** (e.g. `http://localhost:9696`) and **API key** (Prowlarr →
    Settings → General → Security → API Key), then **Test connection**. It must pass for
-   Incoming's download features and grab buttons to appear.
+   Downloads' features and grab buttons to appear.
 2. **Download client** — choose the **Type** (qBittorrent today), enter its **URL** (e.g.
    `http://localhost:8080`) and credentials, then **Test connection**. Or press **Detect from
    Prowlarr** to auto-fill from Prowlarr's own client config.

@@ -74,8 +74,13 @@ const TOUR = [
     waitFor: "#detail-modal[data-state='open']",
   },
 
-  // ─── Incoming (forecast side) ────────────────────────────────────────────────────────
-  { name: "upcoming-calendar", url: "/incoming", settleMs: 600 },
+  // ─── Discovery ───────────────────────────────────────────────────────
+  // The page for titles you do not own yet: the search box over the hero
+  // over the shelves. New Releases is a stored TMDB membership the daily
+  // refresh writes, so the showcase seed must hold members for the shelf
+  // to show (see lib/media_centaur/showcase.ex); the watchlist shelves
+  // draw the seeded listed titles.
+  { name: "upcoming-calendar", url: "/discovery", settleMs: 600 },
 
   // ─── Review ──────────────────────────────────────────────────────────
   { name: "review-queue", url: "/review" },
@@ -110,12 +115,12 @@ const TOUR = [
   },
   {
     name: "download-activity",
-    url: "/incoming?filter=all",
+    url: "/downloads?filter=all",
     settleMs: 800,
   },
   {
     name: "download-search",
-    url: "/incoming",
+    url: "/downloads",
     action: async (page) => {
       // Type a public-domain title into the search input and submit.
       // In showcase mode, Prowlarr is stubbed (see
@@ -127,8 +132,8 @@ const TOUR = [
       const input = page.locator("input[name='query']").first()
       await input.fill("Night of the Living Dead")
       await input.press("Enter")
-      // Wait for the results card to appear. The IncomingLive
-      // template only renders the results section when @groups is
+      // Wait for the results to appear. The DownloadsLive template
+      // only renders the results section when the session's groups are
       // non-empty, so a presence-check on the section heading is
       // enough to know the async search returned.
       await page

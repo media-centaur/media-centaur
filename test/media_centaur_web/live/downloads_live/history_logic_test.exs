@@ -1,8 +1,8 @@
-defmodule MediaCentaurWeb.IncomingLive.HistoryLogicTest do
+defmodule MediaCentaurWeb.DownloadsLive.HistoryLogicTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
-  alias MediaCentaurWeb.IncomingLive.HistoryLogic, as: Logic
+  alias MediaCentaurWeb.DownloadsLive.HistoryLogic, as: Logic
 
   defp row(overrides) do
     base = %PursuitRow{

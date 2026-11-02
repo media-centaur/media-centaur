@@ -35,7 +35,7 @@ defmodule MediaCentaur.Log.Component do
   component; MC0033 leaves it alone.
 
   The web layer is exempt by design. A LiveView logs about the domain it
-  displays, not about itself — `IncomingLive` logging `:acquisition` is
+  displays, not about itself — `DownloadsLive` logging `:acquisition` is
   correct, and there is no useful `:web` component.
   """
 
@@ -148,7 +148,7 @@ defmodule MediaCentaur.Log.Component do
     "MediaCentaur.TMDB" => :tmdb,
     "MediaCentaur.Settings.Controls" => :playback,
     "MediaCentaurWeb.Acquisition" => :acquisition,
-    "MediaCentaurWeb.Incoming" => :acquisition,
+    "MediaCentaurWeb.Downloads" => :acquisition,
     "MediaCentaurWeb.Library" => :library,
     "MediaCentaurWeb.Review" => :review
   }
@@ -172,7 +172,7 @@ defmodule MediaCentaur.Log.Component do
   before (audit E53).
 
   Matching is longest-prefix on the module name, so
-  `MediaCentaurWeb.IncomingLive` resolves through `MediaCentaurWeb.Incoming`
+  `MediaCentaurWeb.DownloadsLive` resolves through `MediaCentaurWeb.Downloads`
   and `MediaCentaur.Settings.Controls` beats `MediaCentaur.Settings`.
   """
   @spec for_module(atom()) :: atom() | nil

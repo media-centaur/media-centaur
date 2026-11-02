@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.ViewModel.EpisodeRow
 
   attr :seasons, :list,

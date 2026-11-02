@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
   @moduledoc """
-  The Incoming page's problem-only surface (UIDR-016): one home for
+  The Downloads page's problem-only surface (UIDR-016): one home for
   acquisition capability faults, absent entirely while everything is
   healthy.
 

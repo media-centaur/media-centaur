@@ -3,7 +3,7 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
   Typed accessor for the `default_planning_mode` Settings entry — what
   the Download button on a title the library does not own does when
   pressed (spec 2026-09-12 §9): `:manually_select_release` creates the
-  plan for review and opens its board on Incoming; `:auto_select_best_release`
+  plan for review and opens its board on Downloads; `:auto_select_best_release`
   creates it `automatic`, so a clean plan commits with nobody looking.
   The other mode is always one click away in the button's menu; this
   entry only names the default. It is also the approval policy every

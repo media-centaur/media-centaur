@@ -208,7 +208,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # (the SettingsCache isn't running) — that inflates the count
       # relative to production AND varies with full-suite ordering
       # (observed 38–50; the variance is entirely settings_entries
-      # lookups; the worst observed mount moved 45 → 50 after the Incoming
+      # lookups; the worst observed mount moved 45 → 50 after the Downloads
       # merge landed, and the exact mechanism behind the suite-order jitter
       # is unattributed — StatusLive's own query set is unchanged). 52
       # still trips on any per-row N+1 while absorbing the jitter.
@@ -236,17 +236,15 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       )
     end
 
-    test "GET /incoming mounts within budget", %{conn: conn} do
-      # Incoming (the merged /upcoming + /download page, UIDR-015) is a
-      # ReleaseTracking + Acquisition surface, not Library. Phase 3
-      # projections don't cover it; the LiveView reads both contexts.
-      # Without Prowlarr configured (this fixture) the acquisition reads
-      # are skipped and the mount is the forecast build: ReleaseTracking
-      # releases + watching items + auto-grab/settings reads, run on both
-      # the disconnected and connected renders (ADR-051).
+    test "GET /downloads mounts within budget", %{conn: conn} do
+      # Downloads (UIDR-015, amended 2026-11-02) is an Acquisition surface,
+      # not Library. Phase 3 projections don't cover it. Without Prowlarr
+      # configured (this fixture) the acquisition reads are skipped and the
+      # mount is the gap state plus the ladder's rungs and the on_mount
+      # hooks, run on both the disconnected and connected renders (ADR-051).
       mount_and_assert(
         conn,
-        "/incoming",
+        "/downloads",
         40,
         "ReleaseTracking forecast reads + on_mount hooks (settings cache-miss in test mode)"
       )
@@ -321,7 +319,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # each mount phase = +4 aggregates on every page.
       # FeaturesAware (session-wide on_mount, ADR-081) reads every feature
       # flag in one query on each mount phase = +2 cache-miss reads.
-      # ShellBadges' Incoming follow-up pill (UIDR-030) adds one bounded
+      # ShellBadges' Downloads follow-up pill (UIDR-030) adds one bounded
       # count (plans awaiting review) on each mount phase = +2 aggregates.
       mount_and_assert(conn, "/setup", 25, "Initial setup wizard — minimal reads")
     end

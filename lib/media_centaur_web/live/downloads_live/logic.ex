@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.IncomingLive.Logic do
+defmodule MediaCentaurWeb.DownloadsLive.Logic do
   @moduledoc """
-  Pure helpers for `MediaCentaurWeb.IncomingLive`.
+  Pure helpers for `MediaCentaurWeb.DownloadsLive`.
 
   The LiveView is thin wiring — mount, event dispatch, render. View-only
   helpers (group loading predicates, error formatting, result lookup, grab
@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   without rendering or mounting a socket.
 
   Search session mutators (build/toggle/record/select) moved to
-  `MediaCentaurWeb.IncomingLive.SearchSession` — the LiveView calls those
+  `MediaCentaurWeb.DownloadsLive.SearchSession` — the LiveView calls those
   through the `MediaCentaur.Acquisition` facade.
 
   Per ADR-030 (LiveView logic extraction).
@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   alias MediaCentaur.Format
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Downloads.{Health, QueueItem}
-  alias MediaCentaurWeb.IncomingLive.SearchSession
+  alias MediaCentaurWeb.DownloadsLive.SearchSession
   alias MediaCentaurWeb.LiveHelpers
 
   # How long after a user-initiated cancel we keep suppressing the
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   @doc "The page's path."
   @spec path() :: String.t()
-  def path, do: "/incoming"
+  def path, do: "/downloads"
 
   @doc """
   The page's path showing one zone (UIDR-015, amended 2026-11-02).
@@ -658,7 +658,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   def telemetry_age_label(_connectivity, _last_success), do: nil
 
   @doc "User-facing expansion-preview line for the release-search form."
-  def expansion_text(:idle), do: "Type a title and press Enter to search."
+  def expansion_text(:idle), do: "Type a release name and press Enter to search."
   def expansion_text({:ok, 1}), do: "1 query — press Enter to search."
   def expansion_text({:ok, n}), do: "#{n} queries in parallel — press Enter to search."
   def expansion_text({:error, :invalid_syntax}), do: "Invalid brace syntax — see examples above."

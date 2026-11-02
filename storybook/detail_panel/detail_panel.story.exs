@@ -468,7 +468,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :series_choose_episodes,
         description:
-          "Choose episodes chosen: the select shows it and Download will open the picker on Incoming.",
+          "Choose episodes chosen: the select shows it and Download will open the picker on Downloads.",
         attributes: %{
           detail: unowned(show(), %{}),
           state: %{ModalState.new() | download_scope: :choose_episodes}
@@ -602,7 +602,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       },
       %Variation{
         id: :needs_review,
-        description: "A parked plan: Needs review links to Incoming.",
+        description: "A parked plan: Needs review links to Downloads.",
         attributes: %{detail: unowned(movie(), %{acquisition_state: :needs_review})}
       },
       %Variation{

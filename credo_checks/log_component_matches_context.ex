@@ -29,7 +29,7 @@ defmodule MediaCentaur.Credo.Checks.LogComponentMatchesContext do
       Two exemptions:
 
         * **The web layer.** A LiveView logs about the domain it displays,
-          not about itself — `IncomingLive` tagging `:acquisition` is right.
+          not about itself — `DownloadsLive` tagging `:acquisition` is right.
         * **Unmapped contexts.** A context with no entry in the table has no
           required component and is left alone. Add it to the table to bring
           it under the rule.

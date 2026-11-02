@@ -17,9 +17,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   closes the surface as `close` says (the modal's `push_close/1`; the
   feed row, with no modal open, passes `& &1`);
   manually selecting plans under `start_async` (`Plans.create_title_plan/2`,
-  `review`) and opens the plan's board on Incoming once it exists,
+  `review`) and opens the plan's board on Downloads once it exists,
   through the host's `open_plan/2`. With the scope select on *Choose
-  episodes* the control performs neither: it opens the picker on Incoming
+  episodes* the control performs neither: it opens the picker on Downloads
   with the click's mode, and the picker's Download makes the plan (spec
   2026-09-23). `download_missing_episode/2`
   does the same for one aired episode of an owned series a gap row
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.ModalState
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
 

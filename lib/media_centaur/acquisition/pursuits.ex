@@ -198,7 +198,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   `target_status` come from the most recent attempt.
 
   `limit:` caps the read (newest first) — the History window and the
-  Incoming ledger glimpse only ever show a slice, so neither pays for
+  Downloads ledger glimpse only ever show a slice, so neither pays for
   the whole terminal table.
 
   `search:` narrows in SQL by case-insensitive substring (SQLite `LIKE`

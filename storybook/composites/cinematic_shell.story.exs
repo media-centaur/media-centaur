@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
   The cinematic modal frame — the tenant-agnostic half of the detail-modal
   technology. These variations exercise the frame's own states with
   deliberately plain slot content; the real tenants (the library detail
-  panel, the acquisition plan modal, the Incoming title modal) each have
+  panel, the acquisition plan modal, the Downloads title modal) each have
   their own story.
 
   The modal is **always present in the DOM** — `open` toggles a

@@ -5,7 +5,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchOutage do
 
   Two surfaces must never report an empty result as knowledge
   (UIDR-016): the gap banner (`ViewModels.GapVerdict`) and the board
-  ticker's line for a live search (`IncomingLive.PlanLogic`). Both read
+  ticker's line for a live search (`DownloadsLive.PlanLogic`). Both read
   this, so they cannot disagree, and the sentence outlives the last
   roster read — `MediaCentaur.IntegrationAvailability` stays down until
   a probe says otherwise, where the cached roster observation only ever

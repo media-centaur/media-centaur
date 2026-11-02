@@ -43,7 +43,7 @@ defmodule MediaCentaur.Search do
       and filter results into the windows pursuits can act on.
 
   In-flight search *UX* state is deliberately not here — it lives in
-  `MediaCentaurWeb.IncomingLive.SearchSession` (web-layer UI
+  `MediaCentaurWeb.DownloadsLive.SearchSession` (web-layer UI
   infrastructure). This boundary stays pure operations.
 
   ## Where to start

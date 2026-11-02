@@ -120,7 +120,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Library.FileEventHandler,
           MediaCentaur.SelfUpdate.Updater,
           MediaCentaur.SelfUpdate.AutoApply,
-          MediaCentaurWeb.IncomingLive.SearchSession
+          MediaCentaurWeb.DownloadsLive.SearchSession
         ] ++
         pubsub_listeners(background_services?()) ++
         diagnostics_children(durable_diagnostics?()) ++

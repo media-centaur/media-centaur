@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
+defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaurWeb.Components.Detail.TitlePreview
-  alias MediaCentaurWeb.IncomingLive.PlanLogic
+  alias MediaCentaurWeb.DownloadsLive.PlanLogic
 
   # S1: E1 in library, E2/E3 pickable. S2: E1 pickable, E2 unaired.
   defp selection do

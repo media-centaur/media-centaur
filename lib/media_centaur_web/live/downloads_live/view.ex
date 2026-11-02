@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.View do
+defmodule MediaCentaurWeb.DownloadsLive.View do
   @moduledoc """
   The Downloads page's one composition point (ADR-030 applied at page
   scale): the operational sections — the draft plans and the pursuits in
@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   """
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
-  alias MediaCentaurWeb.IncomingLive.View
+  alias MediaCentaurWeb.DownloadsLive.View
 
   defstruct in_flight: [], drafts: []
 

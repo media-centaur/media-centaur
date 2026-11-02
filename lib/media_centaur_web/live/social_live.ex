@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.SocialLive do
   `HiddenPersonRow` with Show, the same `set_hidden`; then the
   add-friend form; identity and relays live on the Settings page's
   Social section, which this tab points at. The watchlist itself is
-  Incoming's first tab (UIDR-050). **The person page**
+  Downloads' first tab (UIDR-050). **The person page**
   (`/social/friends/<npub>`, `/social/friends/you`; `SocialLive.PersonPage`,
   UIDR-054) — one person's acts as the Feed's rows folded one per title
   (`People`'s acts) beside the reader's view of them (`ReaderView`:
@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.Components.Social.HiddenPersonRow
   alias MediaCentaurWeb.Components.Social.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.SocialLive.ActivityArtwork

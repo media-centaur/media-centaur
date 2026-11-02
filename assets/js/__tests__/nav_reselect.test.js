@@ -81,12 +81,12 @@ describe("installNavReselect", () => {
   })
 
   test("same page with live query params: navigation proceeds, scroll still goes to the top", () => {
-    // /incoming?q=beach → clicking Incoming clears the search via a real
+    // /downloads?q=beach → clicking Downloads clears the search via a real
     // navigation; the reselect principle still puts the reader at the top.
-    const win = mockWindow({ pathname: "/incoming", search: "?q=beach" })
+    const win = mockWindow({ pathname: "/downloads", search: "?q=beach" })
     installNavReselect(doc, win)
 
-    const event = clickOn(doc, { href: "/incoming" })
+    const event = clickOn(doc, { href: "/downloads" })
 
     expect(win.scrollCalls).toEqual([{ top: 0, behavior: "smooth" }])
     expect(event.defaultPrevented).toBe(false)

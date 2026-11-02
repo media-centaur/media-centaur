@@ -5,8 +5,9 @@ part: Acquisition
 slug: watchlist-and-tracking
 order: 16
 ---
-The watchlist is the list of titles you want to watch, at **Incoming → Watchlist** — the first
-tab of the [Incoming](/guide/search-and-download) page. You put things on it and you take them
+The watchlist is the list of titles you want to watch, drawn on Discovery (`/discovery`) by
+release stage: the **Out Now** shelf for what can be watched at home now, and the **Watchlist**
+row for what is still **In Theaters** or **Coming Up**. You put things on it and you take them
 off; nothing else does. It is also the only place release tracking is turned on: a title you
 want and a title the app is watching for are one record, at different strengths.
 
@@ -15,9 +16,9 @@ a second, deliberate act.
 
 ## Adding a title
 
-Open the title — from a search result on [Incoming](/guide/search-and-download), from the
-Feed or a friend's card on Social, or from its page in the library — and press the
-bookmark next to **Download**. It fills when the title is on your list. That is the only
+Open the title — from a search result or a shelf on Discovery, from the Feed or a friend's
+card on Social, or from its page in the library — and press the bookmark next to
+**Download**; a Discovery tile's hover toolbar and the hero carry the same bookmark. It fills when the title is on your list. That is the only
 thing a title not on your list offers; the tracking controls appear once it is on the list.
 A title that came from a friend keeps who it came from.
 
@@ -50,8 +51,8 @@ keeps Track release dates on.
 
 | Switch | What happens |
 |---|---|
-| **Track release dates** | The app keeps the title's release calendar — a movie's theatrical, digital and disc dates, a series' new episodes, as TMDB posts them — and its next release shows on the watchlist row. Shown only while a release is still ahead |
-| **Auto-grab** | A release drops and the app plans it. Whether the plan downloads without asking or waits for your approval on Incoming is your Download button default under **Settings → Acquisition** — the same choice a manual download uses |
+| **Track release dates** | The app keeps the title's release calendar — a movie's theatrical, digital and disc dates, a series' new episodes, as TMDB posts them — and its next release shows on the title's page and on Home's Coming Up. Shown only while a release is still ahead |
+| **Auto-grab** | A release drops and the app plans it. Whether the plan downloads without asking or waits for your approval on Downloads is your Download button default under **Settings → Acquisition** — the same choice a manual download uses |
 
 A movie already in your library is complete and shows no switches.
 

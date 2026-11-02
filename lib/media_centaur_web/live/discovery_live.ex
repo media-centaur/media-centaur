@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.DiscoveryLive.Shelves
   alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.Live.{MediaSearch, ReviewModal, Subscriptions, TitleDetailHost}
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
 
   @reload_debounce_ms 500
   @friends_limit 40

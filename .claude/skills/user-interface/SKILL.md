@@ -39,7 +39,7 @@ Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 
 **Exception — the hero backdrop of an assembled page**, Home and Discovery, the app's two page-artwork surfaces ([UIDR-033], amended 2026-11-01): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache of two slots that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
 
-**Every other page carries the scrim only** — `.page-side-dim`, or `.page-side-dim-calm` on pages sparse enough that the standard ramp reads as a band (Settings, Status, Incoming). A page shows artwork when the artwork *is* the page's subject; decorative bands of an unrelated title are removed and don't come back ([UIDR-033]).
+**Every other page carries the scrim only** — `.page-side-dim`, or `.page-side-dim-calm` on pages sparse enough that the standard ramp reads as a band (Settings, Status, Downloads). A page shows artwork when the artwork *is* the page's subject; decorative bands of an unrelated title are removed and don't come back ([UIDR-033]).
 
 **Stable iterator ids.** Every `:for`'d root element gets `id={"<component>-#{item.entity_id}"}` so morphdom preserves it across renders. Without ids, items are torn down and rebuilt on every patch, replaying the decode/paint cycle.
 
@@ -137,7 +137,7 @@ The house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a chevron
 | Component | Use |
 |---|---|
 | `menu_list/1` | The anchored list on its own: `id`, `zone` (its `data-nav-zone`, a TREE in `config.js`), `on_close` (the event BACK pushes on the way out, rendered as `data-nav-dismiss-event`), `:item` slot (`event`, `values`, `active` — an active item is a `menuitemradio`) |
-| `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download, and the picker's on Incoming. Any button variant but `outline`. `placement="above"` and `align="end"` for a trigger at the bottom right of a scrolling body |
+| `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download, and the picker's on Downloads. Any button variant but `outline`. `placement="above"` and `align="end"` for a trigger at the bottom right of a scrolling body |
 | `menu_select/1` | A trigger showing the current value (`value_label`) with the options in the list, the current one `active` — the scope select beside a series' Download, the library sort. `label` is the hidden accessible name read before the value |
 
 `open`, `on_toggle`, `on_close` and `menu_zone` are the LiveView's: one open-menu assign, a toggle event, and a close event the click-away and BACK share. The list's zone needs a `back` edge to the trigger's zone in `config.js` so BACK closes it (see the `input-system` skill). Settings uses its own kit (choice pill, native select rows); the glass menu is for content surfaces.
@@ -404,12 +404,12 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 
 | UIDR | Decision |
 |------|----------|
-| 010 | Page redistribution: Watch / System sidebar groups + dedicated Home, Library, History (Upcoming later merged into Incoming, 015) |
+| 010 | Page redistribution: Watch / System sidebar groups + dedicated Home, Library, History (Upcoming later merged into Downloads, 015) |
 | 011 | Text on imagery: `.text-on-image` (body, text-shadow) + `.text-on-image-lg` (title/logo, filter:drop-shadow) |
 | 012 | Desktop-app rendering defaults — eager, sync, stable ids, no entrance animations (Credo MC0016) |
 | 013 | Modals declare an ephemeral or persistent dismissal mode through one seam |
 | 014 | Media-search front door — omnibox, coverage language, imagery discipline |
-| 015 | Upcoming + Downloads merged into one Incoming page |
+| 015 | Upcoming + Downloads merged into one Downloads page |
 | 016 | Needs attention — one problem-only section for acquisition capability faults |
 | 018 | Focus cursor and scroll behaviour |
 | 019 | The detail modal navigates as two regions; BACK peels containment |
@@ -439,7 +439,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 045 | Own actions join the Feed under an author scope; the segmented control is one component |
 | 046 | The Feed is the app's list beside a rail of people — the poster row, the identity tile, the person card's acts strip with centred glyphs and the grade, Library's frame; no still, no per-surface type floors |
 | 049 | What people did with a title is the social capsule — social glyphs at their grade on every title surface, one feed, drawn when a friend did it; no pennant, no rose |
-| 050 | The watchlist is Incoming's first tab; the schedule is on its rows |
+| 050 | The watchlist is Downloads' first tab; the schedule is on its rows |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -497,7 +497,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `log_view/1` | `console_components.ex` | A log view: oldest at the top, follows the live edge or holds the reader's place (`LogFollow` hook) — the console and the System journal | ✅ |
 | `action_footer/1` | `console_components.ex` | Console controls |
 
-Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `incoming/`, `release_tracking/`, `social/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).
+Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `downloads/`, `release_tracking/`, `social/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).
 
 ## Page Structure
 
@@ -508,7 +508,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **Home** | `/` | Hero + Continue Watching + shelves (UIDR-010) |
 | **Profiles** | `/profiles` | Who's watching? (UIDR-053) |
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
-| **Incoming** | `/incoming` | Watchlist, Activity, History and the omnibox (UIDR-015, UIDR-050); its media mode is `Live.MediaSearch`, shared with Discovery until the campaign's cutover |
+| **Downloads** | `/downloads` | The *get* stage (UIDR-057; UIDR-015 amended): the release search box (`DownloadsLive.Search`), the Activity and History tabs, the plan and pursuit modals; a diagnosed empty page without Prowlarr |
 | **History** | `/history` | Watch history |
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
@@ -521,7 +521,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `inc
 | **Guide** | `/guide`, `/guide/:slug` | In-app guide book |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Social and Incoming `use` for it (UIDR-043).
+`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Discovery, Social and Downloads `use` for it (UIDR-043).
 
 ## Anti-Patterns
 

@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
       />
 
       <.work_row
-        href={~p"/incoming"}
+        href={~p"/downloads"}
         icon="hero-arrow-down-tray"
         count={@overview.in_flight_count}
         singular="acquisition in flight"

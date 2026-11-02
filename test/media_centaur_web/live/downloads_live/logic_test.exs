@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.IncomingLive.LogicTest do
+defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaurWeb.IncomingLive.Logic
+  alias MediaCentaurWeb.DownloadsLive.Logic
 
   describe "connectivity_notice/1" do
     test "is quiet (nil) when the client is healthy or still connecting" do
@@ -863,7 +863,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   end
 
   describe "search_owns_page?/1" do
-    alias MediaCentaurWeb.IncomingLive.SearchSession
+    alias MediaCentaurWeb.DownloadsLive.SearchSession
 
     test "a query or results own the page; an empty box owns nothing" do
       refute Logic.search_owns_page?(%SearchSession{})
@@ -887,9 +887,9 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
 
   describe "zone_path/1" do
     test "Activity is the page's bare path; History names itself" do
-      assert Logic.path() == "/incoming"
-      assert Logic.zone_path(:activity) == "/incoming"
-      assert Logic.zone_path(:history) == "/incoming?zone=history"
+      assert Logic.path() == "/downloads"
+      assert Logic.zone_path(:activity) == "/downloads"
+      assert Logic.zone_path(:history) == "/downloads?zone=history"
     end
   end
 
@@ -913,7 +913,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   describe "failure_flash/2 — a failed act says why" do
     # 2026-09-17: "Try this one" answered "Could not pick that alternative."
     # while the log held the real reason — Prowlarr could not reach
-    # SABnzbd. Every acquisition act on Incoming had the same shape: log
+    # SABnzbd. Every acquisition act on Downloads had the same shape: log
     # the reason, show a generic line. The reason the app knows is the
     # reason the user gets.
 

@@ -658,7 +658,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    unlayered, while Tailwind's utilities live in `@layer utilities`, and an
    unlayered declaration beats a layered one at equal specificity — so a utility
    is applied to the element and silently loses to the `z-index: 50` above. Every
-   backdrop then ties and paint order falls to DOM order, which put Incoming's
+   backdrop then ties and paint order falls to DOM order, which put Downloads'
    confirmations *behind* the modals they belong to.
 
    Sits just above the modals it stacks over (50). */
@@ -1880,7 +1880,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* Pre-set the ring color on UNfocused items too. Tailwind v4's
    `transition-colors` includes outline-color, so any nav item carrying it
-   (e.g. the Incoming rows' hover-bg transition) would otherwise fade the
+   (e.g. a title row's hover-bg transition) would otherwise fade the
    ring in from currentColor — a white flash before it settles primary.
    With the color constant, only the (untransitioned) width appears. */
 [data-input=keyboard] [data-nav-item],
@@ -2149,7 +2149,7 @@ body:has(.modal-backdrop[data-state="open"]) {
     );
 }
 
-/* Sparse-page variant (Settings, Status, Incoming): those pages are
+/* Sparse-page variant (Settings, Status, Downloads): those pages are
    mostly bare below their first block, so the base ramp (35% → 70%,
    0.55) shows as a harsh band with nothing covering it. Lower peak,
    longer slope — depth without a visible edge. Must stay AFTER

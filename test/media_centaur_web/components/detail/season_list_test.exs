@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
       html = render_component(&SeasonList.season_list/1, assigns(%{}))
 
       assert html =~ "Download more of this show"
-      assert html =~ "/incoming?plan=new&amp;tmdb_id=4556&amp;tmdb_type=tv"
+      assert html =~ "/downloads?plan=new&amp;tmdb_id=4556&amp;tmdb_type=tv"
     end
 
     test "absent without a TMDB id" do

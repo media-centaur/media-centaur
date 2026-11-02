@@ -47,7 +47,7 @@ defmodule MediaCentaur.Profile.Mounts do
   @routes [
     {"/", warm_cache?: true},
     {"/library", warm_cache?: false},
-    {"/incoming", warm_cache?: false},
+    {"/downloads", warm_cache?: false},
     {"/history", warm_cache?: false},
     {"/review", warm_cache?: false},
     {"/status", warm_cache?: false},

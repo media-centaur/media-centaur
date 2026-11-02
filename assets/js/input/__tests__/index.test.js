@@ -120,25 +120,25 @@ describe("App config", () => {
   })
 })
 
-describe("Incoming page nav (real config)", () => {
+describe("Downloads page nav (real config)", () => {
   // One tab's content renders at a time: the zone tabs route down into
   // whichever content zone the active tab populated.
   const activityView = { omnibox: 2, zone_tabs: 2, drafts: 1, pursuits: 3, other_downloads: 2, sidebar: 4 }
 
   test("Activity view: the tabs sit under the search box and route into drafts → pursuits → other downloads", () => {
-    const graph = buildNavGraph("incoming", activityView, inputConfig)
+    const graph = buildNavGraph("downloads", activityView, inputConfig)
     expect(graph.omnibox.down).toBe("zone_tabs")
     expect(graph.zone_tabs.up).toBe("omnibox")
     expect(graph.zone_tabs.down).toBe("drafts")
     expect(graph.drafts.down).toBe("pursuits")
     expect(graph.pursuits.down).toBe("other_downloads")
     expect(graph.other_downloads.up).toBe("pursuits")
-    expect(resolveCursorStart("incoming", activityView, inputConfig)).toBe("pursuits")
+    expect(resolveCursorStart("downloads", activityView, inputConfig)).toBe("pursuits")
   })
 
   test("History view: tabs route into the ledger; sidebar falls through to it", () => {
     const counts = { omnibox: 2, zone_tabs: 2, ledger: 5, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
+    const graph = buildNavGraph("downloads", counts, inputConfig)
     expect(graph.zone_tabs.down).toBe("ledger")
     expect(graph.ledger.up).toBe("zone_tabs")
     expect(graph.sidebar.right).toBe("ledger")
@@ -146,24 +146,24 @@ describe("Incoming page nav (real config)", () => {
 
   test("a search owns the page: only the result groups below the search box", () => {
     const counts = { omnibox: 2, grid: 8, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
+    const graph = buildNavGraph("downloads", counts, inputConfig)
     expect(graph.omnibox.down).toBe("grid")
     expect(graph.grid.up).toBe("omnibox")
   })
 
   test("nothing in flight: the sidebar enters the tabs, the cursor starts there", () => {
     const counts = { omnibox: 2, zone_tabs: 2, sidebar: 4 }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
+    const graph = buildNavGraph("downloads", counts, inputConfig)
     expect(graph.sidebar.right).toBe("zone_tabs")
-    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("zone_tabs")
+    expect(resolveCursorStart("downloads", counts, inputConfig)).toBe("zone_tabs")
   })
 
-  test("no incoming context has a left edge — the sidebar is BACK's job", () => {
+  test("no downloads context has a left edge — the sidebar is BACK's job", () => {
     const counts = {
       omnibox: 2, zone_tabs: 2, grid: 2,
       drafts: 1, pursuits: 3, ledger: 5, other_downloads: 1, sidebar: 4,
     }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
+    const graph = buildNavGraph("downloads", counts, inputConfig)
     for (const context of [
       "omnibox",
       "zone_tabs",
@@ -324,7 +324,7 @@ describe("Detail overlay cast region (real config)", () => {
 // always were.
 describe("Plan overlay regions (real config)", () => {
   const openPlan = counts =>
-    buildNavGraph("incoming", counts, {
+    buildNavGraph("downloads", counts, {
       ...inputConfig,
       overlayLayout: inputConfig.overlays.plan.layout,
     })

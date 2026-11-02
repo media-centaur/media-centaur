@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   segment the person's default planning mode, its menu the other) with
   the scope select beside it for a series, when the title is out and an
   indexer is ready; the acquisition state as a fact (Needs review links
-  to Incoming); or nothing — arming is the tracking switches' job
+  to Downloads); or nothing — arming is the tracking switches' job
   (ADR-066). The view controls follow (`Detail.ViewControls`), then the
   member Watched toggle for a collection, and at the far end Delete
   <noun> for an own activity the modal was opened from.
@@ -518,7 +518,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <.link
       id="detail-needs-review"
-      navigate="/incoming"
+      navigate="/downloads"
       class="inline-flex items-center gap-1 text-sm text-warning"
       data-nav-item
       tabindex="0"

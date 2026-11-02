@@ -201,7 +201,7 @@ defmodule MediaCentaur.Acquisition do
   notion of the queue. Subscribers that mirror queue state to UI must
   reconcile against in-flight optimistic mutations (see the
   "External-state reconciliation" section in
-  `MediaCentaurWeb.IncomingLive`'s moduledoc).
+  `MediaCentaurWeb.DownloadsLive`'s moduledoc).
   """
   @type queue_message ::
           {:queue_state, MediaCentaur.Downloads.QueueState.t()}
@@ -233,7 +233,7 @@ defmodule MediaCentaur.Acquisition do
   defdelegate queue_state, to: MediaCentaur.Downloads.QueueMonitor, as: :state
 
   @doc """
-  The download-client condition as the Incoming Heads-up glyph reads it:
+  The download-client condition as the Downloads Heads-up glyph reads it:
   the worse of the app's own link to the client
   (`Downloads.IncidentContext`) and Prowlarr's own, read from
   `IntegrationAvailability` (`Pursuits.IncidentContext`). `:ok` while

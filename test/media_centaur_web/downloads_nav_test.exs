@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.IncomingNavTest do
+defmodule MediaCentaurWeb.DownloadsNavTest do
   @moduledoc """
-  Pins the UIDR-015 sidebar contract: ONE unconditional "Incoming" entry
+  Pins the UIDR-015 sidebar contract: ONE unconditional "Downloads" entry
   replaces the old conditional "Downloads" + unconditional "Upcoming"
   pair. Without acquisition capabilities the page degrades to an honest
   forecast instead of disappearing, so the nav entry must render in BOTH
@@ -38,9 +38,9 @@ defmodule MediaCentaurWeb.IncomingNavTest do
     acquisition: false
   }
 
-  @incoming_nav_entry ~s(#sidebar a[href="/incoming"])
+  @incoming_nav_entry ~s(#sidebar a[href="/downloads"])
 
-  test "Incoming nav entry renders without any acquisition capability", %{conn: conn} do
+  test "Downloads nav entry renders without any acquisition capability", %{conn: conn} do
     :persistent_term.put(@cache_key, @ready_false)
 
     {:ok, view, _html} = live(conn, "/")
@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.IncomingNavTest do
     assert has_element?(view, @incoming_nav_entry)
   end
 
-  test "Incoming nav entry renders with acquisition fully ready", %{conn: conn} do
+  test "Downloads nav entry renders with acquisition fully ready", %{conn: conn} do
     :persistent_term.put(@cache_key, @ready_true)
 
     {:ok, view, _html} = live(conn, "/")
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.IncomingNavTest do
     assert has_element?(view, @incoming_nav_entry)
   end
 
-  test "Incoming nav entry survives a :capabilities_changed re-render", %{conn: conn} do
+  test "Downloads nav entry survives a :capabilities_changed re-render", %{conn: conn} do
     :persistent_term.put(@cache_key, @ready_false)
 
     {:ok, view, _html} = live(conn, "/")
@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.IncomingNavTest do
 
     # Drive the broadcast through the LV before asserting — the entry must
     # still be there after the capability-driven re-render, not just before.
-    assert render(view) =~ "Incoming"
+    assert render(view) =~ "Downloads"
     assert has_element?(view, @incoming_nav_entry)
   end
 end

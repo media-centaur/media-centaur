@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
+defmodule MediaCentaurWeb.DownloadsLive.PlanQueryTest do
   @moduledoc """
   The plan modal's address: two shapes (the board, the picker), built and
   parsed by one module so every link, patch and navigate agrees on them.
   """
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
 
   @plan_id "9f4f5e0e-0d1a-4b5c-8e2f-3a1b2c3d4e5f"
 
@@ -31,18 +31,18 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
       refute Map.has_key?(PlanQuery.picker("550", "movie", nil), "mode")
     end
 
-    test "the picker refuses a type Incoming cannot target" do
+    test "the picker refuses a type Downloads cannot target" do
       assert_raise FunctionClauseError, fn -> PlanQuery.picker("1", "book") end
     end
   end
 
-  describe "path/1 — a query as a path to Incoming" do
+  describe "path/1 — a query as a path to Downloads" do
     test "renders the board" do
-      assert PlanQuery.path(PlanQuery.board("abc")) == "/incoming?plan=abc"
+      assert PlanQuery.path(PlanQuery.board("abc")) == "/downloads?plan=abc"
     end
 
     test "renders the picker with every param" do
-      "/incoming?" <> query = PlanQuery.path(PlanQuery.picker("246810", "tv", :manually_select_release))
+      "/downloads?" <> query = PlanQuery.path(PlanQuery.picker("246810", "tv", :manually_select_release))
 
       assert URI.decode_query(query) == %{
                "plan" => "new",
@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
     end
   end
 
-  describe "parse/1 — Incoming's params" do
+  describe "parse/1 — Downloads' params" do
     test "no plan param is closed" do
       assert PlanQuery.parse(%{}) == :closed
       assert PlanQuery.parse(%{"zone" => "history"}) == :closed

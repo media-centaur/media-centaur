@@ -28,11 +28,11 @@ defmodule MediaCentaur.Credo.Checks.LogComponentMatchesContextTest do
 
     test "the web layer logs about the domain it displays" do
       ~S'''
-      defmodule MediaCentaurWeb.IncomingLive do
+      defmodule MediaCentaurWeb.DownloadsLive do
         def run, do: Log.info(:acquisition, "user approved a plan")
       end
       '''
-      |> to_source_file("lib/media_centaur_web/live/incoming_live.ex")
+      |> to_source_file("lib/media_centaur_web/live/downloads_live.ex")
       |> run_check(LogComponentMatchesContext)
       |> refute_issues()
     end

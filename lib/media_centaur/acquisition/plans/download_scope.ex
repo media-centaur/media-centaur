@@ -12,7 +12,7 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
 
   The scope select on the title detail offers a third value, *Choose
   episodes* (`Title.ModalState.scope_choice/0`), which is not a scope: it
-  resolves to no units here, because the picker on Incoming resolves them
+  resolves to no units here, because the picker on Downloads resolves them
   (spec 2026-09-23 §1).
 
   Pure; the caller (`Plans.create_title_plan/2`) owns the TMDB fetch and

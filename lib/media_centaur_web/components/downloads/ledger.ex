@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Incoming.Ledger do
+defmodule MediaCentaurWeb.Components.Downloads.Ledger do
   @moduledoc """
   The History archive — the History tab's whole content, always open:
   lifecycle filter chips (`set_history_filter`, `:all` leading and
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Acquisition.DownloadStorage
-  alias MediaCentaurWeb.IncomingLive.HistoryLogic
+  alias MediaCentaurWeb.DownloadsLive.HistoryLogic
 
   attr :sections, :list,
     default: [],

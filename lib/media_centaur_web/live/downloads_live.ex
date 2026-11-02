@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.IncomingLive do
+defmodule MediaCentaurWeb.DownloadsLive do
   @moduledoc """
-  The Downloads page at `/incoming` (UIDR-015, amended 2026-11-02): the
+  The Downloads page at `/downloads` (UIDR-015, amended 2026-11-02): the
   *get* stage of a title's life (UIDR-057) — release search, download
   plans, the pursuits in flight and the history of what landed. The
   release search box is the standing front door (`Search.search_box/1`,
@@ -23,13 +23,13 @@ defmodule MediaCentaurWeb.IncomingLive do
   diagnosed empty state (UIDR-034) — searching and downloading need
   Prowlarr, with the one action, Settings → Acquisition — under the
   sidebar's unconditional entry. Section honesty is enforced once, in
-  `MediaCentaurWeb.IncomingLive.View` (the page's single composition
+  `MediaCentaurWeb.DownloadsLive.View` (the page's single composition
   point) — templates never re-check capabilities. The title detail host
   stays for the plan flow's subject and the title address (`?title=`).
 
   See `MediaCentaur.Search.QueryExpander` for the supported brace
-  syntax, `MediaCentaurWeb.IncomingLive.Logic` for search/group
-  helpers, and `MediaCentaurWeb.IncomingLive.HistoryLogic` for the
+  syntax, `MediaCentaurWeb.DownloadsLive.Logic` for search/group
+  helpers, and `MediaCentaurWeb.DownloadsLive.HistoryLogic` for the
   ledger/archive filter helpers.
 
   ## External-state reconciliation
@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Capabilities
 
-  alias MediaCentaurWeb.IncomingLive.{
+  alias MediaCentaurWeb.DownloadsLive.{
     HistoryLogic,
     Logic,
     OrphanQueue,
@@ -123,11 +123,11 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.TMDB.Title
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
-  alias MediaCentaurWeb.Components.Incoming.Ledger
+  alias MediaCentaurWeb.Components.Downloads.Ledger
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Detail.TitlePreview
-  alias MediaCentaurWeb.IncomingLive.View
-  alias MediaCentaurWeb.IncomingLive.PlanLogic
+  alias MediaCentaurWeb.DownloadsLive.View
+  alias MediaCentaurWeb.DownloadsLive.PlanLogic
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewModal
 
@@ -156,13 +156,13 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, page_title: "Incoming")
+    socket = assign(socket, page_title: "Downloads")
 
-    # No capability redirect: this page is the first acquisition surface
-    # that renders without Prowlarr (forecast-only). Capability gating is
-    # render-level, enforced once inside `View.build/1`. Forecast topics are
-    # always live; acquisition topics only when there's an indexer to hear
-    # from (re-checked in `:capabilities_changed` for mid-session setup).
+    # No capability redirect: the page renders without Prowlarr as its gap
+    # state. Capability gating is render-level, enforced once inside
+    # `View.build/1`. Acquisition topics are subscribed only when there's
+    # an indexer to hear from (re-checked in `:capabilities_changed` for
+    # mid-session setup).
     prowlarr? = Capabilities.prowlarr_ready?()
 
     # The plan board's bookmark reads the ladder; `watchlist:updates`
@@ -366,12 +366,12 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl TitleDetailHost
   def title_detail_path(socket, query),
-    do: incoming_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
+    do: downloads_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
 
   # The plan modal is this page's own: a patch swaps the title detail
   # for it (`apply_plan_modal_params/2`).
   @impl TitleDetailHost
-  def open_plan(socket, query), do: push_patch(socket, to: incoming_path(socket, query))
+  def open_plan(socket, query), do: push_patch(socket, to: downloads_path(socket, query))
 
   # A download that has started — approved here, or begun under
   # auto-select from the picker or the title detail — is the end of the
@@ -509,19 +509,19 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Path back to the page keeping the zone tab (default zone = clean
   # URL) — every modal open/close patch routes through this so leaving
   # a modal never dumps the user on a different tab.
-  defp incoming_path(socket, params \\ %{}) do
+  defp downloads_path(socket, params \\ %{}) do
     params =
       if socket.assigns.zone == :activity,
         do: params,
         else: Map.put(params, "zone", to_string(socket.assigns.zone))
 
     case URI.encode_query(params) do
-      "" -> "/incoming"
-      query -> "/incoming?" <> query
+      "" -> "/downloads"
+      query -> "/downloads?" <> query
     end
   end
 
-  # Builds a path back to `/incoming` preserving the archive filter/search
+  # Builds a path back to `/downloads` preserving the archive filter/search
   # so the modal open/close doesn't reset the user's surrounding view.
   # Overrides are merged last and `nil`-valued keys remove the param.
   defp build_pursuit_modal_path(socket, overrides) do
@@ -537,8 +537,8 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
 
     case merged do
-      [] -> "/incoming"
-      params -> "/incoming?" <> URI.encode_query(params)
+      [] -> "/downloads"
+      params -> "/downloads?" <> URI.encode_query(params)
     end
   end
 
@@ -656,7 +656,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       viewing_layer={assigns[:viewing_layer]}
       features={@features}
       flash={@flash}
-      current_path="/incoming"
+      current_path="/downloads"
       full_width
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
@@ -723,8 +723,8 @@ defmodule MediaCentaurWeb.IncomingLive do
             is built from this value. --%>
       <div
         class="relative"
-        data-page-behavior="incoming"
-        data-nav-default-zone="incoming"
+        data-page-behavior="downloads"
+        data-nav-default-zone="downloads"
         data-nav-transient-params="selected,title,entity,view,activity,plan,prowlarr_search"
       >
         <%!-- The calm ramp gives this search-first page the same quiet depth
@@ -957,7 +957,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     <%!-- Deliberately NO data-nav-zone-value: that attribute makes the
           active tab name the input system's LAYOUT key (the library
           page's mechanism). These are content tabs inside the single
-          `incoming` layout — the candidate lists route around whichever
+          `downloads` layout — the candidate lists route around whichever
           zones the active tab renders. --%>
     <a
       class={["zone-tab", @zone == @active_zone && "zone-tab-active"]}
@@ -1306,7 +1306,7 @@ defmodule MediaCentaurWeb.IncomingLive do
        |> assign(plan_drafts: load_drafts())
        |> build_view()
        |> put_flash(:info, "Stopped searching.")
-       |> push_patch(to: incoming_path(socket))}
+       |> push_patch(to: downloads_path(socket))}
     else
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, Logic.failure_flash("stop this search", reason))}
@@ -1317,7 +1317,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("close_plan", _params, socket) do
-    {:noreply, push_patch(socket, to: incoming_path(socket))}
+    {:noreply, push_patch(socket, to: downloads_path(socket))}
   end
 
   # Zone-tab switching is a URL patch (UIDR-015) — the default zone
@@ -1922,7 +1922,7 @@ defmodule MediaCentaurWeb.IncomingLive do
        |> assign(plan_drafts: load_drafts())
        |> build_view()
        |> put_flash(:info, "Plan discarded.")
-       |> push_patch(to: incoming_path(socket))}
+       |> push_patch(to: downloads_path(socket))}
     else
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, Logic.failure_flash("discard the plan", reason))}

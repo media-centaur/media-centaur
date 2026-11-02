@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.IncomingBadgeTest do
+defmodule MediaCentaurWeb.DownloadsBadgeTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
 
-  @incoming_pill ~s{aside a[data-tip="Incoming"] [data-component="follow-up-pill"]}
+  @downloads_pill ~s{aside a[data-tip="Downloads"] [data-component="follow-up-pill"]}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.IncomingBadgeTest do
 
   test "no pill when nothing awaits review", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/history")
-    refute has_element?(view, @incoming_pill)
+    refute has_element?(view, @downloads_pill)
   end
 
   test "a ready draft shows the count; discarding it clears the pill", %{conn: conn} do
@@ -27,13 +27,13 @@ defmodule MediaCentaurWeb.IncomingBadgeTest do
     MediaCentaur.JobRuns.run_enqueued_jobs()
 
     {:ok, view, _html} = live(conn, ~p"/history")
-    assert has_element?(view, @incoming_pill, "1")
+    assert has_element?(view, @downloads_pill, "1")
 
     {:ok, plan} = Plans.fetch(plan.id)
     {:ok, _discarded} = Plans.discard(plan)
     # No Worker runs under ExUnit; deliver the derived broadcast by hand.
     :ok = MediaCentaurWeb.ShellBadges.refresh_cache()
 
-    refute has_element?(view, @incoming_pill)
+    refute has_element?(view, @downloads_pill)
   end
 end

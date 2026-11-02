@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   LiveView that opens a title: it owns the URL, the open `Title.Detail`
   and `Title.ModalState`, every event of the modal, the owned asyncs,
   and the subscriptions that keep an open detail honest. Home, Library,
-  Social and Incoming `use` it.
+  Discovery, Social and Downloads `use` it.
 
   ## Host contract
 
@@ -32,15 +32,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     the activity the modal speaks for included — is read by identity.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
-  * `open_plan/2` — opens the plan modal on Incoming with a
+  * `open_plan/2` — opens the plan modal on Downloads with a
     `PlanQuery` query: the board of a plan, or the picker for a series
-    (`push_navigate` from another page, `push_patch` on Incoming itself,
+    (`push_navigate` from another page, `push_patch` on Downloads itself,
     which swaps this modal for it).
   * `download_started/1` — where the page leaves the person once a
     download has started under auto-select (`PlanFlow.land_started/3`):
-    Incoming patches to its Activity tab, where the download shows up,
+    Downloads patches to its Activity tab, where the download shows up,
     dropping whichever modal was open; every other page closes this
-    modal (`close_title/1`) — the sidebar's Incoming entry has already
+    modal (`close_title/1`) — the sidebar's Downloads entry has already
     been pointed at Activity.
 
   and keeps `:today`, `:spoiler_free`, `:letterboxd_links`,
@@ -124,7 +124,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.SocialLive.ActivityWords
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.LiveHelpers

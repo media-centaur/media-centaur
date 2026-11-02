@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
+defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   @moduledoc """
   Pure selection logic for the targeting picker (UIDR-014, ADR-030):
   the chosen-units set, season tri-states, and the quick-action

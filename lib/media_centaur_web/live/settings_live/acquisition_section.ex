@@ -115,7 +115,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             kind="torrent"
             editing={@editing == :download_client}
             removable
-            description="qBittorrent. Also powers the download progress on Incoming."
+            description="qBittorrent. Also powers the download progress on Downloads."
           >
             <:form>
               <div class="flex flex-wrap gap-x-3">

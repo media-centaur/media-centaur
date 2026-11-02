@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.GlassMenu
-  alias MediaCentaurWeb.IncomingLive.PlanLogic
+  alias MediaCentaurWeb.DownloadsLive.PlanLogic
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaur.TMDB.Title

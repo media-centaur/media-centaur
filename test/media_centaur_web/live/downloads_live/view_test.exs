@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.IncomingLive.ViewTest do
+defmodule MediaCentaurWeb.DownloadsLive.ViewTest do
   @moduledoc """
   Pure unit tests for the Downloads page's one composition point. The
   builder takes already-read facts and returns the operational sections;
@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
-  alias MediaCentaurWeb.IncomingLive.View
+  alias MediaCentaurWeb.DownloadsLive.View
 
   defp pursuit_row(overrides) do
     Map.merge(

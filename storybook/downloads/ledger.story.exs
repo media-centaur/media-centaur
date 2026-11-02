@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
+defmodule MediaCentaurWeb.Storybook.Downloads.Ledger do
   @moduledoc """
   The History archive — the History tab's whole content, always open:
   lifecycle filter chips (All leading and default) + title/release
@@ -12,9 +12,9 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
-  alias MediaCentaurWeb.IncomingLive.HistoryLogic
+  alias MediaCentaurWeb.DownloadsLive.HistoryLogic
 
-  def function, do: &MediaCentaurWeb.Components.Incoming.Ledger.ledger/1
+  def function, do: &MediaCentaurWeb.Components.Downloads.Ledger.ledger/1
   def render_source, do: :function
   def layout, do: :one_column
 

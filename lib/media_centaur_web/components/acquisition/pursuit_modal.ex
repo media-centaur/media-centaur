@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
   @moduledoc """
-  Modal shell for the pursuit detail view, opened from the Incoming
+  Modal shell for the pursuit detail view, opened from the Downloads
   Activity zone when a pursuit row is clicked.
 
   A tenant of the cinematic modal frame (`CinematicShell`), so a

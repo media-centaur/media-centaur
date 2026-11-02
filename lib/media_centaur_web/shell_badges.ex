@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.ShellBadges do
 
     * `:plans_awaiting_review` — draft plans in `ready`, waiting on a
       person's approval (`Acquisition.Plans.count_awaiting_review/0`).
-      Drives the Incoming follow-up pill.
+      Drives the Downloads follow-up pill.
     * `:diagnostics_unseen` — unseen auto-detected incidents
       (`MediaCentaurWeb.DiagnosticsBadge.count/0`, which owns the
       `diagnostics_seen_at` marker).
@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   Plan changes reach the sidebar through the derived broadcast only —
   the Worker refreshes on `PlanEvents.Changed` and the hook re-reads on
   `{:shell_badges_updated}`; pages that need the source event
-  (`IncomingLive`, `SocialLive`) subscribe to `acquisition:updates`
+  (`DownloadsLive`, `SocialLive`) subscribe to `acquisition:updates`
   themselves, so this hook must not.
 
   The hook also owns the session-wide subscription to `review:updates` /
@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.ShellBadges do
 
     * **Follow-up pills** — items on that page waiting on a decision from
       the user; persist until handled, and each source defines handling.
-      `plans_awaiting_review` (Incoming), `review_pending +
+      `plans_awaiting_review` (Downloads), `review_pending +
       mapping_pending` (Review), `diagnostics_unseen` (Status).
     * **Condition dot** — something is wrong right now; persists until
       resolved. `status_errors` (Status).

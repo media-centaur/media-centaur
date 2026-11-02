@@ -7,7 +7,7 @@ order: 17
 ---
 Release tracking watches TMDB for releases you don't have yet — the next season of a show, a
 film that isn't out — for every title with **Track release dates** or **Auto-grab** on in your
-[watchlist](/guide/watchlist-and-tracking). The title's watchlist row shows its next release;
+[watchlist](/guide/watchlist-and-tracking). The title's page shows its next release;
 Home's **Coming up** shelf shows the releases of the next three months. If acquisition is
 configured, tracking can grab them too.
 
@@ -22,20 +22,21 @@ downloading one.
 - **Taking a title off your list stops it, and deletes its calendar.** So does turning Track
   release dates off. Nothing except you can turn it back on.
 
-## The next release on the row
+## The next release on the title
 
-A tracked title's watchlist row carries its next release still to come at the right: a date
+A tracked title's page carries its next release still to come beside the two switches: a date
 that gets more explicit with distance (Tonight → Tue → Fri Jul 17 → Aug 6), the release
 (S02E04; a whole season dropping on one day collapses into one "all N episodes at once" line;
-a film's digital or disc date) and a status pill. Rows are ordered nearest first.
+a film's digital or disc date) and a status pill. On Discovery the title sits on the shelf for
+its stage — Out Now, In Theaters with its opening date, Coming Up with its release month.
 
-Titles TMDB hasn't dated yet have no next release. Their rows follow the dated ones, with
-**Tracking** or **Auto-grab** as the marker.
+Titles TMDB hasn't dated yet have no next release; their tile carries **Tracking** or
+**Auto-grab** as the marker.
 
-A release that has already come out and is still missing stays on the row for as long as the
+A release that has already come out and is still missing stays in the dates for as long as the
 app is searching for it — the date reads as how long ago it came out ("5 days ago",
 "May 1998") and the pill reads **Searching**. A release you have reads **Landed** for a week
-when nothing later is scheduled; otherwise the row moves on to the next one.
+when nothing later is scheduled.
 
 | Status | Meaning |
 |---|---|
@@ -46,7 +47,7 @@ when nothing later is scheduled; otherwise the row moves on to the next one.
 | Tracked | Dated, but won't auto-grab |
 | In theaters | A film's cinema date — informational only, never grabbed |
 
-Click a row for the title: its release dates beside the two switches.
+Open the title from its tile: its release dates sit beside the two switches.
 
 ## Auto-grab
 

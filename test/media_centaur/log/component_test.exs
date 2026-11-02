@@ -65,7 +65,7 @@ defmodule MediaCentaur.Log.ComponentTest do
     end
 
     test "web modules map to the domain they display" do
-      assert Component.for_module(MediaCentaurWeb.IncomingLive) == :acquisition
+      assert Component.for_module(MediaCentaurWeb.DownloadsLive) == :acquisition
       assert Component.for_module(MediaCentaurWeb.ReviewLive) == :review
     end
 

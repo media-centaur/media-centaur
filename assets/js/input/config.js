@@ -83,8 +83,8 @@ export const inputConfig = {
     new_releases: "[data-nav-zone='new_releases'] [data-nav-item]",
     friends: "[data-nav-zone='friends'] [data-nav-item]",
     watchlist: "[data-nav-zone='watchlist'] [data-nav-item]",
-    // The search box at the top of Discovery and of Incoming (one page
-    // renders one), then Incoming's single column: drafts → pursuits →
+    // The search box at the top of Discovery and of Downloads (one page
+    // renders one), then Downloads' single column: drafts → pursuits →
     // ledger; the ledger hosts the archive (chips + search).
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
@@ -119,7 +119,7 @@ export const inputConfig = {
     new_releases: Context.SHELF,
     friends: Context.SHELF,
     watchlist: Context.SHELF,
-    // Incoming zones are vertical item lists (the home pages keep their
+    // Downloads' zones are vertical item lists (the home pages keep their
     // horizontal `coming_up` SHELF instance above).
     omnibox: Context.MENU,
     drafts: Context.MENU,
@@ -347,7 +347,7 @@ export const inputConfig = {
       "episode-mapping-detail": { up: ["zone_tabs"], left: ["episode-mapping-list"] },
       sidebar:            { right: ["episode-mapping-list", "episode-mapping-detail", "zone_tabs"] },
     },
-    // Incoming: the release search box on top, then the zone tabs
+    // Downloads: the release search box on top, then the zone tabs
     // (Activity | History) — one tab's content renders at a time, so the
     // candidate lists do the routing: Activity shows drafts → pursuits →
     // other_downloads; History shows the ledger (one zone, chips + search).
@@ -355,7 +355,7 @@ export const inputConfig = {
     // result groups, carrying their own Clear) sits below the box. The
     // ledger always carries its controls as nav items once any history
     // exists, so the archive stays reachable.
-    incoming: {
+    downloads: {
       omnibox:         { down: ["grid", "zone_tabs", "drafts", "pursuits", "ledger"] },
       grid:            { up: ["omnibox"] },
       zone_tabs:       { up: ["omnibox"], down: ["drafts", "pursuits", "ledger", "other_downloads"] },
@@ -447,7 +447,7 @@ export const inputConfig = {
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
-    incoming:  ["pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
+    downloads:  ["pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
     social: ["feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],

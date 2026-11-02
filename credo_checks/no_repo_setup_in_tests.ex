@@ -79,8 +79,8 @@ defmodule MediaCentaur.Credo.Checks.NoRepoSetupInTests do
     "test/media_centaur/library/views/search_test.exs",
     "test/media_centaur/library/watch_progress_test.exs",
     "test/media_centaur/watch_history/event_test.exs",
-    "test/media_centaur_web/live/incoming_live_pursuit_modal_test.exs",
-    "test/media_centaur_web/live/incoming_live_test.exs",
+    "test/media_centaur_web/live/downloads_live_pursuit_modal_test.exs",
+    "test/media_centaur_web/live/downloads_live_test.exs",
     "test/media_centaur_web/page_smoke_test.exs"
   ]
 

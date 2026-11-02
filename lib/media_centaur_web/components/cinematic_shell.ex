@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
   The cinematic modal frame — the tenant-agnostic half of the detail-modal
   technology (2026-08-05 sticky-orientation design), extracted so every
   modal grounded in a presentable subject can wear it: the library detail
-  panel, the acquisition plan modal, the Incoming title modal, the
+  panel, the acquisition plan modal, the Downloads title modal, the
   pursuit modal.
 
   Owns the geometry machinery and nothing about the subject:
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
   The `detail-*` / `orientation-*` / `modal-page-*` CSS families in
   `app.css` belong to this frame. Hook elements derive unique DOM ids
   from `id` (`<id>-scrollport`, `<id>-content`) so multiple frames can
-  coexist in one DOM (e.g. plan modal + title modal on Incoming).
+  coexist in one DOM (e.g. plan modal + title modal on Downloads).
   """
 
   use MediaCentaurWeb, :html

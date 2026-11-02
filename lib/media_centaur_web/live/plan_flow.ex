@@ -7,22 +7,22 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
 
   Three surfaces start downloads and none hosts another. The title detail
   modal (`MediaCentaurWeb.Live.TitleDetailHost`, on Home, Library,
-  Social and Incoming) downloads a whole title by scope, and one
+  Discovery, Social and Downloads) downloads a whole title by scope, and one
   missing episode of an owned series from its gap row. The picker on
-  Incoming (`MediaCentaurWeb.IncomingLive`, the plan modal's targeting
+  Downloads (`MediaCentaurWeb.DownloadsLive`, the plan modal's targeting
   stage and movie confirm) downloads what the person chose there. A plan
   any of them has just created ends through `land_plan/5`; a download
   that has just started under auto-select — a plan in hand or not (the
   scoped title download hands the title to the supervised door,
   `Plans.plan_title/2`) — ends through `land_started/3`.
 
-  Activity on Incoming is where a started download shows up (UIDR-015),
+  Activity on Downloads is where a started download shows up (UIDR-015),
   so starting one points the page there: `land_started/3` remembers
-  `/incoming?zone=activity` for the sidebar's Incoming entry
+  `/downloads?zone=activity` for the sidebar's Downloads entry
   (`remember_activity/1`, the `phx:nav-remember` listener in the root
   layout — the store the sidebar-remember script already reads) and then
   either leaves the surface through the host's `download_started/1`
-  (Incoming patches to Activity itself; the others close the title
+  (Downloads patches to Activity itself; the others close the title
   detail) or stays put, as the surface says.
 
   Deliberately not a `use` macro: it holds no state and attaches no hooks.
@@ -34,8 +34,8 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
 
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaurWeb.IncomingLive.Logic, as: IncomingLogic
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
+  alias MediaCentaurWeb.DownloadsLive.Logic, as: IncomingLogic
+  alias MediaCentaurWeb.DownloadsLive.PlanQuery
 
   @type socket :: Phoenix.LiveView.Socket.t()
 
@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
 
   @doc """
   Ends a download that has just started under auto-select (spec
-  2026-09-23 follow-up §1): the flash for `label`, Incoming pointed at
+  2026-09-23 follow-up §1): the flash for `label`, Downloads pointed at
   Activity for the sidebar, then the surface's `ending`. LiveView
   refuses two redirects in one reply, so `:leave` is the host's one act.
   """
@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   end
 
   @doc """
-  Points the sidebar's Incoming entry at Activity until the person picks
+  Points the sidebar's Downloads entry at Activity until the person picks
   another tab there. The entry reopens the URL the root layout remembers
   for the page (`data-nav-remember`); the `phx:nav-remember` listener
   beside that script writes it.
