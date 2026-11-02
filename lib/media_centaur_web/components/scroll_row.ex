@@ -22,6 +22,14 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
   (`assets/js/hooks/scroll_row.js`) writes the track's edge state onto it as
   `data-at-start` / `data-at-end`; CSS drops the arrow pointing at an end
   already reached, so a track that fits shows none.
+
+  Pointer or not, the hook also decodes the images inside the track's
+  scrollport once the page is idle (`HTMLImageElement.decode()`, on mount
+  and for the images a patch adds): the images carry `decoding="sync"`
+  (UIDR-012), and a row below
+  the fold would otherwise pay every poster's decode inside the glide that
+  reveals it — 200 ms on the TV for Discovery's New Releases (the hook's
+  header has the measurement; `docs/tv-performance.md`, rule 5).
   """
 
   use Phoenix.Component

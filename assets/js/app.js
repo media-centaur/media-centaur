@@ -38,6 +38,7 @@ import {StripChart} from "./hooks/strip_chart"
 import {FeedHead} from "./hooks/feed_head"
 import {ImageCrop} from "./hooks/image_crop"
 import {ScrollRow} from "./hooks/scroll_row"
+import {whenIdle} from "./when_idle"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import {installNavReselect} from "./nav_reselect"
 import topbar from "../vendor/topbar"
@@ -273,7 +274,4 @@ const heroHints = Array.from(
   document.querySelectorAll('link[rel="prefetch"][data-hero-backdrop]'),
   (link) => link.getAttribute("href")
 )
-const whenIdle = window.requestIdleCallback
-  ? (callback) => window.requestIdleCallback(callback, {timeout: 4000})
-  : (callback) => setTimeout(callback, 1500)
 whenIdle(() => warmHeroBackdrops(heroHints, heroBitmapCache))

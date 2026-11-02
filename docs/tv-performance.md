@@ -56,7 +56,20 @@ TV-only styles key off it.
    master held at full size spent three quarters of its memory on pixels
    the TV never shows. A poster entering view costs about 25 ms of decode
    on the raster threads — avoid bringing many new images into view at
-   once.
+   once. A row below the fold brings all of its visible posters in with
+   the glide that reveals it, and `decoding="sync"` (UIDR-012) makes that
+   frame wait: Discovery's New Releases row held its first vertical glide
+   for 200 ms (2026-11-02, runs 20261102-121100 and 20261102-121641; the
+   trace shows the glide's scroll write blocked in
+   `LayerTreeHost::WaitForCommitCompletion` while 17 posters decoded). The
+   `ScrollRow` hook therefore decodes the images inside a row's scrollport
+   once the page is idle (`HTMLImageElement.decode()`), on mount and for
+   the images a patch adds; under that decode the same glide ran clean
+   (run 20261102-123105, worst stall 42 ms). Only the scrollport: a tile
+   hidden to the right enters one at a time with a sideways glide, at 60
+   fps, and decoding every tile ahead held 50 MB of pixels on Home that
+   the screen was not showing (rule 7). The decoded pixels are dropped
+   with the page.
 6. **The TV shows the desktop's composition.** A remote player has no
    auto-scale floor, so the TV draws the 1920 px layout at scale 0.5
    (`root.html.heex`). Design at 1920 CSS px; the TV has no room for larger.

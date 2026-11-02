@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-05-20
-amended: 2026-10-08
+amended: 2026-11-02
 ---
 # Desktop-app rendering defaults — eager, sync, stable, immutable
 
@@ -16,6 +16,8 @@ Media Centaur is a single-user desktop application with a library bounded by loc
 Memory and bandwidth are free here; trade them for instant perception.
 
 1. **Eager + sync decode** on every in-flow `<img>`: `loading="eager" decoding="sync"`. `loading="lazy"` only on bounded reveal-on-demand surfaces (cast headshots, modal search results). Enforced by MC0016.
+
+   **Amendment, 2026-11-02 ([UIDR-056](2026-10-25-056-the-tv-app-is-the-performance-floor.md)).** The sync decode is paid by the frame that first paints the image. On the first screen that is the load; below the fold it is the glide that brings the row into view — on the TV, Discovery's New Releases row (17 posters entering the raster region at once) held its first vertical glide for 200 ms in `LayerTreeHost::WaitForCommitCompletion`. The attribute stays; a scroll row now decodes the images inside its scrollport once the page is idle (`HTMLImageElement.decode()` in the `ScrollRow` hook, mounted or patched in), so the glide finds them ready; the tiles hidden to its right still decode as a sideways glide brings them in, one at a time, which the TV presents at 60 fps. Measured clean on the TV the same day (`docs/tv-performance.md`, rule 5).
 2. **`fetchpriority="high"`** on the modal backdrop only, so the signal stays meaningful.
 3. **Stable `id={...}` on every `:for` iterator root**, pattern `"<component>-<entity_id>"`, so morphdom preserves items across patches.
 4. **No entrance animations on routine renders.** Modal panel transitions stay, at 150 ms.

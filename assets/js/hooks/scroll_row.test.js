@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { ScrollRow, edges, step } from "./scroll_row"
+import { ScrollRow, decodeImages, edges, step } from "./scroll_row"
 import { installGlobal, installResizeObserver, restoreGlobals } from "../test_support/dom_stubs"
 import { scrollGlider } from "../scroll_glider.js"
 
@@ -70,6 +70,7 @@ function mount({
   clientWidth = 1000,
   cardWidth = 200,
   gap = 8,
+  images = [],
 } = {}) {
   installGlobal("matchMedia", (query) => ({ matches: query === "(hover: hover)" && hover }))
   installGlobal("getComputedStyle", () => ({ columnGap: `${gap}px` }))
@@ -106,11 +107,16 @@ function mount({
     scrollWidth,
     clientWidth,
     firstElementChild: { offsetWidth: cardWidth },
+    getBoundingClientRect: () => ({ left: 0, right: clientWidth }),
   })
-  const el = Object.assign(element(), { querySelector: (sel) => (sel === ":scope > .row-scroll" ? track : null) })
+  const el = Object.assign(element(), {
+    querySelector: (sel) => (sel === ":scope > .row-scroll" ? track : null),
+    querySelectorAll: (sel) => (sel === "img" ? images : []),
+  })
 
   const glides = []
-  const hook = Object.assign(Object.create(ScrollRow), { el })
+  const idle = []
+  const hook = Object.assign(Object.create(ScrollRow), { el, whenIdle: (callback) => idle.push(callback) })
   if (glider) hook.glider = { glide: (box, target) => glides.push({ box, target }) }
   hook.mounted()
 
@@ -118,7 +124,27 @@ function mount({
     target: { closest: (sel) => (sel === "[data-scroll-row-arrow]" ? { dataset: { scrollRowArrow: direction } } : null) },
   })
 
-  return { hook, el, track, glides, observers, arrow, press: (direction) => el.listeners.click(arrow(direction)) }
+  return {
+    hook,
+    el,
+    track,
+    glides,
+    observers,
+    arrow,
+    idle,
+    runIdle: () => idle.splice(0).forEach((callback) => callback()),
+    press: (direction) => el.listeners.click(arrow(direction)),
+  }
+}
+
+/** A poster `<img>` that counts its decode() calls, at `left` px in the track. */
+function image(decode = () => Promise.resolve(), left = 0) {
+  const img = { decodes: 0, getBoundingClientRect: () => ({ left, right: left + 200 }) }
+  img.decode = () => {
+    img.decodes += 1
+    return decode()
+  }
+  return img
 }
 
 describe("ScrollRow", () => {
@@ -228,6 +254,55 @@ describe("ScrollRow", () => {
       hook.destroyed()
     }).not.toThrow()
     expect(track.attributes).toEqual({})
+  })
+
+  // The TV draws the page at 1080p, so a shelf below the fold first paints
+  // during the glide that brings it into view, and `decoding="sync"`
+  // (UIDR-012) makes that frame wait on every poster's decode: 17 posters
+  // held Discovery's first vertical glide for 200 ms (2026-11-02, runs
+  // 20261102-121100 and -1216xx). Decoded at idle after mount, the glide
+  // found them ready. The decode runs with or without a pointer: it is the
+  // TV's case.
+  test("decodes the track's images once idle, pointer or not", () => {
+    const images = [image(), image()]
+    const { idle, runIdle } = mount({ hover: false, images })
+    expect(images.map((img) => img.decodes)).toEqual([0, 0])
+    expect(idle).toHaveLength(1)
+    runIdle()
+    expect(images.map((img) => img.decodes)).toEqual([1, 1])
+  })
+
+  // Only what a vertical reveal would paint: a tile hidden to the right
+  // decodes when a sideways glide brings it in, one at a time, which the TV
+  // showed at 60 fps; decoding it ahead would only hold its pixels (rule 7).
+  test("decodes only the images inside the track's scrollport", () => {
+    const shown = image(undefined, 800)
+    const hidden = image(undefined, 1200)
+    const { runIdle } = mount({ images: [shown, hidden], clientWidth: 1000 })
+    runIdle()
+    expect(shown.decodes).toBe(1)
+    expect(hidden.decodes).toBe(0)
+  })
+
+  test("a patch decodes only the images it added", () => {
+    const first = image()
+    const images = [first]
+    const { hook, runIdle } = mount({ images })
+    runIdle()
+    const added = image()
+    images.push(added)
+    hook.updated()
+    runIdle()
+    expect(first.decodes).toBe(1)
+    expect(added.decodes).toBe(1)
+  })
+
+  // An image that fails to load rejects its decode; the row has nothing to
+  // do about it and the rejection must not surface as an unhandled one.
+  test("a failing decode is swallowed", async () => {
+    const img = image(() => Promise.reject(new Error("broken")))
+    await expect(decodeImages([img], new WeakSet())).resolves.toBeUndefined()
+    expect(img.decodes).toBe(1)
   })
 
   test("destroyed releases the listeners and the observer", () => {
