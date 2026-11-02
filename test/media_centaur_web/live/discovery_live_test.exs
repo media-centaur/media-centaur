@@ -10,36 +10,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.NewReleases
   alias MediaCentaur.TmdbStubs
 
-  describe "the feature (ADR-081)" do
-    test "off by default: no sidebar entry, and the page is its off state", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery")
-
-      refute has_element?(view, "[data-tip='Discovery']")
-      assert has_element?(view, "#discovery-off")
-      assert render(view) =~ "Discovery is off"
-    end
-
-    test "Turn on sets the flag and mounts the page, whose entry is in the sidebar", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery")
-
-      view |> element("#discovery-off-turn-on") |> render_click()
-      assert Features.enabled?(:discovery)
-      assert_redirect(view, "/discovery")
-
-      {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "[data-tip='Discovery']")
-      assert render(view) =~ "Connect TMDB to fill this page"
-    end
-
-    test "the Feature flags row says it is in development", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/settings?section=features")
-      assert html =~ "In development."
-    end
-  end
-
   describe "the New Releases shelf" do
     setup do
-      Features.set(:discovery, true)
       TmdbStubs.mark_ready!()
       :ok
     end
@@ -190,7 +162,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   describe "the watchlist shelves" do
     setup do
-      Features.set(:discovery, true)
       TmdbStubs.mark_ready!()
       :ok
     end
@@ -264,7 +235,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
     setup context do
-      Features.set(:discovery, true)
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.setup_artwork_cache(context)
       Identity.ensure()
@@ -302,7 +272,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   describe "media search (UIDR-014, amended)" do
     setup do
-      Features.set(:discovery, true)
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.mark_ready!()
       :ok

@@ -1,7 +1,6 @@
 defmodule MediaCentaur.NewReleases.RefreshJobTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Features
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.NewReleases
   alias MediaCentaur.NewReleases.RefreshJob
@@ -32,16 +31,7 @@ defmodule MediaCentaur.NewReleases.RefreshJobTest do
     Oban.Testing.perform_job(RefreshJob, %{}, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite)
   end
 
-  test "while Discovery is off the job does nothing" do
-    refute Features.enabled?(:discovery)
-
-    assert :ok = perform()
-    refute_receive {:tmdb_hit, _path}
-    assert NewReleases.members() == []
-  end
-
   test "held while TMDB is down: no request, the membership untouched, and the run snoozes to try again" do
-    Features.set(:discovery, true)
     {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
 
     assert {:snooze, 300} = perform()
@@ -49,11 +39,22 @@ defmodule MediaCentaur.NewReleases.RefreshJobTest do
     assert NewReleases.members() == []
   end
 
-  test "with the feature on and TMDB up the shelf is refreshed" do
-    Features.set(:discovery, true)
-
+  test "with TMDB up the shelf is refreshed" do
     assert :ok = perform()
     assert_receive {:tmdb_hit, "/3/discover/movie"}
     assert NewReleases.refs() == [{901, :movie}]
+  end
+
+  test "the job runs daily and once at boot, as one unique job" do
+    crontab = cron_entries(Application.get_env(:media_centaur, Oban)[:plugins])
+    assert {"3 4 * * *", RefreshJob} in crontab
+    assert {"@reboot", RefreshJob} in crontab
+  end
+
+  defp cron_entries(plugins) do
+    Enum.find_value(plugins, [], fn
+      {Oban.Plugins.Cron, opts} -> Keyword.fetch!(opts, :crontab)
+      _plugin -> nil
+    end)
   end
 end

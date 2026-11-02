@@ -259,10 +259,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # the rungs, the library's TMDB owners, the acquisition states and
       # the friends' activity rows — a dozen bounded reads, run on both
       # renders (ADR-051) — plus the on_mount hooks' settings cache-miss
-      # reads in test mode. Seeded with the feature on and three members
-      # so the shelf path runs.
-      MediaCentaur.Features.set(:discovery, true)
-
+      # reads in test mode. Seeded with three members so the shelf path
+      # runs.
       for tmdb_id <- [901, 902, 903] do
         MediaCentaur.TestFactory.create_title_record(%{tmdb_id: tmdb_id, media_type: :movie})
       end

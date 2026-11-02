@@ -116,11 +116,11 @@ config :media_centaur, Oban,
        {"23 * * * *", MediaCentaur.Activities.StaleListingsJob},
        # Rewrites the New Releases shelf membership from TMDB's discover
        # query and ensures its members' records and artwork (campaign
-       # `discovery.md`); does nothing while the Discovery feature is off.
-       # Before the retention sweep, so a member that stays referenced is
-       # never swept between the two. The feature's runtime enqueues the
-       # same job at boot and at turn-on (`NewReleases.Kickoff`).
+       # `discovery.md`). Before the retention sweep, so a member that stays
+       # referenced is never swept between the two; and once at boot, so a
+       # shelf that fell behind while the app was off fills at once.
        {"3 4 * * *", MediaCentaur.NewReleases.RefreshJob},
+       {"@reboot", MediaCentaur.NewReleases.RefreshJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset

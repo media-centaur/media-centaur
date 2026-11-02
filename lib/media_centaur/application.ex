@@ -312,19 +312,16 @@ defmodule MediaCentaur.Application do
   # its own by hand.
   # Each feature's runtime (ADR-081): the children `Features.Runtime` runs
   # while the flag is on. Social dials relays, syncs with them and publishes
-  # the person's acts; remote players holds the one open pairing code;
-  # Discovery enqueues one New Releases refresh when its runtime starts, at
-  # boot or at turn-on, so the shelf fills without waiting for the daily
-  # cron. The children that are background work keep the instance rule:
-  # none in an instance without background services (the connection owner
-  # applies the same rule to itself).
+  # the person's acts; remote players holds the one open pairing code. The
+  # children that are background work keep the instance rule: none in an
+  # instance without background services (the connection owner applies the
+  # same rule to itself).
   defp feature_runtimes do
     %{
       social:
         [MediaCentaur.Social.Connections] ++
           background_only([MediaCentaur.RelaySync, MediaCentaur.Activities.Publisher]),
-      players: [MediaCentaur.Players.Pairing],
-      discovery: background_only([MediaCentaur.NewReleases.Kickoff])
+      players: [MediaCentaur.Players.Pairing]
     }
   end
 
