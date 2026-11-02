@@ -10,7 +10,9 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   keeps its sized column (`1.7fr`) and the secondary track is filled with
   a "See all" placeholder linking to Discovery, where the watchlist by
   release stage lives — mirroring the Continue Watching row — rather than
-  stretching the hero full-width.
+  stretching the hero full-width; while the Discovery feature is off the
+  column stays empty (`see_all?`), since an off feature has no
+  affordances elsewhere (ADR-081).
 
   A tile opens the title detail in place (UIDR-043): `select_entity` when
   the tracked title has a paired library entity, else `open_title` by the
@@ -90,6 +92,10 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
 
   attr :marquee, Marquee, required: true
 
+  attr :see_all?, :boolean,
+    default: true,
+    doc: "whether the See all tile may link to Discovery — false while that feature is off"
+
   def coming_up_marquee(assigns) do
     ~H"""
     <div
@@ -105,7 +111,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
           fill?={length(@marquee.secondaries) > 1}
         />
       </div>
-      <.see_all_tile :if={@marquee.secondaries == []} />
+      <.see_all_tile :if={@marquee.secondaries == [] and @see_all?} />
     </div>
     """
   end

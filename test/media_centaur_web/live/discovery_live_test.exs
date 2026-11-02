@@ -18,6 +18,52 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Watchlist
 
+  describe "the feature (ADR-081)" do
+    test "on by default: the sidebar entry and the page", %{conn: conn} do
+      TmdbStubs.mark_ready!()
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "[data-tip='Discovery']")
+      refute has_element?(view, "#discovery-off")
+      assert has_element?(view, "#omnibox-media-input")
+    end
+
+    test "off: no sidebar entry, no Coming Up link to it, and the page is its off state with Turn on",
+         %{conn: conn} do
+      Features.set(:discovery, false)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      refute has_element?(view, "[data-tip='Discovery']")
+      assert has_element?(view, "#discovery-off")
+      assert render(view) =~ "Discovery is off"
+
+      # Home's Coming Up still draws the tracked release; its See all, which
+      # leads to Discovery, is the one affordance that goes (ADR-081).
+      item = create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(Date.utc_today(), 3),
+        released: false
+      })
+
+      {:ok, home, _html} = live(conn, "/")
+      assert has_element?(home, "section[data-row='coming-up']", "Coming Up")
+      refute has_element?(home, "section[data-row='coming-up']", "See all")
+
+      view |> element("#discovery-off-turn-on") |> render_click()
+      assert Features.enabled?(:discovery)
+    end
+
+    test "the Feature flags row lists it as optional, on", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/settings?section=features")
+      assert html =~ "Discovery"
+      refute html =~ "In development."
+    end
+  end
+
   describe "the New Releases shelf" do
     setup do
       TmdbStubs.mark_ready!()

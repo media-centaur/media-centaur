@@ -56,6 +56,14 @@ defmodule MediaCentaur.Features do
       stage: :optional
     },
     %Feature{
+      id: :discovery,
+      name: "Discovery",
+      description:
+        "New digital releases, your friends' reviews and your watchlist on one page, with title search.",
+      default: true,
+      stage: :optional
+    },
+    %Feature{
       id: :apps,
       name: "Apps",
       description: "A launcher for Steam games and other programs outside your library.",

@@ -1,11 +1,12 @@
 defmodule MediaCentaur.NewReleases do
   use Boundary,
     deps: [
+      MediaCentaur.Features,
       MediaCentaur.IntegrationAvailability,
       MediaCentaur.TMDB,
       MediaCentaur.TmdbArtwork
     ],
-    exports: [Member, RefreshJob, TmdbReferences]
+    exports: [Member, RefreshJob, Scheduler, TmdbReferences]
 
   @moduledoc """
   The New Releases shelf: which movies recently became available at home
@@ -23,9 +24,11 @@ defmodule MediaCentaur.NewReleases do
   membership whole (`replace/1`, which publishes `{:new_releases_changed}`
   on `Topics.new_releases_updates/0`) and then ensures each member's
   record and artwork in shelf order through `TmdbArtwork.ensure/2`, the
-  one first contact (`Store.ensure/2` beneath it). It runs from
-  `RefreshJob`, daily and once at boot. Opening the page reads `members/0`
-  and the store only.
+  one first contact (`Store.ensure/2` beneath it). `RefreshJob` carries
+  it; `Scheduler`, the Discovery feature's runtime child, enqueues the job
+  when the runtime starts and daily after that, so nothing of the shelf's
+  runs while the feature is off (ADR-081). Opening the page reads
+  `members/0` and the store only.
 
   A context of its own, above TMDB and the artwork tier: the artwork tier
   depends on TMDB, so a refresh that ensures artwork cannot live inside

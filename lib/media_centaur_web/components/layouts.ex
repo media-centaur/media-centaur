@@ -140,8 +140,10 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, "/library")}
             remember
           />
-          <%!-- Discovery: the titles you do not own yet (UIDR-057). --%>
+          <%!-- Discovery: the titles you do not own yet (UIDR-057); an
+                optional feature, on by default (ADR-081). --%>
           <SidebarLink.sidebar_link
+            :if={:discovery in @features}
             id="sidebar-discovery"
             navigate="/discovery"
             label="Discovery"

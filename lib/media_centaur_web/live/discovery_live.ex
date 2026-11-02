@@ -2,7 +2,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   @moduledoc """
   Discovery: the page for titles you do not own yet (campaign
   `discovery.md`) — the second assembled page, shelved like Home, and the
-  *choose* stage of a title's life (UIDR-057).
+  *choose* stage of a title's life (UIDR-057). An optional feature
+  (ADR-081), on by default: its sidebar entry, this page and its shelf
+  refresh exist while the `:discovery` flag is on, and the page is its off
+  state otherwise.
 
   **Media search** lives at the top of the page (UIDR-014, amended
   2026-11-01; `Live.MediaSearch`): the omnibox centred over the hero's
@@ -53,6 +56,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   alias MediaCentaur.Acquisition.TitleStates
   alias MediaCentaur.Activities
+  alias MediaCentaur.Features
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.NewReleases
@@ -60,7 +64,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.TMDB.{ReleaseStages, Store, Title}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.Acquisition.{MediaOmnibox, MediaResults}
-  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, PosterRow, ShelfHead}
+  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
   alias MediaCentaurWeb.Components.{HeroBackdrop, HeroCard}
   alias MediaCentaurWeb.Components.Title.{ToolbarSlots, WatchlistToggle}
   alias MediaCentaurWeb.DiscoveryLive.Shelves
@@ -97,12 +101,18 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      )}
   end
 
-  # The shelves load once, on whichever render comes first (ADR-051).
+  # The shelves load once, on whichever render comes first (ADR-051), and
+  # only while the feature is on: the off state reads nothing.
   @impl true
   def handle_params(_params, _uri, socket), do: {:noreply, ensure_loaded(socket)}
 
   defp ensure_loaded(%{assigns: %{loaded?: true}} = socket), do: socket
-  defp ensure_loaded(socket), do: socket |> assign(:loaded?, true) |> load_shelves()
+
+  defp ensure_loaded(socket) do
+    if :discovery in socket.assigns.features,
+      do: socket |> assign(:loaded?, true) |> load_shelves(),
+      else: socket
+  end
 
   # Every read is bounded and local: the membership, the listed titles,
   # the friends' reviews, then for their refs together the store's
@@ -239,10 +249,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           relay_counts={@review_relay_counts}
         />
       </:overlays>
+      <FeatureOff.feature_off
+        :if={:discovery not in @features}
+        id="discovery-off"
+        feature={Features.get(:discovery)}
+      />
       <%!-- The modal's params are modal state: stripped from the remembered
             URL so leaving the page closes the modal rather than reopening
             it on return. --%>
       <div
+        :if={:discovery in @features}
         class="relative"
         data-page-behavior="discovery"
         data-nav-default-zone="discovery"

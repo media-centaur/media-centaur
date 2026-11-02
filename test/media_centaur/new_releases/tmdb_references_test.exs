@@ -1,17 +1,23 @@
 defmodule MediaCentaur.NewReleases.TmdbReferencesTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Features
   alias MediaCentaur.NewReleases
   alias MediaCentaur.NewReleases.TmdbReferences
 
-  test "every member is a scheduled reference" do
+  setup do
     :ok = NewReleases.replace([%{tmdb_id: 301, digital_date: ~D[2026-10-30]}])
+  end
+
+  test "every member is a scheduled reference while Discovery is on" do
+    assert Features.enabled?(:discovery)
 
     assert TmdbReferences.references() == MapSet.new([{301, :movie}])
     assert TmdbReferences.schedules_checks?()
   end
 
-  test "an empty shelf references nothing" do
+  test "while Discovery is off the shelf references nothing" do
+    Features.set(:discovery, false)
     assert TmdbReferences.references() == MapSet.new()
   end
 end

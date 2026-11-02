@@ -241,8 +241,14 @@ defmodule MediaCentaurWeb.HomeLive do
             data-nav-reveal
             data-nav-reveal-block="end"
           >
-            <ShelfHead.shelf_head title="Coming Up" see_all_href="/discovery" />
-            <ComingUpMarquee.coming_up_marquee marquee={@coming_up_marquee} />
+            <ShelfHead.shelf_head
+              title="Coming Up"
+              see_all_href={if :discovery in @features, do: "/discovery"}
+            />
+            <ComingUpMarquee.coming_up_marquee
+              marquee={@coming_up_marquee}
+              see_all?={:discovery in @features}
+            />
           </section>
 
           <%!-- Empty state if everything is empty --%>
