@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   the store's snapshot. A member the store has no record for yet is not
   drawn (the refresh or the check job stores it and the page follows);
   an ignored title is dropped, as the Feed drops it. The marker is the
-  first of `Title.Logic.row_markers/2`'s words: In library, an
+  first of `Title.Logic.row_markers/1`'s words: In library, an
   acquisition state, or the rung.
   """
   @spec new_releases_items(
@@ -220,7 +220,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
       name: title.name,
       year: title.year,
       poster_url: TitleArtwork.urls(title, %{}, :w342).poster_url,
-      marker: facts |> Logic.row_markers(false) |> List.first(),
+      marker: facts |> Logic.row_markers() |> List.first(),
       slots:
         ToolbarSlots.resolve(%{
           rung: rung,

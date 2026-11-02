@@ -192,6 +192,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     %ComingUpMarquee.Item{
       id: release.item.id,
       entity_id: Map.get(release.item, :entity_id),
+      ref: {Map.get(release.item, :tmdb_id), Map.get(release.item, :media_type)},
       name: release.item.name,
       eyebrow: eyebrow,
       badge: badge_for_status(release.status),

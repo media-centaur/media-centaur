@@ -1,15 +1,12 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
   @moduledoc """
-  The Downloads hero search (UIDR-014) — one surface, two modes. Media
-  mode asks "What do you want to watch?"; release mode flips the same
-  box into the brace-expansion query form. Both modes answer flat,
-  below the hero, outside this component (media: the MediaResults
-  section; release: the search zone).
+  Discovery's search box (UIDR-014, amended) — "What do you want to
+  watch?" over the hero's artwork, the placeholder alone. The results
+  answer flat below it, outside this component (the MediaResults
+  section).
   """
 
   use PhoenixStorybook.Story, :component
-
-  alias MediaCentaurWeb.IncomingLive.SearchSession
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.MediaOmnibox.media_omnibox/1
   def render_source, do: :function
@@ -25,70 +22,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
   def variations do
     [
       %Variation{
-        id: :media_resting,
-        description: "Fresh page — media mode, nothing typed, the release-mode flip bottom right.",
-        attributes: %{mode: :media}
+        id: :resting,
+        description: "Fresh page — nothing typed, the placeholder alone.",
+        attributes: %{}
       },
       %Variation{
-        id: :media_typed,
-        description:
-          "A query in the box — the in-input clear X appears at the far right " <>
-            "(same in release mode, where it dismisses the session).",
-        attributes: %{mode: :media, query: "nosferatu"}
-      },
-      %Variation{
-        id: :release_mode,
-        description:
-          "The flipped box — monospace brace-expansion input (Enter to search, no button), " <>
-            "syntax hint, expansion preview, and the way back to media mode.",
-        attributes: %{
-          mode: :release,
-          session: %SearchSession{
-            query: "Sample Show S01E{01-04}",
-            expansion_preview: {:ok, 4}
-          }
-        }
-      },
-      %Variation{
-        id: :release_invalid_syntax,
-        description:
-          "Invalid braces — error-colored preview; Enter still submits (submit_search guards server-side).",
-        attributes: %{
-          mode: :release,
-          session: %SearchSession{
-            # An unbalanced literal `{` breaks storybook's HEEx attr
-            # serialization (naive brace counting) — stand in with a
-            # brace-free malformed query; the preview carries the error.
-            query: "Sample Show S01E01-",
-            expansion_preview: {:error, :invalid_syntax}
-          }
-        }
-      },
-      %VariationGroup{
-        id: :hero,
-        description:
-          "Hero mode — the Incoming page's front door. Centered column without the card " <>
-            "chrome, a taller input, and the mode hint below with the " <>
-            "active mode emphasized (the inactive name is the flip control — same " <>
-            "omnibox_mode event as the corner toggle). Default (hero: false) renders " <>
-            "exactly as the variations above.",
-        variations: [
-          %Variation{
-            id: :hero_media,
-            attributes: %{mode: :media, hero: true}
-          },
-          %Variation{
-            id: :hero_release,
-            attributes: %{
-              mode: :release,
-              hero: true,
-              session: %SearchSession{
-                query: "Nosferatu 1922 {720p,1080p}",
-                expansion_preview: {:ok, 2}
-              }
-            }
-          }
-        ]
+        id: :typed,
+        description: "A query in the box — the in-input clear X appears at the far right.",
+        attributes: %{query: "nosferatu"}
       }
     ]
   end

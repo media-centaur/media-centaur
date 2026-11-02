@@ -1,8 +1,9 @@
 /**
- * The omnibox's CLEAR, shared by the pages that host the media search
- * (Discovery, and Incoming until cutover): wipe the box client-side and
- * dispatch `input` so LiveView hears the change. One mode's input is
- * rendered at a time (media vs release search on Incoming).
+ * A search box's CLEAR, shared by the pages that carry one — Discovery's
+ * media search (`#omnibox-media-input`) and Downloads' release search
+ * (`#omnibox-release-input`): wipe the box client-side and dispatch
+ * `input` so LiveView hears the change. Each behaviour names its own
+ * input; one page renders one box.
  */
 
 /** Wrap an input element in the {value, clear} interface, or null. */
@@ -17,9 +18,7 @@ export function clearableInput(el) {
   }
 }
 
-/** The rendered omnibox input, whichever mode is up. */
-export function omniboxInput() {
-  const el = document.getElementById("omnibox-media-input")
-    ?? document.getElementById("omnibox-release-input")
-  return clearableInput(el)
+/** The page's search input by id, or null while the page does not render it. */
+export function omniboxInput(id) {
+  return clearableInput(document.getElementById(id))
 }

@@ -144,26 +144,17 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   order: the library or acquisition state (one of them — In library
   wins), then the tracking rung (Tracking at Follow, Auto-grab at Grab;
   never for an owned title, whose tracking is the library detail's). A
-  followed title's next release is the row's own block
-  (`Row.NextRelease`), not a marker.
-
-  `list_implied?` is a fact about the *container*, not the title: pass
-  true where every row is on the list — Incoming's Watchlist tab — and
-  the List rung's own marker is dropped as redundant. Everywhere else a
-  listed title says so, which is the only place a search result can.
+  listed title says so: On your list at List.
 
   What people did with the title is the social glyphs', and a feed row's
   sender/when line is the host's; neither is a marker.
   """
-  @spec row_markers(
-          %{
-            required(:in_library?) => boolean(),
-            required(:acquisition_state) => acquisition_state(),
-            optional(:rung) => TitleIntent.rung() | nil
-          },
-          boolean()
-        ) :: [String.t()]
-  def row_markers(facts, list_implied? \\ false) do
+  @spec row_markers(%{
+          required(:in_library?) => boolean(),
+          required(:acquisition_state) => acquisition_state(),
+          optional(:rung) => TitleIntent.rung() | nil
+        }) :: [String.t()]
+  def row_markers(facts) do
     state =
       cond do
         facts.in_library? -> "In library"
@@ -173,7 +164,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
     tracking =
       if not facts.in_library? do
-        rung_marker(Map.get(facts, :rung), list_implied?)
+        rung_marker(Map.get(facts, :rung))
       end
 
     Enum.reject([state, tracking], &is_nil/1)
@@ -182,12 +173,9 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   # Off says nothing — the row would not be here. Ignored says nothing
   # either: it is a stance about the Feed, not an acquisition state, so a
   # search result carries no marker for it; the title detail says so.
-  # List says it is on the list, except where the container already
-  # says so.
-  defp rung_marker(nil, _list_implied?), do: nil
-  defp rung_marker(:ignored, _list_implied?), do: nil
-  defp rung_marker(:list, true), do: nil
-  defp rung_marker(:list, false), do: "On your list"
-  defp rung_marker(:follow, _list_implied?), do: "Tracking"
-  defp rung_marker(:grab, _list_implied?), do: "Auto-grab"
+  defp rung_marker(nil), do: nil
+  defp rung_marker(:ignored), do: nil
+  defp rung_marker(:list), do: "On your list"
+  defp rung_marker(:follow), do: "Tracking"
+  defp rung_marker(:grab), do: "Auto-grab"
 end

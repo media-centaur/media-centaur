@@ -152,7 +152,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "row_markers/2" do
+  describe "row_markers/1" do
     test "in library wins, then the acquisition state" do
       assert Logic.row_markers(%{
                in_library?: true,
@@ -174,7 +174,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "row_markers/2 tracking" do
+  describe "row_markers/1 tracking" do
     test "a followed title says Tracking, a grabbing one Auto-grab; Off and owned say nothing" do
       base = %{in_library?: false, acquisition_state: nil, rung: nil}
 
@@ -188,14 +188,6 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     test "an ignored title carries no marker — Ignored is a Feed stance, not an acquisition state" do
       base = %{in_library?: false, acquisition_state: nil}
       assert Logic.row_markers(Map.put(base, :rung, :ignored)) == []
-      assert Logic.row_markers(Map.put(base, :rung, :ignored), true) == []
-    end
-
-    test "list_implied? drops only the List marker" do
-      base = %{in_library?: false, acquisition_state: nil, rung: nil}
-
-      assert Logic.row_markers(Map.put(base, :rung, :list), true) == []
-      assert Logic.row_markers(Map.put(base, :rung, :follow), true) == ["Tracking"]
     end
   end
 

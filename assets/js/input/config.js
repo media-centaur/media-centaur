@@ -61,8 +61,6 @@ export const inputConfig = {
     person_rows: "[data-nav-zone='person_rows'] [data-nav-item]",
     person_view: "[data-nav-zone='person_view'] [data-nav-item]",
     profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
-    // Incoming's Watchlist rows: one nav item per row (`Title.Row`).
-    title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     // The viewing layer's track menu (a remote player's OSD): two columns,
     // each a GlassMenu list, walked as MENUs with left/right between them.
     viewing_audio: "[data-nav-zone='viewing_audio'] [data-nav-item]",
@@ -85,9 +83,9 @@ export const inputConfig = {
     new_releases: "[data-nav-zone='new_releases'] [data-nav-item]",
     friends: "[data-nav-zone='friends'] [data-nav-item]",
     watchlist: "[data-nav-zone='watchlist'] [data-nav-item]",
-    // Incoming page (single column: omnibox → the Watchlist's title_rows →
-    // drafts → pursuits → ledger); the ledger hosts both the glimpse rows
-    // and the expanded archive (chips + search).
+    // The search box at the top of Discovery and of Incoming (one page
+    // renders one), then Incoming's single column: drafts → pursuits →
+    // ledger; the ledger hosts the archive (chips + search).
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
@@ -123,7 +121,6 @@ export const inputConfig = {
     watchlist: Context.SHELF,
     // Incoming zones are vertical item lists (the home pages keep their
     // horizontal `coming_up` SHELF instance above).
-    title_rows: Context.MENU,
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
@@ -350,28 +347,23 @@ export const inputConfig = {
       "episode-mapping-detail": { up: ["zone_tabs"], left: ["episode-mapping-list"] },
       sidebar:            { right: ["episode-mapping-list", "episode-mapping-detail", "zone_tabs"] },
     },
-    // Incoming: omnibox on top, then the zone tabs (Watchlist | Activity |
-    // History) — one tab's content renders at a time, so the candidate
-    // lists do the routing: Watchlist shows title_rows; Activity shows
-    // drafts → pursuits → other_downloads; History shows the ledger
-    // (glimpse AND expanded archive, one zone). While a search owns the
-    // page the tabs recede: media search renders "toolbar" (scope chips +
-    // Clear) over "grid" (the result rows, a 2-column pick/bookmark grid
-    // via the row-level data-nav-grid); release search renders only "grid"
-    // (its linear group list carries its own Clear). The ledger always
-    // carries its "View all" toggle as a nav item once any history exists,
-    // so the archive stays reachable.
+    // Incoming: the release search box on top, then the zone tabs
+    // (Activity | History) — one tab's content renders at a time, so the
+    // candidate lists do the routing: Activity shows drafts → pursuits →
+    // other_downloads; History shows the ledger (one zone, chips + search).
+    // While a search owns the page the tabs recede and only "grid" (the
+    // result groups, carrying their own Clear) sits below the box. The
+    // ledger always carries its controls as nav items once any history
+    // exists, so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "title_rows", "drafts", "pursuits", "ledger"] },
-      toolbar:         { up: ["omnibox"], down: ["grid"] },
-      grid:            { up: ["toolbar", "omnibox"] },
-      zone_tabs:       { up: ["omnibox"], down: ["title_rows", "drafts", "pursuits", "ledger", "other_downloads"] },
-      title_rows:      { up: ["zone_tabs", "omnibox"] },
+      omnibox:         { down: ["grid", "zone_tabs", "drafts", "pursuits", "ledger"] },
+      grid:            { up: ["omnibox"] },
+      zone_tabs:       { up: ["omnibox"], down: ["drafts", "pursuits", "ledger", "other_downloads"] },
       drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"] },
       pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"] },
       ledger:          { up: ["zone_tabs", "omnibox"] },
       other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
-      sidebar:         { right: ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox"] },
+      sidebar:         { right: ["pursuits", "ledger", "zone_tabs", "omnibox"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"] },
@@ -455,7 +447,7 @@ export const inputConfig = {
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
-    incoming:  ["title_rows", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
+    incoming:  ["pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
     social: ["feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],

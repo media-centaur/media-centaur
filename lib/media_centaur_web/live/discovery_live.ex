@@ -266,13 +266,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               control on the page that is not a tile. Without TMDB the box
               cannot answer and the capability gap below says so. --%>
         <div :if={@tmdb_ready} class="relative z-[3] pb-4">
-          <MediaOmnibox.media_omnibox
-            hero
-            hint={false}
-            mode={:media}
-            query={@omnibox_query}
-            release_mode_available={false}
-          />
+          <MediaOmnibox.media_omnibox query={@omnibox_query} />
         </div>
 
         <%!-- A query owns the page: the results, flat, in the title rows
@@ -368,7 +362,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             data-nav-reveal-block="end"
             data-nav-reveal-next
           >
-            <ShelfHead.shelf_head title="Out Now" see_all_href="/incoming" />
+            <ShelfHead.shelf_head title="Out Now" />
             <PosterRow.poster_row id="out-now-row" items={@out_now} show_play_button={false} />
           </section>
 
@@ -407,7 +401,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             data-nav-reveal
             data-nav-reveal-block="end"
           >
-            <ShelfHead.shelf_head title="Watchlist" see_all_href="/incoming" />
+            <ShelfHead.shelf_head title="Watchlist" />
             <PosterRow.grouped_poster_row
               id="watchlist-row"
               groups={@watchlist_groups}

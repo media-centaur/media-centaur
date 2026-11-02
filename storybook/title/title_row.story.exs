@@ -87,65 +87,6 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         attributes: %{id: "row-needs-review", title: title(), markers: ["Needs review"]}
       },
       %Variation{
-        id: :next_release,
-        description:
-          "A followed show with a dated next release: the date, the episode and its status at the right.",
-        attributes: %{
-          id: "row-next-release",
-          title: title(%{media_type: :tv_series, name: "Sample Show"}),
-          markers: ["Tracking"],
-          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
-            air_date: ~D[2026-10-09],
-            date_label: "Fri Oct 9",
-            subtitle: "S02E04",
-            status: :tracked
-          }
-        }
-      },
-      %Variation{
-        id: :landed_and_next,
-        description:
-          "A weekly show between episodes: the one that just landed on a quiet line above " <>
-            "the next one still to come.",
-        attributes: %{
-          id: "row-landed-and-next",
-          title: title(%{media_type: :tv_series, name: "Sample Show"}),
-          markers: ["Auto-grab"],
-          landed: %MediaCentaurWeb.Components.Title.Row.NextRelease{
-            air_date: ~D[2026-10-02],
-            date_label: "3 days ago",
-            subtitle: "S02E03",
-            status: :landed
-          },
-          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
-            air_date: ~D[2026-10-09],
-            date_label: "Fri Oct 9",
-            subtitle: "S02E04",
-            status: :armed
-          }
-        }
-      },
-      %Variation{
-        id: :in_pursuit,
-        description:
-          "Its release dropped and a pursuit is grabbing it: the pill carries the percent and, " <>
-            "given a `pursuit_path`, is a button that switches to the Activity tab.",
-        attributes: %{
-          id: "row-in-pursuit",
-          title: title(%{media_type: :tv_series, name: "Sample Show"}),
-          markers: ["Auto-grab"],
-          pursuit_path: "/incoming?zone=activity",
-          next_release: %MediaCentaurWeb.Components.Title.Row.NextRelease{
-            air_date: ~D[2026-10-01],
-            date_label: "Yesterday",
-            subtitle: "S02E03",
-            status: :in_pursuit,
-            percent: 62,
-            pursuit_id: "7f1d2a0e-0000-4000-8000-000000000001"
-          }
-        }
-      },
-      %Variation{
         id: :reviewed_by_one,
         description:
           "A title one friend reviewed: On watchlist is a marker, the note " <>

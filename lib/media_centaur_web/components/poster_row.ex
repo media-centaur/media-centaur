@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   (`entity_id`, opened by `select_entity`, with the play overlay) or a
   TMDB identity (`ref`, opened by `open_title`, no Play: nothing to play),
   the two openings the title detail host already has. `marker` is the
-  quiet state chip at the poster's foot, in `Title.Logic.row_markers/2`'s
+  quiet state chip at the poster's foot, in `Title.Logic.row_markers/1`'s
   words; `chip` a date at the poster's head (an opening date, a release
   month); `glyphs` the title's social glyphs in a dark pill at the top
   right (`Title.SocialGlyph`, UIDR-049), each a flag at its grade;

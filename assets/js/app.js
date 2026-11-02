@@ -179,19 +179,21 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
 })
 
-// Incoming page: "Clear search" wipes the omnibox input client-side. The
-// server resets @omnibox_query, but LiveView never overwrites a focused
-// input's value — without this, the stale text would sit in the box.
+// The search boxes (Discovery's media search, Downloads' release search):
+// "Clear search" wipes the input client-side. The server resets the query,
+// but LiveView never overwrites a focused input's value — without this, the
+// stale text would sit in the box.
 window.addEventListener("omnibox:clear-input", (event) => {
   event.target.value = ""
 })
 
-// Incoming page: closing the plan modal hands the page back to searching, so
-// focus returns to the omnibox — pointer users only (same gate as
-// MouseAutofocus): for keyboard/gamepad the input system owns focus (ADR-053).
+// Clearing a search, or closing the plan modal on Downloads, hands the page
+// back to searching, so focus returns to the page's search box — pointer
+// users only (same gate as MouseAutofocus): for keyboard/gamepad the input
+// system owns focus (ADR-053). One page renders one box.
 window.addEventListener("phx:omnibox:refocus", () => {
   if (shouldAutofocus(document.documentElement.dataset.input)) {
-    document.getElementById("omnibox-media-input")?.focus()
+    document.querySelector("[data-nav-zone='omnibox'] input")?.focus()
   }
 })
 

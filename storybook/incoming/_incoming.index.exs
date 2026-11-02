@@ -4,6 +4,5 @@ defmodule MediaCentaurWeb.Storybook.Incoming do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "inbox", :light, "psb:mr-1"}
 
-  def entry("status_pill"), do: [icon: {:fa, "tag", :thin}, name: "Status pill"]
   def entry("ledger"), do: [icon: {:fa, "clock-rotate-left", :thin}, name: "History archive"]
 end

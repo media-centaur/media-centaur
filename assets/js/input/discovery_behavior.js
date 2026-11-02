@@ -7,7 +7,7 @@
  * surface — and stay where the cursor is. Clearing the query hands the
  * page back from the search results to the hero and the shelves.
  *
- * The DOM is injected, as the Incoming behavior's is.
+ * The DOM is injected, as the Downloads behavior's is.
  */
 
 import { omniboxInput } from "./omnibox_clear"
@@ -18,7 +18,7 @@ import { omniboxInput } from "./omnibox_clear"
  */
 
 const REAL_DOM = {
-  getOmniboxInput: omniboxInput,
+  getOmniboxInput: () => omniboxInput("omnibox-media-input"),
 }
 
 /**

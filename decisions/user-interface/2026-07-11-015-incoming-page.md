@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-07-11
-amended: 2026-10-02
+amended: 2026-11-02
 ---
 # Merge Upcoming and Downloads into one "Incoming" page
 
+> **Amendment 2026-11-02 (campaign `discovery.md`, M14 cutover) — the page is Downloads.** The collection-growth story this record merged into one page is split again by stage (UIDR-057): *choose* on Discovery, *get* here. The page is **Downloads** at `/downloads`, the *get* stage: release search (its own field, UIDR-014 amended), download plans, the pursuits in flight and the history of what landed. Rule 1's name and route are superseded (`/incoming` is gone, no redirect). Rule 2's omnibox is the release search alone; media search left for Discovery. The Watchlist tab (UIDR-050) is gone: the watchlist lives on Discovery as the Out Now shelf and the In Theaters · Coming Up grouped row, and a listed title's next release is read in its title detail. The tabs are **Activity** (default, the bare path) and **History** (`?zone=history`); the smart default is retired with the third tab. Rule 3's row vocabulary and the `StatusPill` weld (rule 6's two zoom levels) are retired with the rows: the pursuit rows draw their own state. Rule 7 is amended: without acquisition capability the page renders its diagnosed empty state (UIDR-034) — searching and downloading need Prowlarr, with the one action, Settings → Acquisition — under the sidebar's still-unconditional entry; the forecast it fell back to is Discovery's now. Rules 4 and 5 stand.
+>
 > **Amendment 2026-10-02 — superseded in part by UIDR-050.** The Coming up tab (rule 3, and the 2026-08-02 amendment's tab list) is the Watchlist tab: every listed title once, the schedule on the followed rows. Rule 6's anchor is retired: the watchlist row and the pursuit row are on different tabs, so the in-pursuit pill carries the percent and, since 2026-10-03, is a button that switches to the Activity tab (UIDR-050's amendment). Rules 1, 2, 4, 5 and 7 stand; rule 7's forecast-only page is now the search box and the Watchlist.
 
 ## Context and Problem Statement

@@ -1,18 +1,15 @@
 defmodule MediaCentaurWeb.Components.Title.Row do
   @moduledoc """
-  One title row — a watchlist entry or a media-search result — as a
-  whole-card click target opening the title detail modal (spec
-  2026-09-05 §14). The shared `title_summary/1` identity block, the
-  quiet markers the host computed (`Logic.row_markers/2`), the notes in
-  place of the overview — one unattributed note reads plain, several
-  carry their names (UIDR-038) — and, at the right, the next release a
-  followed title carries (`NextRelease`: its date, the release and its
-  `StatusPill` status) and the title's social glyphs: the flags a friend
-  flew (`SocialWords.drawn_flags/1`), each at its grade with its
-  sentence on hover. State is shown, never acted on here: every verb
-  lives in the modal, and the pursuit row an in-pursuit pill names is on
-  the Activity tab. (The Feed's rows are `Social.FeedRow`, which
-  carries its own toolbar.)
+  One title row — a media-search result — as a whole-card click target
+  opening the title detail modal (spec 2026-09-05 §14). The shared
+  `title_summary/1` identity block, the quiet markers the host computed
+  (`Logic.row_markers/1`), the notes in place of the overview — one
+  unattributed note reads plain, several carry their names (UIDR-038) —
+  and, at the right, the title's social glyphs: the flags a friend flew
+  (`SocialWords.drawn_flags/1`), each at its grade with its sentence on
+  hover. State is shown, never acted on here: every verb lives in the
+  modal. (The Feed's rows are `Social.FeedRow`, which carries its own
+  toolbar.)
 
   Pure rendering; `open_title` bubbles to the host with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity
@@ -22,7 +19,6 @@ defmodule MediaCentaurWeb.Components.Title.Row do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.Components.Incoming.StatusPill, only: [status_pill: 1]
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.TMDB.Title
@@ -30,28 +26,6 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.SocialWords
   alias MediaCentaurWeb.TitleRef
-  alias Phoenix.LiveView.JS
-
-  defmodule NextRelease do
-    @moduledoc """
-    A followed title's next release, as the row draws it: the date label
-    (`UpcomingFeed.date_label/2`), the release (an episode, a
-    season drop, a film's date type), the `StatusPill` status, and the
-    percent and pursuit id an in-pursuit release carries. The same shape
-    carries the release that just landed (`landed`, status `:landed`).
-    """
-    @enforce_keys [:air_date, :date_label, :status]
-    defstruct [:air_date, :date_label, :subtitle, :status, :percent, :pursuit_id]
-
-    @type t :: %__MODULE__{
-            air_date: Date.t(),
-            date_label: String.t(),
-            subtitle: String.t() | nil,
-            status: :armed | :in_pursuit | :in_theaters | :tracked | :searching | :landed,
-            percent: integer() | nil,
-            pursuit_id: Ecto.UUID.t() | nil
-          }
-  end
 
   attr :id, :string, required: true
   attr :title, Title, required: true
@@ -60,7 +34,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
     default: nil,
     doc: "resolved by the host via `LiveHelpers.title_poster_url/1`"
 
-  attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/2`"
+  attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/1`"
 
   attr :notes, :list,
     default: [],
@@ -69,21 +43,6 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   attr :social_activity, :list,
     default: [],
     doc: "the title's `Activities.activity_for/1` rows — the social glyphs at the row's right"
-
-  attr :landed, NextRelease,
-    default: nil,
-    doc:
-      "the release that just landed, drawn on a quiet line above the next one (`UpcomingFeed.landed_per_title/1`); nil when none or when the next release is itself the landed one"
-
-  attr :pursuit_path, :string,
-    default: nil,
-    doc:
-      "where an In pursuit pill takes the reader — Incoming's Activity tab, where the pursuit's row is; nil leaves the pill plain"
-
-  attr :next_release, NextRelease,
-    default: nil,
-    doc:
-      "a followed title's next release — date, release and status at the row's right; nil for a listed-only title"
 
   def title_row(assigns) do
     rows = assigns.social_activity
@@ -121,42 +80,6 @@ defmodule MediaCentaurWeb.Components.Title.Row do
         </:secondary>
       </.title_summary>
       <div class="ml-auto flex shrink-0 items-center gap-4 self-center">
-        <div :if={@next_release} class="flex flex-col items-end gap-1 text-right">
-          <span
-            :if={@landed}
-            class="flex items-center gap-1.5 text-xs text-base-content/55"
-            data-component="landed-line"
-          >
-            <span :if={@landed.subtitle}>{@landed.subtitle}</span>
-            <span :if={@landed.subtitle}>·</span>
-            <span>{@landed.date_label}</span>
-            <.status_pill status={:landed} />
-          </span>
-          <span class="text-xs font-medium text-base-content/55">{@next_release.date_label}</span>
-          <span :if={@next_release.subtitle} class="text-xs text-base-content/55">
-            {@next_release.subtitle}
-          </span>
-          <%!-- The pill is a plain label except In pursuit on a page that
-                can show the pursuit: then it is a button that patches to
-                the Activity tab. `phx-click` on the button keeps the
-                row's own click (open_title) from firing — LiveView
-                dispatches to the closest binding only. --%>
-          <button
-            :if={pursuit_button?(@next_release, @pursuit_path)}
-            type="button"
-            class="cursor-pointer rounded-full"
-            data-component="status-pill-link"
-            data-tip="Open the Activity tab"
-            phx-click={JS.patch(@pursuit_path)}
-          >
-            <.status_pill status={@next_release.status} percent={@next_release.percent} />
-          </button>
-          <.status_pill
-            :if={not pursuit_button?(@next_release, @pursuit_path)}
-            status={@next_release.status}
-            percent={@next_release.percent}
-          />
-        </div>
         <SocialGlyph.social_glyphs
           :if={@flags != []}
           flags={@flags}
@@ -168,9 +91,4 @@ defmodule MediaCentaurWeb.Components.Title.Row do
     </div>
     """
   end
-
-  @doc "Whether the In pursuit pill is a button to `pursuit_path`: only that status, and only on a page that gave one."
-  @spec pursuit_button?(NextRelease.t(), String.t() | nil) :: boolean()
-  def pursuit_button?(%NextRelease{status: :in_pursuit}, path) when is_binary(path), do: true
-  def pursuit_button?(%NextRelease{}, _path), do: false
 end

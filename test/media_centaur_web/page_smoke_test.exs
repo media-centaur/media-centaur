@@ -554,137 +554,23 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/incoming forecast-only (Prowlarr NOT configured) with tracked-item fixtures" do
-    # The honest-degradation acceptance criterion (UIDR-015): without
-    # Prowlarr the merged page must MOUNT and render the forecast —
-    # hero omnibox reframed to tracking plus the watchlist rows — with no
-    # acquisition sections. The fixture covers the release shapes the
-    # forecast renders (TV episodes, streaming / theatrical / home-release
-    # movies) so a render-time crash in any branch trips the smoke. Not
-    # data-correctness — just "no clause / boolean / nil errors on the
-    # way to the screen". Also pins the legacy `/?zone=upcoming` home
-    # redirect onto the merged page.
+  describe "/incoming without Prowlarr" do
+    # UIDR-015 (amended 2026-11-02): without Prowlarr the page MOUNTS and
+    # renders its diagnosed empty state (UIDR-034) — no search box, no
+    # tabs, no acquisition section — instead of navigating away.
     setup do
       # Belt-and-braces: guarantee the capability probe reads "not ready"
       # even if an earlier test leaked a green Prowlarr connection test.
       MediaCentaur.Capabilities.clear_test_result(:prowlarr)
-
-      tv_item =
-        create_tracking_item(%{
-          tmdb_id: 9_001,
-          media_type: :tv_series,
-          name: "Smoke TV Show"
-        })
-
-      # Two released-not-in-library episodes — exercises the active-row
-      # status-icon path AND the "Queue all N" button branch (renders only
-      # when pending_grab_count >= 2 with acquisition_ready).
-      Enum.each(1..2, fn episode ->
-        create_tracking_release(%{
-          item_id: tv_item.id,
-          air_date: Date.add(Date.utc_today(), -3 - episode),
-          season_number: 1,
-          episode_number: episode,
-          title: "Episode #{episode}",
-          released: true
-        })
-      end)
-
-      # Upcoming — exercises the upcoming-row path inside the same card
-      create_tracking_release(%{
-        item_id: tv_item.id,
-        air_date: Date.add(Date.utc_today(), 7),
-        season_number: 1,
-        episode_number: 3,
-        title: "Next Week",
-        released: false
-      })
-
-      # Streaming movie — released, not in library
-      streaming_movie =
-        create_tracking_item(%{
-          tmdb_id: 9_002,
-          media_type: :movie,
-          name: "Smoke Streaming Movie"
-        })
-
-      create_tracking_release(%{
-        item_id: streaming_movie.id,
-        air_date: Date.add(Date.utc_today(), -1),
-        title: "Streaming",
-        release_type: "digital",
-        released: true
-      })
-
-      # Theatrical movie with NO home release dates — exercises the
-      # "Home release: not yet announced" branch and is the exact shape
-      # that previously crashed with `BadBooleanError` on the
-      # `air_date and Date.compare(...)` expression.
-      theatrical_movie =
-        create_tracking_item(%{
-          tmdb_id: 9_003,
-          media_type: :movie,
-          name: "Smoke Theatrical Movie"
-        })
-
-      create_tracking_release(%{
-        item_id: theatrical_movie.id,
-        air_date: Date.add(Date.utc_today(), -10),
-        title: "Theatrical",
-        release_type: "theatrical",
-        released: true
-      })
-
-      # Theatrical movie WITH digital + physical release rows — exercises
-      # the multi-line `home_release_lines/1` branch (Digital: …, Physical: …).
-      home_release_movie =
-        create_tracking_item(%{
-          tmdb_id: 9_004,
-          media_type: :movie,
-          name: "Smoke Home Release Movie"
-        })
-
-      create_tracking_release(%{
-        item_id: home_release_movie.id,
-        air_date: Date.add(Date.utc_today(), -20),
-        title: "Theatrical",
-        release_type: "theatrical",
-        released: true
-      })
-
-      create_tracking_release(%{
-        item_id: home_release_movie.id,
-        air_date: Date.add(Date.utc_today(), 30),
-        title: "Digital",
-        release_type: "digital",
-        released: false
-      })
-
-      create_tracking_release(%{
-        item_id: home_release_movie.id,
-        air_date: Date.add(Date.utc_today(), 60),
-        title: "Physical",
-        release_type: "physical",
-        released: false
-      })
-
       :ok
     end
 
-    test "forecast-only /incoming renders without crashing", %{conn: conn} do
-      # /?zone=upcoming redirects to /incoming (HomeLive handles zone params).
-      assert {:error, {:live_redirect, %{to: "/incoming"}}} =
-               smoke!(conn, "/?zone=upcoming")
-
+    test "/incoming renders its gap state without crashing", %{conn: conn} do
       assert {:ok, view, html} = smoke!(conn, "/incoming")
       assert is_binary(html)
 
-      # Honest degradation: the hero mode hint reframes to tracking (the
-      # hero has no prompt line), the Watchlist renders the seeded tracked
-      # title, and no acquisition section (in-flight pursuits, ledger) is
-      # on the page.
-      assert html =~ "to track their releases"
-      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke TV Show")
+      assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
+      refute has_element?(view, "#omnibox-release-input")
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
     end
@@ -707,7 +593,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # asked, so it must answer.
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
-      # Seed a tracked upcoming release so the Watchlist tab renders a row
+      # Seed a tracked upcoming release so the title address opens a title
       # carrying a next release (date, release, status pill) rather than
       # the empty state.
       watchlist_item =
@@ -781,7 +667,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       %{watchlist_item: watchlist_item}
     end
 
-    test "renders without crashing (smart default — seeded activity wins)", %{conn: conn} do
+    test "renders without crashing (Activity, the bare path)", %{conn: conn} do
       assert {:ok, view, html} = smoke!(conn, "/incoming")
       assert is_binary(html)
 
@@ -795,16 +681,6 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # path (no queue item matches).
       assert has_element?(view, ~s([data-nav-zone="zone-tabs"] .zone-tab-active), "Activity")
       assert html =~ "Sample Movie"
-    end
-
-    test "renders without crashing (?zone=watchlist)", %{conn: conn} do
-      assert {:ok, view, html} = smoke!(conn, "/incoming?zone=watchlist")
-      assert is_binary(html)
-
-      # The explicit zone beats the smart default: the tab bar plus the
-      # seeded tracked title's Watchlist row with its next release.
-      assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
-      assert has_element?(view, ~s([data-nav-zone="title_rows"]), "Smoke Watchlist Show")
     end
 
     test "renders without crashing (?title= opens the title modal)", %{

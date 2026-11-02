@@ -1,12 +1,19 @@
 defmodule MediaCentaurWeb.IncomingLive.Search do
   @moduledoc """
-  Release-search results zone of the Downloads page — grab feedback,
-  group rendering, and the bulk-grab footer. **Headless since
-  UIDR-014**: the query form, syntax hint, and expansion preview live
-  in the omnibox hero (`MediaOmnibox`, release mode); this component
-  renders what the session found. Pure function component; all events
-  bubble to the parent `IncomingLive` (`toggle_group`,
-  `select_result`, `retry_search`, `retry_all_timeouts`,
+  Release search on the Downloads page (UIDR-014, amended 2026-11-02):
+  the field at the top of the page and the results zone below it.
+
+  `search_box/1` is the page's one search, its own field since the
+  cutover (campaign `discovery.md`, M14): the brace-expansion query form
+  — monospace input, Enter the only submit path, the in-input X that
+  dismisses the session — over the syntax line with the expansion
+  preview. It is the `omnibox` nav zone, so the Downloads behaviour's
+  CLEAR (`downloads_behavior.js`) finds it by its input's id.
+
+  `search_zone/1` renders what the session found: grab feedback, the
+  groups, the bulk-grab footer. Pure function components; every event
+  bubbles to the page (`query_change`, `submit_search`, `clear_search`,
+  `toggle_group`, `select_result`, `retry_search`, `retry_all_timeouts`,
   `grab_selected`).
   """
   use Phoenix.Component
@@ -17,6 +24,90 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
+  alias Phoenix.LiveView.JS
+
+  attr :session, SearchSession, required: true
+  attr :any_loading?, :boolean, required: true
+
+  def search_box(assigns) do
+    ~H"""
+    <%!-- The field floats on the page as its front door, centred (on a
+          media-center-wide screen a left-hugging column strands the right
+          half). No submit button: Enter is the only submit path (HTML
+          implicit submission, single-field form). A disabled submit button
+          once silently swallowed Enter here; buttonless makes that bug
+          class unrepresentable. submit_search guards empty and invalid
+          queries server-side. --%>
+    <section data-nav-zone="omnibox" class="mx-auto w-full max-w-2xl space-y-3">
+      <form
+        id="release-omnibox-form"
+        phx-change="query_change"
+        phx-submit="submit_search"
+        autocomplete="off"
+      >
+        <div class="relative">
+          <.icon
+            name="hero-command-line-mini"
+            class="size-5 text-base-content/50 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"
+          />
+          <input
+            id="omnibox-release-input"
+            type="text"
+            name="query"
+            value={@session.query}
+            class="input w-full pl-12 pr-12 font-mono text-sm h-[52px] rounded-xl"
+            placeholder="Title S01E{01-10}"
+            phx-debounce="200"
+            phx-hook="MouseAutofocus"
+            data-nav-item
+            tabindex="0"
+          />
+          <%!-- The spinner yields the far-right slot to the X whenever a
+                query is present (the X exists exactly then). --%>
+          <span
+            :if={@any_loading?}
+            class={[
+              "loading loading-spinner loading-sm absolute top-1/2 -translate-y-1/2 text-base-content/40",
+              (@session.query != "" && "right-12") || "right-4"
+            ]}
+          ></span>
+          <%!-- The input is cleared client-side too (the app.js
+                omnibox:clear-input listener): LiveView never overwrites a
+                focused input's value, so the server-side reset alone would
+                leave stale text in the box. --%>
+          <button
+            :if={@session.query != ""}
+            id="omnibox-release-clear"
+            type="button"
+            class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/55 transition-colors hover:text-base-content/80"
+            phx-click={
+              JS.dispatch("omnibox:clear-input", to: "#omnibox-release-input")
+              |> JS.push("clear_search")
+            }
+            aria-label="Clear search"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-x-mark-mini" class="size-5" />
+          </button>
+        </div>
+      </form>
+
+      <p class="flex flex-wrap items-center justify-center gap-x-3 text-xs text-base-content/55">
+        <span>Syntax:</span>
+        <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
+          {"{a,b,c}"}
+        </code>
+        <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
+          {"{00-09}"}
+        </code>
+        <span class={Logic.expansion_color(@session.expansion_preview)}>
+          {Logic.expansion_text(@session.expansion_preview)}
+        </span>
+      </p>
+    </section>
+    """
+  end
 
   attr :session, SearchSession, required: true
   attr :any_loading?, :boolean, required: true

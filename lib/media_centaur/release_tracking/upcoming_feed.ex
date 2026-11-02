@@ -133,54 +133,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   @doc """
-  One event per tracked title — its next release still to come — nearest
-  first. The watchlist row's next release. "Still to come" is any
-  scheduled event not yet in the library: a future date, or a past one
-  the app is still searching for (`:armed`, `:under_pursuit`). A landed
-  (`:in_library`) event leads a title only when nothing else is
-  scheduled for it — otherwise a weekly series whose episodes arrive on
-  air day would read Landed forever and never show the next date. A
-  title with nothing scheduled has no event here (`unscheduled` holds it).
-  """
-  @spec next_per_title(t()) :: [Event.t()]
-  def next_per_title(%UpcomingFeed{} = feed) do
-    scheduled = scheduled_events(feed)
-
-    still_to_come =
-      scheduled
-      |> Enum.reject(&(&1.status == :in_library))
-      |> Enum.uniq_by(& &1.item_id)
-
-    led = MapSet.new(still_to_come, & &1.item_id)
-
-    landed_only =
-      scheduled
-      |> Enum.filter(&(&1.status == :in_library and not MapSet.member?(led, &1.item_id)))
-      |> Enum.uniq_by(& &1.item_id)
-
-    Enum.sort_by(still_to_come ++ landed_only, & &1.air_date, Date)
-  end
-
-  @doc """
-  The release that just landed, per tracked title: the latest `:in_library`
-  event the feed still keeps (`@recent_days`), one per title, in date order.
-  The watchlist row shows it on a quiet line above the next release, so a
-  weekly series reads "S02E03 landed 3 days ago" and "Fri Oct 9 · S02E04 ·
-  Will grab" at once. A title whose only event is a landed one is
-  `next_per_title/1`'s business; the row shows the landed line only beside a
-  release still to come.
-  """
-  @spec landed_per_title(t()) :: [Event.t()]
-  def landed_per_title(%UpcomingFeed{} = feed) do
-    feed
-    |> scheduled_events()
-    |> Enum.filter(&(&1.status == :in_library))
-    |> Enum.sort_by(& &1.air_date, {:desc, Date})
-    |> Enum.uniq_by(& &1.item_id)
-    |> Enum.sort_by(& &1.air_date, Date)
-  end
-
-  @doc """
   The next release's date label, graduating in explicitness with distance: an
   arrived theatrical date → "Now"; today → "Tonight" (episodes) / "Today"
   (movies); under a week → "Tue"; under a month → "Wed Jun 24"; beyond →
@@ -362,9 +314,5 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       diff when diff <= 30 -> :later
       _ -> :beyond
     end
-  end
-
-  defp scheduled_events(%UpcomingFeed{buckets: buckets}) do
-    Enum.flat_map(@bucket_order, &Map.get(buckets, &1, []))
   end
 end

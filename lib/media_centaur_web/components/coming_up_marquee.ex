@@ -8,13 +8,13 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   collapse into a "+ N more" rollup line on the hero rather than
   repeating the same artwork. When there are no secondaries, the hero
   keeps its sized column (`1.7fr`) and the secondary track is filled with
-  a "See all" placeholder linking to `/upcoming` — mirroring the Continue
-  Watching row — rather than stretching the hero full-width.
+  a "See all" placeholder linking to Discovery, where the watchlist by
+  release stage lives — mirroring the Continue Watching row — rather than
+  stretching the hero full-width.
 
-  Tiles open the entity detail modal in place via `phx-click="select_entity"`
-  when the release item has a paired library entity. Items without an
-  `entity_id` fall back to navigating to `/upcoming` so a click is never
-  inert.
+  A tile opens the title detail in place (UIDR-043): `select_entity` when
+  the tracked title has a paired library entity, else `open_title` by the
+  title's TMDB ref — the host (`Live.TitleDetailHost`) answers both.
   """
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
@@ -25,6 +25,8 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
+  alias MediaCentaurWeb.TitleRef
 
   # Painted widths for the two tile shapes, at 4K device pixels: the grid is
   # `1.7fr 1fr` inside a 1920 CSS px composition that scales 2× on a UHD
@@ -42,10 +44,13 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
       additional upcoming releases.
     * `sub` — secondary-tile-only sub-line ("S02E08", "+ 7 more this
       season"). `nil` for the hero.
+    * `ref` — the tracked title's TMDB ref, `{tmdb_id, media_type}`, how a
+      tile without a library entity opens the title.
     """
     @enforce_keys [
       :id,
       :entity_id,
+      :ref,
       :name,
       :eyebrow,
       :badge,
@@ -54,13 +59,14 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
       :rollup,
       :sub
     ]
-    defstruct [:id, :entity_id, :name, :eyebrow, :badge, :backdrop_url, :logo_url, :rollup, :sub]
+    defstruct [:id, :entity_id, :ref, :name, :eyebrow, :badge, :backdrop_url, :logo_url, :rollup, :sub]
 
     @type badge :: %{label: String.t(), variant: :success | :info | :default}
 
     @type t :: %__MODULE__{
             id: term(),
             entity_id: String.t() | nil,
+            ref: {integer(), atom()},
             name: String.t(),
             eyebrow: String.t(),
             badge: badge() | nil,
@@ -110,7 +116,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   defp see_all_tile(assigns) do
     ~H"""
     <.link
-      navigate="/incoming"
+      navigate="/discovery"
       class="card-hover relative rounded-xl overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
       data-component="coming-up-see-all"
       data-row-item
@@ -234,8 +240,8 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
     """
   end
 
-  # Renders either a phx-click button (when entity_id is known so the modal
-  # can open in place) or a navigate link to /upcoming as the fallback.
+  # The tile opens the title detail in place: by its library entity when
+  # the tracked title has one, else by its TMDB ref.
   attr :item, Item, required: true
   attr :data_card, :string, required: true
 
@@ -266,16 +272,20 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
 
   defp tile_link(assigns) do
     ~H"""
-    <.link
-      navigate="/incoming"
+    <button
+      id={"marquee-tile-#{TitleRef.param(@item.ref)}"}
+      type="button"
+      phx-click="open_title"
+      phx-value-ref={TitleRef.param(@item.ref)}
       data-card={@data_card}
       data-row-item
       data-nav-item
+      data-entity-id={TitleRef.param(@item.ref)}
       tabindex="0"
-      class={@class}
+      class={[@class, "w-full"]}
     >
       {render_slot(@inner_block)}
-    </.link>
+    </button>
     """
   end
 

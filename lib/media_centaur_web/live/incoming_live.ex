@@ -1,23 +1,13 @@
 defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
-  The Incoming page at `/incoming` (UIDR-015) — Upcoming and Downloads
-  merged into one collection-growth destination. The hero omnibox is
-  the standing front door; below it, zone tabs (UIDR-015, `?zone=`)
-  split the content into three calm views — **Watchlist** (default),
-  **Activity**, and **History**. While a search owns the page
-  (`Logic.search_owns_page?/3`) the tabs and their content recede
-  behind the flat results; forecast-only installs (no indexer) get no
-  tab bar at all. The sections, by tab:
-
-  Always present: the **hero omnibox** (`data-nav-zone="omnibox"`) —
-  TMDB media search answering flat in `MediaResults`, or Prowlarr
-  release search answering in the search zone (`"grid"`).
-
-  **Watchlist** — every title at List or above, once (`"title_rows"`):
-  `Title.Row` per title with its markers, social glyphs and, for a
-  followed title, its next release and status (`WatchlistRows`), dated
-  nearest first. The watchlist is read in `build_view/1` with the
-  forecast, so one rebuild path serves both.
+  The Downloads page at `/incoming` (UIDR-015, amended 2026-11-02): the
+  *get* stage of a title's life (UIDR-057) — release search, download
+  plans, the pursuits in flight and the history of what landed. The
+  release search box is the standing front door (`Search.search_box/1`,
+  the `omnibox` nav zone); below it, zone tabs (`?zone=`) split the
+  content into two calm views — **Activity** (default) and **History**.
+  While a search owns the page (`Logic.search_owns_page?/1`) the tabs and
+  their content recede behind the flat results. The sections, by tab:
 
   **Activity** — draft plans (`"drafts"`, resumable into the plan
   modal); **In flight** (`"pursuits"`): every live pursuit paired at
@@ -29,10 +19,13 @@ defmodule MediaCentaurWeb.IncomingLive do
   open: lifecycle filter chips (All default) + title/release search
   over the grouped terminal rows, with the calm storage foot line.
 
-  No capability gate on mount: without Prowlarr the page renders
-  forecast-only. Section honesty is enforced once, in
+  No capability gate on mount: without Prowlarr the page renders its
+  diagnosed empty state (UIDR-034) — searching and downloading need
+  Prowlarr, with the one action, Settings → Acquisition — under the
+  sidebar's unconditional entry. Section honesty is enforced once, in
   `MediaCentaurWeb.IncomingLive.View` (the page's single composition
-  point) — templates never re-check capabilities.
+  point) — templates never re-check capabilities. The title detail host
+  stays for the plan flow's subject and the title address (`?title=`).
 
   See `MediaCentaur.Search.QueryExpander` for the supported brace
   syntax, `MediaCentaurWeb.IncomingLive.Logic` for search/group
@@ -81,7 +74,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
-  use MediaCentaurWeb.Live.MediaSearch
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
@@ -89,7 +81,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Watchlist
-  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher, TitleStates}
+  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
 
@@ -113,7 +105,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   }
 
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Activities
 
   alias MediaCentaurWeb.IncomingLive.{
     HistoryLogic,
@@ -124,21 +115,15 @@ defmodule MediaCentaurWeb.IncomingLive do
     SearchSession
   }
 
-  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaurWeb.Live.ArmGesture
-  alias MediaCentaurWeb.Live.MediaSearch
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
-  alias MediaCentaurWeb.TitleRef
   alias MediaCentaur.TMDB.ReleaseWindow
-  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.Ledger
-  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
@@ -154,8 +139,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.Components.Acquisition.{
     ConnectivityBadge,
     DownloadStorage,
-    MediaOmnibox,
-    MediaResults,
     NeedsAttention,
     PlanModal,
     PursuitGroup,
@@ -182,10 +165,10 @@ defmodule MediaCentaurWeb.IncomingLive do
     # from (re-checked in `:capabilities_changed` for mid-session setup).
     prowlarr? = Capabilities.prowlarr_ready?()
 
-    # The rows' rungs (the omnibox results, the plan board's bookmark)
-    # come from the ladder; `watchlist:updates` keeps them live.
+    # The plan board's bookmark reads the ladder; `watchlist:updates`
+    # keeps the rungs live.
     socket =
-      [MediaCentaur.Library, Activities, Watchlist, Store, IntegrationAvailability]
+      [Watchlist, IntegrationAvailability]
       |> Enum.reduce(socket, &Subscriptions.subscribe(&2, &1))
       |> then(&if(prowlarr?, do: subscribe_acquisition(&1), else: &1))
 
@@ -199,10 +182,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          title_rungs: Watchlist.rungs(),
          today: today,
          view: %View{},
-         grab_status_by_key: %{},
-         approval_policy: PlanningMode.approval_policy(PlanningMode.value()),
          loaded_history_params: nil,
-         forecast_reload_timer: nil,
          storage_drives: [],
          search_health: IndexerHealth.cached(),
          search_outage: SearchOutage.reason(),
@@ -225,7 +205,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          selected_pursuit_id: nil,
          pursuit_detail: nil,
          alternatives_fetches_in_flight: MapSet.new(),
-         omnibox_mode: :media,
          plan_param: nil,
          plan_stage: :loading,
          plan_menu_open?: false,
@@ -264,7 +243,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # First-render data load — runs on BOTH the disconnected (static) and
-  # connected renders so the first paint already carries the forecast, search
+  # connected renders so the first paint already carries the search
   # session, pursuit rows, and ledger, never an empty-state flash. Desktop
   # first-paint correctness (see AGENTS.md → LiveView callbacks): the reads
   # are all local, so there is no traffic-scaling reason to defer them. Do
@@ -301,7 +280,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # honest as downloads land.
   defp maybe_start_storage(socket) do
     # Storage headroom answers "do I have room for this grab?" — without an
-    # indexer nothing grabs, so the forecast-only page skips the df loop.
+    # indexer nothing grabs, so the page without one skips the df loop.
     if connected?(socket) and Capabilities.prowlarr_ready?() do
       Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
       start_async_storage(socket)
@@ -338,15 +317,11 @@ defmodule MediaCentaurWeb.IncomingLive do
       load_history(
         assign(socket,
           search_session: session,
-          omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
           download_client_ready: Capabilities.download_client_ready?(),
           plan_drafts: load_drafts(),
           pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows()
         )
       )
-
-      # An active release-search session resumes in release mode — the
-      # one-search-surface flip must not hide work in progress (UIDR-014).
     else
       socket
     end
@@ -360,82 +335,34 @@ defmodule MediaCentaurWeb.IncomingLive do
     |> load_history()
   end
 
-  # Rebuild the composed page view from current assigns + fresh forecast
-  # reads. Every mutation of a View input (pursuit rows, drafts, ledger
-  # state, releases) funnels through here — one composition point, one
-  # rebuild path.
+  # Rebuild the composed page view from current assigns. Every mutation of
+  # a View input (pursuit rows, drafts) funnels through here — one
+  # composition point, one rebuild path.
   defp build_view(socket) do
-    releases = forecast_releases()
-    acquisition? = Capabilities.acquisition_ready?()
-    approval_policy = PlanningMode.approval_policy(PlanningMode.value())
-    grab = grab_status_by_key(releases, acquisition?)
-    watchlist = Watchlist.list_watchlist()
-    refs = Enum.map(watchlist, &{&1.intent.tmdb_id, &1.intent.media_type})
-
     view =
       View.build(%{
-        releases: releases,
-        watchlist: watchlist,
-        social_activity: Activities.activity_for(refs),
-        acquisition_states: TitleStates.for_refs(refs),
-        posters:
-          Map.new(Enum.zip(refs, watchlist), fn {ref, row} ->
-            {ref, title_poster_url(row.intent.title)}
-          end),
         pursuit_rows: socket.assigns.pursuit_rows,
         drafts: socket.assigns.plan_drafts,
-        today: socket.assigns.today,
-        prowlarr_ready?: Capabilities.prowlarr_ready?(),
-        acquisition_ready?: acquisition?,
-        approval_policy: approval_policy,
-        rungs: socket.assigns.title_rungs,
-        grab_status_by_key: grab
+        prowlarr_ready?: Capabilities.prowlarr_ready?()
       })
 
-    assign(socket,
-      view: view,
-      grab_status_by_key: grab,
-      approval_policy: approval_policy
-    )
-  end
-
-  defp forecast_releases do
-    %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
-    upcoming ++ released
-  end
-
-  # `%{release_key => %{pursuit_id}}` for releases under an ACTIVE pursuit —
-  # the input the feed needs to mark `:under_pursuit` and a watchlist row
-  # needs to anchor its pill to its torrent row.
-  defp grab_status_by_key(_releases, false), do: %{}
-
-  defp grab_status_by_key(releases, true) do
-    releases
-    |> Enum.map(&UpcomingFeed.release_key/1)
-    |> Enum.uniq()
-    |> Acquisition.statuses_for_releases()
-    # `statuses_for_releases/1` also returns cancelled/complete pursuits; only
-    # an ACTIVE pursuit means a release is genuinely being grabbed right now.
-    |> Enum.filter(fn {_key, {pursuit, _target}} -> pursuit.state == "active" end)
-    |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
+    assign(socket, view: view)
   end
 
   # --- TitleDetailHost ---
 
-  # What this page alone holds is in memory: the omnibox's results (a pick
-  # that has nothing to download opens the title detail, where the
-  # tracking switches are the arming surface) and the open plan's subject
-  # (its board's bookmark) — TMDB titles nothing has recorded yet. A
-  # tracked title is on the ladder, so the host finds its snapshot by
-  # identity. No facts of its own.
+  # What this page alone holds is in memory: the open plan's subject (its
+  # board's bookmark) — a TMDB title nothing has recorded yet. A tracked
+  # title is on the ladder, so the host finds its snapshot by identity. No
+  # facts of its own.
   @impl TitleDetailHost
-  def page_facts(socket, ref, _params),
-    do: {Enum.find(known_titles(socket), &(Title.ref(&1) == ref)), %{}}
+  def page_facts(socket, ref, _params), do: {known_title(socket, ref), %{}}
 
-  defp known_titles(%{assigns: %{plan_title: %Title{} = subject, omnibox_results: results}}),
-    do: [subject | results]
+  defp known_title(%{assigns: %{plan_title: %Title{} = subject}}, ref) do
+    if Title.ref(subject) == ref, do: subject
+  end
 
-  defp known_titles(%{assigns: %{omnibox_results: results}}), do: results
+  defp known_title(_socket, _ref), do: nil
 
   @impl TitleDetailHost
   def title_detail_path(socket, query),
@@ -451,14 +378,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   # person's involvement: the pursuit runs on its own. Land on Activity,
   # where its in-flight row is, rather than opening a second modal over
   # someone who just finished a task; the one patch drops whichever modal
-  # was up. The search that found the title is finished too, so its
-  # results clear — otherwise they keep owning the page and hide Activity.
+  # was up.
   @impl TitleDetailHost
-  def download_started(socket) do
-    socket
-    |> MediaSearch.clear()
-    |> push_patch(to: Logic.zone_path(:activity))
-  end
+  def download_started(socket), do: push_patch(socket, to: Logic.zone_path(:activity))
 
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
@@ -530,7 +452,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
       |> ensure_loaded()
-      |> assign_zone(params, was_loaded?)
+      |> assign_zone(params)
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
       |> apply_plan_modal_params(params)
@@ -539,27 +461,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
-  # The zone tabs (Watchlist | Activity | History) are URL state
-  # (UIDR-015). Runs after `ensure_loaded/1` so the first bare-path load
-  # can smart-default to Activity when something is actually going on
-  # (live pursuits or draft plans) — the reads are already in assigns,
-  # so the decision costs nothing. Forecast-only installs have nothing
-  # to tab between; the param is ignored and everything renders as the
-  # Watchlist.
-  defp assign_zone(socket, params, was_loaded?) do
-    zone =
-      if socket.assigns.prowlarr_ready do
-        Logic.initial_zone(
-          params["zone"],
-          not was_loaded?,
-          socket.assigns.pursuit_rows != [] or socket.assigns.plan_drafts != []
-        )
-      else
-        :watchlist
-      end
-
-    assign(socket, zone: zone)
-  end
+  # The zone tabs (Activity | History) are URL state (UIDR-015): Activity
+  # is the bare path, History names itself.
+  defp assign_zone(socket, params), do: assign(socket, zone: Logic.parse_zone(params["zone"]))
 
   # First load: `ensure_loaded/1` already computed history_rows with the
   # URL-snapshot filter values. Mid-session param changes fall through to
@@ -607,7 +511,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # a modal never dumps the user on a different tab.
   defp incoming_path(socket, params \\ %{}) do
     params =
-      if socket.assigns.zone == :watchlist,
+      if socket.assigns.zone == :activity,
         do: params,
         else: Map.put(params, "zone", to_string(socket.assigns.zone))
 
@@ -624,7 +528,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     base = %{
       "search" => socket.assigns.history_search,
       "filter" => to_string(socket.assigns.history_filter),
-      "zone" => if(socket.assigns.zone != :watchlist, do: to_string(socket.assigns.zone))
+      "zone" => if(socket.assigns.zone != :activity, do: to_string(socket.assigns.zone))
     }
 
     merged =
@@ -666,14 +570,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp maybe_trigger_prowlarr_search(socket, _), do: socket
-
-  defp progress_by_pursuit(download_cards) do
-    for %PursuitWithDownload{row: row, download: download} <- download_cards,
-        download && download.progress_pct,
-        into: %{} do
-      {row.id, round(download.progress_pct)}
-    end
-  end
 
   @impl true
   def render(assigns) do
@@ -725,12 +621,12 @@ defmodule MediaCentaurWeb.IncomingLive do
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
       )
-      # While a search owns the page (an active media query, or a release
-      # query/results) the tab bar and the active zone's content recede —
-      # a bare mode flip keeps them in view.
+      # While a search owns the page (a release query or its results) the
+      # tab bar and the active zone's content recede; without an indexer
+      # there is no zone content at all, only the gap state.
       |> Phoenix.Component.assign(
-        :search_owns?,
-        Logic.search_owns_page?(assigns.omnibox_mode, assigns.omnibox_query, assigns.search_session)
+        :zone_content?,
+        assigns.prowlarr_ready and not Logic.search_owns_page?(assigns.search_session)
       )
       # Honest empty tabs: one quiet line instead of a void. Activity is
       # empty when none of its sections (drafts, in-flight, other
@@ -740,13 +636,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         :activity_empty?,
         assigns.view.drafts == [] and paired_rows == [] and active_compact == [] and
           orphan_queue == [] and assigns.download_client_ready
-      )
-      # Live percentages ride the same render-time pairing: the paired
-      # downloads stamp their progress onto in-pursuit watchlist rows, so
-      # the pill tracks the torrent without rebuilding the View.
-      |> Phoenix.Component.assign(
-        :watchlist_rows,
-        View.with_progress(assigns.view.watchlist, progress_by_pursuit(download_cards))
       )
       # The plan modal's cinematic shell — one identity following the
       # request through every stage (UIDR-014).
@@ -849,75 +738,53 @@ defmodule MediaCentaurWeb.IncomingLive do
 
               Width model: the page is full-bleed (like home/library); the
               content column runs max-w-6xl — one axis, density thinning
-              downward: hero search, the Watchlist rows, operational
-              in-flight band, then the bookkeeping (ledger, History
-              disclosure, other downloads) at the bottom. --%>
-        <%!-- Centered, not left-anchored: on media-center-wide screens a
-              left-hugging column strands the right half of the display and
-              shoves the (input-anchored) search overlay into the sidebar. --%>
+              downward: the search box, the operational in-flight band,
+              then the bookkeeping (ledger, other downloads) at the bottom.
+              Centered, not left-anchored: on media-center-wide screens a
+              left-hugging column strands the right half of the display. --%>
         <div class="relative z-[1] max-w-6xl mx-auto space-y-8 pt-10">
-          <MediaOmnibox.media_omnibox
-            hero
-            release_mode_available={@prowlarr_ready}
-            mode={@omnibox_mode}
-            query={@omnibox_query}
+          <%!-- Without an indexer there is nothing to search, plan or
+                download: the page says what is missing and the one action
+                (UIDR-034), under the sidebar's unconditional entry. --%>
+          <.empty_state
+            :if={!@prowlarr_ready}
+            id="downloads-empty"
+            icon="hero-arrow-down-tray"
+            headline="Connect Prowlarr to search and download"
+          >
+            Release search, download plans and the history of what landed appear here once
+            Prowlarr and a download client pass their connection tests.
+            <:action>
+              <.button variant="primary" size="sm" navigate={~p"/settings?section=acquisition"}>
+                Set up acquisition
+              </.button>
+            </:action>
+          </.empty_state>
+
+          <Search.search_box
+            :if={@prowlarr_ready}
             session={@search_session}
             any_loading?={@any_loading?}
           />
 
-          <%!-- Both search modes answer flat, in the page (UIDR-014):
-                media results here, release results in the search zone
-                below. No floating overlays — clearing the query is the
-                one dismissal. --%>
-          <MediaResults.media_results
-            :if={@omnibox_mode == :media}
-            query={@omnibox_query}
-            results={@omnibox_results}
-            searching?={@omnibox_searching?}
-            metadata_available={@tmdb_ready}
-            scope={@omnibox_scope}
-            title_rungs={@title_rungs}
-            in_library_refs={@in_library_refs}
-            social_activity_by_ref={@social_activity_by_ref}
-          />
-
+          <%!-- The search answers flat, in the page (UIDR-014): the result
+                groups below the box. No floating overlays — clearing the
+                query is the one dismissal. --%>
           <Search.search_zone
-            :if={@omnibox_mode == :release}
+            :if={@prowlarr_ready}
             session={@search_session}
             any_loading?={@any_loading?}
             timeout_terms={@timeout_terms}
           />
 
-          <%!-- Every title on this page is looked up on TMDB, so with no key
-                the box above cannot answer. Said before the reader types
-                rather than after, in the same shape the download-client gap
-                uses further down. --%>
-          <p
-            :if={!@tmdb_ready and !@search_owns?}
-            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/55"
-          >
-            Searching titles needs a TMDB key. Add one in
-            <.link
-              navigate="/settings?section=tmdb"
-              class="link link-primary"
-              data-nav-item
-              tabindex="0"
-            >
-              Settings
-            </.link>
-            and this box finds anything on The Movie Database.
-          </p>
-
-          <%!-- Zone tabs (UIDR-015): the page's three calm views. Only
-                rendered when acquisition exists — forecast-only installs
-                have nothing to tab between — and receded while a search
-                owns the page, like everything below the omnibox. --%>
+          <%!-- Zone tabs (UIDR-015): the page's two calm views, receded
+                while a search owns the page, like everything below the
+                search box. --%>
           <div
-            :if={@prowlarr_ready && !@search_owns?}
+            :if={@zone_content?}
             data-nav-zone="zone-tabs"
             class="flex items-center justify-center gap-8 pt-16"
           >
-            <.zone_tab zone={:watchlist} active_zone={@zone} label="Watchlist" />
             <.zone_tab
               zone={:activity}
               active_zone={@zone}
@@ -926,7 +793,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             />
             <.zone_tab zone={:history} active_zone={@zone} label="History" />
 
-            <%!-- Heads up rides the tab row as its quiet fourth slot
+            <%!-- Heads up rides the tab row as its quiet third slot
                   (UIDR-016): one severity-tinted glyph next to the tabs
                   — a far-edge anchor orphans it on wide viewports —
                   details on hover/focus, absent while healthy. Inside
@@ -940,40 +807,8 @@ defmodule MediaCentaurWeb.IncomingLive do
             />
           </div>
 
-          <%!-- The Watchlist (UIDR-050): every listed title once, a followed
-                title's next release at its right. Centered at the omnibox's
-                measure. The empty tab says what fills it (UIDR-034). --%>
           <section
-            :if={!@search_owns? && @zone == :watchlist}
-            id="incoming-watchlist"
-            class="mx-auto w-full max-w-3xl"
-          >
-            <.empty_state
-              :if={@watchlist_rows == []}
-              id="watchlist-empty"
-              headline="Nothing on your watchlist yet"
-            >
-              Search above, open a title and add it to your watchlist. A title you
-              track shows its next release here.
-            </.empty_state>
-            <div :if={@watchlist_rows != []} data-nav-zone="title_rows" class="space-y-2">
-              <TitleRow.title_row
-                :for={row <- @watchlist_rows}
-                id={"watchlist-item-#{TitleRef.param(row.ref)}"}
-                title={row.title}
-                poster_url={row.poster_url}
-                markers={row.markers}
-                notes={row.notes}
-                social_activity={row.social_activity}
-                next_release={row.next_release}
-                landed={row.landed}
-                pursuit_path={Logic.zone_path(:activity)}
-              />
-            </div>
-          </section>
-
-          <section
-            :if={@view.drafts != [] && !@search_owns? && @zone == :activity}
+            :if={@view.drafts != [] && @zone_content? && @zone == :activity}
             data-nav-zone="drafts"
             class="space-y-3"
           >
@@ -1032,9 +867,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           </section>
 
           <p
-            :if={
-              @prowlarr_ready and !@download_client_ready and !@search_owns? and @zone == :activity
-            }
+            :if={@zone_content? and !@download_client_ready and @zone == :activity}
             class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/55"
           >
             Connect a download client in
@@ -1045,7 +878,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           </p>
 
           <section
-            :if={@paired_rows != [] && !@search_owns? && @zone == :activity}
+            :if={@paired_rows != [] && @zone_content? && @zone == :activity}
             data-nav-zone="pursuits"
             class="space-y-3"
           >
@@ -1084,7 +917,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           </section>
 
           <Ledger.ledger
-            :if={!@search_owns? && @zone == :history}
+            :if={@zone_content? && @zone == :history}
             sections={@history_sections}
             filter={@history_filter}
             search={@history_search}
@@ -1093,13 +926,13 @@ defmodule MediaCentaurWeb.IncomingLive do
           />
 
           <OrphanQueue.orphan_zone
-            :if={!@search_owns? && @zone == :activity}
+            :if={@zone_content? && @zone == :activity}
             items={@orphan_queue}
             cancel_armed_id={ArmGesture.armed_target(@armed_gesture, "cancel_download")}
           />
 
           <p
-            :if={!@search_owns? && @zone == :activity && @activity_empty?}
+            :if={@zone_content? && @zone == :activity && @activity_empty?}
             data-component="zone-empty"
             class="py-10 text-center text-sm text-base-content/55"
           >
@@ -1111,7 +944,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     """
   end
 
-  attr :zone, :atom, required: true, values: [:watchlist, :activity, :history]
+  attr :zone, :atom, required: true, values: [:activity, :history]
   attr :active_zone, :atom, required: true, doc: "The page's current zone — styles the active tab."
   attr :label, :string, required: true
 
@@ -1279,13 +1112,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply, socket}
 
       {:ok, plan} ->
-        # The intent just materialized into a draft — the omnibox hunt is
-        # over, so it resets to its resting question. (Canceling the flow
-        # before this point keeps the query alive for another pick.)
         socket =
           socket
           |> assign(plan_drafts: load_drafts())
-          |> MediaSearch.clear()
           |> build_view()
 
         # The ending follows the mode (spec 2026-09-23 §7): manual selection
@@ -1493,33 +1322,12 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # Zone-tab switching is a URL patch (UIDR-015) — the default zone
   # keeps a clean URL so data-nav-remember doesn't pin a stale param.
-  def handle_event("switch_zone", %{"zone" => zone}, socket)
-      when zone in ~w(watchlist activity history) do
+  def handle_event("switch_zone", %{"zone" => zone}, socket) when zone in ~w(activity history) do
     {:noreply, push_patch(socket, to: Logic.zone_path(Logic.parse_zone(zone)))}
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
     {:noreply, open_plan(socket, PlanQuery.board(plan_id))}
-  end
-
-  # ---------------------------------------------------------------------------
-  # Omnibox (UIDR-014) — one search surface, two modes.
-  # ---------------------------------------------------------------------------
-
-  # The media search's own events (`omnibox_change`, `omnibox_clear`,
-  # `omnibox_scope`) are `Live.MediaSearch`'s; this page keeps the mode
-  # flip, which is Incoming's alone.
-  def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
-    # Release mode does not exist without an indexer — ignore a stale flip
-    # (the hint hides the control, but a lagging DOM can still fire it).
-    if mode == "release" and not Capabilities.prowlarr_ready?() do
-      {:noreply, socket}
-    else
-      {:noreply,
-       socket
-       |> MediaSearch.clear()
-       |> assign(omnibox_mode: String.to_existing_atom(mode))}
-    end
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -1732,9 +1540,8 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         prowlarr? ->
           # Some other capability changed (a TMDB test, the download client):
-          # refresh the client flag and nudge the queue, but do NOT re-run
-          # load_acquisition — it recomputes omnibox_mode from the session
-          # and would snap a user out of a manually chosen mode.
+          # refresh the client flag and nudge the queue; the acquisition
+          # state is already loaded.
           Acquisition.poll_queue_now()
           assign(socket, download_client_ready: Capabilities.download_client_ready?())
 
@@ -1745,19 +1552,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, build_view(socket)}
   end
 
-  # A rung moved anywhere: the rows' markers and the plan board's
-  # bookmark read the ladder again.
+  # A rung moved anywhere: the plan board's bookmark reads the ladder again.
   def handle_info({:title_intent_changed, _event}, socket),
-    do: {:noreply, socket |> assign(:title_rungs, Watchlist.rungs()) |> build_view()}
-
-  # A review arriving or withdrawn re-reads the social glyphs: the
-  # omnibox results' own at once, and the watchlist rows' through the
-  # debounced view rebuild — `Activities.ingest/1` broadcasts one per
-  # activity, and a relay sync is a burst.
-  def handle_info({tag, _event}, socket)
-      when tag in [:activity_received, :activity_sent, :activity_deleted] do
-    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
-  end
+    do: {:noreply, assign(socket, :title_rungs, Watchlist.rungs())}
 
   def handle_info({:run_search_one, query}, socket) do
     Acquisition.run_search_one_async(query, &SearchSession.record_search_result/2)
@@ -1879,29 +1676,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_info(:reload_pursuits, socket) do
     {:noreply, socket |> load_pursuit_rows() |> build_view()}
-  end
-
-  # --- Forecast and watchlist (rows / detail / calendar / track modal) ---
-
-  def handle_info({:releases_updated, _item_ids}, socket) do
-    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
-  end
-
-  # A stored title changed (its name, its artwork, its dates): the
-  # watchlist rows paint from the store, so they read it again. Same
-  # debounce as the forecast — for a followed title `TmdbListener` turns
-  # this very message into `:releases_updated`, so the two collapse into
-  # one rebuild.
-  def handle_info({:tmdb_title_changed, _ref}, socket) do
-    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
-  end
-
-  def handle_info({:entities_changed, %{entity_ids: _ids}}, socket) do
-    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
-  end
-
-  def handle_info(:reload_forecast, socket) do
-    {:noreply, build_view(socket)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}

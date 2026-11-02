@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   alias MediaCentaur.Format
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Downloads.{Health, QueueItem}
-  alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.LiveHelpers
 
@@ -38,56 +37,32 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
         }
 
   @doc """
-  Whether a search owns the page: an active media query
-  (`MediaResults.active_query?/1` — the flat results section's own
-  render gate, so the two can never disagree) or a release session
-  with a query or results. While it holds, the tab bar and the active
-  zone's content recede; a bare mode flip (empty box) owns nothing.
+  Whether the search owns the page: a release session with a query or
+  results. While it holds, the tab bar and the active zone's content
+  recede; an empty box owns nothing.
   """
-  @spec search_owns_page?(:media | :release, String.t(), SearchSession.t()) :: boolean()
-  def search_owns_page?(:media, media_query, _session), do: MediaResults.active_query?(media_query)
-
-  def search_owns_page?(:release, _media_query, session), do: session.query != "" or session.groups != []
+  @spec search_owns_page?(SearchSession.t()) :: boolean()
+  def search_owns_page?(session), do: session.query != "" or session.groups != []
 
   @doc "The page's path."
   @spec path() :: String.t()
   def path, do: "/incoming"
 
   @doc """
-  The page's path showing one zone (UIDR-015). The default zone keeps
-  the bare path — a clean URL, so `data-nav-remember` never pins a
-  stale param — and the others name themselves. Shared by the tab
-  switch, a started download's landing on Activity, and the sidebar
-  reminder that points the Incoming entry there.
+  The page's path showing one zone (UIDR-015, amended 2026-11-02).
+  Activity, the default, keeps the bare path — a clean URL, so
+  `data-nav-remember` never pins a stale param — and History names
+  itself. Shared by the tab switch, a started download's landing on
+  Activity, and the sidebar reminder that points the page's entry there.
   """
-  @spec zone_path(:watchlist | :activity | :history) :: String.t()
-  def zone_path(:watchlist), do: path()
-  def zone_path(zone) when zone in [:activity, :history], do: path() <> "?zone=" <> Atom.to_string(zone)
+  @spec zone_path(:activity | :history) :: String.t()
+  def zone_path(:activity), do: path()
+  def zone_path(:history), do: path() <> "?zone=history"
 
-  @doc """
-  The Incoming page's zone from its URL param — the Watchlist is the
-  fallback for anything unrecognized. All three zones are addressable
-  explicitly (`?zone=watchlist` beats the smart default).
-  """
-  @spec parse_zone(String.t() | nil) :: :watchlist | :activity | :history
-  def parse_zone("watchlist"), do: :watchlist
-  def parse_zone("activity"), do: :activity
+  @doc "The page's zone from its URL param: History by name, Activity for anything else."
+  @spec parse_zone(String.t() | nil) :: :activity | :history
   def parse_zone("history"), do: :history
-  def parse_zone(_default), do: :watchlist
-
-  @doc """
-  The zone a `handle_params` pass lands on. An explicit param always
-  wins; a bare path on the FIRST load smart-defaults to Activity when
-  something is actually going on (live pursuits or draft plans) —
-  after that, a bare path is plainly the Watchlist, so the tab click
-  that patches to the clean URL never gets bounced by the smart default.
-  """
-  @spec initial_zone(String.t() | nil, boolean(), boolean()) :: :watchlist | :activity | :history
-  def initial_zone(zone_param, _first_load?, _activity?) when is_binary(zone_param),
-    do: parse_zone(zone_param)
-
-  def initial_zone(nil, true, true), do: :activity
-  def initial_zone(nil, _first_load?, _activity?), do: :watchlist
+  def parse_zone(_default), do: :activity
 
   @doc """
   Returns the terms of every group whose status is a Prowlarr request timeout

@@ -406,15 +406,15 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert render(view) =~ ~s|data-state="open"|
     end
 
-    test "clicking a Coming Up marquee card with no library entity navigates to /incoming",
+    test "clicking a Coming Up marquee card with no library entity opens the title detail in place",
          %{conn: conn} do
       today = Date.utc_today()
 
-      # No library container link → marquee renders an <a> fallback link
-      # rather than a phx-click button (no entity to open in the modal).
+      # No library container link → the tile opens the title by its TMDB
+      # ref (UIDR-043), the host resolving the tracked title's snapshot.
       item =
         create_tracking_item(%{
-          tmdb_id: :rand.uniform(999_999),
+          tmdb_id: 246_810,
           media_type: :tv_series,
           name: "Sample Show",
           library_container_type: nil,
@@ -431,10 +431,12 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/")
 
-      assert {:error, {:live_redirect, %{to: "/incoming" <> _}}} =
-               view
-               |> element(~s|[data-component="coming-up-marquee"] a[data-card="hero"]|)
-               |> render_click()
+      view
+      |> element(~s|[data-component="coming-up-marquee"] button[data-card="hero"]|)
+      |> render_click()
+
+      assert_patch(view, "/?title=tv_series-246810")
+      assert has_element?(view, "#detail-modal[data-state='open']", "Sample Show")
     end
 
     test "clicking a Recently Added card patches URL and opens modal", %{conn: conn} do
@@ -670,10 +672,6 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   end
 
   describe "zone redirects" do
-    test "redirects /?zone=upcoming to /incoming", %{conn: conn} do
-      assert {:error, {:live_redirect, %{to: "/incoming"}}} = live_async!(conn, "/?zone=upcoming")
-    end
-
     test "redirects /?zone=library to /library", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/library"}}} = live_async!(conn, "/?zone=library")
     end

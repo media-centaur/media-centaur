@@ -1,14 +1,13 @@
 /**
  * Incoming page behavior.
  *
- * Navigation (including left-at-the-edge into the sidebar) is handled by
- * the framework via the `incoming` zone layout in config.js. The page's
- * own contribution is CLEAR: the page has two clearable text
- * surfaces — the omnibox query (the page's primary search) and the History
- * zone's title filter. CLEAR wipes the omnibox first; when it is already
- * empty it falls through to the history search. Focus stays where it is —
- * unlike the library (where clearing the filter jumps focus into the
- * unfiltered grid), neither clear changes what zone the user should be in.
+ * Navigation is handled by the framework via the `incoming` zone layout in
+ * config.js. The page's own contribution is CLEAR: the page has two
+ * clearable text surfaces — the release search box and the History zone's
+ * title filter. CLEAR wipes the search box first; when it is already empty
+ * it falls through to the history search. Focus stays where it is — unlike
+ * the library (where clearing the filter jumps focus into the unfiltered
+ * grid), neither clear changes what zone the user should be in.
  *
  * All external dependencies are injected via the `dom` parameter, following
  * the same DI pattern as the library behavior.
@@ -24,7 +23,7 @@ import { clearableInput, omniboxInput } from "./omnibox_clear"
 
 /** Default DOM implementation for production use. */
 const REAL_DOM = {
-  getOmniboxInput: omniboxInput,
+  getOmniboxInput: () => omniboxInput("omnibox-release-input"),
   getHistorySearch() {
     return clearableInput(document.querySelector("[data-nav-zone='ledger'] input[type='search']"))
   },

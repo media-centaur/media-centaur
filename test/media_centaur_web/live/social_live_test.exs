@@ -1091,7 +1091,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element(entry(rec) <> "-download") |> render_click()
 
       assert render(view) =~ "Finding a release for Sample Movie 777"
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
@@ -1833,7 +1833,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       assert_patch(view, "/social")
       assert render(view) =~ "Finding a release for Sample Movie"
-      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming"})
       await_supervised_tasks()
       MediaCentaur.JobRuns.run_enqueued_jobs()
 

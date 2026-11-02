@@ -27,9 +27,9 @@ describe("download behavior", () => {
     expect(behavior.onEscape).toBeUndefined()
   })
 
-  test("the Watchlist rows are a MENU like every other Incoming zone — one nav item per row", () => {
-    expect(inputConfig.contextSelectors.title_rows).toBe("[data-nav-zone='title_rows'] [data-nav-item]")
-    expect(inputConfig.instanceTypes.title_rows).toBe(Context.MENU)
+  test("the search box is a MENU like every other Incoming zone — the input and its clear", () => {
+    expect(inputConfig.contextSelectors.omnibox).toBe("[data-nav-zone='omnibox'] [data-nav-item]")
+    expect(inputConfig.instanceTypes.omnibox).toBe(Context.MENU)
   })
 
   test("onAttach and onDetach are no-ops (callable)", () => {

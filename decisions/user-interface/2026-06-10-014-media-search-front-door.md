@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-06-10
-amended: 2026-11-01
+amended: 2026-11-02
 ---
 # Media-search front door — omnibox, coverage language, and imagery discipline
 
+> **Amendment 2026-11-02 (campaign `discovery.md`, M14 cutover).** Rule 1's one box with two modes is two boxes on two pages. Media search — the TMDB title search — is Discovery's alone (`Components.Acquisition.MediaOmnibox`, hosted by `Live.MediaSearch`), the *choose* stage of UIDR-057. Release search is the Downloads page's own field (`DownloadsLive.Search.search_box/1`): the brace-expansion query form over the syntax line, no mode flip, the results answering flat below it. The consequence "the omnibox's dual mode is one learnable control" no longer holds; each page carries the one search its stage needs. Rules 2–4 stand, on Downloads.
+>
 > **Amendment 2026-11-01 (campaign `discovery.md`, M5 decision 1 and M13).** Rule 1's omnibox is no longer Incoming's alone. Media search — the TMDB title search, "What do you want to watch?" — is one trait, `Live.MediaSearch`, hosted by **Discovery**, where it sits centred over the hero's artwork with the placeholder alone and a query owns the page; Incoming hosts it too, with its release-mode flip, until the campaign's cutover removes media search from Incoming and leaves release search there as its own field. The results stay flat in the page, as `Title.Row`s that open the title detail, on both hosts.
 
 ## Context and Problem Statement

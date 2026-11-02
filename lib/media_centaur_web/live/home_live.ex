@@ -241,7 +241,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-nav-reveal
             data-nav-reveal-block="end"
           >
-            <ShelfHead.shelf_head title="Coming Up" see_all_href="/incoming" />
+            <ShelfHead.shelf_head title="Coming Up" see_all_href="/discovery" />
             <ComingUpMarquee.coming_up_marquee marquee={@coming_up_marquee} />
           </section>
 
@@ -281,7 +281,6 @@ defmodule MediaCentaurWeb.HomeLive do
 
     destination =
       case zone do
-        "upcoming" -> "/incoming"
         "library" -> "/library"
         _ -> nil
       end
