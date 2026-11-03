@@ -191,6 +191,16 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
+  describe "rung_word/1 — the one vocabulary for a rung as a state" do
+    test "names every rung; Off is nothing" do
+      assert Logic.rung_word(:list) == "On your list"
+      assert Logic.rung_word(:follow) == "Tracking"
+      assert Logic.rung_word(:grab) == "Auto-grab"
+      assert Logic.rung_word(:ignored) == "Ignored"
+      assert Logic.rung_word(nil) == nil
+    end
+  end
+
   describe "release_ahead?/2 — whether the Track release dates row has anything to track" do
     test "a series has a release ahead until its TMDB record is settled" do
       show = Title.new!(%{tmdb_id: 2, media_type: :tv_series, name: "Sample Show"})

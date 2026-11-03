@@ -147,17 +147,21 @@ defmodule MediaCentaur.Watchlist do
   @spec listed?(integer(), media_type()) :: boolean()
   def listed?(tmdb_id, media_type), do: TitleIntent.rung_at_least?(rung(tmdb_id, media_type), :list)
 
+  @typedoc "A record as every list read returns it: the intent with its snapshot, and the owning library container's id."
+  @type listed :: %{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}
+
   @doc """
-  The watchlist: every title intent at List or above, newest first, its
-  stored snapshot attached, each with the owning library container's id
-  (nil when the library doesn't know the title) — derived live via
-  `Library.ExternalIds.tmdb_owners/1`, never stored. Ignored titles are
-  records too, but not on the list.
+  Every title intent — Ignored included — newest first, its stored
+  snapshot attached, each with the owning library container's id (nil
+  when the library doesn't know the title), derived live via
+  `Library.ExternalIds.tmdb_owners/1`, never stored. The Watchlist page's
+  inventory read (campaign `discovery.md`, M15); `list_watchlist/0` is
+  the List-or-above filter of it.
   """
-  @spec list_watchlist() :: [%{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}]
-  def list_watchlist do
+  @spec list_intents() :: [listed()]
+  def list_intents do
     intents =
-      from(i in TitleIntent, where: i.rung != :ignored, order_by: [desc: i.inserted_at])
+      from(i in TitleIntent, order_by: [desc: i.inserted_at])
       |> Repo.all()
       |> Titles.attach()
 
@@ -166,6 +170,15 @@ defmodule MediaCentaur.Watchlist do
     Enum.map(intents, fn intent ->
       %{intent: intent, library_owner_id: Map.get(owners, {intent.tmdb_id, intent.media_type})}
     end)
+  end
+
+  @doc """
+  The watchlist: every title intent at List or above, as `list_intents/0`
+  returns them. Ignored titles are records too, but not on the list.
+  """
+  @spec list_watchlist() :: [listed()]
+  def list_watchlist do
+    Enum.reject(list_intents(), &(&1.intent.rung == :ignored))
   end
 
   @doc """

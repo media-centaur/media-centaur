@@ -155,6 +155,26 @@ defmodule MediaCentaur.WatchlistTest do
       await_supervised_tasks()
     end
 
+    test "list_intents/0 is every record, Ignored included, with its owner; list_watchlist/0 is its List-or-above filter" do
+      {:ok, _} = Watchlist.put_rung(@title, :ignored)
+      show = Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show"})
+      {:ok, _} = Watchlist.put_rung(show, :follow)
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{source: "tmdb", external_id: "777", movie_id: movie.id})
+      create_linked_file(%{movie_id: movie.id})
+
+      # Two records written in one second tie on inserted_at; the read's
+      # order is newest first, asserted elsewhere — here the set.
+      assert [
+               %{intent: %TitleIntent{tmdb_id: 42, rung: :follow}, library_owner_id: nil},
+               %{intent: %TitleIntent{tmdb_id: 777, rung: :ignored}, library_owner_id: owner}
+             ] = Enum.sort_by(Watchlist.list_intents(), & &1.intent.tmdb_id)
+
+      assert owner == movie.id
+      assert [%{intent: %TitleIntent{tmdb_id: 42}}] = Watchlist.list_watchlist()
+      await_supervised_tasks()
+    end
+
     test "TmdbArtworkHolds holds every listed ref" do
       {:ok, _} = Watchlist.put_rung(@title, :list)
       assert MediaCentaur.Watchlist.TmdbReferences.references() == MapSet.new([{777, :movie}])

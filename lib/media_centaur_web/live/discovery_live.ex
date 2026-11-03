@@ -187,13 +187,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # it, coalescing a burst into one read.
   def handle_info(message, socket) do
     if Shelves.reloads?(message) and socket.assigns.loaded?,
-      do: {:noreply, debounce_reload(socket)},
+      do: {:noreply, debounce(socket, :reload_timer, :reload_shelves, @reload_debounce_ms)},
       else: {:noreply, socket}
-  end
-
-  defp debounce_reload(%{assigns: %{reload_timer: timer}} = socket) do
-    if timer, do: Process.cancel_timer(timer)
-    assign(socket, :reload_timer, Process.send_after(self(), :reload_shelves, @reload_debounce_ms))
   end
 
   # --- TitleDetailHost ---

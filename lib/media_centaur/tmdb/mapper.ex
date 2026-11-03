@@ -71,7 +71,7 @@ defmodule MediaCentaur.TMDB.Mapper do
       studio: extract_first_company(show["production_companies"]),
       country_code: extract_first_country(show["production_countries"]),
       network: extract_first_network(show["networks"]),
-      status: parse_tv_status(show["status"]),
+      status: tv_status(show["status"]),
       cast: extract_cast(show["aggregate_credits"]),
       crew: extract_creators(show["created_by"])
     }
@@ -272,8 +272,15 @@ defmodule MediaCentaur.TMDB.Mapper do
     "Canceled" => :canceled
   }
 
-  defp parse_tv_status(nil), do: nil
-  defp parse_tv_status(status), do: Map.get(@tv_status_map, status)
+  @doc """
+  TMDB's status word for a series as an atom — `:returning`, `:ended`,
+  `:canceled`, `:in_production`, `:planned` — nil for none or one we do
+  not name. The one reading of the word: the library's import and
+  `TMDB.SeriesStatus` share it.
+  """
+  @spec tv_status(String.t() | nil) :: atom() | nil
+  def tv_status(nil), do: nil
+  def tv_status(status), do: Map.get(@tv_status_map, status)
 
   defp parse_movie_status(nil), do: nil
   defp parse_movie_status(status), do: Map.get(@movie_status_map, status)

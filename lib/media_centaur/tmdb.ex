@@ -22,6 +22,7 @@ defmodule MediaCentaur.TMDB do
       ReleaseStages,
       ReleaseWindow,
       Schedule,
+      SeriesStatus,
       Store,
       Store.SeasonRecord,
       Store.TitleRecord,

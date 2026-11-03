@@ -163,19 +163,26 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       end
 
     tracking =
-      if not facts.in_library? do
-        rung_marker(Map.get(facts, :rung))
+      case Map.get(facts, :rung) do
+        :ignored -> nil
+        rung -> if not facts.in_library?, do: rung_word(rung)
       end
 
     Enum.reject([state, tracking], &is_nil/1)
   end
 
-  # Off says nothing — the row would not be here. Ignored says nothing
-  # either: it is a stance about the Feed, not an acquisition state, so a
-  # search result carries no marker for it; the title detail says so.
-  defp rung_marker(nil), do: nil
-  defp rung_marker(:ignored), do: nil
-  defp rung_marker(:list), do: "On your list"
-  defp rung_marker(:follow), do: "Tracking"
-  defp rung_marker(:grab), do: "Auto-grab"
+  @doc """
+  The word for a rung as a state — the row marker, the Watchlist page's
+  group heading and its rung menu read one vocabulary: On your list at
+  List, Tracking at Follow, Auto-grab at Grab, Ignored. Off says nothing
+  (a row would not be there). As a marker Ignored says nothing either —
+  it is a stance about the Feed, not an acquisition state — so
+  `row_markers/1` drops it; the Watchlist page names its group with it.
+  """
+  @spec rung_word(TitleIntent.rung() | nil) :: String.t() | nil
+  def rung_word(nil), do: nil
+  def rung_word(:ignored), do: "Ignored"
+  def rung_word(:list), do: "On your list"
+  def rung_word(:follow), do: "Tracking"
+  def rung_word(:grab), do: "Auto-grab"
 end
