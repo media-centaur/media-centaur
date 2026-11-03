@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
     placed
     |> Enum.filter(fn {placed_stage, _date, _item} -> placed_stage == stage end)
     |> Enum.sort_by(fn {_stage, date, _item} -> date || ~D[0001-01-01] end, {order, Date})
-    |> Enum.map(fn {_stage, date, item} -> %{item | chip: date_chip(chip, date, today)} end)
+    |> Enum.map(fn {_stage, date, item} -> %{item | chip: Format.date_chip(chip, date, today)} end)
   end
 
   @doc """
@@ -189,26 +189,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
           }
       }
     end
-  end
-
-  @doc """
-  A tile's date chip: the day (`Oct 24`) for an opening, the month
-  (`Dec`) for a release ahead, each with the year when it is not this
-  year's; nil without a date.
-  """
-  @spec date_chip(:day | :month | nil, Date.t() | nil, Date.t()) :: String.t() | nil
-  def date_chip(_kind, nil, _today), do: nil
-  def date_chip(nil, _date, _today), do: nil
-
-  def date_chip(:day, %Date{} = date, today) do
-    if date.year == today.year,
-      do: Format.month_day(date),
-      else: "#{Format.month_day(date)} #{date.year}"
-  end
-
-  def date_chip(:month, %Date{} = date, today) do
-    month = Calendar.strftime(date, "%b")
-    if date.year == today.year, do: month, else: "#{month} #{date.year}"
   end
 
   defp item(ref, %Title{} = title, owner_id, acquisition_state, rung) do

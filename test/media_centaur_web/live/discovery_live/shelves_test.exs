@@ -178,16 +178,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
     end
   end
 
-  describe "date_chip/3" do
-    test "the day for an opening, the month for a release ahead, the year when it is another year's" do
-      assert Shelves.date_chip(:day, ~D[2026-10-24], ~D[2026-11-01]) == "Oct 24"
-      assert Shelves.date_chip(:day, ~D[2025-10-24], ~D[2026-11-01]) == "Oct 24 2025"
-      assert Shelves.date_chip(:month, ~D[2026-12-05], ~D[2026-11-01]) == "Dec"
-      assert Shelves.date_chip(:month, ~D[2027-02-01], ~D[2026-11-01]) == "Feb 2027"
-      assert Shelves.date_chip(:day, nil, ~D[2026-11-01]) == nil
-    end
-  end
-
   describe "empty_reason/3" do
     test "TMDB never configured is the capability gap, whatever else holds" do
       assert Shelves.empty_reason(false, true, 0) == :tmdb_unconfigured

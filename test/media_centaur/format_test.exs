@@ -47,6 +47,17 @@ defmodule MediaCentaur.FormatTest do
     end
   end
 
+  describe "date_chip/3" do
+    test "the day for a date that happened or opens, the month for a release ahead, the year when it is another year's" do
+      assert Format.date_chip(:day, ~D[2026-10-24], ~D[2026-11-01]) == "Oct 24"
+      assert Format.date_chip(:day, ~D[2025-10-24], ~D[2026-11-01]) == "Oct 24 2025"
+      assert Format.date_chip(:month, ~D[2026-12-05], ~D[2026-11-01]) == "Dec"
+      assert Format.date_chip(:month, ~D[2027-02-01], ~D[2026-11-01]) == "Feb 2027"
+      assert Format.date_chip(:day, nil, ~D[2026-11-01]) == nil
+      assert Format.date_chip(nil, ~D[2026-10-24], ~D[2026-11-01]) == nil
+    end
+  end
+
   describe "short_id/1" do
     test "returns first 8 characters of a UUID" do
       assert Format.short_id("550e8400-e29b-41d4-a716-446655440000") == "550e8400"

@@ -50,6 +50,17 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuSelect do
           ~s|<:item id="sort-alpha" event="sort" values={%{"sort" => "alpha"}}>A–Z</:item>|,
           ~s|<:item id="sort-year" event="sort" values={%{"sort" => "year"}}>Year</:item>|
         ]
+      },
+      %Variation{
+        id: :sub_item,
+        description:
+          "Inside a row that is itself a nav item (the Watchlist row): the trigger is a `data-nav-sub-item`, reached with RIGHT, not an item of the zone.",
+        attributes: base(id: "rung", sub_item: true, value_label: "Tracking", label: "Rung"),
+        slots: [
+          ~s|<:item id="rung-list" event="rung_choice" values={%{"choice" => "list"}}>On your list</:item>|,
+          ~s|<:item id="rung-follow" event="rung_choice" values={%{"choice" => "follow"}} active>Tracking</:item>|,
+          ~s|<:item id="rung-grab" event="rung_choice" values={%{"choice" => "grab"}}>Auto-grab</:item>|
+        ]
       }
     ]
   end

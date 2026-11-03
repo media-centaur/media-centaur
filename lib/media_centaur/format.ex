@@ -85,6 +85,27 @@ defmodule MediaCentaur.Format do
   def month_day(%Date{} = date), do: "#{Calendar.strftime(date, "%b")} #{date.day}"
 
   @doc """
+  A tile's or a row's date chip: the day (`Oct 24`) for a date that
+  happened or opens, the month (`Dec`) for a release ahead, each with the
+  year when it is not `today`'s; nil without a date or a kind. Discovery's
+  shelves and the Watchlist page's state block read one chip.
+  """
+  @spec date_chip(:day | :month | nil, Date.t() | nil, Date.t()) :: String.t() | nil
+  def date_chip(_kind, nil, _today), do: nil
+  def date_chip(nil, _date, _today), do: nil
+
+  def date_chip(:day, %Date{} = date, today) do
+    if date.year == today.year,
+      do: month_day(date),
+      else: "#{month_day(date)} #{date.year}"
+  end
+
+  def date_chip(:month, %Date{} = date, today) do
+    month = Calendar.strftime(date, "%b")
+    if date.year == today.year, do: month, else: "#{month} #{date.year}"
+  end
+
+  @doc """
   Zero-pads a non-negative integer to two digits.
 
       iex> MediaCentaur.Format.pad2(3)

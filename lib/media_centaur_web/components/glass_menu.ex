@@ -205,6 +205,12 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   attr :menu_zone, :string, required: true, doc: "the list's `data-nav-zone`"
   attr :value_label, :string, required: true, doc: "the trigger's text — the current choice"
   attr :label, :string, required: true, doc: ~s(the accessible name, e.g. "Sort" or "Download scope")
+
+  attr :sub_item, :boolean,
+    default: false,
+    doc:
+      "the trigger is a `data-nav-sub-item` of the enclosing row — a TREE item the cursor steps into with RIGHT (the Watchlist row's rung) — instead of an item of the zone"
+
   attr :class, :any, default: nil, doc: "utilities on the wrapper"
   attr :rest, :global, doc: "data attributes on the wrapper (`data-sort`)"
 
@@ -231,7 +237,8 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         aria-haspopup="menu"
         aria-expanded={to_string(@open)}
         aria-controls={@id <> "-menu"}
-        data-nav-item
+        data-nav-item={!@sub_item}
+        data-nav-sub-item={@sub_item}
         tabindex="0"
       >
         <span class="sr-only">{@label}</span>
