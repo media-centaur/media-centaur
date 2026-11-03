@@ -150,7 +150,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
       data-component="watchlist-row"
       data-rung={@item.rung}
       data-state={@item.state && @item.state.kind}
-      data-owned={@item.owned?}
+      data-owned={@item.owned? && "true"}
       phx-click="open_title"
       phx-value-ref={@ref}
       data-entity-id={@ref}

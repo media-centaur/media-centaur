@@ -23,6 +23,7 @@ import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadsBehavior, downloadsDom } from "./downloads_behavior"
 import { createDiscoveryBehavior, discoveryDom } from "./discovery_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
+import { createWatchlistBehavior, watchlistDom } from "./watchlist_behavior"
 import { createSocialBehavior } from "./social_behavior"
 import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
@@ -44,6 +45,7 @@ const BEHAVIOR_REGISTRY = {
   downloads: () => createDownloadsBehavior(downloadsDom),
   discovery: () => createDiscoveryBehavior(discoveryDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
+  watchlist: () => createWatchlistBehavior(watchlistDom),
   social: () => createSocialBehavior(),
   apps: () => createAppsBehavior(),
   setup: () => createSetupBehavior(),

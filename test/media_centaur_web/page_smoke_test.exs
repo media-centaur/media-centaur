@@ -66,7 +66,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/guide", "guide index"},
           {"/guide/#{@guide_slug}", "guide chapter"},
           {"/apps", "apps"},
-          {"/discovery", "discovery"}
+          {"/discovery", "discovery"},
+          {"/watchlist", "watchlist"}
         ] ++ @subsystem_routes do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = smoke!(conn, unquote(path))
@@ -551,6 +552,50 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     test "library browse renders the grid and stat line", %{conn: conn} do
       assert {:ok, _view, html} = smoke!(conn, ~p"/library")
       assert is_binary(html)
+    end
+  end
+
+  # The Watchlist page with a record of every kind it draws: a followed
+  # series with an aired episode outstanding, a listed movie with a
+  # digital release behind it, an owned title, an Ignored record, and
+  # the title detail open on one of them.
+  describe "/watchlist with records" do
+    setup do
+      TmdbStubs.setup_tmdb_client(self())
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 246_810,
+          media_type: :tv_series,
+          name: "Sample Show",
+          rung: :follow
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(Date.utc_today(), -3)
+      })
+
+      create_title_intent(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie", rung: :list})
+      create_title_intent(%{tmdb_id: 778, media_type: :movie, name: "Dismissed Movie", rung: :ignored})
+      movie = create_standalone_movie(%{name: "Owned Movie"})
+      create_external_id(%{source: "tmdb", external_id: "779", movie_id: movie.id})
+      create_linked_file(%{movie_id: movie.id})
+      create_title_intent(%{tmdb_id: 779, media_type: :movie, name: "Owned Movie", rung: :grab})
+      :ok
+    end
+
+    test "renders without crashing", %{conn: conn} do
+      assert {:ok, view, _html} = smoke!(conn, "/watchlist")
+      assert has_element?(view, "#watchlist-group-follow")
+      assert has_element?(view, "#watchlist-group-ignored")
+    end
+
+    test "renders without crashing with the title detail open", %{conn: conn} do
+      assert {:ok, _view, html} = smoke!(conn, "/watchlist?title=tv_series-246810")
+      assert html =~ "Sample Show"
     end
   end
 

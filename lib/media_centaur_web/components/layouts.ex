@@ -151,6 +151,17 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, "/discovery")}
             remember
           />
+          <%!-- Watchlist: the inventory of every title intent, managed in
+                place (UIDR-057, amended) — unconditional: the bookmark is on
+                every title whatever is on, so the list is never without a
+                surface. --%>
+          <SidebarLink.sidebar_link
+            id="sidebar-watchlist"
+            navigate="/watchlist"
+            label="Watchlist"
+            icon="hero-bookmark"
+            active={current?(@current_path, "/watchlist")}
+          />
           <%!-- Downloads, the get stage (UIDR-015 amended, UIDR-057) —
                 unconditional: without acquisition the page says what it
                 needs instead of disappearing. --%>

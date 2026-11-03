@@ -46,6 +46,10 @@ export const inputConfig = {
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
     library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
+    // The Watchlist page's rows across its rung groups; a row's rung select
+    // is its `[data-nav-sub-item]`, and the open list its own nested zone.
+    watchlist_rows: "[data-nav-zone='watchlist_rows'] [data-nav-item]",
+    watchlist_rung_menu: "[data-nav-zone='watchlist_rung_menu'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     // Settings → Controls: the binding table. A row is the item; its keycaps
@@ -172,6 +176,10 @@ export const inputConfig = {
     plan_menu: Context.TREE,
     // The library sort menu, present only while open: a short list under the toolbar's Sort trigger.
     library_sort_menu: Context.TREE,
+    // The Watchlist page: rows with their rung select as the sub-item (the
+    // Feed's shape), and the open rung menu nested in a row.
+    watchlist_rows: Context.TREE,
+    watchlist_rung_menu: Context.TREE,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -370,6 +378,16 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
+    // Watchlist: the filter and search over the rows (one TREE across the
+    // rung groups); a row's open rung menu is nested in it, BACK closing
+    // it through its `data-nav-dismiss-event`. The empty states carry the
+    // rows' zone so their button is reachable.
+    watchlist: {
+      toolbar:             { down: ["watchlist_rows"] },
+      watchlist_rows:      { up: ["toolbar"], down: ["watchlist_rung_menu"] },
+      watchlist_rung_menu: { up: ["watchlist_rows"], back: ["watchlist_rows"] },
+      sidebar:             { right: ["watchlist_rows", "toolbar"] },
+    },
     // Social: the zone-tabs strip above one body — the Feed's rows on Feed,
     // the person cards on Friends, the person page's rows over its card. The
     // Feed's rail of people is not a nav zone.
@@ -449,6 +467,7 @@ export const inputConfig = {
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     downloads:  ["pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
+    watchlist: ["watchlist_rows", "toolbar", "sidebar"],
     social: ["feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],

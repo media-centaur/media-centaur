@@ -9,6 +9,12 @@ defmodule MediaCentaurWeb.Live.SidebarTest do
   test "the rail is two named groups, and the current page is the one active entry", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, @page)
     assert has_element?(view, "#sidebar nav[aria-label='Watch'] > #sidebar-home")
+    # The Watchlist entry is unconditional: the list exists whatever is on (UIDR-057, amended).
+    assert has_element?(
+             view,
+             "#sidebar nav[aria-label='Watch'] > #sidebar-discovery + #sidebar-watchlist + #sidebar-downloads"
+           )
+
     assert has_element?(view, "#sidebar nav#sidebar-system[aria-label='System'] > #sidebar-settings")
     refute has_element?(view, "#sidebar [aria-current]")
 
