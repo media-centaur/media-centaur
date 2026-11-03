@@ -5,11 +5,15 @@ part: Acquisition
 slug: watchlist-and-tracking
 order: 16
 ---
-The watchlist is the list of titles you want to watch, drawn on Discovery (`/discovery`) by
-release stage: the **Out Now** shelf for what can be watched at home now, and the **Watchlist**
-row for what is still **In Theaters** or **Coming Up**. You put things on it and you take them
+The watchlist is the list of titles you want to watch. You put things on it and you take them
 off; nothing else does. It is also the only place release tracking is turned on: a title you
 want and a title the app is watching for are one record, at different strengths.
+
+It is drawn in two places. **Discovery** (`/discovery`) shows it by release stage, for choosing
+what to get: the **Out Now** shelf for what can be watched at home now, and the **Watchlist**
+row for what is still **In Theaters** or **Coming Up**. The **Watchlist** page (`/watchlist`)
+shows every record by what you asked the app to do about it, for managing the list — see
+[The Watchlist page](#the-watchlist-page).
 
 Adding a title costs nothing — no search, no download, no calendar. Following its releases is
 a second, deliberate act.
@@ -26,23 +30,37 @@ A saved title keeps the name, year, poster and synopsis it had when you saved it
 renders when TMDB is unreachable. Titles you already own can stay on the list — owning
 something isn't the same as having watched it.
 
-## The rows
+## The Watchlist page
 
-One row per title: poster, name and year, with quiet markers for its state — **In library**,
-**Planning**, **Downloading** or **Needs review**, and **Tracking** or **Auto-grab** when a
-switch is on — its note — yours, or the friend's words it came with — and a glyph at the
-right for each thing a friend did with it. A tracked title's row carries its next release at
-the far right: the date (**Tonight**, **Fri Oct 9**, **5 days ago**), the release (**S02E04**;
-a season dropping on one day as **S2 · all 8 episodes at once**) and a status pill — see
-[release tracking](/guide/release-tracking-and-upcoming) for the pills. The next release is the
-next one still to come: a release the app is still searching for counts. An episode that landed
-in the last week shows on its own line above it — **S02E03 · 3 days ago · Landed** — so a weekly
-show reads both at once; a release you already have leads the row only while nothing later is
-scheduled. Press an **In pursuit** pill to switch to the Activity tab, where the download is.
+Every title you have put on your list, in four groups by what you asked the app to do about
+it: **Auto-grab**, **Tracking**, **On your list**, and **Ignored** — titles you dismissed from
+the Feed and Discovery, which show nowhere else. Titles your library owns are on it too,
+marked **In library**.
 
-Rows are ordered by next release, nearest first; tracked titles TMDB has not dated follow;
-titles you only listed come last, newest first. The list has no cap. Click a row to open the
-title; rows show the state and never set it.
+One row per title: poster, name and year, the quiet markers for its state — **In library**,
+**Planning**, **Downloading** or **Needs review** — the note it came with when a friend's
+listing brought it, and a glyph at the right for each thing a friend did with it. Beside
+them, what the app knows of the title's releases:
+
+| The row says | When |
+|---|---|
+| **3 episodes out · Latest Mar 27** | A tracked series has aired episodes you do not have |
+| **Next episode · Nov 11** | Nothing outstanding; TMDB has dated the next one |
+| **Between seasons** / **Ended** / **Nothing scheduled** | Nothing outstanding and nothing dated; TMDB's word for the series |
+| **Out now · Oct 16** | A movie with a digital or disc release behind it, or a listed series that has aired |
+| **In theaters · Oct 16** | A movie in cinemas |
+| **Coming up · Dec** | A release still ahead |
+| **No release date** | TMDB has no usable date |
+
+Within a group, rows with episodes out come first, then what is out now, then the nearest
+date ahead, then the rest by name. **All**, **Movies** and **Series** narrow the list by
+type; the search box narrows it by name (`Backspace` / Y clears it).
+
+The control at the row's right is the rung: press it and pick **On your list**, **Tracking**
+or **Auto-grab** to move the title, **Ignore** to dismiss it, or **Remove** to take it off
+the list — the same change the title's switches make, without opening the title. An Ignored
+row offers **On your list** and **Stop ignoring**. A title your library owns is never offered
+Ignore. Click anywhere else on the row to open the title.
 
 ## The tracking controls
 

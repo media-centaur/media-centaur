@@ -69,6 +69,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `discovery_behavior.js` | Yes | Discovery (`/discovery`): CLEAR → the media search box |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
+| `watchlist_behavior.js` | Yes | Watchlist (`/watchlist`): CLEAR → the search over the list |
 | `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Settings.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
 
 *Library behavior is pure when injected with mock DOM.
@@ -365,7 +366,7 @@ layer out.
 | `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `apps`, `discovery`, `downloads`, `guide`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status` (Home and History run the default behaviour) |
+| `data-page-behavior` | Page behavior to activate | `apps`, `discovery`, `downloads`, `guide`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status`, `watchlist` (Home and History run the default behaviour) |
 | `data-nav-default-zone` | Default zone for pages without zone tabs | a zone name from `config.js` (e.g. `home`, `library`, `settings`, `status`, `review`) |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |

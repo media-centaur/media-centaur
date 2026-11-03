@@ -171,9 +171,10 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
   def narrow(items, filter, query) do
     needle = query |> String.trim() |> String.downcase()
 
-    items
-    |> Enum.filter(&type_matches?(&1, filter))
-    |> Enum.filter(&(needle == "" or String.contains?(String.downcase(&1.title.name || ""), needle)))
+    Enum.filter(items, fn item ->
+      type_matches?(item, filter) and
+        (needle == "" or String.contains?(String.downcase(item.title.name || ""), needle))
+    end)
   end
 
   defp type_matches?(_item, :all), do: true

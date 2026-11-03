@@ -335,7 +335,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
           >
             <h2 class="mb-2 px-4 text-sm font-medium uppercase tracking-wider text-base-content/55">
               {group.label}
-              <span class="ml-1 normal-case tracking-normal text-base-content/40">
+              <span class="ml-1 normal-case tracking-normal text-base-content/55">
                 {length(group.items)}
               </span>
             </h2>

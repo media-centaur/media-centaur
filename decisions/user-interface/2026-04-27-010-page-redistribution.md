@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-04-27
-amended: 2026-11-02
+amended: 2026-11-03
 ---
 # Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History
 
+> **Amendment 2026-11-03 (campaign `discovery.md`, M15; UIDR-057 amended).** Rule 2's Watch group gains **Watchlist** (`/watchlist`, the bookmark icon) between Discovery and Downloads, unconditional: **Home, Library, Discovery, Watchlist, Downloads, Social, Apps**. The page is the inventory of every title intent, managed in place (UIDR-050 amended); it is not a feature, so it has no flag.
+>
 > **Amendment 2026-11-02 (campaign `discovery.md`, M14; UIDR-057).** Rule 2's Watch group reads in stage order with the side views between: **Home, Library, Discovery, Downloads, Social, Apps**. Incoming is Downloads (UIDR-015 amended); Discovery is an optional feature (ADR-081), on by default, its entry present while the flag is on. Rule 3's `?zone=upcoming` redirect is removed with the page it pointed at; `?zone=library` still redirects.
 >
 > **Amendment 2026-11-01 (campaign `discovery.md`, M5 and M12).** Rule 1's "the one assembled cinematic page" and the consequence "the only page that does" widen to **two assembled pages**, each about titles: Home, where you watch what you own, and Discovery (`/discovery`), where you choose what you do not own yet — a hero and shelves over TMDB, Activities and the watchlist, composed from the same kit (`HeroCard`, `ShelfHead`, `PosterRow`). Every other page stays single-purpose. The Watch group gains Discovery between Library and Incoming while the feature is on.

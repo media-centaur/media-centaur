@@ -1,9 +1,12 @@
 ---
 status: accepted
 date: 2026-11-02
+amended: 2026-11-03
 ---
 # Pages are stages: choose, get, watch
 
+> **Amendment 2026-11-03 (campaign `discovery.md`, M15).** A fourth side view: the **Watchlist** page at `/watchlist`, the inventory of every title intent, managed in place (UIDR-050 amended). Library is what you have, the Watchlist page what you want. It is not a stage and not a feature (ADR-081): the bookmark is on every title whatever is on, so the page is ungated and exists while Discovery is off. The Watch group reads **Home, Library, Discovery, Watchlist, Downloads, Social, Apps** (UIDR-010 amended). Discovery keeps the list by release stage: the cutover had left the list without an inventory, and this page is it — Discovery and Downloads are unchanged.
+>
 Campaign `campaigns/discovery.md` (M5, the core idea; M14, the cutover). Amends UIDR-010 (the sidebar's Watch group), UIDR-014 (the omnibox), UIDR-015 (Incoming) and UIDR-050 (the Watchlist tab), each with a dated amendment of its own.
 
 ## Context and Problem Statement

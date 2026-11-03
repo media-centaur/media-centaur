@@ -513,6 +513,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dow
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
 | **Discovery** | `/discovery` | The page for titles you do not own yet, built like Home: media search (`Live.MediaSearch`, UIDR-014 amended) over a hero from the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); the *choose* stage (UIDR-057); an optional feature (ADR-081), on by default, its off state while off |
+| **Watchlist** | `/watchlist` | The inventory of every title intent by rung — Auto-grab, Tracking, On your list, Ignored — each row with its state block and the rung changed in place (`Components.Watchlist.Row`, UIDR-050 amended); a side view (UIDR-057 amended), not a feature, so ungated |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |

@@ -1,10 +1,12 @@
 ---
 status: accepted
 date: 2026-10-02
-amended: 2026-11-02
+amended: 2026-11-03
 ---
 # The watchlist is Incoming's first tab, and the schedule is on its rows
 
+> **Amendment 2026-11-03 (campaign `discovery.md`, M15).** The inventory the tab was has a page of its own: **Watchlist** at `/watchlist`, in the sidebar between Discovery and Downloads, unconditional — the bookmark is on every title whatever is on, so the list is never without a surface, and the page is not a feature (ADR-081). One record, two reads: Discovery draws the list by release stage (the 2026-11-02 amendment stands) to answer *what can I get*; the page draws it by **rung** — Auto-grab, Tracking, On your list, Ignored — to answer *what have I told the app to do*. Rules 2–3 return there, rebuilt: one row per record (`Components.Watchlist.Row`), owned titles included and marked, Ignored records included (their one surface), with a **state block** at the right — a followed series' aired episodes not had, its next dated episode, or TMDB's word (Between seasons, Ended); a movie's or a List-only title's release stage with its date — and the **rung as a glass select** on the row, with Ignore and Remove, writing through the one path the detail's switches use. Rows order by urgency within a group; a type filter and a search over the names narrow them. Rule 4 stands (no cap). Rule 5 stands as amended. Rule 6 stands.
+>
 > **Amendment 2026-11-02 (campaign `discovery.md`, M14 cutover) — superseded in the main.** The Watchlist tab is gone with Incoming (UIDR-015, amended): the watchlist's home is **Discovery**, by release stage — the **Out Now** shelf and the **In Theaters · Coming Up** grouped row (`PosterRow.grouped_poster_row/1`, `TMDB.ReleaseStages`), every listed title once, a poster tile with its marker chip and date chip (campaign decisions 13–15). Rules 1–4 are retired: there is no row, no next-release column and no In pursuit pill; a tracked title's next release and its status are read in its title detail (`Components.ReleaseTracking.ReleaseDates`), reached from the tile, and the pursuit's row is on Downloads' Activity tab. `Title.Row` keeps the title, the markers, the notes and the social glyphs, as a media-search result; its next-release block, `UpcomingFeed.next_per_title/1`, `landed_per_title/1` and `Components.Incoming.StatusPill` are removed. Rule 5 stands as amended below (Home's Coming Up marquee answers *when*; Discovery's group, *what*). Rule 6 stands.
 >
 > **Amendment 2026-10-03 (UIDR-051).** The Discovery page named below is the Social page at `/social`.

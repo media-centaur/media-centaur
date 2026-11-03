@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Live.SidebarTest do
     # The Watchlist entry is unconditional: the list exists whatever is on (UIDR-057, amended).
     assert has_element?(
              view,
-             "#sidebar nav[aria-label='Watch'] > #sidebar-discovery + #sidebar-watchlist + #sidebar-downloads"
+             "#sidebar nav[aria-label='Watch'] > [aria-label='Discovery'] + [aria-label='Watchlist'] + [aria-label='Downloads']"
            )
 
     assert has_element?(view, "#sidebar nav#sidebar-system[aria-label='System'] > #sidebar-settings")

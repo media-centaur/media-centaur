@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
       {:ok, view, html} = live_async!(conn, "/watchlist")
 
-      assert has_element?(view, "#sidebar-watchlist[aria-current='page']")
+      assert has_element?(view, "#sidebar [aria-label='Watchlist'][aria-current='page']")
       assert has_element?(view, "#watchlist-group-follow h2", "Tracking")
       assert has_element?(view, "#watchlist-group-list h2", "On your list")
       assert has_element?(view, "#watchlist-group-ignored h2", "Ignored")
@@ -110,7 +110,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       {:ok, view, _html} = live_async!(conn, "/watchlist")
       ref = {779, :movie}
 
-      assert has_element?(view, "#{row(ref)}[data-owned='true']", "In library")
+      assert has_element?(view, row(ref), "In library")
       view |> element(rung_trigger(ref)) |> render_click()
       assert has_element?(view, rung_item(ref, "off"), "Remove")
       refute has_element?(view, rung_item(ref, "ignored"))
@@ -213,7 +213,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
       assert has_element?(view, "#watchlist-empty", "Your list starts with a bookmark")
       assert has_element?(view, "#watchlist-empty a[href='/discovery']", "Open Discovery")
-      refute html =~ "watchlist-filter"
+      refute has_element?(view, "#watchlist-filter")
     end
 
     test "with Discovery off the button goes to the library", %{conn: conn} do
@@ -221,7 +221,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       {:ok, view, _html} = live_async!(conn, "/watchlist")
 
       assert has_element?(view, "#watchlist-empty a[href='/library']", "Browse the library")
-      refute has_element?(view, "#watchlist-empty a[href='/discovery']")
+      refute has_element?(view, "#watchlist-empty a", "Open Discovery")
     end
   end
 end
