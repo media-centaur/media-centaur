@@ -480,6 +480,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       view |> element(choice(:love)) |> render_click()
       view |> form("#review-form", %{"text" => "Second words"}) |> render_submit()
+
+      assert render(view) =~ "Review updated" or
+               render(view) =~ "Saved — it shares when a relay connects"
+
       assert [%{sentiment: :love, text: "Second words"}] = MediaCentaur.Activities.list_sent()
 
       view |> element("#detail-review") |> render_click()

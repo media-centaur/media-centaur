@@ -87,17 +87,19 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
             {ReviewFlow.counter(@state.text)}
           </p>
           <div class="flex items-center gap-2">
-            <button
+            <.button
               :if={@editing?}
               id="review-remove"
               type="button"
-              class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-error"
+              variant="dismiss"
+              size="sm"
+              class="text-base-content/55 hover:text-error"
               phx-click="review_remove"
               data-nav-item
               tabindex="0"
             >
               Remove review
-            </button>
+            </.button>
             <p
               :if={!@editing? && @state.audience}
               id="review-audience"

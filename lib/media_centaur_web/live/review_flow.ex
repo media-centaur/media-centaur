@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   textarea renders from it through `review_change`), the `existing` own
   review when the modal opened on a title the reader already reviewed
   (then it is editing: prefilled, Save, Remove review), the
-  `relay_counts` and the `audience` line, both read once at open:
+  `audience` line, read once at open:
   `Connections.status/0` is a `GenServer.call` and the render path runs
   on every diff.
 
@@ -76,7 +76,6 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
               sentiment: nil,
               text: "",
               existing: nil,
-              relay_counts: {0, 0},
               audience: nil
 
     @type t :: %__MODULE__{
@@ -85,7 +84,6 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
             sentiment: Activity.sentiment() | nil,
             text: String.t(),
             existing: Activity.t() | nil,
-            relay_counts: {non_neg_integer(), non_neg_integer()},
             audience: String.t() | nil
           }
 
@@ -118,7 +116,6 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
       sentiment: existing && existing.sentiment,
       text: (existing && existing.text) || "",
       existing: existing,
-      relay_counts: relay_counts(status),
       audience: audience_line(Map.values(Social.visible_people()), status)
     })
   end
