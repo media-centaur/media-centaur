@@ -170,6 +170,61 @@ defmodule MediaCentaurWeb.SetupLiveTest do
     end
   end
 
+  describe "media directories step" do
+    setup do
+      dir = System.tmp_dir!()
+      :ok = Config.put_media_dirs([%{"id" => "dir-a", "dir" => dir}])
+      %{dir: dir}
+    end
+
+    test "the cursor enters the step on the add field, not on a Remove", %{conn: conn} do
+      # Regression: the first nav item in the card was the first directory's
+      # Remove, so pressing OK on Welcome's Begin landed on it.
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
+
+      [first | _] =
+        view
+        |> render()
+        |> LazyHTML.from_document()
+        |> LazyHTML.query("[data-nav-zone='grid'] [data-nav-item]")
+        |> Enum.to_list()
+
+      assert LazyHTML.attribute(first, "name") == ["dir"]
+    end
+
+    test "Remove arms on the first press and removes on the second", %{conn: conn, dir: dir} do
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
+
+      view |> element("button[phx-click='setup:remove_media_dir']") |> render_click()
+
+      assert Enum.map(Config.media_dirs_entries(), & &1["dir"]) == [dir]
+      assert has_element?(view, "button[phx-click='setup:remove_media_dir'][data-armed]")
+
+      view |> element("button[phx-click='setup:remove_media_dir']") |> render_click()
+
+      assert Config.media_dirs_entries() == []
+    end
+  end
+
+  describe "integration step fields" do
+    test "each field's label names its input", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=prowlarr")
+
+      for name <- ["prowlarr_url", "prowlarr_api_key"] do
+        assert has_element?(view, "label[for='setup-#{name}']")
+        assert has_element?(view, "input#setup-#{name}[name='#{name}'][data-nav-item]")
+      end
+    end
+
+    test "the download client type is stated, not a one-option select", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/setup?step=download_client")
+
+      refute has_element?(view, "select[name='download_client_type']")
+      assert has_element?(view, "input[type='hidden'][name='download_client_type'][value='qbittorrent']")
+      assert html =~ "qBittorrent"
+    end
+  end
+
   describe "escaping the tour" do
     test "the media directories step still blocks Next", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
@@ -197,6 +252,19 @@ defmodule MediaCentaurWeb.SetupLiveTest do
 
       refute has_element?(view, "button[phx-click='setup:skip_tour']")
       assert has_element?(view, "button[phx-click='setup:next']", "Finish")
+    end
+
+    test "Skip the tour is reachable by keyboard and gamepad — a nav item in its own zone", %{
+      conn: conn
+    } do
+      # Regression: it was a nav item outside every zone, so a remote or
+      # gamepad user missing a required step had no way off the page.
+      {:ok, view, _html} = live(conn, "/setup?step=tmdb")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='toolbar'] button[phx-click='setup:skip_tour'][data-nav-item]"
+             )
     end
 
     test "Finish from the summary works with required steps incomplete", %{conn: conn} do

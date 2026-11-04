@@ -39,10 +39,11 @@ describe("App config", () => {
     expect(inputConfig.cursorStartPriority.status).toBeDefined()
   })
 
-  test("setup tour is a sidebar-less single-grid wizard", () => {
+  test("setup tour is a sidebar-less wizard that starts in the step card", () => {
     expect(inputConfig.layouts.setup).toBeDefined()
     expect(inputConfig.layouts.setup.grid).toBeDefined()
-    expect(inputConfig.cursorStartPriority.setup).toEqual(["grid"])
+    expect(inputConfig.layouts.setup.sidebar).toBeUndefined()
+    expect(inputConfig.cursorStartPriority.setup[0]).toBe("grid")
   })
 
   test("setup behavior resolves and does not activate on focus", () => {

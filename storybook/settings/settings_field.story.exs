@@ -34,6 +34,18 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsField do
         ]
       },
       %Variation{
+        id: :labelled_control,
+        description: "With `for`: the label is a `<label>` naming the control by its id.",
+        attributes: %{
+          label: "Address",
+          for: "story-address",
+          layout: :stacked
+        },
+        slots: [
+          ~s|<input id="story-address" class="input w-full font-mono text-sm" value="http://localhost:9696" />|
+        ]
+      },
+      %Variation{
         id: :narrow_inline,
         description: "A narrow card: an inline control that no longer fits drops beneath the label.",
         template: @narrow,

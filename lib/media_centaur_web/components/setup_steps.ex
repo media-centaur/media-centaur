@@ -18,6 +18,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Settings, only: [settings_input: 1]
+
   alias Phoenix.LiveView.JS
 
   alias MediaCentaurWeb.Live.SetupLive.{Content, Probe}
@@ -48,9 +50,17 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   slot :inner_block, required: true
 
+  # Each step's card carries its own id, so a step change replaces the card
+  # rather than morphing the old one's focused button into whatever control
+  # sits at its position in the new step: the cursor re-enters the new card
+  # at its first item.
   defp step_shell(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
+    <section
+      id={"setup-step-#{@result.id}"}
+      class="glass-surface rounded-xl p-6 max-w-2xl mx-auto"
+      data-nav-zone="grid"
+    >
       <header class="mb-5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -204,14 +214,13 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         phx-value-id={@result.id}
         class="flex gap-2 items-center"
       >
-        <input
-          type="text"
+        <.settings_input
           name="path"
           value={@result.current_value || ""}
           placeholder={"/usr/bin/" <> @binary_name}
-          class="input input-sm flex-1 font-mono text-sm"
-          data-nav-item
-          tabindex="0"
+          aria-label={"Path to " <> @binary_name}
+          mono
+          class="min-w-0 flex-1"
         />
         <.button
           type="button"
@@ -313,6 +322,12 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   attr :total_steps, :integer, required: true
   attr :blocked?, :boolean, default: false
 
+  attr :armed_dir, :string,
+    default: nil,
+    doc: "the directory whose Remove has had its first press (`ArmGesture`), or nil."
+
+  # The add form comes first: it is the step's entry, so the cursor arriving
+  # from Begin lands on a field, never on a Remove.
   def media_dirs_step(assigns) do
     ~H"""
     <.step_shell
@@ -322,29 +337,6 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
       total_steps={@total_steps}
       blocked?={@blocked?}
     >
-      <ul :if={dirs_list(@result) != []} class="space-y-1">
-        <li
-          :for={dir <- dirs_list(@result)}
-          class="flex items-center justify-between gap-2 p-2 rounded bg-base-content/5"
-        >
-          <code class="font-mono text-sm truncate-left min-w-0" data-tip={dir}><bdo dir="ltr">{dir}</bdo></code>
-          <.button
-            variant="dismiss"
-            size="xs"
-            phx-click="setup:remove_media_dir"
-            phx-value-dir={dir}
-            data-nav-item
-            tabindex="0"
-          >
-            Remove
-          </.button>
-        </li>
-      </ul>
-
-      <p :if={dirs_list(@result) != []} class="text-xs text-base-content/55">
-        Add as many as you like — movies and TV can live in separate folders.
-      </p>
-
       <form
         id="setup-add-media-dir-form"
         phx-submit={
@@ -353,19 +345,41 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         }
         class="flex gap-2 items-center"
       >
-        <input
-          type="text"
+        <.settings_input
           name="dir"
           placeholder="/absolute/path/to/your/media"
-          class="input input-sm flex-1 font-mono text-sm"
+          aria-label="Media directory"
+          mono
           required
-          data-nav-item
-          tabindex="0"
+          class="min-w-0 flex-1"
         />
         <.button type="submit" variant="primary" size="sm" data-nav-item tabindex="0">
           Add
         </.button>
       </form>
+
+      <p :if={dirs_list(@result) != []} class="text-xs text-base-content/55">
+        Add as many as you like — movies and TV can live in separate folders.
+      </p>
+
+      <ul :if={dirs_list(@result) != []} class="space-y-1">
+        <li
+          :for={dir <- dirs_list(@result)}
+          class="flex items-center justify-between gap-2 p-2 rounded bg-base-content/5"
+        >
+          <code class="font-mono text-sm truncate-left min-w-0" data-tip={dir}><bdo dir="ltr">{dir}</bdo></code>
+          <.armed_button
+            armed={@armed_dir == dir}
+            event="setup:remove_media_dir"
+            armed_label="Click again to remove"
+            variant="dismiss"
+            size="xs"
+            phx-value-dir={dir}
+          >
+            Remove
+          </.armed_button>
+        </li>
+      </ul>
     </.step_shell>
     """
   end
@@ -385,7 +399,11 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def welcome_step(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
+    <section
+      id="setup-step-welcome"
+      class="glass-surface rounded-xl p-6 max-w-2xl mx-auto"
+      data-nav-zone="grid"
+    >
       <header class="mb-5">
         <h2 class="text-2xl font-bold tracking-tight">Welcome to Media Centaur</h2>
         <p class="mt-1 text-sm text-base-content/60">Let's get the basics configured.</p>
@@ -448,7 +466,11 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def summary_step(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
+    <section
+      id="setup-step-summary"
+      class="glass-surface rounded-xl p-6 max-w-2xl mx-auto"
+      data-nav-zone="grid"
+    >
       <header class="mb-5">
         <h2 class="text-2xl font-bold tracking-tight">Setup summary</h2>
         <p class="mt-1 text-sm text-base-content/60">

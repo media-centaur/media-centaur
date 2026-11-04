@@ -15,6 +15,8 @@ defmodule MediaCentaurWeb.SetupLive do
 
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.Components.Settings, only: [settings_field: 1, settings_input: 1]
+
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
@@ -22,6 +24,7 @@ defmodule MediaCentaurWeb.SetupLive do
   alias MediaCentaur.Secret
   alias MediaCentaur.Setup.Gate
   alias MediaCentaurWeb.Components.SetupSteps
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.SetupLive.{Content, Probes}
 
   # Tour steps in order. `:welcome` and `:summary` are wrapper steps
@@ -160,10 +163,18 @@ defmodule MediaCentaurWeb.SetupLive do
     {:noreply, refresh_probes(socket)}
   end
 
+  # Removing a directory is the arm gesture: the first press arms, the second
+  # removes.
   def handle_event("setup:remove_media_dir", %{"dir" => dir}, socket) do
-    entries = Enum.reject(Config.media_dirs_entries(), &(&1["dir"] == dir))
-    Config.put_media_dirs(entries)
-    {:noreply, refresh_probes(socket)}
+    case ArmGesture.press(socket, "setup:remove_media_dir", dir) do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        entries = Enum.reject(Config.media_dirs_entries(), &(&1["dir"] == dir))
+        Config.put_media_dirs(entries)
+        {:noreply, refresh_probes(socket)}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -419,7 +430,11 @@ defmodule MediaCentaurWeb.SetupLive do
                 all: no Skip on those steps, and the page carries no other
                 links. This lands on the summary, which already states honestly
                 what is still incomplete and lets them finish anyway. --%>
-          <div :if={@current_step != :summary} class="mt-4 flex justify-end">
+          <div
+            :if={@current_step != :summary}
+            class="mt-4 flex justify-end"
+            data-nav-zone="toolbar"
+          >
             <.button
               variant="dismiss"
               size="xs"
@@ -463,6 +478,7 @@ defmodule MediaCentaurWeb.SetupLive do
           step_index={@step_index}
           total={@total}
           blocked?={@blocked?}
+          armed_dir={ArmGesture.armed_target(@armed_gesture, "setup:remove_media_dir")}
         />
       </div>
     </Layouts.input_system_root>
@@ -500,6 +516,10 @@ defmodule MediaCentaurWeb.SetupLive do
     doc:
       "Whether `Setup.Gate.check/3` currently blocks advancement. Propagated to step components so the Next button can be visually disabled on non-form steps."
 
+  attr :armed_dir, :string,
+    default: nil,
+    doc: "the media directory whose Remove is armed (`ArmGesture`), or nil."
+
   defp step_for(%{step: :welcome} = assigns) do
     ~H"""
     <SetupSteps.welcome_step step_index={@step_index} total_steps={@total} />
@@ -524,6 +544,7 @@ defmodule MediaCentaurWeb.SetupLive do
       step_index={@step_index}
       total_steps={@total}
       blocked?={@blocked?}
+      armed_dir={@armed_dir}
     />
     """
   end
@@ -591,17 +612,16 @@ defmodule MediaCentaurWeb.SetupLive do
               class="link link-primary"
             >Settings → API</.link>. Either one works.
           </p>
-          <label class="text-sm font-medium text-base-content/80 block">
-            API key
-          </label>
-          <input
-            type="password"
-            name="tmdb_api_key"
-            placeholder="Paste the API Key or API Read Access Token"
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
+          <.settings_field label="API key" for="setup-tmdb_api_key" layout={:stacked}>
+            <.settings_input
+              id="setup-tmdb_api_key"
+              type="password"
+              name="tmdb_api_key"
+              placeholder="Paste the API Key or API Read Access Token"
+              autocomplete="off"
+              mono
+            />
+          </.settings_field>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -628,24 +648,24 @@ defmodule MediaCentaurWeb.SetupLive do
           class="space-y-2"
         >
           <input type="hidden" name="_integration" value="prowlarr" />
-          <label class="text-sm font-medium text-base-content/80 block">URL</label>
-          <input
-            type="text"
-            name="prowlarr_url"
-            value={@prowlarr_url_value}
-            placeholder="http://localhost:9696"
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <label class="text-sm font-medium text-base-content/80 mt-3 block">API key</label>
-          <input
-            type="password"
-            name="prowlarr_api_key"
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
+          <.settings_field label="URL" for="setup-prowlarr_url" layout={:stacked}>
+            <.settings_input
+              id="setup-prowlarr_url"
+              name="prowlarr_url"
+              value={@prowlarr_url_value}
+              placeholder="http://localhost:9696"
+              mono
+            />
+          </.settings_field>
+          <.settings_field label="API key" for="setup-prowlarr_api_key" layout={:stacked}>
+            <.settings_input
+              id="setup-prowlarr_api_key"
+              type="password"
+              name="prowlarr_api_key"
+              autocomplete="off"
+              mono
+            />
+          </.settings_field>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -675,45 +695,42 @@ defmodule MediaCentaurWeb.SetupLive do
           class="space-y-2"
         >
           <input type="hidden" name="_integration" value="download_client" />
-          <label class="text-sm font-medium text-base-content/80 block">Type</label>
-          <select
-            name="download_client_type"
-            class="select select-bordered select-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
+          <%!-- One client type exists, so the type is stated, not chosen. --%>
+          <input type="hidden" name="download_client_type" value="qbittorrent" />
+          <.settings_field
+            label="Client"
+            layout={:stacked}
+            description="A usenet client (SABnzbd) can be added later under Settings → Acquisition."
           >
-            <option value="qbittorrent" selected>qBittorrent</option>
-          </select>
-          <p class="text-xs opacity-70 mt-1">
-            A usenet client (SABnzbd) can be added later under Settings → Acquisition.
-          </p>
-          <label class="text-sm font-medium text-base-content/80 mt-3 block">URL</label>
-          <input
-            type="text"
-            name="download_client_url"
-            value={@dc_url}
-            placeholder="http://localhost:8080"
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <label class="text-sm font-medium text-base-content/80 mt-3 block">Username</label>
-          <input
-            type="text"
-            name="download_client_username"
-            value={@dc_username}
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <label class="text-sm font-medium text-base-content/80 mt-3 block">Password</label>
-          <input
-            type="password"
-            name="download_client_password"
-            class="input input-sm w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
+            <span class="text-sm">qBittorrent</span>
+          </.settings_field>
+          <.settings_field label="URL" for="setup-download_client_url" layout={:stacked}>
+            <.settings_input
+              id="setup-download_client_url"
+              name="download_client_url"
+              value={@dc_url}
+              placeholder="http://localhost:8080"
+              mono
+            />
+          </.settings_field>
+          <.settings_field label="Username" for="setup-download_client_username" layout={:stacked}>
+            <.settings_input
+              id="setup-download_client_username"
+              name="download_client_username"
+              value={@dc_username}
+              autocomplete="off"
+              mono
+            />
+          </.settings_field>
+          <.settings_field label="Password" for="setup-download_client_password" layout={:stacked}>
+            <.settings_input
+              id="setup-download_client_password"
+              type="password"
+              name="download_client_password"
+              autocomplete="off"
+              mono
+            />
+          </.settings_field>
         </form>
       </:form>
     </SetupSteps.integration_step>

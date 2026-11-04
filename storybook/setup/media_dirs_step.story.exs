@@ -76,6 +76,23 @@ defmodule MediaCentaurWeb.Storybook.Setup.MediaDirsStep do
         }
       },
       %Variation{
+        id: :remove_armed,
+        description: "A directory's Remove after its first press: the second press removes it.",
+        attributes: %{
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
+          step_index: 1,
+          total_steps: 6,
+          armed_dir: "/mnt/media/tv",
+          result: %Probe.Result{
+            id: :media_dirs,
+            status: :ok,
+            detail: "2 directories configured.",
+            current_value: [%{"dir" => "/mnt/media/movies"}, %{"dir" => "/mnt/media/tv"}],
+            critical?: true
+          }
+        }
+      },
+      %Variation{
         id: :one_missing,
         description: "Some directories unreachable — partial warning.",
         attributes: %{

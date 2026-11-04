@@ -538,12 +538,13 @@ export const inputConfig = {
       grid:         { up: ["toolbar", "omnibox"] },
       sidebar:      { right: ["hero", "out_now", "new_releases", "friends", "watchlist", "grid", "toolbar", "omnibox"] },
     },
-    // Setup tour: a sidebar-less first-run wizard. A single `grid` context
-    // holds the whole step card (form fields + footer buttons); there is
-    // nowhere else to navigate, so the context has no edges. Up/down walks the
-    // card linearly; SELECT activates a button or edits a field.
+    // Setup tour: a sidebar-less first-run wizard. The `grid` context holds
+    // the whole step card (form fields + footer buttons); up/down walks it
+    // linearly, SELECT activates a button or edits a field. Above it, the
+    // `toolbar` holds Skip the tour — the wizard's exit, absent on the summary.
     setup: {
-      grid: {},
+      toolbar: { down: ["grid"] },
+      grid:    { up: ["toolbar"] },
     },
     // Profile picker: one geometry-resolved zone of tiles and the add
     // form. The sidebar is on the page only on a switch (the picker inside
@@ -571,7 +572,7 @@ export const inputConfig = {
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     discovery: ["hero", "out_now", "new_releases", "friends", "watchlist", "grid", "toolbar", "omnibox", "sidebar"],
-    setup:     ["grid"],
+    setup:     ["grid", "toolbar"],
     profiles:  ["profile_picker", "sidebar"],
   },
 

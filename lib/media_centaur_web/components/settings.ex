@@ -171,6 +171,11 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :description, :string, default: nil
   attr :layout, :atom, default: :inline, values: [:inline, :stacked]
   attr :class, :string, default: nil
+
+  attr :for, :string,
+    default: nil,
+    doc: "the control's `id`: the label becomes a `<label for>` naming it."
+
   slot :inner_block, required: true
 
   def settings_field(assigns) do
@@ -181,7 +186,8 @@ defmodule MediaCentaurWeb.Components.Settings do
       @class
     ]}>
       <div class={["min-w-0", @layout == :inline && "grow basis-64 max-w-[46ch]"]}>
-        <div class="text-sm font-medium">{@label}</div>
+        <label :if={@for} for={@for} class="block text-sm font-medium">{@label}</label>
+        <div :if={!@for} class="text-sm font-medium">{@label}</div>
         <p :if={@description} class="mt-0.5 text-xs text-base-content/55 max-w-[60ch]">
           {@description}
         </p>
@@ -300,9 +306,10 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :class, :string, default: nil
 
   attr :rest, :global,
-    include: ~w(autocomplete list maxlength phx-blur phx-keydown phx-key phx-value-name min max step),
+    include:
+      ~w(autocomplete list maxlength required phx-blur phx-keydown phx-key phx-value-name min max step),
     doc:
-      "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds, a length cap."
+      "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds, a length cap, required."
 
   @doc "The house text input (UIDR-041 §31): bordered, full width, monospace for paths and keys, a nav item."
   def settings_input(assigns) do
