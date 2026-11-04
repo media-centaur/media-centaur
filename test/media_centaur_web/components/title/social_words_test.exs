@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.Components.Title.SocialWordsTest do
       assert SocialWords.audience(people) == "Nick, Sam and 3 others will see it"
     end
 
-    test "a single other is still a count" do
+    test "four people name two and count the other two" do
       people = Enum.map(~w(Nick Sam Cleo Pat), &person/1)
       assert SocialWords.audience(people) == "Nick, Sam and 2 others will see it"
     end

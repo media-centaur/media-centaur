@@ -425,6 +425,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # The headline is blank until a choice is pressed, then names it.
       assert has_element?(view, "#review-headline #review-blank")
       assert has_element?(view, "#review-send", "Share")
+      # Who will see it: no relay in the test environment, so the way to one.
+      assert view |> element("#review-form") |> render() =~ "Add a relay in Settings to share it"
 
       # A choice presses; pressing it again clears it; another choice replaces it.
       view |> element(choice(:like)) |> render_click()
@@ -479,9 +481,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert has_element?(view, choice(:like) <> "[aria-pressed='true']")
       assert view |> element("#review-text") |> render() =~ "First words"
-      assert has_element?(view, "#review-reviewed-at", "you reviewed it")
+      assert view |> element("#review-modal") |> render() =~ "you reviewed it"
       assert has_element?(view, "#review-send", "Save")
-      refute has_element?(view, "#review-audience")
+      # The audience line is for a new review; editing drops it.
+      refute view |> element("#review-form") |> render() =~ "Add a relay in Settings to share it"
 
       view |> element(choice(:love)) |> render_click()
       view |> form("#review-form", %{"text" => "Second words"}) |> render_submit()
@@ -494,7 +497,9 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> element("#detail-review") |> render_click()
       view |> element("#review-remove", "Remove review") |> render_click()
       assert render(view) =~ "Review removed"
-      refute has_element?(view, "#review-modal[data-state='open']")
+      # Back on the detail, with nothing of yours left: the pencil offers a review again.
+      await_supervised_tasks()
+      assert has_element?(view, "#detail-review[aria-label='Review']")
       # list_sent/0 is the live rows: a withdrawn review is a tombstone and no longer among them.
       assert Activities.list_sent() == []
       await_supervised_tasks()

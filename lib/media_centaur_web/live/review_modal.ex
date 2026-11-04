@@ -106,7 +106,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
             </.button>
             <p
               :if={!@editing? && @state.audience}
-              id="review-audience"
               class="text-xs text-base-content/55"
             >
               {@state.audience}
@@ -167,10 +166,9 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
         <p class="text-xs text-base-content/55">
           {if @state.subject.media_type == :movie, do: "Movie", else: "TV"}<span :if={
             @state.subject.year
-          }> · {@state.subject.year}</span><span
-            :if={@editing?}
-            id="review-reviewed-at"
-          > · you reviewed it {Format.relative_ago(@state.existing.acted_at)}</span>
+          }> · {@state.subject.year}</span><span :if={@editing?}> · you reviewed it {Format.relative_ago(
+            @state.existing.acted_at
+          )}</span>
         </p>
       </div>
     </div>
