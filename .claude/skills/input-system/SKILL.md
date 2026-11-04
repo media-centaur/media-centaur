@@ -30,8 +30,8 @@ All app-specific knowledge lives in `config.js`. The framework core is parameter
 - **`alwaysPopulated`** — contexts that skip item count checks
 - **`activeMarkers`** — selectors marking a context's current selection (active page/tab/section classes, a segmented control's chosen option)
 - **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
-- **`overlays`** — region overlays (`detail`, `plan`, `viewing_menu`): `entry` priority and internal `layout`
-- **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`)
+- **`overlays`** — region overlays (`detail`, `plan`, `review`, `apps_modal`, `viewing_menu`): `entry` priority and internal `layout`
+- **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`; `detail_actions` and `manage_tools` name a non-committing control so a stray SELECT never downloads or deletes)
 - **`entryAnchors`** — fixed entry index (`hero: 0`)
 - **`glider`** — the page's one scroll animator (`assets/js/scroll_glider.js`)
 - **`createBehavior`** — factory function for page behaviors
@@ -149,7 +149,7 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 | `data-detail-mode` | An open overlay (`modal`) |
 | `data-detail-nested` | The overlay is below its root view (or inside another — the track menu in the OSD): BACK pushes its dismiss event and keeps the cursor in the overlay. Server-owned |
 | `data-dismiss-event` | The event BACK's dismiss pushes (default `close_detail`) |
-| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `viewing_menu`) |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `review`, `apps_modal`, `viewing_menu`) |
 | `data-nav-dismiss-event` | On a zone container: pushed whenever the cursor leaves the zone — a nested menu closes itself |
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
 | `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |
