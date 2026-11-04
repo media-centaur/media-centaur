@@ -9,8 +9,8 @@ defmodule MediaCentaurWeb.Live.ReviewFlowTest do
   @none_connected %{"wss://a" => %{state: :connecting}}
 
   describe "audience_line/2" do
-    test "names the people who will see it when a relay is connected; the reader is not an audience" do
-      people = [person("Nick"), own_person(), person("Sam")]
+    test "names the people who will see it when a relay is connected, by name; the reader is not an audience" do
+      people = [person("Sam"), own_person(), person("Nick")]
       assert ReviewFlow.audience_line(people, @connected) == "Nick and Sam will see it"
     end
 

@@ -499,8 +499,8 @@ once an identity exists. Opening the section mints nothing.
 
 `MediaCentaurWeb.Live.ReviewFlow` is the modal flow: one `:review` assign
 (`ReviewFlow.State` — the subject, the sentiment, the words as typed through
-`review_change`, the own review when editing, the relay counts and the
-audience line, read once at open), the handlers `use ReviewFlow` injects
+`review_change`, the own review when editing, and the audience line, read
+once at open), the handlers `use ReviewFlow` injects
 (`review_sentiment`, `review_change`, `review_send`, `review_remove`,
 `review_cancel`), hosted by every `TitleDetailHost` host — the only place a
 review is made. The host opens it with `open/4`, passing the reader's own

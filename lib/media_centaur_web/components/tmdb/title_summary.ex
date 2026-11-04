@@ -22,6 +22,11 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
     default: nil,
     doc: "resolved by the host via `LiveHelpers.title_poster_url/1`; nil shows the icon fallback"
 
+  attr :overview, :boolean,
+    default: true,
+    doc:
+      "whether the overview is the secondary line when no `secondary` slot is given; off for a surface that already shows it (the Review modal, over the detail)"
+
   slot :markers, doc: "quiet text markers after the type/year (Tracked, In library)"
   slot :secondary, doc: "displaces the overview line — a watchlist note, a friend's reason"
 
@@ -65,7 +70,7 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
           {render_slot(@secondary)}
         </span>
         <span
-          :if={@secondary == [] && @title.overview}
+          :if={@secondary == [] && @overview && @title.overview}
           class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
         >
           {@title.overview}

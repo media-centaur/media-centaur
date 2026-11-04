@@ -371,10 +371,11 @@ describe("KeyboardSource", () => {
     // A review's words are not a filter: Escape never clears them, Enter
     // in editing mode is a newline, and Enter on the focused box enters
     // editing even inside a phx-submit form (a textarea never submits one).
-    const makeTextarea = (value = "", inForm = false) => ({
+    const makeTextarea = (value = "", inForm = false, inOverlay = false) => ({
       tagName: "TEXTAREA",
       value,
-      closest: (selector) => (inForm && selector === "form[phx-submit]" ? {} : null),
+      closest: (selector) =>
+        (inForm && selector === "form[phx-submit]") || (inOverlay && selector === "[data-detail-mode]") ? {} : null,
       dispatchEvent: mock(() => {}),
     })
 
@@ -397,8 +398,8 @@ describe("KeyboardSource", () => {
       expect(actions).toEqual([])
     })
 
-    test("Escape while editing exits edit mode and keeps the words", () => {
-      const textarea = makeTextarea("some words")
+    test("Escape while editing exits edit mode and keeps the words; inside an overlay it stops there", () => {
+      const textarea = makeTextarea("some words", false, true)
       doc._dispatchKeyDown("a", { target: textarea })
       expect(source._inputEditing).toBe(true)
 
@@ -410,8 +411,8 @@ describe("KeyboardSource", () => {
       expect(actions).toEqual([])
     })
 
-    test("Escape when not editing never clears a textarea; it is BACK, and stops at the input system", () => {
-      const textarea = makeTextarea("some words")
+    test("Escape when not editing never clears a textarea; it is BACK, and inside an overlay it stops at the input system", () => {
+      const textarea = makeTextarea("some words", false, true)
 
       const event = doc._dispatchKeyDown("Escape", { target: textarea })
       expect(textarea.value).toBe("some words")
@@ -419,6 +420,15 @@ describe("KeyboardSource", () => {
       expect(actions).toEqual([Action.BACK])
       // A window keydown binding beneath (the detail's Escape) never sees it.
       expect(event.stopPropagation).toHaveBeenCalled()
+    })
+
+    test("outside an overlay the page's window bindings keep their reach", () => {
+      const textarea = makeTextarea("some words")
+
+      const event = doc._dispatchKeyDown("Escape", { target: textarea })
+      expect(actions).toEqual([Action.BACK])
+      // Settings' Escape cancels an edit through a window binding.
+      expect(event.stopPropagation).not.toHaveBeenCalled()
     })
   })
 

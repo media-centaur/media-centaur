@@ -59,6 +59,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
 
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Format
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Person
@@ -96,6 +97,10 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
 
   @limit 500
   @counter_from 100
+
+  @doc "The text cap the box enforces (`maxlength`) and the counter counts down from; `Activities` enforces the same on the server."
+  @spec limit() :: pos_integer()
+  def limit, do: @limit
 
   @doc "Seeds the closed state. Called from the host's mount."
   @spec init(socket()) :: socket()
@@ -155,7 +160,8 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
         put_flash(socket, :error, "Keep the review under #{@limit} characters")
 
       {:error, _reason} ->
-        socket |> close() |> put_flash(:error, "Could not send the review")
+        verb = if State.editing?(state), do: "save", else: "send"
+        socket |> close() |> put_flash(:error, "Could not #{verb} the review")
     end
   end
 
@@ -174,8 +180,8 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
 
   @doc """
   The footer's audience line: who will see the review when a relay is
-  connected (the people minus the reader, `SocialWords.audience/1`; nil
-  when no one is followed), else why no one will yet.
+  connected (the people minus the reader, by name, `SocialWords.audience/1`;
+  nil when no one is followed), else why no one will yet.
   """
   @spec audience_line([Person.t()], %{optional(String.t()) => map()}) :: String.t() | nil
   def audience_line(_people, status) when map_size(status) == 0,
@@ -185,7 +191,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
     if Enum.any?(status, fn {_url, entry} -> Connections.connected?(entry) end) do
       case Enum.reject(people, & &1.own?) do
         [] -> nil
-        friends -> SocialWords.audience(friends)
+        friends -> friends |> Enum.sort_by(&Format.person_name/1) |> SocialWords.audience()
       end
     else
       "Friends see it once a relay connects"

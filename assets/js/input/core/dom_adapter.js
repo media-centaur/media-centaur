@@ -463,6 +463,10 @@ export function createDomReader(config = {}) {
      * one. A title with no contents of its own (a movie with no extras) has
      * no body tab and opens on More info, which *is* its root. Comparing a
      * view name against "main" here got that case wrong in both directions.
+     *
+     * A modal stacked over the detail (the Review modal) declares the same
+     * attribute on purpose: BACK then pushes its own dismiss event and the
+     * cursor returns to the detail beneath, not to the page behind it.
      */
     isDetailNested() {
       return activeModalElement()?.dataset?.detailNested === "true"

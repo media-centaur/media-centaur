@@ -32,6 +32,14 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummaryTest do
     assert html =~ "hero-film-mini"
   end
 
+  test "overview false leaves the identity line alone" do
+    html =
+      render_component(&TitleSummary.title_summary/1, title: title(), poster_url: nil, overview: false)
+
+    assert html =~ "Sample Movie"
+    refute html =~ "A sample overview."
+  end
+
   test "a TV title shows the TV icon fallback and no year when absent" do
     html =
       render_component(&TitleSummary.title_summary/1,

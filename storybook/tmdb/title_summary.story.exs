@@ -81,6 +81,12 @@ defmodule MediaCentaurWeb.Storybook.TMDB.TitleSummary do
         ]
       },
       %Variation{
+        id: :without_overview,
+        description:
+          "`overview={false}`: the identity line alone, for a surface that already shows the overview (the Review modal).",
+        attributes: %{title: title(%{}), poster_url: nil, overview: false}
+      },
+      %Variation{
         id: :long_name,
         description: "A long name truncates; the type/year text never wraps.",
         attributes: %{

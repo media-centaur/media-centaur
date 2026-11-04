@@ -1469,11 +1469,11 @@ body:has(.modal-backdrop[data-state="open"]) {
   animation: review-verdict-pop 320ms cubic-bezier(0.3, 1.15, 0.5, 1);
 }
 
-/* The lit glyph: the sentiment's solid heroicon, white, the headline's size. */
+/* The lit glyph: the sentiment's solid heroicon at the headline's size. */
 .review-verdict-glyph {
   width: 22px;
   height: 22px;
-  color: white;
+  color: var(--color-base-content);
 }
 
 @keyframes review-verdict-pop {

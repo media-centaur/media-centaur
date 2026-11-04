@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Format
@@ -56,7 +56,18 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
       data-detail-nested="true"
     >
       <div :if={@state.subject} class="space-y-4">
-        <.title_strip state={@state} editing?={@editing?} />
+        <%!-- The identity block without the overview: it is on the detail
+              behind the modal. When editing, the age of the review rides the
+              identity line as a marker. --%>
+        <div data-component="review-strip">
+          <.title_summary title={@state.subject} poster_url={@state.poster_url} overview={false}>
+            <:markers :if={@editing?}>
+              <span class="shrink-0 text-xs text-base-content/55">
+                · you reviewed it {Format.relative_ago(@state.existing.acted_at)}
+              </span>
+            </:markers>
+          </.title_summary>
+        </div>
         <.headline sentiment={@state.sentiment} />
         <form id="review-form" phx-change="review_change" phx-submit="review_send" class="space-y-3">
           <%!-- Pressing the pressed choice again clears it: the flow's
@@ -79,7 +90,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
             id="review-text"
             name="text"
             rows="4"
-            maxlength="500"
+            maxlength={ReviewFlow.limit()}
             placeholder="…and in your words, if you want"
             class="textarea textarea-bordered w-full text-sm"
             phx-debounce="150"
@@ -136,42 +147,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
         </form>
       </div>
     </.modal>
-    """
-  end
-
-  attr :state, State, required: true
-  attr :editing?, :boolean, required: true
-
-  # Poster, name, type · year, and when editing the age of the review.
-  defp title_strip(assigns) do
-    ~H"""
-    <div class="flex items-center gap-3" data-component="review-strip">
-      <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
-        <img
-          :if={@state.poster_url}
-          src={sized_image_url(@state.poster_url, 160)}
-          alt=""
-          class="h-full w-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <.icon
-          :if={!@state.poster_url}
-          name={if @state.subject.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-          class="size-5 text-base-content/25"
-        />
-      </span>
-      <div class="min-w-0">
-        <h2 class="truncate text-sm font-semibold">{@state.subject.name}</h2>
-        <p class="text-xs text-base-content/55">
-          {if @state.subject.media_type == :movie, do: "Movie", else: "TV"}<span :if={
-            @state.subject.year
-          }> · {@state.subject.year}</span><span :if={@editing?}> · you reviewed it {Format.relative_ago(
-            @state.existing.acted_at
-          )}</span>
-        </p>
-      </div>
-    </div>
     """
   end
 

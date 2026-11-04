@@ -938,7 +938,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # own review, drawn whenever one exists, words or not — the reader's
   # statement in the second person, not a social glyph alone (UIDR-049);
   # else the reader's own watchlist note.
-  defp note_words(
+  defp note_words(%TitleDetail{} = detail),
+    do: lead_review_words(detail) || own_review_words(detail) || intent_note_words(detail)
+
+  defp lead_review_words(
          %TitleDetail{activity: %{activity: %{text: text} = activity, author: %Person{} = author}} =
            detail
        )
@@ -954,7 +957,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     }
   end
 
-  defp note_words(%TitleDetail{social_activity: rows} = detail) when rows != [] do
+  defp lead_review_words(_detail), do: nil
+
+  defp own_review_words(%TitleDetail{social_activity: rows}) do
     case TitleLogic.own_review_row(rows) do
       %{activity: mine, author: %Person{own?: true} = me} ->
         flag = Flag.flag(mine)
@@ -968,14 +973,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         }
 
       nil ->
-        note_words(%{detail | social_activity: []})
+        nil
     end
   end
 
-  defp note_words(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",
+  defp intent_note_words(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",
     do: %{author: nil, text: note}
 
-  defp note_words(_detail), do: nil
+  defp intent_note_words(_detail), do: nil
 
   # The artwork ladder (UIDR-021). Owned: subject art first, entity art
   # as the ladder's next rungs — a member movie rarely carries its own

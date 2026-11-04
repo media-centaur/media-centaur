@@ -90,26 +90,31 @@ export class KeyboardSource {
     // enters editing even inside a phx-submit form, which a textarea never
     // submits. The Review modal's text box is the first tenant.
     const isTextarea = event.target?.tagName === "TEXTAREA"
+    // Inside an open overlay, a key the input system consumes stops here: a
+    // window Escape binding beneath (the detail modal's) must not see it.
+    // Outside one, the page's own window bindings keep their reach (Settings'
+    // Escape cancels an edit from its fields).
+    const stopInOverlay = () => {
+      if (event.target.closest("[data-detail-mode]")) event.stopPropagation()
+    }
 
     if (isTextInput) {
       // Two-press Escape on a text input:
       //   editing            → exit edit mode, preserve value (press 1)
       //   not editing + val  → clear value, stay focused           (press 2)
       //   not editing + ""   → fall through to BACK nav
-      // Both presses stop here: a window Escape binding beneath (the detail
-      // modal's) must not see the key the input system has consumed.
       if (event.key === "Escape") {
         if (this._inputEditing) {
           this._setEditing(false)
           event.preventDefault()
-          event.stopPropagation()
+          stopInOverlay()
           return
         }
         if (event.target.value && !isTextarea) {
           event.target.value = ""
           event.target.dispatchEvent(new Event("input", { bubbles: true }))
           event.preventDefault()
-          event.stopPropagation()
+          stopInOverlay()
           return
         }
         // empty + not editing — fall through to nav handling below (→ BACK)
@@ -156,14 +161,11 @@ export class KeyboardSource {
         return
       }
 
-      // Arrow keys / other nav keys — handle as normal navigation. Stop
-      // bubbling as the normal path does: Escape as BACK from the Review
-      // modal's text box must not also reach the detail's window Escape
-      // beneath it.
+      // Arrow keys / other nav keys — handle as normal navigation.
       const action = keyToAction(event.key, { targetIsInput: false }, this._keyMap)
       if (!action) return
       event.preventDefault()
-      event.stopPropagation()
+      stopInOverlay()
       this._emitAction(action)
       return
     }
