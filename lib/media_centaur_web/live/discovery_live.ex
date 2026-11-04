@@ -246,12 +246,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
-        <ReviewModal.review_modal
-          subject={@review_subject}
-          poster_url={@review_poster_url}
-          sentiment={@review_sentiment}
-          relay_counts={@review_relay_counts}
-        />
+        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <FeatureOff.feature_off
         :if={:discovery not in @features}

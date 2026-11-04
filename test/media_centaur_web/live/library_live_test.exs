@@ -417,12 +417,17 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, choice(:dislike), "Dislike")
       assert has_element?(view, choice(:like), "Like")
       assert has_element?(view, choice(:love), "Love")
+      # The headline is blank until a choice is pressed, then names it.
+      assert has_element?(view, "#review-headline #review-blank")
+      assert has_element?(view, "#review-send", "Share")
 
       # A choice presses; pressing it again clears it; another choice replaces it.
       view |> element(choice(:like)) |> render_click()
       assert has_element?(view, choice(:like) <> "[aria-pressed='true']")
+      assert has_element?(view, "#review-headline #review-verdict-like", "like")
       view |> element(choice(:like)) |> render_click()
       refute has_element?(view, "#review-form [aria-pressed='true']")
+      assert has_element?(view, "#review-headline #review-blank")
       view |> element(choice(:love)) |> render_click()
       assert has_element?(view, choice(:love) <> "[aria-pressed='true']")
       refute has_element?(view, choice(:like) <> "[aria-pressed='true']")
@@ -433,6 +438,27 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # Your own review alone draws no social capsule: nothing a friend did.
       await_supervised_tasks()
       refute has_element?(view, "#detail-social")
+    end
+
+    test "the words survive a sentiment press: the box is rendered from the held text", %{conn: conn} do
+      MediaCentaur.Social.Identity.ensure()
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+      view |> element("#detail-review") |> render_click()
+
+      view |> form("#review-form", %{"text" => "Typed before pressing Like"}) |> render_change()
+      view |> element(choice(:like)) |> render_click()
+
+      assert view |> element("#review-text") |> render() =~ "Typed before pressing Like"
+
+      view |> form("#review-form", %{"text" => "Typed before pressing Like"}) |> render_submit()
+
+      assert [%{tmdb_id: 777, sentiment: :like, text: "Typed before pressing Like"}] =
+               MediaCentaur.Activities.list_sent()
+
+      await_supervised_tasks()
     end
 
     test "a friend's review joins the detail hero's social capsule, live", %{conn: conn} do

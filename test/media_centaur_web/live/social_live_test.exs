@@ -1432,7 +1432,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
       {:ok, view, _html} = live(conn, "/social?title=movie-777")
-      refute render(view) =~ "Share a review"
+      refute has_element?(view, "#review-modal[data-state='open']")
       # Social is off here, so the modal's Review control is
       # never rendered and nothing can open the flow.
       refute has_element?(view, "#detail-review")

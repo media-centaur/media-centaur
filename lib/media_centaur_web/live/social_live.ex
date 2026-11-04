@@ -618,12 +618,7 @@ defmodule MediaCentaurWeb.SocialLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
-        <ReviewModal.review_modal
-          subject={@review_subject}
-          poster_url={@review_poster_url}
-          sentiment={@review_sentiment}
-          relay_counts={@review_relay_counts}
-        />
+        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <%!-- The modal's params are modal state: stripped from the
             remembered URL so leaving the section closes the modal rather

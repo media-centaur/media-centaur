@@ -303,12 +303,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <ReviewModal.review_modal
-          subject={@review_subject}
-          poster_url={@review_poster_url}
-          sentiment={@review_sentiment}
-          relay_counts={@review_relay_counts}
-        />
+        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <div
         class="relative"

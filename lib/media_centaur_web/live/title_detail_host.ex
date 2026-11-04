@@ -1128,7 +1128,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         "review_open",
         _params,
         %{assigns: %{title_detail: %TitleDetail{title: %Title{} = title} = detail}} = socket
-      ), do: {:halt, ReviewFlow.open(socket, title, detail.poster_url)}
+      ),
+      do:
+        {:halt,
+         ReviewFlow.open(socket, title, detail.poster_url, Logic.own_review(detail.social_activity))}
 
   # Play needs no modal: the hero and the cards fire it too (UIDR-027).
   def handle_title_event("play", %{"id" => id}, socket), do: {:halt, LibraryEvents.play(socket, id)}
