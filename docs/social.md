@@ -497,15 +497,17 @@ letter meanwhile) and steps aside while a file is chosen; a chosen file wins
 over a pending Remove. **Your identity**, **Relays** and **Sharing** appear
 once an identity exists. Opening the section mints nothing.
 
-`MediaCentaurWeb.Live.ReviewFlow` is the modal flow (`use ReviewFlow`
-injects the handlers, the clearable sentiment choice included), hosted by
-every `EntityModal` host for the library detail page and every
-`TitleDetailHost` host for a title without files — the only places a
-review is made. The sharing toggles live in
-`SettingsLive.SocialSection`, and so does **Show Social in the
-sidebar**. The Review control is gated on that `show_social` preference
-(`Settings.Preferences.SocialVisibility`, default on), the same
-preference that gates the sidebar entry.
+`MediaCentaurWeb.Live.ReviewFlow` is the modal flow: one `:review` assign
+(`ReviewFlow.State` — the subject, the sentiment, the words as typed through
+`review_change`, the own review when editing, the relay counts and the
+audience line, read once at open), the handlers `use ReviewFlow` injects
+(`review_sentiment`, `review_change`, `review_send`, `review_remove`,
+`review_cancel`), hosted by every `TitleDetailHost` host — the only place a
+review is made. The host opens it with `open/4`, passing the reader's own
+review from the detail's rows (`Title.Logic.own_review/1`) so a reviewed
+title opens as editing. The sharing toggles live in
+`SettingsLive.SocialSection`; the Review control exists while the Social
+feature is on (ADR-081).
 
 ## Health
 

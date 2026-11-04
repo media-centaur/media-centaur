@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-09-12
-amended: 2026-09-28
+amended: 2026-11-04
 ---
 # A review is an opinion of any valence: the sentiment shows when given, nothing when none
 
@@ -32,3 +32,7 @@ Like was the recommendation's floor, so surfaces encoded Like as absence, and th
 ## Amendment 2026-09-28 — no warm hue
 
 UIDR-049 removes the rose: love is drawn like every other sentiment, as a social glyph at its grade, and `Components.Title.Sentiment` is gone (a Feed row draws its sentiment through `Title.SocialGlyph`). Rule 1's rose and the anti-pattern's "love keeps the one warm hue" no longer hold; the grade owns the glyph's colour. Rule 3's flags stand as the social glyph's flags; there is no mast. The Review modal's choice (rule 4) is the segmented control.
+
+## Amendment 2026-11-04 — the modal says what you are saying
+
+The Review modal (`Live.ReviewModal` over `Live.ReviewFlow`) is rebuilt around the reader's statement (`docs/superpowers/specs/2026-11-04-review-modal-redesign-design.md`). Rule 4 stands — the choice is clearable, starts empty, and Share is always enabled — but the control is the house segmented control with each sentiment's glyph beside its word, under a headline sentence "You ___ this" that the pressed sentiment fills with its solid glyph and the reader's verb (`SocialWords.own_verb/1`). The heading "Share a review", the TMDB overview and the relay count are gone; the footer names who will see it, or why no one will yet. The words are held in the flow (`phx-change`), which is what fixes the review a sentiment press used to erase. A title the reader already reviewed opens as editing — prefilled, Save, Remove review — and the detail shows the own review in its note line as You with the glyph and the words; the pencil reads "Edit your review".

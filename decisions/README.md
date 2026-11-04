@@ -105,7 +105,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 037 | 2026-09-08 | [Friend provenance is the pennant, on every title surface](user-interface/2026-09-08-037-friend-provenance-is-the-pennant.md) | superseded, amended 2026-09-27 |
 | 038 | 2026-09-11 | [The Feed is friends' actions, one entry each](user-interface/2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md) | accepted, amended 2026-11-01 |
 | 039 | 2026-09-11 | [Add to watchlist first, then the tracking controls](user-interface/2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md) | accepted, amended 2026-11-01 |
-| 040 | 2026-09-12 | [A review is an opinion of any valence: the sentiment shows when given, nothing when none](user-interface/2026-09-12-040-a-review-is-an-opinion-of-any-valence.md) | accepted, amended 2026-09-28 |
+| 040 | 2026-09-12 | [A review is an opinion of any valence: the sentiment shows when given, nothing when none](user-interface/2026-09-12-040-a-review-is-an-opinion-of-any-valence.md) | accepted, amended 2026-11-04 |
 | 041 | 2026-09-13 | [Settings cards are readouts with actions, from one kit](user-interface/2026-09-13-041-settings-cards-are-readouts-with-actions.md) | accepted |
 | 042 | 2026-09-14 | [Tracking is the bookmark and two switches over one record](user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md) | accepted, amended 2026-11-04 |
 | 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted, amended 2026-10-03 |
