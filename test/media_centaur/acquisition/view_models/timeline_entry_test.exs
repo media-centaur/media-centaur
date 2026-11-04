@@ -37,8 +37,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
                )
     end
 
-    test "health_changed renders both state and health transitions when both differ" do
-      assert %TimelineEntry{summary: "State downloading → stalled, health healthy → frozen"} =
+    test "health_changed says what the download is doing now: the state, and the health under it when both changed" do
+      assert %TimelineEntry{summary: "Download stalled", detail: "Download stopped making progress"} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",
@@ -55,7 +55,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     test "health_changed humanizes internal vocabulary" do
       # :other is qBittorrent's checking/moving phases; health atoms are
       # internal grades — neither should leak raw into user copy.
-      assert %TimelineEntry{summary: "State downloading → processing"} =
+      assert %TimelineEntry{summary: "Checking or moving the files", detail: nil} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",
@@ -68,7 +68,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
                  )
                )
 
-      assert %TimelineEntry{summary: "Health starting → stalling"} =
+      assert %TimelineEntry{summary: "Download nearly stalled"} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",
@@ -85,7 +85,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     test "health_changed treats a nil endpoint as absence, not a destination" do
       # A health grade disappearing (item entered a phase without
       # health enrichment) is not a transition worth narrating.
-      assert %TimelineEntry{summary: "State downloading → processing"} =
+      assert %TimelineEntry{summary: "Checking or moving the files", detail: nil} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     test "health_changed normalizes legacy \"nil\" string payloads" do
       # Rows written before the stringification fix carry the literal
       # string "nil"; they must render like real nils, not as the word.
-      assert %TimelineEntry{summary: "State downloading → processing"} =
+      assert %TimelineEntry{summary: "Checking or moving the files", detail: nil} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",
@@ -117,7 +117,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     end
 
     test "health_changed elides the no-change axis" do
-      assert %TimelineEntry{summary: "State downloading → stalled"} =
+      assert %TimelineEntry{summary: "Download stalled", detail: nil} =
                TimelineEntry.from_event(
                  event(
                    kind: "health_changed",

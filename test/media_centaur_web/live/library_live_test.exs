@@ -491,7 +491,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert [%{sentiment: :love, text: "Second words"}] = Activities.list_sent()
 
       view |> element("#detail-review") |> render_click()
+      # Remove review takes the arm gesture: the first press arms it and
+      # withdraws nothing, the second fires.
       view |> element("#review-remove", "Remove review") |> render_click()
+      assert [%{sentiment: :love}] = Activities.list_sent()
+      view |> element("#review-remove[data-armed]", "Click again to remove") |> render_click()
       assert render(view) =~ "Review removed"
       # Back on the detail, with nothing of yours left: the pencil offers a review again.
       await_supervised_tasks()

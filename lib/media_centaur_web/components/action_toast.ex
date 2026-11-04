@@ -12,6 +12,12 @@ defmodule MediaCentaurWeb.Components.ActionToast do
   rendered it. The action is a nested `phx-click`; LiveView dispatches
   the closest binding only, so the host's action handler clears the
   toast itself.
+
+  For keyboard and gamepad the toast is the `undo_toast` nav zone and its
+  action the one item: a host page's layout (config.js) reaches it by
+  RIGHT from the list whose verb raised it, and returns by LEFT, DOWN or
+  BACK. Focus on the action pauses the dwell (`FlashAutoDismiss`), so the
+  toast stays while the cursor is on it.
   """
 
   use Phoenix.Component
@@ -40,6 +46,7 @@ defmodule MediaCentaurWeb.Components.ActionToast do
       role="status"
       class="toast toast-top toast-end z-50"
       data-component="action-toast"
+      data-nav-zone="undo_toast"
     >
       <div class="flash-toast flex w-80 max-w-80 cursor-pointer items-center gap-3 rounded-xl p-3.5 text-wrap sm:w-96 sm:max-w-96">
         <.icon name="hero-information-circle" class="size-5 shrink-0 text-info" />
@@ -49,6 +56,8 @@ defmodule MediaCentaurWeb.Components.ActionToast do
           type="button"
           class="shrink-0 cursor-pointer text-sm font-medium text-primary transition-colors hover:text-primary/80"
           phx-click={@on_action}
+          data-nav-item
+          tabindex="0"
         >
           {@action}
         </button>

@@ -59,18 +59,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp summary_for("release_no_match", _), do: "No acceptable release found"
   defp summary_for("download_started", _), do: "Download started"
 
+  # A download's state or health changed: say what it is doing now, in
+  # the user's words (the previous entry already said what it was doing
+  # before). The state leads; when the health changed too it is the
+  # sub-line (`detail_for/1`).
   defp summary_for("health_changed", payload) when is_map(payload) do
-    state_part =
-      transition_phrase(state_label(payload["from_state"]), state_label(payload["to_state"]))
-
-    health_part =
-      transition_phrase(health_label(payload["from_health"]), health_label(payload["to_health"]))
-
-    case {state_part, health_part} do
-      {nil, nil} -> "Health changed"
-      {state, nil} -> "State #{state}"
-      {nil, health} -> "Health #{health}"
-      {state, health} -> "State #{state}, health #{health}"
+    case health_change(payload) do
+      {nil, nil} -> "Download changed"
+      {nil, health} -> health
+      {state, _health} -> state
     end
   end
 
@@ -112,27 +109,53 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp cancel_reason_phrase(@zero_seeders), do: "no seeders"
   defp cancel_reason_phrase(reason), do: String.replace(reason, "_", " ")
 
-  defp transition_phrase(same, same), do: nil
-  defp transition_phrase(nil, to) when is_binary(to), do: to
-  defp transition_phrase(from, to) when is_binary(from) and is_binary(to), do: "#{from} → #{to}"
-  defp transition_phrase(_, _), do: nil
+  # The phrases for the axes that changed, `{state, health}`, nil where
+  # an axis did not change or its new value is absent.
+  defp health_change(payload) do
+    {changed_to(payload["from_state"], payload["to_state"], &state_phrase/1),
+     changed_to(payload["from_health"], payload["to_health"], &health_phrase/1)}
+  end
 
-  # Internal vocabulary → user copy. `:other` is qBittorrent's
-  # checking/moving phases; health atoms are `Downloads.Health` grades.
-  # Unknown values pass through unchanged so a future state never
-  # renders blank. Rows written before the nil-stringification fix
-  # carry the literal string "nil" — normalized to absence here so old
-  # history reads cleanly without a payload rewrite.
-  defp state_label("other"), do: "processing"
-  defp state_label("nil"), do: nil
-  defp state_label(state), do: state
+  defp changed_to(from, to, phrase) do
+    case {absent(from), absent(to)} do
+      {_from, nil} -> nil
+      {same, same} -> nil
+      {_from, to} -> phrase.(to)
+    end
+  end
 
-  defp health_label("warming_up"), do: "starting"
-  defp health_label("soft_stall"), do: "stalling"
-  defp health_label("meta_stuck"), do: "metadata stuck"
-  defp health_label("queued_long"), do: "queued long"
-  defp health_label("nil"), do: nil
-  defp health_label(health), do: health
+  # Rows written before the nil-stringification fix carry the literal
+  # string "nil" — normalized to absence here so old history reads
+  # cleanly without a payload rewrite.
+  defp absent("nil"), do: nil
+  defp absent(value), do: value
+
+  # Internal vocabulary → user copy: `Downloads.QueueItem` states
+  # (`other` is qBittorrent's checking/moving phases) and
+  # `Downloads.Health` grades. An unknown value is spelled out, never
+  # blank.
+  defp state_phrase("downloading"), do: "Downloading"
+  defp state_phrase("fetching_nzb"), do: "Fetching the NZB"
+  defp state_phrase("queued"), do: "Waiting in the download queue"
+  defp state_phrase("stalled"), do: "Download stalled"
+  defp state_phrase("paused"), do: "Download paused"
+  defp state_phrase("verifying"), do: "Verifying the files"
+  defp state_phrase("repairing"), do: "Repairing the files"
+  defp state_phrase("extracting"), do: "Unpacking the files"
+  defp state_phrase("moving"), do: "Moving the files"
+  defp state_phrase("completed"), do: "Download finished"
+  defp state_phrase("error"), do: "The download client reported an error"
+  defp state_phrase("other"), do: "Checking or moving the files"
+  defp state_phrase(state), do: "Download " <> String.replace(state, "_", " ")
+
+  defp health_phrase("healthy"), do: "Downloading at a normal rate"
+  defp health_phrase("warming_up"), do: "Download starting"
+  defp health_phrase("slow"), do: "Downloading slowly"
+  defp health_phrase("soft_stall"), do: "Download nearly stalled"
+  defp health_phrase("frozen"), do: "Download stopped making progress"
+  defp health_phrase("meta_stuck"), do: "Stuck fetching the torrent's details"
+  defp health_phrase("queued_long"), do: "Waiting in the queue for a long time"
+  defp health_phrase(health), do: "Download " <> String.replace(health, "_", " ")
 
   # ─── Severity ───
 
@@ -160,6 +183,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   #
   # The component truncates the sub-line and exposes the full text on
   # hover, so even long release filenames stay scannable.
+
+  # The health under the state, when both changed (see `summary_for/2`).
+  defp detail_for(%Event{kind: "health_changed", payload: payload}) when is_map(payload) do
+    case health_change(payload) do
+      {state, health} when is_binary(state) -> health
+      _single -> nil
+    end
+  end
 
   defp detail_for(%Event{kind: "release_picked", payload: %{"indexer" => indexer, "quality" => q}})
        when is_binary(indexer) and is_binary(q), do: "#{indexer} • #{q}"

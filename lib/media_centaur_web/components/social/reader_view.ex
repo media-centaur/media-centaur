@@ -15,14 +15,19 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
   set — the hidden group's Show sends the same. The foot: the short npub
   and how the reader follows them — *added* and the date for a friend,
   *on* the relay's host for a member — and, for a friend only, **Remove
-  friend** (`remove_friend` with the key). Pure rendering of a
-  `Social.Person`; never drawn for the reader's own, whose name, picture
-  and colour are under Settings → Social.
+  friend** (`remove_friend` with the key) behind the arm gesture: the
+  first press arms it (`remove_armed`), the second removes. Pure
+  rendering of a `Social.Person`; never drawn for the reader's own, whose
+  name, picture and colour are under Settings → Social.
+
+  The card is the person page's `person_view` nav tree: one item per
+  row, the colour swatches one row whose swatches RIGHT walks
+  (`HueSwatches` with `nav: :row`).
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1]
+  import MediaCentaurWeb.CoreComponents, only: [armed_button: 1, button: 1]
 
   alias MediaCentaur.Format
   alias MediaCentaur.Social.Person
@@ -34,6 +39,10 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
   attr :person, Person,
     required: true,
     doc: "a friend or a member as the reader sees them; never the reader's own"
+
+  attr :remove_armed, :boolean,
+    default: false,
+    doc: "Remove friend's first press has landed (`ArmGesture.armed?/3`)"
 
   def reader_view(assigns) do
     assigns = assign(assigns, name: Format.person_name(assigns.person))
@@ -92,6 +101,7 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
             theirs_hue={@person.published_hue}
             event="set_hue_override"
             values={%{"pubkey" => @person.pubkey}}
+            nav={:row}
             aria-label="Colour"
           />
         </form>
@@ -109,17 +119,16 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
         <span class="text-sm text-base-content/65">
           <code>{@person.short_npub}</code> · {provenance(@person)}
         </span>
-        <.button
+        <.armed_button
           :if={@person.friend?}
+          armed={@remove_armed}
+          event="remove_friend"
+          armed_label="Click again to remove"
           variant="dismiss"
-          size="sm"
-          phx-click="remove_friend"
           phx-value-pubkey={@person.pubkey}
-          data-nav-item
-          tabindex="0"
         >
           Remove friend
-        </.button>
+        </.armed_button>
       </div>
     </Settings.settings_card>
     """

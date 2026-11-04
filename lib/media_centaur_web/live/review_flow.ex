@@ -21,7 +21,9 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   Send goes through `Activities.review/3`, which replaces the reader's
   row for the title; the flash says shared, updated, or saved for a
   relay to come. Text over 500 characters is rejected without closing,
-  so the words are not lost. Remove goes through `Activities.delete/1`.
+  so the words are not lost. Remove takes the arm gesture
+  (`ArmGesture.press/3`): the first press arms it, the second goes
+  through `Activities.delete/1`.
 
   ## Host contract
 
@@ -58,6 +60,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Live.ArmGesture
 
   defmodule State do
     @moduledoc "The Review modal's state — see `MediaCentaurWeb.Live.ReviewFlow`."
@@ -155,16 +158,27 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
 
   def submit(socket, _text), do: socket
 
-  @doc "Withdraws the review being edited (`Activities.delete/1`) and closes. A no-op when not editing."
+  @doc """
+  Presses Remove review: the first press arms it, the second withdraws
+  the review being edited (`Activities.delete/1`) and closes. A no-op
+  when not editing.
+  """
   @spec remove(socket()) :: socket()
   def remove(%{assigns: %{review: %State{existing: %Activity{id: id}}}} = socket) do
+    case ArmGesture.press(socket, "review_remove") do
+      {:armed, socket} -> socket
+      {:fire, socket} -> withdraw(socket, id)
+    end
+  end
+
+  def remove(socket), do: socket
+
+  defp withdraw(socket, id) do
     case Activities.delete(id) do
       {:ok, _activity} -> socket |> close() |> put_flash(:info, "Review removed")
       {:error, _reason} -> socket |> close() |> put_flash(:error, "Could not remove the review")
     end
   end
-
-  def remove(socket), do: socket
 
   @doc ~s(The counter under the box: "N left" once 100 or fewer remain, else nil.)
   @spec counter(String.t()) :: String.t() | nil
@@ -177,7 +191,9 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   @spec sent_message(boolean(), {non_neg_integer(), non_neg_integer()}) :: String.t()
   def sent_message(_editing?, {0, _total}), do: "Saved — it shares when a relay connects"
   def sent_message(true, _counts), do: "Review updated"
-  def sent_message(false, _counts), do: "Review shared with your friends"
+  # Shared, not "with your friends": a review is published under the
+  # reader's key, and whoever reads a connected relay with it sees it.
+  def sent_message(false, _counts), do: "Review shared"
 
   @spec parse_sentiment(String.t()) :: Activity.sentiment() | nil
   defp parse_sentiment("dislike"), do: :dislike

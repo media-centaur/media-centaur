@@ -112,6 +112,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.SocialLive.ActivityArtwork
   alias MediaCentaurWeb.SocialLive.AddFriendBlock
   alias MediaCentaurWeb.SocialLive.FeedEntries
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.SocialLive.People
   alias MediaCentaurWeb.SocialLive.PersonPage
@@ -302,12 +303,20 @@ defmodule MediaCentaurWeb.SocialLive do
     end
   end
 
+  # Removing a friend drops the reader's name and colour for them, so it
+  # takes the arm gesture: the first press arms, the second removes.
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
-    :ok = Social.remove_friend(pubkey)
+    case ArmGesture.press(socket, "remove_friend", pubkey) do
+      {:armed, socket} ->
+        {:noreply, socket}
 
-    if socket.assigns.live_action == :person,
-      do: {:noreply, push_navigate(socket, to: ~p"/social/friends")},
-      else: {:noreply, socket}
+      {:fire, socket} ->
+        :ok = Social.remove_friend(pubkey)
+
+        if socket.assigns.live_action == :person,
+          do: {:noreply, push_navigate(socket, to: ~p"/social/friends")},
+          else: {:noreply, socket}
+    end
   end
 
   # --- the Feed's toolbar — see the moduledoc ---
@@ -610,7 +619,7 @@ defmodule MediaCentaurWeb.SocialLive do
         <%!-- Before the detail: the input system takes the first open
               [data-detail-mode=modal] in DOM order as the active overlay, so the
               raised Review modal must precede the detail it opens over. --%>
-        <ReviewModal.review_modal state={@review} />
+        <ReviewModal.review_modal state={@review} armed_gesture={@armed_gesture} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
@@ -652,21 +661,23 @@ defmodule MediaCentaurWeb.SocialLive do
 
           <%!-- The head row shares the columns' grid: the strip and the
                 scope pill in the feed column's cell, the hairline under
-                both columns (UIDR-046). --%>
+                both columns (UIDR-046). The pill is the `toolbar` nav
+                zone, RIGHT from the strip. --%>
           <div class="social-columns social-head mb-4">
             <div class="social-head-cell">
               <.tab_strip
                 tabs={tabs(@feed, @friend_count, @feed_scope)}
                 active={tab_for(@live_action)}
               />
-              <.segmented_control
-                :if={@live_action == :feed}
-                id="feed-scope"
-                label="Scope"
-                options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
-                selected={@feed_scope}
-                event="feed_scope"
-              />
+              <div :if={@live_action == :feed} data-nav-zone="toolbar">
+                <.segmented_control
+                  id="feed-scope"
+                  label="Scope"
+                  options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
+                  selected={@feed_scope}
+                  event="feed_scope"
+                />
+              </div>
             </div>
           </div>
 
@@ -683,23 +694,27 @@ defmodule MediaCentaurWeb.SocialLive do
                   class="absolute left-0 top-0 h-px w-px"
                 >
                 </div>
-                <%!-- "N new" holds what arrived while the reader was scrolled in:
-                  a zero-height sticky anchor, so the control rides 12px under
-                  the viewport's top without moving the column. --%>
-                <div :if={@feed_queued > 0} class="sticky top-3 z-10 h-0">
-                  <button
-                    id="feed-new"
-                    type="button"
-                    class="absolute left-4 top-0 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3 text-sm text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
-                    phx-click={JS.dispatch("feed:scroll-top", to: "#feed-head")}
-                  >
-                    <.icon name="hero-arrow-up" class="size-4" /> {@feed_queued} new
-                  </button>
-                </div>
-                <%!-- The `feed` nav tree: the rows (each with its verbs as
-                      sub-items), Show older under them, or the empty
-                      state's actions. --%>
+                <%!-- The `feed` nav tree: "N new" while arrivals are queued,
+                      the rows (each with its verbs as sub-items), Show older
+                      under them, or the empty state's actions. --%>
                 <div class="space-y-2" data-nav-zone="feed">
+                  <%!-- "N new" holds what arrived while the reader was scrolled
+                    in: a zero-height sticky anchor, so the control rides 12px
+                    under the viewport's top without moving the column. It is
+                    the tree's first item, above the newest row. --%>
+                  <div :if={@feed_queued > 0} class="sticky top-3 z-10 -mb-2 h-0">
+                    <.button
+                      id="feed-new"
+                      variant="primary"
+                      size="sm"
+                      class="absolute left-4 top-0 rounded-full shadow-lg"
+                      phx-click={JS.dispatch("feed:scroll-top", to: "#feed-head")}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      <.icon name="hero-arrow-up" class="size-4" /> {@feed_queued} new
+                    </.button>
+                  </div>
                   <.empty_state
                     :if={@feed == []}
                     id="feed-empty"
@@ -794,6 +809,7 @@ defmodule MediaCentaurWeb.SocialLive do
                   :if={@friends_empty_reason}
                   id="friends-empty"
                   headline={friends_empty_headline(@friends_empty_reason)}
+                  data-nav-zone="people"
                 >
                   {friends_empty_body(@friends_empty_reason)}
                   <:action :if={@friends_empty_reason == :no_relay}>
@@ -817,9 +833,14 @@ defmodule MediaCentaurWeb.SocialLive do
                     patch={PersonPage.path(card.person)}
                   />
                 </div>
-                <%!-- The hidden group: no nav zone until the hardening pass,
-                      like the rail and the card's root. --%>
-                <div :if={@hidden_people != []} id="friends-hidden" class="space-y-2">
+                <%!-- The hidden group: a vertical list of Show buttons under
+                      the cards (the `hidden_people` nav zone). --%>
+                <div
+                  :if={@hidden_people != []}
+                  id="friends-hidden"
+                  class="space-y-2"
+                  data-nav-zone="hidden_people"
+                >
                   <h3 class="px-1 text-sm font-medium uppercase tracking-wider text-base-content/55">
                     Hidden
                   </h3>
@@ -832,10 +853,16 @@ defmodule MediaCentaurWeb.SocialLive do
                   </ul>
                 </div>
                 <AddFriendBlock.add_friend_block />
-                <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/55">
+                <p
+                  id="friends-settings-pointer"
+                  class="px-1 text-xs text-base-content/55"
+                  data-nav-zone="friends_pointer"
+                >
                   Your identity and relays are under <.link
                     navigate={~p"/settings?section=social"}
                     class="link link-primary"
+                    data-nav-item
+                    tabindex="0"
                   >
                 Settings → Social
               </.link>.
@@ -846,6 +873,7 @@ defmodule MediaCentaurWeb.SocialLive do
                 :if={@live_action == :person and @person}
                 person={@person}
                 card={@person_card}
+                remove_armed={ArmGesture.armed?(@armed_gesture, "remove_friend", @person.pubkey)}
               />
             </div>
             <.rail :if={@live_action == :feed} rail={@rail} friend_count={@friend_count} />

@@ -68,6 +68,12 @@ defmodule MediaCentaurWeb.Storybook.Social.ReaderView do
         }
       },
       %Variation{
+        id: :remove_armed,
+        description:
+          "Remove friend's first press has landed: the button armed, the second press removes",
+        attributes: %{id: "rv-remove-armed", person: friend(), remove_armed: true}
+      },
+      %Variation{
         id: :hidden,
         description: "A hidden person: Hide on",
         attributes: %{id: "rv-hidden", person: %{friend() | hidden: true}}

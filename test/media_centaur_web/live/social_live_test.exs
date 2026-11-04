@@ -535,7 +535,15 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       render_until(view, fn _html -> not has_element?(view, "#person-rows-hidden") end)
       assert has_element?(view, "#person-rows-empty", "Nothing yet.")
 
+      # Remove friend takes the arm gesture: the first press arms it and
+      # removes nothing, the second fires.
       view |> element("[data-component='reader-view'] button", "Remove friend") |> render_click()
+      assert [_still_a_friend] = Social.list_friends()
+
+      view
+      |> element("[data-component='reader-view'] button[data-armed]", "Click again to remove")
+      |> render_click()
+
       assert_redirect(view, "/social/friends")
       assert Social.list_friends() == []
     end

@@ -3,14 +3,20 @@ defmodule MediaCentaurWeb.SocialLive.AddFriendBlock do
   The Friends tab's add-friend form: a key and, if the reader likes, the
   name it goes under here (UIDR-047: the optional override). Iteration-phase
   component (lives with the LiveView, no story yet — spec decision 11).
-  `add_friend` bubbles to `SocialLive`.
+  `add_friend` bubbles to `SocialLive`. The section is the `add_friend`
+  nav zone: the key, the name and Add friend, one row walked by LEFT and
+  RIGHT.
   """
 
   use MediaCentaurWeb, :html
 
   def add_friend_block(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-5 space-y-4" data-component="add-friend-block">
+    <section
+      class="glass-surface rounded-xl p-5 space-y-4"
+      data-component="add-friend-block"
+      data-nav-zone="add_friend"
+    >
       <div class="space-y-1">
         <h2 class="text-sm font-semibold">Add a friend</h2>
         <p class="text-xs text-base-content/55">
@@ -25,6 +31,8 @@ defmodule MediaCentaurWeb.SocialLive.AddFriendBlock do
           placeholder="npub1…"
           class="library-filter min-w-0 flex-1"
           autocomplete="off"
+          data-nav-item
+          tabindex="0"
         />
         <%!-- The name field is sized by flex-basis, not width: `.library-filter`
         collapses its `width` while empty and unfocused (the library search
@@ -35,8 +43,12 @@ defmodule MediaCentaurWeb.SocialLive.AddFriendBlock do
           placeholder="Name (optional)"
           class="library-filter basis-48 grow-0 shrink-0"
           autocomplete="off"
+          data-nav-item
+          tabindex="0"
         />
-        <.button type="submit" variant="neutral" size="sm">Add friend</.button>
+        <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+          Add friend
+        </.button>
       </form>
     </section>
     """

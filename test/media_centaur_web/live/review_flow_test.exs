@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlowTest do
 
   describe "sent_message/2" do
     test "new, updated, and saved for later" do
-      assert ReviewFlow.sent_message(false, {1, 2}) == "Review shared with your friends"
+      assert ReviewFlow.sent_message(false, {1, 2}) == "Review shared"
       assert ReviewFlow.sent_message(true, {1, 2}) == "Review updated"
       assert ReviewFlow.sent_message(false, {0, 2}) == "Saved — it shares when a relay connects"
       assert ReviewFlow.sent_message(true, {0, 0}) == "Saved — it shares when a relay connects"

@@ -432,19 +432,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       assigns
       |> assign(:state, state)
       |> assign(:id, id)
-      |> assign(:open, state != :disabled and DisclosureState.open?(assigns.disclosures, id))
+      |> assign(:open, DisclosureState.open?(assigns.disclosures, id))
 
     ~H"""
+    <%!-- A season with nothing left to choose (every aired episode owned)
+          never opens: it renders as a plain row — no caret, no pointer,
+          not a nav item — the same inert line for mouse and cursor. --%>
+    <div
+      :if={@state == :disabled}
+      id={@id}
+      class="glass-inset rounded-lg opacity-50 flex items-center gap-3 px-4 py-2.5"
+    >
+      <.tri_checkbox state={:disabled} />
+      <span class="text-sm font-medium">Season {@season.season_number}</span>
+      <span class="text-sm text-base-content/55">{season_meta(@season)}</span>
+    </div>
     <.disclosure
+      :if={@state != :disabled}
       id={@id}
       open={@open}
       variant={:bare}
-      class={["glass-inset rounded-lg", @state == :disabled && "opacity-50"]}
+      class="glass-inset rounded-lg"
       row_class="flex items-center gap-3 px-4 py-2.5"
       head_class="flex flex-1 min-w-0 items-center gap-3 text-left"
       body_class="border-t border-base-content/5"
-      nav={if @state == :disabled, do: :none, else: :item}
-      disabled={@state == :disabled}
     >
       <:leading>
         <.tri_checkbox

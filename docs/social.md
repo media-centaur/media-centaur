@@ -443,7 +443,7 @@ project one enriched list — every live activity with its actor
   picture** (`Social.set_show_avatar/2`), **Colour** (`HueSwatches`,
   `Social.set_hue_override/2`), **Hide** as a switch
   (`Social.set_hidden/2`, which the hidden group's Show also sends), the
-  key and provenance, and Remove friend for a friend
+  key and provenance, and Remove friend for a friend behind the arm gesture
   (`Social.remove_friend/1`, which returns to Friends). A hidden person's
   page loads no rows. Delete on an own activity → `Activities.delete/1`
   lives in the modal.

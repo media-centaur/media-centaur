@@ -20,6 +20,15 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   The verdict element carries the sentiment in its id, so a change
   replaces it and its pop keyframe runs once; typing patches around it.
 
+  Remove review takes the arm gesture (`ArmGesture`, the host's
+  `armed_gesture`): the first press arms it, the second withdraws.
+
+  For keyboard and gamepad the modal is the `review` overlay (config.js):
+  three regions stacked — the sentiments (`review_choice`, LEFT and RIGHT
+  along them), the words (`review_text`), the footer (`review_footer`,
+  LEFT and RIGHT along its buttons). No region declares a `back` edge, so
+  BACK is Cancel from anywhere.
+
   Pure rendering over `ReviewFlow.State`; its events bubble to the
   `TitleDetailHost` host.
   """
@@ -32,10 +41,12 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.SocialWords
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.Live.ReviewFlow.State
 
   attr :state, State, required: true, doc: "`ReviewFlow`'s `:review` assign; a nil subject is closed"
+  attr :armed_gesture, :any, required: true, doc: "the host's `ArmGesture` slot, for Remove review"
 
   def review_modal(assigns) do
     assigns = assign(assigns, :editing?, State.editing?(assigns.state))
@@ -53,6 +64,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
       panel_class="p-6"
       raised
       data-detail-nested="true"
+      data-nav-overlay={@state.subject && "review"}
     >
       <div :if={@state.subject} class="space-y-4">
         <%!-- The identity block without the overview: it is on the detail
@@ -71,49 +83,52 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
         <form id="review-form" phx-change="review_change" phx-submit="review_send" class="space-y-3">
           <%!-- Pressing the pressed choice again clears it: the flow's
                 rule (`ReviewFlow`), not the control's. --%>
-          <.segmented_control
-            id="review-sentiment"
-            label="Sentiment"
-            options={
-              Enum.map(Activity.sentiments(), &{&1, sentiment_word(&1), Flag.glyph(&1, :outline)})
-            }
-            selected={@state.sentiment}
-            event="review_sentiment"
-          />
+          <div data-nav-zone="review_choice">
+            <.segmented_control
+              id="review-sentiment"
+              label="Sentiment"
+              options={
+                Enum.map(Activity.sentiments(), &{&1, sentiment_word(&1), Flag.glyph(&1, :outline)})
+              }
+              selected={@state.sentiment}
+              event="review_sentiment"
+            />
+          </div>
           <%!-- Rendered from the held text so any re-render carries the
                 words. Opening the modal is itself the act of writing, so
                 the cursor starts in the box for a pointer user
                 (`MouseAutofocus`); for keyboard and gamepad the box is a
                 nav item the input system edits (ADR-053). --%>
-          <textarea
-            id="review-text"
-            name="text"
-            rows="4"
-            maxlength={ReviewFlow.limit()}
-            placeholder="…and in your words, if you want"
-            class="textarea textarea-bordered w-full text-sm"
-            phx-debounce="150"
-            phx-hook="MouseAutofocus"
-            data-nav-item
-            tabindex="0"
-          >{@state.text}</textarea>
+          <div data-nav-zone="review_text">
+            <textarea
+              id="review-text"
+              name="text"
+              rows="4"
+              maxlength={ReviewFlow.limit()}
+              placeholder="…and in your words, if you want"
+              class="textarea textarea-bordered w-full text-sm"
+              phx-debounce="150"
+              phx-hook="MouseAutofocus"
+              data-nav-item
+              tabindex="0"
+            >{@state.text}</textarea>
+          </div>
           <p id="review-counter" class="h-3.5 text-right text-[11px] text-base-content/55">
             {ReviewFlow.counter(@state.text)}
           </p>
-          <div class="flex items-center gap-2">
-            <.button
+          <div class="flex items-center gap-2" data-nav-zone="review_footer">
+            <.armed_button
               :if={@editing?}
               id="review-remove"
               type="button"
+              armed={ArmGesture.armed?(@armed_gesture, "review_remove")}
+              event="review_remove"
+              armed_label="Click again to remove"
               variant="dismiss"
-              size="sm"
               class="text-base-content/55 hover:text-error"
-              phx-click="review_remove"
-              data-nav-item
-              tabindex="0"
             >
               Remove review
-            </.button>
+            </.armed_button>
             <span class="flex-1"></span>
             <.button
               id="review-cancel"

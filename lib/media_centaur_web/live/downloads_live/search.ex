@@ -75,11 +75,14 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
                 omnibox:clear-input listener): LiveView never overwrites a
                 focused input's value, so the server-side reset alone would
                 leave stale text in the box. --%>
-          <button
+          <.button
             :if={@session.query != ""}
             id="omnibox-release-clear"
             type="button"
-            class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/55 transition-colors hover:text-base-content/80"
+            variant="dismiss"
+            size="sm"
+            shape="circle"
+            class="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-base-content/55"
             phx-click={
               JS.dispatch("omnibox:clear-input", to: "#omnibox-release-input")
               |> JS.push("clear_search")
@@ -89,7 +92,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
             tabindex="0"
           >
             <.icon name="hero-x-mark-mini" class="size-5" />
-          </button>
+          </.button>
         </div>
       </form>
 
@@ -131,15 +134,16 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
 
     <section :if={@session.groups != []} data-nav-zone="grid" class="space-y-3">
       <div class="flex justify-end">
-        <button
+        <.button
           type="button"
-          class="text-xs text-base-content/55 transition-colors hover:text-base-content/60"
+          variant="dismiss"
+          size="xs"
           phx-click="clear_search"
           data-nav-item
           tabindex="0"
         >
           Clear search
-        </button>
+        </.button>
       </div>
       <div
         :for={group <- @session.groups}

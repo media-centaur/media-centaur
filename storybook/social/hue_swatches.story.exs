@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.Social.HueSwatches do
       %Variation{
         id: :settings,
         description: "Settings → Social profile: Teal chosen, the slider's thumb at 195",
-        attributes: %{id: "hues-settings", selected: 195, event: "set_social_profile_hue"}
+        attributes: %{id: "hues-settings", selected: 195, event: "set_social_profile_hue", nav: :items}
       },
       %Variation{
         id: :custom,
@@ -45,6 +45,19 @@ defmodule MediaCentaurWeb.Storybook.Social.HueSwatches do
           theirs?: true,
           theirs_hue: 12,
           event: "set_hue_override"
+        }
+      },
+      %Variation{
+        id: :row_nav,
+        description:
+          "The reader's view: the swatch row is one nav item whose swatches are its sub-items (`nav: :row`)",
+        attributes: %{
+          id: "hues-row",
+          selected: nil,
+          theirs?: true,
+          theirs_hue: 12,
+          event: "set_hue_override",
+          nav: :row
         }
       },
       %Variation{

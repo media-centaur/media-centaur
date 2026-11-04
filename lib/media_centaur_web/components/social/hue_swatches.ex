@@ -7,10 +7,13 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
   slider is a form field named `hue` and carries no event of its own —
   the host's enclosing form's `phx-change` receives it (Settings' profile
   form; a small `set_hue_override` form on a friend's card foot), so a
-  click and a drag reach one handler with one payload. Every swatch and
-  the slider are nav items; the slider's angle is set by pointer until
-  the input system learns a range (arrows on a focused input are
-  navigation today).
+  click and a drag reach one handler with one payload. The slider is a
+  nav item; its angle is set by pointer until the input system learns a
+  range (arrows on a focused input are navigation today). `nav` says how
+  the swatches are reached: `:items`, each its own nav item (Settings'
+  flat walk), or `:row`, the swatch row one nav item whose swatches are
+  its `[data-nav-sub-item]`s, so a vertical TREE walks past the palette
+  in one step and RIGHT walks along it (the reader's view).
 
   `theirs?` leads the row with **Theirs**, the friend's published hue
   (`theirs_hue`; the default Blue when nil), pressed while `selected` is
@@ -32,6 +35,11 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
   attr :values, :map, default: %{}, doc: "phx-value-* params a swatch carries beside `hue`"
   attr :class, :any, default: nil, doc: "the row's spacing; the host sets it"
 
+  attr :nav, :atom,
+    default: :items,
+    values: [:items, :row],
+    doc: "each swatch a nav item, or the row one nav item with the swatches its sub-items"
+
   attr :rest, :global,
     doc:
       "the group's name (`aria-label=\"Colour\"`) and `data-*` markers a host or a test reads the row by"
@@ -41,7 +49,12 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
 
     ~H"""
     <div id={@id} role="group" class={["space-y-2", @class]} data-component="hue-swatches" {@rest}>
-      <div class="flex flex-wrap items-center gap-2.5">
+      <div
+        class="flex flex-wrap items-center gap-2.5"
+        data-role="swatch-row"
+        data-nav-item={@nav == :row}
+        tabindex={@nav == :row && "0"}
+      >
         <button
           :if={@theirs?}
           type="button"
@@ -53,8 +66,9 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
           phx-click={@event}
           {phx_values(Map.put(@values, "hue", ""))}
           data-role="theirs"
-          data-nav-item
-          tabindex="0"
+          data-nav-item={@nav == :items}
+          data-nav-sub-item={@nav == :row}
+          tabindex={@nav == :items && "0"}
         ></button>
         <button
           :for={{name, hue} <- Hue.palette()}
@@ -67,8 +81,9 @@ defmodule MediaCentaurWeb.Components.Social.HueSwatches do
           phx-click={@event}
           {phx_values(Map.put(@values, "hue", hue))}
           data-hue={hue}
-          data-nav-item
-          tabindex="0"
+          data-nav-item={@nav == :items}
+          data-nav-sub-item={@nav == :row}
+          tabindex={@nav == :items && "0"}
         ></button>
       </div>
       <input

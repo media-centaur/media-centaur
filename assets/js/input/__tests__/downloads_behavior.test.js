@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { inputConfig } from "../config"
-import { Context } from "../core/index"
+import { Context, buildNavGraph } from "../core/index"
 import { createDownloadsBehavior } from "../downloads_behavior"
 
 function fakeInput(initialValue) {
@@ -30,6 +30,19 @@ describe("download behavior", () => {
   test("the search box is a MENU like every other Downloads zone — the input and its clear", () => {
     expect(inputConfig.contextSelectors.omnibox).toBe("[data-nav-zone='omnibox'] [data-nav-item]")
     expect(inputConfig.instanceTypes.omnibox).toBe(Context.MENU)
+  })
+
+  test("History: the filter chips and the search are a toolbar row over the ledger's rows", () => {
+    const history = buildNavGraph("downloads", { omnibox: 1, zone_tabs: 2, toolbar: 5, ledger: 12, sidebar: 6 }, inputConfig)
+    expect(history.zone_tabs.down).toBe("toolbar")
+    expect(history.toolbar.up).toBe("zone_tabs")
+    expect(history.toolbar.down).toBe("ledger")
+    expect(history.ledger.up).toBe("toolbar")
+
+    // A filter that empties the ledger leaves the toolbar reachable.
+    const empty = buildNavGraph("downloads", { omnibox: 1, zone_tabs: 2, toolbar: 5, sidebar: 6 }, inputConfig)
+    expect(empty.zone_tabs.down).toBe("toolbar")
+    expect(empty.toolbar.down).toBeUndefined()
   })
 
   test("onAttach and onDetach are no-ops (callable)", () => {

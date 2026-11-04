@@ -8,12 +8,17 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
   shared-page treatment existed for. No section header either: the tab
   says History.
 
+  The chips and the search are one horizontal row, the `toolbar` nav
+  zone (LEFT and RIGHT along it); the rows under it are the `ledger`
+  zone.
+
   Rows arrive pre-bucketed into date sections (`HistoryLogic.
   section_entries/2` — Today / Yesterday / This week / month names) so
   a long archive scans by time landmark. Rows speak outcome-first:
   severity dot, title (episode clusters as a `disclosure/1`, members
   within), the composite "N of M" chip where it
-  exists, one colored outcome word, relative time. The status
+  exists, the outcome word, relative time. Colour is signal: a landed
+  row stays neutral, and only a partial or a failure is coloured. The status
   *sentence* renders only where it informs — failures and partials
   carry their diagnostics; "Landed"/"Cancelled" need no elaboration.
   Clicking a row opens the pursuit modal (`select_pursuit`), same
@@ -71,7 +76,7 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
       data-nav-zone="ledger"
       class="mx-auto w-full max-w-4xl space-y-3"
     >
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2" data-nav-zone="toolbar">
         <button
           :for={filter_atom <- HistoryLogic.filter_atoms()}
           phx-click="set_history_filter"
@@ -89,6 +94,7 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
 
         <form id="history-search-form" phx-change="set_history_search" class="ml-auto">
           <input
+            id="history-search"
             type="search"
             name="search"
             phx-debounce="300"
@@ -229,7 +235,6 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
   defp episode_word(1), do: "episode"
   defp episode_word(_count), do: "episodes"
 
-  defp dot_class(:satisfied), do: "bg-success"
   defp dot_class(:partial), do: "bg-warning"
   defp dot_class(:exhausted), do: "bg-error"
   defp dot_class(_state), do: "bg-base-content/25"
@@ -240,7 +245,6 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
   defp outcome_label(:cancelled), do: "Cancelled"
   defp outcome_label(state), do: Phoenix.Naming.humanize(state)
 
-  defp outcome_class(:satisfied), do: "text-success/85"
   defp outcome_class(:partial), do: "text-warning/90"
   defp outcome_class(:exhausted), do: "text-error/90"
   defp outcome_class(_state), do: "text-base-content/55"

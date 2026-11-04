@@ -25,7 +25,7 @@ import { clearableInput, omniboxInput } from "./omnibox_clear"
 const REAL_DOM = {
   getOmniboxInput: () => omniboxInput("omnibox-release-input"),
   getHistorySearch() {
-    return clearableInput(document.querySelector("[data-nav-zone='ledger'] input[type='search']"))
+    return clearableInput(document.getElementById("history-search"))
   },
 }
 

@@ -703,7 +703,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
         <%!-- Before the detail: the input system takes the first open
               [data-detail-mode=modal] in DOM order as the active overlay, so the
               raised Review modal must precede the detail it opens over. --%>
-        <ReviewModal.review_modal state={@review} />
+        <ReviewModal.review_modal state={@review} armed_gesture={@armed_gesture} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}

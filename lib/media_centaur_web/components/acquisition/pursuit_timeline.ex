@@ -1,9 +1,15 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
-  @moduledoc "Renders the full vertical event timeline for a pursuit."
+  @moduledoc """
+  Renders the full vertical event timeline for a pursuit, newest last,
+  each entry's time relative ("3h ago", the page's formatter) with the
+  exact time as its tip. Every entry is a nav item, so keyboard and
+  gamepad walk down into the history and the modal scrolls it into view.
+  """
 
   use Phoenix.Component
 
   alias MediaCentaur.Acquisition.ViewModels.Timeline
+  alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, Timeline, required: true
@@ -18,7 +24,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
         <div class="text-sm text-base-content/55">No events yet.</div>
       <% else %>
         <ol class="space-y-3">
-          <li :for={entry <- @vm.entries} class="flex items-start gap-3">
+          <li
+            :for={entry <- @vm.entries}
+            class="flex items-start gap-3 rounded-md"
+            data-nav-item
+            tabindex="0"
+          >
             <span class={"mt-1 block size-2 rounded-full flex-shrink-0 #{PursuitStyle.severity_dot_class(entry.severity)}"} />
             <div class="min-w-0 flex-1">
               <div class={"text-sm #{PursuitStyle.severity_text_class(entry.severity)}"}>
@@ -31,7 +42,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
               >
                 {entry.detail}
               </div>
-              <div class="text-xs text-base-content/55 mt-0.5">{format_time(entry.occurred_at)}</div>
+              <div
+                class="text-xs text-base-content/55 mt-0.5"
+                data-tip={format_time(entry.occurred_at)}
+              >
+                {Format.relative_ago(entry.occurred_at)}
+              </div>
             </div>
           </li>
         </ol>

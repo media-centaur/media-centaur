@@ -61,9 +61,20 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
+    // Friends under the cards: the hidden group's Show buttons, the add
+    // form (key, name, Add friend), and the pointer to Settings → Social.
+    hidden_people: "[data-nav-zone='hidden_people'] [data-nav-item]",
+    add_friend: "[data-nav-zone='add_friend'] [data-nav-item]",
+    friends_pointer: "[data-nav-zone='friends_pointer'] [data-nav-item]",
     feed: "[data-nav-zone='feed'] [data-nav-item]",
     person_rows: "[data-nav-zone='person_rows'] [data-nav-item]",
     person_view: "[data-nav-zone='person_view'] [data-nav-item]",
+    // The Undo toast after an Ignore (`ActionToast`): its one action.
+    undo_toast: "[data-nav-zone='undo_toast'] [data-nav-item]",
+    // The Review modal's regions: the sentiment row, the words, the footer.
+    review_choice: "[data-nav-zone='review_choice'] [data-nav-item]",
+    review_text: "[data-nav-zone='review_text'] [data-nav-item]",
+    review_footer: "[data-nav-zone='review_footer'] [data-nav-item]",
     profile_picker: "[data-nav-zone='profile_picker'] [data-nav-item]",
     // The viewing layer's track menu (a remote player's OSD): two columns,
     // each a GlassMenu list, walked as MENUs with left/right between them.
@@ -134,13 +145,21 @@ export const inputConfig = {
     guide_outline: Context.MENU,
     console_footer: Context.TOOLBAR,
     people: Context.SHELF,
+    hidden_people: Context.TREE,
+    add_friend: Context.TOOLBAR,
+    friends_pointer: Context.TOOLBAR,
+    undo_toast: Context.TOOLBAR,
+    review_choice: Context.TOOLBAR,
+    review_text: Context.TOOLBAR,
+    review_footer: Context.TOOLBAR,
     // The Feed: a vertical list of rows, each with its verbs (List,
     // Download, Ignore) as sub-items — the bindings table's shape.
     feed: Context.TREE,
     // The person page: the back row and the rows as a tree (a row's verbs
-    // are its sub-items), the reader's view a vertical walk of its controls.
+    // are its sub-items), the reader's view a vertical walk of its rows
+    // (the colour swatches one row, walked by RIGHT as its sub-items).
     person_rows: Context.TREE,
-    person_view: Context.GRID,
+    person_view: Context.TREE,
     // The profile picker: tiles in a wrapping row plus the Add input over its button, so geometry answers adjacency.
     profile_picker: Context.SHELF,
     // The detail modal: a horizontal command row over a nesting list. The
@@ -280,6 +299,18 @@ export const inputConfig = {
         plan_menu: { up: ["plan_body"], back: ["plan_body"] },
       },
     },
+    // The Review modal: the sentiment row (LEFT/RIGHT along Dislike, Like,
+    // Love) over the words over the footer (Remove review, Cancel, Share).
+    // No `back` edges, so BACK is Cancel from any region, as it was when the
+    // modal was one flat list.
+    review: {
+      entry: ["review_choice", "review_text", "review_footer"],
+      layout: {
+        review_choice: { down: ["review_text"] },
+        review_text: { up: ["review_choice"], down: ["review_footer"] },
+        review_footer: { up: ["review_text"] },
+      },
+    },
     // The viewing layer's track menu: Audio beside Subtitles, LEFT/RIGHT
     // between them, no back edges so BACK closes the menu from either.
     // The cursor opens on Subtitles, the desktop menu's rule.
@@ -362,20 +393,24 @@ export const inputConfig = {
     // Downloads: the release search box on top, then the zone tabs
     // (Activity | History) — one tab's content renders at a time, so the
     // candidate lists do the routing: Activity shows drafts → pursuits →
-    // other_downloads; History shows the ledger (one zone, chips + search).
+    // other_downloads; History shows its toolbar (chips + search) over the
+    // ledger's rows.
     // While a search owns the page the tabs recede and only "grid" (the
     // result groups, carrying their own Clear) sits below the box. The
-    // ledger always carries its controls as nav items once any history
-    // exists, so the archive stays reachable.
+    // History toolbar renders with the tab, so the archive stays reachable
+    // when a filter empties the ledger.
     downloads: {
-      omnibox:         { down: ["grid", "zone_tabs", "drafts", "pursuits", "ledger"] },
+      omnibox:         { down: ["grid", "zone_tabs", "drafts", "pursuits", "toolbar", "ledger"] },
       grid:            { up: ["omnibox"] },
-      zone_tabs:       { up: ["omnibox"], down: ["drafts", "pursuits", "ledger", "other_downloads"] },
+      zone_tabs:       { up: ["omnibox"], down: ["drafts", "pursuits", "toolbar", "ledger", "other_downloads"] },
       drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"] },
       pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"] },
-      ledger:          { up: ["zone_tabs", "omnibox"] },
+      // History: the filter chips and the search, one horizontal row, over
+      // the ledger's rows.
+      toolbar:         { up: ["zone_tabs", "omnibox"], down: ["ledger"] },
+      ledger:          { up: ["toolbar", "zone_tabs", "omnibox"] },
       other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
-      sidebar:         { right: ["pursuits", "ledger", "zone_tabs", "omnibox"] },
+      sidebar:         { right: ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"] },
@@ -388,20 +423,31 @@ export const inputConfig = {
     // rows' zone so their button is reachable.
     watchlist: {
       toolbar:             { down: ["watchlist_rows"] },
-      watchlist_rows:      { up: ["toolbar"], down: ["watchlist_rung_menu"] },
+      watchlist_rows:      { up: ["toolbar"], down: ["watchlist_rung_menu"], right: ["undo_toast"] },
       watchlist_rung_menu: { up: ["watchlist_rows"], back: ["watchlist_rows"] },
+      // The Undo toast after an Ignore: RIGHT from the rows reaches it while
+      // it shows; LEFT, DOWN or BACK return to the rows.
+      undo_toast:          { left: ["watchlist_rows"], down: ["watchlist_rows"], back: ["watchlist_rows"] },
       sidebar:             { right: ["watchlist_rows", "toolbar"] },
     },
-    // Social: the zone-tabs strip above one body — the Feed's rows on Feed,
-    // the person cards on Friends, the person page's rows over its card. The
-    // Feed's rail of people is not a nav zone.
+    // Social: the zone-tabs strip, with the Feed's scope control (a
+    // `toolbar`) to its right, above one body — the Feed's rows on Feed; on
+    // Friends the person cards over the hidden group, the add form and the
+    // Settings pointer; on a person page the rows beside the reader's view.
+    // The Feed's rail of people is not a nav zone. The Undo toast after an
+    // Ignore is reached by RIGHT from the rows.
     social: {
-      zone_tabs:   { down: ["feed", "people", "person_rows", "person_view"] },
-      feed:        { up: ["zone_tabs"] },
-      people:      { up: ["zone_tabs"] },
-      person_rows: { up: ["zone_tabs"], down: ["person_view"] },
-      person_view: { up: ["person_rows", "zone_tabs"] },
-      sidebar:     { right: ["feed", "people", "person_rows", "person_view", "zone_tabs"] },
+      zone_tabs:       { right: ["toolbar"], down: ["feed", "people", "hidden_people", "add_friend", "person_rows", "person_view"] },
+      toolbar:         { left: ["zone_tabs"], down: ["feed"] },
+      feed:            { up: ["zone_tabs"], right: ["undo_toast"] },
+      people:          { up: ["zone_tabs"], down: ["hidden_people", "add_friend"] },
+      hidden_people:   { up: ["people", "zone_tabs"], down: ["add_friend"] },
+      add_friend:      { up: ["hidden_people", "people", "zone_tabs"], down: ["friends_pointer"] },
+      friends_pointer: { up: ["add_friend"] },
+      person_rows:     { up: ["zone_tabs"], down: ["person_view"], right: ["undo_toast", "person_view"] },
+      person_view:     { up: ["person_rows", "zone_tabs"], left: ["person_rows"] },
+      undo_toast:      { left: ["feed", "person_rows"], down: ["feed", "person_rows"], back: ["feed", "person_rows"] },
+      sidebar:         { right: ["feed", "people", "hidden_people", "add_friend", "person_rows", "person_view", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -468,10 +514,10 @@ export const inputConfig = {
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
-    downloads:  ["pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
+    downloads:  ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
     watchlist: ["watchlist_rows", "toolbar", "sidebar"],
-    social: ["feed", "people", "person_rows", "person_view", "zone_tabs", "sidebar"],
+    social: ["feed", "people", "hidden_people", "add_friend", "person_rows", "person_view", "toolbar", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],

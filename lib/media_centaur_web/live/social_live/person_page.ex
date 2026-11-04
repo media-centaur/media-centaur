@@ -17,8 +17,9 @@ defmodule MediaCentaurWeb.SocialLive.PersonPage do
   pointer to Settings → Social. A hidden person's rows are never loaded
   (hidden means off everything), so their page is the head and the card
   over the hidden empty state; a shown person with no acts reads
-  *Nothing yet*. Two nav zones: `person_rows`, the back row and the rows
-  as a tree; `person_view`, the card's controls.
+  *Nothing yet*. Two nav zones: `person_rows`, the back row, the rows
+  and (on the reader's own page) the Settings pointer as a tree;
+  `person_view`, the card's rows as a tree beside it.
   """
 
   use Phoenix.Component
@@ -55,6 +56,10 @@ defmodule MediaCentaurWeb.SocialLive.PersonPage do
   attr :card, Card,
     default: nil,
     doc: "their card from `People.build/3`; nil for a hidden person, whose rows are never loaded"
+
+  attr :remove_armed, :boolean,
+    default: false,
+    doc: "Remove friend's first press has landed (`ArmGesture.armed?/3`)"
 
   def person_page(assigns) do
     assigns =
@@ -114,12 +119,14 @@ defmodule MediaCentaurWeb.SocialLive.PersonPage do
           Your name, picture and colour are under <.link
             navigate={~p"/settings?section=social"}
             class="link link-primary"
+            data-nav-item
+            tabindex="0"
           >Settings → Social</.link>.
         </p>
       </div>
 
       <div :if={not @person.own?} class="person-page-side" data-nav-zone="person_view">
-        <ReaderView.reader_view person={@person} />
+        <ReaderView.reader_view person={@person} remove_armed={@remove_armed} />
       </div>
     </div>
     """

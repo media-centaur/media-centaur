@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { inputConfig } from "../config"
-import { Context } from "../core/index"
+import { Context, buildNavGraph } from "../core/index"
 import { createPageBehavior } from "../page_behavior"
 import { createWatchlistBehavior } from "../watchlist_behavior"
 
@@ -43,5 +43,16 @@ describe("watchlist behavior", () => {
     expect(inputConfig.layouts.watchlist.watchlist_rows.down).toEqual(["watchlist_rung_menu"])
     expect(inputConfig.layouts.watchlist.watchlist_rung_menu.back).toEqual(["watchlist_rows"])
     expect(inputConfig.cursorStartPriority.watchlist[0]).toBe("watchlist_rows")
+  })
+
+  test("the Undo toast after an Ignore is RIGHT of the rows while it shows; LEFT, DOWN and BACK return", () => {
+    const shown = buildNavGraph("watchlist", { toolbar: 4, watchlist_rows: 9, undo_toast: 1, sidebar: 6 }, inputConfig)
+    expect(shown.watchlist_rows.right).toBe("undo_toast")
+    expect(shown.undo_toast.left).toBe("watchlist_rows")
+    expect(shown.undo_toast.down).toBe("watchlist_rows")
+    expect(shown.undo_toast.back).toBe("watchlist_rows")
+
+    const gone = buildNavGraph("watchlist", { toolbar: 4, watchlist_rows: 9, sidebar: 6 }, inputConfig)
+    expect(gone.watchlist_rows.right).toBeUndefined()
   })
 })
