@@ -425,8 +425,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # The headline is blank until a choice is pressed, then names it.
       assert has_element?(view, "#review-headline #review-blank")
       assert has_element?(view, "#review-send", "Share")
-      # Who will see it: no relay in the test environment, so the way to one.
-      assert view |> element("#review-form") |> render() =~ "Add a relay in Settings to share it"
 
       # A choice presses; pressing it again clears it; another choice replaces it.
       view |> element(choice(:like)) |> render_click()
@@ -483,8 +481,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert view |> element("#review-text") |> render() =~ "First words"
       assert view |> element("#review-modal") |> render() =~ "you reviewed it"
       assert has_element?(view, "#review-send", "Save")
-      # The audience line is for a new review; editing drops it.
-      refute view |> element("#review-form") |> render() =~ "Add a relay in Settings to share it"
 
       view |> element(choice(:love)) |> render_click()
       view |> form("#review-form", %{"text" => "Second words"}) |> render_submit()

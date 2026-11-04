@@ -7,9 +7,8 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   so the modal and the Feed agree), the sentiments as the house
   segmented control with their glyphs, the words rendered from the held
   text (`ReviewFlow.State.text`, through `review_change`) with the
-  counter once 100 remain, and the footer: the audience line or Remove
-  review at the left, Cancel and Share — Save when editing — at the
-  right. Nothing is required: Share with nothing chosen and nothing
+  counter once 100 remain, and the footer: Remove review at the left
+  when editing, Cancel and Share — Save when editing — at the right. Nothing is required: Share with nothing chosen and nothing
   written says only that you reviewed the title.
 
   Persistent — a stray backdrop click must not discard half-written
@@ -115,12 +114,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
             >
               Remove review
             </.button>
-            <p
-              :if={!@editing? && @state.audience}
-              class="text-xs text-base-content/55"
-            >
-              {@state.audience}
-            </p>
             <span class="flex-1"></span>
             <.button
               id="review-cancel"

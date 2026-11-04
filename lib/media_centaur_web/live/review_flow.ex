@@ -8,10 +8,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   sentiment press, a relay broadcast — never empties the box; the
   textarea renders from it through `review_change`), the `existing` own
   review when the modal opened on a title the reader already reviewed
-  (then it is editing: prefilled, Save, Remove review), the
-  `audience` line, read once at open:
-  `Connections.status/0` is a `GenServer.call` and the render path runs
-  on every diff.
+  (then it is editing: prefilled, Save, Remove review).
 
   The sentiment lives here rather than in the form because the choice
   is clearable: pressing the chosen sentiment again clears it, which a
@@ -59,12 +56,8 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
 
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Format
-  alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
-  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Title.SocialWords
 
   defmodule State do
     @moduledoc "The Review modal's state — see `MediaCentaurWeb.Live.ReviewFlow`."
@@ -76,16 +69,14 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
               poster_url: nil,
               sentiment: nil,
               text: "",
-              existing: nil,
-              audience: nil
+              existing: nil
 
     @type t :: %__MODULE__{
             subject: Title.t() | nil,
             poster_url: String.t() | nil,
             sentiment: Activity.sentiment() | nil,
             text: String.t(),
-            existing: Activity.t() | nil,
-            audience: String.t() | nil
+            existing: Activity.t() | nil
           }
 
     @doc "Whether the modal is editing a review the reader already made."
@@ -113,15 +104,12 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   """
   @spec open(socket(), Title.t(), String.t() | nil, Activity.t() | nil) :: socket()
   def open(socket, %Title{} = title, poster_url, existing) do
-    status = Connections.status()
-
     assign(socket, :review, %State{
       subject: title,
       poster_url: poster_url,
       sentiment: existing && existing.sentiment,
       text: (existing && existing.text) || "",
-      existing: existing,
-      audience: audience_line(Map.values(Social.visible_people()), status)
+      existing: existing
     })
   end
 
@@ -177,26 +165,6 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   end
 
   def remove(socket), do: socket
-
-  @doc """
-  The footer's audience line: who will see the review when a relay is
-  connected (the people minus the reader, by name, `SocialWords.audience/1`;
-  nil when no one is followed), else why no one will yet.
-  """
-  @spec audience_line([Person.t()], %{optional(String.t()) => map()}) :: String.t() | nil
-  def audience_line(_people, status) when map_size(status) == 0,
-    do: "Add a relay in Settings to share it"
-
-  def audience_line(people, status) do
-    if Enum.any?(status, fn {_url, entry} -> Connections.connected?(entry) end) do
-      case Enum.reject(people, & &1.own?) do
-        [] -> nil
-        friends -> friends |> Enum.sort_by(&Format.person_name/1) |> SocialWords.audience()
-      end
-    else
-      "Friends see it once a relay connects"
-    end
-  end
 
   @doc ~s(The counter under the box: "N left" once 100 or fewer remain, else nil.)
   @spec counter(String.t()) :: String.t() | nil

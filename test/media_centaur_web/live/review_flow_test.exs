@@ -1,32 +1,7 @@
 defmodule MediaCentaurWeb.Live.ReviewFlowTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.SocialRows, only: [person: 1, own_person: 0]
-
   alias MediaCentaurWeb.Live.ReviewFlow
-
-  @connected %{"wss://a" => %{state: :connected}, "wss://b" => %{state: :connecting}}
-  @none_connected %{"wss://a" => %{state: :connecting}}
-
-  describe "audience_line/2" do
-    test "names the people who will see it when a relay is connected, by name; the reader is not an audience" do
-      people = [person("Sam"), own_person(), person("Nick")]
-      assert ReviewFlow.audience_line(people, @connected) == "Nick and Sam will see it"
-    end
-
-    test "nothing when a relay is connected but no one is followed" do
-      assert ReviewFlow.audience_line([own_person()], @connected) == nil
-    end
-
-    test "relays configured, none connected" do
-      assert ReviewFlow.audience_line([person("Nick")], @none_connected) ==
-               "Friends see it once a relay connects"
-    end
-
-    test "no relay configured" do
-      assert ReviewFlow.audience_line([person("Nick")], %{}) == "Add a relay in Settings to share it"
-    end
-  end
 
   describe "counter/1" do
     test "blank while more than 100 remain, then the count" do
