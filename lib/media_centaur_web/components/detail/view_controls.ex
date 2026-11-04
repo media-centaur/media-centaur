@@ -26,14 +26,17 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   bookmark (`Title.WatchlistToggle`, UIDR-039) firing `set_rung` with
   the `choice` the control decided and the title's `ref`, and, when the
   friend network is on (`review?`), the pencil that opens the Review
-  modal (`review_open`). The residue — an owned entity with no TMDB
-  identity — gets none of the three.
+  modal (`review_open`). Once the reader has reviewed the title
+  (`Title.Logic.own_review/1`) the pencil reads "Edit your review" at
+  full opacity — the one control that edits it (UIDR-036). The residue —
+  an owned entity with no TMDB identity — gets none of the three.
   """
 
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Title.WatchlistToggle
   alias MediaCentaurWeb.TitleRef
 
@@ -65,6 +68,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       |> assign(:ref, detail.ref && TitleRef.param(detail.ref))
       |> assign(:letterboxd?, assigns.letterboxd_links and match?({_id, :movie}, detail.ref))
       |> assign(:tmdb_id, detail.ref && elem(detail.ref, 0))
+      |> assign(:reviewed?, TitleLogic.own_review(detail.social_activity) != nil)
 
     ~H"""
     <.view_button
@@ -117,12 +121,15 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       variant="dismiss"
       size="sm"
       shape="circle"
-      class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
+      class={[
+        "ml-1 transition-opacity",
+        if(@reviewed?, do: "opacity-100", else: "opacity-60 hover:opacity-100")
+      ]}
       phx-click="review_open"
       data-nav-item
       tabindex="0"
-      data-tip="Review"
-      aria-label="Review"
+      data-tip={if @reviewed?, do: "Edit your review", else: "Review"}
+      aria-label={if @reviewed?, do: "Edit your review", else: "Review"}
     >
       <.icon name="hero-pencil-square" class="size-5" />
     </.button>

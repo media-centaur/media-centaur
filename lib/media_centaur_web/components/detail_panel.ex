@@ -626,13 +626,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :note, :any,
     required: true,
     doc:
-      "the lead review `%{author, flag, grade, text}`, the watchlist note `%{author: nil, text}`, or nil"
+      "the lead review or the reader's own review `%{author, flag, grade, text, own?}`, the watchlist note `%{author: nil, text}`, or nil"
 
   # The words above the synopsis. The lead review — the one the modal was
   # opened from — is its author's tile, name and glyph, then the words;
-  # the watchlist note is the reader's own, a plain line. The words' first
-  # line is centred on the 32px tile (4px over a 24px line), so a one-line
-  # review sits level with the tile and a longer one wraps beneath it.
+  # the reader's own review is the same line in the second person ("You",
+  # the glyph, the words if any); the watchlist note is the reader's own,
+  # a plain line. The words' first line is centred on the 32px tile (4px
+  # over a 24px line), so a one-line review sits level with the tile and
+  # a longer one wraps beneath it.
   defp note_line(%{note: nil} = assigns), do: ~H""
 
   defp note_line(%{note: %{author: nil}} = assigns) do
@@ -643,7 +645,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp note_line(assigns) do
     ~H"""
-    <div id="detail-note" class="mb-3 flex max-w-[760px] items-start gap-2.5" data-role="lead-review">
+    <div
+      id="detail-note"
+      class="mb-3 flex max-w-[760px] items-start gap-2.5"
+      data-role={if @note.own?, do: "own-review", else: "lead-review"}
+    >
       <IdentityTile.identity_tile {IdentityTile.person_attrs(@note.author)} size={32} />
       <p class="pt-1 text-[15px] leading-6 text-base-content/85">
         <span class="font-semibold text-base-content/95">{Format.person_name(@note.author)}</span>
@@ -926,9 +932,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp blank_to_nil(value) when is_binary(value) and value != "", do: value
   defp blank_to_nil(_value), do: nil
 
-  # The words under the hero: the lead review — the activity the modal
-  # was opened from, when it carries words — drawn with its author and
-  # its glyph at the title's grade; else the reader's own watchlist note.
+  # The words under the hero, in precedence: the lead review — the
+  # activity the modal was opened from, when it carries words — drawn
+  # with its author and its glyph at the title's grade; else the reader's
+  # own review, drawn whenever one exists, words or not — the reader's
+  # statement in the second person, not a social glyph alone (UIDR-049);
+  # else the reader's own watchlist note.
   defp note_words(
          %TitleDetail{activity: %{activity: %{text: text} = activity, author: %Person{} = author}} =
            detail
@@ -940,8 +949,27 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       author: author,
       flag: flag,
       grade: Map.get(Grade.for_title(detail.social_activity), flag, :plain),
-      text: text
+      text: text,
+      own?: false
     }
+  end
+
+  defp note_words(%TitleDetail{social_activity: rows} = detail) when rows != [] do
+    case TitleLogic.own_review_row(rows) do
+      %{activity: mine, author: %Person{own?: true} = me} ->
+        flag = Flag.flag(mine)
+
+        %{
+          author: me,
+          flag: flag,
+          grade: Map.get(Grade.for_title(rows), flag, :plain),
+          text: mine.text,
+          own?: true
+        }
+
+      nil ->
+        note_words(%{detail | social_activity: []})
+    end
   end
 
   defp note_words(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",

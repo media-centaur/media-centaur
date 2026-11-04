@@ -491,6 +491,45 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the detail shows the reader's own review as You with its glyph and words; the pencil reads Edit your review",
+         %{conn: conn} do
+      MediaCentaur.Social.Identity.ensure()
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+      assert has_element?(view, "#detail-review[aria-label='Review']")
+      refute has_element?(view, "#detail-note")
+
+      {:ok, _mine} = MediaCentaur.Activities.review(title, :like, "Practical effects hold up.")
+      await_supervised_tasks()
+
+      assert has_element?(view, "#detail-note[data-role='own-review']", "You")
+      assert has_element?(view, "#detail-note .social-glyph[data-flag='like']")
+      assert has_element?(view, "#detail-note", "Practical effects hold up.")
+      assert has_element?(view, "#detail-review[aria-label='Edit your review']")
+      # Your own review alone still draws no social capsule.
+      refute has_element?(view, "#detail-social")
+    end
+
+    test "the own review outranks the watchlist note; a friend's lead review outranks both", %{
+      conn: conn
+    } do
+      MediaCentaur.Social.Identity.ensure()
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      # Watchlist's own write: the note applies on creation (`put_rung/3`).
+      {:ok, _intent} = MediaCentaur.Watchlist.put_rung(title, :list, %{note: "Saved for Sunday"})
+      {:ok, _mine} = MediaCentaur.Activities.review(title, nil, "My words")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+      assert has_element?(view, "#detail-note[data-role='own-review']", "My words")
+      refute has_element?(view, "#detail-note", "Saved for Sunday")
+      await_supervised_tasks()
+    end
+
     test "a friend's review joins the detail hero's social capsule, live", %{conn: conn} do
       friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
