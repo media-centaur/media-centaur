@@ -32,7 +32,6 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Title.Flag
-  alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.SocialWords
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.Live.ReviewFlow.State
@@ -182,7 +181,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
       You
       <span :if={is_nil(@sentiment)} id="review-blank" class="review-blank" aria-hidden="true"></span>
       <span :if={@sentiment} id={"review-verdict-#{@sentiment}"} class="review-verdict">
-        <SocialGlyph.social_glyph flag={@sentiment} grade={:plain} class="size-[22px]" />
+        <.icon name={Flag.glyph(@sentiment, :solid)} class="review-verdict-glyph" />
         {SocialWords.own_verb(@sentiment)}
       </span>
       this
