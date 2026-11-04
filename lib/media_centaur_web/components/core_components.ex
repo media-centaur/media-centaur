@@ -464,7 +464,11 @@ defmodule MediaCentaurWeb.CoreComponents do
 
   attr :id, :string, default: nil
   attr :label, :string, required: true, doc: "the group's accessible name"
-  attr :options, :list, required: true, doc: "`{value, label}` pairs in display order"
+
+  attr :options, :list,
+    required: true,
+    doc:
+      "`{value, label}` pairs in display order, or `{value, label, icon}` with a heroicon drawn before the word — outline at rest, its `-solid` twin when the option is pressed (the name must appear literally somewhere in source for its CSS to exist; `Title.Flag.glyph/2` holds the social ones)"
 
   attr :selected, :any,
     required: true,
@@ -484,10 +488,13 @@ defmodule MediaCentaurWeb.CoreComponents do
   item outside every zone's selector is inert — `dom_adapter.js`), never
   the component's. The Settings kit's `settings_choice/1` composes this
   inside its row; Library's type tabs, the strip chart's window and the
-  Feed's scope render it directly.
+  Feed's scope render it directly. An option may carry a heroicon, drawn
+  outline at rest and solid when pressed.
   Story: `/storybook/core_components/segmented_control`.
   """
   def segmented_control(assigns) do
+    assigns = assign(assigns, :entries, Enum.map(assigns.options, &normalise_option/1))
+
     ~H"""
     <div
       id={@id}
@@ -496,7 +503,7 @@ defmodule MediaCentaurWeb.CoreComponents do
       aria-label={@label}
     >
       <button
-        :for={{value, label} <- @options}
+        :for={{value, label, icon} <- @entries}
         type="button"
         class="tab text-sm"
         phx-click={@event}
@@ -506,11 +513,19 @@ defmodule MediaCentaurWeb.CoreComponents do
         data-nav-item
         tabindex="0"
       >
+        <.icon
+          :if={icon}
+          name={if value == @selected, do: icon <> "-solid", else: icon}
+          class="size-4"
+        />
         {label}
       </button>
     </div>
     """
   end
+
+  defp normalise_option({value, label}), do: {value, label, nil}
+  defp normalise_option({value, label, icon}) when is_binary(icon), do: {value, label, icon}
 
   @doc """
   Renders an input with label and error messages.

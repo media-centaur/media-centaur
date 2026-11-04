@@ -42,6 +42,21 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SegmentedControl do
           selected: "1h",
           event: "pick"
         }
+      },
+      %Variation{
+        id: :with_glyphs,
+        description:
+          "An option may carry a heroicon: outline at rest, solid when pressed — the Review modal's sentiments.",
+        attributes: %{
+          label: "Sentiment",
+          options: [
+            {:dislike, "Dislike", "hero-hand-thumb-down"},
+            {:like, "Like", "hero-hand-thumb-up"},
+            {:love, "Love", "hero-heart"}
+          ],
+          selected: :like,
+          event: "pick"
+        }
       }
     ]
   end

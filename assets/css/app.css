@@ -1409,6 +1409,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   min-height: 0;
   display: inline-flex;
   align-items: center;
+  gap: 0.4rem;
   cursor: pointer;
   transition: color 150ms, background 150ms, box-shadow 150ms;
 }

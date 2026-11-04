@@ -46,4 +46,21 @@ defmodule MediaCentaurWeb.Components.SegmentedControlTest do
       render(event_value: %{"value" => "x"})
     end
   end
+
+  test "an option with a glyph draws it outline at rest and solid when pressed, before the word" do
+    options = [
+      {:dislike, "Dislike", "hero-hand-thumb-down"},
+      {:like, "Like", "hero-hand-thumb-up"},
+      {:love, "Love", "hero-heart"}
+    ]
+
+    html = render(options: options, selected: :like, label: "Sentiment")
+    buttons = buttons(html)
+
+    assert buttons |> LazyHTML.query("span.hero-hand-thumb-down") |> Enum.count() == 1
+    assert buttons |> LazyHTML.query("span.hero-hand-thumb-up-solid") |> Enum.count() == 1
+    assert buttons |> LazyHTML.query("span.hero-hand-thumb-up") |> Enum.empty?()
+    assert buttons |> LazyHTML.query("span.hero-heart") |> Enum.count() == 1
+    assert Enum.map(buttons, &(&1 |> LazyHTML.text() |> String.trim())) == ["Dislike", "Like", "Love"]
+  end
 end
