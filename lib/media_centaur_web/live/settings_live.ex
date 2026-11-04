@@ -2524,13 +2524,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp section_content(assigns) do
-    ~H"""
-    <div class="p-5 rounded-lg glass-surface">
-      <p class="text-base-content/60">Unknown section.</p>
-    </div>
-    """
-  end
+  # An unknown `?section=`: the shell's description line already says the
+  # section does not exist, so the body adds nothing.
+  defp section_content(assigns), do: ~H""
 
   # The self-update reboot kills the BEAM, so the disconnect toast that
   # follows is rendered entirely client-side — by then there is no server

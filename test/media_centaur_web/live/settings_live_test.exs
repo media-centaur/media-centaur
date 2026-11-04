@@ -86,6 +86,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       end
     end
 
+    test "an unknown section says so once", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=bogus")
+
+      assert html =~ "This section does not exist."
+      refute html =~ "Unknown section."
+    end
+
     test "every section label is Title Case, as the Settings menu reads" do
       for %{label: label} <- MediaCentaurWeb.SettingsLive.sections() do
         for word <- String.split(label) do

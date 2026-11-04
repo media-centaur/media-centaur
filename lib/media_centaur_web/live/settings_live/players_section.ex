@@ -84,6 +84,8 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
             target="_blank"
             rel="noopener noreferrer"
             class="link link-primary"
+            data-nav-item
+            tabindex="0"
           >Media Centaur TV app</a>
           first; it asks for this computer's address, then shows the pairing page.
         </p>

@@ -169,7 +169,10 @@ defmodule MediaCentaurWeb.ProfilesLive do
                 reaches Add and Cancel. A refusal keeps the field, and the
                 text with it; a success or Cancel closes it, and the server
                 never held the typed text to clear. Escape on the field is
-                Cancel for the keyboard. --%>
+                Cancel for the keyboard, and BACK anywhere in the form is
+                Cancel for the remote and gamepad (profiles_behavior.js
+                presses `data-profile-add-cancel`), so it never reaches the
+                sidebar. --%>
           <.settings_input
             id="add-profile-name"
             name="name"
@@ -198,6 +201,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
               size="sm"
               class="flex-1"
               phx-click="cancel_add"
+              data-profile-add-cancel
               data-nav-item
               tabindex="0"
             >
