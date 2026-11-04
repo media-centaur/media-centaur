@@ -2,7 +2,7 @@
  * KeyboardSource — translates keyboard events into semantic actions.
  *
  * Owns keyboard-specific concerns: keydown listener, text input two-mode
- * handling, data-captures-keys bypass, and key-to-action mapping.
+ * handling and key-to-action mapping.
  *
  * Implements the input source contract:
  *   constructor(config) — config includes onAction, onInputDetected callbacks
@@ -79,11 +79,6 @@ export class KeyboardSource {
   }
 
   _handleKeyDown(event) {
-    // Elements with data-captures-keys handle their own keyboard interaction
-    if (event.target?.closest("[data-captures-keys]")) {
-      return
-    }
-
     const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
     // A textarea composes rather than filters: Escape never clears it (it is
     // BACK), Enter while editing is a newline, and Enter on the focused box

@@ -165,13 +165,10 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       assert has_element?(view, "#sidebar-status.sidebar-link-active")
     end
 
-    test "the search field takes typing through the input system, never capturing keys", %{
-      conn: conn
-    } do
+    test "the search field is a nav item of the toolbar", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/history")
 
       assert has_element?(view, "[data-nav-zone='toolbar'] #history-search[data-nav-item]")
-      refute has_element?(view, "#history-search[data-captures-keys]")
     end
 
     test "the type filter is the kit's segmented control, its choice marked pressed", %{

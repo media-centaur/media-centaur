@@ -488,23 +488,6 @@ describe("Orchestrator", () => {
     })
   })
 
-  describe("data-captures-keys bypass", () => {
-    test("skips navigation when target has data-captures-keys ancestor", () => {
-      const { system, calls, globals } = setup()
-      system.start({})
-      calls.length = 0
-
-      const capturer = { closest: (sel) => sel === "[data-captures-keys]" ? capturer : null, tagName: "DIV" }
-      const event = globals._dispatchKeyDown("ArrowDown", { target: capturer })
-
-      // Does NOT preventDefault — allows normal browser behavior (typing, etc.)
-      expect(event.preventDefault).not.toHaveBeenCalled()
-      // No navigation calls should have been made
-      const navCalls = calls.filter(c => c.method === "focusByIndex")
-      expect(navCalls.length).toBe(0)
-    })
-  })
-
   describe("zone cycling", () => {
     test("bracket keys cycle zone tabs", () => {
       const { system, calls, globals } = setup({

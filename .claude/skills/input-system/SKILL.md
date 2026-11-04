@@ -127,7 +127,7 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 
 1. **Layout:** in `config.js`, the page's `layouts` entry (edges between its zones, plus a `sidebar` node with `right` candidates) and `cursorStartPriority`
 2. **Zones:** for each new zone an `instanceTypes` and `contextSelectors` entry; `alwaysPopulated` only for static content always on the page
-3. **Template:** `data-nav-default-zone="<layout key>"` and `data-page-behavior` on the page root; every interactive control a `data-nav-item tabindex="0"` inside a connected zone, or a `[data-nav-sub-item]` of a TREE row; `data-nav-transient-params` for URL-driven overlays. **Never `data-captures-keys` on a control or field the input system navigates** — the keyboard source ignores every key there, a trap
+3. **Template:** `data-nav-default-zone="<layout key>"` and `data-page-behavior` on the page root; every interactive control a `data-nav-item tabindex="0"` inside a connected zone, or a `[data-nav-sub-item]` of a TREE row; `data-nav-transient-params` for URL-driven overlays.
 4. **Nested menus and overlays:** a menu list as above (Nested Menus); a regioned overlay in `config.overlays`
 5. **Page behavior** (only if needed): `<name>_behavior.js`, registered in `page_behavior.js` as a zero-argument closure (wrapped in `withWipNotice` while unfinished)
 6. **Sidebar link:** `<.sidebar_link remember>` in `layouts.ex` if the page uses query params
@@ -154,7 +154,6 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
 | `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |
 | `data-resume-target`, `data-selected` | Where `detail_list` / `detail_rail` open (via `entryDefaults`) |
-| `data-captures-keys` | Element handles its own keys; the keyboard source ignores them all. Never on a navigated control |
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from |
 | `data-nav-reveal` | Vertical reveal subject: scroll THIS ancestor into view instead of the focused item. Sideways the item still reveals itself |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`) |

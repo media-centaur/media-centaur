@@ -18,3 +18,12 @@ After every LiveView patch the input system re-asserts the cursor onto the fresh
 
 * The guard is strictly subtractive: it only prevents focus moves, so managed keyboard and gamepad navigation is untouched.
 * An unmanaged overlay remains gamepad-inert; its contents are not navigable until it is registered.
+
+## Amendment 2026-11-04 — `data-captures-keys` is gone
+
+Rule 2's second clause is void: the attribute had no producer left (every
+use had become a keyboard trap on a control the input system also
+navigates — campaign `input-coverage`), so the keyboard source and
+`hasForeignFocus` no longer read it. Focus is foreign when a live element
+outside `[data-nav-item]` and `[data-nav-zone]` holds it.
+

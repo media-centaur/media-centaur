@@ -356,8 +356,7 @@ export function createDomReader(config = {}) {
      * item — the reconciler restores it). Focus is *foreign* when a real
      * element outside every managed region holds it: an unmanaged overlay's
      * input, button, or card (the Track-new-release modal is a plain
-     * `data-state` overlay, not a `data-detail-mode` context), or anything that
-     * captures its own keys. Re-asserting nav focus over foreign focus yanks
+     * `data-state` overlay, not a `data-detail-mode` context). Re-asserting nav focus over foreign focus yanks
      * the cursor mid-interaction, so the reconciler cedes. See ADR-053.
      *
      * This is the containment generalization of "is the user typing": it
@@ -368,7 +367,6 @@ export function createDomReader(config = {}) {
     hasForeignFocus() {
       const active = document.activeElement
       if (!active || active === document.body || active === document.documentElement) return false
-      if (active.closest("[data-captures-keys]")) return true
       return !active.closest("[data-nav-item],[data-nav-zone]")
     },
 

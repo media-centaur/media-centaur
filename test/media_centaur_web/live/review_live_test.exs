@@ -542,8 +542,8 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
   describe "keyboard and gamepad reach" do
     test "the search panel's controls are nav items", %{conn: conn} do
-      # Regression: `data-captures-keys` on the form trapped the keyboard on
-      # its Search button, and the query, type and close were not nav items.
+      # Regression: the query, type and close were not nav items, and the
+      # form's Search button trapped the keyboard.
       create_pending_file(%{parsed_title: "Search Reach Movie", parsed_type: "movie"})
 
       {:ok, view, _html} = live_async!(conn, "/review")

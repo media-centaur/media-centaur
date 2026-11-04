@@ -146,15 +146,6 @@ describe("KeyboardSource", () => {
       expect(inputDetections).toEqual([])
     })
 
-    test("does not fire inside data-captures-keys", () => {
-      const capturer = {
-        closest: (sel) => sel === "[data-captures-keys]" ? capturer : null,
-        tagName: "DIV",
-      }
-      doc._dispatchKeyDown("ArrowDown", { target: capturer })
-      expect(inputDetections).toEqual([])
-    })
-
     test("does not fire while typing into a text input", () => {
       const input = {
         tagName: "INPUT",
@@ -178,19 +169,6 @@ describe("KeyboardSource", () => {
       doc._dispatchKeyDown("ArrowDown", { target: input })
       expect(actions).toEqual([Action.NAVIGATE_DOWN])
       expect(inputDetections).toEqual(["keydown"])
-    })
-  })
-
-  describe("data-captures-keys bypass", () => {
-    test("skips navigation when target has data-captures-keys ancestor", () => {
-      const capturer = {
-        closest: (sel) => sel === "[data-captures-keys]" ? capturer : null,
-        tagName: "DIV",
-      }
-      const event = doc._dispatchKeyDown("ArrowDown", { target: capturer })
-
-      expect(actions).toEqual([])
-      expect(event.preventDefault).not.toHaveBeenCalled()
     })
   })
 

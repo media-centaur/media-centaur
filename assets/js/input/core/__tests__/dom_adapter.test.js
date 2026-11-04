@@ -17,12 +17,10 @@ function stubDocument({ activeElement, body = {}, documentElement = {}, ...rest 
 }
 
 // A focusable element whose closest() reports whether it sits inside a managed
-// nav region and/or a key-capturing region — the only DOM facts the predicate
-// consults.
-function fakeElement({ navManaged = false, capturesKeys = false } = {}) {
+// nav region — the only DOM fact the predicate consults.
+function fakeElement({ navManaged = false } = {}) {
   return {
     closest(selector) {
-      if (selector === "[data-captures-keys]") return capturesKeys ? this : null
       if (selector.includes("data-nav-item")) return navManaged ? this : null
       return null
     },
@@ -57,10 +55,6 @@ describe("hasForeignFocus — focus ownership by containment", () => {
     expect(reader.hasForeignFocus()).toBe(true)
   })
 
-  test("a key-capturing element → foreign even if it sits inside a nav region", () => {
-    stubDocument({ activeElement: fakeElement({ navManaged: true, capturesKeys: true }) })
-    expect(reader.hasForeignFocus()).toBe(true)
-  })
 })
 
 // ---------------------------------------------------------------------------

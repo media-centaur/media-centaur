@@ -206,7 +206,6 @@ Factory functions `createDomReader(config)` and `createDomWriter(config)` produc
 
 `KeyboardSource` — translates keyboard events into semantic actions. Owns keyboard-specific concerns:
 - `keydown` event listener on document
-- `data-captures-keys` bypass (reads `event.target`)
 - Text input two-mode handling (`_inputEditing` state)
 - Key-to-action mapping via `keyToAction()`
 - `event.preventDefault()` for handled keys
@@ -375,7 +374,6 @@ Answered before the type dispatch, the same in every column:
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head | (bare) |
 | `aria-expanded` | Disclosure state on a nav item, read directly rather than mirrored into a `data-` attribute | `true`, `false` |
 | `data-resume-target`, `data-selected` | Named by `config.entryDefaults`: where `detail_list` / `detail_rail` open with no memory | (bare) |
-| `data-captures-keys` | The element handles its own keys; the keyboard source ignores every key whose target is inside it. Never on a control the input system also navigates — that is a trap | — |
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from | — |
 | `data-nav-reveal` | The vertical reveal subject: scroll THIS ancestor into view instead of the focused item (hero: the whole backdrop; a home shelf: its section, heading included). Sideways the item still reveals itself | — |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
@@ -478,7 +476,7 @@ Two hooks keep focus stable across patches:
 
 Overlay entry and the return to the origin on close are transition-driven (handled in the presentation block of `_syncState`); a nested menu that just opened takes the cursor there too (`_enterOpenedMenu`); empty contexts are left to `_ensureCursorStart`.
 
-**Reconcile only the focus the system owns ([ADR-053](../decisions/architecture/2026-06-06-053-focus-ownership-boundary.md)).** `getCurrentFocusedItem() === null` is ambiguous: it means *either* a patch dropped focus to `<body>` (the system owns this — restore) *or* focus moved to an element outside every managed nav region (the system does not own this — cede). Both `_reconcileFocus` and `_ensureCursorStart` guard on `reader.hasForeignFocus()` and return early when focus is foreign — a live element outside `[data-nav-item]`/`[data-nav-zone]`, or one that captures its own keys. This is what keeps an *unmanaged* overlay (a plain `data-state` modal like the Track-new-release dialog, invisible to the input system) usable while the page behind it re-renders: without the guard, every patch re-asserts the page context's focus and yanks the cursor out of the overlay. A managed filter input inside a nav zone is *not* foreign — it still navigates by arrow keys (see Text Input Handling).
+**Reconcile only the focus the system owns ([ADR-053](../decisions/architecture/2026-06-06-053-focus-ownership-boundary.md)).** `getCurrentFocusedItem() === null` is ambiguous: it means *either* a patch dropped focus to `<body>` (the system owns this — restore) *or* focus moved to an element outside every managed nav region (the system does not own this — cede). Both `_reconcileFocus` and `_ensureCursorStart` guard on `reader.hasForeignFocus()` and return early when focus is foreign — a live element outside `[data-nav-item]`/`[data-nav-zone]`. This is what keeps an *unmanaged* overlay (a plain `data-state` modal like the Track-new-release dialog, invisible to the input system) usable while the page behind it re-renders: without the guard, every patch re-asserts the page context's focus and yanks the cursor out of the overlay. A managed filter input inside a nav zone is *not* foreign — it still navigates by arrow keys (see Text Input Handling).
 
 ## Scroll Reveal
 
@@ -646,7 +644,7 @@ Two modes for `<input>` and `<textarea>` elements:
 
 A `<textarea>` composes rather than filters, so three rules differ: Enter on the focused box always enters edit mode (a textarea never submits the form it sits in, so the `form[phx-submit]` exception is an input's); Enter while editing stays in edit mode and reaches the box as a newline; Escape when not editing never clears the words — it is BACK, which on the Review modal is Cancel. The first tenant is the Review modal's text box. Inside an open overlay, every key a text input consumes stops at the input system (a window Escape binding beneath — the detail's — never sees it); outside one the page's window bindings keep their reach (Settings' Escape cancels an edit from its fields).
 
-When focus is not on a text input, every mapped key is `stopPropagation`'d, so a `phx-window-keydown` binding never sees it too. An element with `data-captures-keys` (and everything inside it) is ignored outright — use it only for a surface that handles its own keys and is not otherwise navigated; on a nav item or a managed text field it is a trap.
+When focus is not on a text input, every mapped key is `stopPropagation`'d, so a `phx-window-keydown` binding never sees it too.
 
 The mode is surfaced to CSS via `data-input-editing` on `<html>`. `KeyboardSource` owns the state and projects it through the `onEditingChanged` callback wired in `index.js` to `writer.setTextEditing()`. Focused inputs show a brighter ring in edit mode so users can see at a glance whether arrow keys will navigate or type.
 
@@ -726,7 +724,7 @@ D-pad Navigate and A Select always show. The bar never lists contexts, so a new 
 
 Three methods: `mouse`, `keyboard`, `gamepad`. The `InputMethodDetector` (pure state machine) tracks the current method; the orchestrator writes it to `data-input` on `<html>`.
 
-**The method is cursor authority, not "last device touched."** Mouse and keyboard are companions: a pointer user clicks into a modal and hits Escape to back out, or types into a field they clicked, without ceding the pointer's ownership of focus and scroll. So only **cursor-driving** keys switch to keyboard mode — arrows, Enter-as-SELECT, and the zone brackets (`isCursorDriving` in `actions.js`). Command keys (Escape, Backspace, `p`), typing into text inputs and unmapped keys still perform their action but leave the method alone; keys inside `data-captures-keys` never reach the input system at all. Because BACK and CLEAR can now execute *in* mouse mode, every focus write their execution performs routes through `_restoreOpts()` — the viewport the pointer owns never moves. The gamepad is asymmetric on purpose: everything on a controller is navigation, so every button and axis switches to gamepad mode. New keys default to not switching.
+**The method is cursor authority, not "last device touched."** Mouse and keyboard are companions: a pointer user clicks into a modal and hits Escape to back out, or types into a field they clicked, without ceding the pointer's ownership of focus and scroll. So only **cursor-driving** keys switch to keyboard mode — arrows, Enter-as-SELECT, and the zone brackets (`isCursorDriving` in `actions.js`). Command keys (Escape, Backspace, `p`), typing into text inputs and unmapped keys still perform their action but leave the method alone. Because BACK and CLEAR can now execute *in* mouse mode, every focus write their execution performs routes through `_restoreOpts()` — the viewport the pointer owns never moves. The gamepad is asymmetric on purpose: everything on a controller is navigation, so every button and axis switches to gamepad mode. New keys default to not switching.
 
 **Mouse detection uses position tracking, not event counting.** Layout shifts from LiveView patches fire synthetic `mousemove` events at the same coordinates (the OS controls cursor position, not the page). The orchestrator only switches to mouse when `clientX`/`clientY` actually change (≥1px delta). The first `mousemove` after a fresh orchestrator primes the baseline position without switching — this prevents false switches during full-page navigations where the initial position is unknown.
 
@@ -768,7 +766,7 @@ All app-specific config lives in `config.js`:
 1. Add the page's layout under `layouts` (directional edges between its zones, plus its `sidebar` node with `right` candidates) and its `cursorStartPriority`
 2. For each zone that is not an existing instance: an `instanceTypes` entry, a `contextSelectors` entry, and — only if it is static content always on the page — `alwaysPopulated`
 3. Put `data-nav-default-zone="<layout key>"` on the page root (every page declares it), and `data-nav-transient-params` for any URL-driven overlay
-4. Every interactive control is a `data-nav-item tabindex="0"` inside a zone the layout connects, or a `[data-nav-sub-item]` of a row in a TREE. Never put `data-captures-keys` on a control or field the input system navigates
+4. Every interactive control is a `data-nav-item tabindex="0"` inside a zone the layout connects, or a `[data-nav-sub-item]` of a row in a TREE.
 5. A nested menu list is its own TREE zone with `up` and `back` edges to its trigger's zone and a `data-nav-dismiss-event`; it then takes the cursor on open and closes when the cursor leaves
 6. For sidebar URL persistence, pass `remember` to `<.sidebar_link>` in `layouts.ex`
 7. Run `bun test assets/js/input/` — `__tests__/config_coverage.test.js` fails when a template's zone, default zone or page behavior has no config — and walk the page with `mc-nav-trace`. The hint bar needs nothing: it is derived from state
