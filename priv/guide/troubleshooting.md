@@ -9,10 +9,10 @@ The method, then the common cases.
 
 ## The method
 
-1. **Console first.** Press the backtick, filter to the component you suspect, and reproduce
-   the problem. Most issues announce themselves here.
-2. **Status next.** If the logs are quiet, open Status and look for a coloured tile; drill in
-   for that subsystem's metrics, recent logs, and any incident.
+1. **Status first.** Open Status and look for a coloured tile; drill in for that subsystem's
+   metrics, recent logs, and any incident.
+2. **Console next.** From the drill-in, **Open in console** for that subsystem's full log, and
+   reproduce the problem. Most issues announce themselves here.
 3. **Recompute if it's derived.** If the data is wrong rather than the machinery (artwork,
    names), the fix is a maintenance action, not a repair — see
    [The mental model](/guide/the-mental-model).
@@ -39,7 +39,7 @@ files and from TMDB — so the only thing *Clear database* actually costs is wat
 When a value looks wrong, recomputing it is the safe first move, not the last resort.
 
 > [!TIP]
-> The fastest triage is two keystrokes: backtick to open the Console, then the component
-> filter for the area you suspect. The error is usually sitting right there, already tagged
-> with which subsystem produced it. The full case list is in the
+> The fastest triage is the drill-in for the area you suspect, then **Open in console**: the
+> Console opens filtered to that subsystem, and the error is usually sitting right there,
+> already tagged with which subsystem produced it. The full case list is in the
 > [Troubleshooting wiki page](https://github.com/media-centaur/media-centaur/wiki/Troubleshooting).

@@ -12,14 +12,14 @@ leaving the app.
 ## The Console
 
 Every subsystem's logs flow into a ring buffer, each line tagged with the component that
-produced it — `watcher`, `pipeline`, `tmdb`, `playback`, `acquisition`, and so on. Press the
-backtick (`` ` ``) from any page for the Console drawer, or open `/console` full-screen.
+produced it — `watcher`, `pipeline`, `tmdb`, `playback`, `acquisition`, and so on. Each Status
+drill-in previews its subsystem's latest lines; **Open in console** opens the full Console at
+`/console`, filtered to that subsystem.
 
 It's built for narrowing down, not just scrolling. Filter by level, toggle whole components
-on or off (framework noise is hidden by default), and search the messages. When the app runs
-under systemd, a second tab tails the systemd journal alongside the app's own output, so you
-can correlate a system event with an app failure in one place. You can copy or download the
-buffer to share it.
+on or off (framework noise is hidden by default), and search the messages. You can copy or
+download the buffer to share it. When the app runs under systemd, the service's journal is on
+Status → System, so you can set a system event beside an app failure.
 
 Diagnostically, the move is: reproduce the problem with the Console open, filtered to the
 component you suspect. A file not importing? Filter to `watcher` then `pipeline` and `tmdb`.

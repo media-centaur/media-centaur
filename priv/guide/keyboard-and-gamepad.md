@@ -15,9 +15,10 @@ edge crosses into the next. Focus position is remembered per zone.
 |---|---|
 | Arrows | Move focus up / down / left / right |
 | Enter | Select or activate the focused item |
-| Escape | Go back — close an overlay, leave the sidebar |
-| `[` / `]` | Cycle between zones (Library, Downloads, Settings…) |
-| `` ` `` (backtick) | Toggle the Console drawer from anywhere |
+| Escape | Go back — close an overlay, or jump to the main menu |
+| Backspace | Clear the current search or filter |
+| `[` / `]` | Previous / next tab on a page with tabs (Downloads, Review, Social) |
+| `p` | Play the focused card (Library grid, Home shelves); in a title's detail, press Enter on Play |
 
 ## Gamepad
 
@@ -29,9 +30,9 @@ detected automatically.
 | D-pad or left stick | Move focus (repeats while held) |
 | A / Cross | Select |
 | B / Circle | Back |
-| Y / Triangle | Clear a filter |
-| LB / L1, RB / R1 | Previous / next zone |
-| Start | Play the focused title |
+| Y / Triangle | Clear the current search or filter |
+| LB / L1, RB / R1 | Previous / next tab on a page with tabs |
+| Start | Play the focused card (Library grid, Home shelves) |
 
 A hint bar shows the available actions with labels matching your controller; switch between
 Xbox and PlayStation glyphs in Settings.
