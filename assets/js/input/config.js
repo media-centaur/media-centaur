@@ -89,8 +89,13 @@ export const inputConfig = {
     viewing_subtitles: "[data-nav-zone='viewing_subtitles'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
+    // The detail's decision row (Approve, Search TMDB, Dismiss, Delete) and,
+    // under it while open, the TMDB search panel.
+    "review-actions": "[data-nav-zone='review-actions'] [data-nav-item]",
+    "review-search": "[data-nav-zone='review-search'] [data-nav-item]",
     // Episode mapping (/episode-mapping) — the same master/detail shape as review
     "episode-mapping-list": "[data-nav-zone='episode-mapping-list'] [data-nav-item]",
+    "episode-mapping-actions": "[data-nav-zone='episode-mapping-actions'] [data-nav-item]",
     "episode-mapping-detail": "[data-nav-zone='episode-mapping-detail'] [data-nav-item]",
     // Status page: the subsystem tiles, then the selected one's drill-in
     // (vertical rail: close, widget links, incidents, logs)
@@ -131,7 +136,10 @@ export const inputConfig = {
     bindings: Context.TREE,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
+    "review-actions": Context.TOOLBAR,
+    "review-search": Context.MENU,
     "episode-mapping-list": Context.MENU,
+    "episode-mapping-actions": Context.TOOLBAR,
     "episode-mapping-detail": Context.MENU,
     "drill-in": Context.MENU,
     // The Status tiles wrap in a responsive grid: geometry answers adjacency,
@@ -430,18 +438,25 @@ export const inputConfig = {
     // shape, so their layouts are deliberately identical apart from the zone
     // names. Up from either pane reaches the tab strip (MENU walls route
     // through the graph); the strip's own down edge returns to whichever pane
-    // has items, so the empty state still navigates.
+    // has items, so the empty state still navigates. Each detail's decision
+    // buttons are a TOOLBAR row of their own (LEFT/RIGHT along it, UP/DOWN
+    // out of it). Review's sits between the detail (tied candidates, the
+    // files disclosure) and the TMDB search panel, which BACK closes back to
+    // the row; Episode mapping's heads the detail.
     review: {
-      zone_tabs:       { down: ["review-list", "review-detail"] },
-      "review-list":   { up: ["zone_tabs"], right: ["review-detail"] },
-      "review-detail": { up: ["zone_tabs"], left: ["review-list"] },
-      sidebar:         { right: ["review-list", "review-detail", "zone_tabs"] },
+      zone_tabs:        { down: ["review-list", "review-detail", "review-actions"] },
+      "review-list":    { up: ["zone_tabs"], right: ["review-detail", "review-actions", "review-search"] },
+      "review-detail":  { up: ["zone_tabs"], left: ["review-list"], down: ["review-actions", "review-search"] },
+      "review-actions": { up: ["review-detail", "zone_tabs"], left: ["review-list"], down: ["review-search"] },
+      "review-search":  { up: ["review-actions", "review-detail"], left: ["review-list"], back: ["review-actions"] },
+      sidebar:          { right: ["review-list", "review-detail", "review-actions", "zone_tabs"] },
     },
     "episode-mapping": {
-      zone_tabs:          { down: ["episode-mapping-list", "episode-mapping-detail"] },
-      "episode-mapping-list":   { up: ["zone_tabs"], right: ["episode-mapping-detail"] },
-      "episode-mapping-detail": { up: ["zone_tabs"], left: ["episode-mapping-list"] },
-      sidebar:            { right: ["episode-mapping-list", "episode-mapping-detail", "zone_tabs"] },
+      zone_tabs:                 { down: ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail"] },
+      "episode-mapping-list":    { up: ["zone_tabs"], right: ["episode-mapping-actions", "episode-mapping-detail"] },
+      "episode-mapping-actions": { up: ["zone_tabs"], left: ["episode-mapping-list"], down: ["episode-mapping-detail"] },
+      "episode-mapping-detail":  { up: ["episode-mapping-actions", "zone_tabs"], left: ["episode-mapping-list"] },
+      sidebar:                   { right: ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail", "zone_tabs"] },
     },
     // Downloads: the release search box on top, then the zone tabs
     // (Activity | History) — one tab's content renders at a time, so the
@@ -568,8 +583,8 @@ export const inputConfig = {
     settings:  ["sections", "grid", "bindings", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["subsystems", "toolbar", "sidebar"],
-    review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
-    "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
+    review:    ["review-list", "review-detail", "review-actions", "review-search", "zone_tabs", "sidebar"],
+    "episode-mapping": ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail", "zone_tabs", "sidebar"],
     downloads:  ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["history_rows", "toolbar", "sidebar"],
     watchlist: ["watchlist_rows", "toolbar", "sidebar"],

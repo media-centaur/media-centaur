@@ -19,7 +19,9 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
   require MediaCentaur.Log, as: Log
 
   import MediaCentaurWeb.Components.DismissedFiles
+  import MediaCentaurWeb.Components.ReviewListItem
   import MediaCentaurWeb.Components.ReviewTabs
+  import MediaCentaurWeb.Components.Settings, only: [settings_select: 1]
 
   alias MediaCentaur.EpisodeMapping
   alias MediaCentaur.EpisodeMapping.ShowReview
@@ -210,7 +212,10 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
         </p>
 
         <div :if={@shows == []} class="space-y-4" data-nav-zone="episode-mapping-list">
-          <.empty_state icon="hero-queue-list" headline="Episodes we could not place land here">
+          <.empty_state
+            icon="hero-queue-list"
+            headline="Episode files we could not place show up here"
+          >
             When a file of a known show names no episode, or numbers it in a way the show's
             episode list doesn't have — a separately-numbered cour, absolute numbering — it
             waits here instead of inventing a season for it. You map it to the right episode.
@@ -228,22 +233,20 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
             class="w-72 shrink-0 overflow-y-auto thin-scrollbar"
             data-nav-zone="episode-mapping-list"
           >
-            <button
+            <.review_list_item
               :for={show <- @shows}
               id={"episode-mapping-show-#{show.tmdb_id}"}
-              type="button"
+              selected={@selected_tmdb == show.tmdb_id}
               phx-click="select_show"
               phx-value-tmdb={show.tmdb_id}
-              data-nav-item
-              tabindex="0"
-              class={[
-                "w-full text-left glass-inset rounded-lg p-3 mb-2 cursor-pointer border border-transparent transition-colors",
-                @selected_tmdb == show.tmdb_id && "bg-primary/12 !border-primary/25"
-              ]}
             >
-              <div class="font-medium truncate">{show.title}</div>
-              <div class="text-xs text-base-content/55">{show.count} file(s) waiting</div>
-            </button>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium truncate">{show.title}</div>
+                <div class="text-xs text-base-content/55 mt-0.5">
+                  {EpisodeMappingView.count_label(show.count)}
+                </div>
+              </div>
+            </.review_list_item>
             <.dismissed_files
               id="episode-mapping-dismissed"
               open={DisclosureState.open?(@disclosures, "episode-mapping-dismissed")}
@@ -282,7 +285,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
 
   attr :episode_options, :list,
     required: true,
-    doc: "EpisodeMappingView.episode_options/1 output — {label, value} tuples for the per-file picker"
+    doc: "EpisodeMappingView.episode_options/1 output — {value, label} tuples for the per-file picker"
 
   defp detail(assigns) do
     assigns =
@@ -301,7 +304,9 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
             {@recommended.rationale}
           </p>
         </div>
-        <div class="flex gap-2 shrink-0">
+        <%!-- Its own row (`episode-mapping-actions`, a TOOLBAR): LEFT/RIGHT
+              walk it, DOWN drops to the files. --%>
+        <div class="flex gap-2 shrink-0" data-nav-zone="episode-mapping-actions">
           <.button variant="action" size="sm" phx-click="confirm" data-nav-item tabindex="0">
             Confirm matches
           </.button>
@@ -326,25 +331,17 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
             <div class="truncate-left text-sm font-mono" data-tip={row.file_path}>
               <bdo dir="ltr">{row.file_path}</bdo>
             </div>
-            <div class="text-xs text-base-content/55">release labelled {row.claimed}</div>
+            <div class="text-xs text-base-content/55">{row.claimed}</div>
           </div>
           <.icon name="hero-arrow-right-mini" class="size-4 text-base-content/30 shrink-0" />
-          <form id={"override-#{row.id}"} phx-change="override" class="shrink-0">
+          <form id={"override-#{row.id}"} phx-change="override" class="shrink-0 max-w-64">
             <input type="hidden" name="file" value={row.id} />
-            <select
+            <.settings_select
               name="target"
-              data-nav-item
-              tabindex="0"
-              class="select select-sm bg-base-100/40 border-base-content/20 max-w-64"
-            >
-              <option
-                :for={{label, value} <- @episode_options}
-                value={value}
-                selected={value == row.target_value}
-              >
-                {label}
-              </option>
-            </select>
+              aria_label="Episode"
+              options={@episode_options}
+              selected={row.target_value}
+            />
           </form>
         </div>
       </div>

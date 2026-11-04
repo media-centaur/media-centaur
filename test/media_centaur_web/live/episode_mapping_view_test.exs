@@ -32,10 +32,10 @@ defmodule MediaCentaurWeb.EpisodeMappingViewTest do
     test "leads with the skip sentinel, then sorted labelled nodes" do
       [skip | rest] = EpisodeMappingView.episode_options(spine())
 
-      assert {"— don't map yet —", "skip"} = skip
-      assert {"S1 · E1 — Alpha", "1-1"} = hd(rest)
+      assert {"skip", "— don't map yet —"} = skip
+      assert {"1-1", "S1 · E1 — Alpha"} = hd(rest)
       # A title-less node shows only the number.
-      assert {"S1 · E30", "1-30"} in rest
+      assert {"1-30", "S1 · E30"} in rest
     end
   end
 
@@ -78,11 +78,11 @@ defmodule MediaCentaurWeb.EpisodeMappingViewTest do
 
       [row_a, row_b] = EpisodeMappingView.file_rows(review, %{"a" => "1-29"})
 
-      assert row_a.claimed == "S2 · E1"
+      assert row_a.claimed == "Filename says S2 · E1"
       assert row_a.target_value == "1-29"
       assert row_a.target_label == "S1 · E29 — Gamma"
 
-      assert row_b.claimed == "—"
+      assert row_b.claimed == "Filename names no episode"
       assert row_b.target_value == "skip"
       assert row_b.target_label == nil
     end
@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.EpisodeMappingViewTest do
         resolution: %Resolution{recommended: nil, alternatives: []}
       }
 
-      assert [%{claimed: "2025"}] = EpisodeMappingView.file_rows(review, %{})
+      assert [%{claimed: "Filename says 2025"}] = EpisodeMappingView.file_rows(review, %{})
     end
   end
 

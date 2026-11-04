@@ -40,10 +40,10 @@ defmodule MediaCentaurWeb.EpisodeMappingView do
     Map.new(placements, &{&1.artifact_id, encode_node(&1)})
   end
 
-  @doc "The `<select>` options: the skip sentinel, then every spine node, sorted."
+  @doc "The `<select>` options as `{value, label}` (`settings_select/1`): the skip sentinel, then every spine node, sorted."
   def episode_options(spine) do
     sorted = Enum.sort_by(spine, &{&1.season, &1.episode})
-    [{"— don't map yet —", @skip} | Enum.map(sorted, &{option_label(&1), encode_node(&1)})]
+    [{@skip, "— don't map yet —"} | Enum.map(sorted, &{encode_node(&1), option_label(&1)})]
   end
 
   def option_label(%SpineNode{} = node) do
@@ -88,10 +88,12 @@ defmodule MediaCentaurWeb.EpisodeMappingView do
   end
 
   defp claimed_label(%{claimed_season: nil, claimed_episode: nil, claimed_year: year})
-       when is_integer(year), do: Integer.to_string(year)
+       when is_integer(year), do: "Filename says #{year}"
 
-  defp claimed_label(%{claimed_season: nil, claimed_episode: nil}), do: "—"
-  defp claimed_label(%{claimed_season: season, claimed_episode: episode}), do: "S#{season} · E#{episode}"
+  defp claimed_label(%{claimed_season: nil, claimed_episode: nil}), do: "Filename names no episode"
+
+  defp claimed_label(%{claimed_season: season, claimed_episode: episode}),
+    do: "Filename says S#{season} · E#{episode}"
 
   defp target_label(@skip, _title_by_node), do: nil
 
@@ -111,4 +113,8 @@ defmodule MediaCentaurWeb.EpisodeMappingView do
   end
 
   defp show_title(files), do: Enum.find_value(files, & &1.series_title) || "Unknown show"
+
+  @doc "A show row's count line: how many of its files wait to be mapped."
+  def count_label(1), do: "1 file to map"
+  def count_label(count), do: "#{count} files to map"
 end

@@ -94,7 +94,28 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     {:ok, _view, html} = live(conn, "/episode-mapping")
 
     assert html =~ "Episode mapping"
+    assert html =~ "Episode files we could not place show up here"
     assert html =~ "absolute numbering"
+  end
+
+  test "Confirm matches and Dismiss all are a toolbar of their own; the selected show says so",
+       %{conn: conn} do
+    seed_show()
+    divert_file()
+    {:ok, view, _html} = live(conn, "/episode-mapping")
+    render_async(view)
+
+    assert has_element?(view, "[data-nav-zone='episode-mapping-actions'] button[phx-click='confirm']")
+
+    assert has_element?(
+             view,
+             "[data-nav-zone='episode-mapping-actions'] button[phx-click='dismiss_all']"
+           )
+
+    assert has_element?(
+             view,
+             "[data-nav-zone='episode-mapping-list'] #episode-mapping-show-42[aria-current='true']"
+           )
   end
 
   test "selected show renders its recommended mapping", %{conn: conn} do
@@ -106,7 +127,8 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     html = render_async(view)
 
     assert html =~ "Sample Show"
-    assert html =~ "1 file(s) waiting"
+    assert html =~ "1 file to map"
+    assert html =~ "Filename says S2 · E1"
     # The recommended target (E3 — Gamma) appears as the selected option.
     assert html =~ "Gamma"
   end

@@ -10,7 +10,9 @@ defmodule MediaCentaurWeb.ReviewLive do
   require MediaCentaur.Log, as: Log
 
   import MediaCentaurWeb.Components.DismissedFiles
+  import MediaCentaurWeb.Components.ReviewListItem
   import MediaCentaurWeb.Components.ReviewTabs
+  import MediaCentaurWeb.Components.Settings, only: [settings_input: 1, settings_select: 1]
   import MediaCentaurWeb.ReviewHelpers
 
   alias MediaCentaur.DeleteTargets
@@ -476,42 +478,22 @@ defmodule MediaCentaurWeb.ReviewLive do
         <div class="flex items-center justify-between">
           <.page_header title="Review" />
           <div :if={@groups != []} class="flex items-center gap-2">
-            <span
-              :if={@total_files > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning"
-            >
-              {@total_files} pending
-            </span>
-            <span
-              :if={@reason_counts.no_results > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-error/12 text-error"
-            >
+            <.badge :if={@total_files > 0} variant="warning">{@total_files} pending</.badge>
+            <.badge :if={@reason_counts.no_results > 0} variant="error">
               {@reason_counts.no_results} no results
-            </span>
-            <span
-              :if={@reason_counts.tied > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-info/12 text-info"
-            >
+            </.badge>
+            <.badge :if={@reason_counts.tied > 0} variant="info">
               {@reason_counts.tied} tied
-            </span>
-            <span
-              :if={@reason_counts.low_confidence > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/12 text-warning"
-            >
+            </.badge>
+            <.badge :if={@reason_counts.low_confidence > 0} variant="warning">
               {@reason_counts.low_confidence} low confidence
-            </span>
-            <span
-              :if={@reason_counts.not_added > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-error/12 text-error"
-            >
+            </.badge>
+            <.badge :if={@reason_counts.not_added > 0} variant="error">
               {@reason_counts.not_added} not added
-            </span>
-            <span
-              :if={@reason_counts.importing > 0}
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-base-content/8 text-base-content/60"
-            >
+            </.badge>
+            <.badge :if={@reason_counts.importing > 0} variant="ghost">
               {@reason_counts.importing} importing
-            </span>
+            </.badge>
           </div>
         </div>
 
@@ -525,7 +507,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               confirming it is empty — the screen already shows that, and a new
               user has never seen the queue populated. --%>
         <div :if={@groups == []} class="space-y-4" data-nav-zone="review-list">
-          <.empty_state icon="hero-check-circle" headline="Files we could not place land here">
+          <.empty_state icon="hero-check-circle" headline="Unmatched files show up here">
             When a file in your media directories cannot be matched to a title with confidence, it
             waits here for you to pick the right one by hand.
           </.empty_state>
@@ -648,18 +630,13 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(encoded_key: encode_key(assigns.group.key))
 
     ~H"""
-    <div
+    <.review_list_item
       id={@id}
-      class={[
-        "flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-[background,opacity] duration-150 border border-transparent relative hover:bg-base-content/6",
-        @selected && "bg-primary/12 !border-primary/25"
-      ]}
+      selected={@selected}
       phx-click="select_item"
       phx-focus="select_item"
       phx-value-key={@encoded_key}
-      data-nav-item
       data-review-pending
-      tabindex="0"
     >
       <img
         :if={@file.match_poster_path}
@@ -688,7 +665,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
       </div>
       <.list_badge reason={@reason} confidence={@file.confidence} />
-    </div>
+    </.review_list_item>
     """
   end
 
@@ -706,7 +683,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   defp list_badge(%{reason: :no_results} = assigns) do
     ~H"""
-    <span class="text-xs text-error shrink-0">None</span>
+    <span class="text-xs text-error shrink-0">No results</span>
     """
   end
 
@@ -806,10 +783,12 @@ defmodule MediaCentaurWeb.ReviewLive do
         />
 
         <%!-- Action buttons. An importing group has nothing to decide until the
-              library reports its files. --%>
+              library reports its files. A row of its own (`review-actions`, a
+              TOOLBAR): LEFT/RIGHT walk it, UP/DOWN leave it. --%>
         <div
           :if={@reason != :importing}
           class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6"
+          data-nav-zone="review-actions"
         >
           <.button
             :if={@approval == :approvable}
@@ -828,6 +807,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             size="sm"
             phx-click="open_search"
             phx-value-key={@encoded_key}
+            data-review-open-search
             data-nav-item
             tabindex="0"
           >
@@ -1074,19 +1054,21 @@ defmodule MediaCentaurWeb.ReviewLive do
     """
   end
 
+  # Its own zone (`review-search`) under the action row; Search TMDB moves the
+  # cursor into it (review_behavior.js) onto the query, its first item. BACK
+  # returns to the action row and closes it (`data-nav-dismiss-event`).
   defp search_panel(assigns) do
     ~H"""
-    <div class="glass-inset rounded-lg p-4 space-y-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <.icon name="hero-magnifying-glass" class="size-5 text-base-content/60" />
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/55">
-            TMDB Search
-          </span>
-        </div>
-        <.button variant="dismiss" size="xs" shape="circle" phx-click="close_search">
-          <.icon name="hero-x-mark" class="size-4" />
-        </.button>
+    <div
+      class="glass-inset rounded-lg p-4 space-y-3"
+      data-nav-zone="review-search"
+      data-nav-dismiss-event="close_search"
+    >
+      <div class="flex items-center gap-2">
+        <.icon name="hero-magnifying-glass" class="size-5 text-base-content/60" />
+        <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/55">
+          TMDB Search
+        </span>
       </div>
 
       <p :if={@type == :tv} class="text-sm text-base-content/70">
@@ -1104,27 +1086,22 @@ defmodule MediaCentaurWeb.ReviewLive do
         id="review-search-form"
         phx-submit="search"
         phx-change="update_search"
-        class="flex gap-2 items-end"
-        data-captures-keys
+        class="flex gap-2 items-center"
       >
-        <div class="form-control flex-1">
-          <label class="label py-0"><span class="label-text text-xs">Search</span></label>
-          <input
-            type="text"
-            name="query"
-            phx-debounce="300"
-            value={@query}
-            class="input input-sm w-full"
-            placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
-          />
-        </div>
-        <div class="form-control">
-          <label class="label py-0"><span class="label-text text-xs">Type</span></label>
-          <select name="type" class="select select-bordered select-sm">
-            <option value="movie" selected={@type == :movie}>Movie</option>
-            <option value="tv" selected={@type == :tv}>TV</option>
-          </select>
-        </div>
+        <.settings_input
+          name="query"
+          value={@query}
+          phx-debounce="300"
+          aria-label="Search TMDB"
+          placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
+          class="min-w-0 flex-1"
+        />
+        <.settings_select
+          name="type"
+          aria_label="Type"
+          options={[{"movie", "Movie"}, {"tv", "TV"}]}
+          selected={to_string(@type)}
+        />
         <.button
           type="submit"
           variant="primary"
@@ -1133,7 +1110,17 @@ defmodule MediaCentaurWeb.ReviewLive do
           data-nav-item
           tabindex="0"
         >
-          {if @searching, do: "Searching...", else: "Search"}
+          {if @searching, do: "Searching…", else: "Search"}
+        </.button>
+        <.button
+          type="button"
+          variant="dismiss"
+          size="sm"
+          phx-click="close_search"
+          data-nav-item
+          tabindex="0"
+        >
+          Cancel
         </.button>
       </form>
 

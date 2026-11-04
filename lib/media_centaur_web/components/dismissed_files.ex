@@ -39,11 +39,15 @@ defmodule MediaCentaurWeb.Components.DismissedFiles do
           >
             <bdo dir="ltr">{file.path}</bdo>
           </span>
+          <%!-- The path is start-truncated and only the row's control takes
+                the cursor, so Restore carries the full path too: focus
+                shows it, the way hovering the path does. --%>
           <.button
             variant="neutral"
             size="xs"
             phx-click={@event}
             phx-value-id={file.id}
+            data-tip={file.path}
             data-nav-item
             tabindex="0"
           >

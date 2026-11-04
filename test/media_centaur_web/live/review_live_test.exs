@@ -540,6 +540,84 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "keyboard and gamepad reach" do
+    test "the search panel's controls are nav items and none captures the keys", %{conn: conn} do
+      # Regression: `data-captures-keys` on the form trapped the keyboard on
+      # its Search button, and the query, type and close were not nav items.
+      create_pending_file(%{parsed_title: "Search Reach Movie", parsed_type: "movie"})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+      render_click(view, "open_search", %{"key" => select_first_group(view)})
+
+      refute has_element?(view, "[data-captures-keys]")
+      zone = "[data-nav-zone='review-search'][data-nav-dismiss-event='close_search']"
+      assert has_element?(view, "#{zone} input[name='query'][data-nav-item]")
+      assert has_element?(view, "#{zone} select[name='type'][data-nav-item]")
+      assert has_element?(view, "#{zone} button[phx-click='close_search'][data-nav-item]")
+    end
+
+    test "the decision buttons are a toolbar of their own", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Toolbar Movie", parsed_type: "movie", tmdb_id: 1})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      assert has_element?(view, "[data-nav-zone='review-actions'] button[phx-click='dismiss']")
+      assert has_element?(view, "[data-nav-zone='review-actions'] button[phx-click='delete_prompt']")
+    end
+
+    test "the selected list row says so", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Selected Row Movie", parsed_type: "movie"})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='review-list'] [aria-current='true']",
+               "Selected Row Movie"
+             )
+    end
+
+    test "a dismissed file's Restore shows its full path on focus", %{conn: conn} do
+      file =
+        create_pending_file(%{
+          file_path: "/media/test/Long Folder/Sample.Movie.2010.mkv",
+          media_directory: "/media/test",
+          parsed_title: "Sample Movie"
+        })
+
+      {:ok, _} = MediaCentaur.Review.dismiss(file)
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+      view |> element("#review-dismissed .disclosure-head") |> render_click()
+
+      assert has_element?(
+               view,
+               "#review-dismissed-#{file.id} button[data-tip='Long Folder/Sample.Movie.2010.mkv']",
+               "Restore"
+             )
+    end
+  end
+
+  describe "copy" do
+    test "the empty queue says what lands in it", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/review")
+      assert html =~ "Unmatched files show up here"
+    end
+
+    test "a file with no TMDB results says so in the list", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Nothing Found Movie", parsed_type: "movie", tmdb_id: nil})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      assert has_element?(view, "[data-review-pending]", "No results")
+    end
+  end
+
   # 2026-09-29: a dismissal could not be undone from the page.
   describe "dismissed files" do
     test "are listed under Dismissed, and Restore puts one back in the queue", %{conn: conn} do
