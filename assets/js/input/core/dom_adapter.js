@@ -426,13 +426,6 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Check if the drawer is currently open.
-     */
-    isDrawerOpen() {
-      return !!document.querySelector("[data-detail-mode='drawer']")
-    },
-
-    /**
      * Check if a modal is currently open.
      */
     isModalOpen() {
@@ -440,15 +433,10 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Get current zone from the page.
+     * The page's layout key: its root's `data-nav-default-zone`.
      */
     getZone() {
-      const tabGroup = document.querySelector("[data-nav-zone='zone-tabs']")
-      const activeTab = tabGroup?.querySelector(".tab-active, .zone-tab-active")
-      if (activeTab?.dataset?.navZoneValue) return activeTab.dataset.navZoneValue
-
-      const defaultZone = document.querySelector("[data-nav-default-zone]")
-      return defaultZone?.dataset?.navDefaultZone ?? "watching"
+      return document.querySelector("[data-nav-default-zone]")?.dataset?.navDefaultZone ?? null
     },
 
     getSortOrder() {
@@ -505,9 +493,7 @@ export function createDomReader(config = {}) {
      * Get the current presentation mode.
      */
     getPresentation() {
-      if (this.isModalOpen()) return "modal"
-      if (this.isDrawerOpen()) return "drawer"
-      return null
+      return this.isModalOpen() ? "modal" : null
     },
 
     /**
@@ -518,19 +504,6 @@ export function createDomReader(config = {}) {
      */
     getMatchingIndex(context, selector) {
       return queryContextItems(selectors, context).findIndex(el => el.matches?.(selector))
-    },
-
-    /**
-     * Get the index of a nav item by its entity ID within a context.
-     */
-    getEntityIndex(context, entityId) {
-      if (!entityId) return -1
-
-      const items = queryContextItems(selectors, context)
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].dataset.entityId === entityId) return i
-      }
-      return -1
     },
 
     /**
@@ -787,6 +760,22 @@ export function createDomWriter(config) {
      */
     setNavContext(context) {
       document.documentElement.dataset.navContext = context
+    },
+
+    /**
+     * Project the hint bar's legend onto <html>: `data-hint-back` names what
+     * B does (absent when nothing), and `data-hint-clear`, `data-hint-play`
+     * and `data-hint-tabs` are present when Y, Start and the bumpers act.
+     * The orchestrator owns the legend; this is its one sync path.
+     */
+    setHints({ back, clear, play, tabs }) {
+      const data = document.documentElement.dataset
+      if (back) data.hintBack = back
+      else delete data.hintBack
+      for (const [key, on] of [["hintClear", clear], ["hintPlay", play], ["hintTabs", tabs]]) {
+        if (on) data[key] = ""
+        else delete data[key]
+      }
     },
 
     /**

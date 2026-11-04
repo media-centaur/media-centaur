@@ -37,9 +37,8 @@ describe("keyToAction", () => {
     expect(keyToAction("Backspace")).toBe(Action.CLEAR)
   })
 
-  test("maps p/P to play", () => {
+  test("maps p to play (the catalog binds lowercase only)", () => {
     expect(keyToAction("p")).toBe(Action.PLAY)
-    expect(keyToAction("P")).toBe(Action.PLAY)
   })
 
   test("maps bracket keys to zone cycling", () => {

@@ -23,16 +23,14 @@ const TEST_INSTANCE_TYPES = {
 const TEST_LAYOUTS = {
   watching: {
     zone_tabs: { down: ["grid"] },
-    grid:      { up: ["zone_tabs"], right: ["drawer"] },
+    grid:      { up: ["zone_tabs"] },
     sidebar:   { right: ["grid", "zone_tabs"] },
-    drawer:    { left: ["grid"] },
   },
   library: {
     zone_tabs: { down: ["toolbar", "grid"] },
     toolbar:   { up: ["zone_tabs"],          down: ["grid"] },
-    grid:      { up: ["toolbar", "zone_tabs"], right: ["drawer"] },
+    grid:      { up: ["toolbar", "zone_tabs"] },
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
-    drawer:    { left: ["grid", "toolbar"] },
   },
   settings: {
     sections:  { right: ["grid"] },
@@ -54,7 +52,7 @@ const GRAPH_CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPUL
 
 /** Build a nav graph with all contexts populated */
 function fullGraph(zone, options = {}) {
-  const counts = { grid: 12, toolbar: 3, zone_tabs: 2, sidebar: 4, drawer: 5 }
+  const counts = { grid: 12, toolbar: 3, zone_tabs: 2, sidebar: 4 }
   return buildNavGraph(zone, counts, { ...options, ...GRAPH_CONFIG })
 }
 
@@ -107,62 +105,42 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
     })
 
-    test("right always navigates spatially (drawer transition handled by gridWall)", () => {
-      machine.presentationChanged("drawer")
-      machine._context = Context.GRID
-
-      const directive = machine.transition(Action.NAVIGATE_RIGHT)
-      expect(directive).toEqual({ type: "navigate", direction: "right" })
-      expect(machine.context).toBe(Context.GRID)
-    })
-
     test("zone cycling produces zone_cycle directive", () => {
       expect(machine.transition(Action.ZONE_NEXT)).toEqual({ type: "zone_cycle", direction: "next" })
       expect(machine.transition(Action.ZONE_PREV)).toEqual({ type: "zone_cycle", direction: "prev" })
     })
   })
 
-  describe("Grid wall transitions", () => {
+  describe("Grid walls follow the nav graph", () => {
     test("up wall in watching zone goes to zone tabs", () => {
-      machine.zoneChanged("watching")
       machine.setNavGraph(fullGraph("watching"))
-      const directive = machine.gridWall("up")
-      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
+      const directive = machine.contextWall(Context.GRID, "up")
+      expect(directive).toMatchObject({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
       expect(machine.context).toBe(Context.ZONE_TABS)
     })
 
     test("up wall in library zone goes to toolbar", () => {
-      machine.zoneChanged("library")
       machine.setNavGraph(fullGraph("library"))
-      const directive = machine.gridWall("up")
-      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.TOOLBAR })
+      const directive = machine.contextWall(Context.GRID, "up")
+      expect(directive).toMatchObject({ type: "enter_context", direction: "up", context: Context.TOOLBAR })
       expect(machine.context).toBe(Context.TOOLBAR)
     })
 
     test("left wall stays a wall — BACK is the way to the sidebar", () => {
       machine.setNavGraph(fullGraph("watching"))
-      const directive = machine.gridWall("left")
+      const directive = machine.contextWall(Context.GRID, "left")
       expect(directive).toEqual({ type: "none" })
       expect(machine.context).toBe(Context.GRID)
     })
 
-    test("right wall with drawer open switches to drawer", () => {
-      machine.presentationChanged("drawer")
-      machine._context = Context.GRID
-      machine.setNavGraph(fullGraph("watching", { drawerOpen: true }))
-      const directive = machine.gridWall("right")
-      expect(directive).toEqual({ type: "focus_context", target: Context.DRAWER })
-      expect(machine.context).toBe(Context.DRAWER)
-    })
-
     test("right wall without drawer is no-op", () => {
       machine.setNavGraph(fullGraph("watching"))
-      expect(machine.gridWall("right")).toEqual({ type: "none" })
+      expect(machine.contextWall(Context.GRID, "right")).toEqual({ type: "none" })
     })
 
     test("down wall is no-op", () => {
       machine.setNavGraph(fullGraph("watching"))
-      expect(machine.gridWall("down")).toEqual({ type: "none" })
+      expect(machine.contextWall(Context.GRID, "down")).toEqual({ type: "none" })
     })
   })
 
@@ -203,43 +181,8 @@ describe("FocusContextMachine", () => {
     })
   })
 
-  describe("Drawer context", () => {
-    beforeEach(() => {
-      machine.presentationChanged("drawer")
-      machine.setNavGraph(fullGraph("watching", { drawerOpen: true }))
-    })
-
-    test("starts in drawer context", () => {
-      expect(machine.context).toBe(Context.DRAWER)
-    })
-
-    test("up/down navigate vertically", () => {
-      expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "navigate", direction: "up" })
-      expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
-    })
-
-    test("left switches to grid at row edge", () => {
-      const directive = machine.transition(Action.NAVIGATE_LEFT)
-      expect(directive).toEqual({ type: "grid_row_edge", side: "right" })
-      expect(machine.context).toBe(Context.GRID)
-    })
-
-    test("right is blocked", () => {
-      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "none" })
-    })
-
-    test("back dismisses", () => {
-      expect(machine.transition(Action.BACK)).toEqual({ type: "dismiss" })
-    })
-
-    test("zone cycling works from drawer", () => {
-      expect(machine.transition(Action.ZONE_NEXT)).toEqual({ type: "zone_cycle", direction: "next" })
-    })
-  })
-
   describe("Toolbar context", () => {
     beforeEach(() => {
-      machine.zoneChanged("library")
       machine._context = Context.TOOLBAR
       machine.setNavGraph(fullGraph("library"))
     })
@@ -251,13 +194,13 @@ describe("FocusContextMachine", () => {
 
     test("down goes to grid", () => {
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.GRID })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: Context.GRID })
       expect(machine.context).toBe(Context.GRID)
     })
 
     test("up goes to zone tabs", () => {
       const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
       expect(machine.context).toBe(Context.ZONE_TABS)
     })
 
@@ -288,13 +231,13 @@ describe("FocusContextMachine", () => {
 
     test("up consults the instance's own graph edge → actions", () => {
       const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "enter_context", direction: "up", context: "actions" })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "up", context: "actions" })
       expect(machine.context).toBe("actions")
     })
 
     test("down consults the instance's own graph edge → stragglers", () => {
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "stragglers" })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: "stragglers" })
       expect(machine.context).toBe("stragglers")
     })
 
@@ -353,25 +296,22 @@ describe("FocusContextMachine", () => {
     })
 
     test("down goes to toolbar in library zone", () => {
-      machine.zoneChanged("library")
       machine._context = Context.ZONE_TABS
       machine.setNavGraph(fullGraph("library"))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.TOOLBAR })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: Context.TOOLBAR })
       expect(machine.context).toBe(Context.TOOLBAR)
     })
 
     test("down goes to grid in watching zone", () => {
-      machine.zoneChanged("watching")
       machine._context = Context.ZONE_TABS
       machine.setNavGraph(fullGraph("watching"))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.GRID })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: Context.GRID })
       expect(machine.context).toBe(Context.GRID)
     })
 
     test("down blocked when target is empty", () => {
-      machine.zoneChanged("watching")
       machine._context = Context.ZONE_TABS
       machine.setNavGraph(buildNavGraph("watching", { grid: 0, zone_tabs: 2, sidebar: 4 }, GRAPH_CONFIG))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
@@ -379,32 +319,21 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe(Context.ZONE_TABS)
     })
 
-    test("up is wall", () => {
+    test("up is a wall when the layout declares no up edge", () => {
       expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "none" })
+    })
+
+    // Downloads puts its release search above the tab strip: the strip's
+    // declared up edge is the only way to reach it.
+    test("up follows the layout's up edge", () => {
+      machine.setNavGraph({ zone_tabs: { up: "omnibox", down: "grid" } })
+      const directive = machine.transition(Action.NAVIGATE_UP)
+      expect(directive).toMatchObject({ type: "enter_context", direction: "up", context: "omnibox" })
+      expect(machine.context).toBe("omnibox")
     })
 
     test("select activates tab", () => {
       expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
-    })
-  })
-
-  describe("Zone changes", () => {
-    test("resets context to grid from non-tab contexts", () => {
-      machine._context = Context.TOOLBAR
-      machine.zoneChanged("library")
-      expect(machine.context).toBe(Context.GRID)
-    })
-
-    test("preserves zone_tabs context across zone change", () => {
-      machine._context = Context.ZONE_TABS
-      machine.zoneChanged("library")
-      expect(machine.context).toBe(Context.ZONE_TABS)
-    })
-
-    test("clears drawer state", () => {
-      machine.presentationChanged("drawer")
-      machine.zoneChanged("watching")
-      expect(machine._drawerOpen).toBe(false)
     })
   })
 
@@ -423,47 +352,22 @@ describe("FocusContextMachine", () => {
     })
   })
 
-  describe("syncDrawerState()", () => {
-    test("sets drawer open to true", () => {
-      machine.syncDrawerState(true)
-      machine.setNavGraph(fullGraph("watching", { drawerOpen: true }))
-      // Verify by checking gridWall right behavior
-      const directive = machine.gridWall("right")
-      expect(directive).toEqual({ type: "focus_context", target: Context.DRAWER })
-    })
-
-    test("sets drawer open to false", () => {
-      machine.syncDrawerState(true)
-      machine.syncDrawerState(false)
-      machine.forceContext(Context.GRID)
-      machine.setNavGraph(fullGraph("watching", { drawerOpen: false }))
-      const directive = machine.gridWall("right")
-      expect(directive).toEqual({ type: "none" })
-    })
-  })
-
   describe("Presentation changes", () => {
     test("opening modal switches to modal context", () => {
       machine.presentationChanged("modal")
       expect(machine.context).toBe(Context.MODAL)
     })
 
-    test("opening drawer switches to drawer context", () => {
-      machine.presentationChanged("drawer")
-      expect(machine.context).toBe(Context.DRAWER)
+    test("closing returns to the page context it is handed", () => {
+      machine.presentationChanged("modal")
+      machine.presentationChanged(null, null, "feed")
+      expect(machine.context).toBe("feed")
     })
 
-    test("closing presentation returns to grid", () => {
+    test("closing with no page context to return to lands on the main menu", () => {
       machine.presentationChanged("modal")
       machine.presentationChanged(null)
-      expect(machine.context).toBe(Context.GRID)
-    })
-
-    test("closing drawer returns to grid", () => {
-      machine.presentationChanged("drawer")
-      machine.presentationChanged(null)
-      expect(machine.context).toBe(Context.GRID)
-      expect(machine._drawerOpen).toBe(false)
+      expect(machine.context).toBe("sidebar")
     })
 
     test("closing does not change context if already in toolbar", () => {
@@ -480,7 +384,6 @@ describe("FocusContextMachine", () => {
 
     test("unknown instance resolves to itself", () => {
       expect(contextType("grid", TEST_INSTANCE_TYPES)).toBe("grid")
-      expect(contextType("drawer", TEST_INSTANCE_TYPES)).toBe("drawer")
     })
 
     test("sidebar instance uses _menuTransition via transition()", () => {
@@ -511,7 +414,7 @@ describe("FocusContextMachine", () => {
       machine._context = "sections"
       machine.setNavGraph({ sections: { right: "grid" } })
       const directive = machine.transition(Action.NAVIGATE_RIGHT)
-      expect(directive).toEqual({ type: "enter_context", direction: "right", context: "grid" })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "right", context: "grid" })
       expect(machine.context).toBe("grid")
     })
 
@@ -582,7 +485,7 @@ describe("FocusContextMachine", () => {
       machine.setNavGraph(homeGraph())
 
       const directive = machine.contextWall("continue", "down")
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "recently" })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: "recently" })
       expect(machine.context).toBe("recently")
     })
 
@@ -591,7 +494,7 @@ describe("FocusContextMachine", () => {
       machine.setNavGraph(buildNavGraph("home", { hero: 2, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }, GRAPH_CONFIG))
 
       const directive = machine.contextWall("hero", "down")
-      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "coming_up" })
+      expect(directive).toMatchObject({ type: "enter_context", direction: "down", context: "coming_up" })
       expect(machine.context).toBe("coming_up")
     })
 
@@ -718,10 +621,9 @@ describe("FocusContextMachine", () => {
     test("fires from transition", () => {
       const calls = []
       const machine = createMachine({ onContextChanged: (ctx) => calls.push(ctx) })
-      machine.zoneChanged("watching")
       machine.setNavGraph(fullGraph("watching"))
       // Grid wall up → zone_tabs
-      machine.gridWall("up")
+      machine.contextWall(Context.GRID, "up")
       expect(calls).toContain(Context.ZONE_TABS)
     })
 
@@ -733,17 +635,17 @@ describe("FocusContextMachine", () => {
     })
   })
 
-  describe("gridWall left is nav-graph-driven", () => {
+  describe("grid left wall is nav-graph-driven", () => {
     test("left wall is no-op when nav graph has no left edge", () => {
       machine.setNavGraph({ grid: {} })
-      const directive = machine.gridWall("left")
+      const directive = machine.contextWall(Context.GRID, "left")
       expect(directive).toEqual({ type: "none" })
     })
 
     test("left wall goes to non-sidebar target when nav graph points there", () => {
       machine.setNavGraph({ grid: { left: "sections" } })
-      const directive = machine.gridWall("left")
-      expect(directive).toEqual({ type: "enter_context", direction: "left", context: "sections" })
+      const directive = machine.contextWall(Context.GRID, "left")
+      expect(directive).toMatchObject({ type: "enter_context", direction: "left", context: "sections" })
       expect(machine.context).toBe("sections")
     })
   })
@@ -907,6 +809,66 @@ describe("FocusContextMachine", () => {
         expect(m.transition(Action.SELECT)).toEqual({ type: "activate" })
         expect(m.subFocus).toBe(true)
       })
+    })
+  })
+
+  // The tab keys switch the page's tabs; which region of the page holds the
+  // cursor does not change what the tabs are. Only an overlay, which covers
+  // the page, keeps them out.
+  describe("tab keys from any page context", () => {
+    test.each([["sidebar"], ["sections"], ["hero"], ["grid"], ["toolbar"]])("%s cycles the page tabs", (ctx) => {
+      const machine = createMachine({ instanceTypes: { ...TEST_INSTANCE_TYPES, feed: Context.TREE } })
+      machine.forceContext(ctx)
+      expect(machine.transition(Action.ZONE_NEXT)).toEqual({ type: "zone_cycle", direction: "next" })
+      expect(machine.transition(Action.ZONE_PREV)).toEqual({ type: "zone_cycle", direction: "prev" })
+    })
+
+    test("a tree row cycles the page tabs", () => {
+      const machine = createMachine({ instanceTypes: { ...TEST_INSTANCE_TYPES, feed: Context.TREE } })
+      machine.forceContext("feed")
+      expect(machine.transition(Action.ZONE_NEXT)).toEqual({ type: "zone_cycle", direction: "next" })
+    })
+
+    test("an open overlay keeps the tab keys out", () => {
+      const machine = createMachine()
+      machine.presentationChanged("modal", "detail_actions")
+      expect(machine.transition(Action.ZONE_NEXT)).toEqual({ type: "none" })
+    })
+  })
+
+  // What BACK would do, asked without doing it — the hint bar labels B with
+  // it, so the legend and the press can never disagree.
+  describe("backStep()", () => {
+    test("content on a page with a main menu: enter it", () => {
+      const machine = createMachine()
+      machine.setNavGraph(fullGraph("library"))
+      expect(machine.backStep()).toBe("enter_menu")
+      expect(machine.context).toBe(Context.GRID)
+    })
+
+    test("in the main menu: exit it, or leave the app on a shell that can", () => {
+      const machine = createMachine()
+      machine.setNavGraph(fullGraph("library"))
+      machine.forceContext("sidebar")
+      expect(machine.backStep()).toBe("exit_menu")
+      const tv = createMachine({ canLeave: true })
+      tv.setNavGraph(fullGraph("library"))
+      tv.forceContext("sidebar")
+      expect(tv.backStep()).toBe("leave_app")
+    })
+
+    test("an overlay: dismiss it; an overlay region with a back edge: leave for it", () => {
+      const machine = createMachine()
+      machine.presentationChanged("modal", "detail_list")
+      expect(machine.backStep()).toBe("dismiss")
+      machine.setNavGraph({ detail_list: { back: "detail_actions" } })
+      expect(machine.backStep()).toBe("region")
+    })
+
+    test("a page without a main menu: nothing", () => {
+      const machine = createMachine()
+      machine.setNavGraph({ grid: {} })
+      expect(machine.backStep()).toBe(null)
     })
   })
 })

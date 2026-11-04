@@ -75,15 +75,6 @@ describe("withViewing — the bar state (no menu open)", () => {
     expect(behavior.onAction(Action.BACK, "modal", nothing)).toBe(false)
     expect(d.pushed).toEqual([])
   })
-
-  test("zone cycling and clear do nothing during a viewing", () => {
-    const d = deps()
-    const behavior = withViewing({}, d)
-    expect(behavior.onAction(Action.ZONE_NEXT, "modal", nothing)).toBe(true)
-    expect(behavior.onAction(Action.ZONE_PREV, "modal", nothing)).toBe(true)
-    expect(behavior.onAction(Action.CLEAR, "modal", nothing)).toBe(true)
-    expect(d.pushed).toEqual([])
-  })
 })
 
 describe("withViewing — with the track menu open", () => {
@@ -109,9 +100,8 @@ describe("withViewing — with the track menu open", () => {
 
 describe("withViewing — the wrapped behaviour", () => {
   test("keeps the page behaviour's other hooks", () => {
-    const base = { onClear: () => "cleared", activateOnFocus: ["sections"] }
+    const base = { activateOnFocus: ["sections"] }
     const behavior = withViewing(base, deps())
-    expect(behavior.onClear()).toBe("cleared")
     expect(behavior.activateOnFocus).toEqual(["sections"])
   })
 })

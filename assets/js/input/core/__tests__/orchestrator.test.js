@@ -11,16 +11,14 @@ import { Action } from "../actions"
 const TEST_LAYOUTS = {
   watching: {
     zone_tabs: { down: ["grid"] },
-    grid:      { up: ["zone_tabs"], right: ["drawer"] },
+    grid:      { up: ["zone_tabs"] },
     sidebar:   { right: ["grid", "zone_tabs"] },
-    drawer:    { left: ["grid"] },
   },
   library: {
     zone_tabs: { down: ["toolbar", "grid"] },
     toolbar:   { up: ["zone_tabs"],          down: ["grid"] },
-    grid:      { up: ["toolbar", "zone_tabs"], right: ["drawer"] },
+    grid:      { up: ["toolbar", "zone_tabs"] },
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
-    drawer:    { left: ["grid", "toolbar"] },
   },
   upcoming: {
     zone_tabs: { down: ["upcoming"] },
@@ -54,7 +52,6 @@ const TEST_CONFIG = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
-    drawer: "[data-detail-mode='drawer'] [data-nav-item]",
     modal: "[data-detail-mode='modal'] [data-nav-item]",
   },
   instanceTypes: {
@@ -81,7 +78,6 @@ function createMockReader(overrides = {}) {
   return {
     getZone: () => "watching",
     getPresentation: () => null,
-    isDrawerOpen: () => false,
     getSortOrder: () => null,
     getGridColumnCount: () => 4,
     getItemCount: () => 8,
@@ -90,7 +86,6 @@ function createMockReader(overrides = {}) {
     getActiveZoneTabIndex: () => 0,
     getActiveItemIndex: () => -1,
     getZoneTabCount: () => 2,
-    getEntityIndex: () => -1,
     getPageBehavior: () => null,
     getCurrentFocusedSubItem: () => null,
     getItemAt: () => null,
@@ -469,17 +464,6 @@ describe("Orchestrator", () => {
       system.onViewChanged()
 
       expect(system.focusMachine.context).toBe(Context.MODAL)
-    })
-
-    test("drawer appearing switches to drawer context", () => {
-      const { system, reader } = setup()
-      system.start({})
-
-      reader.getPresentation = () => "drawer"
-      reader.isDrawerOpen = () => true
-      system.onViewChanged()
-
-      expect(system.focusMachine.context).toBe(Context.DRAWER)
     })
 
     test("modal closing restores to grid and triggers origin focus restore", () => {
@@ -1692,28 +1676,6 @@ describe("Orchestrator", () => {
       expect(hookEl.pushEvent).toHaveBeenCalledWith("cancel_stop_tracking", {})
     })
 
-    test("BACK in drawer dismisses", () => {
-      let onActionCallback = null
-      const hookEl = { pushEvent: mock(() => {}) }
-      const mockSource = { start() {}, stop() {} }
-      const { system } = setup({
-        getPageBehavior: () => "library",
-        getPresentation: () => "drawer",
-        isDrawerOpen: () => true,
-      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start(hookEl)
-
-      onActionCallback(Action.BACK)
-
-      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
-    })
   })
 
   describe("CLEAR action delegates to behavior onClear", () => {
@@ -2186,104 +2148,6 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.context).not.toBe("sidebar")
     })
 
-    test("SELECT on primary menu with data-nav-defer-activate activates instead of exiting", () => {
-      const dispatchedEvents = []
-      const mockItem = {
-        click: mock(() => {}),
-        dataset: { navAction: "phx:nav-action" },
-        hasAttribute: (attr) => attr === "data-nav-defer-activate",
-        dispatchEvent(event) { dispatchedEvents.push(event) },
-      }
-      let onActionCallback = null
-      const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
-        getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 8,      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start({})
-      system.focusMachine.forceContext("sidebar")
-      calls.length = 0
-
-      onActionCallback(Action.SELECT)
-
-      // Should activate (dispatch custom event), not exit sidebar
-      expect(system.focusMachine.context).toBe("sidebar")
-      expect(dispatchedEvents.length).toBe(1)
-      expect(dispatchedEvents[0].type).toBe("phx:nav-action")
-      expect(mockItem.click).not.toHaveBeenCalled()
-    })
-
-    test("SELECT on primary menu with data-nav-defer-activate clicks when no nav-action", () => {
-      const clickMock = mock(() => {})
-      const mockItem = {
-        click: clickMock,
-        dataset: {},
-        hasAttribute: (attr) => attr === "data-nav-defer-activate",
-        dispatchEvent() {},
-      }
-      let onActionCallback = null
-      const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
-        getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 8,      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start({})
-      system.focusMachine.forceContext("sidebar")
-      calls.length = 0
-
-      onActionCallback(Action.SELECT)
-
-      // Should click (no nav-action to dispatch) and stay in sidebar
-      expect(system.focusMachine.context).toBe("sidebar")
-      expect(clickMock).toHaveBeenCalled()
-    })
-
-    test("SELECT on non-primary menu with data-nav-defer-activate still exits", () => {
-      const clickMock = mock(() => {})
-      const mockItem = {
-        click: clickMock,
-        dataset: {},
-        hasAttribute: (attr) => attr === "data-nav-defer-activate",
-        dispatchEvent() {},
-      }
-      let onActionCallback = null
-      const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
-        getZone: () => "settings",
-        getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 3,
-        getFocusedIndex: () => 0,
-      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start({})
-      system.focusMachine.forceContext("sections")
-      calls.length = 0
-
-      onActionCallback(Action.SELECT)
-
-      // Non-primary menus always exit — defer-activate is primary-menu-only
-      expect(system.focusMachine.context).not.toBe("sections")
-      expect(clickMock).toHaveBeenCalled()
-    })
-
     test("SELECT on non-primary menu clicks item and moves to right neighbor", () => {
       const clicked = mock(() => {})
       const mockItem = { click: clicked, dataset: {}, hasAttribute: () => false }
@@ -2365,7 +2229,7 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.context).toBe(Context.MODAL)
 
       // Dismiss sets expected presentation and restores to GRID
-      system.focusMachine.presentationChanged(null)
+      system.focusMachine.presentationChanged(null, null, Context.GRID)
       system._expectedPresentation = null
 
       // DOM still shows modal (LiveView hasn't round-tripped)
@@ -2382,7 +2246,7 @@ describe("Orchestrator", () => {
       system.start({})
 
       // Simulate dismiss
-      system.focusMachine.presentationChanged(null)
+      system.focusMachine.presentationChanged(null, null, Context.GRID)
       system._expectedPresentation = null
 
       // DOM now confirms no presentation
@@ -2659,63 +2523,6 @@ describe("Orchestrator", () => {
       const methodCalls = calls.filter(c => c.method === "setInputMethod")
       expect(methodCalls.length).toBe(1)
       expect(methodCalls[0].args).toEqual(["mouse"])
-    })
-
-    test("data-nav-defer-activate skips auto-click on navigate in primary menu", () => {
-      const clickMock = mock(() => {})
-      const items = [
-        { dataset: {}, focus() {}, click: mock(() => {}), hasAttribute: () => false },
-        { dataset: {}, focus() {}, click: clickMock, hasAttribute: (attr) => attr === "data-nav-defer-activate" },
-      ]
-      let focusIndex = 0
-      const { system, calls, globals } = setup({
-        getItemCount: (ctx) => ctx === "sidebar" ? 2 : 8,
-        getFocusedIndex: (ctx) => ctx === "sidebar" ? focusIndex : 0,
-        getCurrentFocusedItem: () => items[focusIndex],
-        getActiveItemIndex: () => 0,
-      })
-      system.start({})
-      calls.length = 0
-
-      // Enter sidebar
-      globals._dispatchKeyDown("Escape")
-      globals._flushRAF()
-      calls.length = 0
-
-      // Navigate down to the defer-activate item
-      focusIndex = 0
-      globals._dispatchKeyDown("ArrowDown")
-      focusIndex = 1
-      globals._flushRAF()
-
-      // The item should NOT have been clicked
-      expect(clickMock).not.toHaveBeenCalled()
-    })
-
-    test("data-nav-action dispatches custom event on SELECT instead of click", () => {
-      const clickMock = mock(() => {})
-      const dispatchedEvents = []
-      const focusedItem = {
-        dataset: { navAction: "phx:nav-action" },
-        click: clickMock,
-        hasAttribute: () => false,
-        dispatchEvent(event) { dispatchedEvents.push(event) },
-      }
-      const { system, calls, globals } = setup({
-        getCurrentFocusedItem: () => focusedItem,
-        getFocusedIndex: () => 0,
-        getItemCount: () => 8,
-      })
-      system.start({})
-      calls.length = 0
-
-      // Press Enter (SELECT) — should dispatch custom event, not click
-      globals._dispatchKeyDown("Enter")
-
-      expect(clickMock).not.toHaveBeenCalled()
-      expect(dispatchedEvents.length).toBe(1)
-      expect(dispatchedEvents[0].type).toBe("phx:nav-action")
-      expect(dispatchedEvents[0].bubbles).toBe(true)
     })
 
     test("SELECT without data-nav-action still calls click", () => {
@@ -3928,7 +3735,7 @@ describe("Orchestrator", () => {
         const { calls, globals } = inBody(row)
         globals._dispatchKeyDown("ArrowLeft")
         expect(row.click).not.toHaveBeenCalled()
-        expect(calls).toEqual([])
+        expect(calls.filter(c => c.method !== "setHints")).toEqual([])
       })
     })
 
@@ -4292,9 +4099,9 @@ describe("Orchestrator", () => {
       expect(pushEvent).not.toHaveBeenCalled()
     })
 
-    test("BACK from the toolbar (no back edge) still enters the sidebar and pushes nothing, even when the zone declares a dismiss event", () => {
+    test("BACK from a zone with no back edge enters the sidebar, closing the zone's list on the way", () => {
       const { system } = menuSetup({
-        getZoneDismissEvent: () => "close_anything",
+        getZoneDismissEvent: (ctx) => (ctx === Context.TOOLBAR ? "close_list" : null),
         getActiveItemIndex: (ctx) => (ctx === "sidebar" ? 0 : -1),
       })
       const pushEvent = mock(() => {})
@@ -4304,7 +4111,320 @@ describe("Orchestrator", () => {
       system._handleAction(Action.BACK)
 
       expect(system.focusMachine.context).toBe("sidebar")
-      expect(pushEvent).not.toHaveBeenCalled()
+      expect(pushEvent).toHaveBeenCalledWith("close_list", {})
+    })
+  })
+
+  // Campaign input-coverage (2026-11-04): gaps the page review found in the
+  // framework itself.
+  describe("input coverage", () => {
+    const PAGE_CONFIG = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        feed: "[data-nav-zone='feed'] [data-nav-item]",
+        card: "[data-nav-zone='card'] [data-nav-item]",
+        sort_menu: "[data-nav-zone='sort_menu'] [data-nav-item]",
+        picker: "[data-nav-zone='picker'] [data-nav-item]",
+        tracks: "[data-nav-zone='tracks'] [data-nav-item]",
+      },
+      instanceTypes: {
+        ...TEST_CONFIG.instanceTypes, feed: Context.TREE, card: Context.GRID,
+        sort_menu: Context.TREE, picker: Context.SHELF, tracks: Context.MENU,
+      },
+      layouts: {
+        ...TEST_LAYOUTS,
+        social: {
+          zone_tabs: { down: ["feed"] },
+          feed:      { up: ["zone_tabs"], right: ["card"] },
+          card:      { up: ["zone_tabs"], left: ["feed"] },
+          sidebar:   { right: ["feed", "zone_tabs"] },
+        },
+        sorting: {
+          toolbar:   { down: ["sort_menu", "grid"] },
+          sort_menu: { up: ["toolbar"], back: ["toolbar"] },
+          grid:      { up: ["toolbar"] },
+          sidebar:   { right: ["grid", "toolbar"] },
+        },
+        door: {
+          picker:  {},
+          sidebar: { right: ["picker"] },
+        },
+      },
+      cursorStartPriority: {
+        ...TEST_CONFIG.cursorStartPriority,
+        social: ["feed", "zone_tabs", "sidebar"],
+        sorting: ["grid", "toolbar", "sidebar"],
+        door: ["picker", "sidebar"],
+      },
+      overlays: { tracks: { entry: ["tracks"], layout: { tracks: {} } } },
+    }
+
+    test("closing a modal opened from a tree row returns the cursor to that row", () => {
+      let presentation = null
+      const { system, calls, globals } = setup({
+        getZone: () => "social",
+        getPresentation: () => presentation,
+        getFocusedIndex: (ctx) => (ctx === "feed" ? 3 : -1),
+        getItemCount: () => 6,
+      }, PAGE_CONFIG)
+      system.start({})
+      system.focusMachine.forceContext("feed")
+
+      presentation = "modal"
+      system.onViewChanged()
+      globals._flushRAF()
+      presentation = null
+      system.onViewChanged()
+      calls.length = 0
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe("feed")
+      expect(calls.find(c => c.method === "focusByIndex")?.args.slice(0, 2)).toEqual(["feed", 3])
+    })
+
+    test("a grid whose items carry no entity id is remembered by position", () => {
+      let focused = { dataset: {}, hasAttribute: () => false }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getFocusedIndex: (ctx) => (ctx === Context.GRID ? 5 : 0),
+        getCurrentFocusedItem: () => focused,
+        getActiveItemIndex: (ctx) => (ctx === "sidebar" ? 0 : -1),
+        getItemCount: () => 9,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+
+      system._handleAction(Action.BACK)
+      expect(system.focusMachine.context).toBe("sidebar")
+      calls.length = 0
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      expect(calls.find(c => c.method === "focusByIndex")?.args.slice(0, 2)).toEqual([Context.GRID, 5])
+    })
+
+    test("a wall in any context type follows the layout's edge", () => {
+      const { system } = setup({
+        getZone: () => "social",
+        getFocusedIndex: () => 0,
+        getItemCount: () => 4,
+      }, PAGE_CONFIG)
+      system.start({})
+      system.focusMachine.forceContext("card")
+
+      system._handleAction(Action.NAVIGATE_UP)
+
+      expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
+    })
+
+    test("BACK on a page whose main menu is absent does not enter it", () => {
+      const { system } = setup({
+        getZone: () => "door",
+        getItemCount: (ctx) => (ctx === "picker" ? 3 : 0),
+      }, { ...PAGE_CONFIG, alwaysPopulated: ["sections"] })
+      system.start({})
+      expect(system.focusMachine.context).toBe("picker")
+
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe("picker")
+    })
+
+    test("BACK on a page whose main menu is absent leaves the app on a shell that can", () => {
+      const leaveApp = mock(() => {})
+      const { system } = setup({
+        getZone: () => "door",
+        getItemCount: (ctx) => (ctx === "picker" ? 3 : 0),
+      }, { ...PAGE_CONFIG, alwaysPopulated: ["sections"], leaveApp })
+      system.start({})
+
+      system._handleAction(Action.BACK)
+
+      expect(leaveApp).toHaveBeenCalled()
+    })
+
+    test("an overlay opens on its region's chosen item, not its first", () => {
+      let presentation = null
+      const { system, calls, globals } = setup({
+        getZone: () => "social",
+        getPresentation: () => presentation,
+        getOverlayName: () => (presentation ? "tracks" : null),
+        getActiveItemIndex: (ctx) => (ctx === "tracks" ? 2 : -1),
+        getItemCount: () => 4,
+      }, PAGE_CONFIG)
+      system.start({})
+
+      presentation = "modal"
+      system.onViewChanged()
+      calls.length = 0
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe("tracks")
+      expect(calls.find(c => c.method === "focusByIndex" || c.method === "focusFirst")?.args.slice(0, 2))
+        .toEqual(["tracks", 2])
+    })
+
+    describe("a nested menu", () => {
+      function sortSetup() {
+        const state = { menu: 0 }
+        const hookEl = { pushEvent: mock(() => {}) }
+        const result = setup({
+          getZone: () => "sorting",
+          getItemCount: (ctx) => (ctx === "sort_menu" ? state.menu : 4),
+          getFocusedIndex: () => 0,
+          getZoneDismissEvent: (ctx) => (ctx === "sort_menu" ? "close_sort" : null),
+        }, PAGE_CONFIG)
+        result.system.start(hookEl)
+        result.system.focusMachine.forceContext(Context.TOOLBAR)
+        return { ...result, state, hookEl }
+      }
+
+      test("takes the cursor when it opens under its trigger", () => {
+        const { system, calls, state } = sortSetup()
+        state.menu = 3
+        calls.length = 0
+        system.onViewChanged()
+
+        expect(system.focusMachine.context).toBe("sort_menu")
+        expect(calls.some(c => c.args[0] === "sort_menu")).toBe(true)
+      })
+
+      test("closes when the cursor leaves it by an arrow, not only by BACK", () => {
+        const { system, state, hookEl } = sortSetup()
+        state.menu = 3
+        system.onViewChanged()
+
+        system._handleAction(Action.NAVIGATE_UP)
+
+        expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+        expect(hookEl.pushEvent).toHaveBeenCalledWith("close_sort", {})
+      })
+
+      test("opened from a row's control, it leaves the row's controls behind", () => {
+        const { system, state } = sortSetup()
+        system.focusMachine.beginSubFocus()
+        system._subFocusIndex = 0
+        state.menu = 3
+        system.onViewChanged()
+
+        expect(system.focusMachine.context).toBe("sort_menu")
+        expect(system.focusMachine.subFocus).toBe(false)
+        expect(system._subFocusIndex).toBe(null)
+      })
+
+      test("an arrow off its end returns to the trigger, as BACK does", () => {
+        const { system, calls, state, reader } = sortSetup()
+        // The trigger (Sort) is the toolbar's fourth item; its first (All) is
+        // the active tab, which a plain entry would prefer.
+        reader.getFocusedIndex = (ctx) => (ctx === Context.TOOLBAR ? 3 : 0)
+        reader.getActiveItemIndex = (ctx) => (ctx === Context.TOOLBAR ? 0 : -1)
+        state.menu = 3
+        system.onViewChanged()
+        calls.length = 0
+
+        system._handleAction(Action.NAVIGATE_UP)
+
+        expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+        expect(calls.find(c => c.method === "focusByIndex")?.args.slice(0, 2)).toEqual([Context.TOOLBAR, 3])
+      })
+
+      test("does not take the cursor when it opens while the cursor is elsewhere", () => {
+        const { system, state } = sortSetup()
+        system.focusMachine.forceContext(Context.GRID)
+        state.menu = 3
+        system.onViewChanged()
+
+        expect(system.focusMachine.context).toBe(Context.GRID)
+      })
+    })
+
+    test("a page opens on its declared cursor start, even when the grid has items", () => {
+      const { system } = setup({ getZone: () => "settings", getItemCount: () => 6 })
+      system.start({})
+      expect(system.focusMachine.context).toBe("sections")
+    })
+
+    test("a clear whose target is not on the page yet leaves the cursor where it is", () => {
+      const { system } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === Context.GRID ? 0 : 3),
+        getPageBehavior: () => "library",
+      }, { createBehavior: () => ({ onClear: () => Context.GRID }) })
+      system.start({})
+      system.focusMachine.forceContext(Context.TOOLBAR)
+
+      system._onSourceAction(Action.CLEAR)
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+    })
+
+    // An overlay covers the page: the page's own clear (a search box beneath
+    // the title modal or the viewing layer) does not run while it is open.
+    test("CLEAR in an open overlay does not reach the page's clear", () => {
+      const onClear = mock(() => {})
+      const { system, globals } = setup({
+        getZone: () => "library",
+        getPresentation: () => "modal",
+        getPageBehavior: () => "library",
+      }, { createBehavior: () => ({ onClear }) })
+      system.start({})
+      globals._flushRAF()
+
+      system._onSourceAction(Action.CLEAR)
+
+      expect(onClear).not.toHaveBeenCalled()
+    })
+
+    // The hint bar states what each button does now, derived from the same
+    // state the press is answered from.
+    describe("the hint bar", () => {
+      function lastHints(calls) {
+        return calls.filter(c => c.method === "setHints").at(-1)?.args[0]
+      }
+
+      test("content on a page with a clear and tabs: B opens the menu, Y clears, the bumpers switch tabs", () => {
+        const card = { dataset: { entityId: "movie-1" }, hasAttribute: () => false }
+        const { system, calls } = setup({
+          getZone: () => "library",
+          getPageBehavior: () => "library",
+          getCurrentFocusedItem: () => card,
+          getZoneTabCount: () => 3,
+        })
+        system.start({})
+        expect(lastHints(calls)).toEqual({ back: "enter_menu", clear: true, play: true, tabs: true })
+      })
+
+      test("a page without a clear, tabs or a playable item says so", () => {
+        const { system, calls } = setup({ getZone: () => "settings", getZoneTabCount: () => 0 })
+        system.start({})
+        expect(lastHints(calls)).toEqual({ back: "enter_menu", clear: false, play: false, tabs: false })
+      })
+
+      test("an open overlay: B closes it, and the page's clear and tabs are out of reach", () => {
+        const { system, calls, globals } = setup({
+          getZone: () => "library",
+          getPageBehavior: () => "library",
+          getPresentation: () => "modal",
+          getZoneTabCount: () => 3,
+        })
+        system.start({})
+        globals._flushRAF()
+        expect(lastHints(calls)).toMatchObject({ back: "dismiss", clear: false, tabs: false })
+      })
+
+      test("the legend follows the cursor: after BACK into the menu, B exits it", () => {
+        const { system, calls } = setup({ getZone: () => "library" })
+        system.start({})
+        system._onSourceAction(Action.BACK)
+        expect(lastHints(calls).back).toBe("exit_menu")
+      })
+    })
+
+    test("a page behaviour attaches once when the page starts", () => {
+      const onAttach = mock(() => {})
+      const { system } = setup({ getPageBehavior: () => "library" }, { createBehavior: () => ({ onAttach }) })
+      system.start({})
+      expect(onAttach).toHaveBeenCalledTimes(1)
     })
   })
 })

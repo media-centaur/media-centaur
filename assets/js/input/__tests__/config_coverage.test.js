@@ -118,9 +118,9 @@ describe("config.js is internally consistent", () => {
       for (const [context, edges] of Object.entries(layout)) {
         for (const [direction, candidates] of Object.entries(edges)) {
           for (const candidate of candidates) {
-            // `drawer` and `modal` are overlays — they are reachable from a
-            // layout without being a zone of it.
-            if (candidate === "drawer" || candidate === "modal") continue
+            // `modal` is an overlay — reachable from a layout without being
+            // a zone of it.
+            if (candidate === "modal") continue
             if (!layout[candidate]) {
               dangling.push(`${zone}.${context}.${direction} -> ${candidate}`)
             }

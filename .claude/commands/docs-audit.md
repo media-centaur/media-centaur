@@ -65,8 +65,8 @@ the moduledoc-versus-ADR placement test.
 ### Pass 2 — Freshness
 
 - References to removed files, modules, dependencies, settings, routes, or UI
-  surfaces (check merged/renamed pages: Upcoming and Downloads became `/incoming`;
-  the dashboard became `/status`; Library zones changed more than once).
+  surfaces (check pages against the `live` routes in `router.ex` — pages have been
+  merged and renamed more than once).
 - Present-tense text describing behaviour that `git log` shows was replaced.
 - Campaign files whose Status or Next steps disagree with the code and history
   (the reconciliation rule in `CLAUDE.md`).

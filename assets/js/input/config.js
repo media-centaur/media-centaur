@@ -18,7 +18,6 @@ export const inputConfig = {
   // Context selectors — maps context keys to CSS selectors
   contextSelectors: {
     [Context.GRID]: "[data-nav-zone='grid'] [data-nav-item]",
-    [Context.DRAWER]: "[data-detail-mode='drawer'] [data-nav-item]",
     [Context.MODAL]: "[data-detail-mode='modal'] [data-nav-item]",
     // The detail modal's two regions. A closed modal is `visibility: hidden`
     // and its items fail `checkVisibility()`, so these count zero until it
@@ -305,20 +304,13 @@ export const inputConfig = {
   // sidebar node with its `right` candidates — its presence is what tells BACK
   // the page has a main menu, and the candidates are where exiting it lands.
   layouts: {
-    watching: {
-      zone_tabs: { down: ["grid"] },
-      grid:      { up: ["zone_tabs"], right: ["drawer"] },
-      sidebar:   { right: ["grid", "zone_tabs"] },
-      drawer:    { left: ["grid"] },
-    },
     library: {
       toolbar:           { down: ["library_sort_menu", "grid"] },
       // The open sort menu, nested in the toolbar: BACK leaves it for the
       // toolbar and, through its `data-nav-dismiss-event`, closes it.
       library_sort_menu: { up: ["toolbar"], back: ["toolbar"] },
-      grid:              { up: ["toolbar"], right: ["drawer"] },
+      grid:              { up: ["toolbar"] },
       sidebar:           { right: ["grid", "toolbar"] },
-      drawer:            { left: ["grid", "toolbar"] },
     },
     settings: {
       sections:  { right: ["grid"] },
@@ -458,9 +450,9 @@ export const inputConfig = {
       grid: {},
     },
     // Profile picker: one geometry-resolved zone of tiles and the add
-    // form. The sidebar node exists only on a switch (the picker inside
-    // the shell); at the door the page is sidebar-less, the node is absent
-    // from the DOM, and BACK is a no-op.
+    // form. The sidebar is on the page only on a switch (the picker inside
+    // the shell); at the door it is absent, so its node is too, and BACK
+    // does nothing — or leaves the app on the TV.
     profiles: {
       profile_picker: {},
       sidebar:        { right: ["profile_picker"] },
@@ -469,7 +461,6 @@ export const inputConfig = {
 
   // Cursor start priority per zone
   cursorStartPriority: {
-    watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "sidebar"],
     settings:  ["sections", "grid", "bindings", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
@@ -488,8 +479,10 @@ export const inputConfig = {
     profiles:  ["profile_picker", "sidebar"],
   },
 
-  // Always-populated contexts (skip item count check)
-  alwaysPopulated: ["sidebar", "sections", "guide_chapters"],
+  // Always-populated contexts (skip item count check). Not the sidebar: the
+  // shell renders it on every page but the profile door and the setup tour,
+  // and its count is what tells BACK whether the page has a main menu.
+  alwaysPopulated: ["sections", "guide_chapters"],
 
   // Contexts that are always entered at one specific item, whatever the user
   // last touched there. Reserved for zones that exist to be entered at a

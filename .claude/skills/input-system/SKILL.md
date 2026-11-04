@@ -30,33 +30,37 @@ All app-specific knowledge lives in `config.js`. The framework core is parameter
 - **`alwaysPopulated`** — contexts that skip item count checks
 - **`activeMarkers`** — selectors marking a context's current selection (active page/tab/section classes, a segmented control's chosen option)
 - **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
+- **`overlays`** — region overlays (`detail`, `plan`, `viewing_menu`): `entry` priority and internal `layout`
+- **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`)
+- **`entryAnchors`** — fixed entry index (`hero: 0`)
+- **`glider`** — the page's one scroll animator (`assets/js/scroll_glider.js`)
 - **`createBehavior`** — factory function for page behaviors
 
 ### Context Types vs Instance Names
 
 The `Context` enum defines behavior types (`GRID`, `MENU`, `TOOLBAR`, etc.). The `_context` field stores instance names (`"grid"`, `"sidebar"`, `"sections"`). The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types.
 
-This lets multiple instances share behavior (sidebar and sections both use MENU navigation rules) while having distinct DOM selectors and nav graph entries.
+This lets multiple instances share behavior (sidebar and sections both use MENU navigation rules) while having distinct DOM selectors and nav graph entries. `data-nav-context` on `<html>` carries the instance name. Only the literal `grid` instance uses grid arithmetic (`data-nav-grid`); other GRID-typed instances walk linearly.
 
 ### Navigation Graph
 
-Cross-context transitions are driven by an adjacency map in `core/nav_graph.js`. Each zone defines edges between contexts with ordered fallback candidates. The graph is rebuilt from DOM state on every sync. Layouts and alwaysPopulated lists come from config.
+Cross-context transitions are driven by an adjacency map in `core/nav_graph.js`. Each layout defines edges between contexts with ordered fallback candidates. The graph is rebuilt from DOM state on every sync and has a node only for a context on the page (its count, or `alwaysPopulated`). **At any wall — every context type, every direction — the graph answers**: a declared edge crosses, no edge stays a wall. The page's layout key is its root's `data-nav-default-zone`; a page opens on the first populated context of its `cursorStartPriority`.
 
 ### Input Sources
 
-Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`, `stop()`, `onAction(action)`, `onInputDetected(type)`. The orchestrator is source-agnostic. Sources are wired as factory functions in config.
+Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`, `stop()`, optional `pause()`/`resume()`, and the `onAction(action)` / `onInputDetected(type)` callbacks they receive in their config. The orchestrator is source-agnostic. `inputSources()` in `index.js` builds them; a remote player's page (`<html data-player="remote">`, the TV app) gets the keyboard source alone. Key and button maps come only from the catalog bindings the layout embeds (`data-input-bindings`); `DEFAULT_KEY_MAP`/`DEFAULT_BUTTON_MAP` are test fixtures.
 
 ### MENU Behavior
 
-The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK enters the sidebar there, like any content context. SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning). The sidebar's collapse toggle is a nav item with `data-nav-defer-activate`: reachable by cursor, toggled only by explicit SELECT.
+The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK enters the sidebar there, like any content context. SELECT on a MENU is RIGHT plus a click: the primary menu exits to content without clicking (its items activate on focus); a non-primary menu follows its `right` edge if it has one, then clicks the item.
 
 ### SHELF Behavior (spatial, unlike MENU)
 
-SHELF covers the home page's media tiles (`hero`, `continue`, `recently`, `coming_up`). A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
+SHELF covers tiles laid out in space: the home shelves (`hero`, `continue`, `recently`, `coming_up`), Discovery's shelves, `people`, `profile_picker`, `detail_cast` and `plan_grid`. A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
 
 `_shelfTransition()` returns a plain `navigate` for all four directions and the orchestrator's `_shelfNavigate()` resolves them by asking, in order: **the layout** (`findNearest()` on live rects), **the nav graph** (cross into a neighbouring zone; empty shelves are skipped by the candidate fallback lists), then **the sequence** (left/right only — reading order, which is what carries you rightward from the marquee's top secondary to the one below it). UP and DOWN never fall through to the sequence: "the next tile" in a mosaic sits beside you, so a vertical press would move sideways. Keeping walls out of the state machine is what lets a row and a mosaic share one rule set.
 
-SELECT activates the focused card; BACK is a no-op.
+SELECT activates the focused card, PLAY plays it; BACK enters the main menu (containment, below).
 
 **Don't add an adjacency table for a new mosaic** — geometry already handles it, and a table goes stale the moment the layout renders a different number of tiles.
 
@@ -75,7 +79,7 @@ Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the foc
 
 ### TREE Behavior (nesting vertical list)
 
-`_treeTransition()` handles the detail modal's body — a vertical list whose items nest (seasons contain episodes; an episode contains its own controls). UP/DOWN walk it as rendered. LEFT and RIGHT are **depth**, not lateral movement, and the machine emits only `tree_in` / `tree_out` because what they mean depends on what the cursor is on: RIGHT expands a collapsed `[aria-expanded]` head, else steps along the item's `[data-nav-sub-item]` controls; LEFT walks back out of those, then collapses the enclosing `[data-nav-group]`'s expanded head, landing on it. Read `aria-expanded` — never mirror disclosure state into a parallel `data-` attribute.
+`_treeTransition()` handles every vertical list whose rows carry controls or nest: the detail modal's body (seasons contain episodes; an episode contains its own controls), the feed, the watchlist rows, the plan bodies, `bindings`, and every nested menu list. UP/DOWN walk it as rendered. LEFT and RIGHT are **depth**, not lateral movement, and the machine emits only `tree_in` / `tree_out` because what they mean depends on what the cursor is on: RIGHT expands a collapsed `[aria-expanded]` head, else steps along the item's `[data-nav-sub-item]` controls; LEFT walks back out of those, then collapses the enclosing `[data-nav-group]`'s expanded head, landing on it. Read `aria-expanded` — never mirror disclosure state into a parallel `data-` attribute.
 
 A TREE can also sit inside a page: Settings → Controls wraps its binding table in a `bindings` zone under the settings grid (`grid.down → bindings`, `bindings.up → grid`), each row an item with its keycaps and Unbind buttons as `[data-nav-sub-item]`s. The rest of Settings stays the flat walk — every stepper/choice/list control its own item — so a many-row table of rows-with-controls is the case for a nested tree, not a reason to retype the page.
 
@@ -85,67 +89,82 @@ An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `
 
 ### BACK and CLEAR Semantics
 
-BACK is answered by `_backTransition()` **before** the context-type dispatch — one function, not a `case Action.BACK` in each. It peels containment in order: an overlay region with a nav-graph `back` edge leaves for that region (one press, however deep — stepping out a level at a time is LEFT's job) → sub-focus exits → an overlay dismisses → the primary menu exits to the pre-sidebar context → content enters the primary menu. On a shell that can leave (the TV app, `leaveApp` from `MediaCentaurTV.leave`), BACK in the primary menu — and on a menu-less page — leaves the app (`leave_app`) instead of doing nothing. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is therefore **the way to the main nav** (UIDR-028); LEFT is lateral movement within the page and never reaches the sidebar — no zone layout declares a `left: ["sidebar"]` edge. Each layout still declares its sidebar node (with `right` candidates for exiting); its presence in the graph is what tells BACK the page has a main menu, so a sidebar-less page (setup) stays a no-op. There is no `onEscape` behavior hook.
+BACK is answered by `_backTransition()` **before** the context-type dispatch — one function, not a `case Action.BACK` in each. `backStep()` states the step as data and `_backTransition()` acts on it; the hint bar labels B with the same value. It peels containment in order: an overlay region with a nav-graph `back` edge leaves for that region (one press, however deep — stepping out a level at a time is LEFT's job) → sub-focus exits → an overlay dismisses → the primary menu exits to the pre-sidebar context → content enters the primary menu. On a shell that can leave (the TV app, `leaveApp` from `MediaCentaurTV.leave`), BACK in the primary menu — and on a menu-less page — leaves the app (`leave_app`) instead of doing nothing. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is therefore **the way to the main nav** (UIDR-028); LEFT is lateral movement within the page and never reaches the sidebar — no zone layout declares a `left: ["sidebar"]` edge. Each layout still declares its sidebar node (with `right` candidates for exiting); the node is in the graph only when the sidebar is on the page, which is what tells BACK the page has a main menu — a sidebar-less page (the setup tour, the profile door) stays a no-op, or leaves the app on the TV. There is no `onEscape` behavior hook.
 
 Adding a BACK case to a transition function is a smell: express it as containment instead.
 
-CLEAR delegates to page behavior `onClear()` in any context. Library implements it (clears the filter, follows focus into the grid); download implements it (clears the omnibox query, falling through to the history search). If no `onClear` exists, the action is silently dropped.
+CLEAR delegates to page behavior `onClear()` in any page context, before `onAction`. Library (clears the filter and returns `"grid"`, which the cursor follows when the grid has items), Downloads (the release search, then the History search), Discovery (its search) and Watchlist (its search) implement it. An open overlay keeps CLEAR — and the tab keys — out: it covers the page. If no `onClear` exists, the action is dropped.
+
+ZONE_NEXT/ZONE_PREV (`]` `[`, RB LB) are also answered before the type dispatch: from any page context they cycle the page's `zone-tabs` strip.
+
+### Nested Menus
+
+A GlassMenu list nested in its trigger's zone is its own TREE zone with `up` and `back` edges to that zone and a `data-nav-dismiss-event`. It **takes the cursor when it opens** (`_enterOpenedMenu`: the zone went from empty to populated while the cursor was in its `back` target), on its chosen option; a trigger that was a row's sub-item leaves its sub-focus behind. **Leaving it in any direction pushes its dismiss event**, so the list closes; an arrow off its end returns to the trigger, as BACK does (the `enter_context` directive's `from`). Users: `library_sort_menu`, `watchlist_rung_menu`, `detail_menu`, `detail_tracking_menu`, `plan_menu`.
+
+### Overlay Entry and Return
+
+An overlay opens on its entry region's chosen item (active marker — the playing subtitle track), else `entryDefaults`, else the first. The page context it opened over is recorded (a click on a card names it with the entity id); on close the cursor returns there — a card by entity id, any other context (a feed row, a pursuit) by its remembered index; with no origin (a deep link), the page's cursor start. Every context remembers its index; the grid also its entity id.
+
+### Hint Bar
+
+The gamepad hint bar is derived, never listed: `_projectHints()` writes `data-hint-back` (= `backStep()`), `data-hint-clear` (page `onClear`, no overlay), `data-hint-play` (focused item has `data-entity-id`) and `data-hint-tabs` (≥2 tabs, no overlay) on `<html>` after every action, patch and overlay transition; CSS in `app.css` shows the entries. A new zone needs nothing for it.
 
 ### Page Behaviors
 
-Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onAction`, `onClear`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
+Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onAction` (returns `true` to consume, `{transitionTo}` to move, falsy to pass), `onClear` (may return a context name), `onSyncState`, `onZoneChanged` — all optional; most pages need none. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (Settings `sections`, Guide `guide_chapters`; the primaryMenu always activates).
+
+Two decorators wrap a behavior: `withViewing` (`viewing_behavior.js`) while `[data-viewing]` is up — arrows seek, SELECT pauses or takes the prompt, MENU toggles the track menu, DOWN/UP drive the paused bar's tracks button, BACK passes through — and `withWipNotice` (`wip_notice.js`) on a page whose navigation is unfinished. The gamepad's `input_gate.js` lets a pad drive the page only when it is focused, visible and not automation (E2E opts in with `window.__inputAutomationDrivesGamepad`).
 
 Pages with clearable state (filters, search) should implement `onClear()`. There is no escape hook — BACK semantics live entirely in the state machine.
 
 ### URL Persistence (data-nav-remember)
 
-Sidebar links with `data-nav-remember` preserve the target page's query params across navigation. Implemented in `root.html.heex`. Pages must use query params + `handle_params` for this to work.
+Sidebar links rendered with `<.sidebar_link remember>` carry `data-nav-remember` and preserve the target page's query params across navigation. Implemented in `root.html.heex`. Pages must use query params + `handle_params` for this to work.
 
 Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transient-params` on their root element — the remember script strips those before saving, so leaving a section closes its modals rather than re-opening them on return. A page that adds a URL-driven modal must add its param to that list.
 
 ## Checklist: Adding Input Nav to a New Page
 
-All config changes go in `config.js`:
-
-1. **Nav graph:** Add zone layout in `layouts` and `cursorStartPriority`
-2. **Custom contexts:** If needed, add to `instanceTypes`, `contextSelectors`, and `alwaysPopulated`
-3. **Page behavior:** Create `<name>_behavior.js`, register in `page_behavior.js`
-4. **Template:** Add `data-page-behavior`, `data-nav-default-zone` (if no zone tabs), `data-nav-zone`, `data-nav-item`, `data-nav-grid` attributes
-5. **Sidebar link:** Add `data-nav-remember` to the sidebar link in `layouts.ex` if the page uses query params
-6. **Tests:** Nav graph zone tests, focus context instance tests, behavior tests
-7. **Verify:** `bun test assets/js/input/` — all pass, then manual keyboard nav test
+1. **Layout:** in `config.js`, the page's `layouts` entry (edges between its zones, plus a `sidebar` node with `right` candidates) and `cursorStartPriority`
+2. **Zones:** for each new zone an `instanceTypes` and `contextSelectors` entry; `alwaysPopulated` only for static content always on the page
+3. **Template:** `data-nav-default-zone="<layout key>"` and `data-page-behavior` on the page root; every interactive control a `data-nav-item tabindex="0"` inside a connected zone, or a `[data-nav-sub-item]` of a TREE row; `data-nav-transient-params` for URL-driven overlays. **Never `data-captures-keys` on a control or field the input system navigates** — the keyboard source ignores every key there, a trap
+4. **Nested menus and overlays:** a menu list as above (Nested Menus); a regioned overlay in `config.overlays`
+5. **Page behavior** (only if needed): `<name>_behavior.js`, registered in `page_behavior.js` as a zero-argument closure (wrapped in `withWipNotice` while unfinished)
+6. **Sidebar link:** `<.sidebar_link remember>` in `layouts.ex` if the page uses query params
+7. **Verify:** `bun test assets/js/input/` (`__tests__/config_coverage.test.js` fails on a template zone, default zone or behavior with no config), then walk every surface with `mc-nav-trace`: no trap, no unreachable control, no clipped focus
 
 ## DOM Contract
 
 | Attribute | Purpose |
 |-----------|---------|
-| `data-nav-zone` | Navigation zone container (`grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`) |
+| `data-nav-zone` | Navigation zone container (names per `config.js`) |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) |
-| `data-nav-grid` | CSS grid container (column count detection) |
-| `data-page-behavior` | Page behavior to activate — one per page root: `apps`, `discovery`, `downloads`, `guide`, `library`, `reconcile`, `review`, `settings`, `setup`, `social`, `status`, `watchlist` |
-| `data-nav-default-zone` | Default zone for pages without zone tabs |
-| `data-nav-remember` | Sidebar link preserves target page URL across navigation |
+| `data-nav-sub-item` | One of a row's controls — RIGHT steps onto it |
+| `data-nav-grid` | CSS grid container (column count, literal `grid` zone) |
+| `data-page-behavior` | Page behavior, on the page root: `apps`, `discovery`, `downloads`, `episode-mapping`, `guide`, `library`, `profiles`, `review`, `settings`, `setup`, `social`, `status`, `watch-history`, `watchlist` (Home and Console carry none) |
+| `data-nav-default-zone` | The page's layout key, on the page root — every page |
+| `data-nav-remember` | Sidebar link preserves target page URL across navigation (`<.sidebar_link remember>`) |
 | `data-nav-transient-params` | On a page root: params stripped from the remembered URL (modal state, one-shot triggers) |
-| `data-entity-id` | Stable entity identifier on cards |
-| `data-detail-mode` | Presentation shell type (`modal`, `drawer`) |
-| `data-detail-nested` | Modal is below its root view (`true`/`false`) — read by orchestrator for layered BACK: its dismiss event closes it alone and the overlay beneath keeps the cursor. Server-owned: the root view is entity-dependent. The viewing layer's track menu carries it, nested in the OSD |
-| `data-captures-keys` | Element handles own keyboard events |
-| `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT |
-| `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` |
-| `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from |
-| `data-nav-reveal` | Vertical reveal subject: scroll THIS ancestor into view instead of the focused item — required when a surface's items differ in height, or each frames itself; a home shelf's section, so its heading shows. Sideways the item still reveals itself |
-| `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`), so a surface rests in one place whichever way it was approached |
-| `data-nav-reveal-next` | On a zone container: a reveal there also shows the next zone's subject at the scrollport end, while the focused item stays whole — home shelves show the shelf below, measured, never a fixed reserve |
-| `data-nav-enter-scroll-top` | On a zone container: spatially crossing into the zone glides its nearest scrollable ancestor to the top — for pinned zones where reveal is a no-op (detail action row). BACK/restores don't move the scroll |
-| `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
-| `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
-| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`) |
-| `data-nav-dismiss-event` | On a zone container: the LiveView event BACK pushes when it leaves the zone along its `back` edge (`title_menu_close`, `close_sort`) — a menu list closes itself this way |
+| `data-entity-id` | Stable card identifier: grid memory, overlay origin, PLAY's target |
+| `data-detail-mode` | An open overlay (`modal`) |
+| `data-detail-nested` | The overlay is below its root view (or inside another — the track menu in the OSD): BACK pushes its dismiss event and keeps the cursor in the overlay. Server-owned |
+| `data-dismiss-event` | The event BACK's dismiss pushes (default `close_detail`) |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `viewing_menu`) |
+| `data-nav-dismiss-event` | On a zone container: pushed whenever the cursor leaves the zone — a nested menu closes itself |
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
 | `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |
-| `data-input` | Current input method on `<html>` (`mouse`, `keyboard`, `gamepad`) |
-| `data-nav-context` | Current focus context for hint bar on `<html>` |
-| `data-gamepad-type` | Controller type for hint bar labels on `<html>` (`xbox`, `playstation`, `generic`) |
+| `data-resume-target`, `data-selected` | Where `detail_list` / `detail_rail` open (via `entryDefaults`) |
+| `data-captures-keys` | Element handles its own keys; the keyboard source ignores them all. Never on a navigated control |
+| `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from |
+| `data-nav-reveal` | Vertical reveal subject: scroll THIS ancestor into view instead of the focused item. Sideways the item still reveals itself |
+| `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`) |
+| `data-nav-reveal-next` | On a zone container: a reveal there also shows the next zone's subject at the scrollport end |
+| `data-nav-enter-scroll-top` | On a zone container: spatially crossing into the zone glides its nearest scrollable ancestor to the top |
+| `data-nav-focus-target` / `data-nav-focus-ring` | Delegate the focus ring from an item to its children |
+| `data-viewing`, `data-viewing-prompt`, `data-viewing-tracks` | Viewing layer present; its prompt pill; the paused bar's tracks button (not a nav item) |
+| `data-input-bindings` | On the hook element: the catalog bindings the sources' maps are built from |
+| `data-player` | On `<html>`: `remote` on the TV app — keyboard source only |
+| `data-input`, `data-input-editing`, `data-nav-context`, `data-gamepad-type`, `data-hint-*` | Projected onto `<html>` by the input system |
 
 ## Test Patterns
 
@@ -153,9 +172,9 @@ Tests use `bun:test`. Three mock factories in `core/__tests__/orchestrator.test.
 
 - **`createMockReader(overrides)`** — controllable reader values
 - **`createMockWriter()`** — proxy recording all calls to `calls` array
-- **`createMockGlobals()`** — mock document/sessionStorage/rAF with `_dispatchKeyDown`, `_dispatchMouseMove(x, y)`, `_flushRAF` helpers
+- **`createMockGlobals()`** — mock document/sessionStorage/rAF with `_dispatchKeyDown`, `_dispatchMouseMove(x, y)`, `_dispatchClick`, `_dispatchWheel`, `_dispatchVisibilityChange`, `_flushRAF` helpers
 
-Pure modules (focus_context, nav_graph, spatial, actions) test directly — no mocks needed.
+They are module-local (not exported); a `setup(readerOverrides, configOverrides)` helper there builds an orchestrator. Pure modules (focus_context, nav_graph, spatial, actions) test directly — no mocks needed. Behavior tests inject a `dom` double. Browser-level coverage lives in Playwright (`test/e2e/*.spec.js`, e.g. `gamepad-specific.spec.js`).
 
 ## Runtime Debugging
 
@@ -164,20 +183,29 @@ it at runtime — no rebuild needed. **Do not use the chrome-devtools MCP tools;
 they do not work on this machine.** The agent tooling in `~/scripts/agents/`
 is the door:
 
-- **Trace a key sequence:** `mc-nav-trace` — the first tool for any
-  navigation question. It drives keys through the real pipeline and reports
-  which item holds focus after each step, flagging clipped focus.
+- **Trace a key sequence:** `mc-nav-trace [--url <url>] [--step-ms N] [--debug] [--json] '<keys>'`
+  — the first tool for any navigation question. It drives keys through the
+  real pipeline and reports which item holds focus after each step, flagging
+  clipped focus in a `.row-scroll` track. **On the live dev server it acts on
+  the owner's real library: never send Enter/`p` inside a title modal, plan
+  modal, tracking card or settings control** — a stray press there has
+  started a real download.
 - **Evaluate JS in a live page:** `chromium-probe [--with-console] <url> '<expr>'`
   — e.g. `chromium-probe --with-console http://127.0.0.1:2160/library
   'window.__inputDebug = true; document.activeElement?.outerHTML'`. With
   `--with-console` the `[input]` trace comes back with the result.
-- **Screenshot:** `page-shot --url <url> --viewport 1920x1080 --wait-ms 3000`,
+- **Screenshot:** `page-shot --url <url> --viewport 1920x1080 --wait-ms 3000`
+  (default viewport 1600x1000; `--eval` runs JS first, e.g. set
+  `document.documentElement.dataset.input = "gamepad"` to show the hint bar),
   then Read the PNG.
+
+The headless tools pass the profile gate themselves; `chromium-probe` takes an
+expression, so wrap statements in `(async () => { … })()`.
 
 Caveats: `chromium-probe` runs headless — there are no window-focus events and
 CSS transitions never settle, so assert on the state that drives an
-animation, not on animated property values. A synthetic keydown must target
-the focused element, not `document.body`, or `KeyboardSource` ignores it.
+animation, not on animated property values. Dispatch a synthetic keydown on
+an element (the focused one), never on `document` itself.
 
 **What the logs cover:**
 - Context transitions (`_setContext`) with caller stack trace
@@ -191,10 +219,10 @@ the focused element, not `document.body`, or `KeyboardSource` ignores it.
 
 ## Design Rules
 
-- **A zone may contain a zone; an item counts once, for its nearest zone.** An item counts for a context only when its nearest `[data-nav-zone]` ancestor matches the context selector's zone compound, or when it has none (`ownedByScope` in `dom_adapter.js`). A zone may declare `data-nav-dismiss-event`, the event BACK pushes when it leaves the zone along its `back` edge — a menu list closes itself this way.
+- **A zone may contain a zone; an item counts once, for its nearest zone.** An item counts for a context only when its nearest `[data-nav-zone]` ancestor matches the context selector's zone compound, or when it has none (`ownedByScope` in `dom_adapter.js`). A zone may declare `data-nav-dismiss-event`, pushed whenever the cursor leaves it — a menu list closes itself this way.
 - **Empty-context safety.** Every zone must define both a layout and cursor start priority. The graph prevents transitions into empty contexts; the priority list handles initial placement.
 - **Page state lives in the URL.** Use `handle_params` + `live_patch`. Don't duplicate in sessionStorage.
-- **DOM access confined to `core/dom_adapter.js`.** Orchestrator and behaviors never call `document.*` directly.
+- **DOM access goes through the reader/writer.** The orchestrator never calls `document.*`; a behavior that reads the DOM takes an injected `dom` (its module exports the real one).
 - **Single-owner DOM projection.** Each `data-*` attribute on `<html>` has one state owner and one sync path (state change → callback → DOM write). Never piggyback DOM syncs on unrelated events. See "Single-Owner DOM Projection" in `docs/input-system.md`.
-- **Modal sub-views use deferred refocus.** When a modal is below its root view, `_executeDismiss` reads `data-detail-nested` via `reader.isDetailNested()` and pushes `close_detail` without changing focus context, setting `_pendingModalRefocus = true`. Never re-derive "am I nested" on the client by comparing the view name to `"main"` — which view is root depends on the entity. `_syncState` (which fires after the LiveView DOM patch) checks this flag and calls `focusFirst(MODAL)`. Never use `requestAnimationFrame` for post-patch focus — the LiveView round-trip takes longer than a single frame.
+- **Modal sub-views use deferred refocus.** When a modal is below its root view, `_executeDismiss` reads `data-detail-nested` via `reader.isDetailNested()` and pushes `close_detail` without changing focus context, setting `_pendingModalRefocus = true`. Never re-derive "am I nested" on the client by comparing the view name to `"main"` — which view is root depends on the entity. `_syncState` (which fires after the LiveView DOM patch) checks this flag and focuses the overlay's entry region. Never use `requestAnimationFrame` for post-patch focus — the LiveView round-trip takes longer than a single frame.
 - **Dependency directionality.** Core never imports from app layer. App imports from `core/index.js`.

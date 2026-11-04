@@ -13,7 +13,6 @@ import { debug } from "./debug"
 
 export const Context = Object.freeze({
   GRID: "grid",
-  DRAWER: "drawer",
   MODAL: "modal",
   TOOLBAR: "toolbar",
   MENU: "menu",
@@ -34,10 +33,9 @@ export function contextType(instance, instanceTypes = {}) {
 
 /**
  * @typedef {Object} FocusDirective
- * @property {"navigate"|"focus_context"|"enter_context"|"dismiss"|"activate"|"none"} type
- * @property {string} [direction] - For navigate and enter_context directives
- * @property {string} [target] - For focus_context directives
- * @property {string} [context] - For enter_context directives
+ * @property {"navigate"|"enter_context"|"activate"|"dismiss"|"play"|"zone_cycle"|"enter_sidebar"|"exit_sidebar"|"leave_app"|"enter_sub_focus"|"exit_sub_focus"|"tree_in"|"tree_out"|"none"} type
+ * @property {string} [direction] - For navigate, enter_context and zone_cycle
+ * @property {string} [context] - For enter_context
  */
 
 const NONE = Object.freeze({ type: "none" })
@@ -49,18 +47,18 @@ function navigate(direction) {
   return { type: "navigate", direction }
 }
 
-function focusContext(target) {
-  return { type: "focus_context", target }
-}
-
 /**
  * Cross into `context`, having travelled in `direction` to get there. The
  * direction matters because entering a zone should land you on something
  * adjacent to the edge you crossed — see the orchestrator's `_enterContext`.
- * Omitted when the crossing is not spatial (exiting the sidebar).
+ * Omitted when the crossing is not spatial (exiting the sidebar). `from`
+ * names the context left at a wall, so a return to the zone a region backs
+ * onto can land where the cursor left it.
  */
-function enterContext(context, direction) {
-  return { type: "enter_context", context, direction }
+function enterContext(context, direction, from = null) {
+  return from == null
+    ? { type: "enter_context", context, direction }
+    : { type: "enter_context", context, direction, from }
 }
 
 function enterSubFocus() {
@@ -88,14 +86,12 @@ export class FocusContextMachine {
     }
     this._context = config.initialContext ?? Context.GRID
     this._onContextChanged = config.onContextChanged ?? null
-    this._drawerOpen = false
     this._subFocus = false
     // Whether an overlay currently contains the cursor. Tracked separately from
     // the context because an overlay may hold several regions (the detail
     // modal's action row and episode list), so "am I in an overlay" can no
     // longer be answered by comparing the context to MODAL.
     this._overlay = false
-    this._zone = "watching"
     this._navGraph = null
   }
 
@@ -126,6 +122,12 @@ export class FocusContextMachine {
     // property of the region you are in — it is a property of what contains
     // that region. See `_backTransition`.
     if (action === Action.BACK) return this._backTransition()
+    // The tab keys switch the page's tabs, wherever on the page the cursor
+    // is; an overlay covers the page, so it keeps them out.
+    if (action === Action.ZONE_NEXT || action === Action.ZONE_PREV) {
+      if (this._overlay) return NONE
+      return { type: "zone_cycle", direction: action === Action.ZONE_NEXT ? "next" : "prev" }
+    }
     // A remote's Play/Pause key reaches the machine only while nothing is
     // playing (the viewing behaviour answers it otherwise): then it is Play.
     if (action === Action.PLAY_PAUSE) action = Action.PLAY
@@ -133,7 +135,6 @@ export class FocusContextMachine {
     const type = contextType(this._context, this._config.instanceTypes)
     switch (type) {
       case Context.MODAL:    return this._modalTransition(action)
-      case Context.DRAWER:   return this._drawerTransition(action)
       case Context.GRID:     return this._gridTransition(action)
       case Context.TOOLBAR:  return this._toolbarTransition(action)
       case Context.MENU:     return this._menuTransition(action)
@@ -174,40 +175,46 @@ export class FocusContextMachine {
    * in a different transition function, where the ordering was implicit.
    */
   _backTransition() {
-    const target = this._navGraph?.[this._context]?.back
-    if (target) {
-      this._subFocus = false
-      this._setContext(target)
-      return enterContext(target, "back")
+    switch (this.backStep()) {
+      case "region": {
+        const target = this._navGraph[this._context].back
+        this._subFocus = false
+        this._setContext(target)
+        return enterContext(target, "back")
+      }
+      case "sub_focus":
+        this._subFocus = false
+        return exitSubFocus()
+      case "dismiss":
+        return DISMISS
+      case "exit_menu":
+        return { type: "exit_sidebar" }
+      case "enter_menu":
+        this._setContext(this._config.primaryMenu)
+        return { type: "enter_sidebar" }
+      case "leave_app":
+        return LEAVE
+      default:
+        return NONE
     }
-
-    if (this._subFocus) {
-      this._subFocus = false
-      return exitSubFocus()
-    }
-
-    if (this._overlay) return DISMISS
-    const primaryMenu = this._config.primaryMenu
-    const atRoot = this._config.canLeave ? LEAVE : null
-    if (this._context === primaryMenu) return atRoot ?? { type: "exit_sidebar" }
-    if (primaryMenu && this._navGraph?.[primaryMenu]) {
-      this._setContext(primaryMenu)
-      return { type: "enter_sidebar" }
-    }
-    return atRoot ?? NONE
   }
 
   /**
-   * Notify that the zone has changed (CW <-> Library).
-   * Resets context to GRID and clears drawer state.
+   * What BACK would do now, without doing it — the containment order above,
+   * as data. `_backTransition` acts on it and the hint bar labels B with it,
+   * so the legend and the press cannot disagree.
+   *
+   * @returns {"region"|"sub_focus"|"dismiss"|"exit_menu"|"enter_menu"|"leave_app"|null}
    */
-  zoneChanged(zone) {
-    this._zone = zone
-    this._drawerOpen = false
-    // Preserve ZONE_TABS context — user is still navigating tabs
-    if (this._context !== Context.ZONE_TABS) {
-      this._setContext(Context.GRID)
-    }
+  backStep() {
+    if (this._navGraph?.[this._context]?.back) return "region"
+    if (this._subFocus) return "sub_focus"
+    if (this._overlay) return "dismiss"
+    const primaryMenu = this._config.primaryMenu
+    const atRoot = this._config.canLeave ? "leave_app" : null
+    if (this._context === primaryMenu) return atRoot ?? "exit_menu"
+    if (primaryMenu && this._navGraph?.[primaryMenu]) return "enter_menu"
+    return atRoot
   }
 
   /**
@@ -218,15 +225,6 @@ export class FocusContextMachine {
    */
   forceContext(context) {
     this._setContext(context)
-  }
-
-  /**
-   * Sync the drawer-open flag from the DOM.
-   * Replaces direct _drawerOpen mutation from the orchestrator.
-   * @param {boolean} isOpen
-   */
-  syncDrawerState(isOpen) {
-    this._drawerOpen = isOpen
   }
 
   /**
@@ -272,29 +270,26 @@ export class FocusContextMachine {
   }
 
   /**
-   * Notify that a modal/drawer has opened or closed.
+   * Notify that an overlay has opened or closed.
    *
-   * @param {"modal"|"drawer"|null} presentation
+   * @param {"modal"|null} presentation
    * @param {string} [entryContext] - Which region of the overlay takes the
    *   cursor. Overlays that are a single flat list omit it and get MODAL; the
    *   detail modal names its action row, because "the first item in the
    *   overlay" and "the region you should land in" stopped being the same thing
    *   once the overlay had more than one region.
+   * @param {string} [returnTo] - On close: the page context the cursor returns
+   *   to (the one the overlay opened over).
    */
-  presentationChanged(presentation, entryContext = null) {
+  presentationChanged(presentation, entryContext = null, returnTo = null) {
     this._subFocus = false
     if (presentation === "modal") {
       this._overlay = true
       this._setContext(entryContext ?? Context.MODAL)
-    } else if (presentation === "drawer") {
-      this._overlay = true
-      this._drawerOpen = true
-      this._setContext(Context.DRAWER)
     } else {
       const wasOverlay = this._overlay
       this._overlay = false
-      this._drawerOpen = false
-      if (wasOverlay) this._setContext(Context.GRID)
+      if (wasOverlay) this._setContext(returnTo ?? this._config.primaryMenu)
     }
   }
 
@@ -322,28 +317,6 @@ export class FocusContextMachine {
       case Action.NAVIGATE_RIGHT: this._subFocus = true; return enterSubFocus()
       case Action.SELECT:         return ACTIVATE
       case Action.PLAY:           return { type: "play" }
-      case Action.ZONE_NEXT:      return NONE
-      case Action.ZONE_PREV:      return NONE
-      default: return NONE
-    }
-  }
-
-  /** Drawer: split focus. Left → grid (rightmost col, same row). Escape → dismiss. */
-  _drawerTransition(action) {
-    switch (action) {
-      case Action.NAVIGATE_UP:    return navigate("up")
-      case Action.NAVIGATE_DOWN:  return navigate("down")
-      case Action.NAVIGATE_LEFT: {
-        const target = this._navGraph?.drawer?.left
-        if (!target) return NONE
-        this._setContext(Context.GRID)
-        return { type: "grid_row_edge", side: "right" }
-      }
-      case Action.NAVIGATE_RIGHT: return NONE
-      case Action.SELECT:         return ACTIVATE
-      case Action.PLAY:           return { type: "play" }
-      case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
-      case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE
     }
   }
@@ -357,8 +330,6 @@ export class FocusContextMachine {
       case Action.NAVIGATE_RIGHT: return navigate("right")
       case Action.SELECT:         return ACTIVATE
       case Action.PLAY:           return { type: "play" }
-      case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
-      case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE
     }
   }
@@ -384,8 +355,6 @@ export class FocusContextMachine {
         return enterContext(target, "up")
       }
       case Action.SELECT:         return ACTIVATE
-      case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
-      case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE
     }
   }
@@ -496,21 +465,14 @@ export class FocusContextMachine {
     }
   }
 
-  /** Zone tabs: left/right between tabs. Enter activates. Down consults nav graph. */
+  /** Zone tabs: left/right between tabs. Enter activates. Up and down follow the nav graph. */
   _zoneTabsTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
-      case Action.NAVIGATE_DOWN: {
-        const target = this._navGraph?.zone_tabs?.down
-        if (!target) return NONE
-        this._setContext(target)
-        return enterContext(target, "down")
-      }
-      case Action.NAVIGATE_UP:    return NONE
+      case Action.NAVIGATE_DOWN:  return this.contextWall(this._context, "down")
+      case Action.NAVIGATE_UP:    return this.contextWall(this._context, "up")
       case Action.SELECT:         return ACTIVATE
-      case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
-      case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE
     }
   }
@@ -535,22 +497,6 @@ export class FocusContextMachine {
     const target = this.getGraphTarget(context, direction)
     if (!target) return NONE
     this._setContext(target)
-    return enterContext(target, direction)
-  }
-
-  /**
-   * Called by the orchestrator when grid navigation hits a wall.
-   * Delegates to contextWall for up/left; handles right → drawer specially.
-   * @param {"up"|"down"|"left"|"right"} direction
-   * @returns {FocusDirective}
-   */
-  gridWall(direction) {
-    if (direction === "right") {
-      const target = this.getGraphTarget(Context.GRID, "right")
-      if (!target) return NONE
-      this._setContext(Context.DRAWER)
-      return focusContext(Context.DRAWER)
-    }
-    return this.contextWall(Context.GRID, direction)
+    return enterContext(target, direction, context)
   }
 }

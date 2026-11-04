@@ -8,7 +8,6 @@ import { Context, buildNavGraph, resolveCursorStart } from "../core/index"
 describe("App config", () => {
   test("has all required context selectors", () => {
     expect(inputConfig.contextSelectors[Context.GRID]).toBeDefined()
-    expect(inputConfig.contextSelectors[Context.DRAWER]).toBeDefined()
     expect(inputConfig.contextSelectors[Context.MODAL]).toBeDefined()
     expect(inputConfig.contextSelectors[Context.TOOLBAR]).toBeDefined()
     expect(inputConfig.contextSelectors.sidebar).toBeDefined()
@@ -28,7 +27,6 @@ describe("App config", () => {
   })
 
   test("has layouts for all zones", () => {
-    expect(inputConfig.layouts.watching).toBeDefined()
     expect(inputConfig.layouts.library).toBeDefined()
     expect(inputConfig.layouts.settings).toBeDefined()
     expect(inputConfig.layouts.status).toBeDefined()
@@ -36,7 +34,6 @@ describe("App config", () => {
   })
 
   test("has cursor start priority for all zones", () => {
-    expect(inputConfig.cursorStartPriority.watching).toBeDefined()
     expect(inputConfig.cursorStartPriority.library).toBeDefined()
     expect(inputConfig.cursorStartPriority.settings).toBeDefined()
     expect(inputConfig.cursorStartPriority.status).toBeDefined()
@@ -78,8 +75,10 @@ describe("App config", () => {
     expect(inputConfig.alwaysPopulated).toContain("guide_chapters")
   })
 
-  test("has alwaysPopulated list", () => {
-    expect(inputConfig.alwaysPopulated).toContain("sidebar")
+  // The sidebar is counted, not assumed: the profile door and the setup tour
+  // render none, and its absence is what tells BACK there is no menu to enter.
+  test("the sidebar is counted, the settings sections are always there", () => {
+    expect(inputConfig.alwaysPopulated).not.toContain("sidebar")
     expect(inputConfig.alwaysPopulated).toContain("sections")
   })
 

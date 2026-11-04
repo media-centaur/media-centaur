@@ -15,7 +15,8 @@
  * LEFT and RIGHT still seek. BACK passes through: containment dismisses the
  * overlay, whose dismiss event stops the viewing. With the menu open the
  * decorator steps aside so MODAL navigation walks the lists, except that
- * MENU closes it. Zone cycling and CLEAR mean nothing during a viewing.
+ * MENU closes it. The layer is an overlay, so the tab keys and CLEAR never
+ * reach the page beneath it (the orchestrator keeps them out of overlays).
  */
 
 import { Action } from "./core/index.js"
@@ -28,8 +29,6 @@ const BAR_SEEKS = Object.freeze({
   [Action.SEEK_FORWARD]: 30,
   [Action.SEEK_BACK]: -30,
 })
-
-const SWALLOWED = new Set([Action.ZONE_NEXT, Action.ZONE_PREV, Action.CLEAR])
 
 /**
  * Wrap a page behavior for the time a viewing is on.
@@ -88,10 +87,8 @@ export function withViewing(behavior, deps) {
         case Action.MENU:
           deps.pushEvent("viewing_menu_open", {})
           return true
-        case Action.BACK:
-          return false
         default:
-          return SWALLOWED.has(action)
+          return false
       }
     },
   }

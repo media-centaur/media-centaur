@@ -109,9 +109,8 @@ describe("Library behavior", () => {
     expect(inputConfig.layouts.library).toEqual({
       toolbar:           { down: ["library_sort_menu", "grid"] },
       library_sort_menu: { up: ["toolbar"], back: ["toolbar"] },
-      grid:              { up: ["toolbar"], right: ["drawer"] },
+      grid:              { up: ["toolbar"] },
       sidebar:           { right: ["grid", "toolbar"] },
-      drawer:            { left: ["grid", "toolbar"] },
     })
   })
 })

@@ -2920,63 +2920,28 @@ button.poster-tile-tool-on:hover {
   transform: translateY(0);
 }
 
-/* Hint groups: only show the one matching the current nav context */
-.hint-group {
+/* The legend: an entry shows when the input system says its button acts
+   here (data-hint-* on <html>, projected by the orchestrator). B's label
+   names the step BACK takes. */
+.hint[data-hint],
+.hint-back-label {
   display: none;
-  gap: 1.25rem;
 }
 
-/* Show the hint group matching the nav context */
-[data-nav-context="grid"] .hint-group[data-hint-context="grid"],
-[data-nav-context="zone_tabs"] .hint-group[data-hint-context="grid"],
-[data-nav-context="toolbar"] .hint-group[data-hint-context="grid"] {
+[data-hint-back] .hint[data-hint="back"],
+[data-hint-clear] .hint[data-hint="clear"],
+[data-hint-play] .hint[data-hint="play"],
+[data-hint-tabs] .hint[data-hint="tabs"] {
   display: flex;
 }
 
-[data-nav-context="modal"] .hint-group[data-hint-context="modal"] {
-  display: flex;
-}
-
-[data-nav-context="drawer"] .hint-group[data-hint-context="drawer"] {
-  display: flex;
-}
-
-[data-nav-context="sidebar"] .hint-group[data-hint-context="sidebar"] {
-  display: flex;
-}
-
-/* Non-primary menus (B is a no-op there — left walks toward the sidebar) */
-[data-nav-context="sections"] .hint-group[data-hint-context="menu"] {
-  display: flex;
-}
-
-/* Other non-primary menu / toolbar-companion instances across pages —
-   the upcoming rail/stragglers/actions list + its mini-month, plus the
-   downloads, status, and review zones. All share the minimal Navigate +
-   Select legend: B is a no-op (left walks toward the sidebar) and none
-   expose Clear / Play / Zone. Keyed by instance name because data-nav-context
-   carries the instance, not the resolved type. */
-[data-nav-context="rail"] .hint-group[data-hint-context="menu"],
-[data-nav-context="stragglers"] .hint-group[data-hint-context="menu"],
-[data-nav-context="actions"] .hint-group[data-hint-context="menu"],
-[data-nav-context="mini-month"] .hint-group[data-hint-context="menu"],
-[data-nav-context="omnibox"] .hint-group[data-hint-context="menu"],
-[data-nav-context="drafts"] .hint-group[data-hint-context="menu"],
-[data-nav-context="pursuits"] .hint-group[data-hint-context="menu"],
-[data-nav-context="history"] .hint-group[data-hint-context="menu"],
-[data-nav-context="other_downloads"] .hint-group[data-hint-context="menu"],
-[data-nav-context="drill-in"] .hint-group[data-hint-context="menu"],
-[data-nav-context="review-list"] .hint-group[data-hint-context="menu"],
-[data-nav-context="review-detail"] .hint-group[data-hint-context="menu"] {
-  display: flex;
-}
-
-/* Home shelves (hero + content rows) share one hint group */
-[data-nav-context="hero"] .hint-group[data-hint-context="shelf"],
-[data-nav-context="continue"] .hint-group[data-hint-context="shelf"],
-[data-nav-context="recently"] .hint-group[data-hint-context="shelf"],
-[data-nav-context="coming_up"] .hint-group[data-hint-context="shelf"] {
-  display: flex;
+[data-hint-back="region"] .hint-back-label[data-when~="region"],
+[data-hint-back="sub_focus"] .hint-back-label[data-when~="sub_focus"],
+[data-hint-back="exit_menu"] .hint-back-label[data-when~="exit_menu"],
+[data-hint-back="dismiss"] .hint-back-label[data-when~="dismiss"],
+[data-hint-back="enter_menu"] .hint-back-label[data-when~="enter_menu"],
+[data-hint-back="leave_app"] .hint-back-label[data-when~="leave_app"] {
+  display: inline;
 }
 
 /* Individual hint */

@@ -1112,7 +1112,7 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
   const selectors = {
     strip: "[data-nav-zone='strip'] [data-nav-item]",
     menu: "[data-nav-zone='menu'] [data-nav-item]",
-    drawer: "[data-detail-mode='drawer'] [data-nav-item]",
+    panel: "[data-panel] [data-nav-item]",
   }
 
   test("items inside a nested zone belong to the inner zone, not the outer", () => {
@@ -1166,20 +1166,20 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
     expect(reader.getItemCount("menu")).toBe(1)
   })
 
-  test("a scope that is not a zone (the drawer) keeps items in no zone and drops items in a zone inside it", () => {
-    const drawer = fakeTreeElement()
-    const loose = fakeTreeElement({ parent: drawer, navItem: true })
-    const region = fakeTreeElement({ zone: "detail_actions", parent: drawer })
+  test("a scope that is not a zone keeps items in no zone and drops items in a zone inside it", () => {
+    const panel = fakeTreeElement()
+    const loose = fakeTreeElement({ parent: panel, navItem: true })
+    const region = fakeTreeElement({ zone: "detail_actions", parent: panel })
     const inRegion = fakeTreeElement({ parent: region, navItem: true })
 
     stubDocument({
       activeElement: null,
-      querySelectorAll: (sel) => (sel === selectors.drawer ? [loose, inRegion] : []),
+      querySelectorAll: (sel) => (sel === selectors.panel ? [loose, inRegion] : []),
     })
     const reader = createDomReader({ contextSelectors: selectors })
 
-    expect(reader.getItemCount("drawer")).toBe(1)
-    expect(reader.getItemAt("drawer", 0)).toBe(loose)
+    expect(reader.getItemCount("panel")).toBe(1)
+    expect(reader.getItemAt("panel", 0)).toBe(loose)
   })
 })
 

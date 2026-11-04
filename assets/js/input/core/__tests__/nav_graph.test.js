@@ -5,16 +5,14 @@ import { buildNavGraph, resolveCursorStart } from "../nav_graph"
 const TEST_LAYOUTS = {
   watching: {
     zone_tabs: { down: ["grid"],             left: ["sidebar"] },
-    grid:      { up: ["zone_tabs"],          left: ["sidebar"], right: ["drawer"] },
+    grid:      { up: ["zone_tabs"],          left: ["sidebar"] },
     sidebar:   { right: ["grid", "zone_tabs"] },
-    drawer:    { left: ["grid"] },
   },
   library: {
     zone_tabs: { down: ["toolbar", "grid"],  left: ["sidebar"] },
     toolbar:   { up: ["zone_tabs"],          down: ["grid"],   left: ["sidebar"] },
-    grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
+    grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"] },
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
-    drawer:    { left: ["grid", "toolbar"] },
   },
   upcoming: {
     zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
@@ -73,12 +71,12 @@ const CURSOR_CONFIG = {
 
 /** Counts where everything is populated */
 function fullCounts() {
-  return { grid: 12, toolbar: 3, zone_tabs: 2, sidebar: 4, drawer: 5 }
+  return { grid: 12, toolbar: 3, zone_tabs: 2, sidebar: 4 }
 }
 
 describe("buildNavGraph", () => {
   describe("library zone, all populated", () => {
-    const graph = buildNavGraph("library", fullCounts(), { ...CONFIG, drawerOpen: true })
+    const graph = buildNavGraph("library", fullCounts(), { ...CONFIG })
 
     test("toolbar down goes to grid", () => {
       expect(graph.toolbar.down).toBe("grid")
@@ -108,17 +106,10 @@ describe("buildNavGraph", () => {
       expect(graph.grid.left).toBe("sidebar")
     })
 
-    test("grid right goes to drawer when open", () => {
-      expect(graph.grid.right).toBe("drawer")
-    })
-
     test("sidebar right goes to grid (first candidate)", () => {
       expect(graph.sidebar.right).toBe("grid")
     })
 
-    test("drawer left goes to grid (first candidate)", () => {
-      expect(graph.drawer.left).toBe("grid")
-    })
   })
 
   describe("library zone, empty grid", () => {
@@ -133,17 +124,12 @@ describe("buildNavGraph", () => {
       expect(graph.zone_tabs.down).toBe("toolbar")
     })
 
-    test("grid up still goes to toolbar", () => {
-      expect(graph.grid.up).toBe("toolbar")
+    test("the empty grid has no node — nothing can stand on it", () => {
+      expect(graph.grid).toBeUndefined()
     })
 
     test("sidebar right skips empty grid, goes to toolbar", () => {
       expect(graph.sidebar.right).toBe("toolbar")
-    })
-
-    test("drawer left skips empty grid, goes to toolbar", () => {
-      const withDrawer = buildNavGraph("library", counts, { ...CONFIG, drawerOpen: true })
-      expect(withDrawer.drawer.left).toBe("toolbar")
     })
   })
 
@@ -158,22 +144,14 @@ describe("buildNavGraph", () => {
     test("sidebar right skips grid and toolbar, goes to zone_tabs", () => {
       expect(graph.sidebar.right).toBe("zone_tabs")
     })
-
-    test("grid up skips toolbar, goes to zone_tabs", () => {
-      expect(graph.grid.up).toBe("zone_tabs")
-    })
   })
 
   describe("library zone, only sidebar populated", () => {
     const counts = { grid: 0, toolbar: 0, zone_tabs: 0, sidebar: 4 }
     const graph = buildNavGraph("library", counts, CONFIG)
 
-    test("zone_tabs down blocked", () => {
-      expect(graph.zone_tabs.down).toBeUndefined()
-    })
-
-    test("zone_tabs left goes to sidebar", () => {
-      expect(graph.zone_tabs.left).toBe("sidebar")
+    test("only the sidebar has a node", () => {
+      expect(Object.keys(graph)).toEqual(["sidebar"])
     })
 
     test("sidebar right blocked (all candidates empty)", () => {
@@ -279,40 +257,6 @@ describe("buildNavGraph", () => {
 
     test("sidebar right blocked", () => {
       expect(graph.sidebar.right).toBeUndefined()
-    })
-  })
-
-  describe("drawer edges", () => {
-    test("grid right has no edge when drawer is closed", () => {
-      const graph = buildNavGraph("library", fullCounts(), { ...CONFIG, drawerOpen: false })
-      expect(graph.grid.right).toBeUndefined()
-    })
-
-    test("grid right goes to drawer when open", () => {
-      const graph = buildNavGraph("library", fullCounts(), { ...CONFIG, drawerOpen: true })
-      expect(graph.grid.right).toBe("drawer")
-    })
-
-    test("drawer context excluded entirely when closed", () => {
-      const graph = buildNavGraph("library", fullCounts(), { ...CONFIG, drawerOpen: false })
-      expect(graph.drawer).toBeUndefined()
-    })
-
-    test("drawer left goes to grid when open and populated", () => {
-      const graph = buildNavGraph("library", fullCounts(), { ...CONFIG, drawerOpen: true })
-      expect(graph.drawer.left).toBe("grid")
-    })
-
-    test("drawer left skips empty grid, goes to toolbar", () => {
-      const counts = { grid: 0, toolbar: 3, zone_tabs: 2, sidebar: 4, drawer: 5 }
-      const graph = buildNavGraph("library", counts, { ...CONFIG, drawerOpen: true })
-      expect(graph.drawer.left).toBe("toolbar")
-    })
-
-    test("drawer left skips empty grid and toolbar, blocked (no more candidates)", () => {
-      const counts = { grid: 0, toolbar: 0, zone_tabs: 2, sidebar: 4, drawer: 5 }
-      const graph = buildNavGraph("library", counts, { ...CONFIG, drawerOpen: true })
-      expect(graph.drawer.left).toBeUndefined()
     })
   })
 
@@ -464,10 +408,9 @@ describe("buildNavGraph", () => {
       expect(graph.sidebar.right).toBe("pursuits")
     })
 
-    test("no zone_tabs, toolbar, or drawer in downloads layout", () => {
+    test("no zone_tabs or toolbar in downloads layout", () => {
       expect(graph.zone_tabs).toBeUndefined()
       expect(graph.toolbar).toBeUndefined()
-      expect(graph.drawer).toBeUndefined()
     })
   })
 

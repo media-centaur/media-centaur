@@ -68,7 +68,7 @@ export class Orchestrator {
     // (we can't know the delta without a prior reading).
     this._lastMouseX = null
     this._lastMouseY = null
-    // Track the entity ID and context of the card that opened a modal/drawer,
+    // Track the entity ID and context of the card that opened an overlay,
     // so we can restore focus on dismiss. The context matters because cards
     // live in different content contexts on different pages (the grid on
     // library/watching, a shelf on home) — restoring always to GRID would
@@ -171,15 +171,13 @@ export class Orchestrator {
     // so the constructor's initial value needs an explicit write)
     this.writer.setNavContext?.(this.focusMachine.context)
 
-    // Let the page behavior restore its state on attach. The method is
-    // optional — guard it (not just the behavior) so behaviors without an
-    // onAttach hook (home, watch-history) don't abort start() with a
-    // TypeError before _ensureCursorStart runs. Mirrors _detectBehavior.
-    this._behavior?.onAttach?.()
+    // The page behavior attached in _syncState (_detectBehavior).
 
     // Resume sidebar context after navigation (sessionStorage bridge)
     const primaryMenu = this._config.primaryMenu
-    if (primaryMenu && this._globals.sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
+    const resumeSidebar = primaryMenu &&
+      this._globals.sessionStorage.getItem("inputSystem:resumeSidebar") === "true"
+    if (resumeSidebar) {
       this._globals.sessionStorage.removeItem("inputSystem:resumeSidebar")
       this.focusMachine.forceContext(primaryMenu)
       const activeIndex = this.reader.getActiveItemIndex(primaryMenu)
@@ -190,10 +188,19 @@ export class Orchestrator {
       }
     }
 
-    // If the initial context (GRID) is empty, fall back to a non-empty context
-    this._ensureCursorStart()
+    // A fresh page opens on its declared cursor start (Settings on its
+    // sections menu, though its grid has items too). An overlay open on
+    // arrival (a deep link) has already taken the cursor.
+    const start = !resumeSidebar && !this.focusMachine.inOverlay ? this._cursorStart() : null
+    if (start) {
+      this.focusMachine.forceContext(start)
+      this._restoreContextFocus(start, this._restoreOpts())
+    } else {
+      this._ensureCursorStart()
+    }
 
     this._mounting = false
+    this._projectHints()
   }
 
   /**
@@ -302,6 +309,24 @@ export class Orchestrator {
     debug("onViewChanged")
     this._syncState()
     this._ensureCursorStart()
+    this._projectHints()
+  }
+
+  /**
+   * Project the hint bar's legend onto <html>: what B does here (the
+   * machine's own answer, `backStep`), and whether Y, Start and the bumpers
+   * do anything — the page's clear outside an overlay, a playable card under
+   * the cursor, a tab strip of two or more outside an overlay. The bar is
+   * pure CSS over these; it never lists contexts.
+   */
+  _projectHints() {
+    const overlay = this.focusMachine.inOverlay
+    this.writer.setHints?.({
+      back: this.focusMachine.backStep(),
+      clear: !overlay && typeof this._behavior?.onClear === "function",
+      play: !!this.reader.getCurrentFocusedItem()?.dataset?.entityId,
+      tabs: !overlay && (this.reader.getZoneTabCount?.() ?? 0) >= 2,
+    })
   }
 
   // --- Source callbacks ---
@@ -311,6 +336,11 @@ export class Orchestrator {
    * Handles behavior onClear for CLEAR, then delegates to _handleAction.
    */
   _onSourceAction(action) {
+    this._dispatchSourceAction(action)
+    this._projectHints()
+  }
+
+  _dispatchSourceAction(action) {
     debug("action:", action, "context:", this.focusMachine.context, "method:", this.inputDetector.current)
     // The behavior is keyed on what the page shows now: the viewing layer
     // arrives by a server push, not a user action, and a key pressed after
@@ -321,9 +351,13 @@ export class Orchestrator {
     // behavior MAY return a string naming a target context — when the clear
     // naturally ends one task (the filter) the user's next move is usually in
     // another zone (the now-unfiltered grid), so we follow focus there.
+    // An open overlay covers the page, so the page's clear does not run.
+    if (action === Action.CLEAR && this.focusMachine.inOverlay) return
     if (action === Action.CLEAR && this._behavior?.onClear) {
       const result = this._behavior.onClear()
-      if (typeof result === "string") {
+      // Follow only into a context that is on the page — the unfiltered grid
+      // arrives with the patch, after this returns.
+      if (typeof result === "string" && this.reader.getItemCount(result) > 0) {
         this._saveContextMemory()
         this.focusMachine.forceContext(result)
         this._restoreContextFocus(result, this._restoreOpts())
@@ -331,7 +365,7 @@ export class Orchestrator {
       return
     }
 
-    // BACK peels containment layers: overlays (modal/drawer) dismiss, the
+    // BACK peels containment layers: overlays dismiss, the
     // primary menu exits back to content, and content enters the primary
     // menu — the main nav is what contains every content region. See
     // `_backTransition`.
@@ -355,7 +389,6 @@ export class Orchestrator {
     debug(() => ["_syncState called, context:", this.focusMachine.context, new Error().stack.split("\n")[2]?.trim()])
     const zone = this.reader.getZone()
     const presentation = this.reader.getPresentation()
-    const drawerOpen = this.reader.isDrawerOpen()
 
     // Detect and attach page behavior from data-page-behavior attribute
     this._detectBehavior()
@@ -369,24 +402,20 @@ export class Orchestrator {
       }
     }
 
-    if (zone !== this.focusMachine._zone) {
-      this.focusMachine.zoneChanged(zone)
-      // Zone content changes — clear grid and toolbar memory (stale items)
-      delete this._contextMemory[Context.GRID]
-      delete this._contextMemory[Context.TOOLBAR]
+    // The page's layout changed (a live patch to a page with another
+    // layout): positions remembered against the old one mean nothing.
+    if (zone !== this._zone) {
+      this._zone = zone
+      this._contextMemory = {}
       this._lastGridEntityId = null
     }
-
-    // Always sync drawer open state, regardless of current context.
-    // The user may have navigated to GRID while drawer was open, then
-    // the drawer closed via LiveView — we need to clear _drawerOpen.
-    this.focusMachine.syncDrawerState(drawerOpen)
 
     // When the orchestrator has initiated a presentation transition (e.g. dismiss),
     // skip DOM-based detection until the DOM confirms the expected state.
     // Counts are needed before the presentation block: which region of an
     // overlay takes the cursor is resolved against them, the same way a page's
     // cursor start is.
+    const previousCounts = this._counts
     this._counts = this._buildCounts()
     const overlayName = this.reader.getOverlayName?.() ?? null
     const overlay = this._config.overlays?.[overlayName] ?? null
@@ -401,37 +430,81 @@ export class Orchestrator {
       // position memory is scoped to one opening, so reopening a title
       // re-seeds the episode list from the resume target rather than
       // restoring wherever the last title was browsed to.
+      // The page context the overlay opened over is where the cursor returns
+      // when it closes — whatever its type (a grid card, a feed row, a
+      // pursuit). A pointer click on a card has already named it.
+      if (!this.focusMachine.inOverlay) {
+        this._saveContextMemory()
+        this._originContext ??= this.focusMachine.context
+      }
       this._overlayName = overlayName
       const entry = this._overlayEntry(overlay)
       for (const region of Object.keys(overlay?.layout ?? {})) {
         delete this._contextMemory[region]
       }
       this.focusMachine.presentationChanged("modal", entry)
-      this._globals.requestAnimationFrame(() => this.writer.focusFirst(entry))
-    } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
-      this.focusMachine.presentationChanged("drawer")
-      this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
+      // Entered like any context: on its chosen item (the playing subtitle
+      // track), else its declared default, else the first.
+      this._globals.requestAnimationFrame(() => {
+        this._restoreContextFocus(entry, this._restoreOpts())
+        this._projectHints()
+      })
     } else if (!presentation && this.focusMachine.inOverlay) {
       this._overlayName = null
-      this.focusMachine.presentationChanged(null)
-      // Restore focus to the originating card after modal/drawer closes
+      this.focusMachine.presentationChanged(null, null, this._originContext ?? this._cursorStart())
+      // Restore focus to where the overlay opened from
       this._restoreOriginFocus()
     }
 
     // Build navigation graph from current DOM state. An open overlay merges its
     // own fixed topology over the page's — the regions inside a modal relate to
     // each other the same way whatever page it was opened from.
-    const navGraph = buildNavGraph(this.reader.getZone(), this._counts, {
-      drawerOpen: this.reader.isDrawerOpen(),
+    const navGraph = buildNavGraph(zone, this._counts, {
       layouts: this._config.layouts,
       alwaysPopulated: this._config.alwaysPopulated,
       overlayLayout: presentation === "modal" ? overlay?.layout : null,
     })
     this.focusMachine.setNavGraph(navGraph)
 
+    if (this._enterOpenedMenu(previousCounts, navGraph)) return
+
     // The DOM has been patched and the nav graph rebuilt — re-assert the
     // focus the orchestrator owns onto the fresh DOM.
     this._reconcileFocus()
+  }
+
+  /**
+   * A nested menu — a zone with a `back` edge to the cursor's zone and a
+   * `data-nav-dismiss-event`, present only while open — takes the cursor when
+   * it opens, on its chosen option. It opened because the user pressed its
+   * trigger, so the next press belongs to the list, whichever side of the
+   * trigger it is drawn on.
+   */
+  _enterOpenedMenu(previousCounts, navGraph) {
+    const context = this.focusMachine.context
+    for (const [menu, edges] of Object.entries(navGraph)) {
+      if (edges.back !== context) continue
+      if ((previousCounts?.[menu] ?? 0) > 0 || (this._counts[menu] ?? 0) === 0) continue
+      if (!this.reader.getZoneDismissEvent?.(menu)) continue
+      this._saveContextMemory()
+      // The trigger may be one of a row's controls; the list is a region of
+      // its own, so the row's sub-focus stays behind.
+      this.focusMachine.clearSubFocus()
+      this._subFocusIndex = null
+      this._subItemIndex = null
+      this.focusMachine.forceContext(menu)
+      this._restoreContextFocus(menu, this._restoreOpts())
+      return true
+    }
+    return false
+  }
+
+  /** The page's cursor start, as on page entry. */
+  _cursorStart() {
+    return resolveCursorStart(this.reader.getZone(), this._counts, {
+      cursorStartPriority: this._config.cursorStartPriority,
+      alwaysPopulated: this._config.alwaysPopulated,
+    })
   }
 
   /**
@@ -448,9 +521,9 @@ export class Orchestrator {
    *   own memory via `_restoreContextFocus` — entity ID for the grid, active
    *   marker / saved index for the rest
    *
-   * Drawer focus on open and origin-card restore on overlay close are
-   * transition-driven and handled in the presentation block above; empty
-   * contexts are left to `_ensureCursorStart`.
+   * Overlay entry and the return on close are transition-driven and handled
+   * in the presentation block above; empty contexts are left to
+   * `_ensureCursorStart`.
    */
   _reconcileFocus() {
     // Only reconcile focus the system owns. When focus lives on an element
@@ -507,10 +580,9 @@ export class Orchestrator {
     // falling back to the first item (and then out to the sidebar) on the next
     // keypress. The same rule gives a flat overlay its first item when that
     // item arrives after the overlay opened — the viewing layer's prompt pill
-    // streams in behind the layer. The drawer is focused on open by the
-    // presentation block; empty contexts are left to _ensureCursorStart.
+    // streams in behind the layer. Empty contexts are left to
+    // _ensureCursorStart.
     const context = this.focusMachine.context
-    if (context === Context.DRAWER) return
     if (this.reader.getItemCount(context) > 0 && !this.reader.getCurrentFocusedItem()) {
       this._restoreContextFocus(context, this._restoreOpts())
     }
@@ -576,14 +648,15 @@ export class Orchestrator {
   }
 
   /**
-   * After modal/drawer dismissal, restore focus to the card that opened it.
-   * Returns to the originating context (grid, or a home shelf) — not just
-   * GRID — so pages without a grid don't lose focus. Falls back to GRID when
-   * the overlay had no recorded origin (e.g. opened via a deep link).
+   * After an overlay closes, put the cursor back where it opened from. The
+   * machine is already in that context (the page context the overlay opened
+   * over, or the page's cursor start when it opened from a deep link); a card
+   * that opened it is found by entity id, anything else by its remembered
+   * position.
    */
   _restoreOriginFocus() {
     const entityId = this._originEntityId
-    const context = this._originContext ?? Context.GRID
+    const context = this.focusMachine.context
     this._originEntityId = null
     this._originContext = null
     this._globals.requestAnimationFrame(() => {
@@ -596,8 +669,10 @@ export class Orchestrator {
       // Reveal is method-gated: a key-driven dismissal glides back to the
       // origin card, while a mouse dismissal (backdrop click) re-asserts
       // focus without moving the viewport the pointer owns.
-      if (entityId && this.writer.focusByEntityId(context, entityId, this._restoreOpts())) return
-      this._restoreContextFocus(context, this._restoreOpts())
+      if (!(entityId && this.writer.focusByEntityId(context, entityId, this._restoreOpts()))) {
+        this._restoreContextFocus(context, this._restoreOpts())
+      }
+      this._projectHints()
     })
   }
 
@@ -616,7 +691,7 @@ export class Orchestrator {
   }
 
   /**
-   * Remember which card opened the modal/drawer for focus restoration.
+   * Remember which card opened an overlay, for focus restoration.
    * Content-card contexts (the grid, or a home shelf) carry a stable entity
    * ID; menu/overlay contexts don't, and must not seed a bogus origin.
    */
@@ -711,14 +786,8 @@ export class Orchestrator {
       const type = contextType(this.focusMachine.context, this._config.instanceTypes)
       if (type === Context.MENU) {
         const isPrimary = this.focusMachine.context === this._config.primaryMenu
-        const focused = this.reader.getCurrentFocusedItem()
-        if (isPrimary && focused?.hasAttribute("data-nav-defer-activate")) {
-          // Deferred items weren't activated on focus — explicit SELECT activates them
-          this._executeActivate()
-          return
-        }
         if (!isPrimary) {
-          pendingMenuClick = focused
+          pendingMenuClick = this.reader.getCurrentFocusedItem()
         }
         action = Action.NAVIGATE_RIGHT
       }
@@ -733,21 +802,21 @@ export class Orchestrator {
 
     const directive = this.focusMachine.transition(action)
 
-    // A zone that declares `data-nav-dismiss-event` is a containment layer
-    // the LiveView owns (a menu list). BACK peeling out of it along its
-    // `back` edge also tells the LiveView to close it, so the cursor and the
-    // DOM leave together.
-    if (directive.type === "enter_context" && directive.direction === "back") {
-      const dismiss = this.reader.getZoneDismissEvent?.(contextBefore)
-      if (dismiss && this._hookEl?.pushEvent) this._hookEl.pushEvent(dismiss, {})
-    }
-
     // If we just entered the sidebar, record where we came from
     if (directive.type === "enter_sidebar" && contextBefore !== this._config.primaryMenu) {
       this._preSidebarContext = contextBefore
     }
 
     this._executeDirective(directive)
+
+    // A zone that declares `data-nav-dismiss-event` is a containment layer
+    // the LiveView owns (a menu list). Leaving it — BACK along its `back`
+    // edge, or an arrow off its end — also tells the LiveView to close it, so
+    // the cursor and the DOM leave together.
+    if (this.focusMachine.context !== contextBefore) {
+      const dismiss = this.reader.getZoneDismissEvent?.(contextBefore)
+      if (dismiss && this._hookEl?.pushEvent) this._hookEl.pushEvent(dismiss, {})
+    }
 
     // Click non-primary menu item after transition completes
     if (pendingMenuClick) pendingMenuClick.click()
@@ -759,16 +828,18 @@ export class Orchestrator {
    */
   _saveContextMemory() {
     const context = this.focusMachine.context
+    // Every context remembers its position by index; the grid also by entity
+    // id, which survives a stream reorder — but not every grid's items carry
+    // one (Settings, History, Apps), and those keep their place by position.
     if (context === Context.GRID) {
       const focused = this.reader.getCurrentFocusedItem()
       if (focused?.dataset?.entityId) {
         this._lastGridEntityId = focused.dataset.entityId
       }
-    } else {
-      const index = this.reader.getFocusedIndex(context)
-      if (index >= 0) {
-        this._contextMemory[context] = index
-      }
+    }
+    const index = this.reader.getFocusedIndex(context)
+    if (index >= 0) {
+      this._contextMemory[context] = index
     }
   }
 
@@ -799,7 +870,7 @@ export class Orchestrator {
    * logic — but the remaining pages get it as they are reviewed, one at a
    * time. See `campaigns/input-system-1.0-pass.md`.
    */
-  _enterContext(context, direction) {
+  _enterContext(context, direction, from = null) {
     this._subFocusIndex = null
     this._subItemIndex = null
 
@@ -823,10 +894,14 @@ export class Orchestrator {
       return
     }
 
-    // BACK returns to the item the cursor left from. The remembered index
-    // wins over a DOM-marked active item here: a toolbar's active tab would
-    // otherwise steal the landing from the trigger that opened a menu.
-    if (direction === "back") {
+    // Returning to the zone a region backs onto — BACK, or an arrow off the
+    // end of a menu list — lands on the item the cursor left from. The
+    // remembered index wins over a DOM-marked active item here: a toolbar's
+    // active tab would otherwise steal the landing from the trigger that
+    // opened a menu.
+    const returning = direction === "back" ||
+      (from != null && this.focusMachine.getGraphTarget(from, "back") === context)
+    if (returning) {
       const savedIndex = this._contextMemory[context]
       if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
         this.writer.focusByIndex(context, savedIndex, opts)
@@ -897,6 +972,11 @@ export class Orchestrator {
       if (this._lastGridEntityId) {
         if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId, opts)) return
       }
+      const savedIndex = this._contextMemory[Context.GRID]
+      if (savedIndex != null && savedIndex < this.reader.getItemCount(Context.GRID)) {
+        this.writer.focusByIndex(Context.GRID, savedIndex, opts)
+        return
+      }
       this.writer.focusFirst(Context.GRID, opts)
     } else {
       // Try the DOM-marked current selection first (config.activeMarkers:
@@ -943,12 +1023,8 @@ export class Orchestrator {
         this._executeNavigate(directive.direction)
         break
 
-      case "focus_context":
-        this._executeFocusContext(directive.target)
-        break
-
       case "enter_context":
-        this._enterContext(directive.context, directive.direction)
+        this._enterContext(directive.context, directive.direction, directive.from)
         break
 
       case "activate":
@@ -965,10 +1041,6 @@ export class Orchestrator {
 
       case "zone_cycle":
         this._executeZoneCycle(directive.direction)
-        break
-
-      case "grid_row_edge":
-        this._executeGridRowEdge(directive.side)
         break
 
       case "enter_sidebar":
@@ -1024,7 +1096,8 @@ export class Orchestrator {
     if (context === Context.GRID) {
       const result = this._gridNavigate(direction)
       if (result === "wall") {
-        this._executeDirective(this.focusMachine.gridWall(direction))
+        this._saveContextMemory()
+        this._executeDirective(this.focusMachine.contextWall(Context.GRID, direction))
       }
       return
     }
@@ -1144,7 +1217,7 @@ export class Orchestrator {
   }
 
   /**
-   * Navigate within a linear list (toolbar, zone tabs, sidebar, modal, drawer).
+   * Navigate within a linear list (toolbar, zone tabs, menus, trees, modal).
    */
   _linearNavigate(context, direction) {
     const currentIndex = this.reader.getFocusedIndex(context)
@@ -1170,28 +1243,13 @@ export class Orchestrator {
       if (nextIndex < 0) nextIndex = totalCount - 1
       else if (nextIndex >= totalCount) nextIndex = 0
     } else if (nextIndex < 0 || nextIndex >= totalCount) {
-      const type = contextType(context, this._config.instanceTypes)
-      // Left wall on a horizontal row (zone tabs or toolbar) → follow the nav
-      // graph's left edge, where the layout declares one (the upcoming
-      // mini-month's edge to the rail). Keyed by TYPE so non-"toolbar" toolbar
-      // instances are included. No content context has a left edge to the
-      // sidebar — reaching the main menu is BACK's job. Shelves never reach
-      // here: they resolve every direction, walls included, in _shelfNavigate.
-      if (nextIndex < 0 && direction === "left" &&
-          (type === Context.ZONE_TABS || type === Context.TOOLBAR)) {
-        this._saveContextMemory()
-        this._executeDirective(this.focusMachine.contextWall(context, "left"))
-      }
-      // Up/down wall on MENU or TREE → try nav graph neighbor. For a TREE the
-      // edge exists only where the layout declares one (the Manage toolbar
-      // card above the folder ledger — UIDR-019 amended); with no edge,
-      // contextWall returns NONE and the wall stays a wall.
-      else if ((direction === "up" || direction === "down") &&
-               (contextType(context, this._config.instanceTypes) === Context.MENU ||
-                contextType(context, this._config.instanceTypes) === Context.TREE)) {
-        this._saveContextMemory()
-        this._executeDirective(this.focusMachine.contextWall(context, direction))
-      }
+      // At a wall the nav graph answers, for every context type and every
+      // direction: an edge the layout declares crosses, no edge stays a wall.
+      // No content context has an edge to the sidebar — reaching the main
+      // menu is BACK's job. Shelves never reach here: they resolve every
+      // direction, walls included, in _shelfNavigate.
+      this._saveContextMemory()
+      this._executeDirective(this.focusMachine.contextWall(context, direction))
       return
     }
 
@@ -1205,44 +1263,8 @@ export class Orchestrator {
     if (isPrimaryMenu || isBehaviorActivate) {
       this._globals.requestAnimationFrame(() => {
         const focused = this.reader.getCurrentFocusedItem()
-        if (focused && !focused.hasAttribute("data-nav-defer-activate")) focused.click()
+        if (focused) focused.click()
       })
-    }
-  }
-
-  _executeFocusContext(target) {
-    this._restoreContextFocus(target, this._restoreOpts())
-  }
-
-  /**
-   * Focus the edge item (leftmost or rightmost) in the same grid row
-   * as the last focused grid item. Used when crossing from drawer to grid.
-   */
-  _executeGridRowEdge(side) {
-    const columnCount = this.reader.getGridColumnCount(Context.GRID)
-    const totalCount = this.reader.getItemCount(Context.GRID)
-
-    // Find the row of the last focused grid item
-    let anchorIndex = -1
-    if (this._lastGridEntityId) {
-      anchorIndex = this.reader.getEntityIndex(Context.GRID, this._lastGridEntityId)
-    }
-
-    if (anchorIndex < 0) {
-      this.writer.focusFirst(Context.GRID)
-      return
-    }
-
-    const row = Math.floor(anchorIndex / columnCount)
-
-    if (side === "right") {
-      // Rightmost item in this row: min of (row end, last item)
-      const rowEnd = (row + 1) * columnCount - 1
-      const targetIndex = Math.min(rowEnd, totalCount - 1)
-      this.writer.focusByIndex(Context.GRID, targetIndex)
-    } else {
-      // Leftmost item in this row
-      this.writer.focusByIndex(Context.GRID, row * columnCount)
     }
   }
 
@@ -1250,13 +1272,6 @@ export class Orchestrator {
     const focused = this.reader.getCurrentFocusedItem()
       ?? this.reader.getCurrentFocusedSubItem?.()
     if (!focused) return
-
-    // Custom action: dispatch a named event instead of clicking
-    const action = focused.dataset.navAction
-    if (action) {
-      focused.dispatchEvent(new Event(action, { bubbles: true }))
-      return
-    }
 
     this._recordOrigin(focused.dataset.entityId, this.focusMachine.context)
 
@@ -1295,7 +1310,7 @@ export class Orchestrator {
     })
     // Proactively restore — don't wait for onViewChanged() which may not
     // fire if the hook element isn't directly patched by morphdom.
-    this.focusMachine.presentationChanged(null)
+    this.focusMachine.presentationChanged(null, null, this._originContext ?? this._cursorStart())
     this._restoreOriginFocus()
     // Declare expected presentation state — _syncState() will skip DOM-based
     // detection until the DOM confirms no overlay is present.

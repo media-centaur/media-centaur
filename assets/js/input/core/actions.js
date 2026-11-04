@@ -67,7 +67,6 @@ export const DEFAULT_KEY_MAP = Object.freeze({
   "]": Action.ZONE_NEXT,
   "[": Action.ZONE_PREV,
   p: Action.PLAY,
-  P: Action.PLAY,
   MediaPlayPause: Action.PLAY_PAUSE,
   MediaFastForward: Action.SEEK_FORWARD,
   MediaRewind: Action.SEEK_BACK,

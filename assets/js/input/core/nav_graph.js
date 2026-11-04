@@ -13,15 +13,13 @@
  * Build a navigation graph: `{ context: { direction: targetContext } }`.
  *
  * For each edge in the layout, walks the candidate array and picks
- * the first populated context. Drawer candidates are excluded when the
- * drawer is closed.
+ * the first populated context.
  *
- * @param {string} zone - "watching", "library", or "settings"
+ * @param {string} zone - The page's layout key (`data-nav-default-zone`)
  * @param {Object} counts - Map of context name to item count
  * @param {Object} [config={}]
  * @param {Object} [config.layouts] - Spatial layouts per zone
  * @param {string[]} [config.alwaysPopulated] - Contexts that skip item count check
- * @param {boolean} [config.drawerOpen=false]
  * @param {Object} [config.overlayLayout] - Edges contributed by an open overlay,
  *   merged over the page's. An overlay's regions relate to each other the same
  *   way whatever page it was opened from, so its topology is not per-zone.
@@ -30,7 +28,6 @@
 export function buildNavGraph(zone, counts, config = {}) {
   const layouts = config.layouts ?? {}
   const alwaysPopulated = config.alwaysPopulated ?? []
-  const drawerOpen = config.drawerOpen ?? false
 
   const layout = { ...layouts[zone], ...config.overlayLayout }
   if (Object.keys(layout).length === 0) return {}
@@ -38,13 +35,15 @@ export function buildNavGraph(zone, counts, config = {}) {
   const graph = {}
 
   for (const [context, edges] of Object.entries(layout)) {
-    // Skip drawer context entirely when closed
-    if (context === "drawer" && !drawerOpen) continue
+    // A node exists only for a context on the page: BACK reads the primary
+    // menu's node as "this page has a main menu", and a page that renders
+    // none (the profile door) must not be entered into it.
+    if (!isPopulated(context, counts, alwaysPopulated)) continue
 
     graph[context] = {}
 
     for (const [direction, candidates] of Object.entries(edges)) {
-      const target = resolveFirst(candidates, counts, drawerOpen, alwaysPopulated)
+      const target = resolveFirst(candidates, counts, alwaysPopulated)
       if (target) {
         graph[context][direction] = target
       }
@@ -56,11 +55,9 @@ export function buildNavGraph(zone, counts, config = {}) {
 
 /**
  * Walk a candidate list, returning the first populated context.
- * Drawer candidates are skipped when the drawer is closed.
  */
-function resolveFirst(candidates, counts, drawerOpen, alwaysPopulated) {
+function resolveFirst(candidates, counts, alwaysPopulated) {
   for (const candidate of candidates) {
-    if (candidate === "drawer" && !drawerOpen) continue
     if (isPopulated(candidate, counts, alwaysPopulated)) return candidate
   }
   return null
@@ -79,7 +76,7 @@ function isPopulated(context, counts, alwaysPopulated) {
  * Walk the cursor start priority list for a zone, returning the first
  * populated context. Used on page entry and zone changes.
  *
- * @param {string} zone - "watching", "library", or "settings"
+ * @param {string} zone - The page's layout key (`data-nav-default-zone`)
  * @param {Object} counts - Map of context name to item count
  * @param {Object} [config={}]
  * @param {Object} [config.cursorStartPriority] - Priority list per zone
