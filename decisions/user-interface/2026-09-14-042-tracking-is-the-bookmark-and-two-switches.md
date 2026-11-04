@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-09-14
-amended: 2026-10-03
+amended: 2026-11-04
 ---
 # Tracking is the bookmark and two switches over one record
+
+> **Amendment 2026-11-04 (campaign `discovery.md`, M16, decision 6).** The card (rule 4) gains a third row for a followed series: **Caught up through**, the person's position in the show as a season and an episode — two glass selects bounded by TMDB's latest aired episode, and a **Caught up** button that sets the point to it (`Components.ReleaseTracking.CaughtUp`). Everything at or before the point is *had*: no want opens for it and no surface counts it as out. Follow sets the point to the latest aired episode on its own — Follow means caught up as of now — so the row shows what the switch assumed and lets the person correct it; the earlier episodes are the Download button's business. A movie has no row.
 
 > **Amendment 2026-10-03.** The Ignored rung (rule 5) has two exits, not one: a rung at List or above replaces it, and the tracking controls' ignored form carries **Stop ignoring**, which sets the title Off through `set_rung`. A search result on Incoming carries no "Ignored" marker; the rung is a stance about the Feed and reads as an acquisition state in that list. Campaign `social-and-watchlist`, Phase 4.
 

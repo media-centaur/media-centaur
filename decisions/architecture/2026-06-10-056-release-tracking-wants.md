@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-06-10
-amended: 2026-09-13
+amended: 2026-11-04
 ---
 # Release-tracking wants — tracks emit plan-based pursuits
+
+> **Amendment 2026-11-04 (campaign `discovery.md`, M16, decision 6).** Rule 1's "aired and not in the library" is now "aired and not **had**" (`ReleaseTracking.Had`): not in the library, and for a series not at or before the person's **caught-up point** on their title intent — the latest aired episode they have seen, wherever they saw it. Follow sets the point to TMDB's latest aired episode (Follow means caught up as of now), so a newly followed series opens no want for its back catalogue; the back catalogue is the Download button's job, through media search, which plans without the ledger. The *Caught up* press and the tracking card's season and episode selects move the point (`ReleaseTracking.catch_up/2`, the one write path: the point, the open wants at or before it dismissed, the calendar rebuilt). The "mid-season backlog" the drop planner's moduledoc once described is therefore a point moved back, never a consequence of Follow. The never-written `dismiss_released_before` column is deleted.
 
 ## Context and Problem Statement
 

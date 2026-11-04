@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-09-20
+amended: 2026-11-04
 ---
 # TMDB knowledge is one record per title, asked only when due
+
+> **Amendment 2026-11-04 (campaign `discovery.md`, M16, decision 5).** Rule 2's "everything else is a projection" has one authored exception on the title intent: the **label** — `title_name` and `title_year`, the name and year the person acted on the title with, written on every rung write. An Ignored record references nothing in the store (`Watchlist.TmdbReferences`), so after the retention sweep the store cannot be its source; the label is the record's own description, like its note. The store still wins while it holds a snapshot: `Watchlist.Titles.attach/1` paints the snapshot when the store has one and the label when it does not. Nothing else is copied — no artwork, no overview — and no check is scheduled for an Ignored title.
 
 ## Context and Problem Statement
 

@@ -45,7 +45,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 053 | 2026-06-06 | [Input system reconciles only the focus it owns; unmanaged surfaces cede](architecture/2026-06-06-053-focus-ownership-boundary.md) | accepted |
 | 054 | 2026-06-08 | [External-dependency faults are subsystem health, not log incidents](architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md) | accepted |
 | 055 | 2026-06-09 | [Composite pursuits — units carry the attempt thread](architecture/2026-06-09-055-composite-pursuits.md) | accepted |
-| 056 | 2026-06-10 | [Release-tracking wants — tracks emit plan-based pursuits](architecture/2026-06-10-056-release-tracking-wants.md) | accepted, amended 2026-09-13 |
+| 056 | 2026-06-10 | [Release-tracking wants — tracks emit plan-based pursuits](architecture/2026-06-10-056-release-tracking-wants.md) | accepted, amended 2026-11-04 |
 | 057 | 2026-06-14 | [Derived data is recomputable, never frozen](architecture/2026-06-14-057-derived-data-is-recomputable.md) | accepted |
 | 058 | 2026-06-17 | [Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges](architecture/2026-06-17-058-canonical-episode-identity.md) | accepted, amended 2026-06-17 |
 | 059 | 2026-07-12 | [Versions split into cuts (PlayableItem) and renditions (WatchedFile)](architecture/2026-07-12-059-cuts-vs-renditions.md) | accepted |
@@ -59,7 +59,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 068 | 2026-09-12 | [A review replaces the recommendation as the shared opinion about a title](architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md) | accepted |
 | 069 | 2026-09-17 | [No Elixir dead-code gate; JS keeps one](architecture/2026-09-17-069-no-elixir-dead-code-gate.md) | accepted |
 | 070 | 2026-09-19 | [Durable observational time series live outside the main database](architecture/2026-09-19-070-time-series-outside-the-database.md) | accepted |
-| 071 | 2026-09-20 | [TMDB knowledge is one record per title, asked only when due](architecture/2026-09-20-071-tmdb-store-one-record-per-title.md) | accepted |
+| 071 | 2026-09-20 | [TMDB knowledge is one record per title, asked only when due](architecture/2026-09-20-071-tmdb-store-one-record-per-title.md) | accepted, amended 2026-11-04 |
 | 072 | 2026-09-25 | [Bundled mpv scripts ship in the release; the user's mpv config is the user's](architecture/2026-09-25-072-bundled-mpv-scripts.md) | accepted |
 | 073 | 2026-09-27 | [A profile is one replaceable event per identity](architecture/2026-09-27-073-a-profile-is-one-replaceable-event-per-identity.md) | accepted |
 | 074 | 2026-09-27 | [A person is read through `Social.Person`; RelaySync owns the reconciliation loop](architecture/2026-09-27-074-person-read-model-and-relay-sync-context.md) | accepted |
@@ -107,7 +107,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 039 | 2026-09-11 | [Add to watchlist first, then the tracking controls](user-interface/2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md) | accepted, amended 2026-11-01 |
 | 040 | 2026-09-12 | [A review is an opinion of any valence: the sentiment shows when given, nothing when none](user-interface/2026-09-12-040-a-review-is-an-opinion-of-any-valence.md) | accepted, amended 2026-09-28 |
 | 041 | 2026-09-13 | [Settings cards are readouts with actions, from one kit](user-interface/2026-09-13-041-settings-cards-are-readouts-with-actions.md) | accepted |
-| 042 | 2026-09-14 | [Tracking is the bookmark and two switches over one record](user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md) | accepted, amended 2026-10-03 |
+| 042 | 2026-09-14 | [Tracking is the bookmark and two switches over one record](user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md) | accepted, amended 2026-11-04 |
 | 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted, amended 2026-10-03 |
 | 044 | 2026-09-20 | [One control to ask TMDB again: Refresh from TMDB](user-interface/2026-09-20-044-refresh-from-tmdb.md) | accepted |
 | 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-10-03 |
@@ -115,7 +115,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 047 | 2026-09-27 | [What a reader sees of a person: their published name under your override, or Unnamed](user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md) | accepted |
 | 048 | 2026-09-28 | [A person's colour is a hue on the app's ring](user-interface/2026-09-28-048-a-persons-colour-is-a-hue-on-the-apps-ring.md) | accepted |
 | 049 | 2026-09-28 | [What people did with a title is the social capsule](user-interface/2026-09-28-049-what-people-did-with-a-title-is-the-social-capsule.md) | accepted |
-| 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted, amended 2026-11-03 |
+| 050 | 2026-10-02 | [The watchlist is Incoming's first tab, and the schedule is on its rows](user-interface/2026-10-02-050-the-watchlist-is-incomings-first-tab.md) | accepted, amended 2026-11-04 |
 | 051 | 2026-10-03 | [The Discovery page is the Social page](user-interface/2026-10-03-051-the-discovery-page-is-the-social-page.md) | accepted, amended 2026-10-03 |
 | 052 | 2026-10-05 | [A completed movie opens its title](user-interface/2026-10-05-052-a-completed-movie-opens-its-title.md) | accepted, amended 2026-10-05 |
 | 053 | 2026-10-06 | [A profile is picked at the front door and drawn as the identity tile](user-interface/2026-10-06-053-a-profile-is-picked-at-the-front-door.md) | accepted |

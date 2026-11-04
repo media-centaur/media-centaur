@@ -1,9 +1,11 @@
 ---
 status: accepted
 date: 2026-10-02
-amended: 2026-11-03
+amended: 2026-11-04
 ---
 # The watchlist is Incoming's first tab, and the schedule is on its rows
+
+> **Amendment 2026-11-04 (campaign `discovery.md`, M16).** Three changes to the 2026-11-03 amendment's page. The state block of a followed series reads its calendar through the person's **caught-up point** (`ReleaseTracking.Calendar.read/3`): *N episodes out* counts only episodes after the point and not in the library, with a **Caught up** button beside it; with nothing out the block leads with *Caught up through S01E28* and puts the next episode or TMDB's word beneath. The **Ignored** group is a disclosure (`Components.Disclosure`), closed on every visit, opened by its head or held open while a search is on; its rows draw no poster and the page's title count leaves them out. And Discovery's Out Now (the 2026-11-02 amendment) places a followed series by the same calendar reading — out while an episode after the point is not in the library, Coming Up at the next date, otherwise off the shelves — never by its first air date; a List-only series keeps the first-episode reading.
 
 > **Amendment 2026-11-03 (campaign `discovery.md`, M15).** The inventory the tab was has a page of its own: **Watchlist** at `/watchlist`, in the sidebar between Discovery and Downloads, unconditional — the bookmark is on every title whatever is on, so the list is never without a surface, and the page is not a feature (ADR-081). One record, two reads: Discovery draws the list by release stage (the 2026-11-02 amendment stands) to answer *what can I get*; the page draws it by **rung** — Auto-grab, Tracking, On your list, Ignored — to answer *what have I told the app to do*. Rules 2–3 return there, rebuilt: one row per record (`Components.Watchlist.Row`), owned titles included and marked, Ignored records included (their one surface), with a **state block** at the right — a followed series' aired episodes not had, its next dated episode, or TMDB's word (Between seasons, Ended); a movie's or a List-only title's release stage with its date — and the **rung as a glass select** on the row, with Ignore and Remove, writing through the one path the detail's switches use. Rows order by urgency within a group; a type filter and a search over the names narrow them. Rule 4 stands (no cap). Rule 5 stands as amended. Rule 6 stands.
 >
