@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.SocialRows, only: [person: 1]
+  import MediaCentaur.SocialRows, only: [person: 1, own_person: 0]
   import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1]
 
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -265,6 +265,24 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
 
     test "defaults to manually selecting" do
       assert %{planning_mode: :manually_select_release} = Logic.title_detail(movie(), facts())
+    end
+  end
+
+  describe "own_review/1" do
+    test "the reader's review among a title's rows; nil when the reader has none or only other kinds" do
+      mine = build_activity(%{sentiment: :like, text: "mine"})
+
+      rows = [
+        %{activity: build_activity(%{sentiment: :love}), author: person("Nick")},
+        %{activity: build_activity(%{kind: :watched, sentiment: nil}), author: own_person()},
+        %{activity: mine, author: own_person()}
+      ]
+
+      assert Logic.own_review(rows) == mine
+      assert %{activity: ^mine, author: %{own?: true}} = Logic.own_review_row(rows)
+      assert Logic.own_review([]) == nil
+      assert Logic.own_review_row([]) == nil
+      assert Logic.own_review([%{activity: build_activity(%{}), author: person("Nick")}]) == nil
     end
   end
 end

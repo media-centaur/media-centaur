@@ -9,10 +9,12 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `FeedEntries` and `People`.
   """
 
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Format
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
@@ -115,6 +117,27 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
   defp movie_release_ahead?(title, nil, today),
     do: MediaResults.release_status(title, today) == :upcoming
+
+  @doc """
+  The reader's own review among a title's activity rows
+  (`Activities.activity_for/1`'s, the reader's acts included), or nil.
+  The Review modal opens on it as editing; the detail's pencil and note
+  line speak of it.
+  """
+  @spec own_review([MediaCentaur.Activities.activity_row()]) :: Activity.t() | nil
+  def own_review(rows) do
+    case own_review_row(rows) do
+      %{activity: activity} -> activity
+      nil -> nil
+    end
+  end
+
+  @doc "The row of the reader's own review — the activity with the reader as its author — or nil. The detail's note line draws the author from it."
+  @spec own_review_row([MediaCentaur.Activities.activity_row()]) ::
+          MediaCentaur.Activities.activity_row() | nil
+  def own_review_row(rows) do
+    Enum.find(rows, &match?(%{activity: %Activity{kind: :review}, author: %Person{own?: true}}, &1))
+  end
 
   @doc "A watchlist note as the row's `notes`: one unattributed entry, or none."
   @spec note_list(String.t() | nil) :: [%{name: nil, text: String.t()}]
