@@ -55,10 +55,15 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       app = create_app(%{})
       {:ok, view, _html} = live(conn, "/apps")
 
-      view |> element("[phx-click='toggle_manage']") |> render_click()
+      html = view |> element("[phx-click='toggle_manage']") |> render_click()
 
-      assert has_element?(view, "[data-nav-zone='grid'] [data-nav-item][data-app-id='#{app.id}']")
-      refute has_element?(view, "[data-nav-zone='grid'] [phx-click='remove_app']")
+      grid_items =
+        html
+        |> LazyHTML.from_document()
+        |> LazyHTML.query("[data-nav-zone='grid'] [data-nav-item]")
+        |> Enum.map(&LazyHTML.attribute(&1, "data-app-id"))
+
+      assert grid_items == [[app.id]], "the grid must hold exactly one nav item per card"
     end
 
     test "Remove in the edit modal arms on the first press and removes on the second", %{
@@ -80,11 +85,11 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       assert html =~ "Press again to remove"
       assert [_app] = Apps.list_apps()
 
-      view |> element("#app-remove") |> render_click()
+      html = view |> element("#app-remove") |> render_click()
 
       assert Apps.list_apps() == []
-      refute has_element?(view, "[data-app-id='#{app.id}']")
-      refute has_element?(view, "#apps-manage-modal[data-state='open']")
+      assert html =~ "Launch anything from here", "the page must show the app gone"
+      assert has_element?(view, "#apps-manage-modal[data-state='closed']")
     end
 
     test "the Manage toggle comes first in the toolbar, so the cursor stays on it", %{conn: conn} do

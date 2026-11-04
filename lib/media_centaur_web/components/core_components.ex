@@ -229,7 +229,7 @@ defmodule MediaCentaurWeb.CoreComponents do
   attr :armed_label, :string,
     required: true,
     doc:
-      "label shown while armed — say what fires, in words every input method reads: \"Press again to remove\", never \"Click again\" (a remote or a gamepad does not click)."
+      ~s{label shown while armed — say what fires, in words every input method reads: "Press again to remove", never "Click again" (a remote or a gamepad does not click).}
 
   attr :busy, :boolean,
     default: false,

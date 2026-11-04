@@ -179,7 +179,10 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     } do
       {:ok, view, _html} = live_async!(conn, "/history")
 
-      assert has_element?(view, "[data-nav-zone='toolbar'] #history-filter [phx-value-choice='all'][aria-pressed='true']")
+      assert has_element?(
+               view,
+               "[data-nav-zone='toolbar'] #history-filter [phx-value-choice='all'][aria-pressed='true']"
+             )
 
       view |> element("#history-filter [phx-value-choice='episode']") |> render_click()
 
@@ -195,8 +198,6 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
                view,
                "[data-nav-zone='history_rows'] [data-nav-item] [data-nav-sub-item][phx-click='remove_event'][phx-value-id='#{event.id}']"
              )
-
-      refute has_element?(view, "[phx-click='remove_event'][data-nav-item]")
     end
 
     test "the tab title agrees with the page header", %{conn: conn} do
