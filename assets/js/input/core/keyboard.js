@@ -96,16 +96,20 @@ export class KeyboardSource {
       //   editing            → exit edit mode, preserve value (press 1)
       //   not editing + val  → clear value, stay focused           (press 2)
       //   not editing + ""   → fall through to BACK nav
+      // Both presses stop here: a window Escape binding beneath (the detail
+      // modal's) must not see the key the input system has consumed.
       if (event.key === "Escape") {
         if (this._inputEditing) {
           this._setEditing(false)
           event.preventDefault()
+          event.stopPropagation()
           return
         }
         if (event.target.value && !isTextarea) {
           event.target.value = ""
           event.target.dispatchEvent(new Event("input", { bubbles: true }))
           event.preventDefault()
+          event.stopPropagation()
           return
         }
         // empty + not editing — fall through to nav handling below (→ BACK)

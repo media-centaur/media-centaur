@@ -406,6 +406,7 @@ describe("KeyboardSource", () => {
       expect(source._inputEditing).toBe(false)
       expect(textarea.value).toBe("some words")
       expect(event.preventDefault).toHaveBeenCalled()
+      expect(event.stopPropagation).toHaveBeenCalled()
       expect(actions).toEqual([])
     })
 
