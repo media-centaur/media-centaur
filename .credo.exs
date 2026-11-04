@@ -211,12 +211,13 @@
           # browser draws it outside the page — unthemed, unscaled, clipped.
           # The app tooltip (`data-tip`, hooks/tooltip.js) is the one label.
           {MediaCentaur.Credo.Checks.NativeTitleTooltip, []},
+          # MC0043: confirmation copy says "Press again", never "click" — a
+          # remote or gamepad presses.
+          {MediaCentaur.Credo.Checks.DeviceNeutralConfirmCopy, []},
           # MC0027 bans `data-confirm` — the native browser dialog is unthemed
           # and not d-pad reachable, which is disqualifying for a couch app.
           # The check's moduledoc carries the three-way rule that replaced it
           # (nothing / arm-in-place / persistent modal, by consequence).
-          # `@exempt_files` holds the console, which is deliberately outside
-          # the input system that motivates the rule.
           {MediaCentaur.Credo.Checks.NativeConfirmDialog, []},
           {MediaCentaur.Credo.Checks.StorybookCoverage, []},
           {MediaCentaur.Credo.Checks.TypedComponentAttrs, []},

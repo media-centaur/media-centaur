@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.Components.Social.ReaderView do
           :if={@person.friend?}
           armed={@remove_armed}
           event="remove_friend"
-          armed_label="Click again to remove"
+          armed_label="Press again to remove"
           variant="dismiss"
           phx-value-pubkey={@person.pubkey}
         >

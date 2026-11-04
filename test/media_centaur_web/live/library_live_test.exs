@@ -543,7 +543,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # withdraws nothing, the second fires.
       view |> element("#review-remove", "Remove review") |> render_click()
       assert [%{sentiment: :love}] = Activities.list_sent()
-      view |> element("#review-remove[data-armed]", "Click again to remove") |> render_click()
+      view |> element("#review-remove[data-armed]", "Press again to remove") |> render_click()
       assert render(view) =~ "Review removed"
       # Back on the detail, with nothing of yours left: the pencil offers a review again.
       await_supervised_tasks()

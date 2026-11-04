@@ -262,7 +262,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <.armed_button
         armed={@clear_armed}
         event="clear_buffer"
-        armed_label="Click again to clear the log"
+        armed_label="Press again to clear the log"
         variant="dismiss"
         size="xs"
       >

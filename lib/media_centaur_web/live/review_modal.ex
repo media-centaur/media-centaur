@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
               type="button"
               armed={ArmGesture.armed?(@armed_gesture, "review_remove")}
               event="review_remove"
-              armed_label="Click again to remove"
+              armed_label="Press again to remove"
               variant="dismiss"
               class="text-base-content/55 hover:text-error"
             >

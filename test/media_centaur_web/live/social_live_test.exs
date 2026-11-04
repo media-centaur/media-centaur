@@ -541,7 +541,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert [_still_a_friend] = Social.list_friends()
 
       view
-      |> element("[data-component='reader-view'] button[data-armed]", "Click again to remove")
+      |> element("[data-component='reader-view'] button[data-armed]", "Press again to remove")
       |> render_click()
 
       assert_redirect(view, "/social/friends")

@@ -371,7 +371,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           <.armed_button
             armed={@armed_dir == dir}
             event="setup:remove_media_dir"
-            armed_label="Click again to remove"
+            armed_label="Press again to remove"
             variant="dismiss"
             size="xs"
             phx-value-dir={dir}
