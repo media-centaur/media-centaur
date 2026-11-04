@@ -29,13 +29,8 @@ import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createProfilesBehavior } from "./profiles_behavior"
 import { createGuideBehavior } from "./guide_behavior"
-import { withWipNotice } from "./wip_notice"
 import { withViewing } from "./viewing_behavior"
 
-// Pages still mid-redesign carry the "UI overhaul in progress" notice via
-// withWipNotice (see wip_notice.js). The set of wrapped entries below is the
-// single source of truth for which pages show it; unwrap an entry once its
-// in-page navigation is finished.
 const BEHAVIOR_REGISTRY = {
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
@@ -44,7 +39,7 @@ const BEHAVIOR_REGISTRY = {
   settings: () => createSettingsBehavior(),
   downloads: () => createDownloadsBehavior(downloadsDom),
   discovery: () => createDiscoveryBehavior(discoveryDom),
-  "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
+  "watch-history": () => createWatchHistoryBehavior(),
   watchlist: () => createWatchlistBehavior(watchlistDom),
   social: () => createSocialBehavior(),
   apps: () => createAppsBehavior(),

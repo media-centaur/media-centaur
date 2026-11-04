@@ -51,6 +51,9 @@ export const inputConfig = {
     // is its `[data-nav-sub-item]`, and the open list its own nested zone.
     watchlist_rows: "[data-nav-zone='watchlist_rows'] [data-nav-item]",
     watchlist_rung_menu: "[data-nav-zone='watchlist_rung_menu'] [data-nav-item]",
+    // Watch history's rows, a row's Remove its `[data-nav-sub-item]`; the
+    // pager and the empty states' buttons are items of the same tree.
+    history_rows: "[data-nav-zone='history_rows'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     // Settings → Controls: the binding table. A row is the item; its keycaps
@@ -203,6 +206,8 @@ export const inputConfig = {
     // Feed's shape), and the open rung menu nested in a row.
     watchlist_rows: Context.TREE,
     watchlist_rung_menu: Context.TREE,
+    // Watch history: rows with their Remove as the sub-item.
+    history_rows: Context.TREE,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -435,10 +440,12 @@ export const inputConfig = {
       other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
       sidebar:         { right: ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox"] },
     },
+    // Watch history: the filters over the rows tree (pager and empty
+    // states included). The heatmap is not a nav zone.
     watch_history: {
-      toolbar:   { down: ["grid"] },
-      grid:      { up: ["toolbar"] },
-      sidebar:   { right: ["toolbar", "grid"] },
+      toolbar:      { down: ["history_rows"] },
+      history_rows: { up: ["toolbar"] },
+      sidebar:      { right: ["history_rows", "toolbar"] },
     },
     // Watchlist: the filter and search over the rows (one TREE across the
     // rung groups); a row's open rung menu is nested in it, BACK closing
@@ -538,7 +545,7 @@ export const inputConfig = {
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     downloads:  ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox", "sidebar"],
-    watch_history: ["grid", "toolbar", "sidebar"],
+    watch_history: ["history_rows", "toolbar", "sidebar"],
     watchlist: ["watchlist_rows", "toolbar", "sidebar"],
     social: ["feed", "people", "hidden_people", "add_friend", "person_rows", "person_view", "toolbar", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],

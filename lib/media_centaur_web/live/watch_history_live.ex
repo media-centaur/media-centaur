@@ -2,6 +2,15 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   @moduledoc """
   Watch history page — stats bar, GitHub-style heatmap, and a filterable
   watch event list with real-time updates.
+
+  It has no sidebar entry: the Status page's Playback drill-in links it,
+  so the shell marks Status active (as the console does), and BACK enters
+  the sidebar there.
+
+  Navigation (`watch_history` in `assets/js/input/config.js`): the
+  toolbar — type filter, search, the date chip — over the `history_rows`
+  tree. A row is one item and its Remove the row's sub-item; the pager
+  and the empty states' buttons are items of the same tree.
   """
   use MediaCentaurWeb, :live_view
 
@@ -15,7 +24,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, page_title: "History")
+    socket = assign(socket, page_title: "Watch History")
 
     # The source topic drives the paginated events-list refresh; the
     # derived topic the aggregate panel (stats, heatmap, rewatch counts)
@@ -100,13 +109,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       viewing_layer={assigns[:viewing_layer]}
       features={@features}
       flash={@flash}
-      current_path="/history"
+      current_path="/status"
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
-      <:overlays>
-        <%!-- Deleting in-progress modal — persistent (no casual dismissal while
-              the delete is running). --%>
-      </:overlays>
       <div
         class="max-w-5xl mx-auto space-y-6 py-6"
         data-page-behavior="watch-history"
@@ -121,7 +126,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         <div :if={empty_reason(assigns) != :no_history} class="grid grid-cols-3 gap-4">
           <div class="glass-inset rounded-xl px-5 py-4">
             <div class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
-              Titles Watched
+              Watches
             </div>
             <div class="text-3xl font-bold tabular-nums">{@stats.total_count}</div>
           </div>
@@ -152,7 +157,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           :if={empty_reason(assigns) != :no_history}
           class="glass-inset rounded-xl p-4 overflow-x-auto w-fit"
         >
-          <div data-heatmap={heatmap_key(@filter_type)}>
+          <div data-heatmap={type_choice(@filter_type)}>
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-3">
               {heatmap_title(@filter_type)} — last 52 weeks
             </h2>
@@ -181,41 +186,36 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           data-nav-zone="toolbar"
           class="flex flex-wrap items-center gap-3"
         >
-          <div role="group" class="join">
-            <button
-              :for={
-                {type, value, label} <- [
-                  {nil, "all", "All"},
-                  {:movie, "movie", "Movies"},
-                  {:episode, "episode", "Episodes"},
-                  {:video_object, "video_object", "Video"}
-                ]
-              }
-              class={["join-item btn btn-sm", @filter_type == type && "btn-active"]}
-              data-nav-item
-              tabindex="0"
-              phx-click="filter_type"
-              phx-value-type={value}
-            >
-              {label}
-            </button>
-          </div>
+          <.segmented_control
+            id="history-filter"
+            label="Type"
+            options={[
+              {"all", "All"},
+              {"movie", "Movies"},
+              {"episode", "Episodes"},
+              {"video_object", "Video"}
+            ]}
+            selected={type_choice(@filter_type)}
+            event="filter_type"
+          />
 
           <input
+            id="history-search"
             type="search"
             class="input input-sm"
             placeholder="Search titles…"
+            aria-label="Search titles"
             value={@filter_search}
             phx-change="filter_search"
             phx-debounce="300"
             name="value"
             data-nav-item
-            data-captures-keys
             tabindex="0"
           />
 
           <.button
             :if={@filter_date}
+            id="history-date-filter"
             variant="primary"
             size="xs"
             class="gap-1"
@@ -233,7 +233,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           :if={empty_reason(assigns) == :no_history}
           icon="hero-clock"
           headline="Every finished watch lands here"
-          data-nav-zone="grid"
+          data-nav-zone="history_rows"
         >
           Each movie and episode you finish becomes a row with when you watched it and how many
           times, and a heatmap of your viewing by day.
@@ -247,7 +247,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         <.empty_state
           :if={empty_reason(assigns) == :no_matches}
           headline="No watches match your current filters"
-          data-nav-zone="grid"
+          data-nav-zone="history_rows"
         >
           <:action>
             <.button variant="dismiss" size="sm" phx-click="clear_filters" data-nav-item tabindex="0">
@@ -256,9 +256,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           </:action>
         </.empty_state>
 
+        <%!-- A row is one item and does nothing on SELECT; its Remove is
+              the row's sub-item (RIGHT steps onto it). --%>
         <div
           :if={@events != []}
-          data-nav-zone="grid"
+          data-nav-zone="history_rows"
           class="glass-inset rounded-xl overflow-hidden"
         >
           <div
@@ -295,6 +297,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               armed_label="Press again to remove"
               variant="destructive_inline"
               size="xs"
+              nav={:sub_item}
               class="text-base-content/55 hover:text-error transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
               phx-value-id={event.id}
               aria-label="Remove from history"
@@ -304,10 +307,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           </div>
         </div>
 
-        <%!-- Pagination — lives inside the grid zone so UP from here reaches the toolbar --%>
+        <%!-- Pagination — items of the rows tree, after the last row --%>
         <div
           :if={@page > 1 || @has_next}
-          data-nav-zone="grid"
+          data-nav-zone="history_rows"
           class="flex items-center justify-center gap-4 py-2"
         >
           <.button
@@ -338,9 +341,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_event("filter_type", %{"type" => type_str}, socket) do
+  def handle_event("filter_type", %{"choice" => choice}, socket) do
     type =
-      case type_str do
+      case choice do
         "movie" -> :movie
         "episode" -> :episode
         "video_object" -> :video_object
@@ -511,8 +514,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {events, has_next}
   end
 
-  def heatmap_key(nil), do: "all"
-  def heatmap_key(type), do: Atom.to_string(type)
+  @doc "A filter type as its string value: the type filter's choice and the heatmap's key."
+  def type_choice(nil), do: "all"
+  def type_choice(type), do: Atom.to_string(type)
 
   def heatmap_title(nil), do: "All Watched"
   def heatmap_title(:movie), do: "Movies Watched"

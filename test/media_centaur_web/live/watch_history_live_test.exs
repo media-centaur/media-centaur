@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       html =
         view
-        |> element("button[phx-value-type=\"movie\"]", "Movies")
+        |> element("#history-filter [phx-value-choice='movie']", "Movies")
         |> render_click()
 
       assert count_substrings(html, "data-heatmap=") == 1
@@ -145,6 +145,63 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       # Two completions are visible on page
       assert html =~ "Movie A"
       assert html =~ "Movie B"
+    end
+  end
+
+  describe "navigation contract" do
+    setup do
+      movie = create_movie(%{name: "Sample Nav Movie"})
+
+      event =
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Nav Movie"})
+
+      {:ok, event: event}
+    end
+
+    test "the page sits under Status in the sidebar, which it is reached from", %{conn: conn} do
+      # BACK enters the sidebar at its active entry; with none marked it
+      # landed on Home.
+      {:ok, view, _html} = live_async!(conn, "/history")
+      assert has_element?(view, "#sidebar-status.sidebar-link-active")
+    end
+
+    test "the search field takes typing through the input system, never capturing keys", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live_async!(conn, "/history")
+
+      assert has_element?(view, "[data-nav-zone='toolbar'] #history-search[data-nav-item]")
+      refute has_element?(view, "#history-search[data-captures-keys]")
+    end
+
+    test "the type filter is the kit's segmented control, its choice marked pressed", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live_async!(conn, "/history")
+
+      assert has_element?(view, "[data-nav-zone='toolbar'] #history-filter [phx-value-choice='all'][aria-pressed='true']")
+
+      view |> element("#history-filter [phx-value-choice='episode']") |> render_click()
+
+      assert has_element?(view, "#history-filter [phx-value-choice='episode'][aria-pressed='true']")
+    end
+
+    test "a row is one item of the rows tree, its Remove a sub-item", %{conn: conn, event: event} do
+      {:ok, view, _html} = live_async!(conn, "/history")
+
+      assert has_element?(view, "[data-nav-zone='history_rows'] [data-nav-item]", "Sample Nav Movie")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='history_rows'] [data-nav-item] [data-nav-sub-item][phx-click='remove_event'][phx-value-id='#{event.id}']"
+             )
+
+      refute has_element?(view, "[phx-click='remove_event'][data-nav-item]")
+    end
+
+    test "the tab title agrees with the page header", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/history")
+      assert page_title(view) =~ "Watch History"
     end
   end
 
