@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Storybook.AppCards.BannerCard do
       },
       %Variation{
         id: :manage_mode,
-        description: "Manage mode — click edits, remove button visible",
+        description: "Manage mode — selecting the card opens its edit modal (where it is removed)",
         attributes: %{
           id: "app-card-demo-3",
           app_id: "demo-3",

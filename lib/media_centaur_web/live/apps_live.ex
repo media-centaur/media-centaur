@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.AppsLive do
   alias MediaCentaur.Apps.Steam
   alias MediaCentaurWeb.Components.AppCards
   alias MediaCentaurWeb.Components.PictureField
+  alias MediaCentaurWeb.Live.ArmGesture
 
   # The banner master: Steam's current header size at 2×, the card's
   # 460:215 shape.
@@ -116,9 +117,17 @@ defmodule MediaCentaurWeb.AppsLive do
      |> assign_manual_form(App.update_changeset(app, %{}))}
   end
 
+  # Removing an app has no undo: the edit modal's Remove arms on the first
+  # press and fires on the second (MC0027 tier 2).
   def handle_event("remove_app", %{"app-id" => id}, socket) do
-    Apps.remove_app(Apps.get_app!(id))
-    {:noreply, load_apps(socket)}
+    case ArmGesture.press(socket, "remove_app", id) do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        Apps.remove_app(Apps.get_app!(id))
+        {:noreply, socket |> assign(:modal, :closed) |> reset_banner() |> load_apps()}
+    end
   end
 
   # The upload's change event: LiveView needs it bound to track the entry.
@@ -164,7 +173,7 @@ defmodule MediaCentaurWeb.AppsLive do
     assigns =
       assign(assigns,
         modal_open?: assigns.modal != :closed,
-        editing?: match?({:edit, _app}, assigns.modal),
+        editing_app: editing_app(assigns.modal),
         banner_app: banner_app(assigns.modal),
         steam_picker?:
           assigns.modal == :add and assigns.add_tab == :steam and
@@ -195,17 +204,10 @@ defmodule MediaCentaurWeb.AppsLive do
         <div data-nav-zone="toolbar">
           <div class="flex items-baseline justify-between">
             <.page_header title="Apps" />
+            <%!-- The toggle leads: the toolbar's focus is restored by index
+                  after the patch, so a button appearing before it would take
+                  the cursor off the control just pressed. --%>
             <div class="flex items-center gap-2">
-              <.button
-                :if={@manage}
-                variant="action"
-                size="sm"
-                phx-click="open_add"
-                data-nav-item
-                tabindex="0"
-              >
-                <.icon name="hero-plus" class="size-4" /> Add app
-              </.button>
               <.button
                 variant={if @manage, do: "secondary", else: "dismiss"}
                 size="sm"
@@ -218,6 +220,16 @@ defmodule MediaCentaurWeb.AppsLive do
                   class="size-4"
                 />
                 {if @manage, do: "Done", else: "Manage"}
+              </.button>
+              <.button
+                :if={@manage}
+                variant="action"
+                size="sm"
+                phx-click="open_add"
+                data-nav-item
+                tabindex="0"
+              >
+                <.icon name="hero-plus" class="size-4" /> Add app
               </.button>
             </div>
           </div>
@@ -265,7 +277,11 @@ defmodule MediaCentaurWeb.AppsLive do
       <:overlays>
         <%!-- The Steam picker earns the full :md panel — a wide grid
               beats a two-column tower. Every other state (manual form,
-              edit, no-Steam notices) stays a compact dialog. --%>
+              edit, no-Steam notices) stays a compact dialog.
+              Navigation (`apps_modal` in config.js overlays): the picker
+              grid is its own `apps_steam` region, walked by geometry, and
+              the cursor opens there; every other control is the
+              `apps_controls` tree around it. --%>
         <.modal
           id="apps-manage-modal"
           open={@modal_open?}
@@ -273,12 +289,13 @@ defmodule MediaCentaurWeb.AppsLive do
           on_close="close_modal"
           size={if @steam_picker?, do: :md, else: :sm}
           panel_class="p-5 space-y-4"
+          data-nav-overlay={@modal_open? && "apps_modal"}
         >
-          <div :if={@modal_open?}>
+          <div :if={@modal_open?} data-nav-zone="apps_controls">
             <div class="space-y-4">
               <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold">
-                  {if @editing?, do: "Edit app", else: "Add app"}
+                  {if @editing_app, do: "Edit app", else: "Add app"}
                 </h2>
                 <.button
                   variant="dismiss"
@@ -334,6 +351,7 @@ defmodule MediaCentaurWeb.AppsLive do
                 <div
                   :if={is_list(@steam_games) && @steam_games != []}
                   class="grid gap-2 grid-cols-3 max-h-[calc(60vh/var(--ui-scale,1))] overflow-y-auto thin-scrollbar"
+                  data-nav-zone="apps_steam"
                 >
                   <.steam_tile
                     :for={game <- @steam_games}
@@ -345,18 +363,20 @@ defmodule MediaCentaurWeb.AppsLive do
               </div>
 
               <.form
-                :if={@add_tab == :manual || @editing?}
+                :if={@add_tab == :manual || @editing_app}
                 for={@manual_form}
                 id="app-manual-form"
                 phx-submit="save_manual"
                 phx-change="validate_manual"
                 class="space-y-3"
               >
-                <.input field={@manual_form[:name]} label="Name" />
+                <.input field={@manual_form[:name]} label="Name" data-nav-item tabindex="0" />
                 <.input
                   field={@manual_form[:command]}
                   label="Command"
                   placeholder="e.g. minecraft-launcher"
+                  data-nav-item
+                  tabindex="0"
                 />
                 <PictureField.picture_field
                   :if={@banner_app}
@@ -388,6 +408,21 @@ defmodule MediaCentaurWeb.AppsLive do
                   </:preview>
                 </PictureField.picture_field>
                 <div class="flex justify-end gap-2">
+                  <%!-- Removing lives here, not on the card: a per-card
+                        button was a second nav item per card in the grid. --%>
+                  <.armed_button
+                    :if={@editing_app}
+                    id="app-remove"
+                    armed={ArmGesture.armed?(@armed_gesture, "remove_app", @editing_app.id)}
+                    event="remove_app"
+                    armed_label="Press again to remove"
+                    variant="dismiss"
+                    class="mr-auto"
+                    type="button"
+                    phx-value-app-id={@editing_app.id}
+                  >
+                    <.icon name="hero-trash" class="size-4" /> Remove
+                  </.armed_button>
                   <.button
                     variant="dismiss"
                     size="sm"
@@ -480,6 +515,9 @@ defmodule MediaCentaurWeb.AppsLive do
   # The app whose banner the form edits, as the field draws it: a new
   # manual app (nothing stored yet) or an edited manual app; nil for a
   # Steam app, whose banner follows the store.
+  defp editing_app({:edit, app}), do: app
+  defp editing_app(_modal), do: nil
+
   defp banner_app(:add), do: %{name: "", banner_url: nil}
 
   defp banner_app({:edit, %App{origin: %{"source" => "manual"}} = app}),

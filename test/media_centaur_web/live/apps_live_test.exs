@@ -47,24 +47,57 @@ defmodule MediaCentaurWeb.AppsLiveTest do
   end
 
   describe "manage mode" do
-    test "toggles remove affordance on cards", %{conn: conn} do
+    test "a card stays one grid item in manage mode; removal lives in its edit modal", %{
+      conn: conn
+    } do
+      # A per-card Remove was a second nav item per card, which broke the
+      # grid's column arithmetic for a keyboard or gamepad cursor.
       app = create_app(%{})
       {:ok, view, _html} = live(conn, "/apps")
 
-      refute has_element?(view, "[phx-click='remove_app']")
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      assert has_element?(view, "[phx-click='remove_app'][phx-value-app-id='#{app.id}']")
+
+      assert has_element?(view, "[data-nav-zone='grid'] [data-nav-item][data-app-id='#{app.id}']")
+      refute has_element?(view, "[data-nav-zone='grid'] [phx-click='remove_app']")
     end
 
-    test "remove_app deletes the app", %{conn: conn} do
+    test "Remove in the edit modal arms on the first press and removes on the second", %{
+      conn: conn
+    } do
       app = create_app(%{})
       {:ok, view, _html} = live(conn, "/apps")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      view |> element("[phx-click='remove_app'][phx-value-app-id='#{app.id}']") |> render_click()
+      view |> element("[phx-click='edit_app'][phx-value-app-id='#{app.id}']") |> render_click()
+
+      # The form's fields are items of the modal's controls region.
+      assert has_element?(
+               view,
+               "[data-nav-zone='apps_controls'] input[name='app[name]'][data-nav-item]"
+             )
+
+      html = view |> element("#app-remove") |> render_click()
+      assert html =~ "Press again to remove"
+      assert [_app] = Apps.list_apps()
+
+      view |> element("#app-remove") |> render_click()
 
       assert Apps.list_apps() == []
       refute has_element?(view, "[data-app-id='#{app.id}']")
+      refute has_element?(view, "#apps-manage-modal[data-state='open']")
+    end
+
+    test "the Manage toggle comes first in the toolbar, so the cursor stays on it", %{conn: conn} do
+      # The reconcile after the patch restores the toolbar by index: an Add
+      # button appearing before the toggle took the cursor off it.
+      {:ok, view, _html} = live(conn, "/apps")
+
+      view |> element("[phx-click='toggle_manage']") |> render_click()
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='toolbar'] [data-nav-item]:first-of-type[phx-click='toggle_manage']"
+             )
     end
   end
 
@@ -311,6 +344,14 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
 
       assert has_element?(view, "[phx-click='add_steam_game'][phx-value-app-id='100']")
+
+      # The picker is its own region of the modal, walked by geometry.
+      assert has_element?(view, "#apps-manage-modal[data-nav-overlay='apps_modal']")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='apps_steam'] [data-nav-item][phx-value-app-id='100']"
+             )
 
       # Tile art routes through SteamArtController with the page's root,
       # not a hotlinked CDN URL (hash-addressed titles 404 there).

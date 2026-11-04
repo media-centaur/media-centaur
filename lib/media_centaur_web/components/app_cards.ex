@@ -8,8 +8,9 @@ defmodule MediaCentaurWeb.Components.AppCards do
   (`card-hover`, `glass-inset`) and the art-less fallback idiom from
   `ContinueWatchingRow` — a centered monogram when no banner is cached.
 
-  In manage mode the card stops launching: clicking it opens the edit
-  modal instead, and a remove button appears.
+  In manage mode the card stops launching: selecting it opens the edit
+  modal instead, where the app is removed. The card stays one nav item in
+  either mode, so the grid's column arithmetic holds.
 
   `banner_art/1` is the card's art alone — the frame, the banner or the
   monogram — so the manual form's picture field shows the stored banner
@@ -18,7 +19,6 @@ defmodule MediaCentaurWeb.Components.AppCards do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Format
@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.AppCards do
 
   attr :manage, :boolean,
     default: false,
-    doc: "manage mode: click edits instead of launching, remove button shown"
+    doc: "manage mode: selecting the card edits it instead of launching"
 
   def banner_card(assigns) do
     ~H"""
@@ -49,20 +49,6 @@ defmodule MediaCentaurWeb.Components.AppCards do
       tabindex="0"
     >
       <.banner_art name={@name} banner_url={@banner_url} />
-      <.button
-        :if={@manage}
-        variant="destructive_inline"
-        size="sm"
-        shape="square"
-        class="absolute top-2 right-2 z-10"
-        phx-click="remove_app"
-        phx-value-app-id={@app_id}
-        data-nav-item
-        tabindex="0"
-        aria-label={"Remove #{@name}"}
-      >
-        <.icon name="hero-trash" class="size-4" />
-      </.button>
     </div>
     """
   end

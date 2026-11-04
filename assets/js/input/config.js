@@ -54,6 +54,9 @@ export const inputConfig = {
     // Watch history's rows, a row's Remove its `[data-nav-sub-item]`; the
     // pager and the empty states' buttons are items of the same tree.
     history_rows: "[data-nav-zone='history_rows'] [data-nav-item]",
+    // The Apps add/edit modal: its controls, and the Steam picker's grid.
+    apps_controls: "[data-nav-zone='apps_controls'] [data-nav-item]",
+    apps_steam: "[data-nav-zone='apps_steam'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     // Settings → Controls: the binding table. A row is the item; its keycaps
@@ -208,6 +211,10 @@ export const inputConfig = {
     watchlist_rung_menu: Context.TREE,
     // Watch history: rows with their Remove as the sub-item.
     history_rows: Context.TREE,
+    // The Apps modal: a vertical walk of its controls around the Steam
+    // picker, a three-column grid of banners resolved by geometry.
+    apps_controls: Context.TREE,
+    apps_steam: Context.SHELF,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -325,6 +332,18 @@ export const inputConfig = {
         review_choice: { down: ["review_text"] },
         review_text: { up: ["review_choice"], down: ["review_footer"] },
         review_footer: { up: ["review_text"] },
+      },
+    },
+    // The Apps add/edit modal: the Steam picker grid is its own region,
+    // walked by geometry, between the controls above it (close, the
+    // Steam/Manual tabs) and nothing below; the manual form and the edit
+    // form are the controls region alone. The cursor opens on the picker
+    // when it shows. No back edges: BACK closes the modal from anywhere.
+    apps_modal: {
+      entry: ["apps_steam", "apps_controls"],
+      layout: {
+        apps_controls: { down: ["apps_steam"] },
+        apps_steam:    { up: ["apps_controls"] },
       },
     },
     // The viewing layer's track menu: Audio beside Subtitles, LEFT/RIGHT
