@@ -748,7 +748,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # reads "2 episodes". Scoped to the ledger zone: a whole-page `=~`
       # also sweeps the Console drawer, whose GLOBAL log ring buffer
       # carries titles logged by earlier tests in the run.
-      assert has_element?(view, "section[data-nav-zone='ledger'] [phx-click='set_history_filter']")
+      assert has_element?(view, "section[data-nav-zone='ledger'] #ledger-filter")
       assert has_element?(view, "section[data-nav-zone='ledger']", "Sample Show")
       assert has_element?(view, "section[data-nav-zone='ledger']", "2 episodes")
     end

@@ -1357,7 +1357,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
   # actions are gone — rows are passive and clicking one opens the
   # pursuit modal where Cancel / Change target live.
 
-  def handle_event("set_history_filter", %{"filter" => filter}, socket) do
+  def handle_event("set_history_filter", %{"choice" => filter}, socket) do
     {:noreply,
      socket
      |> assign(

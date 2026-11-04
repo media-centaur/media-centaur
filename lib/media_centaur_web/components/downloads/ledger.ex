@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Downloads.Ledger do
   @moduledoc """
   The History archive — the History tab's whole content, always open:
-  lifecycle filter chips (`set_history_filter`, `:all` leading and
+  lifecycle filter (a segmented control, `set_history_filter`, `:all` leading and
   default), title/release search (`set_history_search`), and the
   grouped terminal rows in the quiet ledger vocabulary. No glimpse and
   no disclosure — the zone tab already did the quieting the old
@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1, segmented_control: 1]
   import MediaCentaurWeb.Components.Disclosure
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
@@ -77,20 +77,16 @@ defmodule MediaCentaurWeb.Components.Downloads.Ledger do
       class="mx-auto w-full max-w-4xl space-y-3"
     >
       <div class="flex flex-wrap items-center gap-2" data-nav-zone="toolbar">
-        <button
-          :for={filter_atom <- HistoryLogic.filter_atoms()}
-          phx-click="set_history_filter"
-          phx-value-filter={Atom.to_string(filter_atom)}
-          class={[
-            "btn btn-sm",
-            @filter == filter_atom && "btn-primary",
-            @filter != filter_atom && "btn-ghost"
-          ]}
-          data-nav-item
-          tabindex="0"
-        >
-          {HistoryLogic.filter_label(filter_atom)}
-        </button>
+        <.segmented_control
+          id="ledger-filter"
+          label="Show"
+          options={
+            for filter_atom <- HistoryLogic.filter_atoms(),
+                do: {Atom.to_string(filter_atom), HistoryLogic.filter_label(filter_atom)}
+          }
+          selected={Atom.to_string(@filter)}
+          event="set_history_filter"
+        />
 
         <form id="history-search-form" phx-change="set_history_search" class="ml-auto">
           <input

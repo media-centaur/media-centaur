@@ -1912,7 +1912,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "History")
       # The tab IS "View all": filter chips and search render immediately,
       # no disclosure to open, and the default filter shows everything.
-      assert has_element?(view, "[data-nav-zone='ledger'] [phx-click='set_history_filter']")
+      assert has_element?(view, "[data-nav-zone='ledger'] #ledger-filter [aria-pressed='true']", "All")
       assert has_element?(view, "[data-nav-zone='ledger'] input[type='search']")
       assert has_element?(view, "[data-nav-zone='ledger']", "Tabbed Landed Movie")
       refute has_element?(view, "[data-nav-zone='pursuits']")
