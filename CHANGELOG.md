@@ -4,6 +4,29 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.4.0 — 2026-11-04
+
+### New
+
+- **Discovery.** A new page for the titles you do not own yet, built like Home: a search box for any movie or show on TMDB, a hero for the most notable new release with Add to watchlist, Download and More info, and shelves — **Out Now** (titles on your watchlist that can be watched at home), **New Releases** (US digital releases of the last two weeks, refreshed daily and when the feature starts), **Reviewed by Friends**, and your **Watchlist** by stage (In Theaters, Coming Up). Every poster opens the title; hover one for its bookmark, Download and Ignore. Discovery needs a TMDB key and says so without one. It is on by default and no longer marked in development; an install that does not want it turns it off under Settings → Feature Flags, and nothing of it runs while it is off.
+- **The Watchlist page.** Every title on your list at `/watchlist`, grouped by what you asked for — Auto-grab, Tracking, On your list, Ignored — with what Media Centaur knows about each one's releases: episodes out and the latest, the next dated episode, Between seasons or Ended, a movie's release stage and date. Change a title's rung, ignore it or remove it on the row; filter by type or search by name. Titles your library already has are on it too, marked. The page is there whether or not Discovery is on.
+- **Caught up.** Tracking a series is about what comes next, so turning Track release dates on now takes you as caught up as of that moment: the latest aired episode becomes your caught-up point, and only what airs after it counts as out, is searched for by Auto-grab, or puts the show on Out Now. The point is shown on the title's page under the switches as **Caught up through**, with a season and an episode you can move, and a **Caught up** button that jumps to the latest aired episode; the Watchlist row carries the same button while episodes are out and says where you stand when none are. Earlier episodes are the Download button's job. A show you were already tracking keeps what it had.
+- **Ignored, folded away.** The Ignored group on the Watchlist page is shut when you open the page and opens on a press or while a search matches; its rows show no poster and are not in the page's count. An ignored title keeps its own name and year, so it still reads after its TMDB record is let go.
+
+### Improved
+
+- **Incoming is now Downloads.** The page at `/downloads` holds release search, download plans, live downloads and the history of what landed, under two tabs, Activity and History. The Watchlist tab and the title search moved to Discovery, where your list is drawn by release stage. `/incoming` no longer exists and does not redirect; update any bookmark. Without Prowlarr the page says what to connect instead of showing the watchlist.
+- **Home's Coming Up** opens a title in place when it is not in your library, and *See all* goes to Discovery.
+- **The sidebar** reads Home, Library, Discovery, Watchlist, Downloads, Social, Apps.
+- **A database migration runs on update.** Your watchlist gains the caught-up point and each title's name and year; a tracked series that had a start point recorded takes it as its caught-up point. Nothing else changes in your data.
+
+### Fixed
+
+- **A tracked series no longer sits on Out Now forever.** It is placed by its calendar — out while an episode after your point is not in your library, Coming Up at the next air date, otherwise off the shelves — instead of by the date its first episode aired.
+- **Smoother shelves on the TV.** A shelf below the fold no longer stalls the first scroll that reveals it: its posters are decoded ahead, once the page is idle.
+
+This release runs a database migration: the watchlist gains the caught-up point and each title's name and year, and a tracked series that had a start point recorded takes it as its caught-up point.
+
 ## v2.3.1 — 2026-11-01
 
 ### New
