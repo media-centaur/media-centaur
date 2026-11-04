@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Activities
+  alias MediaCentaur.Social.Identity
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Watchlist
   alias MediaCentaur.Library
   alias MediaCentaur.Settings.Preferences.PlanningMode
@@ -404,7 +407,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the detail page's Review control opens the modal and sends", %{conn: conn} do
-      MediaCentaur.Social.Identity.ensure()
+      Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
@@ -435,7 +438,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute has_element?(view, choice(:like) <> "[aria-pressed='true']")
 
       view |> form("#review-form", %{"text" => ""}) |> render_submit()
-      assert [%{tmdb_id: 777, text: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
+      assert [%{tmdb_id: 777, text: nil, sentiment: :love}] = Activities.list_sent()
 
       # Your own review alone draws no social capsule: nothing a friend did.
       await_supervised_tasks()
@@ -443,7 +446,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the words survive a sentiment press: the box is rendered from the held text", %{conn: conn} do
-      MediaCentaur.Social.Identity.ensure()
+      Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
@@ -458,18 +461,18 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> form("#review-form", %{"text" => "Typed before pressing Like"}) |> render_submit()
 
       assert [%{tmdb_id: 777, sentiment: :like, text: "Typed before pressing Like"}] =
-               MediaCentaur.Activities.list_sent()
+               Activities.list_sent()
 
       await_supervised_tasks()
     end
 
     test "a title the reader reviewed opens as editing: prefilled, Save replaces, Remove review withdraws",
          %{conn: conn} do
-      MediaCentaur.Social.Identity.ensure()
+      Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
-      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _mine} = MediaCentaur.Activities.review(title, :like, "First words")
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _mine} = Activities.review(title, :like, "First words")
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       view |> element("#detail-review") |> render_click()
@@ -486,29 +489,29 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert render(view) =~ "Review updated" or
                render(view) =~ "Saved — it shares when a relay connects"
 
-      assert [%{sentiment: :love, text: "Second words"}] = MediaCentaur.Activities.list_sent()
+      assert [%{sentiment: :love, text: "Second words"}] = Activities.list_sent()
 
       view |> element("#detail-review") |> render_click()
       view |> element("#review-remove", "Remove review") |> render_click()
       assert render(view) =~ "Review removed"
       refute has_element?(view, "#review-modal[data-state='open']")
       # list_sent/0 is the live rows: a withdrawn review is a tombstone and no longer among them.
-      assert MediaCentaur.Activities.list_sent() == []
+      assert Activities.list_sent() == []
       await_supervised_tasks()
     end
 
     test "the detail shows the reader's own review as You with its glyph and words; the pencil reads Edit your review",
          %{conn: conn} do
-      MediaCentaur.Social.Identity.ensure()
+      Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
-      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       assert has_element?(view, "#detail-review[aria-label='Review']")
       refute has_element?(view, "#detail-note")
 
-      {:ok, _mine} = MediaCentaur.Activities.review(title, :like, "Practical effects hold up.")
+      {:ok, _mine} = Activities.review(title, :like, "Practical effects hold up.")
       await_supervised_tasks()
 
       assert has_element?(view, "#detail-note[data-role='own-review']", "You")
@@ -522,13 +525,13 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "the own review outranks the watchlist note; a friend's lead review outranks both", %{
       conn: conn
     } do
-      MediaCentaur.Social.Identity.ensure()
+      Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
-      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       # Watchlist's own write: the note applies on creation (`put_rung/3`).
-      {:ok, _intent} = MediaCentaur.Watchlist.put_rung(title, :list, %{note: "Saved for Sunday"})
-      {:ok, _mine} = MediaCentaur.Activities.review(title, nil, "My words")
+      {:ok, _intent} = Watchlist.put_rung(title, :list, %{note: "Saved for Sunday"})
+      {:ok, _mine} = Activities.review(title, nil, "My words")
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       assert has_element?(view, "#detail-note[data-role='own-review']", "My words")
@@ -540,7 +543,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
       {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
-      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       review = fn sentiment ->
         MediaCentaur.Nostr.Event.sign(
@@ -560,7 +563,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       refute has_element?(view, "#detail-social")
 
-      {:ok, _rec} = MediaCentaur.Activities.ingest(review.(:love))
+      {:ok, _rec} = Activities.ingest(review.(:love))
 
       render_until(view, fn _html ->
         has_element?(view, "#detail-social .social-glyph[data-flag='love'][data-tip*='Sample Friend']")
