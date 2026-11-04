@@ -1,23 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { inputConfig } from "../config"
-import { Action, Context, buildNavGraph } from "../core/index"
+import { Context, buildNavGraph } from "../core/index"
 import { createReviewBehavior } from "../review_behavior"
-
-function fakeButton({ opensSearch }) {
-  return {
-    clicked: 0,
-    blurred: false,
-    click() {
-      this.clicked += 1
-    },
-    blur() {
-      this.blurred = true
-    },
-    hasAttribute(name) {
-      return opensSearch && name === "data-review-open-search"
-    },
-  }
-}
 
 describe("createReviewBehavior", () => {
   test("returns an object with lifecycle methods", () => {
@@ -30,28 +14,17 @@ describe("createReviewBehavior", () => {
     const behavior = createReviewBehavior()
     expect(behavior.onEscape).toBeUndefined()
   })
-
-  test("SELECT on Search TMDB opens the panel and takes the cursor into it", () => {
-    const behavior = createReviewBehavior()
-    const button = fakeButton({ opensSearch: true })
-
-    const result = behavior.onAction(Action.SELECT, "review-actions", button)
-
-    expect(button.clicked).toBe(1)
-    expect(button.blurred).toBe(true)
-    expect(result).toEqual({ transitionTo: "review-search" })
-  })
-
-  test("any other SELECT passes through", () => {
-    const behavior = createReviewBehavior()
-    const button = fakeButton({ opensSearch: false })
-
-    expect(behavior.onAction(Action.SELECT, "review-actions", button)).toBe(false)
-    expect(button.clicked).toBe(0)
-  })
 })
 
 describe("review layout", () => {
+  // The search panel is a nested region of the decision row: the input core
+  // moves the cursor into it when it opens and closes it when the cursor leaves.
+  test("the search panel backs onto the decision row", () => {
+    const counts = { zone_tabs: 2, "review-list": 3, "review-detail": 2, "review-actions": 4, "review-search": 5 }
+    const graph = buildNavGraph("review", counts, inputConfig)
+    expect(graph["review-search"].back).toBe("review-actions")
+  })
+
   test("the decision buttons are a toolbar between the detail and the search panel", () => {
     const counts = { zone_tabs: 2, "review-list": 3, "review-detail": 2, "review-actions": 4, "review-search": 5 }
     const graph = buildNavGraph("review", counts, inputConfig)

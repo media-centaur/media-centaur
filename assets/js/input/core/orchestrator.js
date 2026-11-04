@@ -957,9 +957,9 @@ export class Orchestrator {
   }
 
   /**
-   * Restore focus to the appropriate item in a context.
-   * Grid: restore by entity ID memory.
-   * All others: active item (DOM marker) → index memory → declared default → first item.
+   * Restore focus to the appropriate item in a context: the grid's
+   * remembered card by entity id, then — for every context — active item (DOM
+   * marker) → index memory → declared default → first item.
    *
    * `opts` is threaded to the writer's focus calls, in practice always
    * `_restoreOpts()`: cursor-driving actions flip the method before they run,
@@ -968,41 +968,34 @@ export class Orchestrator {
    * pointer owns.
    */
   _restoreContextFocus(context, opts = { reveal: true }) {
-    if (context === Context.GRID) {
-      if (this._lastGridEntityId) {
-        if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId, opts)) return
-      }
-      const savedIndex = this._contextMemory[Context.GRID]
-      if (savedIndex != null && savedIndex < this.reader.getItemCount(Context.GRID)) {
-        this.writer.focusByIndex(Context.GRID, savedIndex, opts)
-        return
-      }
-      this.writer.focusFirst(Context.GRID, opts)
-    } else {
-      // Try the DOM-marked current selection first (config.activeMarkers:
-      // sidebar-link-active, zone-tab-active, menu-item-active, a segmented
-      // control's aria-pressed option)
-      const activeIndex = this.reader.getActiveItemIndex(context)
-      if (activeIndex >= 0) {
-        this.writer.focusByIndex(context, activeIndex, opts)
-        return
-      }
-      // Fall back to saved memory position
-      const savedIndex = this._contextMemory[context]
-      if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
-        this.writer.focusByIndex(context, savedIndex, opts)
-        return
-      }
-      // Nothing remembered — some contexts open somewhere other than the top.
-      // The detail body opens on the episode Play would play, so arriving there
-      // for the first time and pressing Play do the same thing.
-      const seed = this._config.entryDefaults?.[context]
-      if (seed && this.reader.getMatchingIndex?.(context, seed) >= 0) {
-        this.writer.focusByIndex(context, this.reader.getMatchingIndex(context, seed), opts)
-        return
-      }
-      this.writer.focusFirst(context, opts)
+    // The grid's cards carry entity ids, which survive a stream reorder;
+    // when the remembered card is still there, it wins.
+    if (context === Context.GRID && this._lastGridEntityId &&
+        this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId, opts)) return
+
+    // Every context, the grid included: the DOM-marked current selection
+    // (config.activeMarkers: sidebar-link-active, zone-tab-active,
+    // menu-item-active, a glass menu's or segmented control's chosen option)
+    const activeIndex = this.reader.getActiveItemIndex(context)
+    if (activeIndex >= 0) {
+      this.writer.focusByIndex(context, activeIndex, opts)
+      return
     }
+    // …else the remembered position
+    const savedIndex = this._contextMemory[context]
+    if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
+      this.writer.focusByIndex(context, savedIndex, opts)
+      return
+    }
+    // …else the declared default — some contexts open somewhere other than
+    // the top (the detail body on the episode Play would play)
+    const seed = this._config.entryDefaults?.[context]
+    const seedIndex = seed ? this.reader.getMatchingIndex?.(context, seed) ?? -1 : -1
+    if (seedIndex >= 0) {
+      this.writer.focusByIndex(context, seedIndex, opts)
+      return
+    }
+    this.writer.focusFirst(context, opts)
   }
 
   /**

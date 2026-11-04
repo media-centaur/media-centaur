@@ -807,7 +807,6 @@ defmodule MediaCentaurWeb.ReviewLive do
             size="sm"
             phx-click="open_search"
             phx-value-key={@encoded_key}
-            data-review-open-search
             data-nav-item
             tabindex="0"
           >

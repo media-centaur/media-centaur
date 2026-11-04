@@ -4478,5 +4478,16 @@ describe("Orchestrator", () => {
         expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
       })
     })
+
+    test("a grid restores like every context: a declared default when nothing is remembered", () => {
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getMatchingIndex: (ctx, sel) => (ctx === Context.GRID && sel === "[data-selected]" ? 4 : -1),
+      }, { entryDefaults: { grid: "[data-selected]" } })
+      system.start({})
+      calls.length = 0
+      system._restoreContextFocus(Context.GRID)
+      expect(calls.find(c => c.method === "focusByIndex")?.args.slice(0, 2)).toEqual([Context.GRID, 4])
+    })
   })
 })
