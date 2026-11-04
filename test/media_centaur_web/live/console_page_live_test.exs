@@ -118,17 +118,33 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     end
   end
 
-  test "clear_buffer event empties the buffer", %{conn: conn} do
+  test "clear arms on the first press and empties the buffer on the second — no native dialog",
+       %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
-
     # `:buffer_cleared` arrives on the Console topic, not from the view.
     :ok = Console.subscribe()
-    seed([entry(:pipeline, "will be cleared on page")])
+    seed([entry(:pipeline, "kept after one press")])
 
-    render_click(view, "clear_buffer")
+    refute has_element?(view, "[data-confirm]")
+
+    view |> element("button[phx-click='clear_buffer']") |> render_click()
+    refute_receive :buffer_cleared, 100
+    assert has_element?(view, "button[phx-click='clear_buffer'][data-armed]")
+
+    view |> element("button[phx-click='clear_buffer']") |> render_click()
     assert_receive :buffer_cleared, 500
-
     assert whole_store() == []
+  end
+
+  test "the level floor is the house segmented control", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/console")
+
+    view |> element("button[phx-click='set_level'][phx-value-choice='error']") |> render_click()
+
+    assert has_element?(
+             view,
+             "button[phx-click='set_level'][phx-value-choice='error'][aria-pressed='true']"
+           )
   end
 
   test "showing a hidden component redraws the stream from its ring", %{conn: conn} do

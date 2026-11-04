@@ -116,16 +116,6 @@ defmodule MediaCentaur.Console.View do
   end
 
   @doc """
-  Returns the DaisyUI button class for a level filter button.
-  Returns `"btn-active"` when the filter's level matches the given level,
-  otherwise returns `""`.
-  """
-  @spec level_button_class(MediaCentaur.Console.Filter.t(), atom()) :: String.t()
-  def level_button_class(%{level: filter_level}, level) do
-    if filter_level == level, do: "btn-active", else: ""
-  end
-
-  @doc """
   Returns a lowercase string of the entry's message suitable for the
   `data-message` attribute used by client-side search filtering.
   """

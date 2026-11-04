@@ -231,28 +231,6 @@ defmodule MediaCentaur.Console.ViewTest do
     end
   end
 
-  describe "level_button_class/2" do
-    test "returns btn-active when filter level matches the given level" do
-      filter = Filter.new(level: :info)
-      assert View.level_button_class(filter, :info) == "btn-active"
-    end
-
-    test "returns empty string when filter level does not match" do
-      filter = Filter.new(level: :info)
-      assert View.level_button_class(filter, :error) == ""
-    end
-
-    test "returns btn-active for :error when filter is :error" do
-      filter = Filter.new(level: :error)
-      assert View.level_button_class(filter, :error) == "btn-active"
-    end
-
-    test "returns empty string for :info when filter is :warning" do
-      filter = Filter.new(level: :warning)
-      assert View.level_button_class(filter, :info) == ""
-    end
-  end
-
   describe "entry_search_text/1" do
     test "returns lowercased message for search data attribute" do
       entry = build_entry(message: "Pipeline STARTED successfully")

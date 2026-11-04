@@ -59,6 +59,23 @@ defmodule MediaCentaur.Credo.Checks.RawButtonClassTest do
       |> refute_issues()
     end
 
+    test "a class list without a btn token is allowed" do
+      ~S'''
+      defmodule MediaCentaurWeb.SomeLive do
+        use Phoenix.LiveView
+
+        def render(assigns) do
+          ~H"""
+          <button class={["console-chip", @hot && "chip-btn", "join-item"]}>x</button>
+          """
+        end
+      end
+      '''
+      |> to_source_file("lib/media_centaur_web/live/some_live.ex")
+      |> run_check(RawButtonClass)
+      |> refute_issues()
+    end
+
     test "class without btn token is allowed" do
       ~S'''
       defmodule MediaCentaurWeb.SomeLive do
@@ -149,6 +166,61 @@ defmodule MediaCentaur.Credo.Checks.RawButtonClassTest do
         def render(assigns) do
           ~H"""
           <button class="absolute top-3 right-3 btn btn-ghost btn-sm">x</button>
+          """
+        end
+      end
+      '''
+      |> to_source_file("lib/media_centaur_web/live/some_live.ex")
+      |> run_check(RawButtonClass)
+      |> assert_issue()
+    end
+
+    test "raw btn class in a class list is reported" do
+      ~S'''
+      defmodule MediaCentaurWeb.SomeLive do
+        use Phoenix.LiveView
+
+        def render(assigns) do
+          ~H"""
+          <button class={["join-item btn btn-xs", @state_class]}>info</button>
+          """
+        end
+      end
+      '''
+      |> to_source_file("lib/media_centaur_web/live/some_live.ex")
+      |> run_check(RawButtonClass)
+      |> assert_issue(fn issue -> assert issue.line_no == 6 end)
+    end
+
+    test "raw btn class in a class list spread over lines is reported on its own line" do
+      ~S'''
+      defmodule MediaCentaurWeb.SomeLive do
+        use Phoenix.LiveView
+
+        def render(assigns) do
+          ~H"""
+          <button class={[
+            "rounded",
+            "btn btn-ghost",
+            @state_class
+          ]}>x</button>
+          """
+        end
+      end
+      '''
+      |> to_source_file("lib/media_centaur_web/live/some_live.ex")
+      |> run_check(RawButtonClass)
+      |> assert_issue(fn issue -> assert issue.line_no == 8 end)
+    end
+
+    test "raw btn class in a class expression string is reported" do
+      ~S'''
+      defmodule MediaCentaurWeb.SomeLive do
+        use Phoenix.LiveView
+
+        def render(assigns) do
+          ~H"""
+          <button class={"btn btn-sm " <> @extra}>x</button>
           """
         end
       end

@@ -105,19 +105,13 @@ defmodule MediaCentaurWeb.ConsoleComponents do
             in the buffer (Log.debug would work if added) but v1 hides it
             from the level floor UI to avoid noise. Add here if debug logs
             become a first-class diagnostic surface. --%>
-      <div class="console-level-filter join">
-        <button
-          :for={level <- [:info, :warning, :error]}
-          type="button"
-          class={["join-item btn btn-xs", View.level_button_class(@filter, level)]}
-          phx-click="set_level"
-          phx-value-level={level}
-          data-nav-item
-          tabindex="0"
-        >
-          {level}
-        </button>
-      </div>
+      <.segmented_control
+        label="Lowest level shown"
+        options={[{:info, "info"}, {:warning, "warning"}, {:error, "error"}]}
+        selected={@filter.level}
+        event="set_level"
+        class="console-level-filter"
+      />
 
       <input
         id="console-search-input"
@@ -255,22 +249,25 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   """
   attr :buffer_size, :integer, required: true
 
+  attr :clear_armed, :boolean,
+    default: false,
+    doc: "clear has had its first press (`ArmGesture`): the second clears the buffer."
+
   def action_footer(assigns) do
     ~H"""
     <%!-- The size slider stays off the nav graph: LEFT and RIGHT move along
           the footer, so a focused range input could never be adjusted. Tab
           still reaches it. --%>
     <footer class="console-footer" data-nav-zone="console_footer">
-      <.button
-        variant="neutral"
+      <.armed_button
+        armed={@clear_armed}
+        event="clear_buffer"
+        armed_label="Click again to clear the log"
+        variant="dismiss"
         size="xs"
-        data-nav-item
-        tabindex="0"
-        phx-click="clear_buffer"
-        data-confirm="Clear the diagnostic log buffer? Recent entries will be lost."
       >
         clear
-      </.button>
+      </.armed_button>
       <%!-- The ConsolePage hook answers these: it pushes the event with the
             browser's text search, which the server does not hold. --%>
       <.button

@@ -57,23 +57,6 @@ defmodule MediaCentaur.Credo.Checks.NativeConfirmDialogTest do
       |> refute_issues()
     end
 
-    test "allows the console, the one decided exemption" do
-      ~S'''
-      defmodule MediaCentaurWeb.ConsoleComponents do
-        use Phoenix.Component
-
-        def action_footer(assigns) do
-          ~H"""
-          <button phx-click="clear_buffer" data-confirm="Clear the log buffer?">Clear</button>
-          """
-        end
-      end
-      '''
-      |> to_source_file("lib/media_centaur_web/components/console_components.ex")
-      |> run_check(NativeConfirmDialog)
-      |> refute_issues()
-    end
-
     test "ignores non-web files that merely mention the attribute" do
       ~S'''
       defmodule MediaCentaur.SomeModule do

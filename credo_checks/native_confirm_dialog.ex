@@ -43,21 +43,13 @@ defmodule MediaCentaur.Credo.Checks.NativeConfirmDialog do
           `dismiss={:persistent}`, so a stray backdrop click or Escape cannot
           answer it. Today `clear_database` is the only action that qualifies.
 
-      To extend `@exempt_files`, add the file with a one-line comment saying
-      why that surface is genuinely outside the convention.
-
       Source: the 2026-08 audit-remediation campaign, Stage 8 (campaign
       retired; see git history).
       """
     ]
 
-  # The console is deliberately outside the input system (backtick opens it;
-  # it must not take the arrow keys on a log-reading surface), so the d-pad
-  # argument that motivates this check does not reach it.
-  @exempt_files [
-    "components/console_components.ex",
-    "credo/checks/native_confirm_dialog_test.exs"
-  ]
+  # The check's own test fixtures carry the flagged attribute.
+  @exempt_files ["credo/checks/native_confirm_dialog_test.exs"]
 
   @data_confirm ~r/data-confirm\s*=/
 

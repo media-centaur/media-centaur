@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   alias MediaCentaur.Console
   alias MediaCentaur.Console.{Buffer, Filter, View}
   alias MediaCentaurWeb.ConsolePageLive.Logic
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.StatusLive.HealthBoard
 
   @impl true
@@ -95,7 +96,10 @@ defmodule MediaCentaurWeb.ConsolePageLive do
           stream={@streams.entries}
           class="console-log"
         />
-        <MediaCentaurWeb.ConsoleComponents.action_footer buffer_size={@buffer_size} />
+        <MediaCentaurWeb.ConsoleComponents.action_footer
+          buffer_size={@buffer_size}
+          clear_armed={ArmGesture.armed?(@armed_gesture, "clear_buffer")}
+        />
       </div>
     </Layouts.app>
     """
@@ -184,14 +188,21 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     {:noreply, change_filter(socket, filter)}
   end
 
-  def handle_event("set_level", %{"level" => level_string}, socket) do
+  def handle_event("set_level", %{"choice" => level_string}, socket) do
     filter = Logic.set_level(socket.assigns.filter, level_string)
     {:noreply, change_filter(socket, filter)}
   end
 
+  # Clearing loses the recent entries: the arm gesture, first press arms.
   def handle_event("clear_buffer", _params, socket) do
-    :ok = Console.clear()
-    {:noreply, socket}
+    case ArmGesture.press(socket, "clear_buffer") do
+      {:armed, socket} ->
+        {:noreply, socket}
+
+      {:fire, socket} ->
+        :ok = Console.clear()
+        {:noreply, socket}
+    end
   end
 
   def handle_event("resize_buffer", %{"size" => size_string}, socket) do
