@@ -152,10 +152,14 @@ export class KeyboardSource {
         return
       }
 
-      // Arrow keys / other nav keys — handle as normal navigation
+      // Arrow keys / other nav keys — handle as normal navigation. Stop
+      // bubbling as the normal path does: Escape as BACK from the Review
+      // modal's text box must not also reach the detail's window Escape
+      // beneath it.
       const action = keyToAction(event.key, { targetIsInput: false }, this._keyMap)
       if (!action) return
       event.preventDefault()
+      event.stopPropagation()
       this._emitAction(action)
       return
     }

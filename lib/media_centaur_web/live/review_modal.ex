@@ -42,6 +42,9 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
     assigns = assign(assigns, :editing?, State.editing?(assigns.state))
 
     ~H"""
+    <%!-- Nested in the detail's overlay: BACK pushes `review_cancel` and the
+          cursor returns to the detail beneath instead of the page behind it
+          (the input system's `data-detail-nested` contract). --%>
     <.modal
       id="review-modal"
       open={!is_nil(@state.subject)}
@@ -50,6 +53,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
       size={:sm}
       panel_class="p-6"
       raised
+      data-detail-nested="true"
     >
       <div :if={@state.subject} class="space-y-4">
         <.title_strip state={@state} editing?={@editing?} />

@@ -412,6 +412,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
+      # Nested in the detail's overlay, so BACK returns the cursor to the detail.
+      assert has_element?(view, "#review-modal[data-detail-nested='true']")
       # Nothing is chosen at open; the three choices are the words.
       refute has_element?(view, "#review-form [aria-pressed='true']")
       assert has_element?(view, choice(:dislike), "Dislike")

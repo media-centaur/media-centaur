@@ -409,13 +409,15 @@ describe("KeyboardSource", () => {
       expect(actions).toEqual([])
     })
 
-    test("Escape when not editing never clears a textarea; it is BACK", () => {
+    test("Escape when not editing never clears a textarea; it is BACK, and stops at the input system", () => {
       const textarea = makeTextarea("some words")
 
-      doc._dispatchKeyDown("Escape", { target: textarea })
+      const event = doc._dispatchKeyDown("Escape", { target: textarea })
       expect(textarea.value).toBe("some words")
       expect(textarea.dispatchEvent).not.toHaveBeenCalled()
       expect(actions).toEqual([Action.BACK])
+      // A window keydown binding beneath (the detail's Escape) never sees it.
+      expect(event.stopPropagation).toHaveBeenCalled()
     })
   })
 
