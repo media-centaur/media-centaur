@@ -65,8 +65,9 @@ export function gridNavigate(currentIndex, columnCount, totalCount, direction) {
       return row > 0 ? currentIndex - columnCount : null
 
     case "down": {
-      const nextIndex = currentIndex + columnCount
-      return nextIndex < totalCount ? nextIndex : null
+      // A shorter last row is still the row below: land on its last card.
+      if (row + 1 >= totalRows) return null
+      return Math.min(currentIndex + columnCount, totalCount - 1)
     }
 
     case "left":

@@ -157,11 +157,16 @@ describe("gridNavigate", () => {
     expect(gridNavigate(5, 4, 10, "down")).toBe(9)
   })
 
-  test("stops at bottom when no item below", () => {
+  test("stops at bottom on the last row", () => {
     expect(gridNavigate(8, 4, 10, "down")).toBe(null)
     expect(gridNavigate(9, 4, 10, "down")).toBe(null)
-    // Column 2, row 1 → row 2 would be index 10, out of bounds
-    expect(gridNavigate(6, 4, 10, "down")).toBe(null)
+  })
+
+  // A shorter last row is still a row below: DOWN from a column it does not
+  // reach lands on its last card rather than stopping dead.
+  test("down onto a shorter last row lands on its last card", () => {
+    expect(gridNavigate(6, 4, 10, "down")).toBe(9)
+    expect(gridNavigate(7, 4, 10, "down")).toBe(9)
   })
 
   test("moves up between rows", () => {
