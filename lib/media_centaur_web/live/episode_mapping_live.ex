@@ -308,7 +308,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLive do
           <.armed_button
             armed={@dismiss_all_armed}
             event="dismiss_all"
-            armed_label="Click again to dismiss all"
+            armed_label="Press again to dismiss all"
             variant="dismiss"
           >
             Dismiss all

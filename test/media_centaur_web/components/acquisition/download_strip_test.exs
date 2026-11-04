@@ -115,7 +115,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStripTest do
 
     refute strip(download, queue_item_id: nil) =~ "cancel_download"
     assert strip(download) =~ ~s|phx-value-id="job"|
-    assert strip(download, cancel_armed_id: "job") =~ "Click again to cancel"
+    assert strip(download, cancel_armed_id: "job") =~ "Press again to cancel"
   end
 
   test "cancel carries the release name when the host gives no title" do

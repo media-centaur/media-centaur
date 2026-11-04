@@ -185,7 +185,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       render_patch(view, ~p"/settings?section=controls")
 
       html = render_click(view, "controls:reset_all", %{})
-      assert html =~ "Click again to reset every binding"
+      assert html =~ "Press again to reset every binding"
       refute_receive {:controls_changed, _}, 100
     end
 
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
 
       # The first click only arms (MC0027 tier 2); nothing is reset yet.
       html = render_click(view, "controls:reset_all", %{})
-      assert html =~ "Click again to reset every binding"
+      assert html =~ "Press again to reset every binding"
       refute_receive {:controls_changed, _}, 100
 
       render_click(view, "controls:reset_all", %{})

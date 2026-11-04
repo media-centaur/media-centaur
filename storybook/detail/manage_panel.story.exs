@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
         id: :delete_pending_all,
         description:
           "`delete_confirm: :all` — the toolbar's danger button reads " <>
-            "**Click again to confirm — Delete all files (size)**. Any other " <>
+            "**Press again to confirm — Delete all files (size)**. Any other " <>
             "interaction disarms it. No secondary modal.",
         attributes: %{
           entity: @entity,
@@ -142,7 +142,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
         id: :delete_pending_folder,
         description:
           "`delete_confirm: {:folder, dir}` — the collapsed row's quiet " <>
-            "Delete flips to **Click again to confirm** without the group " <>
+            "Delete flips to **Press again to delete** without the group " <>
             "having to open.",
         attributes: %{
           entity: @entity,

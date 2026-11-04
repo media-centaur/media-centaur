@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     render_async(view)
 
     html = render_click(view, "dismiss_all", %{})
-    assert html =~ "Click again to dismiss all"
+    assert html =~ "Press again to dismiss all"
     assert length(EpisodeMapping.list_awaiting()) == 1, "the first click must only arm"
 
     render_click(view, "dismiss_all", %{})
@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     render_click(view, "select_show", %{"tmdb" => "42"})
 
     html = render_click(view, "dismiss_all", %{})
-    assert html =~ "Click again to dismiss all"
+    assert html =~ "Press again to dismiss all"
     assert length(EpisodeMapping.list_awaiting()) == 1, "the click after a change of mind only arms"
   end
 
@@ -151,7 +151,7 @@ defmodule MediaCentaurWeb.EpisodeMappingLiveTest do
     render_async(view)
 
     view |> element("button", "Dismiss all") |> render_click()
-    html = view |> element("button", "Click again to dismiss all") |> render_click()
+    html = view |> element("button", "Press again to dismiss all") |> render_click()
 
     assert html =~ "Dismissed 1 file(s)"
     assert EpisodeMapping.list_awaiting() == []

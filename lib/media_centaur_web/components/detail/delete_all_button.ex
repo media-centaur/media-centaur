@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.Components.Detail.DeleteAllButton do
       busy={@gesture == :deleting}
       busy_label={"Deleting… #{@label}"}
       event="delete_all_prompt"
-      armed_label={"Click again to confirm — #{@label}"}
+      armed_label={"Press again to confirm — #{@label}"}
       variant="danger"
       size="sm"
       disabled={delete_in_flight?(@deleting)}

@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.SettingsLivePlayersTest do
 
     view |> element("#remove-player-#{player.id}") |> render_click()
     assert Players.get(player.id)
-    assert has_element?(view, "#remove-player-#{player.id}", "Click again to remove")
+    assert has_element?(view, "#remove-player-#{player.id}", "Press again to remove")
 
     view |> element("#remove-player-#{player.id}") |> render_click()
     assert Players.get(player.id) == nil

@@ -208,6 +208,33 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "first-run empty states" do
+    test "with no media directory the way out is a nav item in the grid zone", %{conn: conn} do
+      MediaCentaur.Settings.Config.put_media_dirs([])
+
+      {:ok, view, html} = live_async!(conn, "/library")
+
+      assert html =~ "Point it at your media"
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='grid'] a[href='/settings?section=library'][data-nav-item][tabindex='0']"
+             )
+    end
+
+    test "with a media directory set the scan button is a nav item in the grid zone", %{conn: conn} do
+      MediaCentaur.Settings.Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
+
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='grid'] [phx-click='scan'][data-nav-item][tabindex='0']",
+               "Scan media directories"
+             )
+    end
+  end
+
   describe "search excludes all results" do
     setup do
       movie = create_standalone_movie(%{name: "Findable Movie"})
@@ -234,6 +261,27 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       refute html =~ "No media yet",
              "the empty-library copy is wrong when the library is non-empty"
+    end
+
+    test "the no-matches Clear filters is a reachable nav item in the grid zone", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      view
+      |> element("form[phx-change='filter']")
+      |> render_change(%{filter_text: "zzzznomatch"})
+
+      # DOWN from the toolbar crosses into the grid zone; outside it the
+      # button is a wall for a keyboard or gamepad user.
+      assert has_element?(
+               view,
+               "[data-nav-zone='grid'] [data-nav-item][tabindex='0'][phx-click='reset_filters']",
+               "Clear filters"
+             )
+    end
+
+    test "the filter input is named for assistive technology", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+      assert has_element?(view, "#library-filter[aria-label]")
     end
 
     test "clearing the filter from the no-matches state restores the grid", %{conn: conn} do
@@ -779,7 +827,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       # Neither the typed filter nor the armed delete survives onto the next title.
       view |> element("[data-role='manage-toggle']") |> render_click()
-      refute has_element?(view, "[phx-click='delete_all_prompt']", "Click again to confirm")
+      refute has_element?(view, "[phx-click='delete_all_prompt']", "Press again to confirm")
       refute has_element?(view, "input[name='cast_filter'][value='someone']")
     end
 
@@ -965,6 +1013,49 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
              "Manage must render its file list in the same patch that opens it"
     end
 
+    test "a movie's Letterboxd link is an item of the action row, like its neighbours", %{
+      conn: conn
+    } do
+      movie = create_standalone_movie(%{name: "Letterboxd Movie", tmdb_id: "4321"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_actions'] [data-role='letterboxd-link'][data-nav-item][tabindex='0']"
+             )
+    end
+
+    test "the cast filter is a nav item in its own zone above the cast grid", %{conn: conn} do
+      # The filter shows once the cast outgrows one page.
+      cast = for n <- 1..60, do: %{name: "Actor #{n}", character: "Role #{n}", order: n}
+
+      movie =
+        create_standalone_movie(%{name: "Large Cast Movie", description: "A synopsis", cast: cast})
+
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=cast")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_cast_filter'] input[name='cast_filter'][data-nav-item][tabindex='0']"
+             )
+    end
+
+    test "the series list's Show details toggle is an item of the episode list", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_list'] [data-role='episode-details-toggle'][data-nav-item][tabindex='0']"
+             )
+    end
+
     test "the controls share Play's nav row, so DOWN still enters the body", %{
       conn: conn,
       tv_series: tv_series
@@ -1062,16 +1153,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # no remembered position — config names the selector, so it has to be on
       # a focusable row rather than an inner element.
       assert has_element?(view, "[data-nav-zone='detail_list'] [data-nav-item][data-resume-target]")
-    end
-
-    test "the list-wide details toggle is deliberately not on the keyboard path", %{
-      conn: conn,
-      tv_series: tv_series
-    } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
-
-      assert has_element?(view, "[data-role='episode-details-toggle']")
-      refute has_element?(view, "[data-role='episode-details-toggle'][data-nav-item]")
     end
   end
 
@@ -1364,9 +1445,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='delete_all_prompt']")
       assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='rematch']")
 
+      # config.js `entryDefaults.manage_tools` names this id: DOWN into
+      # the card lands here, not on Delete all.
       assert has_element?(
                view,
-               "[data-role='manage-toolbar'] button[phx-click='refresh_from_tmdb']"
+               "[data-nav-zone='manage_tools'] #manage-refresh-from-tmdb[phx-click='refresh_from_tmdb'][data-nav-item]"
              )
 
       assert has_element?(
@@ -2196,7 +2279,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         |> element("button[phx-click='delete_all_prompt']")
         |> render_click()
 
-      assert armed_html =~ "Click again to confirm"
+      assert armed_html =~ "Press again to confirm"
 
       # Second click hands the deletion to start_async; drain it.
       view

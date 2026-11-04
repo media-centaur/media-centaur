@@ -1256,7 +1256,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         |> element("button[phx-click='plan_discard']")
         |> render_click()
 
-      assert html =~ "Click again to discard"
+      assert html =~ "Press again to discard"
       {:ok, untouched} = Plans.fetch(plan.id)
       refute untouched.status == "discarded"
 
@@ -1266,7 +1266,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         |> element("button[phx-click='plan_search_again']")
         |> render_click()
 
-      refute html =~ "Click again to discard"
+      refute html =~ "Press again to discard"
       {:ok, kept} = Plans.fetch(plan.id)
       refute kept.status == "discarded"
 
@@ -1789,6 +1789,23 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
   end
 
   describe "the plan flow from the title detail (UIDR-014)" do
+    test "an unowned title's action row carries the Download menu toggle its entry lands on",
+         %{conn: conn} do
+      # config.js `entryDefaults.detail_actions` names this toggle, so the
+      # row enters beside Download rather than on it: a stray SELECT opens
+      # a menu instead of starting a download.
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_series_universe_for_targeting()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?title=tv_series-246810")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_actions'] #detail-download-toggle[data-nav-item][tabindex='0']"
+             )
+    end
+
     test "Download in the title detail on Downloads patches to the new plan's board", %{conn: conn} do
       enable_tmdb!()
       TmdbStubs.setup_tmdb_client()
@@ -2307,7 +2324,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         |> element("button[phx-click='cancel_download']")
         |> render_click()
 
-      assert html =~ "Click again to cancel"
+      assert html =~ "Press again to cancel"
       assert :counters.get(delete_counter, 1) == 0
 
       # Second click fires the qBittorrent delete and optimistically drops the row.
@@ -2318,7 +2335,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       assert :counters.get(delete_counter, 1) == 1
       refute has_element?(view, "[phx-value-id='aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111']")
-      refute html =~ "Click again to cancel"
+      refute html =~ "Press again to cancel"
     end
 
     test "ghost row from a stale snapshot does not reappear after cancel", %{conn: conn} do
@@ -2422,7 +2439,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         |> element("button[phx-click='cancel_download']")
         |> render_click()
 
-      assert html =~ "Click again to cancel"
+      assert html =~ "Press again to cancel"
 
       # Touching anything else reads as a change of mind and disarms it.
       html =
@@ -2430,7 +2447,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         |> element("a[phx-click='switch_zone'][phx-value-zone='activity']")
         |> render_click()
 
-      refute html =~ "Click again to cancel"
+      refute html =~ "Press again to cancel"
 
       # So the next click on the control arms again rather than firing —
       # the torrent is still there.

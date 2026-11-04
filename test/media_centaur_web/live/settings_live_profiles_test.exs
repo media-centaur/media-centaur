@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.SettingsLiveProfilesTest do
     render_until(view, fn _html -> has_element?(view, card(ana.id)) end)
 
     view |> element("#remove-profile-#{ana.id}") |> render_click()
-    assert has_element?(view, "#remove-profile-#{ana.id}", "Click again to remove")
+    assert has_element?(view, "#remove-profile-#{ana.id}", "Press again to remove")
     assert Profiles.get(ana.id)
 
     view |> element("#remove-profile-#{ana.id}") |> render_click()

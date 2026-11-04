@@ -212,6 +212,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
             name="filter_text"
             value={@filter_text}
             placeholder="Filter by name…"
+            aria-label="Filter by name"
             phx-debounce="150"
             class="input library-filter w-56"
             data-nav-item

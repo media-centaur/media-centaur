@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       render_after_async_load(view)
 
       html = render_click(view, "remove_event", %{"id" => event.id})
-      assert html =~ "Click again to remove"
+      assert html =~ "Press again to remove"
 
       assert MediaCentaur.WatchHistory.get_event(owner_profile_id(), event.id),
              "the first click must only arm"

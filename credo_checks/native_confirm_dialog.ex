@@ -19,14 +19,14 @@ defmodule MediaCentaur.Credo.Checks.NativeConfirmDialog do
 
         * **Costly but recoverable** (work is lost, but only time) — the
           inline two-click gesture. The button itself arms and flips to
-          "Click again to …". No overlay, already themed, already navigable.
+          "Press again to …". No overlay, already themed, already navigable.
           `armed_button` draws it and `MediaCentaurWeb.Live.ArmGesture` holds
           the state: one event, and any other interaction disarms.
 
               <.armed_button
                 armed={ArmGesture.armed?(@armed_gesture, "refresh")}
                 event="refresh"
-                armed_label="Click again to refresh"
+                armed_label="Press again to refresh"
               >
                 Refresh
               </.armed_button>

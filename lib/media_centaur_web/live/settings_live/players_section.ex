@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
             id={"remove-player-#{player.id}"}
             event="remove_player"
             armed={ArmGesture.armed?(@armed_gesture, "remove_player", player.id)}
-            armed_label="Click again to remove"
+            armed_label="Press again to remove"
             phx-value-id={player.id}
           >
             Remove player

@@ -121,7 +121,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStrip do
           :if={@queue_item_id}
           armed={@cancel_armed_id == @queue_item_id}
           event="cancel_download"
-          armed_label="Click again to cancel"
+          armed_label="Press again to cancel"
           variant="destructive_inline"
           size="xs"
           class="text-base-content/55 hover:text-error"

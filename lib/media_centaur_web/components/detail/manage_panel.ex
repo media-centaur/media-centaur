@@ -179,7 +179,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
             :if={@tmdb_ready}
             armed={@rematch_confirm}
             event="rematch"
-            armed_label="Click again to rematch"
+            armed_label="Press again to rematch"
             variant="risky"
             phx-value-id={@entity.id}
           >
@@ -337,7 +337,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           busy={@folder_gesture == :deleting}
           busy_label="Deleting…"
           event="delete_folder_prompt"
-          armed_label="Click again to confirm"
+          armed_label="Press again to delete"
           variant="destructive_inline"
           size="xs"
           nav={:sub_item}
@@ -431,13 +431,13 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           busy={@is_deleting}
           busy_label="Deleting…"
           event="delete_file_prompt"
-          armed_label="Click to confirm"
+          armed_label="Press again to delete"
           variant="destructive_inline"
           size="xs"
           class="min-h-0 flex-shrink-0 size-6 p-0 text-error/60 hover:text-error"
           disabled={@delete_in_flight}
           phx-value-path={@file_path}
-          aria-label={if @is_pending, do: "Click again to confirm delete", else: "Delete file"}
+          aria-label={if @is_pending, do: "Press again to delete this file", else: "Delete file"}
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
         </.armed_button>

@@ -85,7 +85,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted, amended 2026-11-02 |
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted, amended 2026-08-02 |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
-| 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-09-14 |
+| 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-11-04 |
 | 020 | 2026-08-10 | [Cursor treatment tiers — ring by default, soft fill where the ring collides](user-interface/2026-08-10-020-cursor-treatment-tiers.md) | accepted, amended 2026-10-03 |
 | 021 | 2026-08-11 | [Cinematic modal frame for TMDB-grounded modals; artwork promotion ladder](user-interface/2026-08-11-021-cinematic-frame-artwork-ladder.md) | accepted, amended 2026-11-01 |
 | 022 | 2026-08-11 | [Gap banner states the diagnosed world, with its evidence — never a bare "not available"](user-interface/2026-08-11-022-gap-banner-adaptive-verdict.md) | accepted, amended 2026-09-14 |

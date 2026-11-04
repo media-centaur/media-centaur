@@ -249,7 +249,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
 
       html = render_click(view, "dismiss", %{"key" => key})
-      assert html =~ "Click again to dismiss"
+      assert html =~ "Press again to dismiss"
       assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
 
       render_click(view, "dismiss", %{"key" => key})
@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
 
       html = render_click(view, "delete_prompt", %{"key" => key})
-      assert html =~ "Click again to delete"
+      assert html =~ "Press again to delete"
       assert File.exists?(path), "the first click must only arm the confirmation, not delete"
 
       render_click(view, "delete_prompt", %{"key" => key})
@@ -327,13 +327,13 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
       render_click(view, "select_item", %{"key" => key_a})
       html = render_click(view, "delete_prompt", %{"key" => key_a})
-      assert html =~ "Click again to delete"
+      assert html =~ "Press again to delete"
 
       render_click(view, "select_item", %{"key" => key_b})
       render_click(view, "select_item", %{"key" => key_a})
       html = render(view)
 
-      refute html =~ "Click again to delete"
+      refute html =~ "Press again to delete"
       assert File.exists?(path_a), "switching away must cancel the arm, not delete"
     end
 
@@ -368,7 +368,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         |> render()
         |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
 
-      assert render_click(view, "delete_prompt", %{"key" => key}) =~ "Click again to delete file"
+      assert render_click(view, "delete_prompt", %{"key" => key}) =~ "Press again to delete file"
 
       render_click(view, "delete_prompt", %{"key" => key})
       render_async(view)

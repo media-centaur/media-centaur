@@ -837,7 +837,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             armed={ArmGesture.armed?(@armed_gesture, "dismiss", @group.key)}
             event="dismiss"
             armed_label={
-              if @file_count > 1, do: "Click again to dismiss all", else: "Click again to dismiss"
+              if @file_count > 1, do: "Press again to dismiss all", else: "Press again to dismiss"
             }
             variant="dismiss"
             phx-value-key={@encoded_key}
@@ -1289,14 +1289,14 @@ defmodule MediaCentaurWeb.ReviewLive do
   def delete_action_label(_gesture, :resolving, _file_count), do: "Delete"
 
   def delete_action_label(:confirm, {:folder, dir}, _file_count) do
-    "Click again to delete folder \"#{Path.basename(dir)}\""
+    "Press again to delete folder \"#{Path.basename(dir)}\""
   end
 
   def delete_action_label(:confirm, :file_only, file_count) when file_count > 1 do
-    "Click again to delete #{file_count} files"
+    "Press again to delete #{file_count} files"
   end
 
-  def delete_action_label(:confirm, :file_only, _file_count), do: "Click again to delete file"
+  def delete_action_label(:confirm, :file_only, _file_count), do: "Press again to delete file"
 
   def delete_action_label(:idle, {:folder, dir}, _file_count) do
     "Delete folder \"#{Path.basename(dir)}\""

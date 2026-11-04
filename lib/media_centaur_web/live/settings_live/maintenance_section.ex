@@ -153,7 +153,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
             <.armed_button
               armed={@image_refresh_armed and not @refreshing_images}
               event="refresh_image_cache"
-              armed_label="Click again to refresh all artwork"
+              armed_label="Press again to refresh all artwork"
               variant="risky"
               disabled={@refreshing_images}
             >

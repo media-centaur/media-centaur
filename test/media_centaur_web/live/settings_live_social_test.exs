@@ -401,7 +401,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
 
       view |> form("#import-nsec-form", %{"nsec" => nsec}) |> render_submit()
-      assert has_element?(view, "#import-nsec-submit", "Click again to replace")
+      assert has_element?(view, "#import-nsec-submit", "Press again to replace")
       assert has_element?(view, "#import-nsec", nsec)
       assert Identity.pubkey() == before
 
@@ -425,7 +425,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(tab_a, "#identity-nsec", old_nsec)
 
       tab_a |> form("#import-nsec-form", %{"nsec" => old_nsec}) |> render_submit()
-      assert has_element?(tab_a, "#import-nsec-submit", "Click again to replace")
+      assert has_element?(tab_a, "#import-nsec-submit", "Press again to replace")
 
       replacement = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
       tab_b |> form("#import-nsec-form", %{"nsec" => replacement}) |> render_submit()

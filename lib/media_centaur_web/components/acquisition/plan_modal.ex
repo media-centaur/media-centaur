@@ -963,7 +963,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               :if={@board.status == :ready}
               armed={@discard_armed}
               event="plan_discard"
-              armed_label="Click again to discard"
+              armed_label="Press again to discard"
               variant="dismiss"
               size="sm"
             >

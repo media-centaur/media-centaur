@@ -90,6 +90,9 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       href={Logic.letterboxd_url(@tmdb_id)}
       target="_blank"
       rel="noopener"
+      data-role="letterboxd-link"
+      data-nav-item
+      tabindex="0"
       data-tip="Open on Letterboxd"
       aria-label="Open on Letterboxd"
     >

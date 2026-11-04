@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           :if={:cancel in @vm.available_actions and @on_cancel}
           armed={@cancel_armed}
           event={@on_cancel}
-          armed_label="Click again to cancel the pursuit"
+          armed_label="Press again to cancel the pursuit"
           variant="dismiss"
         >
           Cancel pursuit

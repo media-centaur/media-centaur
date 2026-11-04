@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
           <.armed_button
             armed={@reset_armed}
             event="controls:reset_all"
-            armed_label="Click again to reset every binding"
+            armed_label="Press again to reset every binding"
             variant="dismiss"
             size="xs"
           >

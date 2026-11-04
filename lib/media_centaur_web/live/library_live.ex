@@ -336,7 +336,11 @@ defmodule MediaCentaurWeb.LibraryLive do
 
             <%!-- Genuinely-empty library. The three reasons take three
                   actions, so the copy names which one applies rather than
-                  stating a cause the page has not diagnosed. --%>
+                  stating a cause the page has not diagnosed. Each empty
+                  state carries the grid's zone (Home's empty state does the
+                  same with its hero), so DOWN from the toolbar and the
+                  cursor start reach its action; only one of them or the
+                  grid renders at a time. --%>
             <.empty_state
               :if={
                 empty_grid_reason(@grid_count, @counts.all) == :library_empty and
@@ -344,6 +348,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               }
               icon="hero-film"
               headline="Point it at your media"
+              data-nav-zone="grid"
             >
               Media Centaur scans the directories you name here and identifies what it finds.
               <:action>
@@ -352,6 +357,7 @@ defmodule MediaCentaurWeb.LibraryLive do
                   size="sm"
                   navigate={~p"/settings?section=library"}
                   data-nav-item
+                  tabindex="0"
                 >
                   Add a media directory
                 </.button>
@@ -377,6 +383,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               }
               icon="hero-film"
               headline="Nothing imported yet"
+              data-nav-zone="grid"
             >
               Your media directories are set, but no video files have been imported from them.
               <:action>
@@ -386,6 +393,7 @@ defmodule MediaCentaurWeb.LibraryLive do
                   phx-click="scan"
                   disabled={@scanning}
                   data-nav-item
+                  tabindex="0"
                 >
                   {if @scanning, do: "Scanning…", else: "Scan media directories"}
                 </.button>
@@ -397,9 +405,16 @@ defmodule MediaCentaurWeb.LibraryLive do
             <.empty_state
               :if={empty_grid_reason(@grid_count, @counts.all) == :no_matches}
               headline={no_matches_label(@filter_text)}
+              data-nav-zone="grid"
             >
               <:action>
-                <.button variant="dismiss" size="sm" phx-click="reset_filters" data-nav-item>
+                <.button
+                  variant="dismiss"
+                  size="sm"
+                  phx-click="reset_filters"
+                  data-nav-item
+                  tabindex="0"
+                >
                   Clear filters
                 </.button>
               </:action>

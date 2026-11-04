@@ -76,15 +76,17 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   def season_list(assigns) do
     ~H"""
     <div :if={@seasons != []} class="pt-3 space-y-3">
-      <%!-- Deliberately not a nav item: it belongs with the other list-wide
-            controls in Manage rather than sitting in the middle of the
-            keyboard path between the action row and the first season. Mouse
-            only until it moves there. --%>
+      <%!-- The list's first item: it changes how the list below reads, so
+            it sits with the list, where its effect shows. The body enters
+            on the resume episode (`entryDefaults`), so it is a stop only
+            when climbing out of the first season. --%>
       <div class="flex justify-end">
         <button
           type="button"
           phx-click="toggle_all_episode_details"
           data-role="episode-details-toggle"
+          data-nav-item
+          tabindex="0"
           aria-pressed={to_string(@all_episode_details_open)}
           class={[
             "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",

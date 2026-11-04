@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             <.armed_button
               armed={ArmGesture.armed?(@armed_gesture, "remove_event", event.id)}
               event="remove_event"
-              armed_label="Click again to remove"
+              armed_label="Press again to remove"
               variant="destructive_inline"
               size="xs"
               class="text-base-content/55 hover:text-error transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"

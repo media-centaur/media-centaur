@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
               <.armed_button
                 armed={@armed_media_dir == entry["id"]}
                 event="media_dir:delete"
-                armed_label="Click again to remove"
+                armed_label="Press again to remove"
                 variant="destructive_inline"
                 phx-value-id={entry["id"]}
                 aria-label="Remove media directory"

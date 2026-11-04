@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
           :if={@on_cancel}
           armed={@cancel_armed}
           event={@on_cancel}
-          armed_label="Click again to cancel the pursuit"
+          armed_label="Press again to cancel the pursuit"
           variant="dismiss"
         >
           Cancel pursuit

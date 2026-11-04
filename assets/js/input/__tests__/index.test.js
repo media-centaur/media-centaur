@@ -235,6 +235,17 @@ describe("Detail overlay cast region (real config)", () => {
     expect(graph.detail_tracking_menu.back).toBe("detail_tracking")
   })
 
+  test("the cast filter sits between the action row and the cast grid", () => {
+    expect(inputConfig.instanceTypes.detail_cast_filter).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.detail_cast_filter).toBe("[data-nav-zone='detail_cast_filter'] [data-nav-item]")
+    const graph = openDetail({ detail_actions: 3, detail_cast_filter: 1, detail_cast: 24, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_cast_filter")
+    expect(graph.detail_cast_filter.down).toBe("detail_cast")
+    expect(graph.detail_cast.up).toBe("detail_cast_filter")
+    expect(graph.detail_cast_filter.up).toBe("detail_actions")
+    expect(graph.detail_cast_filter.back).toBe("detail_actions")
+  })
+
   test("the cast body is a shelf-typed region of the detail overlay", () => {
     expect(inputConfig.instanceTypes.detail_cast).toBe(Context.SHELF)
     expect(inputConfig.contextSelectors.detail_cast).toBe("[data-nav-zone='detail_cast'] [data-nav-item]")
@@ -413,6 +424,10 @@ describe("Detail overlay Manage tools region (real config)", () => {
     expect(inputConfig.overlays.detail.entry).toContain("manage_list")
   })
 
+  test("the toolbar enters on Refresh from TMDB, never on Delete all", () => {
+    expect(inputConfig.entryDefaults.manage_tools).toBe("#manage-refresh-from-tmdb")
+  })
+
   test("manage showing: down from the action row lands on the toolbar, then the ledger", () => {
     const graph = openDetail({ detail_actions: 3, manage_tools: 5, manage_list: 12, detail_list: 0, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("manage_tools")
@@ -483,6 +498,10 @@ describe("Detail overlay collection rail region (real config)", () => {
 
   test("the rail enters at the selected member's tile", () => {
     expect(inputConfig.entryDefaults.detail_rail).toBe("[data-selected]")
+  })
+
+  test("an unowned title's action row enters on the Download menu toggle, never on Download", () => {
+    expect(inputConfig.entryDefaults.detail_actions).toBe("#detail-download-toggle")
   })
 })
 

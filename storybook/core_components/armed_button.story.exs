@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
               attributes: %{
                 armed: false,
                 event: "noop",
-                armed_label: "Click again to delete",
+                armed_label: "Press again to delete",
                 variant: variant
               },
               slots: ["Delete"]
@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
             attributes: %{
               armed: false,
               event: "noop",
-              armed_label: "Click again to remove",
+              armed_label: "Press again to remove",
               variant: "destructive_inline",
               size: "xs",
               class: "text-base-content/55 hover:text-error",
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
             attributes: %{
               armed: true,
               event: "noop",
-              armed_label: "Click again to remove",
+              armed_label: "Press again to remove",
               variant: "destructive_inline",
               size: "xs",
               class: "text-base-content/55 hover:text-error",
@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
               attributes: %{
                 armed: true,
                 event: "noop",
-                armed_label: "Click again to delete",
+                armed_label: "Press again to delete",
                 size: size
               },
               slots: ["Delete"]
@@ -97,7 +97,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
           busy: true,
           busy_label: "Deleting…",
           event: "noop",
-          armed_label: "Click again to delete",
+          armed_label: "Press again to delete",
           variant: "destructive_inline",
           size: "xs"
         },
@@ -117,7 +117,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ArmedButton do
                 armed: false,
                 nav: nav,
                 event: "noop",
-                armed_label: "Click again to delete",
+                armed_label: "Press again to delete",
                 variant: "destructive_inline",
                 size: "xs"
               },

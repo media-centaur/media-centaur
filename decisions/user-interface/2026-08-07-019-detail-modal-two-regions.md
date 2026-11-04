@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-08-07
-amended: 2026-09-14
+amended: 2026-11-04
 ---
 # The detail modal navigates as two regions, and BACK peels containment
 
@@ -30,7 +30,9 @@ The detail modal carries Play, More info and Manage above the body of the title 
 
 ### Consequences
 
-* The list-wide "Show details" toggle is deliberately not a nav item (mouse only); it belongs with the other list-wide controls in Manage and is still to move.
+* ~~The list-wide "Show details" toggle is deliberately not a nav item (mouse only); it belongs with the other list-wide controls in Manage and is still to move.~~ Amended 2026-11-04 (input-coverage campaign): the toggle is the episode list's first item. A control a keyboard, remote or gamepad cannot reach was the larger fault; in Manage its effect would show only on the other view. The body still enters on the resume episode (rule 2), so the toggle is a stop only when climbing out of the first season.
+* Amended 2026-11-04: the Cast view's filter input is its own region, `detail_cast_filter` (a TOOLBAR), between the action row and the cast grid — the grid climbs to it, it climbs to the row.
+* Amended 2026-11-04: an unowned title's action row enters on the Download split's menu toggle (`entryDefaults.detail_actions`), so a stray SELECT opens a menu rather than starting a download; Manage's `manage_tools` enters on Refresh from TMDB rather than Delete all.
 * The `data-nav-*` attributes must be right in the template for the modal to navigate at all; `library_live_test.exs` asserts them.
 
 ## Amendment 2026-11-04 — rules 3 and 5 as built

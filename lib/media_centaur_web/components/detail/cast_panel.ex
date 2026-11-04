@@ -214,7 +214,17 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   def cast_filter_form(assigns) do
     ~H"""
-    <form id="cast-filter-form" phx-change="filter_cast" class={@class}>
+    <%!-- Its own nav zone, `detail_cast_filter`, between the action row and
+          the cast grid (config.js overlays.detail): the grid climbs to it
+          and it climbs to the row, in either home. Inline, it nests in the
+          grid's zone and counts for its own — an item counts for its
+          nearest zone. --%>
+    <form
+      id="cast-filter-form"
+      phx-change="filter_cast"
+      class={@class}
+      data-nav-zone="detail_cast_filter"
+    >
       <%!-- Same anatomy as the library toolbar's filter: the wrap
             shrink-wraps the input, which carries its own width, so a
             right-pinned host (flex justify-end) keeps the idle icon pill
@@ -229,6 +239,8 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
           class="library-filter w-64 bg-base-content/5"
           placeholder="Filter cast"
           aria-label="Filter cast members"
+          data-nav-item
+          tabindex="0"
         />
       </div>
     </form>

@@ -351,7 +351,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :rematch_confirm,
         description:
           "Rematch armed — the **Rematch** action in the toolbar card relabels to " <>
-            "**Click again to rematch** (the host's arm gesture slot).",
+            "**Press again to rematch** (the host's arm gesture slot).",
         attributes: %{
           detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
           state: ModalState.new(:info),
@@ -361,7 +361,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :delete_pending_all_inline,
         description:
-          "Delete all armed — the prominent danger button reads **Click again " <>
+          "Delete all armed — the prominent danger button reads **Press again " <>
             "to confirm — Delete all files (size)**. Any other interaction disarms it.",
         attributes: %{
           detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),

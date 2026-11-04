@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.SettingsLive.ProfilesSection do
             id={"remove-profile-#{profile.id}"}
             event="remove_profile"
             armed={ArmGesture.armed?(@armed_gesture, "remove_profile", profile.id)}
-            armed_label="Click again to remove"
+            armed_label="Press again to remove"
             phx-value-id={profile.id}
             disabled={length(@profiles) == 1}
           >

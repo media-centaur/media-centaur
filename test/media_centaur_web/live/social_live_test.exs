@@ -1635,7 +1635,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert Watchlist.rung(777, :movie) == nil
 
       # No row and no friend activity know the title now: the open detail
-      # keeps its own snapshot, so the bookmark is there to click again.
+      # keeps its own snapshot, so the bookmark is there to press again.
       assert has_element?(
                view,
                "#detail-modal[data-state='open'] #detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"

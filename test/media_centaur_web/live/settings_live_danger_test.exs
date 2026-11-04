@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
 
       refute html =~ "Refreshing…"
       assert has_element?(view, "button[phx-click='refresh_image_cache'][data-armed]")
-      assert html =~ "Click again to refresh all artwork"
+      assert html =~ "Press again to refresh all artwork"
     end
 
     test "leaving the section disarms it", %{conn: conn} do

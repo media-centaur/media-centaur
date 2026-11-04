@@ -323,7 +323,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
     * `:deleting` — an async/in-flight delete is running for this
       target (`deleting == target`); the button shows "Deleting…".
     * `:confirm` — armed, awaiting the second click
-      (`delete_confirm == target`); the button shows "Click again…".
+      (`delete_confirm == target`); the button shows "Press again…".
     * `:idle` — neither.
 
   `:deleting` outranks `:confirm` so a button can't claim both at once.

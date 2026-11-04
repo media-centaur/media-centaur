@@ -31,6 +31,7 @@ export const inputConfig = {
     manage_list: "[data-nav-zone='manage_list'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
+    detail_cast_filter: "[data-nav-zone='detail_cast_filter'] [data-nav-item]",
     detail_tracking: "[data-nav-zone='detail_tracking'] [data-nav-item]",
     detail_tracking_menu: "[data-nav-zone='detail_tracking_menu'] [data-nav-item]",
     // The plan modal's regions (UIDR-029): head (status, verdict, their
@@ -181,6 +182,8 @@ export const inputConfig = {
     manage_list: Context.TREE,
     detail_list: Context.TREE,
     detail_cast: Context.SHELF,
+    // The Cast view's filter input, between the action row and the grid.
+    detail_cast_filter: Context.TOOLBAR,
     // The tracking block under the detail list (UIDR-035, UIDR-042): the
     // two switch rows and the acceptance Reset stack vertically — UP/DOWN.
     detail_tracking: Context.TREE,
@@ -222,7 +225,7 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_finish", "detail_actions", "detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+      entry: ["detail_finish", "detail_actions", "detail_menu", "detail_cast_filter", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
       layout: {
         // detail_menu is whichever glass menu the action row has open —
         // an unowned title's Download mode or scope list — present only
@@ -250,22 +253,30 @@ export const inputConfig = {
         detail_finish: { up: ["detail_social"], down: ["detail_actions"] },
         detail_actions: {
           up: ["detail_finish", "detail_social"],
-          down: ["detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+          down: ["detail_menu", "detail_cast_filter", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
         },
         detail_menu: {
           up: ["detail_actions"],
           down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
           back: ["detail_actions"],
         },
-        detail_rail: {
+        // detail_cast_filter is the Cast view's filter input, under the
+        // synopsis (or, with no synopsis column, inline above the grid):
+        // the grid climbs to it, it climbs to the action row.
+        detail_cast_filter: {
           up: ["detail_actions"],
+          down: ["detail_rail", "detail_cast"],
+          back: ["detail_actions"],
+        },
+        detail_rail: {
+          up: ["detail_cast_filter", "detail_actions"],
           down: ["manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
           back: ["detail_actions"],
         },
         manage_tools: { up: ["detail_rail", "detail_actions"], down: ["manage_list"], back: ["detail_actions"] },
         manage_list: { up: ["manage_tools"], back: ["detail_actions"] },
         detail_list: { up: ["detail_rail", "detail_actions"], down: ["detail_tracking"], back: ["detail_actions"] },
-        detail_cast: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
+        detail_cast: { up: ["detail_rail", "detail_cast_filter", "detail_actions"], back: ["detail_actions"] },
         // The tracking block follows the list (or stands alone in a
         // collection without extras); UP climbs back through the list.
         // detail_tracking_menu is the Caught up row's open season or
@@ -328,7 +339,19 @@ export const inputConfig = {
   // panel scrolls to and marks as next up, so the cursor agrees with both.
   // The rail enters at the selected member's tile — the cursor agrees
   // with the panel's subject.
-  entryDefaults: { detail_list: "[data-resume-target]", detail_rail: "[data-selected]" },
+  // The action row of a title you do not own enters on the Download split's
+  // menu toggle, beside Download: a stray SELECT opens a menu instead of
+  // starting a whole-title download. An owned title has no such toggle and
+  // enters on Play.
+  // Manage's toolbar card leads with Delete all (the card's layout); it
+  // enters on Refresh from TMDB, the first tool that changes nothing you
+  // keep.
+  entryDefaults: {
+    detail_list: "[data-resume-target]",
+    detail_rail: "[data-selected]",
+    detail_actions: "#detail-download-toggle",
+    manage_tools: "#manage-refresh-from-tmdb",
+  },
 
   // Zone layouts for nav graph. No content context carries a left edge to the
   // sidebar: reaching the main menu is BACK's job (see `_backTransition`), and

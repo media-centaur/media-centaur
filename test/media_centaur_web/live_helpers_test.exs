@@ -234,7 +234,7 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     # The lifecycle of one delete button's gesture: idle → confirm
     # (armed, awaiting the second click) → deleting (async delete in
     # flight). `deleting` outranks `delete_confirm` so a button can't
-    # claim it's both "click again to confirm" and "deleting". Shared by
+    # claim it's both "press again to confirm" and "deleting". Shared by
     # the entity detail page (`:all | {:file, path} | {:folder, path}`
     # targets) and Review (`{:file, path} | {:folder, path}` targets).
 

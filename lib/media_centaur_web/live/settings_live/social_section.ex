@@ -241,7 +241,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               id="import-nsec-submit"
               type="submit"
               armed={@import_armed?}
-              armed_label="Click again to replace"
+              armed_label="Press again to replace"
               variant="risky"
             >
               Replace identity

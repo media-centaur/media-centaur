@@ -211,7 +211,7 @@ defmodule MediaCentaurWeb.CoreComponents do
       <.armed_button
         armed={ArmGesture.armed?(@armed_gesture, "dismiss_all")}
         event="dismiss_all"
-        armed_label="Click again to dismiss all"
+        armed_label="Press again to dismiss all"
         variant="dismiss"
       >
         Dismiss all
@@ -226,7 +226,10 @@ defmodule MediaCentaurWeb.CoreComponents do
     default: nil,
     doc: "the gesture's one event: arms, then fires. Unset for a form's submit button."
 
-  attr :armed_label, :string, required: true, doc: "label shown while armed — say what fires."
+  attr :armed_label, :string,
+    required: true,
+    doc:
+      "label shown while armed — say what fires, in words every input method reads: \"Press again to remove\", never \"Click again\" (a remote or a gamepad does not click)."
 
   attr :busy, :boolean,
     default: false,
