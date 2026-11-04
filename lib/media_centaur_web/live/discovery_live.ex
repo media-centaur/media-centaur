@@ -235,6 +235,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
+        <%!-- Before the detail: the input system takes the first open
+              [data-detail-mode=modal] in DOM order as the active overlay, so the
+              raised Review modal must precede the detail it opens over. --%>
+        <ReviewModal.review_modal state={@review} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
@@ -246,7 +250,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
-        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <FeatureOff.feature_off
         :if={:discovery not in @features}

@@ -367,6 +367,58 @@ describe("KeyboardSource", () => {
     })
   })
 
+  describe("a textarea composes, it does not filter", () => {
+    // A review's words are not a filter: Escape never clears them, Enter
+    // in editing mode is a newline, and Enter on the focused box enters
+    // editing even inside a phx-submit form (a textarea never submits one).
+    const makeTextarea = (value = "", inForm = false) => ({
+      tagName: "TEXTAREA",
+      value,
+      closest: (selector) => (inForm && selector === "form[phx-submit]" ? {} : null),
+      dispatchEvent: mock(() => {}),
+    })
+
+    test("Enter on the focused textarea enters edit mode, inside a submitting form too", () => {
+      const textarea = makeTextarea("", true)
+      const event = doc._dispatchKeyDown("Enter", { target: textarea })
+
+      expect(source._inputEditing).toBe(true)
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(actions).toEqual([])
+    })
+
+    test("Enter while editing stays in edit mode and reaches the textarea as a newline", () => {
+      const textarea = makeTextarea("", true)
+      doc._dispatchKeyDown("Enter", { target: textarea })
+
+      const event = doc._dispatchKeyDown("Enter", { target: textarea })
+      expect(source._inputEditing).toBe(true)
+      expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(actions).toEqual([])
+    })
+
+    test("Escape while editing exits edit mode and keeps the words", () => {
+      const textarea = makeTextarea("some words")
+      doc._dispatchKeyDown("a", { target: textarea })
+      expect(source._inputEditing).toBe(true)
+
+      const event = doc._dispatchKeyDown("Escape", { target: textarea })
+      expect(source._inputEditing).toBe(false)
+      expect(textarea.value).toBe("some words")
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(actions).toEqual([])
+    })
+
+    test("Escape when not editing never clears a textarea; it is BACK", () => {
+      const textarea = makeTextarea("some words")
+
+      doc._dispatchKeyDown("Escape", { target: textarea })
+      expect(textarea.value).toBe("some words")
+      expect(textarea.dispatchEvent).not.toHaveBeenCalled()
+      expect(actions).toEqual([Action.BACK])
+    })
+  })
+
   describe("Backspace and Delete on text input", () => {
     const makeInput = (value = "") => ({
       tagName: "INPUT",

@@ -302,9 +302,6 @@ defmodule MediaCentaurWeb.LibraryLive do
       full_width
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
-      <:overlays>
-        <ReviewModal.review_modal state={@review} />
-      </:overlays>
       <div
         class="relative"
         data-page-behavior="library"
@@ -431,6 +428,10 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
+        <%!-- Before the detail: the input system takes the first open
+              [data-detail-mode=modal] in DOM order as the active overlay, so the
+              raised Review modal must precede the detail it opens over. --%>
+        <ReviewModal.review_modal state={@review} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}

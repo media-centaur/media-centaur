@@ -85,6 +85,11 @@ export class KeyboardSource {
     }
 
     const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
+    // A textarea composes rather than filters: Escape never clears it (it is
+    // BACK), Enter while editing is a newline, and Enter on the focused box
+    // enters editing even inside a phx-submit form, which a textarea never
+    // submits. The Review modal's text box is the first tenant.
+    const isTextarea = event.target?.tagName === "TEXTAREA"
 
     if (isTextInput) {
       // Two-press Escape on a text input:
@@ -97,7 +102,7 @@ export class KeyboardSource {
           event.preventDefault()
           return
         }
-        if (event.target.value) {
+        if (event.target.value && !isTextarea) {
           event.target.value = ""
           event.target.dispatchEvent(new Event("input", { bubbles: true }))
           event.preventDefault()
@@ -111,7 +116,7 @@ export class KeyboardSource {
         // form submission run naturally — exit edit mode but don't
         // preventDefault, so the browser fires submit. Otherwise just
         // exit edit mode back to navigation.
-        if (event.key === "Enter") {
+        if (event.key === "Enter" && !isTextarea) {
           this._setEditing(false)
           if (!event.target.closest("form[phx-submit]")) {
             event.preventDefault()
@@ -125,7 +130,7 @@ export class KeyboardSource {
       // a form if the input is inside one, so first-press-after-typing
       // works the same as during-editing).
       if (event.key === "Enter") {
-        if (event.target.closest("form[phx-submit]")) {
+        if (!isTextarea && event.target.closest("form[phx-submit]")) {
           return
         }
         this._setEditing(true)

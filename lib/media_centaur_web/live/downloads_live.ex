@@ -700,6 +700,10 @@ defmodule MediaCentaurWeb.DownloadsLive do
               ArmGesture.armed?(@armed_gesture, "cancel_pursuit", @selected_pursuit_id)
           }
         />
+        <%!-- Before the detail: the input system takes the first open
+              [data-detail-mode=modal] in DOM order as the active overlay, so the
+              raised Review modal must precede the detail it opens over. --%>
+        <ReviewModal.review_modal state={@review} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
@@ -711,7 +715,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
-        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph

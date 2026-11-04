@@ -607,6 +607,10 @@ defmodule MediaCentaurWeb.SocialLive do
       full_width={@live_action in [:friends, :person]}
     >
       <:overlays>
+        <%!-- Before the detail: the input system takes the first open
+              [data-detail-mode=modal] in DOM order as the active overlay, so the
+              raised Review modal must precede the detail it opens over. --%>
+        <ReviewModal.review_modal state={@review} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
@@ -618,7 +622,6 @@ defmodule MediaCentaurWeb.SocialLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
-        <ReviewModal.review_modal state={@review} />
       </:overlays>
       <%!-- The modal's params are modal state: stripped from the
             remembered URL so leaving the section closes the modal rather

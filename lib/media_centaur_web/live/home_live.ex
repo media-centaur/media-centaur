@@ -99,9 +99,6 @@ defmodule MediaCentaurWeb.HomeLive do
       full_width
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
-      <:overlays>
-        <ReviewModal.review_modal state={@review} />
-      </:overlays>
       <%!-- Home page positioning context. `relative` makes this the anchor
             for the absolutely positioned atmosphere layers, and because it
             sizes naturally to its content (unlike Layouts.app's flex-1 inner
@@ -259,6 +256,10 @@ defmodule MediaCentaurWeb.HomeLive do
         </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
+        <%!-- Before the detail: the input system takes the first open
+              [data-detail-mode=modal] in DOM order as the active overlay, so the
+              raised Review modal must precede the detail it opens over. --%>
+        <ReviewModal.review_modal state={@review} />
         <DetailPanel.detail_panel
           detail={@title_detail}
           state={@modal_state}
