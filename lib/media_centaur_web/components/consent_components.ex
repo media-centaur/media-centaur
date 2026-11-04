@@ -41,6 +41,8 @@ defmodule MediaCentaurWeb.ConsentComponents do
             phx-debounce="300"
             rows="4"
             class="textarea textarea-bordered w-full"
+            data-nav-item
+            tabindex="0"
             placeholder="e.g. I added a new movie and its poster never showed up…"
           >{@narrative}</textarea>
         </form>
@@ -73,6 +75,8 @@ defmodule MediaCentaurWeb.ConsentComponents do
             name="value"
             phx-debounce="300"
             class="input w-full font-mono text-xs"
+            data-nav-item
+            tabindex="0"
             value={@title}
           />
         </form>
@@ -85,6 +89,8 @@ defmodule MediaCentaurWeb.ConsentComponents do
             phx-debounce="300"
             rows="14"
             class="textarea textarea-bordered w-full font-mono text-xs"
+            data-nav-item
+            tabindex="0"
           >{@body}</textarea>
         </form>
       </label>
@@ -110,6 +116,8 @@ defmodule MediaCentaurWeb.ConsentComponents do
         <input
           type="checkbox"
           class="checkbox checkbox-sm mt-0.5"
+          data-nav-item
+          tabindex="0"
           checked={@consent}
           phx-click="toggle_consent"
           phx-target={@target}
@@ -121,7 +129,6 @@ defmodule MediaCentaurWeb.ConsentComponents do
         open={DisclosureState.open?(@disclosures, "consent-final-text")}
         label="View exactly what will be posted"
         target={@target}
-        nav={:none}
       >
         <pre class="whitespace-pre-wrap font-mono text-xs text-base-content/60">{@final_text}</pre>
       </.disclosure>

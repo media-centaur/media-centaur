@@ -97,6 +97,22 @@ defmodule MediaCentaurWeb.StatusLive.IssueViewTest do
     assert has_element?(view, "#issue-view[data-state=closed]")
   end
 
+  test "the cursor enters the issue view on Close, not on Dismiss", %{conn: conn} do
+    # Regression: Dismiss was the modal's first nav item, so the press that
+    # opened the incident and one more dismissed it unconfirmed.
+    view = open_issue_view(conn, "fp-pipeline-error")
+
+    [first | _] =
+      view
+      |> element("#issue-view")
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("[data-nav-item]")
+      |> Enum.to_list()
+
+    assert LazyHTML.attribute(first, "phx-click") == ["close_incident"]
+  end
+
   test "backdrop click closes the issue view (ephemeral)", %{conn: conn} do
     view = open_issue_view(conn, "fp-pipeline-error")
     assert has_element?(view, "#issue-view[data-state=open]")

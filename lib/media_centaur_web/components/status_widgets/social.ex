@@ -73,6 +73,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
           <.link
             navigate={~p"/social/friends"}
             class="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
+            data-nav-item
+            tabindex="0"
           >
             Open Friends
           </.link>
@@ -80,6 +82,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
             :if={@rows != []}
             navigate={~p"/settings?section=social"}
             class="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
+            data-nav-item
+            tabindex="0"
           >
             Relay settings
           </.link>

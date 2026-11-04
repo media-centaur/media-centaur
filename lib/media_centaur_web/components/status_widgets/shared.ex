@@ -27,6 +27,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Shared do
     <.link
       navigate={~p"/settings?section=#{@section}"}
       class={["group/setting inline-flex items-center hover:text-primary transition-colors", @class]}
+      data-nav-item
+      tabindex="0"
     >
       {render_slot(@inner_block)}
       <.icon

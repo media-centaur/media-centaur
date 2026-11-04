@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
               </div>
               <div class="text-xs uppercase tracking-wider text-base-content/55">Success</div>
             </div>
-            <.link navigate={~p"/downloads"} class="block group">
+            <.link navigate={~p"/downloads"} class="block group" data-nav-item tabindex="0">
               <div class="text-2xl font-semibold tabular-nums group-hover:text-primary">
                 {@acquisition_activity.throughput.active}
               </div>

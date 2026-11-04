@@ -509,6 +509,13 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, assign(socket, show_report_modal: false, report_payload: nil, report_snapshot: nil)}
   end
 
+  # BACK inside the report wizard past its first step: the input system pushes
+  # the overlay's dismiss event to the page, and the step is the component's.
+  def handle_event("report_step_back", _params, socket) do
+    send_update(ReportModal, id: "report-modal-body", step_back: true)
+    {:noreply, socket}
+  end
+
   # --- Info handlers ---
 
   # The pipelines say when their picture changed (coalesced, silent when
@@ -711,18 +718,17 @@ defmodule MediaCentaurWeb.StatusLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <%!-- Persistent, form-heavy wizard — deliberately NOT a
-              data-detail-mode context (BACK must not dismiss it).
-              data-captures-keys keeps every key inside it (textarea,
-              wizard buttons) away from the nav system; see the
-              unmanaged-overlay note in core/dom_adapter.js. --%>
+        <%!-- Persistent, form-heavy wizard: no backdrop click or Escape
+              dismisses it. Its body (`ReportModal`) is the input-system
+              overlay — it carries `data-detail-mode` itself, because the
+              step that decides what BACK does is the component's state:
+              BACK steps back past step 1 and closes on it. --%>
         <.modal
           :if={@show_report_modal}
           id="error-report-modal"
           open
           dismiss={:persistent}
           data-testid="report-modal"
-          data-captures-keys
           panel_class="flex flex-col max-h-[calc(88*var(--pvh))]"
         >
           <.live_component
@@ -759,11 +765,11 @@ defmodule MediaCentaurWeb.StatusLive do
           </div>
 
           <div class="space-y-7">
-            <%!-- The tile board is the page's GRID context (spatial nav reads
-                the container's computed columns), so the zone name is the
-                framework's literal `grid`. --%>
+            <%!-- The tile board is a geometry-resolved SHELF (`subsystems`):
+                the tiles wrap at every width, and as a named context the
+                cursor enters at the selected tile (`entryDefaults`). --%>
             <div
-              data-nav-zone="grid"
+              data-nav-zone="subsystems"
               class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
             >
               <.subsystem_tile

@@ -48,11 +48,15 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
             open={DisclosureState.open?(@disclosures, "http-recent")}
             label="Recent requests"
           >
+            <%!-- Each row is a nav item so the drill-in's cursor walks into
+                  the opened list and reveals it; a row has no action. --%>
             <ul class="space-y-0.5 font-mono text-xs">
               <li
                 :for={entry <- @traffic_recent}
                 id={recent_row_id(entry)}
                 class="flex items-baseline gap-2"
+                data-nav-item
+                tabindex="0"
               >
                 <span class="text-base-content/55 shrink-0">
                   {Calendar.strftime(entry.at, "%H:%M:%S")}

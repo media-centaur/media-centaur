@@ -92,7 +92,9 @@ export const inputConfig = {
     // Episode mapping (/episode-mapping) — the same master/detail shape as review
     "episode-mapping-list": "[data-nav-zone='episode-mapping-list'] [data-nav-item]",
     "episode-mapping-detail": "[data-nav-zone='episode-mapping-detail'] [data-nav-item]",
-    // Status page subsystem drill-in (vertical rail: close, incidents, logs)
+    // Status page: the subsystem tiles, then the selected one's drill-in
+    // (vertical rail: close, widget links, incidents, logs)
+    subsystems: "[data-nav-zone='subsystems'] [data-nav-item]",
     "drill-in": "[data-nav-zone='drill-in'] [data-nav-item]",
     // Home page shelves (horizontal media rows stacked vertically)
     hero: "[data-nav-zone='hero'] [data-nav-item]",
@@ -132,6 +134,9 @@ export const inputConfig = {
     "episode-mapping-list": Context.MENU,
     "episode-mapping-detail": Context.MENU,
     "drill-in": Context.MENU,
+    // The Status tiles wrap in a responsive grid: geometry answers adjacency,
+    // and as a named instance it enters at the selected tile (entryDefaults).
+    subsystems: Context.SHELF,
     // Home shelves behave as horizontal lists with a vertical nav graph
     hero: Context.SHELF,
     continue: Context.SHELF,
@@ -369,12 +374,13 @@ export const inputConfig = {
   // enters on Play.
   // Manage's toolbar card leads with Delete all (the card's layout); it
   // enters on Refresh from TMDB, the first tool that changes nothing you
-  // keep.
+  // keep. Status's tiles enter at the subsystem `?subsystem=` selected.
   entryDefaults: {
     detail_list: "[data-resume-target]",
     detail_rail: "[data-selected]",
     detail_actions: "#detail-download-toggle",
     manage_tools: "#manage-refresh-from-tmdb",
+    subsystems: "[data-selected]",
   },
 
   // Zone layouts for nav graph. No content context carries a left edge to the
@@ -410,14 +416,14 @@ export const inputConfig = {
       guide_outline:  { left: ["guide_chapters"] },
       sidebar:        { right: ["guide_chapters"] },
     },
-    // Status: toolbar (Report a problem) over the subsystem tile grid
-    // (spatial GRID nav), with the conditional drill-in panel below —
+    // Status: toolbar (Report a problem) over the subsystem tiles (a
+    // geometry-resolved SHELF), with the conditional drill-in panel below —
     // skipped via candidate lists while no subsystem is selected.
     status: {
-      toolbar:    { down: ["grid"] },
-      grid:       { up: ["toolbar"], down: ["drill-in"] },
-      "drill-in": { up: ["grid"] },
-      sidebar:    { right: ["grid", "toolbar"] },
+      toolbar:    { down: ["subsystems"] },
+      subsystems: { up: ["toolbar"], down: ["drill-in"] },
+      "drill-in": { up: ["subsystems"] },
+      sidebar:    { right: ["subsystems", "toolbar"] },
     },
     // The two review surfaces — identity (/review) and episode mapping
     // (/episode-mapping) — share the ReviewTabs strip and the same master/detail
@@ -561,7 +567,7 @@ export const inputConfig = {
     library:   ["grid", "toolbar", "sidebar"],
     settings:  ["sections", "grid", "bindings", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
-    status:    ["grid", "toolbar", "sidebar"],
+    status:    ["subsystems", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-detail", "zone_tabs", "sidebar"],
     downloads:  ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox", "sidebar"],

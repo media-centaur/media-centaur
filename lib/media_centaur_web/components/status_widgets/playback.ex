@@ -176,6 +176,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
         navigate={~p"/history"}
         class="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:text-primary/80"
         data-component="watch-history-link"
+        data-nav-item
+        tabindex="0"
       >
         View full watch history <.icon name="hero-arrow-right-mini" class="size-3.5 shrink-0" />
       </.link>

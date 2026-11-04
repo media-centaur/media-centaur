@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @labels ["incident", "auto-reported"]
 
   @impl true
+  def update(%{step_back: true}, socket), do: {:ok, update(socket, :step, &max(&1 - 1, 1))}
+
   def update(%{payload: payload} = assigns, socket) do
     {:ok,
      socket
@@ -82,8 +84,20 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     # overlays (a stateful component needs a single static root tag, which a
     # function-component call is not). report_cancel bubbles to StatusLive
     # (no phx-target) from the explicit "No, don't send" / "Close" buttons.
+    #
+    # The root is the input-system overlay (`data-detail-mode`): BACK pushes
+    # its `data-dismiss-event` to StatusLive. Past step 1 the wizard is
+    # "nested" — BACK steps back (`report_step_back`) and the cursor stays in
+    # the overlay; on step 1 and on the result it closes (`report_cancel`).
     ~H"""
-    <div class="flex flex-col min-h-0">
+    <div
+      class="flex flex-col min-h-0"
+      data-detail-mode="modal"
+      data-detail-nested={to_string(nested?(@step, @report_result))}
+      data-dismiss-event={
+        if nested?(@step, @report_result), do: "report_step_back", else: "report_cancel"
+      }
+    >
       <.result :if={@report_result} result={@report_result} />
       <.flow
         :if={is_nil(@report_result)}
@@ -98,6 +112,9 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     </div>
     """
   end
+
+  defp nested?(step, nil), do: step > 1
+  defp nested?(_step, _result), do: false
 
   # --- result view (copy + open public GitHub issue) ---
   attr :result, :map,
@@ -125,14 +142,26 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
           size="sm"
           phx-hook="CopyButton"
           data-copy-text={@result.body}
+          data-nav-item
+          tabindex="0"
         >
           Copy report
         </.button>
-        <.button variant="primary" size="sm" href={@result.issue_url} target="_blank" rel="noopener">
+        <.button
+          variant="primary"
+          size="sm"
+          href={@result.issue_url}
+          target="_blank"
+          rel="noopener"
+          data-nav-item
+          tabindex="0"
+        >
           Open GitHub issue
         </.button>
         <div class="flex-1"></div>
-        <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+        <.button variant="dismiss" phx-click="report_cancel" data-nav-item tabindex="0">
+          Close
+        </.button>
       </div>
     </div>
     """
@@ -177,14 +206,28 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
         type="button"
         class="link link-hover text-sm text-base-content/60"
         phx-click="report_cancel"
+        data-nav-item
+        tabindex="0"
       >
         No, don't send
       </button>
       <div class="flex-1"></div>
-      <.button :if={@step > 1} variant="dismiss" phx-click={JS.push("back", target: @myself)}>
+      <.button
+        :if={@step > 1}
+        variant="dismiss"
+        phx-click={JS.push("back", target: @myself)}
+        data-nav-item
+        tabindex="0"
+      >
         Back
       </.button>
-      <.button :if={@step < 3} variant="primary" phx-click={JS.push("next", target: @myself)}>
+      <.button
+        :if={@step < 3}
+        variant="primary"
+        phx-click={JS.push("next", target: @myself)}
+        data-nav-item
+        tabindex="0"
+      >
         Next
       </.button>
       <.button
@@ -192,6 +235,8 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
         variant="primary"
         disabled={not @consent}
         phx-click={JS.push("send", target: @myself)}
+        data-nav-item
+        tabindex="0"
       >
         Review & post to GitHub
       </.button>

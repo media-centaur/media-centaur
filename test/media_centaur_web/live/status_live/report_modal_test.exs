@@ -48,6 +48,56 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     refute has_element?(view, "[data-testid='report-modal']")
   end
 
+  describe "keyboard and gamepad" do
+    test "the wizard is an input-system overlay: no key capture, every control a nav item",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status")
+      render_click(view, "open_error_report_modal", %{})
+
+      refute has_element?(view, "#error-report-modal [data-captures-keys]")
+      refute has_element?(view, "#error-report-modal[data-captures-keys]")
+      assert has_element?(view, "#error-report-modal [data-detail-mode='modal']")
+
+      overlay = "#error-report-modal [data-detail-mode='modal']"
+      assert has_element?(view, "#{overlay} textarea[name='value'][data-nav-item]")
+      assert has_element?(view, "#{overlay} button[data-nav-item]", "No, don't send")
+      assert has_element?(view, "#{overlay} button[data-nav-item]", "Next")
+
+      view |> element("#error-report-modal button", "Next") |> render_click()
+      assert has_element?(view, "#{overlay} input[name='value'][data-nav-item]")
+      assert has_element?(view, "#{overlay} button[data-nav-item]", "Back")
+
+      view |> element("#error-report-modal button", "Next") |> render_click()
+      assert has_element?(view, "#{overlay} input[type='checkbox'][data-nav-item]")
+    end
+
+    test "BACK on step 1 closes the wizard", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status")
+      render_click(view, "open_error_report_modal", %{})
+
+      assert has_element?(
+               view,
+               "#error-report-modal [data-detail-mode='modal'][data-dismiss-event='report_cancel']"
+             )
+
+      refute has_element?(view, "#error-report-modal [data-detail-nested='true']")
+    end
+
+    test "BACK past step 1 returns a step, the wizard stays open", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status")
+      render_click(view, "open_error_report_modal", %{})
+      view |> element("#error-report-modal button", "Next") |> render_click()
+
+      overlay = "#error-report-modal [data-detail-mode='modal']"
+      assert has_element?(view, "#{overlay}[data-detail-nested='true']")
+      assert has_element?(view, "#{overlay}[data-dismiss-event='report_step_back']")
+
+      render_click(view, "report_step_back", %{})
+
+      assert has_element?(view, "[data-testid='consent-step-1']")
+    end
+  end
+
   test "3-step flow: consent + send shows the GitHub-post result", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
 

@@ -93,6 +93,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
             navigate={~p"/review"}
             class="mt-2 inline-flex items-center gap-1.5 text-xs text-warning hover:text-warning/80"
             data-component="low-confidence-link"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-question-mark-circle-mini" class="size-3.5 shrink-0" />
             {@low_confidence_count} low-confidence {if @low_confidence_count == 1,

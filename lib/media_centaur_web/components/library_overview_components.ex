@@ -53,9 +53,11 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
           <.link
             :for={item <- @overview.recently_added}
             id={"overview-recent-#{item.id}"}
-            navigate={~p"/"}
+            navigate={~p"/library?entity=#{item.id}"}
             class="card-hover relative aspect-[2/3] w-16 shrink-0 rounded overflow-hidden glass-inset block"
             data-tip={item.name}
+            data-nav-item
+            tabindex="0"
           >
             <img
               :if={item.poster_url}
@@ -237,7 +239,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
 
   defp work_row(assigns) do
     ~H"""
-    <.link navigate={@href} class="flex items-center gap-3 group">
+    <.link navigate={@href} class="flex items-center gap-3 group" data-nav-item tabindex="0">
       <.icon name={@icon} class="size-5 shrink-0 text-base-content/55" />
       <span :if={@count == 0} class="text-sm text-base-content/55">{@empty}</span>
       <span :if={@count > 0} class="text-sm">
@@ -271,7 +273,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
 
   defp gap_row(assigns) do
     ~H"""
-    <.link navigate={@href} class="flex items-center gap-3 group">
+    <.link navigate={@href} class="flex items-center gap-3 group" data-nav-item tabindex="0">
       <.icon name={@icon} class="size-5 shrink-0 text-base-content/55" />
       <span class="text-sm text-base-content/70">{@label}</span>
       <span class={["text-sm font-semibold tabular-nums ml-auto", gap_count_class(@count)]}>

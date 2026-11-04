@@ -7,6 +7,38 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   alias MediaCentaur.Playback.Events.PlaybackStateChanged
   alias MediaCentaur.Status.Views
 
+  describe "drill-in reach by keyboard and gamepad" do
+    # Regression: the widgets' links (Settings deep links, View full watch
+    # history, Open Friends, the overview's rows and posters) were mouse-only.
+    for subsystem <- MediaCentaurWeb.StatusLive.HealthBoard.board_subsystems() do
+      test "every link in the #{subsystem} drill-in is a nav item", %{conn: conn} do
+        {:ok, view, _html} = live_async!(conn, "/status?subsystem=#{unquote(subsystem)}")
+
+        refute has_element?(view, "[data-nav-zone='drill-in'] a:not([data-nav-item])")
+      end
+    end
+
+    test "a recently added poster opens its title, not the home page", %{conn: conn} do
+      movie = create_movie(%{name: "Sample Movie", content_url: "/media/sample.mkv"})
+      MediaCentaur.Library.FilePresence.stamp("/media/sample.mkv", "/media", DateTime.utc_now())
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=library")
+
+      assert has_element?(
+               view,
+               "#overview-recent-#{movie.id}[href='/library?entity=#{movie.id}'][data-nav-item]"
+             )
+    end
+
+    test "the selected subsystem's tile carries the marker the cursor enters at", %{conn: conn} do
+      # Paired with `entryDefaults.subsystems` in config.js (status_behavior.test.js).
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=tmdb")
+
+      assert has_element?(view, "[data-nav-zone='subsystems'] #subsystem-tile-tmdb[data-selected]")
+      refute has_element?(view, "[data-nav-zone='subsystems'] #subsystem-tile-watcher[data-selected]")
+    end
+  end
+
   describe "GET /status" do
     test "renders without crashing", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/status")

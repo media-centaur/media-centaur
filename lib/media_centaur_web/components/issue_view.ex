@@ -79,7 +79,14 @@ defmodule MediaCentaurWeb.Components.IssueView do
           </div>
         </div>
 
+        <%!-- Close leads: the modal's first nav item is where the cursor
+              enters, and entering on Dismiss put an unconfirmed dismissal
+              one press from the press that opened the incident. --%>
         <div class="px-6 py-4 border-t border-base-300 flex items-center gap-2">
+          <.button variant="dismiss" phx-click={@on_close} data-nav-item tabindex="0">
+            Close
+          </.button>
+          <div class="flex-1"></div>
           <.button
             variant="dismiss"
             phx-click={@on_dismiss}
@@ -88,10 +95,6 @@ defmodule MediaCentaurWeb.Components.IssueView do
             tabindex="0"
           >
             Dismiss
-          </.button>
-          <div class="flex-1"></div>
-          <.button variant="dismiss" phx-click={@on_close} data-nav-item tabindex="0">
-            Close
           </.button>
           <.button
             variant="primary"
