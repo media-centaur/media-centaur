@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.4.1 — 2026-11-04
+
+### New
+
+- **Edit or remove your review.** Opening Review on a title you already reviewed brings back what you said — the verdict pressed, your words in the box, and when you reviewed it — with **Save** to change it and **Remove review** to withdraw it. Your review also shows on the title's page, under the action row, as *You* with its glyph and words, and the pencil there reads **Edit your review**.
+
+### Improved
+
+- **The Review dialog says what you are saying.** It opens on the sentence *You ___ this*: press **Dislike**, **Like** or **Love** and the blank fills with that glyph and word; press it again to clear it. The verdicts carry their glyphs, the box counts down once 100 characters remain, and the button reads **Share**. The dialog no longer repeats the title's overview, and no longer prints a relay count or a list of who will see the review.
+- **Review by keyboard or remote.** The dialog is now on the path from the title page: Enter on the pencil lands on the verdicts, Down walks to the box and the buttons, Enter in the box starts typing and Escape stops, and Back closes the dialog onto the title page beneath it instead of the page behind that.
+
+### Fixed
+
+- **Pressing a verdict no longer erases your review.** Typing words and then pressing Like, Love or Dislike kept the verdict and threw away the text. The words now stay through any press.
+- **Escape in the review box no longer closes the title page underneath,** and no longer clears what you typed.
+
 ## v2.4.0 — 2026-11-04
 
 ### New
