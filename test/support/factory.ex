@@ -1171,6 +1171,7 @@ defmodule MediaCentaur.TestFactory do
         )
 
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
+    {caught_up, attrs} = Map.pop(attrs, :caught_up)
     intent_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name, :rung])
 
     # `Watchlist.put_rung/3`'s two branches, minus its `ensure_artwork_async/1`
@@ -1178,9 +1179,16 @@ defmodule MediaCentaur.TestFactory do
     # that owns the Req.Test stub, so it dies with `cannot find mock/stub
     # :tmdb` and the crash lands in a later test's captured log. "Writes the
     # record only" has to mean the record only.
-    case Repo.get_by(TitleIntent, tmdb_id: tmdb_id, media_type: media_type) do
-      nil -> title |> TitleIntent.create_changeset(rung, intent_attrs) |> Repo.insert!()
-      existing -> existing |> TitleIntent.rung_changeset(rung) |> Repo.update!()
+    intent =
+      case Repo.get_by(TitleIntent, tmdb_id: tmdb_id, media_type: media_type) do
+        nil -> title |> TitleIntent.create_changeset(rung, intent_attrs) |> Repo.insert!()
+        existing -> existing |> TitleIntent.rung_changeset(rung, title) |> Repo.update!()
+      end
+
+    # `caught_up: {season, episode}` sets the point through its changeset.
+    case caught_up do
+      nil -> intent
+      point -> intent |> TitleIntent.caught_up_changeset(point) |> Repo.update!()
     end
   end
 

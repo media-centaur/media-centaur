@@ -118,63 +118,13 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "list_releases/0" do
-    test "returns releases grouped as upcoming and released" do
-      item = create_tracking_item()
-
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), 30),
-        title: "Future Episode",
-        season_number: 1,
-        episode_number: 1
-      })
-
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), -5),
-        title: "Past Episode",
-        season_number: 1,
-        episode_number: 0,
-        released: true
-      })
-
-      %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
-      assert length(upcoming) == 1
-      assert hd(upcoming).title == "Future Episode"
-      assert length(released) == 1
-      assert hd(released).title == "Past Episode"
-    end
-
-    test "classifies a release aired today as released even with a stale stored flag" do
-      # Simulates the across-midnight window: a row that was stamped
-      # `released: false` yesterday whose `air_date` is today. The old
-      # nightly sweep had to run to flip the flag; deriving `released` from
-      # `air_date` on read fixes the stale-across-midnight class of bug.
-      item = create_tracking_item()
-
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: Date.utc_today(),
-        title: "Aired Today",
-        season_number: 1,
-        episode_number: 1,
-        released: false
-      })
-
-      %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
-      assert Enum.map(released, & &1.title) == ["Aired Today"]
-      assert upcoming == []
-    end
-  end
-
   describe "mark_in_library_releases/1" do
-    test "marks TV episodes at or below last library episode" do
+    # A series the library holds: the item's pair is its container's last episode.
+    defp linked, do: %{library_container_type: :tv_series, library_container_id: Ecto.UUID.generate()}
+
+    test "marks TV episodes at or below the linked container's last episode" do
       item =
-        create_tracking_item(%{
-          last_library_season: 2,
-          last_library_episode: 5
-        })
+        create_tracking_item(Map.merge(linked(), %{last_library_season: 2, last_library_episode: 5}))
 
       # In library: S01E01, S02E03, S02E05
       create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
@@ -195,6 +145,15 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       episode_keys = Enum.map(not_in_library, &{&1.season_number, &1.episode_number})
       assert {2, 6} in episode_keys
       assert {3, 1} in episode_keys
+    end
+
+    test "a series with no library container marks nothing, whatever its columns say" do
+      item = create_tracking_item(%{last_library_season: 2, last_library_episode: 5})
+      create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      assert [%{in_library: false}] = ReleaseTracking.list_releases_for_item(item.id)
     end
 
     test "marks released movie releases as in_library" do
@@ -262,7 +221,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "stamps in_library_at on first transition (TV)" do
-      item = create_tracking_item(%{last_library_season: 1, last_library_episode: 1})
+      item =
+        create_tracking_item(Map.merge(linked(), %{last_library_season: 1, last_library_episode: 1}))
+
       release = create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
 
       assert release.in_library == false
@@ -276,7 +237,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "does not re-bump in_library_at on subsequent calls (TV)" do
-      item = create_tracking_item(%{last_library_season: 1, last_library_episode: 1})
+      item =
+        create_tracking_item(Map.merge(linked(), %{last_library_season: 1, last_library_episode: 1}))
+
       release = create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
 
       ReleaseTracking.mark_in_library_releases(item)
@@ -385,60 +348,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     test "false for unknown types" do
       refute ReleaseTracking.acquirable_release_type?("streaming")
       refute ReleaseTracking.acquirable_release_type?("tv")
-    end
-  end
-
-  describe "list_releases/0 — recent-completed linger" do
-    test "includes a recently-completed release (within 24h) in the released bucket" do
-      item = create_tracking_item()
-      yesterday = Date.add(Date.utc_today(), -1)
-      twelve_hours_ago = DateTime.add(DateTime.utc_now(:second), -12 * 3600, :second)
-
-      release =
-        create_tracking_release(%{
-          item_id: item.id,
-          air_date: yesterday,
-          title: "Just Done",
-          season_number: 1,
-          episode_number: 1,
-          released: true
-        })
-
-      # Mark it in_library directly with a recent timestamp.
-      force_where(
-        from(r in MediaCentaur.ReleaseTracking.Release, where: r.id == ^release.id),
-        in_library: true,
-        in_library_at: twelve_hours_ago
-      )
-
-      %{released: released} = ReleaseTracking.list_releases()
-      assert Enum.any?(released, &(&1.id == release.id))
-    end
-
-    test "excludes a long-completed release (older than 24h)" do
-      item = create_tracking_item()
-      yesterday = Date.add(Date.utc_today(), -2)
-      two_days_ago = DateTime.add(DateTime.utc_now(:second), -48 * 3600, :second)
-
-      release =
-        create_tracking_release(%{
-          item_id: item.id,
-          air_date: yesterday,
-          title: "Long Done",
-          season_number: 1,
-          episode_number: 1,
-          released: true
-        })
-
-      force_where(
-        from(r in MediaCentaur.ReleaseTracking.Release, where: r.id == ^release.id),
-        in_library: true,
-        in_library_at: two_days_ago
-      )
-
-      %{released: released, upcoming: upcoming} = ReleaseTracking.list_releases()
-      refute Enum.any?(released, &(&1.id == release.id))
-      refute Enum.any?(upcoming, &(&1.id == release.id))
     end
   end
 
@@ -599,46 +508,86 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "list_releases/0 filtering" do
-    test "excludes in_library releases" do
-      item = create_tracking_item()
+  describe "catch_up/2 — the verb's one write path" do
+    setup context do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      MediaCentaur.TmdbStubs.setup_artwork_cache(context)
+    end
 
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), -5),
-        season_number: 1,
-        episode_number: 1,
-        released: true,
-        in_library: true
+    defp iso(days), do: Date.to_iso8601(Date.add(Date.utc_today(), days))
+
+    # A followed show with four episodes: three aired, one ahead; TMDB's
+    # latest aired is S01E03.
+    defp followed_show(tmdb_id) do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/#{tmdb_id}/season/1",
+         %{
+           "season_number" => 1,
+           "episodes" =>
+             for number <- 1..4 do
+               %{
+                 "episode_number" => number,
+                 "name" => "Episode #{number}",
+                 "air_date" => iso((number - 4) * 7 + 7)
+               }
+             end
+         }}
+      ])
+
+      create_tracking_item(%{
+        tmdb_id: tmdb_id,
+        media_type: :tv_series,
+        name: "Sample Show",
+        rung: :grab,
+        payload:
+          MediaCentaur.TmdbStubs.tv_detail(%{
+            "id" => tmdb_id,
+            "name" => "Sample Show",
+            "number_of_seasons" => 1,
+            "seasons" => [%{"season_number" => 1, "episode_count" => 4}],
+            "last_episode_to_air" => %{"season_number" => 1, "episode_number" => 3},
+            "next_episode_to_air" => %{"season_number" => 1, "episode_number" => 4, "air_date" => iso(7)},
+            "poster_path" => nil,
+            "backdrop_path" => nil
+          })
       })
+    end
 
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), -3),
-        season_number: 1,
-        episode_number: 2,
-        released: true,
-        in_library: false
-      })
+    test ":latest sets the point to TMDB's latest aired episode, dismisses the wants it covers and rebuilds the calendar from it" do
+      item = followed_show(7001)
+      :ok = ReleaseTracking.rebuild_calendar(item)
+      assert length(ReleaseTracking.open_wants_for_item(item.id)) == 3
 
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), 10),
-        season_number: 1,
-        episode_number: 3,
-        in_library: false
-      })
+      assert :ok = ReleaseTracking.catch_up(item, :latest)
 
-      %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
+      assert MediaCentaur.Watchlist.caught_up(7001, :tv_series) == {1, 3}
+      assert ReleaseTracking.open_wants_for_item(item.id) == []
+      assert [%{episode_number: 4}] = ReleaseTracking.list_releases_for_item(item.id)
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
+    end
 
-      assert length(released) == 1
-      assert hd(released).episode_number == 2
-      assert length(upcoming) == 1
-      assert hd(upcoming).episode_number == 3
+    test "a pair moved earlier widens the calendar and reopens the wants it uncovers; the same pair is a no-op" do
+      item = followed_show(7002)
+      :ok = ReleaseTracking.catch_up(item, {1, 3})
+      assert [%{episode_number: 4}] = ReleaseTracking.list_releases_for_item(item.id)
+
+      assert :ok = ReleaseTracking.catch_up(item, {1, 1})
+
+      assert MediaCentaur.Watchlist.caught_up(7002, :tv_series) == {1, 1}
+      assert Enum.map(ReleaseTracking.list_releases_for_item(item.id), & &1.episode_number) == [2, 3, 4]
+      assert Enum.map(ReleaseTracking.open_wants_for_item(item.id), & &1.episode_number) == [2, 3]
+
+      assert :ok = ReleaseTracking.catch_up(item, {1, 1})
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
+    end
+
+    test "a movie has no point to set" do
+      item = create_tracking_item(%{media_type: :movie, name: "Movie A", rung: :grab})
+      assert {:error, %Ecto.Changeset{}} = ReleaseTracking.catch_up(item, {1, 1})
     end
   end
 
-  describe "Onboarding.onboard/2" do
+  describe "Onboarding.onboard/1" do
     # Onboarding warms the poster; the image CDN is stubbed so the
     # download lands under a per-test data dir instead of logging a
     # failure the test never asserts.
@@ -647,64 +596,30 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       MediaCentaur.TmdbStubs.setup_artwork_cache(context)
     end
 
-    test "tracks a TV series with custom scope" do
+    defp past(days), do: Date.to_iso8601(Date.add(Date.utc_today(), -days))
+    defp future(days), do: Date.to_iso8601(Date.add(Date.utc_today(), days))
+
+    test "following a series catches the person up to TMDB's latest aired episode: the aired episodes are rows and had, no want opens" do
       MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/5555/season/1",
+         %{
+           "season_number" => 1,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Pilot", "air_date" => past(20)},
+             %{"episode_number" => 2, "name" => "Second", "air_date" => past(10)},
+             %{"episode_number" => 3, "name" => "Future Ep", "air_date" => future(30)}
+           ]
+         }},
         {"/tv/5555",
          %{
            "id" => 5555,
            "name" => "New Show",
            "status" => "Returning Series",
            "poster_path" => "/new.jpg",
-           "number_of_seasons" => 3,
-           "next_episode_to_air" => %{
-             "air_date" => "2026-08-01",
-             "season_number" => 3,
-             "episode_number" => 1,
-             "name" => "S3 Premiere"
-           }
-         }}
-      ])
-
-      {:ok, item} =
-        Onboarding.onboard(
-          Title.new!(%{
-            tmdb_id: 5555,
-            media_type: :tv_series,
-            name: "New Show",
-            poster_path: "/new.jpg"
-          }),
-          %{start_season: 2, start_episode: 5}
-        )
-
-      assert item.tmdb_id == 5555
-      assert item.last_library_season == 2
-      assert item.last_library_episode == 5
-      MediaCentaur.TaskAwaits.await_supervised_tasks()
-    end
-
-    test "all upcoming excludes already-released episodes" do
-      past_date = Date.to_iso8601(Date.add(Date.utc_today(), -10))
-      future_date = Date.to_iso8601(Date.add(Date.utc_today(), 30))
-
-      MediaCentaur.TmdbStubs.stub_routes([
-        {"/tv/6666/season/1",
-         %{
-           "season_number" => 1,
-           "episodes" => [
-             %{"episode_number" => 1, "name" => "Pilot", "air_date" => past_date},
-             %{"episode_number" => 2, "name" => "Second", "air_date" => past_date},
-             %{"episode_number" => 3, "name" => "Future Ep", "air_date" => future_date}
-           ]
-         }},
-        {"/tv/6666",
-         %{
-           "id" => 6666,
-           "name" => "Mixed Show",
-           "status" => "Returning Series",
-           "poster_path" => "/mix.jpg",
            "number_of_seasons" => 1,
+           "last_episode_to_air" => %{"season_number" => 1, "episode_number" => 2},
            "next_episode_to_air" => %{
-             "air_date" => future_date,
+             "air_date" => future(30),
              "season_number" => 1,
              "episode_number" => 3,
              "name" => "Future Ep"
@@ -712,21 +627,77 @@ defmodule MediaCentaur.ReleaseTrackingTest do
          }}
       ])
 
+      create_title_intent(%{
+        tmdb_id: 5555,
+        media_type: :tv_series,
+        name: "New Show",
+        rung: :grab,
+        stored: false
+      })
+
+      {:ok, item} =
+        Onboarding.onboard(
+          Title.new!(%{tmdb_id: 5555, media_type: :tv_series, name: "New Show", poster_path: "/new.jpg"})
+        )
+
+      assert item.last_library_season == 0
+      assert MediaCentaur.Watchlist.caught_up(5555, :tv_series) == {1, 2}
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.sort(Enum.map(releases, & &1.episode_number)) == [1, 2, 3]
+      assert ReleaseTracking.open_wants_for_item(item.id) == []
+
+      item = Map.put(ReleaseTracking.get_item(item.id), :releases, releases)
+      assert %{out: [], next: next} = ReleaseTracking.Calendar.read(item, {1, 2}, Date.utc_today())
+      assert Date.to_iso8601(next) == future(30)
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
+    end
+
+    test "a series TMDB has aired nothing of is followed with no point" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/6666/season/1",
+         %{
+           "season_number" => 1,
+           "episodes" => [%{"episode_number" => 1, "name" => "Pilot", "air_date" => future(30)}]
+         }},
+        {"/tv/6666",
+         %{
+           "id" => 6666,
+           "name" => "Coming Show",
+           "status" => "In Production",
+           "poster_path" => "/mix.jpg",
+           "number_of_seasons" => 1,
+           "next_episode_to_air" => %{
+             "air_date" => future(30),
+             "season_number" => 1,
+             "episode_number" => 1,
+             "name" => "Pilot"
+           }
+         }}
+      ])
+
+      create_title_intent(%{
+        tmdb_id: 6666,
+        media_type: :tv_series,
+        name: "Coming Show",
+        rung: :follow,
+        stored: false
+      })
+
       {:ok, item} =
         Onboarding.onboard(
           Title.new!(%{
             tmdb_id: 6666,
             media_type: :tv_series,
-            name: "Mixed Show",
+            name: "Coming Show",
             poster_path: "/mix.jpg"
-          }),
-          %{start_season: 0, start_episode: 0}
+          })
         )
 
-      releases = ReleaseTracking.list_releases_for_item(item.id)
-      assert length(releases) == 1
-      assert hd(releases).title == "Future Ep"
-      refute Release.released?(hd(releases))
+      assert MediaCentaur.Watchlist.caught_up(6666, :tv_series) == nil
+      assert [%{episode_number: 1} = only] = ReleaseTracking.list_releases_for_item(item.id)
+      refute Release.released?(only)
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
     end
 
     test "tracks a movie with theatrical and digital releases" do
@@ -759,8 +730,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
             media_type: :movie,
             name: "Upcoming Movie",
             poster_path: "/movie.jpg"
-          }),
-          %{}
+          })
         )
 
       assert item.tmdb_id == 9999
@@ -790,8 +760,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       {:ok, item} =
         Onboarding.onboard(
-          Title.new!(%{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil}),
-          %{}
+          Title.new!(%{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil})
         )
 
       assert item.tmdb_id == 8888
@@ -822,9 +791,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       result =
         Title.new!(%{tmdb_id: 7777, media_type: :tv_series, name: "Sample Show", poster_path: nil})
 
-      {:ok, item} = Onboarding.onboard(result, %{})
+      {:ok, item} = Onboarding.onboard(result)
 
-      assert {:error, :already_tracked} = Onboarding.onboard(result, %{})
+      assert {:error, :already_tracked} = Onboarding.onboard(result)
 
       # The duplicate attempt must not disturb the existing item or its releases.
       assert ReleaseTracking.get_item_by_tmdb(7777, :tv_series).id == item.id
@@ -845,9 +814,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       result = Title.new!(%{tmdb_id: 6060, media_type: :movie, name: "Sample Movie", poster_path: nil})
 
-      {:ok, item} = Onboarding.onboard(result, %{})
+      {:ok, item} = Onboarding.onboard(result)
 
-      assert {:error, :already_tracked} = Onboarding.onboard(result, %{})
+      assert {:error, :already_tracked} = Onboarding.onboard(result)
       assert ReleaseTracking.get_item_by_tmdb(6060, :movie).id == item.id
     end
   end

@@ -61,6 +61,33 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     feed |> all_events() |> Enum.find(&(&1.title == title))
   end
 
+  describe "the caught-up point" do
+    test "a past release had by the point and not in the library leaves the forecast; in the library it is the landed beat" do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "seen", air_date: days(-3), season_number: 1, episode_number: 1}),
+        release(item, %{
+          title: "landed",
+          air_date: days(-2),
+          season_number: 1,
+          episode_number: 2,
+          in_library: true
+        }),
+        release(item, %{title: "next", air_date: days(4), season_number: 1, episode_number: 3})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context(%{caught_up: %{{1001, :tv_series} => {1, 2}}}))
+
+      assert find_event(feed, "seen") == nil
+      assert find_event(feed, "landed").status == :in_library
+      assert find_event(feed, "next").status == :armed
+
+      # Without a point the past armed release stays: the app is still searching for it.
+      assert find_event(UpcomingFeed.build(releases, armed_context()), "seen").status == :armed
+    end
+  end
+
   describe "bucketing by relative time" do
     test "places each release in the right relative-time bucket" do
       item = tv_item()

@@ -10,7 +10,7 @@ defmodule MediaCentaur.WatchlistTest do
   alias MediaCentaur.TMDB.Title
 
   describe "TitleIntent.create_changeset/3" do
-    test "takes the identity columns from the title and copies nothing else (ADR-071)" do
+    test "takes the identity columns and the label from the title and copies nothing else (ADR-071)" do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie", year: "2010"})
       changeset = TitleIntent.create_changeset(title, :list, %{note: "why"})
 
@@ -18,7 +18,18 @@ defmodule MediaCentaur.WatchlistTest do
       assert Ecto.Changeset.get_change(changeset, :tmdb_id) == 777
       assert Ecto.Changeset.get_change(changeset, :media_type) == :movie
       assert Ecto.Changeset.get_change(changeset, :note) == "why"
+      assert Ecto.Changeset.get_change(changeset, :title_name) == "Sample Movie"
+      assert Ecto.Changeset.get_change(changeset, :title_year) == "2010"
       assert Ecto.Changeset.get_change(changeset, :title) == nil
+    end
+
+    test "a bare identity writes no label, so a move from one keeps what the record had" do
+      bare = %Title{tmdb_id: 777, media_type: :movie}
+      assert Ecto.Changeset.get_change(TitleIntent.create_changeset(bare, :list), :title_name) == nil
+
+      intent = %TitleIntent{tmdb_id: 777, media_type: :movie, rung: :list, title_name: "Sample Movie"}
+      changeset = TitleIntent.rung_changeset(intent, :follow, bare)
+      assert Ecto.Changeset.get_field(changeset, :title_name) == "Sample Movie"
     end
 
     test "a friend-sourced record carries its review id; the pairing is enforced" do
@@ -106,6 +117,47 @@ defmodule MediaCentaur.WatchlistTest do
       assert :ok = Watchlist.forget(777, :movie)
       refute Watchlist.listed?(777, :movie)
       assert Watchlist.rung(777, :movie) == nil
+      await_supervised_tasks()
+    end
+
+    test "every rung write refreshes the label, and the label paints a record the store does not hold" do
+      {:ok, intent} = Watchlist.put_rung(@title, :list)
+      assert {intent.title_name, intent.title_year} == {"Sample Movie", "2010"}
+
+      renamed = %{@title | name: "Sample Movie: Director's Cut"}
+      {:ok, moved} = Watchlist.put_rung(renamed, :ignored)
+      assert moved.title_name == "Sample Movie: Director's Cut"
+
+      # Nothing in the store for this title: the row is painted from the label.
+      assert [%{intent: %TitleIntent{title: %Title{name: "Sample Movie: Director's Cut", year: "2010"}}}] =
+               Watchlist.list_intents()
+
+      await_supervised_tasks()
+    end
+
+    test "catch_up/3 sets a series' point and broadcasts it under the same tuple; a movie and Off are refused" do
+      show = Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show"})
+      {:ok, _} = Watchlist.put_rung(show, :follow)
+      Watchlist.subscribe()
+
+      assert {:ok, %TitleIntent{caught_up_season: 2, caught_up_episode: 5}} =
+               Watchlist.catch_up(42, :tv_series, {2, 5})
+
+      assert_receive {:title_intent_changed,
+                      %Watchlist.Events.CaughtUp{
+                        tmdb_id: 42,
+                        media_type: :tv_series,
+                        season: 2,
+                        episode: 5
+                      }}
+
+      assert Watchlist.caught_up(42, :tv_series) == {2, 5}
+
+      {:ok, _} = Watchlist.put_rung(@title, :follow)
+      assert {:error, %Ecto.Changeset{}} = Watchlist.catch_up(777, :movie, {1, 1})
+      assert Watchlist.catch_up(999, :tv_series, {1, 1}) == {:error, :not_listed}
+      assert Watchlist.caught_up(999, :tv_series) == nil
+
       await_supervised_tasks()
     end
 
@@ -224,16 +276,23 @@ defmodule MediaCentaur.WatchlistTest do
       await_supervised_tasks()
     end
 
-    test "a listed title the store lacks carries a bare identity until first contact lands" do
+    test "a listed title the store lacks is painted from its label: name and year, no artwork" do
       {:ok, _intent} = Watchlist.put_rung(@title, :list)
 
-      assert %TitleIntent{title: %Title{tmdb_id: 777, media_type: :movie, name: nil, poster_path: nil}} =
-               Watchlist.get_intent(777, :movie)
+      assert %TitleIntent{
+               title: %Title{
+                 tmdb_id: 777,
+                 media_type: :movie,
+                 name: "Sample Movie",
+                 year: "2010",
+                 poster_path: nil
+               }
+             } = Watchlist.get_intent(777, :movie)
 
       await_supervised_tasks()
     end
 
-    test "forgetting a title the store never held still broadcasts the move to Off" do
+    test "forgetting a title the store never held broadcasts the move to Off with the label" do
       Watchlist.subscribe()
       {:ok, _intent} = Watchlist.put_rung(@title, :list)
       assert_receive {:title_intent_changed, %{rung: :list}}
@@ -241,7 +300,11 @@ defmodule MediaCentaur.WatchlistTest do
       :ok = Watchlist.forget(777, :movie)
 
       assert_receive {:title_intent_changed,
-                      %{previous_rung: :list, rung: nil, title: %Title{tmdb_id: 777, name: nil}}}
+                      %{
+                        previous_rung: :list,
+                        rung: nil,
+                        title: %Title{tmdb_id: 777, name: "Sample Movie"}
+                      }}
 
       await_supervised_tasks()
     end

@@ -13,7 +13,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Finish do
       The collection is opened on that member, and the prompt's delete
       covers that movie's files only;
     * a series — the series id, when the session completed TMDB's latest
-      aired episode (`last_episode_to_air`). Not the last episode the
+      aired episode (`ReleaseTracking.Calendar.latest_aired/1`, the pair
+      Follow sets the caught-up point to). Not the last episode the
       library holds: the library holds only seasons with files. Whether
       the show is finished or caught up is the open detail's `settled?`
       fact, read where the prompt renders.
@@ -55,15 +56,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Finish do
   @spec episodes?(%{required(:completed) => MapSet.t(), optional(atom()) => term()}) :: boolean()
   def episodes?(%{completed: completed}),
     do: Enum.any?(completed, &match?({:episode, _id, _season, _episode}, &1))
-
-  @doc "TMDB's latest aired episode from a series payload, as `{season_number, episode_number}`."
-  @spec latest_aired_episode(map()) :: {integer(), integer()} | nil
-  def latest_aired_episode(%{
-        "last_episode_to_air" => %{"season_number" => season, "episode_number" => episode}
-      })
-      when is_integer(season) and is_integer(episode), do: {season, episode}
-
-  def latest_aired_episode(_payload), do: nil
 
   defp finished_id(%{entity_id: entity_id, completed: completed}, latest_aired) do
     Enum.find_value(completed, fn

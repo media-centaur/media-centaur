@@ -32,8 +32,9 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Helpers, Item, Release, Want}
+  alias MediaCentaur.ReleaseTracking.{Had, Helpers, Item, Release, Want}
   alias MediaCentaur.Search.Quality
+  alias MediaCentaur.Watchlist
 
   # Every `Want` column `insert_all/3` must carry: it bypasses schema
   # defaults, so the applied changeset's struct (defaults included) is
@@ -62,8 +63,9 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   @spec sync_item(Item.t()) :: :ok
   def sync_item(%Item{} = item) do
     releases = ReleaseTracking.list_releases_for_item(item.id)
+    point = Had.point(item, Watchlist.caught_up(item.tmdb_id, item.media_type))
 
-    opened = open_missing_wants(item, releases)
+    opened = open_missing_wants(item, releases, point)
     satisfied = satisfy_present_wants(item)
 
     # Surfaces decorate from the ledger; a sync that changed nothing
@@ -144,6 +146,28 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   @doc """
+  Dismisses the item's open series wants at or before `point` — the
+  ledger's half of *Caught up* (`ReleaseTracking.catch_up/2`): a want for
+  an episode the person has seen closes by dismissal, the one way a want
+  closes besides satisfaction. Returns the dismissed count.
+  """
+  @spec dismiss_at_or_before(Ecto.UUID.t(), Had.point()) :: non_neg_integer()
+  def dismiss_at_or_before(item_id, {season, episode}) do
+    {count, _} =
+      Repo.update_all(
+        from(w in Want,
+          where: w.item_id == ^item_id and w.status == :open,
+          where:
+            w.season_number < ^season or
+              (w.season_number == ^season and w.episode_number <= ^episode)
+        ),
+        set: [status: :dismissed, dismissed_at: DateTime.utc_now(:second)]
+      )
+
+    count
+  end
+
+  @doc """
   Dismisses the open want matching a calendar release row, if any. Used
   by per-release dismissal so "dismiss this release" also stops the
   want. Returns the dismissed count (0 or 1).
@@ -169,14 +193,14 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
 
   # --- Opening ---
 
-  defp open_missing_wants(item, releases) do
+  defp open_missing_wants(item, releases, point) do
     existing_keys =
       MapSet.new(Repo.all(from(w in Want, where: w.item_id == ^item.id, select: w.unit_key)))
 
     now = DateTime.utc_now(:second)
 
     item
-    |> want_candidates(releases)
+    |> want_candidates(releases, point)
     |> Enum.reject(&MapSet.member?(existing_keys, &1.unit_key))
     |> Enum.map(fn candidate ->
       %{
@@ -223,12 +247,12 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     end
   end
 
-  defp want_candidates(%Item{media_type: :tv_series} = item, releases) do
+  defp want_candidates(%Item{media_type: :tv_series}, releases, point) do
     releases
     |> Enum.filter(fn release ->
-      Release.released?(release) and not release.in_library and
+      Release.released?(release) and
         is_integer(release.season_number) and is_integer(release.episode_number) and
-        not dismissed_by_cutoff?(item, release.air_date)
+        not Had.had?(release, point)
     end)
     |> Enum.uniq_by(&{&1.season_number, &1.episode_number})
     |> Enum.map(fn release ->
@@ -243,7 +267,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     end)
   end
 
-  defp want_candidates(%Item{media_type: :movie} = item, releases) do
+  defp want_candidates(%Item{media_type: :movie} = item, releases, _point) do
     releases
     |> Enum.filter(fn release ->
       Release.released?(release) and not release.in_library and
@@ -272,7 +296,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
         air_date: release.air_date
       }
     end)
-    |> Enum.reject(&dismissed_by_cutoff?(item, &1.air_date))
   end
 
   # Movie rows carry their film's own TMDB id since the part_tmdb_id
@@ -283,13 +306,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   defp resolve_part_tmdb_id(%{part_tmdb_id: part}, _item) when is_integer(part), do: part
   defp resolve_part_tmdb_id(%{release_type: type}, item) when is_binary(type), do: item.tmdb_id
   defp resolve_part_tmdb_id(_release, _item), do: nil
-
-  defp dismissed_by_cutoff?(%Item{dismiss_released_before: nil}, _air_date), do: false
-  defp dismissed_by_cutoff?(_item, nil), do: false
-
-  defp dismissed_by_cutoff?(%Item{dismiss_released_before: cutoff}, air_date) do
-    Date.before?(air_date, cutoff)
-  end
 
   # Patience anchors at the air date for units aired before today (no
   # patience restart when the ledger first sees an old unit), at sync

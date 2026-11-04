@@ -1,13 +1,14 @@
 defmodule MediaCentaur.Watchlist.TitleIntent do
   @moduledoc """
   One person's standing intent about one title: its TMDB identity, its
-  provenance, and the **rung** that says what the app should do about
-  the title's releases.
+  provenance, the **rung** that says what the app should do about the
+  title's releases, and the two facts only the person can state about
+  it — the **caught-up point** and the **label**.
 
-  The rung is the whole ladder, and it is the only authored thing in
-  release tracking. Everything downstream — the tracked title, its
-  calendar, its wants, the plans the cadence drafts — is derived from
-  where this sits:
+  The record holds what the person authored and nothing else: the rung,
+  the note a friend's listing came with, the point and the label.
+  Everything downstream — the tracked title, its calendar, its wants,
+  the plans the cadence drafts — is derived from where the rung sits:
 
   | rung | what the app does |
   |---|---|
@@ -36,12 +37,30 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
   used to carry a policy were folded into Grab and Follow by the
   `TrackingIsTwoSwitches` data migration.
 
+  **The caught-up point** (`caught_up_season`, `caught_up_episode`) is
+  the person's declared position in a series: the latest aired episode
+  they have seen, wherever they saw it. A release at or before it is
+  *had* — nothing needs doing about it — the same way a release the
+  library holds is had (`ReleaseTracking.Had`). Follow sets it to the
+  latest aired episode (Follow means caught up as of now; campaign
+  `discovery.md`, decision 6 of 2026-11-04), the *Caught up* press sets
+  it again, and the detail's tracking card moves it to any aired
+  episode (`caught_up_changeset/2`). A movie carries none.
+
+  **The label** (`title_name`, `title_year`) is the title's name and year
+  as they were shown when the person acted on it, written on every rung
+  write (`create_changeset/3`, `rung_changeset/3`). It is the record's
+  own description, like its note: the store's snapshot is painted while
+  the store holds one, the label when it does not (ADR-071, amended
+  2026-11-04) — an Ignored record references nothing in the store, so
+  after the retention sweep the label is all it has.
+
   Identity is `(tmdb_id, media_type)`: indexed columns taken from the
   `MediaCentaur.TMDB.Title` the person acted on (`create_changeset/3`).
-  The record copies nothing else from it. The title's render snapshot is
-  the TMDB store's (ADR-071), attached to the virtual `title` by
-  `Watchlist.Titles.attach/1` on every read, so a listed title is
-  painted from the same record every other surface reads. The library
+  The record copies nothing else from it but the label. The title's
+  render snapshot is the TMDB store's (ADR-071), attached to the virtual
+  `title` by `Watchlist.Titles.attach/1` on every read, so a listed title
+  is painted from the same record every other surface reads. The library
   is never referenced from here either — presence is derived at read
   time via `Library.ExternalIds` (one source of truth, cannot go stale).
 
@@ -66,6 +85,9 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
   @typedoc "Where a person's intent about a title sits. Off is no record at all."
   @type rung :: :ignored | :list | :follow | :grab
 
+  @typedoc "The caught-up point: a season and episode, both at least 1."
+  @type caught_up :: {pos_integer(), pos_integer()}
+
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
           tmdb_id: integer(),
@@ -76,7 +98,11 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
           rung: rung(),
           source: :manual | :friend,
           note: String.t() | nil,
-          activity_id: Ecto.UUID.t() | nil
+          activity_id: Ecto.UUID.t() | nil,
+          caught_up_season: pos_integer() | nil,
+          caught_up_episode: pos_integer() | nil,
+          title_name: String.t() | nil,
+          title_year: String.t() | nil
         }
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -90,13 +116,18 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
     field :source, Ecto.Enum, values: [:manual, :friend], default: :manual
     field :note, :string
     field :activity_id, Ecto.UUID
+    field :caught_up_season, :integer
+    field :caught_up_episode, :integer
+    field :title_name, :string
+    field :title_year, :string
 
     timestamps()
   end
 
   @doc """
   A new record for `title` at `rung` — the title lends its identity and
-  nothing else; `attrs` may carry `:source`, `:note` and `:activity_id`.
+  its label and nothing else; `attrs` may carry `:source`, `:note` and
+  `:activity_id`.
   """
   @spec create_changeset(Title.t(), rung(), map()) :: Ecto.Changeset.t()
   def create_changeset(%Title{} = title, rung, attrs \\ %{}) do
@@ -105,18 +136,73 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
     |> put_change(:rung, rung)
     |> put_change(:tmdb_id, title.tmdb_id)
     |> put_change(:media_type, title.media_type)
+    |> put_label(title)
     |> validate_required([:tmdb_id, :media_type, :rung])
     |> validate_provenance()
     |> unique_constraint([:tmdb_id, :media_type])
   end
 
-  @doc "Moves an existing record to `rung`."
-  @spec rung_changeset(t(), rung()) :: Ecto.Changeset.t()
-  def rung_changeset(%__MODULE__{} = intent, rung) do
+  @doc """
+  Moves an existing record to `rung`, and writes the label from the
+  `title` the move was made with — every rung write refreshes it.
+  """
+  @spec rung_changeset(t(), rung(), Title.t()) :: Ecto.Changeset.t()
+  def rung_changeset(%__MODULE__{} = intent, rung, %Title{} = title) do
     intent
     |> change()
     |> put_change(:rung, rung)
+    |> put_label(title)
     |> validate_required([:rung])
+  end
+
+  @doc """
+  Sets the caught-up point. A series only — a movie has no position to
+  be at — and both numbers at least 1: season 0 is specials, and the
+  point names an episode the person has seen.
+  """
+  @spec caught_up_changeset(t(), caught_up()) :: Ecto.Changeset.t()
+  def caught_up_changeset(%__MODULE__{} = intent, {season, episode}) do
+    intent
+    |> change(caught_up_season: season, caught_up_episode: episode)
+    |> validate_number(:caught_up_season, greater_than_or_equal_to: 1)
+    |> validate_number(:caught_up_episode, greater_than_or_equal_to: 1)
+    |> validate_series()
+  end
+
+  @doc "The record's caught-up point as a pair, or nil when none is set."
+  @spec caught_up(t()) :: caught_up() | nil
+  def caught_up(%__MODULE__{caught_up_season: season, caught_up_episode: episode})
+      when is_integer(season) and is_integer(episode), do: {season, episode}
+
+  def caught_up(%__MODULE__{}), do: nil
+
+  @doc """
+  The record's label as a bare `Title`: identity, name and year — what a
+  surface paints when the store holds no snapshot of the title.
+  """
+  @spec label(t()) :: Title.t()
+  def label(%__MODULE__{} = intent) do
+    %Title{
+      tmdb_id: intent.tmdb_id,
+      media_type: intent.media_type,
+      name: intent.title_name,
+      year: intent.title_year
+    }
+  end
+
+  # A title the person acted on from a bare identity (a friend's entry
+  # before first contact) has no name to write; the label keeps what it
+  # had rather than blanking it.
+  defp put_label(changeset, %Title{name: nil}), do: changeset
+
+  defp put_label(changeset, %Title{} = title),
+    do: change(changeset, title_name: title.name, title_year: title.year)
+
+  defp validate_series(changeset) do
+    case get_field(changeset, :media_type) do
+      :tv_series -> changeset
+      _movie -> add_error(changeset, :caught_up_season, "only a series has a caught-up point")
+    end
   end
 
   @doc """

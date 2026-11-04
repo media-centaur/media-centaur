@@ -13,6 +13,7 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.TmdbArtwork
     ],
     exports: [
+      Calendar,
       Identity,
       Item,
       LibraryListener,
@@ -55,6 +56,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   alias MediaCentaur.ReleaseTracking.{
     Calendar,
+    Had,
     Helpers,
     Item,
     Onboarding,
@@ -199,8 +201,9 @@ defmodule MediaCentaur.ReleaseTracking do
   @spec rebuild_calendar(Item.t()) :: :ok | {:error, term()}
   def rebuild_calendar(%Item{} = item) do
     with {:ok, record} <- Store.ensure({item.tmdb_id, item.media_type}) do
-      seasons = ensure_wanted_seasons(item, record)
-      releases = calendar_releases(item, record.payload, Enum.map(seasons, & &1.payload))
+      point = Had.point(item, Watchlist.caught_up(item.tmdb_id, item.media_type))
+      seasons = ensure_wanted_seasons(item, record, point)
+      releases = calendar_releases(item, record.payload, Enum.map(seasons, & &1.payload), point)
       replace_releases!(item, releases, persister_for(item))
       mark_in_library_releases(item)
       sync_wants(item)
@@ -210,11 +213,11 @@ defmodule MediaCentaur.ReleaseTracking do
     end
   end
 
-  defp calendar_releases(%Item{media_type: :tv_series} = item, payload, season_payloads) do
-    Calendar.tv_releases(payload, season_payloads, item.last_library_season, item.last_library_episode)
+  defp calendar_releases(%Item{media_type: :tv_series}, payload, season_payloads, point) do
+    Calendar.tv_releases(payload, season_payloads, point)
   end
 
-  defp calendar_releases(%Item{media_type: :movie}, payload, _season_payloads) do
+  defp calendar_releases(%Item{media_type: :movie}, payload, _season_payloads, _point) do
     Calendar.movie_releases(payload)
   end
 
@@ -224,9 +227,9 @@ defmodule MediaCentaur.ReleaseTracking do
   # A wanted season the store lacks is first contact for a title the app
   # holds a reference to — allowed by the policy; a failure is logged and
   # the season left out of this rebuild.
-  defp ensure_wanted_seasons(%Item{media_type: :tv_series} = item, record) do
+  defp ensure_wanted_seasons(%Item{media_type: :tv_series} = item, record, {point_season, _episode}) do
     record.payload
-    |> Calendar.seasons_wanted(item.last_library_season)
+    |> Calendar.seasons_wanted(point_season)
     |> Enum.each(fn season_number ->
       case Store.ensure_season(item.tmdb_id, season_number) do
         {:ok, _season} ->
@@ -243,7 +246,48 @@ defmodule MediaCentaur.ReleaseTracking do
     Store.seasons(item.tmdb_id)
   end
 
-  defp ensure_wanted_seasons(%Item{media_type: :movie}, _record), do: []
+  defp ensure_wanted_seasons(%Item{media_type: :movie}, _record, _point), do: []
+
+  @doc """
+  *Caught up* — the verb's one write path (campaign `discovery.md`, M16).
+  Sets the person's caught-up point on the title intent to `target`:
+  `:latest`, TMDB's latest aired episode from the stored title
+  (`Calendar.latest_aired/1`), or a `{season, episode}` the person named
+  on the tracking card. Then the ledger's half — open wants at or before
+  the point are dismissed (`Wants.dismiss_at_or_before/2`) — and the
+  calendar is rebuilt from the point (`rebuild_calendar/1`), which also
+  opens the wants a point moved *earlier* uncovers, and publishes
+  `{:releases_updated, [item.id]}`.
+
+  `:ok` when the point already stands there or TMDB has aired nothing;
+  `{:error, :not_listed}` when the title has no record (the item is
+  derived from one, so this is a race with Off); `{:error, changeset}` for
+  a pair the record refuses (a movie, season or episode below 1).
+  """
+  @spec catch_up(Item.t(), :latest | TitleIntent.caught_up()) :: :ok | {:error, term()}
+  def catch_up(%Item{media_type: :tv_series} = item, :latest) do
+    case Store.get({item.tmdb_id, :tv_series}) do
+      %{payload: payload} ->
+        case Calendar.latest_aired(payload) do
+          nil -> :ok
+          latest -> catch_up(item, latest)
+        end
+
+      nil ->
+        :ok
+    end
+  end
+
+  def catch_up(%Item{} = item, {_season, _episode} = point) do
+    if Watchlist.caught_up(item.tmdb_id, item.media_type) == point do
+      :ok
+    else
+      with {:ok, _intent} <- Watchlist.catch_up(item.tmdb_id, item.media_type, point) do
+        Wants.dismiss_at_or_before(item.id, point)
+        rebuild_calendar(item)
+      end
+    end
+  end
 
   @doc """
   Re-derives one title's machinery from the rung it sits at, dropping the
@@ -471,8 +515,7 @@ defmodule MediaCentaur.ReleaseTracking do
   free of tracking (ADR-066).
 
   `attrs` may carry `:source`, `:note` and `:activity_id` (applied on
-  creation), and `:start_season` / `:start_episode` to scope a first
-  calendar fetch.
+  creation).
   """
   @spec set_rung(Title.t(), TitleIntent.rung() | :off, map()) ::
           {:ok, TitleIntent.t() | nil} | {:error, term()}
@@ -488,9 +531,7 @@ defmodule MediaCentaur.ReleaseTracking do
     derivation =
       DeriveJob.new(%{
         "tmdb_id" => title.tmdb_id,
-        "media_type" => Atom.to_string(title.media_type),
-        "start_season" => Map.get(attrs, :start_season, 0),
-        "start_episode" => Map.get(attrs, :start_episode, 0)
+        "media_type" => Atom.to_string(title.media_type)
       })
 
     Repo.transaction(fn ->
@@ -506,14 +547,13 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc """
   Derives the machinery for a title from the rung it stands at now —
   `DeriveJob`'s work. A title with no intent stands nowhere and keeps
-  nothing. `attrs` carries `:start_season` / `:start_episode` for a first
-  calendar fetch.
+  nothing.
   """
-  @spec derive_from_rung(integer(), Title.media_type(), map()) :: :ok | {:error, term()}
-  def derive_from_rung(tmdb_id, media_type, attrs) do
+  @spec derive_from_rung(integer(), Title.media_type()) :: :ok | {:error, term()}
+  def derive_from_rung(tmdb_id, media_type) do
     case Watchlist.rung(tmdb_id, media_type) do
       nil -> drop_machinery(tmdb_id, media_type)
-      rung -> derive(%Title{tmdb_id: tmdb_id, media_type: media_type}, rung, attrs)
+      rung -> derive(%Title{tmdb_id: tmdb_id, media_type: media_type}, rung)
     end
   end
 
@@ -522,7 +562,7 @@ defmodule MediaCentaur.ReleaseTracking do
   # a film already in the library is complete (`complete?/2`), so it has neither
   # calendar nor wants however high the rung sits. The rung is never
   # lowered to express that: the system does not move a person's intent.
-  defp derive(%Title{} = title, rung, attrs) do
+  defp derive(%Title{} = title, rung) do
     cond do
       not TitleIntent.follows_releases?(rung) ->
         drop_machinery(title.tmdb_id, title.media_type)
@@ -531,18 +571,18 @@ defmodule MediaCentaur.ReleaseTracking do
         drop_machinery(title.tmdb_id, title.media_type)
 
       true ->
-        with {:ok, _item} <- ensure_machinery(title, attrs), do: :ok
+        with {:ok, _item} <- ensure_machinery(title), do: :ok
     end
   end
 
-  defp ensure_machinery(%Title{} = title, attrs) do
+  defp ensure_machinery(%Title{} = title) do
     case get_item_by_tmdb(title.tmdb_id, title.media_type) do
       %Item{} = existing ->
         broadcast_releases_updated([existing.id])
         {:ok, existing}
 
       nil ->
-        Onboarding.onboard(title, attrs)
+        Onboarding.onboard(title)
     end
   end
 
@@ -624,34 +664,6 @@ defmodule MediaCentaur.ReleaseTracking do
     :ok
   end
 
-  # 24-hour window for keeping recently-completed releases visible on the
-  # "Now Available" section so the user sees the success transition instead
-  # of the row vanishing when the watcher imports the file.
-  @recent_completion_hours 24
-
-  def list_releases do
-    cutoff = recently_completed_cutoff()
-
-    all =
-      attach_release_items(
-        Repo.all(
-          from(r in Release,
-            join: i in assoc(r, :item),
-            where:
-              r.in_library == false or
-                (r.in_library == true and not is_nil(r.in_library_at) and r.in_library_at >= ^cutoff),
-            order_by: [asc: r.air_date],
-            preload: [:item]
-          )
-        )
-      )
-
-    today = Date.utc_today()
-    {released, upcoming} = Enum.split_with(all, &Release.released?(&1, today))
-
-    %{upcoming: upcoming, released: released}
-  end
-
   # Releases carry their item; the item carries its stored title's name
   # and season sizes only once attached (`Titles.attach/1`), in one batch
   # for the whole list.
@@ -664,10 +676,6 @@ defmodule MediaCentaur.ReleaseTracking do
       |> Map.new(&{&1.id, &1})
 
     Enum.map(releases, &%{&1 | item: Map.fetch!(by_id, &1.item_id)})
-  end
-
-  defp recently_completed_cutoff do
-    DateTime.add(DateTime.utc_now(:second), -@recent_completion_hours * 3600, :second)
   end
 
   @doc """
@@ -750,12 +758,18 @@ defmodule MediaCentaur.ReleaseTracking do
   # --- Bulk operations ---
 
   @doc """
-  Mark releases as in_library for a given item.
+  Mark releases as in_library for a given item — the **library's** claim
+  only (`ReleaseTracking.Had` reads it beside the person's caught-up
+  point, which marks nothing here).
 
-  TV series: episodes at or before last_library_season/episode are in the library.
+  TV series: episodes at or before the linked container's watermark
+  (`last_library_season/episode`) are in the library; an item with no
+  container marks nothing, whatever its columns say.
   Movies: all aired releases (`air_date <= today`) are marked (the library entity
   existing means the collection is tracked, and aired movies are available).
   """
+  def mark_in_library_releases(%Item{media_type: :tv_series, library_container_id: nil}), do: :ok
+
   def mark_in_library_releases(%Item{media_type: :tv_series} = item) do
     season = item.last_library_season || 0
     episode = item.last_library_episode || 0

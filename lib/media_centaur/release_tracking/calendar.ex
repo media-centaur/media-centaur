@@ -4,9 +4,19 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
   `MediaCentaur.TMDB.Store` holds becomes release rows here, never a
   request (ADR-071 §2).
 
-    * `tv_releases/4` — the episodes after the library's last one, from
-      the stored seasons; when no stored season yields any, the show's
+    * `tv_releases/3` — the episodes after the have-point
+      (`ReleaseTracking.Had.point/2`: the later of the library's last
+      episode and the person's caught-up point), from the stored
+      seasons; when no stored season yields any, the show's
       `next_episode_to_air` alone.
+    * `read/3` — what a followed series' calendar says right now: the
+      aired releases not had (**out**) and the date of the next one
+      ahead (**next**). The Watchlist page's state and Discovery's Out
+      Now placement read a series through this one function (M16).
+    * `latest_aired/1` — TMDB's latest aired episode from the stored
+      payload (`last_episode_to_air`), as a pair: what Follow and the
+      *Caught up* press set the point to, and what the finish prompt
+      compares a completed episode against.
     * `movie_releases/1` — the film's US typed dates (theatrical,
       digital, physical), or its primary date as theatrical, each row
       carrying the film's own id as the part.
@@ -18,12 +28,15 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
       hands this to every plan as its `span_sizes`, the fit denominator
       (`Acquisition.Plans.Fit`).
     * `seasons_wanted/2` — which seasons the calendar needs stored: the
-      library's last season (at least the first) and the season the
-      next episode airs in when that is later.
+      have-point's season (at least the first) and the season the next
+      episode airs in when that is later. Nothing between the two: a
+      point two seasons behind the one airing leaves the season between
+      unfetched, the same gap the library watermark has always had.
   """
 
-  alias MediaCentaur.ReleaseTracking.Extractor
+  alias MediaCentaur.ReleaseTracking.{Extractor, Had, Item, Release}
   alias MediaCentaur.TMDB.Mapper
+  alias MediaCentaur.Watchlist.TitleIntent
 
   @type release :: %{
           required(:air_date) => Date.t() | nil,
@@ -34,8 +47,8 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
           optional(:part_tmdb_id) => integer()
         }
 
-  @spec tv_releases(map(), [map()], non_neg_integer(), non_neg_integer()) :: [release()]
-  def tv_releases(title_payload, season_payloads, last_season, last_episode) do
+  @spec tv_releases(map(), [map()], Had.point()) :: [release()]
+  def tv_releases(title_payload, season_payloads, {last_season, last_episode}) do
     releases =
       season_payloads
       |> Enum.filter(&is_list(&1["episodes"]))
@@ -43,6 +56,51 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
 
     if releases == [], do: Extractor.extract_tv_releases(title_payload), else: releases
   end
+
+  @typedoc "A series' calendar read: the aired releases not had, oldest first, and the next date ahead."
+  @type reading :: %{out: [Release.t()], next: Date.t() | nil}
+
+  @doc """
+  What a followed series' calendar says at `today`, given the person's
+  caught-up point: `out`, the aired releases not had, oldest first; and
+  `next`, the nearest air date after today, nil when nothing is dated.
+  The item carries its releases and its library watermark.
+  """
+  @spec read(Item.t(), TitleIntent.caught_up() | nil, Date.t()) :: reading()
+  def read(%Item{releases: releases} = item, caught_up, %Date{} = today) when is_list(releases) do
+    point = Had.point(item, caught_up)
+
+    out =
+      releases
+      |> Enum.filter(&(Release.released?(&1, today) and not Had.had?(&1, point)))
+      |> Enum.sort_by(&{&1.air_date, &1.season_number, &1.episode_number}, fn a, b ->
+        compare_release_keys(a, b)
+      end)
+
+    next =
+      releases
+      |> Enum.map(& &1.air_date)
+      |> Enum.filter(&(&1 != nil and Date.after?(&1, today)))
+      |> Enum.min(Date, fn -> nil end)
+
+    %{out: out, next: next}
+  end
+
+  defp compare_release_keys({date_a, season_a, episode_a}, {date_b, season_b, episode_b}) do
+    case Date.compare(date_a, date_b) do
+      :eq -> {season_a, episode_a} <= {season_b, episode_b}
+      :lt -> true
+      :gt -> false
+    end
+  end
+
+  @doc "TMDB's latest aired episode from a series payload, as `{season_number, episode_number}`; nil without one."
+  @spec latest_aired(map()) :: TitleIntent.caught_up() | nil
+  def latest_aired(%{"last_episode_to_air" => %{"season_number" => season, "episode_number" => episode}})
+      when is_integer(season) and is_integer(episode) and season >= 1 and episode >= 1,
+      do: {season, episode}
+
+  def latest_aired(_payload), do: nil
 
   @spec movie_releases(map()) :: [release()]
   def movie_releases(payload) do

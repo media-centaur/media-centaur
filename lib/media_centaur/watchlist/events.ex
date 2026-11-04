@@ -3,16 +3,20 @@ defmodule MediaCentaur.Watchlist.Events do
   Typed payloads for the `watchlist:updates` topic (ADR-060): one struct
   per message, `@enforce_keys`, a single `broadcast/1`.
 
-  There is one message, because there is one thing that can happen to a
-  title intent: its rung moves. Added, removed and re-graded were three
-  names for that before the ladder replaced them; `rung: nil` is Off,
-  which is the removal.
+  Two things can happen to a title intent, so there are two messages,
+  both under the one tuple `{:title_intent_changed, event}` — the topic
+  says an intent changed, the struct says how:
 
-  The message describes the **transition** — `previous_rung` and `rung`,
-  either of them `nil` for Off — plus a title snapshot, so every
-  subscriber decides its own threshold from the two ends (the publisher
-  asks whether List was crossed; nothing pre-reads a rung in order to
-  fire a second event later).
+    * `RungChanged` — its rung moved. Added, removed and re-graded were
+      three names for that before the ladder replaced them; `rung: nil`
+      is Off, which is the removal. The message describes the
+      **transition** — `previous_rung` and `rung`, either of them `nil`
+      for Off — plus a title snapshot, so every subscriber decides its
+      own threshold from the two ends (the publisher asks whether List
+      was crossed; nothing pre-reads a rung in order to fire a second
+      event later).
+    * `CaughtUp` — its caught-up point was set: the season and episode
+      the person is now caught up through.
   """
 
   alias MediaCentaur.Watchlist.TitleIntent
@@ -39,9 +43,22 @@ defmodule MediaCentaur.Watchlist.Events do
           }
   end
 
-  @type t :: RungChanged.t()
+  defmodule CaughtUp do
+    @moduledoc "A title's caught-up point was set to `season` and `episode`."
+    @enforce_keys [:tmdb_id, :media_type, :season, :episode]
+    defstruct [:tmdb_id, :media_type, :season, :episode]
+
+    @type t :: %__MODULE__{
+            tmdb_id: integer(),
+            media_type: :movie | :tv_series,
+            season: pos_integer(),
+            episode: pos_integer()
+          }
+  end
+
+  @type t :: RungChanged.t() | CaughtUp.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
-  def broadcast(%RungChanged{} = event),
+  def broadcast(%struct{} = event) when struct in [RungChanged, CaughtUp],
     do: Topics.publish(Topics.watchlist_updates(), {:title_intent_changed, event})
 end

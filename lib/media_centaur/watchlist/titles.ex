@@ -6,17 +6,16 @@ defmodule MediaCentaur.Watchlist.Titles do
   query, so every surface that paints a listed title reads the same
   record every other surface does.
 
-  A record whose title the store does not hold yet carries a **bare
-  identity** — a `TMDB.Title` with only `tmdb_id` and `media_type` set —
-  so the row renders, blank, until first contact lands and
-  `{:tmdb_title_changed, ref}` has the surface reload. In the app that
-  window is short: a title is listed from its detail, which the store
-  already holds, or from a friend's entry, whose artwork warm
-  first-contacts it at once.
+  A record whose title the store does not hold carries its **label**
+  instead (`TitleIntent.label/1`): the name and year the record was
+  written with, as a `TMDB.Title` with identity, name and year and no
+  artwork. That is the Ignored record after the retention sweep — it
+  references nothing, so the store lets its snapshot go — and any record
+  between its first write and the store's first contact.
   """
 
   alias MediaCentaur.Watchlist.TitleIntent
-  alias MediaCentaur.TMDB.{Store, Title}
+  alias MediaCentaur.TMDB.Store
 
   @doc "Records with their stored title's snapshot attached."
   @spec attach([TitleIntent.t()]) :: [TitleIntent.t()]
@@ -27,7 +26,7 @@ defmodule MediaCentaur.Watchlist.Titles do
 
     Enum.map(intents, fn intent ->
       ref = {intent.tmdb_id, intent.media_type}
-      %{intent | title: Map.get_lazy(snapshots, ref, fn -> bare(ref) end)}
+      %{intent | title: Map.get_lazy(snapshots, ref, fn -> TitleIntent.label(intent) end)}
     end)
   end
 
@@ -35,6 +34,4 @@ defmodule MediaCentaur.Watchlist.Titles do
   @spec attach_one(TitleIntent.t() | nil) :: TitleIntent.t() | nil
   def attach_one(nil), do: nil
   def attach_one(%TitleIntent{} = intent), do: intent |> List.wrap() |> attach() |> hd()
-
-  defp bare({tmdb_id, media_type}), do: %Title{tmdb_id: tmdb_id, media_type: media_type}
 end

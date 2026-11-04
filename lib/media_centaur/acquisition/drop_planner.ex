@@ -11,8 +11,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   open-want state, so the pipeline is self-healing: a missed tick, a
   discarded plan, a failed pursuit or a Prowlarr outage all correct
   themselves on the next pass (an outage holds the tick entirely, so
-  nothing is spent while it lasts), and the mid-season backlog case is
-  the weekly case with more wants.
+  nothing is spent while it lasts). A want opens only for a release not
+  *had* (`ReleaseTracking.Had`: after the person's caught-up point), so a
+  newly followed show brings no backlog; a backlog is a point moved back.
 
   Time policy lives here, not in the planner: `WantSchedule` gates
   which wants are searched at all. Every unit is planned at the

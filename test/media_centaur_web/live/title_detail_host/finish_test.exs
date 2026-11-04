@@ -101,16 +101,4 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.FinishTest do
       refute Finish.episodes?(ended("series-1", []))
     end
   end
-
-  describe "latest_aired_episode/1" do
-    test "reads TMDB's last_episode_to_air as season and episode numbers" do
-      payload = %{"last_episode_to_air" => %{"season_number" => 3, "episode_number" => 12}}
-      assert Finish.latest_aired_episode(payload) == {3, 12}
-    end
-
-    test "nil when the payload has none" do
-      assert Finish.latest_aired_episode(%{"last_episode_to_air" => nil}) == nil
-      assert Finish.latest_aired_episode(%{}) == nil
-    end
-  end
 end

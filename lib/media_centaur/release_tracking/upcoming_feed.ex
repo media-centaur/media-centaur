@@ -19,6 +19,11 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:grab_status_by_key` — `%{release_key => %{pursuit_id: uuid}}` for
       releases currently under an active pursuit (built by the caller from
       `Acquisition.statuses_for_releases/1`). Presence ⇒ `:under_pursuit`.
+    * `:caught_up` — `%{{tmdb_id, media_type} => {season, episode}}`, the
+      titles' caught-up points (`Watchlist.caught_up/2`; optional). A
+      release *had* by the point and not in the library is neither ahead
+      nor landed: it leaves the forecast before events are built
+      (`ReleaseTracking.Had`). `:in_library` keeps meaning the library.
 
   The LiveView does the reads and passes plain values in; keeping the
   classification here makes it unit-testable without a DB, a network, or a
@@ -52,7 +57,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Release
+  alias MediaCentaur.ReleaseTracking.{Had, Release}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
 
@@ -118,6 +123,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
     events =
       releases
+      |> Enum.reject(&had_by_point?(&1, context))
       |> collapse_season_drops()
       |> Enum.map(&to_event(&1, context))
 
@@ -130,6 +136,15 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
+  end
+
+  # Had by the person's word alone: at or before the caught-up point and
+  # not in the library — nothing to forecast, nothing that landed.
+  defp had_by_point?(%Release{in_library: true}, _context), do: false
+
+  defp had_by_point?(%Release{item: item} = release, context) do
+    caught_up = Map.get(context[:caught_up] || %{}, {item.tmdb_id, item.media_type})
+    Had.had?(release, Had.point(item, caught_up))
   end
 
   @doc """

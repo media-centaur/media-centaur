@@ -12,10 +12,15 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   It carries no authored field at all. What a person wants done about the
   title is the rung on their `Watchlist.TitleIntent`, and this row exists
   exactly while that rung is `:follow` or above — so there is nothing
-  here to set, and nothing to keep in agreement with anything else. It
-  carries no TMDB fact either: everything TMDB says about the title lives
-  in `MediaCentaur.TMDB.Store`, and `name` and `season_sizes` are
-  attached from it when items are loaded (ADR-071).
+  here to set, and nothing to keep in agreement with anything else. The
+  person's position in a series, the caught-up point, is on the intent
+  too; `last_library_season/episode` is the **library's watermark** and
+  nothing else — the linked container's last episode, written by
+  `LibraryLinks`, `{0, 0}` for an item with no container
+  (`ReleaseTracking.Had` reads the two together). It carries no TMDB fact
+  either: everything TMDB says about the title lives in
+  `MediaCentaur.TMDB.Store`, and `name` and `season_sizes` are attached
+  from it when items are loaded (ADR-071).
 
   `media_type` is the kind of content (`:movie` or `:tv_series`) and
   drives release shape and grab orchestration; `library_container_type`
@@ -44,7 +49,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :library_container_id, Ecto.UUID
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
-    field :dismiss_released_before, :date
 
     # Read from the TMDB store on load (`ReleaseTracking.Titles.attach/1`),
     # never stored: the title's name, and how many episodes each season of
@@ -84,8 +88,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :library_container_type,
       :library_container_id,
       :last_library_season,
-      :last_library_episode,
-      :dismiss_released_before
+      :last_library_episode
     ])
     |> validate_container_pair()
   end

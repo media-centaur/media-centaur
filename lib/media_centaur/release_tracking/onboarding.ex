@@ -2,13 +2,22 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   @moduledoc """
   Builds the machinery a followed title needs: ensures the title (and the
   seasons its calendar wants) is in the TMDB store, creates the
-  tracked-title row, seeds its calendar and wants from the stored
-  payloads, and queues its artwork.
+  tracked-title row, seeds its calendar from the stored payloads, catches
+  the person up, syncs the wants, and queues its artwork.
 
   Called from exactly one place — `ReleaseTracking.set_rung/3`, when a
   rung of `:follow` or above finds no tracked title. It is a derivation
   step, not an act: a person raising a rung is the act, and the context
   announces that. Nothing here decides *whether* a title is followed.
+
+  **Follow means caught up as of now** (campaign `discovery.md`, decision
+  6): a series' calendar is seeded with every episode the wanted seasons
+  hold, aired ones included, and the person's caught-up point is then set
+  to TMDB's latest aired episode (`Calendar.latest_aired/1`, written
+  through `ReleaseTracking.catch_up/2`'s record half), so the aired
+  episodes are *had* and open no want. What was aired before the person
+  followed is the Download button's business, not the ledger's. The
+  first rebuild therefore finds the calendar it would have built.
 
   The only request it can cause is first contact for a title or season
   the store does not hold (`TMDB.Store.ensure/2`, ADR-071); a title the
@@ -27,23 +36,15 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Calendar, Helpers, Release, Wants}
+  alias MediaCentaur.ReleaseTracking.{Calendar, Had, Helpers, Wants}
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.Watchlist
 
-  @doc """
-  Creates the tracked title for `title` and everything under it.
-
-  `opts` may carry `:start_season` / `:start_episode` to scope the first
-  TV calendar — `{0, 0}` (the default) means "only what is still to
-  come", and an explicit start includes what has already aired.
-  """
-  @spec onboard(Title.t(), map()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
-  def onboard(%Title{} = title, opts \\ %{}) do
-    start_season = Map.get(opts, :start_season, 0)
-    start_episode = Map.get(opts, :start_episode, 0)
-
-    case do_onboard(title, start_season, start_episode) do
+  @doc "Creates the tracked title for `title` and everything under it."
+  @spec onboard(Title.t()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
+  def onboard(%Title{} = title) do
+    case do_onboard(title) do
       {:ok, item} ->
         ReleaseTracking.broadcast_releases_updated([item.id])
         {:ok, item}
@@ -53,33 +54,23 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
     end
   end
 
-  defp do_onboard(%Title{media_type: :tv_series} = title, start_season, start_episode) do
+  defp do_onboard(%Title{media_type: :tv_series} = title) do
     with {:ok, record} <- Store.ensure({title.tmdb_id, :tv_series}),
-         {:ok, item} <-
-           track(%{
-             tmdb_id: title.tmdb_id,
-             media_type: :tv_series,
-             last_library_season: start_season,
-             last_library_episode: start_episode
-           }) do
-      season_payloads = ensure_seasons(item, record)
+         {:ok, item} <- track(%{tmdb_id: title.tmdb_id, media_type: :tv_series}) do
+      point = Had.point(item, Watchlist.caught_up(item.tmdb_id, :tv_series))
+      season_payloads = ensure_seasons(item, record, elem(point, 0))
+      releases = Calendar.tv_releases(record.payload, season_payloads, point)
 
-      all_releases =
-        Calendar.tv_releases(record.payload, season_payloads, start_season, start_episode)
-
-      # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
-      releases =
-        if start_season == 0 and start_episode == 0,
-          do: Enum.reject(all_releases, &Release.released?/1),
-          else: all_releases
-
-      persist_releases(item, releases)
+      ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_release!/2)
+      catch_up(item, record.payload)
+      ReleaseTracking.mark_in_library_releases(item)
+      Wants.sync_item(item)
       Helpers.download_images_async(item, title.tmdb_id, record.payload)
       {:ok, item}
     end
   end
 
-  defp do_onboard(%Title{media_type: :movie} = title, _start_season, _start_episode) do
+  defp do_onboard(%Title{media_type: :movie} = title) do
     with {:ok, record} <- Store.ensure({title.tmdb_id, :movie}),
          {:ok, item} <- track(%{tmdb_id: title.tmdb_id, media_type: :movie}) do
       persist_movie_releases(item, Calendar.movie_releases(record.payload))
@@ -95,12 +86,25 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
     end
   end
 
+  # Follow means caught up as of now: the point lands on the latest aired
+  # episode. A series TMDB has aired nothing of yet has no point to set.
+  defp catch_up(item, payload) do
+    with latest when latest != nil <- Calendar.latest_aired(payload),
+         {:error, reason} <- Watchlist.catch_up(item.tmdb_id, :tv_series, latest) do
+      # The record went Off between the rung write and this derivation;
+      # the machinery is dropped by the next derivation, nothing to set.
+      Log.info(:acquisition, "tmdb:#{item.tmdb_id} not caught up on follow — #{inspect(reason)}")
+    end
+
+    :ok
+  end
+
   # The seasons the calendar wants, first-contacted when the store lacks
   # them; one that TMDB cannot answer is left out of this seeding and
   # picked up by the next rebuild.
-  defp ensure_seasons(item, record) do
+  defp ensure_seasons(item, record, point_season) do
     record.payload
-    |> Calendar.seasons_wanted(item.last_library_season)
+    |> Calendar.seasons_wanted(point_season)
     |> Enum.each(fn season_number ->
       case Store.ensure_season(item.tmdb_id, season_number) do
         {:ok, _season} ->
@@ -129,13 +133,6 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
       end)
 
     if duplicate?, do: :already_tracked, else: changeset
-  end
-
-  defp persist_releases(item, releases) do
-    ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_release!/2)
-
-    ReleaseTracking.mark_in_library_releases(item)
-    Wants.sync_item(item)
   end
 
   defp persist_movie_releases(item, releases) do

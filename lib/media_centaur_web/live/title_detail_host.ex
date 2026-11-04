@@ -541,7 +541,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp latest_aired_episode(series_id) do
     with [{_id, tmdb_id}] <- Library.ExternalIds.tmdb_ids_for_tv_series([series_id]),
          %{payload: payload} <- Store.get({tmdb_id, :tv_series}) do
-      Finish.latest_aired_episode(payload)
+      ReleaseTracking.Calendar.latest_aired(payload)
     else
       _ -> nil
     end

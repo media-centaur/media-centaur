@@ -82,14 +82,27 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
       assert ReleaseTracking.open_wants_for_item(item.id) == []
     end
 
-    test "does not open wants for releases aired before dismiss_released_before" do
+    test "does not open wants for episodes at or before the person's caught-up point" do
       item = create_tv_item()
-      {:ok, item} = ReleaseTracking.update_item(item, %{dismiss_released_before: @yesterday})
-      create_episode_release(item, %{air_date: @last_month})
+      {:ok, _intent} = MediaCentaur.Watchlist.catch_up(item.tmdb_id, :tv_series, {1, 2})
+      create_episode_release(item, %{season_number: 1, episode_number: 2, air_date: @last_month})
+      create_episode_release(item, %{season_number: 1, episode_number: 3, air_date: @yesterday})
 
       :ok = ReleaseTracking.sync_wants(item)
 
-      assert ReleaseTracking.open_wants_for_item(item.id) == []
+      assert [%Want{season_number: 1, episode_number: 3}] = ReleaseTracking.open_wants_for_item(item.id)
+    end
+
+    test "dismiss_at_or_before/2 closes the open wants the point covers and leaves the rest" do
+      item = create_tv_item()
+      create_episode_release(item, %{season_number: 1, episode_number: 2, air_date: @last_month})
+      create_episode_release(item, %{season_number: 1, episode_number: 3, air_date: @last_month})
+      create_episode_release(item, %{season_number: 2, episode_number: 1, air_date: @yesterday})
+      :ok = ReleaseTracking.sync_wants(item)
+
+      assert MediaCentaur.ReleaseTracking.Wants.dismiss_at_or_before(item.id, {1, 3}) == 2
+      assert [%Want{season_number: 2, episode_number: 1}] = ReleaseTracking.open_wants_for_item(item.id)
+      assert MediaCentaur.ReleaseTracking.Wants.dismiss_at_or_before(item.id, {1, 3}) == 0
     end
 
     test "is idempotent — re-syncing creates no duplicate wants" do

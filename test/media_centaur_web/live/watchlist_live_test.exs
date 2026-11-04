@@ -209,7 +209,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     test "no record: the bookmark starts the list; the button goes to Discovery while it is on", %{
       conn: conn
     } do
-      {:ok, view, html} = live_async!(conn, "/watchlist")
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
 
       assert has_element?(view, "#watchlist-empty", "Your list starts with a bookmark")
       assert has_element?(view, "#watchlist-empty a[href='/discovery']", "Open Discovery")

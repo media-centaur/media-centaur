@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Watchlist do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
-    exports: [TitleIntent, Events, Events.RungChanged]
+    exports: [TitleIntent, Events, Events.RungChanged, Events.CaughtUp]
 
   @moduledoc """
   The watchlist: the **title intents** a person holds — one record per
@@ -60,7 +60,7 @@ defmodule MediaCentaur.Watchlist do
     case fetch_intent(title.tmdb_id, title.media_type) do
       %TitleIntent{} = existing ->
         existing
-        |> TitleIntent.rung_changeset(rung)
+        |> TitleIntent.rung_changeset(rung, title)
         |> Repo.update()
         |> case do
           # Leaving Ignored for the list is the one move that is also a
@@ -117,6 +117,52 @@ defmodule MediaCentaur.Watchlist do
         })
 
         :ok
+    end
+  end
+
+  @doc """
+  Sets the title's caught-up point — the latest aired episode the person
+  has seen (`TitleIntent.caught_up_changeset/2`) — and broadcasts
+  `Events.CaughtUp`. `{:error, :not_listed}` when the title has no record:
+  the point is a fact about a listed title. Who decides *which* episode —
+  the latest aired on Follow and on the *Caught up* press, a chosen one
+  from the tracking card — is `ReleaseTracking.catch_up/2`, the verb's one
+  write path; this is the record's half.
+  """
+  @spec catch_up(integer(), media_type(), TitleIntent.caught_up()) ::
+          {:ok, TitleIntent.t()} | {:error, :not_listed | Ecto.Changeset.t()}
+  def catch_up(tmdb_id, media_type, {_season, _episode} = point) do
+    case fetch_intent(tmdb_id, media_type) do
+      nil ->
+        {:error, :not_listed}
+
+      %TitleIntent{} = intent ->
+        intent
+        |> TitleIntent.caught_up_changeset(point)
+        |> Repo.update()
+        |> case do
+          {:ok, updated} ->
+            Events.broadcast(%Events.CaughtUp{
+              tmdb_id: tmdb_id,
+              media_type: media_type,
+              season: elem(point, 0),
+              episode: elem(point, 1)
+            })
+
+            {:ok, Titles.attach_one(updated)}
+
+          {:error, changeset} ->
+            {:error, changeset}
+        end
+    end
+  end
+
+  @doc "The title's caught-up point, or nil when none is set or the title is Off."
+  @spec caught_up(integer(), media_type()) :: TitleIntent.caught_up() | nil
+  def caught_up(tmdb_id, media_type) do
+    case fetch_intent(tmdb_id, media_type) do
+      nil -> nil
+      %TitleIntent{} = intent -> TitleIntent.caught_up(intent)
     end
   end
 

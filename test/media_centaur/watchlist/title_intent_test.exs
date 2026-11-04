@@ -51,6 +51,41 @@ defmodule MediaCentaur.Watchlist.TitleIntentTest do
     end
   end
 
+  describe "the caught-up point" do
+    test "caught_up_changeset/2 takes a season and episode of at least 1, on a series only" do
+      series = %TitleIntent{tmdb_id: 1, media_type: :tv_series, rung: :follow}
+      assert TitleIntent.caught_up_changeset(series, {2, 5}).valid?
+      refute TitleIntent.caught_up_changeset(series, {0, 5}).valid?
+      refute TitleIntent.caught_up_changeset(series, {2, 0}).valid?
+
+      movie = %TitleIntent{tmdb_id: 1, media_type: :movie, rung: :follow}
+      refute TitleIntent.caught_up_changeset(movie, {1, 1}).valid?
+    end
+
+    test "caught_up/1 is the pair, or nil when none is set" do
+      assert TitleIntent.caught_up(%TitleIntent{caught_up_season: 2, caught_up_episode: 5}) == {2, 5}
+      assert TitleIntent.caught_up(%TitleIntent{}) == nil
+    end
+  end
+
+  describe "label/1" do
+    test "is the record's name and year as a bare title with its identity" do
+      intent = %TitleIntent{
+        tmdb_id: 7,
+        media_type: :tv_series,
+        title_name: "Sample Show",
+        title_year: "2019"
+      }
+
+      assert TitleIntent.label(intent) == %MediaCentaur.TMDB.Title{
+               tmdb_id: 7,
+               media_type: :tv_series,
+               name: "Sample Show",
+               year: "2019"
+             }
+    end
+  end
+
   describe "friend_provenance/2" do
     test "names the activity a friend-sourced record came from, with its note" do
       assert TitleIntent.friend_provenance("activity-1", "Watch it.") ==
