@@ -8,8 +8,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
 
   alias MediaCentaur.Format
   alias MediaCentaur.NewReleases.Member
+  alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Calendar
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TitleArtwork
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaurWeb.Components.{HeroCard, PosterRow}
   alias MediaCentaurWeb.Components.Title.{Grade, Logic, SocialWords, ToolbarSlots}
   alias MediaCentaurWeb.LibraryFormatters
@@ -120,27 +123,35 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   defp genres(_genres), do: nil
 
   @doc """
-  The watchlist by release stage (decisions 13–15): every listed title
-  the library does not own, placed by `TMDB.ReleaseStages`' reading of
-  its record — **Out Now** at the home stage (a digital or disc release
-  passed, a series' first episode aired), newest home date first; **In
-  Theaters** at the theatrical stage, newest opening first, the opening
-  date as the chip; **Coming Up** unreleased, nearest first, the release
-  month as the chip. A title whose stage is unknown, or whose record the
-  store lacks, waits off the shelves. The marker is the rung's word.
+  The watchlist by release stage (decisions 13–15, M16): every listed
+  title the library does not own. A **followed series** — one with a
+  tracking item, passed by ref with its releases — is placed by its
+  calendar (`ReleaseTracking.Calendar.read/3` with the record's caught-up
+  point): **Out Now** while an aired episode is not had, at the latest
+  such date; **Coming Up** when nothing is out and an episode is dated
+  ahead; otherwise off the shelves (the Watchlist page inventories it).
+  Every other title is placed by `TMDB.ReleaseStages`' reading of its
+  record — **Out Now** at the home stage (a digital or disc release
+  passed, a List-only series' first episode aired), newest home date
+  first; **In Theaters** at the theatrical stage, newest opening first,
+  the opening date as the chip; **Coming Up** unreleased, nearest first,
+  the release month as the chip. A title whose stage is unknown, or whose
+  record the store lacks, waits off the shelves. The marker is the rung's
+  word.
   """
   @spec watchlist_shelves(
           [listed()],
           %{MediaCentaur.TMDB.Store.ref() => staged()},
+          %{MediaCentaur.TMDB.Store.ref() => MediaCentaur.ReleaseTracking.Item.t()},
           %{MediaCentaur.TMDB.Store.ref() => atom()},
           Date.t()
         ) ::
           watchlist_shelves()
-  def watchlist_shelves(listed, stages, acquisition_states, today) do
+  def watchlist_shelves(listed, stages, tracking, acquisition_states, today) do
     placed =
       for %{intent: intent, library_owner_id: nil} <- listed,
           ref = {intent.tmdb_id, intent.media_type},
-          %{stage: stage, date: date} <- [Map.get(stages, ref)],
+          {stage, date} <- [placement(intent, Map.get(tracking, ref), Map.get(stages, ref), today)],
           stage in [:home, :theatrical, :unreleased] do
         {stage, date, item(ref, intent.title, nil, Map.get(acquisition_states, ref), intent.rung)}
       end
@@ -151,6 +162,24 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
       coming_up: shelf(placed, :unreleased, :asc, today, :month)
     }
   end
+
+  # A followed series answers from its calendar; everything else from its stage.
+  defp placement(
+         %TitleIntent{media_type: :tv_series} = intent,
+         %ReleaseTracking.Item{releases: releases} = item,
+         _stage,
+         today
+       )
+       when is_list(releases) do
+    case Calendar.read(item, TitleIntent.caught_up(intent), today) do
+      %{out: [_ | _] = out} -> {:home, out |> Enum.map(& &1.air_date) |> Enum.max(Date)}
+      %{next: %Date{} = next} -> {:unreleased, next}
+      %{next: nil} -> {:off, nil}
+    end
+  end
+
+  defp placement(_intent, _item, %{stage: stage, date: date}, _today), do: {stage, date}
+  defp placement(_intent, _item, nil, _today), do: {:unknown, nil}
 
   defp shelf(placed, stage, order, today, chip) do
     placed

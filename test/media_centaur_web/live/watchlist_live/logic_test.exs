@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
   alias MediaCentaur.ReleaseTracking.Item, as: TrackingItem
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaurWeb.Components.Watchlist.Row.{Item, State}
   alias MediaCentaurWeb.WatchlistLive.Logic
 
@@ -12,7 +13,7 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
   defp release(air_date, in_library \\ false),
     do: %Release{air_date: air_date, in_library: in_library, season_number: 1, episode_number: 1}
 
-  defp tracking(releases), do: %TrackingItem{releases: releases}
+  defp tracking(releases), do: %TrackingItem{media_type: :tv_series, releases: releases}
 
   defp title(name, media_type),
     do: Title.new!(%{tmdb_id: :erlang.phash2(name), media_type: media_type, name: name})
@@ -27,7 +28,19 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
     }
   end
 
-  describe "state/6 — a followed series reads its calendar" do
+  defp intent(rung, media_type, caught_up \\ nil) do
+    {season, episode} = caught_up || {nil, nil}
+
+    %TitleIntent{
+      tmdb_id: 42,
+      media_type: media_type,
+      rung: rung,
+      caught_up_season: season,
+      caught_up_episode: episode
+    }
+  end
+
+  describe "state/5 — a followed series reads its calendar through the caught-up point" do
     test "aired episodes not had: the count and the latest" do
       calendar =
         tracking([
@@ -37,49 +50,65 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
           release(~D[2026-11-10])
         ])
 
-      assert Logic.state(:follow, :tv_series, calendar, nil, :returning, @today) ==
-               %State{kind: :episodes_out, count: 2, date: ~D[2026-10-27]}
+      assert Logic.state(intent(:follow, :tv_series), calendar, nil, :returning, @today) ==
+               %State{kind: :episodes_out, count: 2, date: ~D[2026-10-27], caught_up: nil}
+    end
+
+    test "episodes at or before the point are had: the count shrinks, the point rides on the state" do
+      calendar =
+        tracking([
+          %Release{air_date: ~D[2026-10-20], season_number: 1, episode_number: 27},
+          %Release{air_date: ~D[2026-10-27], season_number: 1, episode_number: 28},
+          %Release{air_date: ~D[2026-11-03], season_number: 1, episode_number: 29}
+        ])
+
+      assert Logic.state(intent(:follow, :tv_series, {1, 28}), calendar, nil, :returning, @today) ==
+               %State{kind: :episodes_out, count: 1, date: ~D[2026-11-03], caught_up: {1, 28}}
+
+      assert Logic.state(intent(:follow, :tv_series, {1, 29}), calendar, nil, :returning, @today) ==
+               %State{kind: :between_seasons, caught_up: {1, 29}}
     end
 
     test "nothing outstanding: the next dated episode" do
       calendar =
         tracking([release(~D[2026-10-27], true), release(~D[2026-11-17]), release(~D[2026-11-10])])
 
-      assert Logic.state(:grab, :tv_series, calendar, nil, :returning, @today) ==
-               %State{kind: :next_episode, date: ~D[2026-11-10]}
+      assert Logic.state(intent(:grab, :tv_series), calendar, nil, :returning, @today) ==
+               %State{kind: :next_episode, date: ~D[2026-11-10], caught_up: nil}
     end
 
     test "nothing outstanding and nothing dated: TMDB's status word" do
       calendar = tracking([release(~D[2026-10-27], true), release(nil)])
 
-      assert Logic.state(:follow, :tv_series, calendar, nil, :returning, @today) == %State{
+      assert Logic.state(intent(:follow, :tv_series), calendar, nil, :returning, @today) == %State{
                kind: :between_seasons
              }
 
-      assert Logic.state(:follow, :tv_series, calendar, nil, :ended, @today) == %State{kind: :ended}
+      assert Logic.state(intent(:follow, :tv_series), calendar, nil, :ended, @today) == %State{
+               kind: :ended
+             }
 
-      assert Logic.state(:follow, :tv_series, calendar, nil, :canceled, @today) == %State{
+      assert Logic.state(intent(:follow, :tv_series), calendar, nil, :canceled, @today) == %State{
                kind: :canceled
              }
 
-      assert Logic.state(:follow, :tv_series, calendar, nil, :unknown, @today) == %State{
+      assert Logic.state(intent(:follow, :tv_series), calendar, nil, :unknown, @today) == %State{
                kind: :nothing_scheduled
              }
 
-      assert Logic.state(:follow, :tv_series, tracking([]), nil, nil, @today) == %State{
+      assert Logic.state(intent(:follow, :tv_series), tracking([]), nil, nil, @today) == %State{
                kind: :nothing_scheduled
              }
     end
   end
 
-  describe "state/6 — a movie, or a List-only title, reads its release stage" do
+  describe "state/5 — a movie, or a List-only title, reads its release stage" do
     test "the three stages and the unknown" do
-      assert Logic.state(:list, :movie, nil, %{stage: :home, date: ~D[2026-10-16]}, nil, @today) ==
+      assert Logic.state(intent(:list, :movie), nil, %{stage: :home, date: ~D[2026-10-16]}, nil, @today) ==
                %State{kind: :out_now, date: ~D[2026-10-16]}
 
       assert Logic.state(
-               :grab,
-               :movie,
+               intent(:grab, :movie),
                tracking([]),
                %{stage: :theatrical, date: ~D[2026-10-30]},
                nil,
@@ -88,8 +117,7 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
                %State{kind: :in_theaters, date: ~D[2026-10-30]}
 
       assert Logic.state(
-               :list,
-               :tv_series,
+               intent(:list, :tv_series),
                nil,
                %{stage: :unreleased, date: ~D[2027-01-08]},
                nil,
@@ -97,23 +125,50 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
              ) ==
                %State{kind: :coming_up, date: ~D[2027-01-08]}
 
-      assert Logic.state(:list, :movie, nil, %{stage: :unknown, date: nil}, nil, @today) == %State{
-               kind: :undated
-             }
+      assert Logic.state(intent(:list, :movie), nil, %{stage: :unknown, date: nil}, nil, @today) ==
+               %State{
+                 kind: :undated
+               }
 
-      assert Logic.state(:list, :movie, nil, nil, nil, @today) == %State{kind: :undated}
+      assert Logic.state(intent(:list, :movie), nil, nil, nil, @today) == %State{kind: :undated}
     end
 
     test "an Ignored record says so whatever else is known" do
       assert Logic.state(
-               :ignored,
-               :tv_series,
+               intent(:ignored, :tv_series),
                tracking([release(~D[2026-10-20])]),
                nil,
                :returning,
                @today
              ) ==
                %State{kind: :ignored}
+    end
+  end
+
+  describe "the row's verbs and the page's counts" do
+    test "caught_up_offered?/1: a followed series with episodes out, nothing else" do
+      out = %State{kind: :episodes_out, count: 2, date: ~D[2026-10-27]}
+      assert Logic.caught_up_offered?(item("Out", :follow, out, :tv_series))
+      assert Logic.caught_up_offered?(item("Out", :grab, out, :tv_series))
+      refute Logic.caught_up_offered?(item("Listed", :list, %State{kind: :out_now}, :tv_series))
+      refute Logic.caught_up_offered?(item("Quiet", :follow, %State{kind: :next_episode}, :tv_series))
+    end
+
+    test "listed_count/1 leaves the Ignored records out" do
+      items = [
+        item("A", :follow, %State{kind: :between_seasons}, :tv_series),
+        item("B", :list, %State{kind: :undated}),
+        item("C", :ignored, %State{kind: :ignored})
+      ]
+
+      assert Logic.listed_count(items) == 2
+    end
+
+    test "ignored_open?/2: the person's toggle, or a search on" do
+      refute Logic.ignored_open?(false, "")
+      refute Logic.ignored_open?(false, "   ")
+      assert Logic.ignored_open?(true, "")
+      assert Logic.ignored_open?(false, "sample")
     end
   end
 

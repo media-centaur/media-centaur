@@ -25,7 +25,44 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
   # A followed series with two aired episodes outstanding and one dated ahead.
   defp follow_show(name \\ "Sample Show") do
-    item = create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: name, rung: :follow})
+    item =
+      create_tracking_item(%{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        name: name,
+        rung: :follow,
+        payload:
+          TmdbStubs.tv_detail(%{
+            "id" => 246_810,
+            "name" => name,
+            "number_of_seasons" => 1,
+            "seasons" => [%{"season_number" => 1, "episode_count" => 3}],
+            "last_episode_to_air" => %{"season_number" => 1, "episode_number" => 2},
+            "next_episode_to_air" => %{
+              "season_number" => 1,
+              "episode_number" => 3,
+              "air_date" => Date.utc_today() |> Date.add(7) |> Date.to_iso8601()
+            },
+            "poster_path" => nil,
+            "backdrop_path" => nil
+          })
+      })
+
+    # The season the store will want on a rebuild (Caught up rebuilds the calendar).
+    TmdbStubs.stub_routes([
+      {"/tv/246810/season/1",
+       %{
+         "season_number" => 1,
+         "episodes" =>
+           for {episode, days} <- [{1, -10}, {2, -3}, {3, 7}] do
+             %{
+               "episode_number" => episode,
+               "name" => "Episode #{episode}",
+               "air_date" => Date.utc_today() |> Date.add(days) |> Date.to_iso8601()
+             }
+           end
+       }}
+    ])
 
     for {episode, days} <- [{1, -10}, {2, -3}, {3, 7}] do
       create_tracking_release(%{
@@ -72,7 +109,6 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       assert has_element?(view, "#sidebar [aria-label='Watchlist'][aria-current='page']")
       assert has_element?(view, "#watchlist-group-follow h2", "Tracking")
       assert has_element?(view, "#watchlist-group-list h2", "On your list")
-      assert has_element?(view, "#watchlist-group-ignored h2", "Ignored")
       refute has_element?(view, "#watchlist-group-grab")
 
       # Page order: Tracking above On your list above Ignored.
@@ -92,13 +128,37 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
       assert has_element?(view, "#{row(@movie)}[data-state='out_now'] [data-role='state']", "Out now")
 
+      # The Ignored group is closed on every visit, its head carrying the
+      # count; the page's count leaves Ignored out.
+      refute has_element?(view, row({778, :movie}))
+      assert has_element?(view, "#watchlist-group-ignored-head[aria-expanded='false']", "Ignored")
+      assert has_element?(view, "#watchlist-group-ignored-head", "1")
+      assert html =~ "2 titles"
+
+      view |> element("#watchlist-group-ignored-head") |> render_click()
+
       assert has_element?(
                view,
                "#{row({778, :movie})} [data-role='state']",
                "Hidden from the Feed and Discovery"
              )
 
-      assert html =~ "3 titles"
+      # An Ignored row draws no poster, whatever the store holds.
+      refute has_element?(view, "#{row({778, :movie})} img")
+    end
+
+    test "a search holds the Ignored group open while it is on", %{conn: conn} do
+      list_movie()
+      create_title_intent(%{tmdb_id: 778, media_type: :movie, name: "Dismissed Movie", rung: :ignored})
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      refute has_element?(view, row({778, :movie}))
+
+      view |> element("#watchlist-search") |> render_change(%{"value" => "dismissed"})
+      assert has_element?(view, row({778, :movie}))
+      refute has_element?(view, row(@movie))
+
+      view |> element("#watchlist-search") |> render_change(%{"value" => ""})
+      refute has_element?(view, row({778, :movie}))
     end
 
     test "an owned title is on the list, marked, and its menu offers no Ignore", %{conn: conn} do
@@ -145,6 +205,8 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       view |> element(rung_trigger(@movie)) |> render_click()
       view |> element(rung_item(@movie, "ignored")) |> render_click()
       assert Watchlist.rung(777, :movie) == :ignored
+      refute has_element?(view, row(@movie))
+      view |> element("#watchlist-group-ignored-head") |> render_click()
       assert has_element?(view, "#watchlist-group-ignored #{row(@movie)}")
 
       view |> element(rung_trigger(@movie)) |> render_click()
@@ -157,6 +219,46 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       view |> element(rung_item(@show, "off")) |> render_click()
       assert Watchlist.rung(246_810, :tv_series) == nil
       assert has_element?(view, "#watchlist-empty", "Your list starts with a bookmark")
+      await_supervised_tasks()
+    end
+
+    test "Caught up on a row sets the point to the latest aired episode: the row says so, nothing is out",
+         %{
+           conn: conn
+         } do
+      follow_show()
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      assert has_element?(view, "#{row(@show)} [data-role='state']", "2 episodes out")
+
+      view |> element("#{row(@show)}-caught-up", "Caught up") |> render_click()
+
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 2}
+
+      assert has_element?(
+               view,
+               "#{row(@show)}[data-state='next_episode'] [data-role='state']",
+               "Caught up through S01E02"
+             )
+
+      assert has_element?(view, "#{row(@show)} [data-role='state']", "Next episode")
+      refute has_element?(view, "#{row(@show)}-caught-up")
+      await_supervised_tasks()
+    end
+
+    test "the detail's tracking card shows the point and moves it", %{conn: conn} do
+      follow_show()
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      view |> element(row(@show)) |> render_click()
+
+      assert has_element?(view, "#detail-caught-up [data-role='season']", "—")
+      view |> element("#detail-caught-up-latest", "Caught up") |> render_click()
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 2}
+      assert has_element?(view, "#detail-caught-up[data-point='1-2'] [data-role='episode']", "Episode 2")
+
+      view |> element("#detail-caught-up-episode") |> render_click()
+      view |> element("#detail-caught-up-episode-1") |> render_click()
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 1}
+      assert has_element?(view, "#detail-caught-up[data-point='1-1']")
       await_supervised_tasks()
     end
 

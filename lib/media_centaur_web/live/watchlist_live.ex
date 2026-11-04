@@ -19,8 +19,15 @@ defmodule MediaCentaurWeb.WatchlistLive do
   List-only one (`Logic.state/6`) — and the **rung** as a glass select
   whose choices move the rung through the one write path
   (`TitleDetailHost.Acquisition.apply_rung/4`, as the detail's switches
-  do), with Ignore and Remove. Rows are ordered by urgency within a
-  group. A row opens the title detail (`TitleDetailHost`).
+  do), with Ignore and Remove. A followed series with episodes out
+  carries **Caught up** in its state block — `row_caught_up`, the row's
+  spelling of the detail's `caught_up`, through `ReleaseTracking.catch_up/2`
+  (the latest aired episode) — and with nothing out says where the person
+  stands (M16). Rows are ordered by urgency within a group. The Ignored
+  group is a `Components.Disclosure`, closed on every visit, opened by its
+  head or held open while a search is on; its rows draw no poster and the
+  page's count leaves them out. A row opens the title detail
+  (`TitleDetailHost`).
 
   Above the groups: the type filter (All, Movies, Series) and a search
   over the names; both narrow the rows and are the page's own state, not
@@ -51,8 +58,9 @@ defmodule MediaCentaurWeb.WatchlistLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TMDB.{ReleaseStages, SeriesStatus}
   alias MediaCentaur.Watchlist
-  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel}
+  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, Disclosure}
   alias MediaCentaurWeb.Components.Watchlist.Row
+  alias MediaCentaurWeb.Live.DisclosureState
   alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.TitleRef
@@ -144,6 +152,18 @@ defmodule MediaCentaurWeb.WatchlistLive do
 
   def handle_event("rung_menu_close", _params, socket),
     do: {:noreply, socket |> assign(:open_menu, nil) |> assign_groups()}
+
+  # The row's Caught up is the detail's caught_up by another trigger: the
+  # one write path, then the rows re-read at once.
+  def handle_event("row_caught_up", %{"ref" => param}, socket) do
+    with {:ok, {tmdb_id, :tv_series}} <- TitleRef.parse(param),
+         %ReleaseTracking.Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series),
+         :ok <- ReleaseTracking.catch_up(item, :latest) do
+      {:noreply, load_rows(socket)}
+    else
+      _not_followed_or_refused -> {:noreply, socket}
+    end
+  end
 
   # The row's choice is the detail's set_rung by another trigger: the
   # same write path, then the rows re-read at once — the broadcast that
@@ -248,7 +268,9 @@ defmodule MediaCentaurWeb.WatchlistLive do
         />
 
         <.page_header title="Watchlist">
-          <:subtitle :if={@items != []}>{count_label(length(@items))}</:subtitle>
+          <:subtitle :if={Logic.listed_count(@items) > 0}>
+            {count_label(Logic.listed_count(@items))}
+          </:subtitle>
         </.page_header>
 
         <%!-- The filter and the search are bookkeeping over the rows: with
@@ -328,21 +350,51 @@ defmodule MediaCentaurWeb.WatchlistLive do
         </.empty_state>
 
         <div :if={@groups != []} data-nav-zone="watchlist_rows" class="space-y-8">
-          <section
-            :for={group <- @groups}
-            id={"watchlist-group-#{group.rung}"}
-            data-group={group.rung}
-          >
-            <h2 class="mb-2 px-4 text-sm font-medium uppercase tracking-wider text-base-content/55">
-              {group.label}
-              <span class="ml-1 normal-case tracking-normal text-base-content/55">
-                {length(group.items)}
-              </span>
-            </h2>
-            <div class="divide-y divide-base-content/8">
-              <Row.watchlist_row :for={item <- group.items} item={item} today={@today} />
-            </div>
-          </section>
+          <%= for group <- @groups do %>
+            <%!-- Ignored is a record the person set aside: closed on every
+                  visit, opened on purpose, held open while a search is on. --%>
+            <Disclosure.disclosure
+              :if={group.rung == :ignored}
+              id="watchlist-group-ignored"
+              open={
+                Logic.ignored_open?(
+                  DisclosureState.open?(@disclosures, "watchlist-group-ignored"),
+                  @query
+                )
+              }
+              variant={:quiet}
+              class="px-4"
+              data-group={group.rung}
+            >
+              <:head>
+                <span class="font-medium uppercase tracking-wider">{group.label}</span>
+                <span class="normal-case tracking-normal">{length(group.items)}</span>
+              </:head>
+              <div class="-mx-4 divide-y divide-base-content/8">
+                <Row.watchlist_row :for={item <- group.items} item={item} today={@today} />
+              </div>
+            </Disclosure.disclosure>
+            <section
+              :if={group.rung != :ignored}
+              id={"watchlist-group-#{group.rung}"}
+              data-group={group.rung}
+            >
+              <h2 class="mb-2 px-4 text-sm font-medium uppercase tracking-wider text-base-content/55">
+                {group.label}
+                <span class="ml-1 normal-case tracking-normal text-base-content/55">
+                  {length(group.items)}
+                </span>
+              </h2>
+              <div class="divide-y divide-base-content/8">
+                <Row.watchlist_row
+                  :for={item <- group.items}
+                  item={item}
+                  today={@today}
+                  caught_up?={Logic.caught_up_offered?(item)}
+                />
+              </div>
+            </section>
+          <% end %>
         </div>
       </div>
     </Layouts.app>

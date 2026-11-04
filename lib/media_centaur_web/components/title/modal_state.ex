@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
           deleting: delete_target(),
           tmdb_checking: boolean(),
           all_subtitles: boolean(),
-          open_menu: nil | :mode | :scope | :social,
+          open_menu: nil | :mode | :scope | :social | :caught_up_season | :caught_up_episode,
           download_scope: scope_choice(),
           pending: nil | {:download, String.t()} | {:missing_episode, {pos_integer(), pos_integer()}}
         }

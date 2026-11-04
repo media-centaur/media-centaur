@@ -7,14 +7,15 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
 
   A title's state comes from its release calendar when the title is
   followed (a tracking item exists: `ReleaseTracking.list_all_items/0`
-  with releases) and from its release stage when it is List-only
-  (`TMDB.ReleaseStages`), a movie reading its stage either way — one
-  `State` value, whichever read filled it. *Had* is the calendar's
-  `in_library` flag until M16 adds the caught-up point.
+  with releases, read through `ReleaseTracking.Calendar.read/3` with the
+  intent's caught-up point — *had* is the library or the point, M16) and
+  from its release stage when it is List-only (`TMDB.ReleaseStages`), a
+  movie reading its stage either way — one `State` value, whichever read
+  filled it.
   """
 
+  alias MediaCentaur.ReleaseTracking.Calendar
   alias MediaCentaur.ReleaseTracking.Item, as: TrackingItem
-  alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.TitleArtwork
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Watchlist
@@ -57,7 +58,7 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
         ref: ref,
         title: title,
         rung: intent.rung,
-        poster_url: TitleArtwork.urls(title, %{}, :w92).poster_url,
+        poster_url: poster_url(intent.rung, title),
         owned?: owner != nil,
         markers:
           TitleLogic.row_markers(%{
@@ -66,60 +67,57 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
           }),
         notes: TitleLogic.note_list(intent.note),
         social_activity: Map.get(activity, ref, []),
-        state:
-          state(
-            intent.rung,
-            intent.media_type,
-            Map.get(tracking, ref),
-            Map.get(stages, ref),
-            Map.get(statuses, ref),
-            today
-          )
+        state: state(intent, Map.get(tracking, ref), Map.get(stages, ref), Map.get(statuses, ref), today)
       }
     end
   end
 
+  # An Ignored record references nothing in the store (ADR-071, amended
+  # 2026-11-04), so its row never draws a poster — not even while the
+  # snapshot lingers before the sweep.
+  defp poster_url(:ignored, _title), do: nil
+  defp poster_url(_rung, title), do: TitleArtwork.urls(title, %{}, :w92).poster_url
+
   @doc """
   A title's `State`: Ignored says so; a followed series reads its
-  calendar — aired episodes not had, else the next dated one, else
-  TMDB's status word; a movie, or a List-only series, reads its release
-  stage.
+  calendar through `Calendar.read/3` with the record's caught-up point —
+  aired episodes not had, else the next dated one, else TMDB's status
+  word, the point carried on the state so the row can say where the
+  person stands; a movie, or a List-only series, reads its release stage.
   """
   @spec state(
-          TitleIntent.rung(),
-          Title.media_type(),
+          TitleIntent.t(),
           TrackingItem.t() | nil,
           MediaCentaur.TMDB.ReleaseStages.t() | nil,
           MediaCentaur.TMDB.SeriesStatus.status() | nil,
           Date.t()
         ) :: State.t()
-  def state(:ignored, _media_type, _item, _stage, _status, _today), do: %State{kind: :ignored}
+  def state(%TitleIntent{rung: :ignored}, _item, _stage, _status, _today), do: %State{kind: :ignored}
 
-  def state(_rung, :tv_series, %TrackingItem{releases: releases}, _stage, status, today)
+  def state(
+        %TitleIntent{media_type: :tv_series} = intent,
+        %TrackingItem{releases: releases} = item,
+        _stage,
+        status,
+        today
+      )
       when is_list(releases) do
-    aired = Enum.filter(releases, &(Release.released?(&1, today) and not &1.in_library))
+    caught_up = TitleIntent.caught_up(intent)
 
-    cond do
-      aired != [] ->
-        latest = aired |> Enum.map(& &1.air_date) |> Enum.max(Date)
-        %State{kind: :episodes_out, count: length(aired), date: latest}
+    case Calendar.read(item, caught_up, today) do
+      %{out: [_ | _] = out} ->
+        latest = out |> Enum.map(& &1.air_date) |> Enum.max(Date)
+        %State{kind: :episodes_out, count: length(out), date: latest, caught_up: caught_up}
 
-      next = next_dated(releases, today) ->
-        %State{kind: :next_episode, date: next}
+      %{next: %Date{} = next} ->
+        %State{kind: :next_episode, date: next, caught_up: caught_up}
 
-      true ->
-        %State{kind: quiet_kind(status)}
+      %{next: nil} ->
+        %State{kind: quiet_kind(status), caught_up: caught_up}
     end
   end
 
-  def state(_rung, _media_type, _item, stage, _status, _today), do: from_stage(stage)
-
-  defp next_dated(releases, today) do
-    releases
-    |> Enum.map(& &1.air_date)
-    |> Enum.filter(&(&1 != nil and Date.after?(&1, today)))
-    |> Enum.min(Date, fn -> nil end)
-  end
+  def state(_intent, _item, stage, _status, _today), do: from_stage(stage)
 
   defp quiet_kind(:returning), do: :between_seasons
   defp quiet_kind(:ended), do: :ended
@@ -130,6 +128,31 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
   defp from_stage(%{stage: :theatrical, date: date}), do: %State{kind: :in_theaters, date: date}
   defp from_stage(%{stage: :unreleased, date: date}), do: %State{kind: :coming_up, date: date}
   defp from_stage(_unknown), do: %State{kind: :undated}
+
+  @doc """
+  Whether the row's state block offers *Caught up*: a followed series with
+  episodes out. The one press that says the person has seen them.
+  """
+  @spec caught_up_offered?(Item.t()) :: boolean()
+  def caught_up_offered?(%Item{rung: rung, state: %State{kind: :episodes_out}}),
+    do: TitleIntent.follows_releases?(rung)
+
+  def caught_up_offered?(_item), do: false
+
+  @doc """
+  The page's title count — every record but the Ignored ones, which are
+  not on the list (the group is closed by default and counted on its head).
+  """
+  @spec listed_count([Item.t()]) :: non_neg_integer()
+  def listed_count(items), do: Enum.count(items, &(&1.rung != :ignored))
+
+  @doc """
+  Whether the Ignored group's disclosure is open: closed on every visit,
+  opened by the person (`toggled?`) or held open while a search is on —
+  a match inside a closed group would be invisible.
+  """
+  @spec ignored_open?(boolean(), String.t()) :: boolean()
+  def ignored_open?(toggled?, query), do: toggled? or String.trim(query) != ""
 
   @doc """
   The items by rung in page order, each group's rows by urgency —

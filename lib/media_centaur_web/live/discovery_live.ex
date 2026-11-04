@@ -61,6 +61,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.NewReleases
   alias MediaCentaur.NewReleases.Member
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TMDB.{ReleaseStages, Store, Title}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.Acquisition.{MediaOmnibox, MediaResults}
@@ -151,8 +152,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           acquisition_state: Map.get(states, hero.ref)
         })
 
+    tracking = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
+
     watchlist =
-      Shelves.watchlist_shelves(listed, ReleaseStages.for_refs(listed_refs, today), states, today)
+      Shelves.watchlist_shelves(
+        listed,
+        ReleaseStages.for_refs(listed_refs, today),
+        tracking,
+        states,
+        today
+      )
 
     friends =
       Shelves.friends_items(reviewed, Activities.activity_for(reviewed_refs), rungs, owners, states)

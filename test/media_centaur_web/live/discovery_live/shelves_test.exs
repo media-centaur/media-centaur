@@ -3,6 +3,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.NewReleases.Member
+  alias MediaCentaur.ReleaseTracking.Item, as: TrackingItem
+  alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Watchlist.TitleIntent
@@ -63,7 +65,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
     end
   end
 
-  describe "watchlist_shelves/4" do
+  describe "watchlist_shelves/5" do
     @today ~D[2026-11-01]
 
     defp listed(tmdb_id, rung, media_type \\ :movie, owner \\ nil) do
@@ -105,7 +107,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
         listed(7, :list)
       ]
 
-      shelves = Shelves.watchlist_shelves(listed, stages, %{{1, :movie} => :downloading}, @today)
+      shelves = Shelves.watchlist_shelves(listed, stages, %{}, %{{1, :movie} => :downloading}, @today)
 
       assert Enum.map(shelves.out_now, &{&1.id, &1.marker, &1.chip}) == [
                {"movie-2", "Tracking", nil},
@@ -128,7 +130,33 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       listed = [listed(1, :list, :movie, "owner-uuid"), listed(2, :list)]
 
       assert %{out_now: [], in_theaters: [], coming_up: []} =
-               Shelves.watchlist_shelves(listed, stages, %{}, @today)
+               Shelves.watchlist_shelves(listed, stages, %{}, %{}, @today)
+    end
+
+    test "a followed series is placed by its calendar through the caught-up point, never by its first air date" do
+      stages = %{{6, :tv_series} => %{stage: :home, date: ~D[2023-09-29]}}
+
+      releases = [
+        %Release{season_number: 1, episode_number: 28, air_date: ~D[2026-10-24]},
+        %Release{season_number: 1, episode_number: 29, air_date: ~D[2026-10-31]},
+        %Release{season_number: 1, episode_number: 30, air_date: ~D[2026-11-07]}
+      ]
+
+      item = %TrackingItem{media_type: :tv_series, releases: releases}
+      behind = listed(6, :follow, :tv_series)
+      shelves = Shelves.watchlist_shelves([behind], stages, %{{6, :tv_series} => item}, %{}, @today)
+      assert [%Item{id: "tv_series-6", chip: nil}] = shelves.out_now
+
+      caught_up =
+        put_in(put_in(behind.intent.caught_up_season, 1), [:intent, Access.key(:caught_up_episode)], 29)
+
+      shelves = Shelves.watchlist_shelves([caught_up], stages, %{{6, :tv_series} => item}, %{}, @today)
+      assert shelves.out_now == []
+      assert [%Item{id: "tv_series-6", chip: "Nov"}] = shelves.coming_up
+
+      ended = %TrackingItem{media_type: :tv_series, releases: Enum.take(releases, 2)}
+      shelves = Shelves.watchlist_shelves([caught_up], stages, %{{6, :tv_series} => ended}, %{}, @today)
+      assert %{out_now: [], in_theaters: [], coming_up: []} = shelves
     end
   end
 

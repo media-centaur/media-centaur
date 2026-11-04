@@ -1,11 +1,14 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @moduledoc """
   The tracked-title half of a title's detail: its calendar as forecast
-  events (`timeline`, the release dates readout's source) and when
-  tracking began — plus the facts the two shared components need to say
-  honestly what the title will do right now (`today`, `acquisition?`)
-  and the `ref` param every control click carries. `nil` for a title
-  that has never been tracked.
+  events (`timeline`, the release dates readout's source), when tracking
+  began, and for a series where the person is in it — the caught-up
+  point (`caught_up`), TMDB's latest aired pair (`latest_aired`) and the
+  seasons' sizes, the *Caught up through* row's facts
+  (`Components.ReleaseTracking.CaughtUp`) — plus the facts the shared
+  components need to say honestly what the title will do right now
+  (`today`, `acquisition?`) and the `ref` param every control click
+  carries. `nil` for a title that has never been tracked.
 
   Loaded by `load/2` for any host that mounts the shared tracking
   components (`ReleaseDates`, `TrackingControls`): the title
@@ -18,7 +21,8 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaur.ReleaseTracking.{Calendar, Item, UpcomingFeed}
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaurWeb.TitleRef
 
@@ -27,8 +31,11 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     :ref,
     :tracking_since,
     :today,
+    :caught_up,
+    :latest_aired,
     acquisition?: false,
-    timeline: []
+    timeline: [],
+    season_sizes: %{}
   ]
 
   @type t :: %__MODULE__{
@@ -36,8 +43,11 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
           ref: String.t(),
           tracking_since: DateTime.t() | nil,
           today: Date.t(),
+          caught_up: {pos_integer(), pos_integer()} | nil,
+          latest_aired: {pos_integer(), pos_integer()} | nil,
           acquisition?: boolean(),
-          timeline: [Event.t()]
+          timeline: [Event.t()],
+          season_sizes: %{String.t() => non_neg_integer()}
         }
 
   @typedoc """
@@ -62,12 +72,15 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   end
 
   defp build(%Item{} = item, context) do
+    ref = {item.tmdb_id, item.media_type}
     releases = item.id |> ReleaseTracking.list_releases_for_item() |> Enum.map(&%{&1 | item: item})
+    caught_up = Watchlist.caught_up(item.tmdb_id, item.media_type)
 
     feed =
       UpcomingFeed.build(releases, %{
         today: context.today,
-        rungs: %{{item.tmdb_id, item.media_type} => Watchlist.rung(item.tmdb_id, item.media_type)},
+        rungs: %{ref => Watchlist.rung(item.tmdb_id, item.media_type)},
+        caught_up: %{ref => caught_up},
         acquisition_ready?: context.acquisition_ready?,
         approval_policy: context.approval_policy,
         grab_status_by_key: grab_status_by_key(releases, context.acquisition_ready?)
@@ -75,13 +88,25 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
 
     %__MODULE__{
       item_id: item.id,
-      ref: TitleRef.param({item.tmdb_id, item.media_type}),
+      ref: TitleRef.param(ref),
       tracking_since: item.inserted_at,
       today: context.today,
+      caught_up: caught_up,
+      latest_aired: latest_aired(item),
+      season_sizes: item.season_sizes,
       acquisition?: context.acquisition_ready?,
       timeline: flatten(feed)
     }
   end
+
+  defp latest_aired(%Item{media_type: :tv_series} = item) do
+    case Store.get({item.tmdb_id, :tv_series}) do
+      %{payload: payload} -> Calendar.latest_aired(payload)
+      nil -> nil
+    end
+  end
+
+  defp latest_aired(%Item{media_type: :movie}), do: nil
 
   # Nearness-first: bucket order, date-ascending within, undated last.
   defp flatten(%UpcomingFeed{buckets: buckets, unscheduled: unscheduled}) do

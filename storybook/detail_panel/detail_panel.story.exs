@@ -621,10 +621,25 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :tracked_watch,
         description:
           "A watchlisted series armed at Follow: the tracking card under the hero " <>
-            "with the switches and the calendar's dates.",
+            "with the switches, the Caught up through row (M16) and the calendar's dates.",
         attributes: %{
           detail:
             unowned(show(), %{release_mode_available: false, rung: :follow, tracking: tracking(%{})})
+        }
+      },
+      %Variation{
+        id: :tracked_behind,
+        description:
+          "The same series caught up through S02E02 while S02E04 has aired: the point on the " <>
+            "card is behind, and the row's season list is open.",
+        attributes: %{
+          detail:
+            unowned(show(), %{
+              release_mode_available: false,
+              rung: :follow,
+              tracking: tracking(%{caught_up: {2, 2}})
+            }),
+          state: %{ModalState.new(:main) | open_menu: :caught_up_season}
         }
       },
       %Variation{
@@ -827,6 +842,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         tracking_since: ~U[2026-03-14 12:00:00Z],
         today: @today,
         acquisition?: true,
+        caught_up: {2, 4},
+        latest_aired: {2, 4},
+        season_sizes: %{"1" => 10, "2" => 4},
         timeline: [
           episode("s02e05", 2, 5, @today, :upcoming),
           episode("s02e06", 2, 6, ~D[2026-08-11], :upcoming),

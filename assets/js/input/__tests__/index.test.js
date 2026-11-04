@@ -226,6 +226,16 @@ describe("Detail overlay cast region (real config)", () => {
     expect(graph.detail_tracking.back).toBe("detail_actions")
   })
 
+  test("the Caught up row's open list is a tree nested in the tracking card: DOWN enters it, UP and BACK return to the card", () => {
+    expect(inputConfig.instanceTypes.detail_tracking_menu).toBe(Context.TREE)
+    expect(inputConfig.contextSelectors.detail_tracking_menu).toBe("[data-nav-zone='detail_tracking_menu'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).not.toContain("detail_tracking_menu")
+    const graph = openDetail({ detail_actions: 3, detail_tracking: 5, detail_tracking_menu: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_tracking.down).toBe("detail_tracking_menu")
+    expect(graph.detail_tracking_menu.up).toBe("detail_tracking")
+    expect(graph.detail_tracking_menu.back).toBe("detail_tracking")
+  })
+
   test("the cast body is a shelf-typed region of the detail overlay", () => {
     expect(inputConfig.instanceTypes.detail_cast).toBe(Context.SHELF)
     expect(inputConfig.contextSelectors.detail_cast).toBe("[data-nav-zone='detail_cast'] [data-nav-item]")

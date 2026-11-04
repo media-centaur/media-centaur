@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) with `view` and `activity`, or from `?entity=<uuid>` — canonicalised to the title address when the entity has a TMDB identity, else the residue |
-  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, the library sections' (`LibraryEvents.events/0`), and the toolbar's verbs on a title shown outside its detail — `title_list`, `title_download`, `title_ignore` by `ref` (with `activity` for a friend's provenance), `ignore_undo`, `ignore_undo_dismiss`; `:ignore_undo` is the host's assign, the page draws the toast |
+  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `caught_up` (and its two menu events), `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, the library sections' (`LibraryEvents.events/0`), and the toolbar's verbs on a title shown outside its detail — `title_list`, `title_download`, `title_ignore` by `ref` (with `activity` for a friend's provenance), `ignore_undo`, `ignore_undo_dismiss`; `:ignore_undo` is the host's assign, the page draws the toast |
   | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load, the delete and the TMDB check — each landing by subject and dropped when the person moved on |
   | `:handle_info` | refreshes the open detail by identity on the topics below, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `review_open` opens it on the detail's title |
@@ -536,6 +536,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     Logic.title_detail(title, facts)
   end
 
+  # The pair the card's selects name, `:latest` from the button alone; nil
+  # for a malformed click.
+  defp caught_up_target(%{"season" => season, "episode" => episode}) do
+    with {season, ""} when season >= 1 <- Integer.parse(to_string(season)),
+         {episode, ""} when episode >= 1 <- Integer.parse(to_string(episode)) do
+      {season, episode}
+    else
+      _malformed -> nil
+    end
+  end
+
+  defp caught_up_target(_params), do: :latest
+
   # The series' latest aired episode, from its TMDB record — nil without
   # a TMDB identity or a record.
   defp latest_aired_episode(series_id) do
@@ -1020,6 +1033,45 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         {:halt, put_flash(socket, :error, "Only your own activity can be deleted")}
     end
   end
+
+  # Caught up (M16): the verb's one write path, `ReleaseTracking.catch_up/2`
+  # — the latest aired episode from the button, a chosen pair from the
+  # card's selects. The rebuild it ends with broadcasts `releases_updated`,
+  # which refreshes every host; the open detail refreshes at once.
+  def handle_title_event("caught_up", %{"ref" => param} = params, socket) do
+    with {:ok, {tmdb_id, :tv_series}} <- TitleRef.parse(param),
+         %ReleaseTracking.Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series),
+         target when target != nil <- caught_up_target(params) do
+      case ReleaseTracking.catch_up(item, target) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "caught up refused for tmdb:#{tmdb_id} — #{inspect(reason)}")
+      end
+
+      socket = update(socket, :modal_state, &%{&1 | open_menu: nil})
+      {:halt, refresh_title_detail(socket)}
+    else
+      _not_a_followed_series -> {:halt, socket}
+    end
+  end
+
+  def handle_title_event(
+        "caught_up_menu_toggle",
+        %{"menu" => menu},
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      )
+      when menu in ["season", "episode"] do
+    slot = if menu == "season", do: :caught_up_season, else: :caught_up_episode
+    {:halt, update(socket, :modal_state, &%{&1 | open_menu: toggle_menu(&1.open_menu, slot)})}
+  end
+
+  def handle_title_event(
+        "caught_up_menu_close",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ), do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: nil})}
 
   def handle_title_event("set_rung", %{"choice" => choice, "ref" => param}, socket)
       when choice in @rungs do

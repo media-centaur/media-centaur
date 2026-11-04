@@ -107,11 +107,36 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
         }
       },
       %Variation{
+        id: :episodes_out_caught_up_offered,
+        description:
+          "The same, with the Caught up button the page offers a followed series with episodes out: one press says you have seen them.",
+        attributes: %{
+          today: @today,
+          caught_up?: true,
+          item:
+            item("row-episodes-out-caught-up", show(), :follow,
+              state: %State{kind: :episodes_out, count: 3, date: ~D[2026-10-27], caught_up: {1, 25}}
+            )
+        }
+      },
+      %Variation{
         id: :next_episode,
         description: "Nothing outstanding; the next episode is dated.",
         attributes: %{
           today: @today,
           item: item("row-next", show(), :grab, state: %State{kind: :next_episode, date: ~D[2026-11-11]})
+        }
+      },
+      %Variation{
+        id: :caught_up_through,
+        description:
+          "Nothing out and a caught-up point: where you stand is the line, the next episode beneath it (M16).",
+        attributes: %{
+          today: @today,
+          item:
+            item("row-caught-up", show(), :grab,
+              state: %State{kind: :next_episode, date: ~D[2026-11-11], caught_up: {1, 28}}
+            )
         }
       },
       %Variation{
@@ -193,7 +218,7 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
       %Variation{
         id: :ignored,
         description:
-          "An Ignored record: hidden from the Feed and Discovery; the menu offers On your list and Stop ignoring.",
+          "An Ignored record: hidden from the Feed and Discovery, no poster (it references nothing in the store); the menu offers On your list and Stop ignoring.",
         attributes: %{
           today: @today,
           item: item("row-ignored", movie(), :ignored, state: %State{kind: :ignored})

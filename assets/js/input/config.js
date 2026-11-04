@@ -33,6 +33,7 @@ export const inputConfig = {
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
     detail_tracking: "[data-nav-zone='detail_tracking'] [data-nav-item]",
+    detail_tracking_menu: "[data-nav-zone='detail_tracking_menu'] [data-nav-item]",
     // The plan modal's regions (UIDR-029): head (status, verdict, their
     // controls) over the episode grid over the body (release rows,
     // decisions, footer). Each stage before the board puts everything in
@@ -165,6 +166,7 @@ export const inputConfig = {
     // The tracking block under the detail list (UIDR-035, UIDR-042): the
     // two switch rows and the acceptance Reset stack vertically — UP/DOWN.
     detail_tracking: Context.TREE,
+    detail_tracking_menu: Context.TREE,
     // The plan modal: two vertical lists around the episode grid. The grid's
     // arrangement carries its meaning (season rows, capsules for packs), so
     // it is a SHELF — geometry answers adjacency across wrapped rows and
@@ -247,7 +249,16 @@ export const inputConfig = {
         detail_cast: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
         // The tracking block follows the list (or stands alone in a
         // collection without extras); UP climbs back through the list.
-        detail_tracking: { up: ["detail_list", "detail_rail", "detail_actions"], back: ["detail_actions"] },
+        // detail_tracking_menu is the Caught up row's open season or
+        // episode list (M16), nested in the card and present only while
+        // open: DOWN from the card enters it, BACK returns to the card and,
+        // through the list's `data-nav-dismiss-event`, closes it.
+        detail_tracking: {
+          up: ["detail_list", "detail_rail", "detail_actions"],
+          down: ["detail_tracking_menu"],
+          back: ["detail_actions"],
+        },
+        detail_tracking_menu: { up: ["detail_tracking"], back: ["detail_tracking"] },
       },
     },
     // The plan modal (UIDR-029). Regions stack vertically; a movie board has

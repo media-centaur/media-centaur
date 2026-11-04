@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Social.IdentityTile
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.ProgressHairline
-  alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates
+  alias MediaCentaurWeb.Components.ReleaseTracking.{CaughtUp, ReleaseDates}
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.Grade
@@ -415,6 +415,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           today={@today}
           tmdb_ready={@tmdb_ready}
           checking?={@state.tmdb_checking}
+          open_menu={@state.open_menu}
         />
       </:body>
     </CinematicShell.cinematic_shell>
@@ -670,6 +671,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :tmdb_ready, :boolean, default: true
   attr :checking?, :boolean, default: false, doc: "a Refresh from TMDB check in flight (UIDR-044)."
 
+  attr :open_menu, :atom,
+    default: nil,
+    doc: "the modal's open menu; the Caught up row's selects share the slot."
+
   defp tracking_card(assigns) do
     assigns =
       assigns
@@ -706,6 +711,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             ref={@ref}
             accepted?={@lower_quality_note?}
           />
+          <%!-- Where the person is in a followed series, shown and movable
+                (M16, decision 6): everything at or before it is had. --%>
+          <CaughtUp.caught_up_row
+            :if={@detail.title.media_type == :tv_series and @detail.tracking != nil}
+            id="detail-caught-up"
+            ref={@ref}
+            point={@detail.tracking.caught_up}
+            latest={@detail.tracking.latest_aired}
+            season_sizes={@detail.tracking.season_sizes}
+            open={caught_up_menu(@open_menu)}
+          />
           <%!-- The same rule for asking TMDB again (UIDR-044): an owned
                 title has it on the Manage toolbar; a tracked one here. --%>
           <RefreshFromTmdb.refresh_from_tmdb
@@ -729,6 +745,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     </div>
     """
   end
+
+  # The modal's one open-menu slot, as the Caught up row names its selects.
+  defp caught_up_menu(:caught_up_season), do: :season
+  defp caught_up_menu(:caught_up_episode), do: :episode
+  defp caught_up_menu(_other), do: nil
 
   defp timeline(%{timeline: timeline}), do: timeline
   defp timeline(_untracked), do: []

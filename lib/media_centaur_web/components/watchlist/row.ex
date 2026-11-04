@@ -23,13 +23,19 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   and the open list is its own `watchlist_rung_menu` zone (`GlassMenu`).
 
   The state block's words are this module's (`state_words/2`), so the
-  page's logic decides the fact — a kind, a count, a date — and the
-  kit the sentence; `data-state` carries the kind for the tests.
+  page's logic decides the fact — a kind, a count, a date, the caught-up
+  point — and the kit the sentence; `data-state` carries the kind for the
+  tests. A followed series with episodes out carries the **Caught up**
+  button in its state block (`caught_up?`), a `data-nav-sub-item` pushing
+  `row_caught_up` with the ref: the row's spelling of the detail's
+  `caught_up`, as `rung_choice` is of `set_rung`, through the one write
+  path (`ReleaseTracking.catch_up/2`, the latest aired episode).
   """
 
   use Phoenix.Component
 
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1]
 
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.GlassMenu
@@ -55,6 +61,12 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     | `:between_seasons` | TMDB says the series returns, nothing dated | *Between seasons* |
     | `:ended` / `:canceled` | TMDB's word | *Ended* / *Canceled* |
     | `:nothing_scheduled` | a followed series TMDB has not dated or placed | *Nothing scheduled* |
+
+    A followed series carries the person's **caught-up point** too
+    (`caught_up`, M16). With nothing out, the point is the line — *Caught
+    up through S01E28* — and the kind's words move beneath it (*Next
+    episode · Nov 11*, *Between seasons*): where the person stands first,
+    what is ahead second. With episodes out the count stays the line.
     | `:out_now` | the home stage; `date` the home release, or a series' first episode | *Out now · Oct 16* |
     | `:in_theaters` | the theatrical stage; `date` the opening | *In theaters · Oct 16* |
     | `:coming_up` | unreleased; `date` the nearest ahead | *Coming up · Dec* |
@@ -63,7 +75,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     """
 
     @enforce_keys [:kind]
-    defstruct [:kind, :count, :date]
+    defstruct [:kind, :count, :date, :caught_up]
 
     @type kind ::
             :episodes_out
@@ -78,7 +90,12 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
             | :undated
             | :ignored
 
-    @type t :: %__MODULE__{kind: kind(), count: non_neg_integer() | nil, date: Date.t() | nil}
+    @type t :: %__MODULE__{
+            kind: kind(),
+            count: non_neg_integer() | nil,
+            date: Date.t() | nil,
+            caught_up: {pos_integer(), pos_integer()} | nil
+          }
   end
 
   defmodule Item do
@@ -125,6 +142,10 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
 
   attr :item, Item, required: true
   attr :today, Date, required: true, doc: "the date the state's chip is relative to"
+
+  attr :caught_up?, :boolean,
+    default: false,
+    doc: "offer the Caught up button in the state block (`WatchlistLive.Logic.caught_up_offered?/1`)"
 
   def watchlist_row(assigns) do
     rows = assigns.item.social_activity
@@ -180,9 +201,24 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
           class="gap-3 [--glyph:1.25rem]"
         />
 
-        <div :if={@line} class="w-44 text-right" data-role="state">
-          <p class="text-sm text-base-content/80">{@line}</p>
-          <p :if={@detail} class="text-xs text-base-content/55">{@detail}</p>
+        <div :if={@line} class="flex items-center justify-end gap-3" data-role="state">
+          <div class="w-44 text-right">
+            <p class="text-sm text-base-content/80">{@line}</p>
+            <p :if={@detail} class="text-xs text-base-content/55">{@detail}</p>
+          </div>
+          <.button
+            :if={@caught_up?}
+            id={"#{@item.id}-caught-up"}
+            variant="neutral"
+            size="xs"
+            class="shrink-0"
+            phx-click="row_caught_up"
+            phx-value-ref={@ref}
+            data-nav-sub-item
+            data-role="caught-up"
+          >
+            Caught up
+          </.button>
         </div>
 
         <GlassMenu.menu_select
@@ -215,13 +251,21 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   @doc """
   The state block's words for a `State`: the line and the date beneath
   it (`Format.date_chip/3`, relative to `today`); `{nil, nil}` for no
-  state.
+  state. A followed series with a caught-up point and nothing out leads
+  with the point (*Caught up through S01E28*), the kind's words beneath.
   """
   @spec state_words(State.t() | nil, Date.t()) :: {String.t() | nil, String.t() | nil}
   def state_words(nil, _today), do: {nil, nil}
 
   def state_words(%State{kind: :episodes_out, count: count, date: date}, today),
     do: {episodes_out(count), latest(date, today)}
+
+  def state_words(%State{kind: kind, caught_up: {season, episode}} = state, today)
+      when kind in [:next_episode, :between_seasons, :ended, :canceled, :nothing_scheduled] do
+    {line, detail} = state_words(%{state | caught_up: nil}, today)
+    beneath = [line, detail] |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
+    {"Caught up through #{Format.episode_label(season, episode)}", beneath}
+  end
 
   def state_words(%State{kind: :next_episode, date: date}, today),
     do: {"Next episode", Format.date_chip(:day, date, today)}
