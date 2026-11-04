@@ -7,9 +7,10 @@
  *      the next gamepad button (GamepadSource.captureNext, ahead of its
  *      button map) and push it back as "controls:bind". Escape cancels
  *      either; the key is swallowed so BACK never fires from it.
- *   2. Hot-swap — on `phx:controls:updated` from the server, dispatch a
- *      DOM event that the input system (orchestrator/sources) listens for
- *      to rebuild its key/button maps without a page reload.
+ *   2. Hot-swap — when the hook receives `controls:updated` from the
+ *      server, `updateMaps` dispatches `input:rebindMaps`, and the hook's
+ *      listener rewrites the running sources' key/button maps without a
+ *      page reload.
  *
  * The bridge is instantiated inside the LiveView hook's mounted() and its
  * methods are invoked from LiveView handleEvent callbacks.
@@ -104,8 +105,8 @@ export class ControlsBridge {
   }
 
   /**
-   * Dispatch a DOM event that the input system's orchestrator listens for
-   * to rebuild its key and button maps.
+   * Dispatch `input:rebindMaps`; the input hook (`index.js`) listens for it
+   * and rewrites the running sources' key and button maps.
    *
    * @param {{keyboard: Object<string, string>, gamepad: Object<number, string>}} maps
    */

@@ -42,7 +42,7 @@ export const inputConfig = {
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     // The picker's Download split menu — a GlassMenu list nested in `plan_body`, present only while open.
     plan_menu: "[data-nav-zone='plan_menu'] [data-nav-item]",
-    // The Social page's title detail modal's action row (spec 2026-09-05).
+    // A page's toolbar (Library, Watchlist, Status, Apps, …).
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
     library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
@@ -187,17 +187,18 @@ export const inputConfig = {
   // Named by `data-nav-overlay` on the overlay element; anything without one
   // stays a flat MODAL, which is right for a confirm or a small form.
   //
-  // The detail modal is Play / More info / Manage above the body of the title —
-  // seasons and episodes for a series, the film list for a collection, extras
-  // for anything. `entry` lands the cursor on Play; `back` is what makes BACK
-  // climb from the body to the buttons before it closes the modal.
+  // The detail modal is its action row above the body of the title — seasons
+  // and episodes for a series, the film list for a collection, extras for
+  // anything. `entry` lands the cursor on the row (the finish prompt first
+  // while shown); `back` is what makes BACK climb from the body to the row
+  // before it closes the modal.
   // Only one body zone is in the DOM at a time (the sub-views swap it), so
   // the candidate list on `down` routes to whichever body is populated.
   //
   // Every region climbs on UP at its top — stopping dead under whatever sits
   // above read as a dead end each time it was tried (UIDR-019, twice
-  // amended). The tree's `up` candidates route through the Manage toolbar
-  // card when it exists; a spatial region (the cast grid) has a geometric
+  // amended). The folder ledger's `up` climbs to the Manage toolbar card; a
+  // spatial region (the cast grid) has a geometric
   // "above", and stopping dead under the action row reads as
   // a dead end.
   overlays: {

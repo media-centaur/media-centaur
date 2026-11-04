@@ -32,3 +32,18 @@ The detail modal carries Play, More info and Manage above the body of the title 
 
 * The list-wide "Show details" toggle is deliberately not a nav item (mouse only); it belongs with the other list-wide controls in Manage and is still to move.
 * The `data-nav-*` attributes must be right in the template for the modal to navigate at all; `library_live_test.exs` asserts them.
+
+## Amendment 2026-11-04 — rules 3 and 5 as built
+
+Rule 3's chain no longer ends at "nothing": past the primary-menu exit, BACK
+from content enters the main menu (UIDR-028) and, in the TV app, BACK in the
+main menu or on a page without one leaves the app (UIDR-028, amendment
+2026-10-25). `backStep()` in the focus machine states the step; the gamepad
+hint bar labels B with it.
+
+Rule 5's first clause is wrong as built: the episode tree (`detail_list`)
+climbs to the collection rail or the action row; it never coexists with
+`manage_tools`. Only the folder ledger (`manage_list`) climbs to the Manage
+toolbar. The action row also gained neighbours above it — the social capsule
+(`detail_social`) and the finish prompt (`detail_finish`, the first entry
+candidate while shown) — and the collection rail (`detail_rail`) below it.

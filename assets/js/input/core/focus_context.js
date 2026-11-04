@@ -295,7 +295,8 @@ export class FocusContextMachine {
 
   // --- Context-specific transition rules ---
 
-  /** Modal: focus trapped. Navigate vertically. Escape dismisses.
+  /** Modal: focus trapped. Navigate linearly with wrap; BACK (dismiss) is
+   *  answered before this dispatch.
    *  Sub-focus: RIGHT enters sub-item, LEFT/BACK exits, UP/DOWN exit then navigate. */
   _modalTransition(action) {
     if (this._subFocus) {
@@ -335,9 +336,9 @@ export class FocusContextMachine {
   }
 
   /** Toolbar: left/right between controls. Down/Up consult the nav graph for
-   *  THIS instance (keyed by `_context`, not the literal "toolbar"), so a
-   *  toolbar-typed companion like the upcoming mini-month follows its own
-   *  up/down edges. */
+   *  THIS instance (keyed by `_context`, not the literal "toolbar"), so every
+   *  toolbar-typed zone (the detail action row, the Manage tools) follows its
+   *  own up/down edges. */
   _toolbarTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")

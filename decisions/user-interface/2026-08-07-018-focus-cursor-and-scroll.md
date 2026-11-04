@@ -31,3 +31,15 @@ A single focus ring travelling between items instead of one appearing on each. I
 * Rules 7 and 10 spend horizontal room; at high UI scale a reserved card width is a visible fraction of a small row.
 * CSS scroll features are off the table repository-wide, including where they would be harmless.
 * `mc-nav-trace` reports `clip` (rule 9) and `peek` (rules 7, 8, 10) per step.
+
+## Amendment 2026-11-04 — rules 6 and 11 as built
+
+Rule 6's mechanism is replaced: no shelf reserves a `scroll-margin-bottom`
+(a reserve sized to one shelf was wrong for every other shelf). A zone that
+declares `data-nav-reveal-next` makes `revealItem` also show the next zone's
+subject at the scrollport end, measured, while the focused item stays whole.
+
+Rule 11 holds for SHELF contexts only (`_entryBand`); other contexts enter on
+their active marker, remembered index or `entryAnchors` / `entryDefaults`.
+A return — BACK, or an arrow off a menu list onto its trigger's zone — lands
+on the remembered item. See `docs/input-system.md`, Focus Memory Model.

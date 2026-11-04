@@ -3,8 +3,7 @@
  *
  * Extracts library-specific concerns from the orchestrator:
  * - Sort order tracking → signals grid memory clear
- * - CLEAR action clears the filter input
- * - BACK navigates to the sidebar
+ * - CLEAR action clears the filter input and names the grid to follow into
  *
  * Deliberately no scrolling here. The toolbar's resting place (page top,
  * header included) is `revealItem`'s: its controls are the first line of

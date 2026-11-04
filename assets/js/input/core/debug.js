@@ -1,8 +1,8 @@
 /**
  * Debug logging for the input system.
  *
- * Disabled by default. Enable at runtime from browser console or
- * Chrome DevTools MCP:
+ * Disabled by default. Enable at runtime from the browser console (or
+ * `mc-nav-trace --debug`, which prints the `[input]` lines):
  *
  *   window.__inputDebug = true   // enable
  *   window.__inputDebug = false  // disable

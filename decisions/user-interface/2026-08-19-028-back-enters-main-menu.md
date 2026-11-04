@@ -41,3 +41,15 @@ focus machine answers `leave_app` where it would otherwise return to
 content or do nothing (`focus_context.js`, `_backTransition`). A page
 without the input system (the pairing page) is left by the shell on the
 first BACK.
+
+## Amendment 2026-11-04 — the switcher, and a menu-less page
+
+The 2026-10-25 amendment's last sentence is wrong as built: the profile
+switcher activates on focus like every sibling, and nothing in the app uses
+deferred activation any more (`data-nav-defer-activate` was removed).
+
+"The page has a main menu" is decided by the sidebar being on the page: the
+nav graph has a node only for a context with items, so the profile door and
+the setup tour, which render none, never enter an absent menu. The hint bar
+labels B from the same step BACK takes (Menu, Back, Close, Exit), on every
+context rather than the few its CSS once listed.

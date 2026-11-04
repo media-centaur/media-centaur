@@ -22,3 +22,9 @@ Rejected: tuned rings (each rebuilt the collision elsewhere), corner brackets (a
 ### Consequences
 
 * Two cursor types exist; the user learns a quieter second "you are here" signal, bounded by rule 3.
+
+## Amendment 2026-11-04 — tier-2 surfaces
+
+The tier-2 list above is stale. `.zone-tab` (the `TabStrip` component) is
+used today by Downloads, Review and Episode mapping, and Social; Incoming no
+longer exists and Discovery has no tab strip.
