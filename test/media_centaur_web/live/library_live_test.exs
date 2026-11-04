@@ -461,6 +461,36 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
+    test "a title the reader reviewed opens as editing: prefilled, Save replaces, Remove review withdraws",
+         %{conn: conn} do
+      MediaCentaur.Social.Identity.ensure()
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _mine} = MediaCentaur.Activities.review(title, :like, "First words")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+      view |> element("#detail-review") |> render_click()
+
+      assert has_element?(view, choice(:like) <> "[aria-pressed='true']")
+      assert view |> element("#review-text") |> render() =~ "First words"
+      assert has_element?(view, "#review-reviewed-at", "you reviewed it")
+      assert has_element?(view, "#review-send", "Save")
+      refute has_element?(view, "#review-audience")
+
+      view |> element(choice(:love)) |> render_click()
+      view |> form("#review-form", %{"text" => "Second words"}) |> render_submit()
+      assert [%{sentiment: :love, text: "Second words"}] = MediaCentaur.Activities.list_sent()
+
+      view |> element("#detail-review") |> render_click()
+      view |> element("#review-remove", "Remove review") |> render_click()
+      assert render(view) =~ "Review removed"
+      refute has_element?(view, "#review-modal[data-state='open']")
+      # list_sent/0 is the live rows: a withdrawn review is a tombstone and no longer among them.
+      assert MediaCentaur.Activities.list_sent() == []
+      await_supervised_tasks()
+    end
+
     test "a friend's review joins the detail hero's social capsule, live", %{conn: conn} do
       friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
