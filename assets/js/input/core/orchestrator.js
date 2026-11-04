@@ -1366,9 +1366,11 @@ export class Orchestrator {
    *
    * A collapsed branch opens — that IS going deeper, and there is nothing
    * further in until it has. Anything else steps into the item's own controls
-   * (an episode's synopsis disclosure and watched toggle), and where there are
-   * none, RIGHT does nothing: a leaf has no inside. Unlike a flat overlay list,
-   * it deliberately does not fall through to "move to the next item" — in a
+   * (an episode's synopsis disclosure and watched toggle). Where there is no
+   * depth left — a leaf, or the last of a row's controls — RIGHT is a wall,
+   * and like every wall the nav graph answers it (a person's rows beside their
+   * card); with no edge it does nothing. Unlike a flat overlay list, it
+   * deliberately does not fall through to "move to the next item" — in a
    * vertical list that would be lateral movement dressed up as depth.
    *
    * `aria-expanded` is the disclosure signal because it is already the correct
@@ -1378,7 +1380,7 @@ export class Orchestrator {
     // Already among an item's controls — go along to the next one, and stop at
     // the last rather than wrapping or falling out sideways.
     if (this.focusMachine.subFocus) {
-      this._focusSubItemAt(this._subItemIndex + 1)
+      if (!this._focusSubItemAt(this._subItemIndex + 1)) this._treeWall("right")
       return
     }
 
@@ -1391,6 +1393,18 @@ export class Orchestrator {
     }
 
     if (this._enterSubItem(focused)) this.focusMachine.beginSubFocus()
+    else this._treeWall("right")
+  }
+
+  /** A TREE with no depth left to travel sideways: the graph answers. */
+  _treeWall(direction) {
+    const target = this.focusMachine.getGraphTarget(this.focusMachine.context, direction)
+    if (!target) return
+    this._saveContextMemory()
+    this.focusMachine.clearSubFocus()
+    this._subFocusIndex = null
+    this._subItemIndex = null
+    this._executeDirective(this.focusMachine.contextWall(this.focusMachine.context, direction))
   }
 
   /**
@@ -1424,7 +1438,10 @@ export class Orchestrator {
     }
 
     const head = focused.closest?.("[data-nav-group]")?.querySelector?.("[aria-expanded='true']")
-    if (!head || head === focused) return
+    if (!head || head === focused) {
+      this._treeWall("left")
+      return
+    }
     this.writer.focusElement(head)
     head.click()
   }

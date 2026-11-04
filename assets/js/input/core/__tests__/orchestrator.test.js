@@ -4426,5 +4426,57 @@ describe("Orchestrator", () => {
       system.start({})
       expect(onAttach).toHaveBeenCalledTimes(1)
     })
+
+    // A TREE's LEFT and RIGHT are depth; where there is no depth left to
+    // travel, they are a wall like any other, and the graph answers — a
+    // person's rows beside their card, a feed beside the Undo toast.
+    describe("a tree's sideways walls", () => {
+      const TREE_CONFIG = {
+        ...PAGE_CONFIG,
+        layouts: { ...PAGE_CONFIG.layouts, social: { ...PAGE_CONFIG.layouts.social, feed: { up: ["zone_tabs"], right: ["card"] } } },
+      }
+      function treeSetup(item) {
+        const result = setup({
+          getZone: () => "social",
+          getItemCount: () => 4,
+          getFocusedIndex: () => 1,
+          getCurrentFocusedItem: () => item,
+          getItemAt: () => item,
+        }, TREE_CONFIG)
+        result.system.start({})
+        result.system.focusMachine.forceContext("feed")
+        return result
+      }
+      const leaf = () => ({ dataset: {}, getAttribute: () => null, querySelectorAll: () => [], closest: () => null, hasAttribute: () => false })
+
+      test("RIGHT on a row with no controls follows the graph's right edge", () => {
+        const { system } = treeSetup(leaf())
+        system._handleAction(Action.NAVIGATE_RIGHT)
+        expect(system.focusMachine.context).toBe("card")
+      })
+
+      test("RIGHT past a row's last control follows the graph's right edge", () => {
+        const button = { focus: () => {}, dataset: {} }
+        const row = { ...leaf(), querySelectorAll: () => [button] }
+        const { system } = treeSetup(row)
+        system._handleAction(Action.NAVIGATE_RIGHT)
+        expect(system.focusMachine.subFocus).toBe(true)
+        system._handleAction(Action.NAVIGATE_RIGHT)
+        expect(system.focusMachine.context).toBe("card")
+        expect(system.focusMachine.subFocus).toBe(false)
+      })
+
+      test("LEFT on a row with nothing to close follows the graph's left edge", () => {
+        const layouts = { ...TREE_CONFIG.layouts, social: { ...TREE_CONFIG.layouts.social, feed: { left: ["zone_tabs"] } } }
+        const { system } = setup({
+          getZone: () => "social", getItemCount: () => 4, getFocusedIndex: () => 1,
+          getCurrentFocusedItem: () => leaf(),
+        }, { ...TREE_CONFIG, layouts })
+        system.start({})
+        system.focusMachine.forceContext("feed")
+        system._handleAction(Action.NAVIGATE_LEFT)
+        expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
+      })
+    })
   })
 })
