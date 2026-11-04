@@ -105,4 +105,33 @@ defmodule MediaCentaurWeb.Components.Title.SocialWordsTest do
       assert SocialWords.drawn_flags(rows) == [:like, :watched]
     end
   end
+
+  describe "own_verb/1" do
+    test "the reader's verb for each flag, as sentence/1 words it" do
+      assert SocialWords.own_verb(:love) == "love"
+      assert SocialWords.own_verb(:like) == "like"
+      assert SocialWords.own_verb(:dislike) == "dislike"
+      assert SocialWords.own_verb(:review) == "reviewed"
+    end
+  end
+
+  describe "audience/1" do
+    test "one, two and three names are joined like a sentence" do
+      assert SocialWords.audience([person("Nick")]) == "Nick will see it"
+      assert SocialWords.audience([person("Nick"), person("Sam")]) == "Nick and Sam will see it"
+
+      assert SocialWords.audience([person("Nick"), person("Sam"), person("Cleo")]) ==
+               "Nick, Sam and Cleo will see it"
+    end
+
+    test "four or more name two and count the rest" do
+      people = Enum.map(~w(Nick Sam Cleo Pat Jo), &person/1)
+      assert SocialWords.audience(people) == "Nick, Sam and 3 others will see it"
+    end
+
+    test "a single other is still a count" do
+      people = Enum.map(~w(Nick Sam Cleo Pat), &person/1)
+      assert SocialWords.audience(people) == "Nick, Sam and 2 others will see it"
+    end
+  end
 end

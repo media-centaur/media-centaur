@@ -7,7 +7,9 @@ defmodule MediaCentaurWeb.Components.Title.SocialWords do
   "Cleo wants to watch this" (`sentence/1`). A social glyph's hover
   text and the social panel's lines for the acts that carry no words.
   The names are `Format.person_name/1`'s: the reader is "You" alone and
-  "you" mid-sentence.
+  "you" mid-sentence. The Review modal's words come from here too: the
+  reader's own verb for its headline (`own_verb/1`) and the line naming
+  who will see a review (`audience/1`).
 
   Pure vocabulary, not a function component — no story.
   """
@@ -59,16 +61,31 @@ defmodule MediaCentaurWeb.Components.Title.SocialWords do
   @spec sentence(group()) :: String.t()
   def sentence(%{flag: flag, people: people}) do
     plural? = length(people) > 1
-    subjects = Enum.map(people, &subject_word(&1, plural?))
-
-    subject =
-      case subjects do
-        [one] -> one
-        many -> Enum.join(Enum.drop(many, -1), ", ") <> " and " <> List.last(many)
-      end
-
+    subject = people |> Enum.map(&subject_word(&1, plural?)) |> join_names()
     "#{subject} #{verb(flag, people)} this"
   end
+
+  @doc ~s(The reader's own verb for a flag — "love", "like", "dislike", "reviewed" — the clause sentence/1 uses for the reader. The Review modal's headline.)
+  @spec own_verb(Flag.flag()) :: String.t()
+  def own_verb(flag), do: verb(flag, [%Person{own?: true}])
+
+  @doc ~s(Who will see a review: "Nick will see it", "Nick, Sam and Cleo will see it", "Nick, Sam and 3 others will see it" for four or more.)
+  @spec audience([Person.t()]) :: String.t()
+  def audience(people) when is_list(people) and people != [] do
+    names = Enum.map(people, &Format.person_name/1)
+
+    subject =
+      case names do
+        [first, second | rest] when length(rest) > 1 -> "#{first}, #{second} and #{length(rest)} others"
+        few -> join_names(few)
+      end
+
+    subject <> " will see it"
+  end
+
+  # "Nick", "Nick and Sam", "Nick, Sam and Cleo".
+  defp join_names([one]), do: one
+  defp join_names(many), do: Enum.join(Enum.drop(many, -1), ", ") <> " and " <> List.last(many)
 
   # The reader is "you" mid-sentence and "You" alone.
   defp subject_word(%Person{own?: true}, true), do: "you"
