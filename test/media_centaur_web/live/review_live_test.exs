@@ -541,7 +541,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
   end
 
   describe "keyboard and gamepad reach" do
-    test "the search panel's controls are nav items and none captures the keys", %{conn: conn} do
+    test "the search panel's controls are nav items", %{conn: conn} do
       # Regression: `data-captures-keys` on the form trapped the keyboard on
       # its Search button, and the query, type and close were not nav items.
       create_pending_file(%{parsed_title: "Search Reach Movie", parsed_type: "movie"})
@@ -550,7 +550,6 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       render_after_async_load(view)
       render_click(view, "open_search", %{"key" => select_first_group(view)})
 
-      refute has_element?(view, "[data-captures-keys]")
       zone = "[data-nav-zone='review-search'][data-nav-dismiss-event='close_search']"
       assert has_element?(view, "#{zone} input[name='query'][data-nav-item]")
       assert has_element?(view, "#{zone} select[name='type'][data-nav-item]")

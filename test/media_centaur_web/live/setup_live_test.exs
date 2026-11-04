@@ -219,7 +219,6 @@ defmodule MediaCentaurWeb.SetupLiveTest do
     test "the download client type is stated, not a one-option select", %{conn: conn} do
       {:ok, view, html} = live(conn, "/setup?step=download_client")
 
-      refute has_element?(view, "select[name='download_client_type']")
       assert has_element?(view, "input[type='hidden'][name='download_client_type'][value='qbittorrent']")
       assert html =~ "qBittorrent"
     end

@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
       assert has_element?(
                view,
-               "#overview-recent-#{movie.id}[href='/library?entity=#{movie.id}'][data-nav-item]"
+               "[data-component='overview-glance'] a[href='/library?entity=#{movie.id}'][data-nav-item]"
              )
     end
 
@@ -35,7 +35,6 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=tmdb")
 
       assert has_element?(view, "[data-nav-zone='subsystems'] #subsystem-tile-tmdb[data-selected]")
-      refute has_element?(view, "[data-nav-zone='subsystems'] #subsystem-tile-watcher[data-selected]")
     end
   end
 

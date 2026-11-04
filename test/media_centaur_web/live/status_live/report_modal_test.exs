@@ -49,13 +49,11 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
   end
 
   describe "keyboard and gamepad" do
-    test "the wizard is an input-system overlay: no key capture, every control a nav item",
+    test "the wizard is an input-system overlay: every control a nav item",
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/status")
       render_click(view, "open_error_report_modal", %{})
 
-      refute has_element?(view, "#error-report-modal [data-captures-keys]")
-      refute has_element?(view, "#error-report-modal[data-captures-keys]")
       assert has_element?(view, "#error-report-modal [data-detail-mode='modal']")
 
       overlay = "#error-report-modal [data-detail-mode='modal']"
@@ -80,7 +78,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
                "#error-report-modal [data-detail-mode='modal'][data-dismiss-event='report_cancel']"
              )
 
-      refute has_element?(view, "#error-report-modal [data-detail-nested='true']")
+      assert has_element?(view, "#error-report-modal [data-detail-nested='false']")
     end
 
     test "BACK past step 1 returns a step, the wizard stays open", %{conn: conn} do

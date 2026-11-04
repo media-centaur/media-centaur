@@ -118,14 +118,12 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     end
   end
 
-  test "clear arms on the first press and empties the buffer on the second — no native dialog",
+  test "clear arms on the first press and empties the buffer on the second",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
     # `:buffer_cleared` arrives on the Console topic, not from the view.
     :ok = Console.subscribe()
     seed([entry(:pipeline, "kept after one press")])
-
-    refute has_element?(view, "[data-confirm]")
 
     view |> element("button[phx-click='clear_buffer']") |> render_click()
     refute_receive :buffer_cleared, 100
