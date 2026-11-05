@@ -214,10 +214,6 @@
           # MC0043: confirmation copy says "Press again", never "click" — a
           # remote or gamepad presses.
           {MediaCentaur.Credo.Checks.DeviceNeutralConfirmCopy, []},
-          # MC0044: copy never says "pursuit" — the UI's words are download,
-          # job, release. A scaffold for the pursuit-window campaign; its
-          # closing commit removes this line and the check.
-          {MediaCentaur.Credo.Checks.CodeWordInCopy, []},
           # MC0027 bans `data-confirm` — the native browser dialog is unthemed
           # and not d-pad reachable, which is disqualifying for a couch app.
           # The check's moduledoc carries the three-way rule that replaced it

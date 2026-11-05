@@ -1,10 +1,12 @@
 defmodule MediaCentaur.Guide.GuideWordsTest do
   @moduledoc """
   The in-app guide speaks the UI's words. A download goal is a *download*,
-  the client's item a *job*, a release tried a *release* (decision of
-  2026-11-05, `campaigns/pursuit-window.md`); "pursuit" is the code's word
-  and never reaches a reader. The web layer has MC0044 for the same rule;
-  the guide is markdown, so this test holds the line there.
+  the client's item a *job*, a release tried a *release* (the owner's
+  decision of 2026-11-05 in `pursuit-window.md`, a campaign completed and
+  removed — see git history); "pursuit" is the code's word
+  and never reaches a reader. The web layer was swept by a Credo scaffold
+  (MC0044) during the campaign and that check left with it; the guide is
+  markdown, and this test holds the line there.
   """
   use MediaCentaur.Case, async: true
 
