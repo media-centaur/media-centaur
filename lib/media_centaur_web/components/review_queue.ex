@@ -235,6 +235,7 @@ defmodule MediaCentaurWeb.Components.ReviewQueue do
             value={@query}
             phx-debounce="400"
             aria-label="Title to search TMDB for"
+            data-nav-escape-back
             placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
             class="min-w-0 flex-1"
           />

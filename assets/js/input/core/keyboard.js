@@ -85,6 +85,12 @@ export class KeyboardSource {
     // enters editing even inside a phx-submit form, which a textarea never
     // submits. The Review modal's text box is the first tenant.
     const isTextarea = event.target?.tagName === "TEXTAREA"
+    // Escape clears a filter the person typed. Two inputs hold something
+    // else, and Escape is BACK on them once not editing: a textarea (its
+    // words compose) and an input declaring `data-nav-escape-back` (its
+    // value is the app's suggestion — Review's match bar pre-fills its
+    // search from the ticked rows).
+    const escapeIsBack = isTextarea || event.target?.hasAttribute?.("data-nav-escape-back") === true
     // Inside an open overlay, a key the input system consumes stops here: a
     // window Escape binding beneath (the detail modal's) must not see it.
     // Outside one, the page's own window bindings keep their reach (Settings'
@@ -97,6 +103,7 @@ export class KeyboardSource {
       // Two-press Escape on a text input:
       //   editing            → exit edit mode, preserve value (press 1)
       //   not editing + val  → clear value, stay focused           (press 2)
+      //                        (BACK instead when escapeIsBack)
       //   not editing + ""   → fall through to BACK nav
       if (event.key === "Escape") {
         if (this._inputEditing) {
@@ -105,7 +112,7 @@ export class KeyboardSource {
           stopInOverlay()
           return
         }
-        if (event.target.value && !isTextarea) {
+        if (event.target.value && !escapeIsBack) {
           event.target.value = ""
           event.target.dispatchEvent(new Event("input", { bubbles: true }))
           event.preventDefault()

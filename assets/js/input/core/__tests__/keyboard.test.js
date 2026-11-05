@@ -345,6 +345,39 @@ describe("KeyboardSource", () => {
     })
   })
 
+  describe("an input declaring data-nav-escape-back is not cleared by Escape", () => {
+    // Review's match bar pre-fills its search from the ticked rows: the
+    // value is the app's suggestion, not a filter the person typed, so
+    // clearing it serves nothing and Escape means BACK at once.
+    const makeQueryInput = (value) => ({
+      tagName: "INPUT",
+      value,
+      closest: () => null,
+      hasAttribute: (name) => name === "data-nav-escape-back",
+      dispatchEvent: mock(() => {}),
+    })
+
+    test("Escape when not editing keeps the value and is BACK", () => {
+      const input = makeQueryInput("Sample Show")
+
+      const event = doc._dispatchKeyDown("Escape", { target: input })
+      expect(input.value).toBe("Sample Show")
+      expect(input.dispatchEvent).not.toHaveBeenCalled()
+      expect(actions).toEqual([Action.BACK])
+      expect(event.preventDefault).toHaveBeenCalled()
+    })
+
+    test("Escape while editing still only exits edit mode", () => {
+      const input = makeQueryInput("Sample Show")
+      doc._dispatchKeyDown("Enter", { target: input })
+
+      doc._dispatchKeyDown("Escape", { target: input })
+      expect(source._inputEditing).toBe(false)
+      expect(input.value).toBe("Sample Show")
+      expect(actions).toEqual([])
+    })
+  })
+
   describe("a textarea composes, it does not filter", () => {
     // A review's words are not a filter: Escape never clears them, Enter
     // in editing mode is a newline, and Enter on the focused box enters

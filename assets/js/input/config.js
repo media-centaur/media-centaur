@@ -475,7 +475,7 @@ export const inputConfig = {
       "review-toolbar": { up: ["zone_tabs"], down: ["review-rows", "review-bar"] },
       "review-rows":    { up: ["review-toolbar", "zone_tabs"], down: ["review-bar"], right: ["review-results", "review-bar"] },
       "review-bar":     { up: ["review-rows", "review-toolbar"], down: ["review-results"], back: ["review-rows"] },
-      "review-results": { up: ["review-bar"], back: ["review-rows"] },
+      "review-results": { up: ["review-bar"], left: ["review-rows"], back: ["review-rows"] },
       sidebar:          { right: ["review-rows", "review-toolbar", "zone_tabs"] },
     },
     // Episode mapping (/episode-mapping) shares Identity's tab strip and keeps

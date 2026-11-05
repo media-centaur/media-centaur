@@ -379,6 +379,7 @@ Answered before the type dispatch, the same in every column:
 | `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
 | `data-nav-reveal-next` | On a zone container: a reveal in this zone also shows the next zone, unless that would push the focused item off screen | — |
 | `data-nav-enter-scroll-top` | On a zone container: a spatial crossing into the zone glides its nearest scrollable ancestor to the top (the detail action row). BACK and post-patch restores don't move the scroll | — |
+| `data-nav-escape-back` | On a text input: Escape when not editing is BACK and never clears the value — for a value the app supplied (Review's match-bar search) | — |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
 | `data-viewing`, `data-viewing-prompt`, `data-viewing-tracks` | The viewing layer is on the page; its prompt pill; the paused bar's "Audio & subtitles" button (outside the nav system on purpose) | — |
@@ -639,7 +640,7 @@ cancels the old page's in-flight glides, whose scroll containers —
 
 Two modes for `<input>` and `<textarea>` elements:
 
-1. **Focused, not editing:** Arrow keys still navigate. Enter → edit mode, except on an `<input>` inside a `form[phx-submit]`, where Enter submits the form. Printable chars → edit mode + pass through. Backspace / Delete on a non-empty input → edit mode + native delete. Backspace on an empty input → CLEAR (page-level clear filter). Escape on a non-empty input → clears the value; Escape on an empty input falls through to BACK.
+1. **Focused, not editing:** Arrow keys still navigate. Enter → edit mode, except on an `<input>` inside a `form[phx-submit]`, where Enter submits the form. Printable chars → edit mode + pass through. Backspace / Delete on a non-empty input → edit mode + native delete. Backspace on an empty input → CLEAR (page-level clear filter). Escape on a non-empty input → clears the value; Escape on an empty input falls through to BACK. An input declaring `data-nav-escape-back` is never cleared by Escape — its value is the app's suggestion, not a filter the person typed (Review's match bar pre-fills its search from the ticked rows) — so Escape is BACK at once.
 2. **Editing:** All keys pass through. Enter → exit edit mode (value preserved; inside a `form[phx-submit]` the submit still runs). Escape → exit edit mode (value preserved). A second Escape (now in Mode 1) clears the value.
 
 A `<textarea>` composes rather than filters, so three rules differ: Enter on the focused box always enters edit mode (a textarea never submits the form it sits in, so the `form[phx-submit]` exception is an input's); Enter while editing stays in edit mode and reaches the box as a newline; Escape when not editing never clears the words — it is BACK, which on the Review modal is Cancel. The first tenant is the Review modal's text box. Inside an open overlay, every key a text input consumes stops at the input system (a window Escape binding beneath — the detail's — never sees it); outside one the page's window bindings keep their reach (Settings' Escape cancels an edit from its fields).

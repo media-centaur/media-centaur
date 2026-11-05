@@ -84,15 +84,28 @@ test.describe("review navigation", () => {
     await expectContext(page, "review-rows")
     expect(await getFocusedNavItem(page)).toBe(divider)
 
-    // UP from the results lands on the bar's search box. Escape on a
-    // non-empty input clears it before it means BACK (docs/input-system.md
-    // § Text Input Handling), so step onto the bar's next control first.
+    // UP from the results lands on the bar's search box, pre-filled from the
+    // ticked rows. Its value is the app's suggestion, so BACK leaves at once
+    // instead of clearing it first (`data-nav-escape-back`).
     await inputAction("NAVIGATE_RIGHT")
     await inputAction("NAVIGATE_UP")
     await expectContext(page, "review-bar")
-    await inputAction("NAVIGATE_RIGHT")
     await inputAction("BACK")
     await expectContext(page, "review-rows")
+    await expect(page.locator("[data-nav-zone='review-bar'] input[name='query']")).toHaveValue("Sample Show")
+  })
+
+  test("left from the results returns to the rows", async ({ page, inputAction }) => {
+    await walkToRow(page, inputAction, "Sample Show 6 files")
+    const divider = await getFocusedNavItem(page)
+    await inputAction("SELECT")
+    await expect(page.locator("[data-nav-zone='review-results'] [data-nav-item]").first()).toBeVisible()
+
+    await inputAction("NAVIGATE_RIGHT")
+    await expectContext(page, "review-results")
+    await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "review-rows")
+    expect(await getFocusedNavItem(page)).toBe(divider)
   })
 
   test("back from the rows enters the sidebar", async ({ page, inputAction }) => {

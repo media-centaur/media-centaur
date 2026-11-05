@@ -159,6 +159,7 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 | `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`) |
 | `data-nav-reveal-next` | On a zone container: a reveal there also shows the next zone's subject at the scrollport end |
 | `data-nav-enter-scroll-top` | On a zone container: spatially crossing into the zone glides its nearest scrollable ancestor to the top |
+| `data-nav-escape-back` | On a text input: Escape is BACK and never clears it — the value is the app's suggestion (Review's match-bar search), not a typed filter |
 | `data-nav-focus-target` / `data-nav-focus-ring` | Delegate the focus ring from an item to its children |
 | `data-viewing`, `data-viewing-prompt`, `data-viewing-tracks` | Viewing layer present; its prompt pill; the paused bar's tracks button (not a nav item) |
 | `data-input-bindings` | On the hook element: the catalog bindings the sources' maps are built from |
