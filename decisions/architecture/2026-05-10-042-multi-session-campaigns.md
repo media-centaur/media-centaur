@@ -21,3 +21,22 @@ Some initiatives span many sessions and commits. Decision records capture a deci
 
 * One more surface to keep in sync; without the reconciliation rule the file is worse than none.
 * The campaign-worthy line is a judgment call; bias toward not creating a file unless all three criteria clearly hold.
+
+## Amendment 2026-11-05 — campaign files are local, not committed
+
+The owner decided that campaign files stay out of version control. They
+record the reasoning behind a rollout, and a public repository is not where
+that reasoning belongs; a local copy beside the code, lost with the disk,
+is the accepted trade. The consequences for the convention above:
+
+* `campaigns/` is gitignored. Nothing under it is staged, committed or
+  pushed; an agent that would touch it in a commit stops.
+* Closing a campaign no longer deletes its file — git history is no longer
+  the archive. A closed file moves to `campaigns/retired/`, and the index's
+  retired paragraph is written as before.
+* Permanent documents name a campaign in backticks and never link the
+  file, as the convention already asked; the file is not in the tree at
+  all now.
+* The campaign files committed before this date remain in the published
+  history. Removing them from it would rewrite public history; that is
+  the owner's call, not covered by this amendment.

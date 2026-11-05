@@ -116,3 +116,7 @@ npm-debug.log
 
 # Dev friend identity for Social development — `just social` creates it.
 /priv/dev-social/
+
+# Campaign files are local working notes (CLAUDE.md § Campaigns): the
+# owner keeps them beside the code and out of the repository.
+/campaigns/

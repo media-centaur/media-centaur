@@ -50,8 +50,8 @@ the handoff is manual, in three parts:
    slot's *Test connection* (readiness is per-slot).
 
 The API **is designed** — it is P4 ("Provisioning handshake") of the
-[`download-stack-control-plane`](../campaigns/download-stack-control-plane.md)
-campaign, backed by
+`download-stack-control-plane` campaign (a local campaign file, not in the
+repository), backed by
 [ADR-052](../decisions/architecture/2026-05-31-052-download-stack-control-plane.md):
 a loopback-only receiver that stages a proposed wiring bundle (both protocol
 slots, credentials included) behind a confirm-in-MC card. It has **no code

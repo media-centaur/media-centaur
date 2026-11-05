@@ -216,6 +216,8 @@ Architecture records are cited as **ADR-NNN**, user-interface records as **UIDR-
 
 `campaigns/` holds one markdown per long-running, multi-session initiative (3+ sessions, definable end state, resumable context). ADRs capture *decisions*; campaigns capture the *rollout*. See [ADR-042](decisions/architecture/2026-05-10-042-multi-session-campaigns.md) for the full convention and `campaigns/README.md` for the active list.
 
+**Campaign files are local and never committed.** The directory is gitignored: the owner keeps the campaign history beside the code, accepts that a disk failure may lose it, and does not want the reasoning behind every change in a public repository (ADR-042, amended 2026-11-05). Never stage, commit or push anything under `campaigns/`; a closed campaign moves to `campaigns/retired/` instead of being deleted, since git history is no longer its archive. Permanent documents name a campaign file in backticks and never link it.
+
 **Reconciliation rule:** when resuming a campaign, the first action is to read the campaign file, reconcile it against `git log` and the current code, and update Status / Decisions / Next steps **before** writing any new code. Drift makes the file worse than nothing.
 
 ## Defaults
