@@ -66,6 +66,16 @@ defmodule MediaCentaur.Showcase.ReviewScenariosTest do
     assert {:ok, _payload} = Import.process_payload(payload)
   end
 
+  test "the grab the scenarios seed is in a state the acquisition context knows" do
+    for pursuit <- Repo.all(MediaCentaur.Acquisition.Pursuits.Pursuit) do
+      assert MediaCentaur.Acquisition.Pursuits.State.bucket(pursuit.state) in [
+               :in_flight,
+               :terminal_success,
+               :terminal_failure
+             ]
+    end
+  end
+
   test "the not-added scenario's match fails to import" do
     scenario = Enum.find(ReviewScenarios.scenarios(), &(&1.name == "Not added"))
     {:match, %{tmdb_id: tmdb_id}} = scenario.then

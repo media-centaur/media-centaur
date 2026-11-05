@@ -153,7 +153,7 @@ defmodule MediaCentaur.Showcase.ReviewScenarios do
         title: @grab.title,
         year: @grab.year,
         origin: "manual",
-        state: "done"
+        state: "satisfied"
       },
       target_attrs: %{
         title: @grab.release_title,
