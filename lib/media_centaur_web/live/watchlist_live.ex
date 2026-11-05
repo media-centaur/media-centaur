@@ -9,8 +9,12 @@ defmodule MediaCentaurWeb.WatchlistLive do
 
   One record, two reads: Discovery draws the list by release stage to
   answer *what can I get*; this page draws it by **rung** — Auto-grab,
-  Tracking, On your list, Ignored (`Logic.group_order/0`) — to answer
-  *what have I told the app to do, and is it right*. Owned titles are
+  Tracking, On your list, Between seasons, Ignored, Series you've watched
+  (`Logic.group_order/0`) — to answer *what have I told the app to do,
+  and is it right*. A followed series with nothing dated that TMDB says
+  returns sits under Between seasons rather than its rung's group, so
+  the shows waiting on a season announcement do not crowd the ones with
+  something happening. Owned titles are
   on it, marked In library; Ignored records are on it, the one surface
   they have. Each row (`Components.Watchlist.Row`) carries the title,
   the host's markers, a friend's note, the social glyphs, the **state
@@ -23,10 +27,15 @@ defmodule MediaCentaurWeb.WatchlistLive do
   carries **Caught up** in its state block — `row_caught_up`, the row's
   spelling of the detail's `caught_up`, through `ReleaseTracking.catch_up/2`
   (the latest aired episode) — and with nothing out says where the person
-  stands (M16). Rows are ordered by urgency within a group. The Ignored
-  group is a `Components.Disclosure`, closed on every visit, opened by its
-  head or held open while a search is on; its rows draw no poster and the
-  page's count leaves them out. A row opens the title detail
+  stands (M16). Rows are ordered by urgency within a group. Between
+  seasons, Ignored and Series you've watched are each a
+  `Components.Disclosure`, closed on every visit, opened by the head or
+  held open while a search is on. Ignored rows draw no poster. *Series
+  you've watched* holds the series this profile finished an episode of
+  (`Library.watched_tv_series/1`) that have no record and that TMDB does
+  not mark Ended or Canceled (`Logic.candidates/4`): rows with no rung,
+  whose select reads Not listed and adds them through the same write
+  path. The page's count leaves out the Ignored rows and these. A row opens the title detail
   (`TitleDetailHost`).
 
   Above the groups: the type filter (All, Movies, Series) and a search
@@ -56,6 +65,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
   alias MediaCentaur.Activities
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.TMDB
   alias MediaCentaur.TMDB.{ReleaseStages, SeriesStatus}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, Disclosure}
@@ -120,7 +130,23 @@ defmodule MediaCentaurWeb.WatchlistLive do
         today
       )
 
-    socket |> assign(:items, items) |> assign_groups()
+    socket |> assign(:items, items ++ watched_rows(socket, refs)) |> assign_groups()
+  end
+
+  # The series this profile watched that have no record yet, read from
+  # the library and the store — the closed *Series you've watched* group.
+  defp watched_rows(socket, record_refs) do
+    watched = Library.watched_tv_series(socket.assigns.profile.id)
+
+    watched_refs =
+      for %{tmdb_id: tmdb_id} <- watched, {id, ""} <- [Integer.parse(tmdb_id)], do: {id, :tv_series}
+
+    Logic.candidates(
+      watched,
+      MapSet.new(record_refs),
+      TMDB.Store.snapshots(watched_refs),
+      SeriesStatus.for_refs(watched_refs)
+    )
   end
 
   defp assign_groups(socket) do
@@ -348,33 +374,39 @@ defmodule MediaCentaurWeb.WatchlistLive do
 
         <div :if={@groups != []} data-nav-zone="watchlist_rows" class="space-y-8">
           <%= for group <- @groups do %>
-            <%!-- Ignored is a record the person set aside: closed on every
-                  visit, opened on purpose, held open while a search is on. --%>
+            <%!-- A closed group — Between seasons, Ignored, Series you've
+                  watched — is closed on every visit, opened on purpose,
+                  held open while a search is on. --%>
             <Disclosure.disclosure
-              :if={group.rung == :ignored}
-              id="watchlist-group-ignored"
+              :if={group.closed?}
+              id={"watchlist-group-#{group.id}"}
               open={
-                Logic.ignored_open?(
-                  DisclosureState.open?(@disclosures, "watchlist-group-ignored"),
+                Logic.group_open?(
+                  DisclosureState.open?(@disclosures, "watchlist-group-#{group.id}"),
                   @query
                 )
               }
               variant={:quiet}
               class="px-4"
-              data-group={group.rung}
+              data-group={group.id}
             >
               <:head>
                 <span class="font-medium uppercase tracking-wider">{group.label}</span>
                 <span class="normal-case tracking-normal">{length(group.items)}</span>
               </:head>
               <div class="-mx-4 divide-y divide-base-content/8">
-                <Row.watchlist_row :for={item <- group.items} item={item} today={@today} />
+                <Row.watchlist_row
+                  :for={item <- group.items}
+                  item={item}
+                  today={@today}
+                  caught_up?={Logic.caught_up_offered?(item)}
+                />
               </div>
             </Disclosure.disclosure>
             <section
-              :if={group.rung != :ignored}
-              id={"watchlist-group-#{group.rung}"}
-              data-group={group.rung}
+              :if={not group.closed?}
+              id={"watchlist-group-#{group.id}"}
+              data-group={group.id}
             >
               <h2 class="mb-2 px-4 text-sm font-medium uppercase tracking-wider text-base-content/55">
                 {group.label}

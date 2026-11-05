@@ -565,8 +565,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   # The Watchlist page with a record of every kind it draws: a followed
   # series with an aired episode outstanding, a listed movie with a
-  # digital release behind it, an owned title, an Ignored record, and
-  # the title detail open on one of them.
+  # digital release behind it, an owned title, an Ignored record, a
+  # followed series between seasons, a watched library series with no
+  # record, and the title detail open on one of them.
   describe "/watchlist with records" do
     setup do
       TmdbStubs.setup_tmdb_client(self())
@@ -592,6 +593,26 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       create_external_id(%{source: "tmdb", external_id: "779", movie_id: movie.id})
       create_linked_file(%{movie_id: movie.id})
       create_title_intent(%{tmdb_id: 779, media_type: :movie, name: "Owned Movie", rung: :grab})
+
+      create_tracking_item(%{
+        tmdb_id: 246_814,
+        media_type: :tv_series,
+        name: "Waiting Show",
+        rung: :follow,
+        payload:
+          TmdbStubs.tv_detail(%{
+            "id" => 246_814,
+            "status" => "Returning Series",
+            "next_episode_to_air" => nil
+          })
+      })
+
+      tv = create_tv_series(%{name: "Watched Show"})
+      create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: "246815"})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Episode 1"})
+      create_playable_item_for_episode(episode)
+      create_watch_progress(%{episode_id: episode.id, completed: true})
       :ok
     end
 
@@ -599,6 +620,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, view, _html} = smoke!(conn, "/watchlist")
       assert has_element?(view, "#watchlist-group-follow")
       assert has_element?(view, "#watchlist-group-ignored")
+      assert has_element?(view, "#watchlist-group-between_seasons")
+      assert has_element?(view, "#watchlist-group-watched")
     end
 
     test "renders without crashing with the title detail open", %{conn: conn} do

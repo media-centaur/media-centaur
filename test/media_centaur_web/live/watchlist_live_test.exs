@@ -177,6 +177,90 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     end
   end
 
+  describe "Between seasons and Series you've watched" do
+    # A library series this profile finished an episode of, with the
+    # store's record carrying TMDB's status.
+    defp watched_series(tmdb_id, name, status) do
+      tv = create_tv_series(%{name: name})
+      create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: Integer.to_string(tmdb_id)})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Episode 1"})
+      create_playable_item_for_episode(episode)
+      create_watch_progress(%{episode_id: episode.id, completed: true})
+
+      create_title_record(%{
+        tmdb_id: tmdb_id,
+        media_type: :tv_series,
+        payload: TmdbStubs.tv_detail(%{"id" => tmdb_id, "name" => name, "status" => status})
+      })
+    end
+
+    test "a watched, returning series with no record is offered in a closed group; Tracking adds it",
+         %{conn: conn} do
+      list_movie()
+      watched_series(246_812, "Watched Show", "Returning Series")
+      watched_series(246_813, "Finished Show", "Ended")
+      ref = {246_812, :tv_series}
+
+      {:ok, view, html} = live_async!(conn, "/watchlist")
+
+      assert has_element?(
+               view,
+               "#watchlist-group-watched-head[aria-expanded='false']",
+               "Series you've watched"
+             )
+
+      assert has_element?(view, "#watchlist-group-watched-head", "1")
+      refute has_element?(view, row(ref))
+      # The page's count is records only.
+      assert html =~ "1 title"
+
+      view |> element("#watchlist-group-watched-head") |> render_click()
+      assert has_element?(view, row(ref), "In library")
+      assert has_element?(view, rung_trigger(ref), "Not listed")
+      refute has_element?(view, row({246_813, :tv_series}))
+
+      view |> element(rung_trigger(ref)) |> render_click()
+      refute has_element?(view, rung_item(ref, "off"))
+      view |> element(rung_item(ref, "follow")) |> render_click()
+
+      assert Watchlist.rung(246_812, :tv_series) == :follow
+      refute has_element?(view, "#watchlist-group-watched")
+    end
+
+    test "a followed series with nothing dated that TMDB says returns sits in the closed Between seasons group",
+         %{conn: conn} do
+      list_movie()
+
+      create_tracking_item(%{
+        tmdb_id: 246_814,
+        media_type: :tv_series,
+        name: "Waiting Show",
+        rung: :follow,
+        payload:
+          TmdbStubs.tv_detail(%{
+            "id" => 246_814,
+            "name" => "Waiting Show",
+            "status" => "Returning Series",
+            "next_episode_to_air" => nil
+          })
+      })
+
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+
+      assert has_element?(
+               view,
+               "#watchlist-group-between_seasons-head[aria-expanded='false']",
+               "Between seasons"
+             )
+
+      refute has_element?(view, "#watchlist-group-follow")
+
+      view |> element("#watchlist-group-between_seasons-head") |> render_click()
+      assert has_element?(view, "#watchlist-group-between_seasons #{row({246_814, :tv_series})}")
+    end
+  end
+
   describe "managing in place" do
     test "the rung menu moves the rung and the row regroups at once", %{conn: conn} do
       list_movie()

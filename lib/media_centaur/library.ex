@@ -130,6 +130,10 @@ defmodule MediaCentaur.Library do
   @doc "See `MediaCentaur.Library.HomeFeed.list_in_progress/2` (one profile's Continue Watching)."
   def list_in_progress(profile_id, opts \\ []), do: HomeFeed.list_in_progress(profile_id, opts)
 
+  @doc "See `MediaCentaur.Library.ProgressRecords.watched_tv_series/1`."
+  @spec watched_tv_series(String.t()) :: [map()]
+  defdelegate watched_tv_series(profile_id), to: MediaCentaur.Library.ProgressRecords
+
   @doc "See `MediaCentaur.Library.HomeFeed.list_recently_added/1`."
   def list_recently_added(opts \\ []), do: HomeFeed.list_recently_added(opts)
 

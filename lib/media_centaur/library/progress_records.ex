@@ -84,12 +84,14 @@ defmodule MediaCentaur.Library.ProgressRecords do
   alias MediaCentaur.Library.{
     Episode,
     Episodes,
+    ExternalId,
     ExtraProgress,
     Movie,
     PlayableItem,
     PlayableItems,
     PresentableQueries,
     Season,
+    TVSeries,
     WatchProgress,
     Writes
   }
@@ -366,6 +368,45 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   # `{tv_series_id, episode_id, progress}` for each episode beneath the series in `ids`.
+  @doc """
+  The series `profile_id` has finished at least one episode of, each with
+  a TMDB identity, as the map `Title.Logic.snapshot_from_entity/1` reads:
+  `id`, `type: :tv_series`, `tmdb_id` (the stored string), `name`,
+  `date_published` and `description`. A series without a TMDB identity
+  has no title to act on and is left out. Ordered by name.
+  """
+  @spec watched_tv_series(String.t()) :: [map()]
+  def watched_tv_series(profile_id) when is_binary(profile_id) do
+    watched_ids =
+      from(wp in WatchProgress,
+        join: pi in PlayableItem,
+        on: pi.id == wp.playable_item_id and pi.container_type == :episode,
+        join: e in Episode,
+        on: e.id == pi.container_id,
+        join: s in Season,
+        on: s.id == e.season_id,
+        where: wp.profile_id == ^profile_id and wp.completed,
+        select: s.tv_series_id
+      )
+
+    Repo.all(
+      from(t in TVSeries,
+        join: x in ExternalId,
+        on: x.owner_id == t.id and x.owner_type == :tv_series and x.source == "tmdb",
+        where: t.id in subquery(watched_ids),
+        order_by: [asc: t.name, asc: t.id],
+        select: %{
+          id: t.id,
+          type: :tv_series,
+          tmdb_id: x.external_id,
+          name: t.name,
+          date_published: t.date_published,
+          description: t.description
+        }
+      )
+    )
+  end
+
   defp episode_rows_by_tv_series(profile_id, tv_series_ids) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,

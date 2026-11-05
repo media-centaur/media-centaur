@@ -1330,6 +1330,48 @@ defmodule MediaCentaur.LibraryTest do
   # index across the rename, so they never duplicated — but their
   # changeset still lacks the `unique_constraint`, so a racing insert
   # raises `ConstraintError` instead of returning a tidy `{:error, _}`.
+  describe "watched_tv_series/1" do
+    test "the profile's series with a completed episode, as title-snapshot maps; nothing else" do
+      watched = series_with_episode("Show A", "1001", completed: true)
+      _started = series_with_episode("Show B", "1002", position_seconds: 120.0)
+      _unwatched = series_with_episode("Show C", "1003", nil)
+      _no_identity = series_with_episode("Show D", nil, completed: true)
+
+      assert [%{id: id, type: :tv_series, tmdb_id: "1001", name: "Show A"}] =
+               Library.watched_tv_series(owner_profile_id())
+
+      assert id == watched.id
+    end
+
+    test "another profile's viewing does not count" do
+      other = create_profile(%{name: "Other"})
+      series_with_episode("Show A", "1001", completed: true, profile_id: other.id)
+
+      assert Library.watched_tv_series(owner_profile_id()) == []
+      assert [%{tmdb_id: "1001"}] = Library.watched_tv_series(other.id)
+    end
+
+    test "a series with several completed episodes appears once" do
+      tv = series_with_episode("Show A", "1001", completed: true)
+      [season] = Library.Seasons.list_for_tv_series(tv.id)
+      episode = create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+      create_playable_item_for_episode(episode)
+      create_watch_progress(%{episode_id: episode.id, completed: true})
+
+      assert [%{tmdb_id: "1001"}] = Library.watched_tv_series(owner_profile_id())
+    end
+
+    defp series_with_episode(name, tmdb_id, progress) do
+      tv = create_tv_series(%{name: name})
+      if tmdb_id, do: create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: tmdb_id})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+      create_playable_item_for_episode(episode)
+      if progress, do: create_watch_progress(Map.merge(%{episode_id: episode.id}, Map.new(progress)))
+      tv
+    end
+  end
+
   describe "season uniqueness" do
     test "create_season/1 rejects a duplicate (tv_series_id, season_number)" do
       series = create_tv_series(%{name: "Dup Season Show"})

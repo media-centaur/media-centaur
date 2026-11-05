@@ -148,6 +148,36 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
         }
       },
       %Variation{
+        id: :not_listed,
+        description:
+          "A series you've watched with no record (the Series you've watched group): " <>
+            "the select reads Not listed and offers the three list rungs — no Ignore " <>
+            "(owned), no Remove (nothing to remove).",
+        attributes: %{
+          today: @today,
+          item:
+            item("row-not-listed", show(), nil,
+              owned?: true,
+              markers: ["In library"],
+              state: %State{kind: :between_seasons}
+            )
+        }
+      },
+      %Variation{
+        id: :not_listed_menu_open,
+        description: "The same row with its menu open: On your list, Tracking, Auto-grab.",
+        attributes: %{
+          today: @today,
+          item:
+            item("row-not-listed-open", show(), nil,
+              owned?: true,
+              markers: ["In library"],
+              state: %State{kind: :between_seasons},
+              menu_open?: true
+            )
+        }
+      },
+      %Variation{
         id: :ended,
         description: "A followed series that ended.",
         attributes: %{

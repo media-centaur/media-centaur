@@ -154,21 +154,22 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
       refute Logic.caught_up_offered?(item("Quiet", :follow, %State{kind: :next_episode}, :tv_series))
     end
 
-    test "listed_count/1 leaves the Ignored records out" do
+    test "listed_count/1 counts records only: not the Ignored, not the series without one" do
       items = [
         item("A", :follow, %State{kind: :between_seasons}, :tv_series),
         item("B", :list, %State{kind: :undated}),
-        item("C", :ignored, %State{kind: :ignored})
+        item("C", :ignored, %State{kind: :ignored}),
+        item("D", nil, %State{kind: :between_seasons}, :tv_series)
       ]
 
       assert Logic.listed_count(items) == 2
     end
 
-    test "ignored_open?/2: the person's toggle, or a search on" do
-      refute Logic.ignored_open?(false, "")
-      refute Logic.ignored_open?(false, "   ")
-      assert Logic.ignored_open?(true, "")
-      assert Logic.ignored_open?(false, "sample")
+    test "group_open?/2: a closed group opens on the person's toggle, or while a search is on" do
+      refute Logic.group_open?(false, "")
+      refute Logic.group_open?(false, "   ")
+      assert Logic.group_open?(true, "")
+      assert Logic.group_open?(false, "sample")
     end
   end
 
@@ -190,21 +191,88 @@ defmodule MediaCentaurWeb.WatchlistLive.LogicTest do
           %State{kind: :episodes_out, count: 3, date: ~D[2026-10-27]},
           :tv_series
         ),
+        item("Over", :follow, %State{kind: :ended}, :tv_series),
         item("Listed", :list, %State{kind: :undated}),
         item("Older release", :grab, %State{kind: :out_now, date: ~D[2026-09-01]}),
         item("Newer release", :grab, %State{kind: :out_now, date: ~D[2026-10-16]}),
-        item("Dismissed", :ignored, %State{kind: :ignored})
+        item("Grabbed, waiting", :grab, %State{kind: :between_seasons}, :tv_series),
+        item("Dismissed", :ignored, %State{kind: :ignored}),
+        item("Watched", nil, %State{kind: :between_seasons}, :tv_series)
       ]
 
       assert [
-               %{rung: :grab, label: "Auto-grab", items: grab},
-               %{rung: :follow, label: "Tracking", items: follow},
-               %{rung: :list, label: "On your list", items: [%Item{id: "Listed"}]},
-               %{rung: :ignored, label: "Ignored", items: [%Item{id: "Dismissed"}]}
+               %{id: :grab, label: "Auto-grab", closed?: false, items: grab},
+               %{id: :follow, label: "Tracking", closed?: false, items: follow},
+               %{id: :list, label: "On your list", closed?: false, items: [%Item{id: "Listed"}]},
+               %{id: :between_seasons, label: "Between seasons", closed?: true, items: between},
+               %{id: :ignored, label: "Ignored", closed?: true, items: [%Item{id: "Dismissed"}]},
+               %{
+                 id: :watched,
+                 label: "Series you've watched",
+                 closed?: true,
+                 items: [%Item{id: "Watched"}]
+               }
              ] = Logic.groups(items)
 
       assert Enum.map(grab, & &1.id) == ["Newer release", "Older release"]
-      assert Enum.map(follow, & &1.id) == ["Three out", "One out", "Soon", "Ahead", "Quiet"]
+      assert Enum.map(follow, & &1.id) == ["Three out", "One out", "Soon", "Ahead", "Over"]
+      assert Enum.map(between, & &1.id) == ["Grabbed, waiting", "Quiet"]
+    end
+  end
+
+  describe "candidates/4 — the series you've watched with no record" do
+    defp watched(name, tmdb_id),
+      do: %{
+        id: name,
+        type: :tv_series,
+        tmdb_id: tmdb_id,
+        name: name,
+        date_published: nil,
+        description: nil
+      }
+
+    test "a returning or unknown-status series becomes an owned row with no rung; records and ended or canceled series are left out" do
+      watched = [
+        watched("Show A", "101"),
+        watched("Show B", "102"),
+        watched("Show C", "103"),
+        watched("Show D", "104"),
+        watched("Show E", "105")
+      ]
+
+      records = MapSet.new([{102, :tv_series}])
+
+      statuses = %{
+        {101, :tv_series} => :returning,
+        {103, :tv_series} => :ended,
+        {104, :tv_series} => :canceled
+      }
+
+      assert [returning, unknown] = Logic.candidates(watched, records, %{}, statuses)
+
+      assert %Item{
+               ref: {101, :tv_series},
+               rung: nil,
+               owned?: true,
+               state: %State{kind: :between_seasons}
+             } =
+               returning
+
+      assert returning.title.name == "Show A"
+      assert returning.markers == ["In library"]
+      assert %Item{ref: {105, :tv_series}, state: %State{kind: :nothing_scheduled}} = unknown
+    end
+
+    test "the stored snapshot is the row's title when the store holds the series" do
+      stored = Title.new!(%{tmdb_id: 101, media_type: :tv_series, name: "Show A", poster_path: "/a.jpg"})
+
+      assert [%Item{title: ^stored}] =
+               Logic.candidates(
+                 [watched("Show A", "101")],
+                 MapSet.new(),
+                 %{{101, :tv_series} => stored},
+                 %{}
+               )
     end
   end
 

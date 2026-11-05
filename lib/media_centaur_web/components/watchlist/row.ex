@@ -96,6 +96,17 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
             date: Date.t() | nil,
             caught_up: {pos_integer(), pos_integer()} | nil
           }
+
+    @doc """
+    The words for a quiet series kind — one with no count and no date —
+    read by the state block and by the Watchlist page's *Between seasons*
+    group head.
+    """
+    @spec kind_word(:between_seasons | :ended | :canceled | :nothing_scheduled) :: String.t()
+    def kind_word(:between_seasons), do: "Between seasons"
+    def kind_word(:ended), do: "Ended"
+    def kind_word(:canceled), do: "Canceled"
+    def kind_word(:nothing_scheduled), do: "Nothing scheduled"
   end
 
   defmodule Item do
@@ -129,7 +140,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
             id: String.t(),
             ref: {pos_integer(), :movie | :tv_series},
             title: Title.t(),
-            rung: :ignored | :list | :follow | :grab,
+            rung: :ignored | :list | :follow | :grab | nil,
             poster_url: String.t() | nil,
             state: State.t() | nil,
             owned?: boolean(),
@@ -227,7 +238,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
           on_toggle={JS.push("rung_menu_toggle", value: %{ref: @ref})}
           on_close="rung_menu_close"
           menu_zone="watchlist_rung_menu"
-          value_label={Logic.rung_word(@item.rung)}
+          value_label={rung_label(@item.rung)}
           label="Rung"
           sub_item
           class="w-36 justify-end"
@@ -270,10 +281,9 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   def state_words(%State{kind: :next_episode, date: date}, today),
     do: {"Next episode", Format.date_chip(:day, date, today)}
 
-  def state_words(%State{kind: :between_seasons}, _today), do: {"Between seasons", nil}
-  def state_words(%State{kind: :ended}, _today), do: {"Ended", nil}
-  def state_words(%State{kind: :canceled}, _today), do: {"Canceled", nil}
-  def state_words(%State{kind: :nothing_scheduled}, _today), do: {"Nothing scheduled", nil}
+  def state_words(%State{kind: kind}, _today)
+      when kind in [:between_seasons, :ended, :canceled, :nothing_scheduled],
+      do: {State.kind_word(kind), nil}
 
   def state_words(%State{kind: :out_now, date: date}, today),
     do: {"Out now", Format.date_chip(:day, date, today)}
@@ -286,6 +296,9 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
 
   def state_words(%State{kind: :undated}, _today), do: {"No release date", nil}
   def state_words(%State{kind: :ignored}, _today), do: {"Hidden from the Feed and Discovery", nil}
+
+  defp rung_label(nil), do: "Not listed"
+  defp rung_label(rung), do: Logic.rung_word(rung)
 
   defp episodes_out(1), do: "1 episode out"
   defp episodes_out(count), do: "#{count} episodes out"
@@ -300,6 +313,9 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   choice is the word `set_rung` takes.
   """
   @spec choices(Item.t()) :: [{String.t(), String.t()}]
+  def choices(%Item{rung: nil}),
+    do: for(rung <- [:list, :follow, :grab], do: {Atom.to_string(rung), Logic.rung_word(rung)})
+
   def choices(%Item{rung: :ignored}),
     do: [{"list", Logic.rung_word(:list)}, {"off", TrackingControls.unignore_label()}]
 

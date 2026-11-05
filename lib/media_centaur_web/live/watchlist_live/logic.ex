@@ -26,13 +26,18 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
 
   @type ref :: MediaCentaur.TMDB.Store.ref()
   @type filter :: :all | :movies | :series
-  @type group :: %{rung: TitleIntent.rung(), label: String.t(), items: [Item.t()]}
+  @type group_id :: :grab | :follow | :list | :between_seasons | :ignored | :watched
+  @type group :: %{id: group_id(), label: String.t(), items: [Item.t()], closed?: boolean()}
   @type empty_reason :: :no_records | :nothing_matches | nil
 
-  @group_order [:grab, :follow, :list, :ignored]
+  @group_order [:grab, :follow, :list, :between_seasons, :ignored, :watched]
+  @closed_groups [:between_seasons, :ignored, :watched]
 
-  @doc "The groups' rungs in page order: Auto-grab, Tracking, On your list, Ignored."
-  @spec group_order() :: [TitleIntent.rung()]
+  @doc """
+  The groups in page order: Auto-grab, Tracking, On your list, Between
+  seasons, Ignored, Series you've watched.
+  """
+  @spec group_order() :: [group_id()]
   def group_order, do: @group_order
 
   @doc """
@@ -68,6 +73,40 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
         notes: TitleLogic.note_list(intent.note),
         social_activity: Map.get(activity, ref, []),
         state: state(intent, Map.get(tracking, ref), Map.get(stages, ref), Map.get(statuses, ref), today)
+      }
+    end
+  end
+
+  @doc """
+  The *Series you've watched* rows: each series the profile watched
+  (`Library.watched_tv_series/1`) that has no record (`record_refs`) and
+  that TMDB does not mark Ended or Canceled, as an owned row with no rung
+  — Off — whose rung control adds it. The title is the store's snapshot
+  when `snapshots` holds it, else the library entity's
+  (`Title.Logic.snapshot_from_entity/1`); the state reads the series'
+  status the way a followed series with nothing dated does.
+  """
+  @spec candidates([map()], MapSet.t(ref()), %{ref() => Title.t()}, %{
+          ref() => MediaCentaur.TMDB.SeriesStatus.status()
+        }) :: [Item.t()]
+  def candidates(watched, record_refs, snapshots, statuses) do
+    for series <- watched,
+        %Title{} = entity_title <- [TitleLogic.snapshot_from_entity(series)],
+        ref = Title.ref(entity_title),
+        not MapSet.member?(record_refs, ref),
+        status <- [Map.get(statuses, ref)],
+        status not in [:ended, :canceled] do
+      title = Map.get(snapshots, ref, entity_title)
+
+      %Item{
+        id: "watchlist-row-#{TitleRef.param(ref)}",
+        ref: ref,
+        title: title,
+        rung: nil,
+        poster_url: poster_url(nil, title),
+        owned?: true,
+        markers: TitleLogic.row_markers(%{in_library?: true, acquisition_state: nil}),
+        state: %State{kind: quiet_kind(status)}
       }
     end
   end
@@ -141,32 +180,53 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
 
   @doc """
   The page's title count — every record but the Ignored ones, which are
-  not on the list (the group is closed by default and counted on its head).
+  not on the list, and none of the series you've watched, which have no
+  record (both groups are closed by default and counted on their heads).
   """
   @spec listed_count([Item.t()]) :: non_neg_integer()
-  def listed_count(items), do: Enum.count(items, &(&1.rung != :ignored))
+  def listed_count(items), do: Enum.count(items, &(&1.rung not in [nil, :ignored]))
 
   @doc """
-  Whether the Ignored group's disclosure is open: closed on every visit,
+  Whether a closed group's disclosure is open: closed on every visit,
   opened by the person (`toggled?`) or held open while a search is on —
   a match inside a closed group would be invisible.
   """
-  @spec ignored_open?(boolean(), String.t()) :: boolean()
-  def ignored_open?(toggled?, query), do: toggled? or String.trim(query) != ""
+  @spec group_open?(boolean(), String.t()) :: boolean()
+  def group_open?(toggled?, query), do: toggled? or String.trim(query) != ""
 
   @doc """
-  The items by rung in page order, each group's rows by urgency —
+  The items by group in page order, each group's rows by urgency —
   episodes out (most first), then out now (newest first), then a date
   ahead (nearest first), then the rest by name — an empty group dropped.
+  A row's group is its rung, except a followed series between seasons
+  (*Between seasons*) and a series with no record (*Series you've
+  watched*); Between seasons, Ignored and Series you've watched are
+  closed by default.
   """
   @spec groups([Item.t()]) :: [group()]
   def groups(items) do
-    by_rung = Enum.group_by(items, & &1.rung)
+    by_group = Enum.group_by(items, &group_of/1)
 
-    for rung <- @group_order, rows = Map.get(by_rung, rung, []), rows != [] do
-      %{rung: rung, label: TitleLogic.rung_word(rung), items: Enum.sort_by(rows, &urgency/1)}
+    for id <- @group_order, rows = Map.get(by_group, id, []), rows != [] do
+      %{
+        id: id,
+        label: group_label(id),
+        items: Enum.sort_by(rows, &urgency/1),
+        closed?: id in @closed_groups
+      }
     end
   end
+
+  defp group_of(%Item{rung: nil}), do: :watched
+
+  defp group_of(%Item{rung: rung, state: %State{kind: :between_seasons}}) when rung in [:follow, :grab],
+    do: :between_seasons
+
+  defp group_of(%Item{rung: rung}), do: rung
+
+  defp group_label(:between_seasons), do: State.kind_word(:between_seasons)
+  defp group_label(:watched), do: "Series you've watched"
+  defp group_label(rung), do: TitleLogic.rung_word(rung)
 
   defp urgency(%Item{state: state, title: title}) do
     name = String.downcase(title.name || "")
