@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.6.0 — 2026-11-05
+
+### New
+
+- **Review matches many files at once.** Review → Identity is now one list of every file that waits, sorted by the name each was read as, with a divider wherever the title changes. Tick a row, a title's divider (every file under it), or everything the filter shows, and a bar appears under the list: it has already searched for the first ticked title, and pressing a result matches every ticked file to it in one go. Six episodes that arrived in six separate folders take one press instead of six searches. The bar also offers **Accept best guesses** (each ticked file under its own best guess), **Dismiss**, **Delete** and **Clear**; the list switches between **Waiting**, **Importing** and **Dismissed**, and Dismissed files come back with **Restore**.
+- **Review remembers your answers.** When you match files, the name they were read as is remembered, and later files read the same way skip Review and go straight to the library. **Settings → Media Import** lists the names you have answered, each with **Forget**.
+- **Files Media Centaur downloaded place themselves.** When TMDB cannot place a downloaded file by its release name, or only guesses at the title the download was for, the file takes the title it was downloaded as instead of waiting in Review.
+- **Review says when a file contradicts its download.** A downloaded file whose name confidently matches a different title from the one you downloaded now waits in Review marked **Grab wanted** and the title you asked for, so you can pick between them. It used to read "Unsure" with a score that could pass 100%.
+- **Two database migrations run on update** — one for remembered answers, one for the title a download asked for. Nothing you need to do.
+
+### Improved
+
+- **A file waiting in Review picks up parser fixes on the next rescan.** Its title, year and best guess refresh; a file you already matched that could not be added keeps your match and the reason.
+- **Review by keyboard, remote and gamepad.** The cursor starts on the list; Up reaches the Waiting / Importing / Dismissed choice and the filter, Enter ticks the focused row, Right or Down reaches the bar and its results, and Escape or B returns to the list.
+
+### Fixed
+
+- **A release name ending in "Signed"** (a sign-language-interpreted broadcast) no longer puts "Signed" into the title, so it finds the right show.
+
 ## v2.5.0 — 2026-11-05
 
 ### New
