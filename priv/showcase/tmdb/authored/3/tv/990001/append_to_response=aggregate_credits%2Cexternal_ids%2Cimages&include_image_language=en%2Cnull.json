@@ -2,8 +2,8 @@
   "status": 200,
   "body": {
     "id": 990001,
-    "name": "Sample Show",
-    "original_name": "Sample Show",
+    "name": "The Sample Show Hour",
+    "original_name": "The Sample Show Hour",
     "first_air_date": "2015-03-01",
     "last_air_date": "2015-04-05",
     "overview": "A placeholder series for the review scenarios.",

@@ -12,7 +12,6 @@ defmodule MediaCentaur.Showcase.ReviewScenariosTest do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Review
   alias MediaCentaur.Showcase.ReviewScenarios
-  alias MediaCentaur.TMDB.TitleSearch
   alias MediaCentaur.Topics
 
   @media_dir "/media/showcase"
@@ -41,15 +40,26 @@ defmodule MediaCentaur.Showcase.ReviewScenariosTest do
     end
   end
 
-  test "the release-folder show is found by the search bar, and pressing it imports" do
-    assert [%{tmdb_id: tmdb_id, media_type: :tv_series} | _] = TitleSearch.search("Sample Show")
+  test "ticking any scenario row pre-fills a match-bar search the fixtures answer" do
+    for scenario <- ReviewScenarios.scenarios(), file <- scenario.files do
+      pending = discover(file)
+      {query, type} = MediaCentaurWeb.ReviewHelpers.search_prefill([pending], MapSet.new([pending.id]))
+
+      assert {:ok, _results} = Review.Search.tmdb(query, type),
+             "#{scenario.name}: the bar's search for #{inspect(query)} (#{type}) is not answered"
+    end
+  end
+
+  test "the match bar, pre-filled from the release-folder rows, finds the show, and pressing it imports" do
+    assert {:ok, [%{tmdb_id: tmdb_id, title: "The Sample Show Hour"} | _]} =
+             Review.Search.tmdb("Sample Show", :tv)
 
     [file | _] = Enum.find(ReviewScenarios.scenarios(), &(&1.name == "Release folders")).files
 
     payload = %Payload{
       file_path: Path.join(@media_dir, file),
       media_directory: @media_dir,
-      tmdb_id: tmdb_id,
+      tmdb_id: String.to_integer(tmdb_id),
       tmdb_type: :tv
     }
 

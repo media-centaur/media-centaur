@@ -2,8 +2,21 @@
   "status": 200,
   "body": {
     "page": 1,
-    "results": [],
+    "results": [
+      {
+        "id": 990001,
+        "name": "The Sample Show Hour",
+        "original_name": "The Sample Show Hour",
+        "first_air_date": "2015-03-01",
+        "poster_path": null,
+        "backdrop_path": null,
+        "overview": "",
+        "popularity": 1.0,
+        "vote_average": 0.0,
+        "vote_count": 0
+      }
+    ],
     "total_pages": 1,
-    "total_results": 0
+    "total_results": 1
   }
 }

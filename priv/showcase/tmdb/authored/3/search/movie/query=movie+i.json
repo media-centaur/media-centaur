@@ -4,17 +4,16 @@
     "page": 1,
     "results": [
       {
-        "id": 990001,
-        "name": "Sample Show",
-        "original_name": "Sample Show",
-        "first_air_date": "2015-03-01",
+        "id": 990009,
+        "title": "Movie I",
+        "original_title": "Movie I",
+        "release_date": "2003-03-01",
         "poster_path": null,
         "backdrop_path": null,
         "overview": "",
         "popularity": 1.0,
         "vote_average": 0.0,
-        "vote_count": 0,
-        "media_type": "tv"
+        "vote_count": 0
       }
     ],
     "total_pages": 1,

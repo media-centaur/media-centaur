@@ -35,6 +35,7 @@ defmodule MediaCentaur.Showcase.ReviewScenarios do
   @type reason :: :no_results | :low_confidence | :tied | :not_added | :dismissed
   @type scenario :: %{
           name: String.t(),
+          about: String.t(),
           files: [Path.t()],
           lands_in: reason(),
           then: nil | :dismiss | {:match, map()},
@@ -53,76 +54,89 @@ defmodule MediaCentaur.Showcase.ReviewScenarios do
     year: 2003
   }
 
-  @doc "The scenario catalog."
+  @doc "The scenario catalog; `about` says what each one shows."
   @spec scenarios() :: [scenario()]
-  def scenarios do
-    Enum.map(
-      [
-        %{
-          name: "Release folders",
-          files:
-            for n <- 1..6 do
-              release = "Sample.Show.S01E0#{n}.1080p.WEB-DL.x264-GRP"
-              "#{release}/#{release}.mkv"
-            end,
-          lands_in: :no_results
-        },
-        %{
-          name: "Remake year",
-          files: ["Movie A (1968)/Movie A (1968).mkv", "Movie A/Movie A.mkv"],
-          lands_in: :no_results
-        },
-        %{name: "Unsure", files: ["Movie B (2004)/Movie B (2004).mkv"], lands_in: :low_confidence},
-        %{name: "Tied", files: ["Movie C/Movie C.mkv"], lands_in: :tied},
-        %{
-          name: "Not added",
-          files: ["Movie.D.2001.1080p.BluRay.x264-GRP/Movie.D.2001.1080p.BluRay.x264-GRP.mkv"],
-          lands_in: :low_confidence,
-          then: {:match, %{tmdb_id: 990_004, tmdb_type: "movie", title: "Movie Dee", year: 1999}},
-          ends_in: :not_added
-        },
-        %{
-          name: "Dismissed",
-          files: ["Movie E (1955)/Movie E (1955).mkv"],
-          lands_in: :no_results,
-          then: :dismiss,
-          ends_in: :dismissed
-        },
-        %{name: "Generic name", files: ["Movie F (1999)/movie.mkv"], lands_in: :no_results},
-        %{
-          name: "Mixed folder",
-          files: ["Sample Collection/Movie G (1950).mkv", "Sample Collection/Movie H (1960).mkv"],
-          lands_in: :no_results
-        },
-        %{
-          name: "Extras",
-          files: [
-            "Sample Show B/Season 01/Sample.Show.B.S01E01.mkv",
-            "Sample Show B/Extras/Behind the Scenes.mkv"
-          ],
-          lands_in: :low_confidence
-        },
-        %{
-          name: "Grab conflict",
-          files: ["#{@grab.release_title}/#{@grab.release_title}.mkv"],
-          lands_in: :low_confidence
-        }
-      ],
-      &Map.merge(%{then: nil, ends_in: &1.lands_in}, &1)
-    )
+  def scenarios, do: Enum.map(catalog(), &Map.merge(%{then: nil, ends_in: &1.lands_in}, &1))
 
-    # Six episodes, each in its own release folder; the pipeline's search
-    # finds nothing, the search bar finds the show (`Sample Show`, 990001),
-    # and pressing it matches all six.
-    # The same name with and without a year: two dividers.
-    # The best guess is a different title from another year.
-    # Two titles share the name and no year breaks the tie.
-    # Matched to a title whose import fails: back in review with the reason.
-    # A generic file name; the folder carries the title.
-    # One folder holding two different titles.
-    # A show with a bonus-features folder; both wait on the show's match.
-    # A grab asked for one title; the search confidently finds another
-    # under the release name (`Pipeline.Stages.Search`, `GrabProvenance`).
+  defp catalog do
+    [
+      %{
+        name: "Release folders",
+        about:
+          "Six episodes, each in its own release folder. TMDB knows the show under a longer " <>
+            "name (The Sample Show Hour), so each lands unsure; ticking the six pre-fills the " <>
+            "match bar, which shows it, and one press matches all six.",
+        files:
+          for n <- 1..6 do
+            release = "Sample.Show.S01E0#{n}.1080p.WEB-DL.x264-GRP"
+            "#{release}/#{release}.mkv"
+          end,
+        lands_in: :low_confidence
+      },
+      %{
+        name: "Remake year",
+        about: "The same name with and without a year: two dividers.",
+        files: ["Movie A (1968)/Movie A (1968).mkv", "Movie A/Movie A.mkv"],
+        lands_in: :no_results
+      },
+      %{
+        name: "Unsure",
+        about: "The best guess is a different title from another year.",
+        files: ["Movie B (2004)/Movie B (2004).mkv"],
+        lands_in: :low_confidence
+      },
+      %{
+        name: "Tied",
+        about: "Two titles share the name and no year breaks the tie.",
+        files: ["Movie C/Movie C.mkv"],
+        lands_in: :tied
+      },
+      %{
+        name: "Not added",
+        about: "Matched to a title whose import fails: back in review with the reason.",
+        files: ["Movie.D.2001.1080p.BluRay.x264-GRP/Movie.D.2001.1080p.BluRay.x264-GRP.mkv"],
+        lands_in: :low_confidence,
+        then: {:match, %{tmdb_id: 990_004, tmdb_type: "movie", title: "Movie Dee", year: 1999}},
+        ends_in: :not_added
+      },
+      %{
+        name: "Dismissed",
+        about: "Nothing found, then dismissed; Restore brings it back.",
+        files: ["Movie E (1955)/Movie E (1955).mkv"],
+        lands_in: :no_results,
+        then: :dismiss,
+        ends_in: :dismissed
+      },
+      %{
+        name: "Generic name",
+        about: "A generic file name; the folder carries the title.",
+        files: ["Movie F (1999)/movie.mkv"],
+        lands_in: :no_results
+      },
+      %{
+        name: "Mixed folder",
+        about: "One folder holding two different titles.",
+        files: ["Sample Collection/Movie G (1950).mkv", "Sample Collection/Movie H (1960).mkv"],
+        lands_in: :no_results
+      },
+      %{
+        name: "Extras",
+        about: "A show with a bonus-features folder; both wait on the show's match.",
+        files: [
+          "Sample Show B/Season 01/Sample.Show.B.S01E01.mkv",
+          "Sample Show B/Extras/Behind the Scenes.mkv"
+        ],
+        lands_in: :low_confidence
+      },
+      %{
+        name: "Grab conflict",
+        about:
+          "A grab asked for one title; the search confidently finds another under the " <>
+            "release name (Pipeline.Stages.Search, GrabProvenance).",
+        files: ["#{@grab.release_title}/#{@grab.release_title}.mkv"],
+        lands_in: :low_confidence
+      }
+    ]
   end
 
   @doc """
