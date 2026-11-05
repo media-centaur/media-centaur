@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   attr :on_close, :string, default: "close_pursuit"
   attr :on_cancel, :string, default: "cancel_pursuit"
-  attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
+  attr :cancel_armed, :boolean, default: false, doc: "Cancel download is one click from firing."
 
   attr :on_change_target, :string,
     default: "request_decision",
@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
       </:orientation>
       <:body>
         <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
-          Pursuit not found.
+          Download not found.
         </div>
 
         <div :if={@header} class="space-y-4 px-1 pt-2 pb-4">

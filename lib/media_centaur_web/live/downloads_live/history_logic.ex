@@ -156,5 +156,5 @@ defmodule MediaCentaurWeb.DownloadsLive.HistoryLogic do
   def empty_state(:failed), do: "Nothing has failed."
   def empty_state(:cancelled), do: "Nothing has been cancelled."
   def empty_state(:succeeded), do: "Nothing has finished yet."
-  def empty_state(:all), do: "No past pursuits on record."
+  def empty_state(:all), do: "No downloads have ended yet."
 end

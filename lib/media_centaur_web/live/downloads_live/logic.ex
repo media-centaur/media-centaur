@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
   def pursuit_summary(0, _downloading_count), do: "Nothing in flight"
 
   def pursuit_summary(active_count, downloading_count) do
-    active = "#{active_count} active #{pluralize(active_count, "pursuit")}"
+    active = "#{active_count} active"
 
     case downloading_count do
       0 -> active
@@ -204,7 +204,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
     labels =
       Enum.map_join(units, ", ", fn {season, episode} -> Format.episode_label(season, episode) end)
 
-    "another pursuit already covers #{labels}"
+    "another download already covers #{labels}"
   end
 
   def describe_failure(reason) when is_atom(reason),

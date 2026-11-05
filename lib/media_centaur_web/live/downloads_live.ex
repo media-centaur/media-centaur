@@ -872,7 +872,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
             <.link navigate="/settings?section=acquisition" class="link link-primary">
               Settings
             </.link>
-            to see live torrent activity under each pursuit.
+            to see each download's job as it moves.
           </p>
 
           <section
@@ -1910,7 +1910,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
     socket
     |> assign(plan_drafts: load_drafts())
     |> build_view()
-    |> put_flash(:info, "Pursuit started.")
+    |> put_flash(:info, "Download started.")
     |> download_started()
   end
 
@@ -1956,11 +1956,11 @@ defmodule MediaCentaurWeb.DownloadsLive do
            reason: CancelReasons.user_request()
          }) do
       {:ok, _pursuit} ->
-        {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit_detail()}
+        {:noreply, socket |> put_flash(:info, "Download cancelled.") |> load_pursuit_detail()}
 
       {:error, reason} ->
         Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, Logic.failure_flash("cancel the pursuit", reason))}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("cancel the download", reason))}
     end
   end
 

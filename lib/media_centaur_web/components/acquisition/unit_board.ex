@@ -6,8 +6,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
   Renders one dense row per unit: the unit's label (the expanded term
   for a collapsed brace-expansion), the release its current target
   carries, a plain-colored state label (the badge convention — status labels are
-  text, not badges), and a per-unit "Change target" affordance for
-  in-flight units. A thin progress bar summarizes *units satisfied /
+  text, not badges), and a per-unit "Pick a different release" affordance
+  for in-flight units. A thin progress bar summarizes *units satisfied /
   units wanted* — never a count of targets.
 
   When the view model carries season `groups` (multi-season series or a
@@ -80,10 +80,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
               {group.satisfied}/{group.wanted}
             </span>
             <span :if={group.awaiting > 0} class="text-xs text-warning">
-              {group.awaiting} need a decision
+              {group.awaiting} need a pick
             </span>
             <span :if={group.exhausted > 0} class="text-xs text-error">
-              {group.exhausted} exhausted
+              {group.exhausted} gave up
             </span>
             <span
               :if={group.shared_release_title}
@@ -141,8 +141,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
         class="flex-shrink-0 self-center"
         phx-click={@on_change_target}
         phx-value-unit-id={@unit.id}
-        data-tip="Change target — pick a fresh release for this item"
-        aria-label="Change target"
+        data-tip="Pick a different release for this episode"
+        aria-label="Pick a different release"
         data-nav-item
         tabindex="0"
       >
@@ -164,10 +164,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
 
   # Plain colored text per the badge convention — color is reserved for outcomes
   # that need attention; the routine in-flight state stays muted.
-  defp state_label(%UnitBoard.Row{awaiting_decision?: true}), do: "Decision"
-  defp state_label(%UnitBoard.Row{state: :active}), do: "Active"
-  defp state_label(%UnitBoard.Row{state: :satisfied}), do: "Satisfied"
-  defp state_label(%UnitBoard.Row{state: :exhausted}), do: "Exhausted"
+  defp state_label(%UnitBoard.Row{awaiting_decision?: true}), do: "Needs a pick"
+  defp state_label(%UnitBoard.Row{state: :active}), do: "Trying"
+  defp state_label(%UnitBoard.Row{state: :satisfied}), do: "Landed"
+  defp state_label(%UnitBoard.Row{state: :exhausted}), do: "Gave up"
   defp state_label(%UnitBoard.Row{state: :cancelled}), do: "Cancelled"
 
   defp state_text_class(%UnitBoard.Row{awaiting_decision?: true}), do: "text-warning"

@@ -798,7 +798,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, _view, html} =
                smoke!(conn, "/downloads?selected=#{Ecto.UUID.generate()}")
 
-      assert html =~ "Pursuit not found"
+      assert html =~ "Download not found"
     end
   end
 

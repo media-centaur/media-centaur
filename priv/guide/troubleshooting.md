@@ -26,7 +26,7 @@ The method, then the common cases.
 | Nothing matches / wrong metadata | Confirm the TMDB key (Test connection); filter the Console to `tmdb` for rate-limit or auth errors |
 | Playback won't start | Check mpv's path in Settings; confirm `mpv --version` works; filter the Console to `playback` |
 | "mpv exited before playback started" | The service started before your desktop session — restart it so it inherits the display environment (see [Updates, retention & service](/guide/updates-retention-and-service)) |
-| A download finished but never landed | Open the [pursuit](/guide/pursuits), read its timeline and unit board, and confirm the download client saves into a watched media directory |
+| A download finished but never landed | Open the [download](/guide/downloads), read its History and its coverage board, and confirm the download client saves into a watched media directory |
 | Library empty after a drive move | Point the media directory at the new location; the next scan re-links by path and size. Don't clear the database — see [Moving & relinking media](/guide/moving-and-relinking-media) |
 | The UI looks stale | Reload the page (a LiveView reconnect); if that doesn't help, check the Console with the `phoenix` / `live_view` filters on |
 

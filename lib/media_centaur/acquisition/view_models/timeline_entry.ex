@@ -39,9 +39,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
 
   # ─── Summary (headline line) ───
 
-  defp summary_for("pursuit_started", %{"origin" => "auto"}), do: "Pursuit started (auto)"
-  defp summary_for("pursuit_started", %{"origin" => "manual"}), do: "Pursuit started (manual)"
-  defp summary_for("pursuit_started", _), do: "Pursuit started"
+  defp summary_for("pursuit_started", %{"origin" => "auto"}), do: "Started by Auto-grab"
+  defp summary_for("pursuit_started", %{"origin" => "manual"}), do: "Started by you"
+  defp summary_for("pursuit_started", _), do: "Started"
 
   defp summary_for("search_started", %{"query" => q}) when is_binary(q) and q != "",
     do: "Searching Prowlarr — #{q}"
@@ -57,7 +57,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
     do: "No acceptable release found — #{q}"
 
   defp summary_for("release_no_match", _), do: "No acceptable release found"
-  defp summary_for("download_started", _), do: "Download started"
+
+  # The download client took the job. Named for the client so the row never
+  # reads like the download (the goal) starting.
+  defp summary_for("download_started", %{"client" => client}) when is_binary(client),
+    do: "Started at #{client_label(client)}"
+
+  defp summary_for("download_started", _), do: "Started at the download client"
 
   # A download's state or health changed: say what it is doing now, in
   # the user's words (the previous entry already said what it was doing
@@ -76,24 +82,25 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp summary_for("zero_seeders_confirmed", _), do: "Zero seeders confirmed"
 
   defp summary_for("auto_cancelled", %{"reason" => r}) when is_binary(r),
-    do: "Auto-cancelled — #{cancel_reason_phrase(r)}"
+    do: "Release abandoned — #{cancel_reason_phrase(r)}"
 
-  defp summary_for("auto_cancelled", _), do: "Auto-cancelled"
-  defp summary_for("fallback_initiated", _), do: "Fallback initiated"
-  defp summary_for("user_decision_requested", _), do: "User decision requested"
-  defp summary_for("user_decision_recorded", %{"choice" => c}), do: "User picked — #{c}"
-  defp summary_for("user_decision_recorded", _), do: "User decision recorded"
-  defp summary_for("identity_mismatch", _), do: "Identity mismatch — file routed to Review"
-  defp summary_for("identity_verified", _), do: "Identity verified"
-  defp summary_for("pursuit_satisfied", _), do: "Pursuit satisfied"
-  defp summary_for("pursuit_exhausted", %{"reason" => r}), do: "Pursuit exhausted (#{r})"
-  defp summary_for("pursuit_exhausted", _), do: "Pursuit exhausted"
-  defp summary_for("pursuit_cancelled", _), do: "Pursuit cancelled"
-  defp summary_for("target_changed", _), do: "Target changed"
+  defp summary_for("auto_cancelled", _), do: "Release abandoned"
+  defp summary_for("fallback_initiated", _), do: "Grabbing your pick"
+  defp summary_for("user_decision_requested", _), do: "Waiting for you to pick a release"
+  defp summary_for("user_decision_recorded", %{"choice" => c}), do: "You picked — #{c}"
+  defp summary_for("user_decision_recorded", _), do: "You picked a release"
+  defp summary_for("identity_mismatch", _), do: "File sent to Review — it didn't match"
+  defp summary_for("identity_verified", _), do: "File landed and matched"
+  defp summary_for("pursuit_satisfied", _), do: "Everything landed"
+  defp summary_for("pursuit_exhausted", %{"reason" => r}), do: "Gave up (#{r})"
+  defp summary_for("pursuit_exhausted", _), do: "Gave up"
+  defp summary_for("pursuit_cancelled", %{"cancelled_by" => "user"}), do: "Cancelled by you"
+  defp summary_for("pursuit_cancelled", _), do: "Cancelled"
+  defp summary_for("target_changed", _), do: "Switched to another release"
   # Legacy event kind from before "target_changed" replaced the re-search
   # affordance — kept as a display alias so old timeline rows read
   # cleanly without a migration.
-  defp summary_for("pursuit_re_searched", _), do: "Re-searched Prowlarr"
+  defp summary_for("pursuit_re_searched", _), do: "Searched again"
   defp summary_for(kind, _), do: kind
 
   # The two `Pursuits.Policy` auto-cancel reasons → user copy. Bound through
@@ -108,6 +115,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp cancel_reason_phrase(@download_failed), do: "download failed"
   defp cancel_reason_phrase(@zero_seeders), do: "no seeders"
   defp cancel_reason_phrase(reason), do: String.replace(reason, "_", " ")
+
+  # The client slug the event payload carries → the name the queue shows
+  # (`Downloads.QueueItem.download_client`).
+  defp client_label("sabnzbd"), do: "SABnzbd"
+  defp client_label("qbittorrent"), do: "qBittorrent"
+  defp client_label(other), do: other
 
   # The phrases for the axes that changed, `{state, health}`, nil where
   # an axis did not change or its new value is absent.
@@ -175,11 +188,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   # pursuit.title at write time. We use it here to give each row enough
   # context to read on its own:
   #
-  #   "Pursuit started (manual)"        + "for: Sample Title At S01E{05,06}"
-  #   "Target changed"                  + "abandoned: Sample-Title-Au-S01E05-Family.1080p…"
-  #   "Re-searched Prowlarr"            + "for: Sample Title At S01E{05,06}"
-  #   "User decision requested"         + the prompt the user is being asked
-  #   "Release picked — X"              + indexer / quality from the payload
+  #   "Started by you"                      + "for: Sample Show S01E{05,06}"
+  #   "Searched again"                      + "for: Sample Show S01E{05,06}"
+  #   "Waiting for you to pick a release"   + the prompt the user is being asked
+  #   "Release picked — X"                  + indexer / quality from the payload
+  #
+  # `target_changed` carries no sub-line: its payload names the *new*
+  # target's id, and the pursuit title the old sub-line printed
+  # ("abandoned: <show>") was not the release abandoned.
   #
   # The component truncates the sub-line and exposes the full text on
   # hover, so even long release filenames stay scannable.
@@ -211,9 +227,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
 
   defp detail_for(%Event{kind: "user_decision_requested", payload: %{"prompt" => prompt}})
        when is_binary(prompt) and prompt != "", do: prompt
-
-  defp detail_for(%Event{kind: "target_changed", denormalized_pursuit_title: title})
-       when is_binary(title) and title != "", do: "abandoned: #{title}"
 
   defp detail_for(%Event{kind: "pursuit_re_searched", denormalized_pursuit_title: title})
        when is_binary(title) and title != "", do: "for: #{title}"

@@ -20,10 +20,10 @@ defmodule MediaCentaur.Acquisition.RetentionPolicies do
       %Policy{
         key: :pursuit_events,
         subsystem: :acquisition,
-        label: "Pursuit activity log",
+        label: "Download activity log",
         description:
           "Events are deleted after #{@pursuit_event_retention_days} days; " <>
-            "the pursuits themselves are kept.",
+            "the downloads themselves are kept.",
         mode: :sweep,
         run: fn ->
           Events.prune(DateTime.add(DateTime.utc_now(), -@pursuit_event_retention_days, :day))

@@ -29,7 +29,7 @@ declares its own policy, visible on the Status page (what's kept, last run, how 
 | Update staging files | 2 days |
 | Completed image-download queue entries | 7 days |
 | Diagnostic events | 30 days |
-| Pursuit & tracking activity logs | 90 days |
+| Download & tracking activity logs | 90 days |
 | Resolved error incidents | 90 days after resolving |
 | **Watch history** | **Forever** |
 

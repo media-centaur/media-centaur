@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Done"
-      refute html =~ "Cancel pursuit"
+      refute html =~ "Cancel download"
     end
 
     test "the activity card draws the paired job with the download strip", %{conn: conn} do
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
       {:ok, view, html} = live_async!(conn, "/downloads?selected=#{Ecto.UUID.generate()}")
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
-      assert html =~ "Pursuit not found"
+      assert html =~ "Download not found"
     end
 
     test "unit board rolls multi-season units into collapsible season groups", %{conn: conn} do

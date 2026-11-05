@@ -452,7 +452,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                   units_wanted: 10,
                   units_satisfied: 7,
                   status: %CurrentAction{
-                    verb: "Partially done",
+                    verb: "Partly done",
                     description: "Some of this pursuit landed; the rest didn't.",
                     severity: :warning
                   }

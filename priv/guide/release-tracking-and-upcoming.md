@@ -41,7 +41,7 @@ when nothing later is scheduled.
 | Status | Meaning |
 |---|---|
 | Landed | You already have it |
-| In pursuit | Released and being grabbed now — the download is on the Activity tab |
+| Grabbing | Released and being downloaded now — the download is on the Activity tab |
 | Will grab | A future release that *will* be grabbed when it drops — shown only when a grab will genuinely fire |
 | Searching | A release whose date has passed that you still don't have — indexers are being re-checked for it |
 | Tracked | Dated, but won't auto-grab |
@@ -53,7 +53,7 @@ Open the title from its tile: its release dates sit beside the two switches.
 
 When a tracked release airs and you don't have it, the app records a durable **want**. A planner
 periodically sweeps open wants, batches what's due, and — for a title with **Auto-grab** on —
-turns them into a [pursuit](/guide/pursuits). Whether the plan downloads without asking or
+turns them into a [download](/guide/downloads). Whether the plan downloads without asking or
 waits for your approval is your Download button default under **Settings → Acquisition**.
 
 Wants persist through TMDB calendar changes and transient outages — a missed sweep is caught by

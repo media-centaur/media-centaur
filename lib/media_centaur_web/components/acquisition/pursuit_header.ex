@@ -116,12 +116,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
     cond do
       is_binary(q) and q != "" -> q
       is_binary(title) and title != "" -> title
-      true -> "(untitled pursuit)"
+      true -> "(untitled download)"
     end
   end
 
   defp display_title(%{title: title}) when is_binary(title), do: title
-  defp display_title(_), do: "(untitled pursuit)"
+  defp display_title(_), do: "(untitled download)"
 
   # The release filename — shown as a demoted subtitle for Prowlarr-query
   # pursuits only. TMDB pursuits don't carry a release filename as `title`.

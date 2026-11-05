@@ -17,13 +17,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
 
   describe "summary line" do
     test "pursuit_started carries origin when present" do
-      assert %TimelineEntry{summary: "Pursuit started (auto)"} =
+      assert %TimelineEntry{summary: "Started by Auto-grab"} =
                TimelineEntry.from_event(event(kind: "pursuit_started", payload: %{"origin" => "auto"}))
 
-      assert %TimelineEntry{summary: "Pursuit started (manual)"} =
+      assert %TimelineEntry{summary: "Started by you"} =
                TimelineEntry.from_event(event(kind: "pursuit_started", payload: %{"origin" => "manual"}))
 
-      assert %TimelineEntry{summary: "Pursuit started"} =
+      assert %TimelineEntry{summary: "Started"} =
                TimelineEntry.from_event(event(kind: "pursuit_started"))
     end
 
@@ -132,7 +132,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     end
 
     test "auto_cancelled humanizes the reason and reads as a warning" do
-      assert %TimelineEntry{summary: "Auto-cancelled — no seeders", severity: :warning} =
+      assert %TimelineEntry{summary: "Release abandoned — no seeders", severity: :warning} =
                TimelineEntry.from_event(
                  event(kind: "auto_cancelled", payload: %{"reason" => "zero_seeders"})
                )
@@ -140,7 +140,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
 
     test "auto_cancelled for a failed download carries the client's message as the detail" do
       assert %TimelineEntry{
-               summary: "Auto-cancelled — download failed",
+               summary: "Release abandoned — download failed",
                detail: "Repair failed, not enough repair blocks",
                severity: :warning
              } =
@@ -156,7 +156,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     end
 
     test "auto_cancelled without a reason stays generic" do
-      assert %TimelineEntry{summary: "Auto-cancelled"} =
+      assert %TimelineEntry{summary: "Release abandoned"} =
                TimelineEntry.from_event(event(kind: "auto_cancelled", payload: %{}))
     end
 
@@ -166,7 +166,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
     end
 
     test "legacy pursuit_re_searched kind still renders" do
-      assert %TimelineEntry{summary: "Re-searched Prowlarr"} =
+      assert %TimelineEntry{summary: "Searched again"} =
                TimelineEntry.from_event(event(kind: "pursuit_re_searched"))
     end
   end
@@ -231,8 +231,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
                )
     end
 
-    test "target_changed uses 'abandoned: <title>'" do
-      assert %TimelineEntry{detail: "abandoned: Sample.Show.S01E01.x264"} =
+    test "target_changed carries no sub-line — the pursuit title is not the release abandoned" do
+      assert %TimelineEntry{summary: "Switched to another release", detail: nil} =
                TimelineEntry.from_event(
                  event(
                    kind: "target_changed",

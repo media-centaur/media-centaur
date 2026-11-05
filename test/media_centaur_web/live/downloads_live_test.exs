@@ -1942,10 +1942,10 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       # …no rote sentences where the outcome word already says it…
       refute has_element?(view, "[data-nav-zone='ledger']", "File landed and identity verified.")
-      refute has_element?(view, "[data-nav-zone='ledger']", "Pursuit cancelled.")
+      refute has_element?(view, "[data-nav-zone='ledger']", "This download was cancelled.")
 
       # …but failures keep their diagnostic sentence.
-      assert has_element?(view, "[data-nav-zone='ledger']", "Exhausted after")
+      assert has_element?(view, "[data-nav-zone='ledger']", "Gave up after")
     end
 
     test "the archive loads a bounded window; Show older reveals the rest", %{conn: conn} do
@@ -2094,7 +2094,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       # History has no separate zone-empty line — the always-open archive
       # carries its own honest per-filter empty state.
       {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
-      assert has_element?(view, "section[data-nav-zone='ledger']", "No past pursuits on record.")
+      assert has_element?(view, "section[data-nav-zone='ledger']", "No downloads have ended yet.")
     end
 
     test "plan-modal patches keep the page's bare path — closing a draft lands back on Activity", %{
@@ -2462,7 +2462,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       # Regression: Phoenix's positional comprehension diff causes the row
       # at the cancelled position to morph in place into the *next* item's
       # data and the bottom row to disappear when rows lack stable ids.
-      # The orphan ("Other downloads") section gives each row its own
+      # The orphan ("Other jobs") section gives each row its own
       # `id="orphan-{hash}"` so morphdom moves nodes by id even without
       # `phx-update="stream"`.
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -2505,7 +2505,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: items}})
 
       html = render(view)
-      assert html =~ "Other downloads"
+      assert html =~ "Other jobs"
       assert html =~ ~s|id="orphan-aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111"|
       assert html =~ ~s|id="orphan-bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222"|
       assert html =~ ~s|id="orphan-hash-c"|
@@ -2864,7 +2864,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       html = render(view)
       refute html =~ "Soon To Vanish"
-      refute html =~ "Other downloads"
+      refute html =~ "Other jobs"
     end
 
     test "capabilities_changed pings QueueMonitor for an immediate poll",
@@ -2955,8 +2955,8 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert html =~ ~s|data-pursuit-id="#{pursuit.id}"|
       assert html =~ ~s|phx-value-id="hash-paired"|
       assert html =~ "ETA 10m"
-      # Matched items don't surface in the "Other downloads" section.
-      refute html =~ "Other downloads"
+      # Matched items don't surface in the "Other jobs" section.
+      refute html =~ "Other jobs"
     end
 
     test "a matched usenet job in post-processing draws its phase, not a text dump", %{conn: conn} do
@@ -2980,10 +2980,10 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert html =~ ~s|data-step="unpack" data-step-state="underway"|
       assert html =~ "Unpacking"
       assert html =~ "45%"
-      refute html =~ "Other downloads"
+      refute html =~ "Other jobs"
     end
 
-    test "an unmatched queue item appears under 'Other downloads', and the pursuit shows its no-match hint",
+    test "an unmatched queue item appears under 'Other jobs', and the pursuit shows its no-match hint",
          %{conn: conn} do
       _pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
@@ -3000,7 +3000,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [unrelated]}})
 
       html = render(view)
-      assert html =~ "Other downloads"
+      assert html =~ "Other jobs"
       assert html =~ ~s|id="orphan-hash-orphan"|
       # The pursuit card surfaces `PursuitStatus.derive`'s `CurrentAction` as
       # its status line when no torrent is matched. This pursuit was grabbed
@@ -3010,7 +3010,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       refute html =~ "Finished"
     end
 
-    test "an unmatched job under Other downloads is drawn by the strip — phase word as text, no badge",
+    test "an unmatched job under Other jobs is drawn by the strip — phase word as text, no badge",
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/downloads")
 
@@ -3026,7 +3026,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [fetching]}})
 
       html = render(view)
-      assert html =~ "Other downloads"
+      assert html =~ "Other jobs"
       assert html =~ ~s|id="orphan-nzo-orphan-fetch"|
       assert html =~ ~s|data-step="fetch" data-step-state="underway"|
       assert html =~ "progress-indeterminate"

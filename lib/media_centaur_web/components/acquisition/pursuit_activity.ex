@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
-  attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
+  attr :cancel_armed, :boolean, default: false, doc: "Cancel download is one click from firing."
   attr :on_request_decision, :string, default: nil
 
   attr :on_search_again, :string,
@@ -104,10 +104,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           :if={:cancel in @vm.available_actions and @on_cancel}
           armed={@cancel_armed}
           event={@on_cancel}
-          armed_label="Press again to cancel the pursuit"
+          armed_label="Press again to cancel this download"
           variant="dismiss"
         >
-          Cancel pursuit
+          Cancel download
         </.armed_button>
       </div>
 

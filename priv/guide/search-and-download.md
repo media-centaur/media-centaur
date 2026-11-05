@@ -17,7 +17,7 @@ expansion, and press Enter. Below it, two tabs:
 
 | Tab | What's there |
 |---|---|
-| Activity | Draft plans awaiting your approval (durable across reloads), live downloads with progress, and client torrents that match no tracked pursuit |
+| Activity | Draft plans awaiting your approval (durable across reloads), live downloads with progress, and jobs in your download client that nothing here started (**Other jobs**) |
 | History | The archive of finished downloads, with Failed / Cancelled / Succeeded filters and a title search; **Show older** walks further back |
 
 ## The flow
@@ -26,7 +26,7 @@ expansion, and press Enter. Below it, two tabs:
 2. The app builds a **plan** — which releases to grab to cover what you asked for.
 3. Review it: swap any unit for an alternative, remove a release and re-solve, heed the
    overlap warning if a swap would download something twice.
-4. Approve. Each grab becomes a [pursuit](/guide/pursuits) under In flight on the Activity tab.
+4. Approve. The plan becomes a [download](/guide/downloads) under In flight on the Activity tab.
 
 ## How the plan is built
 

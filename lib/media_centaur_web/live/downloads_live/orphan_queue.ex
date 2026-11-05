@@ -32,10 +32,10 @@ defmodule MediaCentaurWeb.DownloadsLive.OrphanQueue do
     <section data-nav-zone="other_downloads" class="scrim-surface rounded-xl overflow-hidden">
       <div class="px-4 py-2 border-b border-base-content/5">
         <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-          Other downloads
+          Other jobs
         </h2>
         <p class="mt-0.5 text-[11px] text-base-content/55">
-          Downloads in your clients that no pursuit claims.
+          Jobs in your download client that nothing here started.
         </p>
       </div>
 

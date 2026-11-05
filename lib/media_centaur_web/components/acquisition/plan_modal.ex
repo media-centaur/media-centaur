@@ -638,13 +638,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <p class="text-sm text-on-image">
             <span :if={@board.status == :planning} class="text-base-content/55">
               <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
-              Planning · {@board.wanted} {if @board.movie?, do: "unit", else: "episodes"} wanted
+              Planning · {@board.wanted} {if @board.movie?, do: "film", else: "episodes"} wanted
             </span>
             <span :if={@board.status == :ready} class="text-info">
               Plan ready · {@board.covered} of {@board.wanted} covered
             </span>
             <span :if={@board.status == :committed} class="text-success">
-              Committed — the pursuit has taken over.
+              Approved — now on the Activity tab.
             </span>
           </p>
           <p

@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.DownloadsLive.HistoryLogicTest do
       assert Logic.empty_state(:failed) == "Nothing has failed."
       assert Logic.empty_state(:cancelled) == "Nothing has been cancelled."
       assert Logic.empty_state(:succeeded) == "Nothing has finished yet."
-      assert Logic.empty_state(:all) == "No past pursuits on record."
+      assert Logic.empty_state(:all) == "No downloads have ended yet."
     end
   end
 

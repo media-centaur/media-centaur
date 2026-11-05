@@ -852,13 +852,13 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
     end
 
     test "active pursuits without a live download" do
-      assert Logic.pursuit_summary(1, 0) == "1 active pursuit"
-      assert Logic.pursuit_summary(3, 0) == "3 active pursuits"
+      assert Logic.pursuit_summary(1, 0) == "1 active"
+      assert Logic.pursuit_summary(3, 0) == "3 active"
     end
 
     test "active pursuits with live downloads" do
-      assert Logic.pursuit_summary(1, 1) == "1 active pursuit · 1 downloading"
-      assert Logic.pursuit_summary(5, 2) == "5 active pursuits · 2 downloading"
+      assert Logic.pursuit_summary(1, 1) == "1 active · 1 downloading"
+      assert Logic.pursuit_summary(5, 2) == "5 active · 2 downloading"
     end
   end
 
@@ -951,7 +951,7 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
                "Could not pick that release — the result carries no indexer id."
 
       assert Logic.failure_flash("commit the plan", {:overlap, [{7, 13}]}) ==
-               "Could not commit the plan — another pursuit already covers S07E13."
+               "Could not commit the plan — another download already covers S07E13."
 
       assert Logic.failure_flash("commit the plan", :not_ready) ==
                "Could not commit the plan — not ready."

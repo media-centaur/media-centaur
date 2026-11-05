@@ -136,8 +136,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   def derive(%Pursuit{state: "partial"}, _unit, _target, _qi, _location, _context) do
     {
       %CurrentAction{
-        verb: "Partially done",
-        description: "Some of this pursuit landed; the rest didn't.",
+        verb: "Partly done",
+        description: "Some of this download landed; the rest didn't.",
         severity: :warning
       },
       %NextStep{description: "Search again looks for releases of the rest not tried yet."},
@@ -151,7 +151,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     {
       %CurrentAction{
         verb: "Gave up",
-        description: "Exhausted after #{attempt_count} attempts.",
+        description: "Gave up after #{attempt_count} attempts.",
         severity: :error
       },
       %NextStep{description: "Search again looks for releases not tried yet."},
@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
 
   def derive(%Pursuit{state: "cancelled"}, _unit, _target, _qi, _location, _context) do
     {
-      %CurrentAction{verb: "Cancelled", description: "Pursuit cancelled.", severity: :info},
+      %CurrentAction{verb: "Cancelled", description: "This download was cancelled.", severity: :info},
       nil,
       []
     }
@@ -244,7 +244,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     {
       %CurrentAction{
         verb: "Unknown",
-        description: "Pursuit has no target — change target to begin.",
+        description: "No release is being tried. Pick a release to begin.",
         severity: :warning
       },
       nil,
@@ -301,7 +301,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Prowlarr accepted the grab but the download never started.",
         severity: :warning
       },
-      %NextStep{description: "Change target to try a different release."},
+      %NextStep{description: "Pick a different release."},
       [:cancel, :change_target]
     }
   end
@@ -327,7 +327,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
       },
       %NextStep{
         description:
-          "It may still be importing or already be in your library; change target to grab a different release."
+          "It may still be importing or already be in your library; pick a different release to grab another."
       },
       [:cancel, :change_target]
     }
@@ -352,7 +352,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Auto-search gave up after #{target.attempt_count} attempts.",
         severity: :warning
       },
-      %NextStep{description: "Change target or pick a release manually."},
+      %NextStep{description: "Pick a different release."},
       [:cancel, :change_target, :request_decision]
     }
   end
@@ -361,10 +361,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     {
       %CurrentAction{
         verb: "Stopped",
-        description: "Target was cancelled.",
+        description: "The release was cancelled.",
         severity: :warning
       },
-      %NextStep{description: "Change target to restart."},
+      %NextStep{description: "Pick a different release to restart."},
       [:cancel, :change_target]
     }
   end
@@ -426,7 +426,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Download client can't make progress.",
         severity: :warning
       },
-      %NextStep{description: "Change target for a different release, or wait."},
+      %NextStep{description: "Pick a different release, or wait."},
       [:cancel, :change_target, :request_decision]
     }
   end
@@ -500,7 +500,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Download client reported an error.",
         severity: :error
       },
-      %NextStep{description: "Check your download client or change target."},
+      %NextStep{description: "Check your download client or pick a different release."},
       [:cancel, :change_target]
     }
   end
@@ -512,7 +512,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Download client state unrecognized.",
         severity: :info
       },
-      %NextStep{description: "Change target to try a different release."},
+      %NextStep{description: "Pick a different release."},
       [:cancel, :change_target]
     }
   end
