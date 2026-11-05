@@ -93,7 +93,7 @@ mix seed.review        # populate review UI test cases (one-shot, idempotent)
 
 > Use `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize compilation.
 
-> **In an agent shell, never run `mix` directly — run `~/scripts/agents/agent-mix`.**
+> **In an agent shell, never run `mix` directly — run `scripts/agent-mix`** (from the repo root; arguments pass to `mix` verbatim).
 > `media-centaur-dev` is the always-on daily driver and compiles into this
 > checkout's `_build/dev`. A second `mix` in the same checkout writes those
 > `.beam` files under the running VM; the server's code reloader then reloads

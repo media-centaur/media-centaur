@@ -48,7 +48,7 @@ system, saved as `Context map.sublime-build`:
 }
 ```
 
-In an agent shell, run `~/scripts/agents/agent-mix context_map --list`
+In an agent shell, run `scripts/agent-mix context_map --list`
 instead of `mix` (see `CLAUDE.md`).
 
 `--diff [PATH]` compares the fresh analysis with the map at PATH (default

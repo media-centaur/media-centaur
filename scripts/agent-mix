@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# agent-mix — run mix against an isolated build root.
+#
+# WHY THIS EXISTS
+#
+# The always-on dev server — the `media-centaur-dev` systemd unit that
+# `scripts/install-dev` installs — compiles into this checkout's `_build/dev`. Any other `mix` invocation in the
+# same checkout writes the same .beam files under the running VM. The server's
+# code reloader then does a synchronous reload on the next request; a large
+# enough reload leaves GenServers without their modules for tens of seconds and
+# the OTP application shuts down:
+#
+#     [notice] Application <app> exited: shutdown
+#
+# The BEAM survives that (Mix starts apps :temporary outside :prod), so systemd
+# sees a healthy process and Restart= never fires. The service is up, serving
+# nothing, and stays that way until a human notices.
+#
+# Since OTP 28 this got much easier to trigger: a compiled regex carries a
+# per-VM reference, and Mix compares evaluated compile-time config term by term
+# against its manifest. Two Mix processes can therefore disagree about config
+# they both read from the same file, and Mix resolves that as "the app config
+# changed" — a forced rebuild of every dependency and every module, done hot,
+# inside the running server.
+#
+# Pointing agent/shell work at its own MIX_BUILD_ROOT removes the sharing, so
+# nothing typed in a shell can reach the service's beams. The build root lives
+# OUTSIDE the checkout on purpose: a Phoenix dev server watches its working
+# directory recursively with inotify, so a second `_build` inside the repo
+# would still generate file events the server reacts to.
+#
+# USAGE
+#
+#     scripts/agent-mix compile
+#     scripts/agent-mix test
+#     scripts/agent-mix precommit
+#     MIX_ENV=test scripts/agent-mix run foo.exs
+#
+# Everything after the script name is passed to mix verbatim.
+#
+# DO NOT USE FOR RELEASE BUILDS. `scripts/preflight` and `scripts/ship` read
+# `_build/prod/rel/...` by hard-coded path; under a different build root the
+# release lands somewhere they don't look. Run those the normal way — they
+# don't race the dev server, because they build :prod and the server runs :dev.
+
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+repo_name="$(basename "$repo_root")"
+
+# Keyed by repo name so several checkouts don't share one root. Under
+# ~/.cache, not /tmp: a full dep build is minutes of work worth keeping
+# across reboots, and /tmp is tmpfs on some systems.
+build_root="${AGENT_MIX_BUILD_ROOT:-$HOME/.cache/agent-mix-build/$repo_name}"
+mkdir -p "$build_root"
+
+export MIX_BUILD_ROOT="$build_root"
+
+# Same toolchain the systemd unit uses (`mise exec`, defaults/media-centaur-dev.service). A bare `mix` picks up whatever the
+# shell's stale PATH offers, which has silently built beams against the wrong
+# OTP before now.
+exec mise exec -- mix "$@"
