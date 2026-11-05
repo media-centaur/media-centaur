@@ -122,6 +122,7 @@ mix precommit          # compile + format + credo + boundaries + test-sweep + he
 | TOML | Purpose | Binds |
 |------|---------|-------|
 | `defaults/media-centaur-showcase.toml` | Demo instance, public-domain media | :4003 |
+| `defaults/media-centaur-e2e.toml` | The Playwright suite's instance (`scripts/e2e-server`), same seed, disposable | :49001 |
 
 ```bash
 MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
@@ -132,6 +133,8 @@ scripts/screenshot-tour    # capture marketing screenshots (manual only)
 ```
 
 `mix seed.showcase` refuses to run without `MEDIA_CENTAUR_CONFIG_OVERRIDE` — that guarantee is why the earlier profile mechanism collapsed into this single lever.
+
+Both TOMLs set `showcase_mode`: Prowlarr, qBittorrent and the TMDB API are answered by stand-ins (`MediaCentaur.Showcase.Stubs`), TMDB from the committed recording under `priv/showcase/tmdb/`, so seeding needs no key (re-record after a catalog change: `scripts/reseed-showcase --record`). The seed also lays down every Review state through the real pipeline (`MediaCentaur.Showcase.ReviewScenarios`): to see or change the Review page against them, `scripts/e2e-server --reset` and open `http://127.0.0.1:49001/review`.
 
 ### Dev service (optional persistent server)
 
