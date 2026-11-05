@@ -211,11 +211,13 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
     end
 
     test "a series with an accented title matches its episodes and packs" do
-      episode = tv_criteria(%{title: "Sample Title Fj", season_number: 1, episode_number: 2})
-      assert TitleMatcher.matches?(result("Sample Title Fk.S01E02.1080p.WEB-DL"), episode)
+      episode = tv_criteria(%{title: "Mélodie", season_number: 1, episode_number: 2})
+      assert TitleMatcher.matches?(result("Melodie.S01E02.1080p.WEB-DL"), episode)
 
-      pack = tv_criteria(%{title: "Sample Title Fj"})
-      assert {:ok, {:season, 1}} = TitleMatcher.coverage(result("Sample Title Fk.S01.COMPLETE.1080p"), pack)
+      pack = tv_criteria(%{title: "Mélodie"})
+
+      assert {:ok, {:season, 1}} =
+               TitleMatcher.coverage(result("Melodie.S01.COMPLETE.1080p"), pack)
     end
 
     test "folding does not collapse two genuinely different titles" do

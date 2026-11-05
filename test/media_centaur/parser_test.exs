@@ -67,9 +67,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "single word title" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Title G3.2024.1080p.WEB-DL.x264.AC3.HORiZON-ArtSubs.mkv")
+        Parser.parse("/mnt/videos/Videos/Cloudlet.2024.1080p.WEB-DL.x264.AC3.HORiZON-ArtSubs.mkv")
 
-      assert result.title == "Cloud"
+      assert result.title == "Cloudlet"
       assert result.year == 2024
       assert result.type == :movie
     end
@@ -113,9 +113,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "single word title spaces" do
       result =
-        Parser.parse("/mnt/videos/Videos/Little Trouble Sample Title G4.2025.1080p.WEB-DL.AAC.x264-skyflickz.mp4")
+        Parser.parse("/mnt/videos/Videos/Little Trouble Makers.2025.1080p.WEB-DL.AAC.x264-skyflickz.mp4")
 
-      assert result.title == "Little Trouble Kids"
+      assert result.title == "Little Trouble Makers"
       assert result.year == 2025
       assert result.type == :movie
     end
@@ -382,9 +382,7 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Show One: compact 3-digit season+episode (501) inside Season directory" do
       result =
-        Parser.parse(
-          "/mnt/media/library/Sample Show One/Season 5/501- Sample Intern's Eyes.avi"
-        )
+        Parser.parse("/mnt/media/library/Sample Show One/Season 5/501- Sample Intern's Eyes.avi")
 
       assert result.title == "Sample Show One"
       assert result.season == 5
@@ -706,22 +704,22 @@ defmodule MediaCentaur.ParserTest do
     test "Behind The Scenes directory" do
       result =
         Parser.parse(
-          "/mnt/videos/Videos/Sample Title G6.1979.Directors.Cut.1080p.BluRay-FGT/Behind The Scenes/Production Gallery.mkv"
+          "/mnt/videos/Videos/Sample Movie.1979.Directors.Cut.1080p.BluRay-FGT/Behind The Scenes/Production Gallery.mkv"
         )
 
       assert result.title == "Production Gallery"
       assert result.type == :extra
-      assert result.parent_title == "Alien"
+      assert result.parent_title == "Sample Movie"
       assert result.parent_year == 1979
     end
 
     test "case-insensitive extras directory matching" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Title G6.1979.UHD.BluRay/extras/Final Cut.mkv")
+        Parser.parse("/mnt/videos/Videos/Sample Movie.1979.UHD.BluRay/extras/Final Cut.mkv")
 
       assert result.title == "Final Cut"
       assert result.type == :extra
-      assert result.parent_title == "Alien"
+      assert result.parent_title == "Sample Movie"
       assert result.parent_year == 1979
     end
 
@@ -755,9 +753,7 @@ defmodule MediaCentaur.ParserTest do
 
     test "extras parent title preserves hyphenated suffix (Sample Title Ec)" do
       result =
-        Parser.parse(
-          "/mnt/media/library/Sample Title Ec/Featurettes/The Found CD-ROM Video Disc.mkv"
-        )
+        Parser.parse("/mnt/media/library/Sample Title Ec/Featurettes/The Found CD-ROM Video Disc.mkv")
 
       assert result.type == :extra
       assert result.parent_title == "Sample Title Ec"
@@ -767,9 +763,7 @@ defmodule MediaCentaur.ParserTest do
 
     test "extras title preserves hyphenated suffix in filename (Music of Sample Title Ec)" do
       result =
-        Parser.parse(
-          "/mnt/media/library/Sample Title Ec/Featurettes/Music of Sample Title Ec.mkv"
-        )
+        Parser.parse("/mnt/media/library/Sample Title Ec/Featurettes/Music of Sample Title Ec.mkv")
 
       assert result.type == :extra
       assert result.title == "Music Of Sample Title Ec"
@@ -882,10 +876,10 @@ defmodule MediaCentaur.ParserTest do
 
     test "Samples/ directory variant" do
       result =
-        Parser.parse("/mnt/videos/Sample Title G6.1979.UHD.BluRay/Samples/Sample Title G6.1979-sample.mkv")
+        Parser.parse("/mnt/videos/Sample Movie.1979.UHD.BluRay/Samples/Sample Movie.1979-sample.mkv")
 
       assert result.type == :extra
-      assert result.parent_title == "Alien"
+      assert result.parent_title == "Sample Movie"
       assert result.parent_year == 1979
     end
   end

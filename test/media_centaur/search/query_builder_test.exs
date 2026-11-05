@@ -192,11 +192,11 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
     end
 
     test "a series' ladder queries are folded too" do
-      criteria = %Criteria{type: :tmdb, title: "Sample Title Fj", tmdb_type: :tv, season_number: 1}
+      criteria = %Criteria{type: :tmdb, title: "Mélodie", tmdb_type: :tv, season_number: 1}
 
       assert QueryBuilder.build(criteria) == [
-               {"Sample Title Fk Season 1", [categories: :tv]},
-               {"Sample Title Fk S01", [categories: :tv]}
+               {"Melodie Season 1", [categories: :tv]},
+               {"Melodie S01", [categories: :tv]}
              ]
     end
   end

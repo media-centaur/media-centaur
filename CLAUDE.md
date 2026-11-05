@@ -174,7 +174,7 @@ Load the `automated-testing` skill before writing any test or implementation. It
 
 ### Test and example content (no real show titles)
 
-Anything we author into the codebase — test queries, fixture titles, `@doc`/`@moduledoc` examples, comment examples, seed data — must use **generic placeholders** (`Sample Show`, `Movie A`, `Sample.Show.S01E01.1080p.WEB-DL.mkv`) or PD/CC titles. Real titles drift into screenshots, demos, and grep results. Exempt: `test/media_centaur/parser_test.exs` (real filenames the parser has been observed to handle, append-only per ADR-027) and production runtime data.
+Anything we author into the codebase — test queries, fixture titles, `@doc`/`@moduledoc` examples, comment examples, seed data, story descriptions — uses **generic placeholders** (`Sample Show`, `Movie A`, `Sample.Show.S01E01.1080p.WEB-DL.mkv`) or public-domain / Creative Commons titles. No exemptions. The parser's regression filenames keep the *shape* of a release name (tokens, years, groups, separators, episode codes) under a placeholder title, which is what the parser is tested against. When a real case drives a change, describe it by its shape ("a 30-episode series, three episodes failing 48 times"), never by name.
 
 ## Public-facing documentation
 

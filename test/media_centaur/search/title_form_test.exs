@@ -8,7 +8,7 @@ defmodule MediaCentaur.Search.TitleFormTest do
       # Measured against a live indexer: the accented spelling returned
       # 4 results where the folded one returned 38.
       assert TitleForm.query("Noémie") == "Noemie"
-      assert TitleForm.query("Sample Title Fj") == "Sample Title Fk"
+      assert TitleForm.query("Mélodie") == "Melodie"
       assert TitleForm.query("Les Misérables") == "Les Miserables"
     end
 
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Search.TitleFormTest do
   describe "compare/1 — what identity comparison uses" do
     test "folds diacritics so an accented title equals its ASCII release name" do
       assert TitleForm.compare("Noémie") == TitleForm.compare("Noemie")
-      assert TitleForm.compare("Noémie") == "amelie"
+      assert TitleForm.compare("Noémie") == "noemie"
     end
 
     test "case-folds, drops apostrophes, and reads punctuation as a separator" do
