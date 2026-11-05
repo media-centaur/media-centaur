@@ -220,6 +220,7 @@ defmodule MediaCentaur.TmdbStubs do
       "name" => "Sample Show",
       "original_name" => "Beispielserie",
       "origin_country" => ["US"],
+      "number_of_seasons" => 2,
       "seasons" => [
         %{"season_number" => 0, "episode_count" => 1},
         %{"season_number" => 1, "episode_count" => 2},

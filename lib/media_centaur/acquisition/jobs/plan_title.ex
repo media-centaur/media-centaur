@@ -26,6 +26,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PlanTitle do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.TMDB.Title
 
   @doc "The job for `title` with `Plans.create_title_plan/2`'s options."
@@ -37,7 +38,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PlanTitle do
       "name" => title.name,
       "year" => title.year,
       "approval_policy" => Keyword.get(opts, :approval_policy, "review"),
-      "scope" => opts |> Keyword.get(:scope, :first_season) |> Atom.to_string()
+      "scope" => opts |> Keyword.get(:scope, :first_missing_season) |> Atom.to_string()
     })
   end
 
@@ -53,7 +54,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PlanTitle do
 
     case Plans.create_title_plan(title,
            approval_policy: args["approval_policy"],
-           scope: scope(args["scope"])
+           scope: scope!(args["scope"])
          ) do
       {:ok, _plan} ->
         :ok
@@ -70,6 +71,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PlanTitle do
   defp media_type("movie"), do: :movie
   defp media_type("tv_series"), do: :tv_series
 
-  defp scope("first_season"), do: :first_season
-  defp scope("everything"), do: :everything
+  defp scope!(value) do
+    {:ok, scope} = DownloadScope.parse(value)
+    scope
+  end
 end

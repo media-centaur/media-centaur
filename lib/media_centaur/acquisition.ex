@@ -27,6 +27,7 @@ defmodule MediaCentaur.Acquisition do
       PlanEvents.SearchActivity,
       GrabProvenance,
       Plans,
+      Plans.DownloadScope,
       Plans.Alternatives,
       Plans.Board,
       Plans.Plan,

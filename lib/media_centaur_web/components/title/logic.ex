@@ -52,6 +52,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       complete?: Map.get(facts, :complete?, false),
       settled?: Map.get(facts, :settled?, false),
+      number_of_seasons: Map.get(facts, :number_of_seasons),
       release_window: Map.get(facts, :release_window),
       planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
       activity: Map.get(facts, :activity),
@@ -156,10 +157,39 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   def planning_mode_label(:auto_select_best_release), do: "Auto-select best release"
   def planning_mode_label(:manually_select_release), do: "Manually select release"
 
+  @doc """
+  The scope choices a series' select lists, in menu order: every one,
+  but *Latest season* only when the series has more than one regular
+  season — with one, it would plan what *First missing season* plans.
+  """
+  @spec offered_scopes(TitleDetail.t()) :: [ModalState.scope_choice()]
+  def offered_scopes(%TitleDetail{number_of_seasons: count}) when is_integer(count) and count > 1,
+    do: ModalState.scope_choices()
+
+  def offered_scopes(%TitleDetail{}), do: ModalState.scope_choices() -- [:latest_season]
+
+  @doc """
+  Whether the Download row offers *Grab new episodes as they air*: a
+  series with a release ahead (`release_ahead?/2`), not on the watchlist
+  — a listed title's tracking block already carries Auto-grab, the same
+  choice — on a scope that plans here (*Choose episodes* leaves for the
+  picker and plans nothing). Download with it on also puts the series
+  at Grab; the scope itself never follows (ADR-066).
+  """
+  @spec grab_rest_offered?(TitleDetail.t(), ModalState.t(), Date.t()) :: boolean()
+  def grab_rest_offered?(
+        %TitleDetail{title: %Title{media_type: :tv_series}, rung: nil} = detail,
+        %ModalState{download_scope: scope},
+        today
+      ), do: scope != :choose_episodes and release_ahead?(detail, today)
+
+  def grab_rest_offered?(%TitleDetail{}, %ModalState{}, _today), do: false
+
   @doc "The scope select's words for each of its values (spec 2026-09-12 §1, §11; 2026-09-23 §1)."
   @spec download_scope_label(ModalState.scope_choice()) :: String.t()
-  def download_scope_label(:first_season), do: "Season 1"
+  def download_scope_label(:first_missing_season), do: "First missing season"
   def download_scope_label(:everything), do: "All seasons"
+  def download_scope_label(:latest_season), do: "Latest season"
   def download_scope_label(:choose_episodes), do: "Choose episodes"
 
   @doc """

@@ -119,6 +119,20 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
     assert PlanLogic.apply_preset(selection(), :clear) == MapSet.new()
   end
 
+  test "the latest-season preset is the download scope's rule: a had latest season gives nothing" do
+    had_latest = %Targeting.Selection{
+      tmdb_id: "1",
+      title: "T",
+      tracked?: false,
+      seasons: [
+        %Targeting.Season{season_number: 1, episodes: [episode(1, 1, [])]},
+        %Targeting.Season{season_number: 2, episodes: [episode(2, 1, in_library?: true)]}
+      ]
+    }
+
+    assert PlanLogic.apply_preset(had_latest, :latest_season) == MapSet.new()
+  end
+
   test "chosen_in_order returns airing order regardless of set order" do
     chosen = MapSet.new([{2, 1}, {1, 2}])
     assert PlanLogic.chosen_in_order(chosen, selection()) == [{1, 2}, {2, 1}]

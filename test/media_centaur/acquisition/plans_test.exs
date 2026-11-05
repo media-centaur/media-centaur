@@ -1109,10 +1109,12 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert [%{approval_policy: "review"}] = Plans.list_drafts()
     end
 
-    test "a series with :first_season plans season 1's pickable episodes, no tracking" do
+    test "a series with :first_missing_season plans season 1's pickable episodes, no tracking" do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
-      assert :ok = Plans.plan_title(show_title(), scope: :first_season, approval_policy: "automatic")
+      assert :ok =
+               Plans.plan_title(show_title(), scope: :first_missing_season, approval_policy: "automatic")
+
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       [plan] = Plans.list_drafts()
@@ -1122,6 +1124,20 @@ defmodule MediaCentaur.Acquisition.PlansTest do
                [{1, 1}, {1, 2}]
 
       assert ReleaseTracking.get_item_by_tmdb(246_810, :tv_series) == nil
+    end
+
+    test "a series with :latest_season plans the latest aired season's pickable episodes" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert :ok = Plans.plan_title(show_title(), scope: :latest_season)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      [plan] = Plans.list_drafts()
+
+      assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) ==
+               [{2, 1}]
+
+      refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
     test "a series with :everything plans every pickable episode and follows nothing" do
@@ -1141,7 +1157,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     test "a TMDB failure leaves no plan, and the job will ask again" do
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
-      assert :ok = Plans.plan_title(show_title(), scope: :first_season)
+      assert :ok = Plans.plan_title(show_title(), scope: :first_missing_season)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Plans.list_drafts() == []
@@ -1155,7 +1171,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       log =
         ExUnit.CaptureLog.capture_log(fn ->
-          assert :ok = Plans.plan_title(unaired, scope: :first_season)
+          assert :ok = Plans.plan_title(unaired, scope: :first_missing_season)
           MediaCentaur.JobRuns.run_enqueued_jobs()
         end)
 
@@ -1190,11 +1206,14 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       MediaCentaur.JobRuns.run_enqueued_jobs()
     end
 
-    test "a series with :first_season plans season 1's pickable episodes" do
+    test "a series with :first_missing_season plans season 1's pickable episodes" do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
       assert {:ok, %Plan{} = plan} =
-               Plans.create_title_plan(show_title(), scope: :first_season, approval_policy: "review")
+               Plans.create_title_plan(show_title(),
+                 scope: :first_missing_season,
+                 approval_policy: "review"
+               )
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
@@ -1219,7 +1238,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       unaired =
         Title.new!(%{tmdb_id: 246_811, media_type: :tv_series, name: "Unaired Show", year: "2199"})
 
-      assert {:error, :nothing_to_plan} = Plans.create_title_plan(unaired, scope: :first_season)
+      assert {:error, :nothing_to_plan} = Plans.create_title_plan(unaired, scope: :first_missing_season)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Plans.list_drafts() == []
     end
@@ -1227,7 +1246,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     test "a TMDB failure returns the error and leaves no plan" do
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
-      assert {:error, _reason} = Plans.create_title_plan(show_title(), scope: :first_season)
+      assert {:error, _reason} = Plans.create_title_plan(show_title(), scope: :first_missing_season)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Plans.list_drafts() == []
     end

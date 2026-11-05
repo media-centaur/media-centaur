@@ -158,8 +158,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   for the plan's id to open its board (spec 2026-09-12 §20).
 
   Options: `approval_policy:` (`"automatic"` | `"review"`, default
-  review) and `scope:` (series only) `:first_season` (default) or
-  `:everything`, see `DownloadScope`.
+  review) and `scope:` (series only), a `DownloadScope.scope/0`,
+  `:first_missing_season` by default.
 
   A scope covers episodes that have *aired*; downloading them says
   nothing about what is still to come, and this door never touches the
@@ -179,7 +179,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   def create_title_plan(%Title{media_type: :tv_series} = title, opts) do
-    scope = Keyword.get(opts, :scope, :first_season)
+    scope = Keyword.get(opts, :scope, :first_missing_season)
 
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
          units when units != [] <- DownloadScope.units(selection, scope) do

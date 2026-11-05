@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuSelect do
 
   defp scope_items do
     [
-      ~s|<:item id="scope-first_season" event="title_scope" values={%{"choice" => "first_season"}} active>Season 1</:item>|,
+      ~s|<:item id="scope-first_missing_season" event="title_scope" values={%{"choice" => "first_missing_season"}} active>First missing season</:item>|,
       ~s|<:item id="scope-everything" event="title_scope" values={%{"choice" => "everything"}}>All seasons</:item>|
     ]
   end

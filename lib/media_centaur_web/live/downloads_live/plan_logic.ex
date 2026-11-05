@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   """
 
   alias MediaCentaur.Acquisition.PlanEvents
+  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Settings.Preferences.PlanningMode
@@ -88,13 +89,14 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   @doc """
   Quick-action presets writing into the chosen set:
 
-  * `:everything_aired` — the design default: every pickable unit
-    minus tracked wants (`Targeting.default_units/1` — release
-    tracking is already on those; ADR-056).
+  * `:everything_aired` — the design default: the `:everything`
+    download scope (`DownloadScope.units/2`), every pickable unit minus
+    tracked wants — release tracking is already on those (ADR-056).
   * `:continue` — default units strictly after the library's last
     present episode (everything when the library has none).
-  * `:latest_season` — the default units of the last season that has
-    any.
+  * `:latest_season` — the `:latest_season` download scope: the
+    pickable units of the latest season that has aired, nothing when
+    that season is had.
   * `:clear` — the empty set (the picker's "Clear selected"), the
     escape from the everything-aired default the picker opens with.
 
@@ -106,7 +108,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
           :everything_aired | :continue | :latest_season | :clear
         ) :: MapSet.t()
   def apply_preset(%Targeting.Selection{} = selection, :everything_aired) do
-    selection |> Targeting.default_units() |> MapSet.new()
+    selection |> DownloadScope.units(:everything) |> MapSet.new()
   end
 
   def apply_preset(%Targeting.Selection{} = selection, :continue) do
@@ -125,22 +127,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   end
 
   def apply_preset(%Targeting.Selection{} = selection, :latest_season) do
-    default_units = MapSet.new(Targeting.default_units(selection))
-
-    selection.seasons
-    |> Enum.map(& &1.season_number)
-    |> Enum.sort(:desc)
-    |> Enum.find_value(MapSet.new(), fn season_number ->
-      units =
-        selection
-        |> pickable_units(season_number)
-        |> Enum.filter(&MapSet.member?(default_units, &1))
-
-      case units do
-        [] -> nil
-        units -> MapSet.new(units)
-      end
-    end)
+    selection |> DownloadScope.units(:latest_season) |> MapSet.new()
   end
 
   def apply_preset(%Targeting.Selection{}, :clear), do: MapSet.new()

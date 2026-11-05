@@ -43,9 +43,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       preview's metadata row and overview.
     * `:movie_download`, `:series_split`, `:series_mode_menu_open`,
       `:series_auto_default`, `:series_scope_menu_open`,
-      `:series_all_seasons`, `:series_planning` — the Download split
-      control and the series scope select, their menus and the pending
-      state.
+      `:series_one_season_scope_menu_open`, `:series_all_seasons`,
+      `:series_latest_season`, `:series_choose_episodes`,
+      `:series_ended`, `:series_listed`, `:series_planning` — the
+      Download split control, the series scope select, the Grab new
+      episodes as they air switch, their menus and the pending state.
     * `:from_friend`, `:from_friend_long`, `:every_flag`, `:social_open`, `:own_note`,
       `:own_review`, `:own_listing` — the social capsule and its panel,
       the lead review, your own note, and Delete <noun> on an own
@@ -436,42 +438,89 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :series_split,
         description:
           "A series: the split Download (main segment = the default planning mode, " <>
-            "chevron for the other) and the scope select beside it, on Season 1.",
-        attributes: %{detail: unowned(show(), %{})}
+            "chevron for the other), the scope select beside it on First missing season, " <>
+            "and under the row the Grab new episodes as they air switch, off.",
+        attributes: %{detail: unowned(show(), %{number_of_seasons: 3})}
       },
       %Variation{
         id: :series_mode_menu_open,
         description: "The mode menu open: manual selection is the default, so it offers auto-select.",
-        attributes: %{detail: unowned(show(), %{}), state: %{ModalState.new() | open_menu: :mode}}
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 3}),
+          state: %{ModalState.new() | open_menu: :mode}
+        }
       },
       %Variation{
         id: :series_auto_default,
         description: "Auto-select as the default: the menu offers manual selection instead.",
         attributes: %{
-          detail: unowned(show(), %{planning_mode: :auto_select_best_release}),
+          detail: unowned(show(), %{number_of_seasons: 3, planning_mode: :auto_select_best_release}),
           state: %{ModalState.new() | open_menu: :mode}
         }
       },
       %Variation{
         id: :series_scope_menu_open,
-        description: "The scope menu open, Season 1 active, All seasons on offer.",
-        attributes: %{detail: unowned(show(), %{}), state: %{ModalState.new() | open_menu: :scope}}
+        description:
+          "The scope menu open on a series of three seasons: First missing season active, " <>
+            "then All seasons, Latest season and Choose episodes.",
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 3}),
+          state: %{ModalState.new() | open_menu: :scope}
+        }
+      },
+      %Variation{
+        id: :series_one_season_scope_menu_open,
+        description:
+          "A series of one season: Latest season would plan what First missing season plans, so it is not offered.",
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 1}),
+          state: %{ModalState.new() | open_menu: :scope}
+        }
       },
       %Variation{
         id: :series_all_seasons,
-        description: "All seasons chosen: the select shows it; nothing else moves.",
+        description: "All seasons chosen: the select shows it; the switch stays off.",
         attributes: %{
-          detail: unowned(show(), %{}),
-          state: %{ModalState.new() | download_scope: :everything}
+          detail: unowned(show(), %{number_of_seasons: 3}),
+          state: ModalState.choose_scope(ModalState.new(), :everything)
+        }
+      },
+      %Variation{
+        id: :series_latest_season,
+        description:
+          "Latest season chosen: the switch turns on with it, so Download also puts the " <>
+            "series on Auto-grab for the episodes still to come.",
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 3}),
+          state: ModalState.choose_scope(ModalState.new(), :latest_season)
         }
       },
       %Variation{
         id: :series_choose_episodes,
         description:
-          "Choose episodes chosen: the select shows it and Download will open the picker on Downloads.",
+          "Choose episodes chosen: Download will open the picker on Downloads, which plans " <>
+            "nothing here, so the switch is not offered.",
         attributes: %{
-          detail: unowned(show(), %{}),
-          state: %{ModalState.new() | download_scope: :choose_episodes}
+          detail: unowned(show(), %{number_of_seasons: 3}),
+          state: ModalState.choose_scope(ModalState.new(), :choose_episodes)
+        }
+      },
+      %Variation{
+        id: :series_ended,
+        description: "An ended series (settled in the store): nothing is still to come, so no switch.",
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 3, settled?: true}),
+          state: ModalState.choose_scope(ModalState.new(), :latest_season)
+        }
+      },
+      %Variation{
+        id: :series_listed,
+        description:
+          "A series already on the watchlist: its tracking block below carries Auto-grab, " <>
+            "so the row offers no second switch for the same choice.",
+        attributes: %{
+          detail: unowned(show(), %{number_of_seasons: 3, rung: :follow}),
+          state: ModalState.choose_scope(ModalState.new(), :latest_season)
         }
       },
       %Variation{

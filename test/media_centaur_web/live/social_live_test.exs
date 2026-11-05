@@ -1611,6 +1611,15 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       })
     end
 
+    # The series as the store holds it, with no watchlist record.
+    defp unlisted_show_in_store do
+      create_title_record(%{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        payload: TmdbStubs.series_universe_tv()
+      })
+    end
+
     defp released_show do
       Title.new!(%{
         tmdb_id: 246_810,
@@ -1883,19 +1892,24 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       refute has_element?(view, "#detail-download-menu")
     end
 
-    test "a series Download plans season 1 by default; the scope select widens it to all seasons",
+    test "a series Download plans the first missing season by default; the scope select widens it to all seasons",
          %{conn: conn} do
       TmdbStubs.stub_series_universe_for_targeting()
       {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
       {:ok, view, _html} = live(conn, "/social?title=tv_series-246810")
 
       assert has_element?(view, "#detail-download", "Download")
-      assert has_element?(view, "#detail-scope", "Season 1")
+      assert has_element?(view, "#detail-scope", "First missing season")
       refute has_element?(view, "#detail-scope-menu")
+
+      # Listed, the tracking block carries Auto-grab: the row offers no
+      # second switch for the same choice.
+      refute has_element?(view, "#detail-grab-rest")
 
       view |> element("#detail-scope") |> render_click()
       assert has_element?(view, "#detail-scope-menu #detail-scope-everything", "All seasons")
-      assert has_element?(view, "#detail-scope-first_season.glass-menu-item-active")
+      assert has_element?(view, "#detail-scope-menu #detail-scope-latest_season", "Latest season")
+      assert has_element?(view, "#detail-scope-first_missing_season.glass-menu-item-active")
 
       view |> element("#detail-scope-everything") |> render_click()
       refute has_element?(view, "#detail-scope-menu")
@@ -1914,6 +1928,48 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       # title stays where the person put it, at List.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
       assert Watchlist.rung(246_810, :tv_series) == :list
+    end
+
+    test "Latest season with its grab switch plans the latest season and puts the series at Grab",
+         %{conn: conn} do
+      TmdbStubs.stub_series_universe_for_targeting()
+      unlisted_show_in_store()
+      {:ok, view, _html} = live(conn, "/social?title=tv_series-246810")
+
+      assert has_element?(
+               view,
+               "#detail-grab-rest[aria-checked='false']",
+               "Grab new episodes as they air"
+             )
+
+      view |> element("#detail-scope") |> render_click()
+      view |> element("#detail-scope-latest_season") |> render_click()
+      assert has_element?(view, "#detail-scope", "Latest season")
+      assert has_element?(view, "#detail-grab-rest[aria-checked='true']")
+
+      view |> element("#detail-download") |> render_click()
+
+      {path, _flash} = assert_redirect(view, 2_000)
+      "/downloads?plan=" <> plan_id = path
+      assert Enum.map(Plans.units_for(plan_id), &{&1.season_number, &1.episode_number}) == [{2, 1}]
+      assert Watchlist.rung(246_810, :tv_series) == :grab
+    end
+
+    test "with the grab switch off, Download leaves an unlisted series off the watchlist",
+         %{conn: conn} do
+      TmdbStubs.stub_series_universe_for_targeting()
+      unlisted_show_in_store()
+      {:ok, view, _html} = live(conn, "/social?title=tv_series-246810")
+
+      view |> element("#detail-scope") |> render_click()
+      view |> element("#detail-scope-latest_season") |> render_click()
+      view |> element("#detail-grab-rest") |> render_click()
+      assert has_element?(view, "#detail-grab-rest[aria-checked='false']")
+
+      view |> element("#detail-download") |> render_click()
+
+      assert {"/downloads?plan=" <> _plan_id, _flash} = assert_redirect(view, 2_000)
+      assert Watchlist.rung(246_810, :tv_series) == nil
     end
 
     test "Choose episodes sends Download to the picker with the default mode and plans nothing here",
@@ -1957,7 +2013,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, view, _html} = live(conn, "/social?title=tv_series-246810")
 
       render_hook(view, "download_scope", %{"choice" => "all_of_it"})
-      assert has_element?(view, "#detail-scope", "Season 1")
+      assert has_element?(view, "#detail-scope", "First missing season")
     end
 
     test "a TMDB failure while planning manually flashes on the modal and leaves no plan",

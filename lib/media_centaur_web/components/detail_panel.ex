@@ -45,8 +45,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   `Detail.Logic.primary_action/2`: Play (`Detail.PlayCard`) for an owned
   title; the Download split control (`GlassMenu.split_button`, its main
   segment the person's default planning mode, its menu the other) with
-  the scope select beside it for a series, when the title is out and an
-  indexer is ready; the acquisition state as a fact (Needs review links
+  the scope select and, for a series with no record and a release ahead,
+  the *Grab new episodes as they air* switch beside it, when the title
+  is out and an indexer is ready; the acquisition state as a fact (Needs review links
   to Downloads); or nothing — arming is the tracking switches' job
   (ADR-066). The view controls follow (`Detail.ViewControls`), then the
   member Watched toggle for a collection, and at the far end Delete
@@ -59,7 +60,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   rail tile), `set_rung`, `review_open`, `download` (`mode` from the
   menu, none from the main segment), `download_mode_toggle`,
   `download_scope_toggle`, `download_menu_close`, `download_scope`
-  (`choice`), `activity_delete`, `reset_lower_quality`, and the library
+  (`choice`), `download_grab_rest_toggle`, `activity_delete`, `reset_lower_quality`, and the library
   sections' own (`toggle_watched`, `toggle_season`, the delete prompts,
   …).
 
@@ -99,6 +100,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.{CaughtUp, ReleaseDates}
+  alias MediaCentaurWeb.Components.Switch
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Flag
   alias MediaCentaurWeb.Components.Title.Grade
@@ -296,6 +298,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 state={@state}
                 on_play={@on_play}
                 available={@available}
+                today={@today}
               />
               <ViewControls.view_controls
                 detail={@detail}
@@ -501,6 +504,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :state, ModalState, required: true
   attr :on_play, :string, required: true
   attr :available, :boolean, required: true
+  attr :today, Date, required: true
 
   defp primary(%{action: {:play, props}} = assigns) do
     assigns = assign(assigns, :props, props)
@@ -538,15 +542,22 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   # The split's main segment performs the person's default planning
-  # mode; the menu names the other. A series adds the scope select.
-  # Neither follows the series: a scope covers episodes that have aired,
-  # and what is still to come is the tracking switches' business, never
-  # a download's (ADR-066).
+  # mode; the menu names the other. A series adds the scope select, and
+  # while it has no record and a release ahead, the Grab new episodes as
+  # they air switch. No scope follows the series: a scope covers episodes
+  # that have aired, and what is still to come is the person's act — the
+  # switch here, or the tracking block's once the title is listed
+  # (ADR-066).
   defp primary(%{action: {:download, scoped?}} = assigns) do
     assigns =
       assigns
       |> assign(:other_mode, PlanningMode.other(assigns.detail.planning_mode))
       |> assign(:scoped?, scoped?)
+      |> assign(:scopes, TitleLogic.offered_scopes(assigns.detail))
+      |> assign(
+        :grab_rest?,
+        scoped? and TitleLogic.grab_rest_offered?(assigns.detail, assigns.state, assigns.today)
+      )
       |> assign(:pending?, match?({:download, _name}, assigns.state.pending))
 
     ~H"""
@@ -580,7 +591,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       label="Download scope"
     >
       <:item
-        :for={scope <- ModalState.scope_choices()}
+        :for={scope <- @scopes}
         id={"detail-scope-" <> Atom.to_string(scope)}
         event="download_scope"
         values={%{"choice" => Atom.to_string(scope)}}
@@ -589,6 +600,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         {TitleLogic.download_scope_label(scope)}
       </:item>
     </GlassMenu.menu_select>
+    <Switch.switch
+      :if={@grab_rest?}
+      id="detail-grab-rest"
+      label="Grab new episodes as they air"
+      checked={@state.grab_rest}
+      event="download_grab_rest_toggle"
+      class="px-2 py-1"
+    />
     """
   end
 

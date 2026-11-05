@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.ViewModel.LeafDetail
 
   defp movie(overrides \\ %{}) do
@@ -251,10 +252,67 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
 
     test "each scope choice has its label" do
-      assert Logic.download_scope_label(:first_season) == "Season 1"
+      assert Logic.download_scope_label(:first_missing_season) == "First missing season"
       assert Logic.download_scope_label(:everything) == "All seasons"
+      assert Logic.download_scope_label(:latest_season) == "Latest season"
       assert Logic.download_scope_label(:choose_episodes) == "Choose episodes"
     end
+  end
+
+  describe "offered_scopes/1 — what the scope select lists for a series" do
+    test "Latest season only when the series has more than one regular season" do
+      assert Logic.offered_scopes(series_detail(%{number_of_seasons: 3})) ==
+               [:first_missing_season, :everything, :latest_season, :choose_episodes]
+
+      for count <- [1, nil] do
+        assert Logic.offered_scopes(series_detail(%{number_of_seasons: count})) ==
+                 [:first_missing_season, :everything, :choose_episodes]
+      end
+    end
+  end
+
+  describe "grab_rest_offered?/3 — the Grab new episodes as they air switch" do
+    @today ~D[2026-11-05]
+
+    test "an unlisted series with releases ahead, on a scope that plans" do
+      assert Logic.grab_rest_offered?(series_detail(%{}), ModalState.new(), @today)
+
+      assert Logic.grab_rest_offered?(
+               series_detail(%{}),
+               ModalState.choose_scope(ModalState.new(), :latest_season),
+               @today
+             )
+    end
+
+    test "not for a series with nothing ahead, one already on the watchlist, or the picker" do
+      refute Logic.grab_rest_offered?(series_detail(%{settled?: true}), ModalState.new(), @today)
+
+      for rung <- [:ignored, :list, :follow, :grab] do
+        refute Logic.grab_rest_offered?(series_detail(%{rung: rung}), ModalState.new(), @today)
+      end
+
+      refute Logic.grab_rest_offered?(
+               series_detail(%{}),
+               ModalState.choose_scope(ModalState.new(), :choose_episodes),
+               @today
+             )
+    end
+
+    test "not for a movie" do
+      movie =
+        Title.new!(%{tmdb_id: 1, media_type: :movie, name: "Movie A", release_date: ~D[2027-01-01]})
+
+      refute Logic.grab_rest_offered?(
+               %TitleDetail{ref: Title.ref(movie), title: movie},
+               ModalState.new(),
+               @today
+             )
+    end
+  end
+
+  defp series_detail(overrides) do
+    show = Title.new!(%{tmdb_id: 2, media_type: :tv_series, name: "Sample Show"})
+    struct!(%TitleDetail{ref: Title.ref(show), title: show}, overrides)
   end
 
   describe "title_detail/2 planning mode" do

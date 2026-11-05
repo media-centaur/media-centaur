@@ -29,7 +29,10 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   series. `settled?` is whether the TMDB store holds the title as
   settled (`TMDB.Schedule`): for a series, ended or canceled with no air
   date ahead. The rows derive their rule from these at the mount
-  (`Logic.release_ahead?/2`).
+  (`Logic.release_ahead?/2`). `number_of_seasons` is the stored series'
+  count of regular seasons (TMDB's `number_of_seasons`, specials not
+  counted), nil until the store holds the title; the scope select offers
+  *Latest season* from it (`Logic.offered_scopes/1`).
 
   `social_activity` is the title's `Activities.activity_for/1`
   rows — the hero's social capsule (`Title.Social`). `activity` is the one row the
@@ -73,6 +76,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
     lower_quality_accepted?: false,
     complete?: false,
     settled?: false,
+    number_of_seasons: nil,
     planning_mode: :manually_select_release,
     social_activity: []
   ]
@@ -94,6 +98,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           lower_quality_accepted?: boolean(),
           complete?: boolean(),
           settled?: boolean(),
+          number_of_seasons: non_neg_integer() | nil,
           release_window: ReleaseWindow.t() | nil,
           planning_mode: PlanningMode.mode(),
           activity: Activities.activity_row() | nil,

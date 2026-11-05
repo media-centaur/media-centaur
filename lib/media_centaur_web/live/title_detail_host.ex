@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) with `view` and `activity`, or from `?entity=<uuid>` — canonicalised to the title address when the entity has a TMDB identity, else the residue |
-  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `caught_up` (and its two menu events), `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, the library sections' (`LibraryEvents.events/0`), and the toolbar's verbs on a title shown outside its detail — `title_list`, `title_download`, `title_ignore` by `ref` (with `activity` for a friend's provenance), `ignore_undo`, `ignore_undo_dismiss`; `:ignore_undo` is the host's assign, the page draws the toast |
+  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `caught_up` (and its two menu events), `reset_lower_quality`, `review_open`, `finish_prompt_done`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `download_grab_rest_toggle`, `activity_delete`, `refresh_from_tmdb`, the library sections' (`LibraryEvents.events/0`), and the toolbar's verbs on a title shown outside its detail — `title_list`, `title_download`, `title_ignore` by `ref` (with `activity` for a friend's provenance), `ignore_undo`, `ignore_undo_dismiss`; `:ignore_undo` is the host's assign, the page draws the toast |
   | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load, the delete and the TMDB check — each landing by subject and dropped when the person moved on |
   | `:handle_info` | refreshes the open detail by identity on the topics below, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `review_open` opens it on the detail's title |
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   @callback download_started(socket :: Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
 
-  @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view refresh_from_tmdb)
+  @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download_grab_rest_toggle download activity_delete review_open select_detail_view refresh_from_tmdb)
   @library_events LibraryEvents.events()
   @rungs ~w(off list follow grab ignored)
 
@@ -525,7 +525,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         }),
       acquisition?: acquisition?,
       complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
-      settled?: settled?(ref),
       release_window: nil,
       planning_mode: planning_mode,
       social_activity: Map.get(Activities.activity_for([ref]), ref, []),
@@ -533,7 +532,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       preview: preview
     }
 
-    Logic.title_detail(title, facts)
+    Logic.title_detail(title, Map.merge(facts, stored_facts(ref)))
   end
 
   # The pair the card's selects name, `:latest` from the button alone; nil
@@ -562,10 +561,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # Settled in the TMDB store (ADR-071): no release fact can change. A
   # title the store has never held is not.
-  defp settled?(ref) do
+  # The facts the stored TMDB record carries, in one read: whether it is
+  # settled, and a series' count of regular seasons. A title the store
+  # does not hold yet has neither; the preview's landing reads them again
+  # once its fetch has stored the record.
+  defp stored_facts(ref) do
     case Store.get(ref) do
-      %{settled_at: %DateTime{}} -> true
-      _ -> false
+      %{settled_at: settled_at, payload: payload} ->
+        %{settled?: match?(%DateTime{}, settled_at), number_of_seasons: payload["number_of_seasons"]}
+
+      nil ->
+        %{settled?: false, number_of_seasons: nil}
     end
   end
 
@@ -703,7 +709,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       ) do
     case socket.assigns.title_detail do
       %TitleDetail{ref: ^ref, library: nil} = detail ->
-        {:halt, assign(socket, :title_detail, %{detail | preview: preview, release_window: window})}
+        detail =
+          struct!(detail, Map.merge(stored_facts(ref), %{preview: preview, release_window: window}))
+
+        {:halt, assign(socket, :title_detail, detail)}
 
       _closed_owned_or_other ->
         {:halt, socket}
@@ -962,6 +971,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
       ), do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: nil})}
 
+  def handle_title_event(
+        "download_grab_rest_toggle",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ), do: {:halt, update(socket, :modal_state, &ModalState.toggle_grab_rest/1)}
+
   # The social capsule shares the one open-menu slot: opening it closes
   # a Download menu, and the reverse.
   def handle_title_event(
@@ -987,7 +1002,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       ) do
     case ModalState.parse_scope_choice(choice) do
       {:ok, scope} ->
-        {:halt, update(socket, :modal_state, &%{&1 | download_scope: scope, open_menu: nil})}
+        {:halt, update(socket, :modal_state, &ModalState.choose_scope(&1, scope))}
 
       :error ->
         {:halt, socket}
@@ -1002,7 +1017,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
     mode = PlanningMode.parse_mode(params["mode"], detail.planning_mode)
-    scope = if detail.title.media_type == :tv_series, do: socket.assigns.modal_state.download_scope
+    state = socket.assigns.modal_state
+    scope = if detail.title.media_type == :tv_series, do: state.download_scope
+
+    # The switch beside the scope is the person's own act on the
+    # watchlist, taken with the click: Grab, caught up as of now
+    # (`ReleaseTracking.Onboarding`), so what has aired is the download's
+    # and what is still to come is the rung's (ADR-066).
+    socket =
+      if state.grab_rest and Logic.grab_rest_offered?(detail, state, socket.assigns.today),
+        do: Acquisition.apply_rung(socket, detail.title, :grab, %{}),
+        else: socket
 
     # The act owns its ending: auto-select flashes and leaves through the
     # host's `download_started/1`; a manual plan is pending and the modal
@@ -1168,7 +1193,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   # The plain Download performs the default planning mode on the default
-  # scope (season 1 for a series); the full control is in the detail. A
+  # scope (the first missing season for a series); the full control is in the detail. A
   # title the library owns, or one a plan or pursuit already holds, has
   # nothing to start.
   def handle_title_event("title_download", %{"ref" => param}, socket) do
@@ -1177,7 +1202,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         ref = {title.tmdb_id, title.media_type}
 
         if Library.ExternalIds.tmdb_owners([ref]) == %{} and TitleStates.for_refs([ref]) == %{} do
-          scope = if title.media_type == :tv_series, do: :first_season
+          scope = if title.media_type == :tv_series, do: :first_missing_season
 
           {:halt, Acquisition.start_download(socket, title, PlanningMode.value(), scope, :stay)}
         else
