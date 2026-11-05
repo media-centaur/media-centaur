@@ -3,8 +3,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaur.Acquisition.Pursuits.Recipe
-
   alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
@@ -30,14 +28,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
   defp base(overrides) do
     base = %PursuitStatus{
       pursuit_id: "story-pursuit",
-      title: "Sample Movie",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{
-        type: :tmdb,
-        title: "Sample Movie",
-        tmdb_type: :movie
-      },
       search_queries: ["Sample Movie 2010"],
       current_action: %CurrentAction{
         verb: "Downloading",
@@ -114,7 +106,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               },
               downloads: downloads(:stalled, progress_pct: 12.0, client: "qBittorrent"),
               next_step: %NextStep{description: "Re-search for a different release, or wait."},
-              available_actions: [:cancel, :change_target, :request_decision]
+              available_actions: [:cancel, :request_decision]
             ),
           on_cancel: "noop",
           on_change_target: "noop",
@@ -159,13 +151,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
         attributes: %{
           vm:
             base(
-              recipe: %Recipe{
-                type: :tmdb,
-                title: "Sample Show",
-                tmdb_type: :tv,
-                season_number: 1,
-                episode_number: 3
-              },
               search_queries: ["Sample Show S01E03", "Sample Show Season 1"],
               current_action: %CurrentAction{
                 verb: "Searching",
@@ -190,7 +175,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 severity: :info
               },
               next_step: %NextStep{description: "Will resume automatically."},
-              available_actions: [:cancel, :change_target, :request_decision],
+              available_actions: [:cancel, :request_decision],
               staleness: :stale,
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -3 * 3600, :second)
             ),
@@ -231,7 +216,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description:
                   "It may still be importing or already be in your library; change target to grab a different release."
               },
-              available_actions: [:cancel, :change_target],
+              available_actions: [:cancel, :request_decision],
               staleness: :very_stale,
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -2 * 86_400, :second)
             ),
@@ -292,7 +277,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description:
                   "A different release will be tried automatically — open SABnzbd for the job log."
               },
-              available_actions: [:cancel, :change_target]
+              available_actions: [:cancel, :request_decision]
             ),
           client_url: "http://localhost:8085",
           on_cancel: "noop",

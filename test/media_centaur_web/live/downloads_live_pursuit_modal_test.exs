@@ -471,14 +471,15 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
       assert untouched.current_target_id == first_unit.current_target_id
     end
 
-    test "single-unit pursuit renders no unit board", %{conn: conn} do
+    test "a single-unit pursuit renders its one thread row, without the Coverage count", %{conn: conn} do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/downloads?selected=#{pursuit.id}")
+      {:ok, view, html} = live_async!(conn, "/downloads?selected=#{pursuit.id}")
 
       unit = Units.single!(pursuit.id)
-      refute has_element?(view, "#unit-board-row-#{unit.id}")
+      assert has_element?(view, "#unit-board-row-#{unit.id}")
+      refute html =~ "of 1 landed"
     end
   end
 

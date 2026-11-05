@@ -1,10 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitFacts do
   @moduledoc """
-  The pursuit's search facts, seated at the top of the modal body: the
-  release-filename subtitle (Prowlarr-query pursuits that already
-  picked a release) and the literal indexer queries — "Searching
-  Prowlarr" should never be abstract; the user can compare these
-  strings to what they'd paste into Prowlarr by hand.
+  The goal's facts under the header: who started it, when, how long it
+  ran, how many releases it tried, how it ended — and, for a
+  Prowlarr-query goal that picked a release, the release filename above
+  them.
   """
 
   use PhoenixStorybook.Story, :component
@@ -17,7 +16,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitFacts do
 
   def template do
     """
-    <div class="max-w-2xl glass-inset rounded-xl p-6">
+    <div class="max-w-2xl">
       <.psb-variation/>
     </div>
     """
@@ -26,68 +25,66 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitFacts do
   def variations do
     [
       %Variation{
-        id: :tmdb_queries,
-        description: "TMDB pursuit — the queries QueryBuilder runs, one per line.",
+        id: :series_facts,
+        description: "A series Auto-grab started, cancelled by hand after a night of retries.",
         attributes: %{
           vm: %PursuitHeader{
-            id: "story-tmdb",
+            id: "story-series",
             title: "Sample Show",
+            state: :partial,
+            recipe: %Recipe{type: :tmdb, title: "Sample Show", tmdb_type: :tv},
+            facts: [
+              "Auto-grab started this",
+              "4 Nov 11:45",
+              "ran 13h 42m",
+              "252 releases tried",
+              "ended 5 Nov 01:27"
+            ]
+          }
+        }
+      },
+      %Variation{
+        id: :film_in_flight,
+        description: "A film you started, still running: no end yet.",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-film",
+            title: "Sample Movie",
             state: :active,
-            recipe: %Recipe{type: :tmdb, title: "Sample Show", tmdb_type: :tv, season_number: 1},
-            search_queries: ["Sample Show Season 1", "Sample Show S01"]
+            recipe: %Recipe{type: :tmdb, title: "Sample Movie", tmdb_type: :movie, year: 2010},
+            facts: ["You started this", "5 Nov 09:12", "ran 14m", "1 release tried"]
           }
         }
       },
       %Variation{
         id: :manual_query_with_release,
         description:
-          "Prowlarr-query pursuit after a pick — the release filename is a demoted " <>
-            "monospace subtitle above the query list.",
+          "A Prowlarr-query goal after a pick — the release filename is a demoted monospace " <>
+            "line above the facts.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-manual",
-            title: "Phantom of the Opera (1925) · 1080p WEB-DL",
-            state: :active,
+            title: "Phantom.of.the.Opera.1925.1080p.WEB-DL",
+            state: :satisfied,
             recipe: %Recipe{
               type: :prowlarr_query,
-              title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+              title: "Phantom.of.the.Opera.1925.1080p.WEB-DL",
               manual_query: "Phantom of the Opera 1925"
             },
-            search_queries: ["Phantom of the Opera 1925"]
-          }
-        }
-      },
-      %Variation{
-        id: :brace_expanded,
-        description: "Brace-expanded Prowlarr query — multiple literal queries.",
-        attributes: %{
-          vm: %PursuitHeader{
-            id: "story-expanded",
-            title: "Sample Show S01E{01,02,03}",
-            state: :active,
-            recipe: %Recipe{
-              type: :prowlarr_query,
-              title: "Sample Show S01E{01,02,03}",
-              manual_query: "Sample Show S01E{01,02,03}"
-            },
-            search_queries: [
-              "Sample Show S01E01",
-              "Sample Show S01E02",
-              "Sample Show S01E03"
-            ]
+            facts: ["You started this", "2 Nov 20:03", "ran 41m", "1 release tried", "done 2 Nov 20:44"]
           }
         }
       },
       %Variation{
         id: :nothing_to_show,
-        description: "No queries, no release subtitle — the component renders nothing.",
+        description: "No facts and no release subtitle — the block renders nothing.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-empty",
-            title: "Movie A",
-            state: :satisfied,
-            recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie},
-            search_queries: []
+            title: "Sample Movie",
+            state: :active,
+            recipe: %Recipe{type: :tmdb, title: "Sample Movie", tmdb_type: :movie},
+            facts: []
           }
         }
       }

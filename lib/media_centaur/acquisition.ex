@@ -93,7 +93,11 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.TimelineEntry,
       ViewModels.UnitBoard,
       ViewModels.UnitBoard.Group,
-      ViewModels.UnitBoard.Row
+      ViewModels.UnitBoard.Row,
+      # The board's attempts and its fold: the component draws an Attempt,
+      # stories build them (pursuit-window M5).
+      ViewModels.UnitBoard.Attempt,
+      ViewModels.UnitBoard.Fold
     ]
 
   @moduledoc """

@@ -14,20 +14,7 @@ defmodule MediaCentaurWeb.LibraryFormatters do
   instead when you need clock-style `H:MM:SS` (player overlays, log lines).
   """
   @spec format_human_duration(non_neg_integer() | nil) :: String.t()
-  def format_human_duration(seconds) when seconds >= 3600 do
-    hours = div(seconds, 3600)
-    minutes = div(rem(seconds, 3600), 60)
-
-    if minutes > 0,
-      do: "#{hours}h #{minutes}m",
-      else: "#{hours}h"
-  end
-
-  def format_human_duration(seconds) when seconds >= 60 do
-    "#{div(seconds, 60)}m"
-  end
-
-  def format_human_duration(_seconds), do: "< 1m"
+  defdelegate format_human_duration(seconds), to: MediaCentaur.Format
 
   # --- Rating ---
 

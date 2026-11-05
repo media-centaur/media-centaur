@@ -194,7 +194,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Public Domain Feature 1925",
       state: :active,
       recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie, year: 1925},
-      criteria_summary: "max_quality: 2160p, min_quality: 1080p",
+      scope_label: "1925",
+      facts: ["Auto-grab started this", "8 May 11:55", "ran 5m", "1 release tried"],
+      criteria_summary: "1080p or better, up to 4K",
       backdrop_url:
         "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23355070'/><stop offset='1' stop-color='%23172033'/></linearGradient></defs><rect width='1280' height='720' fill='url(%23g)'/><circle cx='980' cy='180' r='240' fill='%236d8cb0' opacity='0.35'/></svg>",
       logo_url:
@@ -215,6 +217,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         season_number: 1,
         episode_number: 4
       },
+      scope_label: "S01E04",
+      facts: ["Auto-grab started this", "5 May 12:00", "ran 3d", "2 releases tried"],
       criteria_summary: nil
     }
   end
@@ -225,6 +229,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Movie A",
       state: :satisfied,
       recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie, year: 2023},
+      scope_label: "2023",
+      facts: ["You started this", "5 May 12:00", "ran 3d", "2 releases tried", "done 8 May 11:59"],
       criteria_summary: nil
     }
   end
@@ -234,10 +240,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   defp downloading_status do
     %PursuitStatus{
       pursuit_id: "story-active",
-      title: "Public Domain Feature 1925",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Downloading",
         description: "From qBittorrent • 42% • ETA 8m",
@@ -258,10 +262,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   defp handed_off_status do
     %PursuitStatus{
       pursuit_id: "story-handed-off",
-      title: "Public Domain Feature 1925",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Grabbed",
         description: "Waiting for your download client to pick it up.",
@@ -278,17 +280,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   defp never_arrived_status do
     %PursuitStatus{
       pursuit_id: "story-never-arrived",
-      title: "Public Domain Feature 1925",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Not at your client",
         description: "Prowlarr accepted the grab but the download never started.",
         severity: :warning
       },
-      next_step: %NextStep{description: "Change target to try a different release."},
-      available_actions: [:cancel, :change_target],
+      next_step: %NextStep{description: "Pick a different release."},
+      available_actions: [:cancel, :request_decision],
       staleness: :stale
     }
   end
@@ -296,10 +296,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   defp awaiting_decision_status do
     %PursuitStatus{
       pursuit_id: "story-decision",
-      title: "Sample Show S01E04",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{type: :tmdb, title: "Sample Show", tmdb_type: :tv},
       current_action: %CurrentAction{
         verb: "Decision needed",
         description: "Pick a release below.",
@@ -314,10 +312,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   defp satisfied_status do
     %PursuitStatus{
       pursuit_id: "story-satisfied",
-      title: "Movie A",
       state: :satisfied,
       origin: :auto,
-      recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Done",
         description: "File landed and identity verified.",

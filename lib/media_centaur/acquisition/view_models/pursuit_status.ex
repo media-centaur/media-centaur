@@ -5,17 +5,17 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   Built by `MediaCentaur.Acquisition.Pursuits.status_from/2` — joins the
   pursuit row with its unit, the unit's current target, and any
   matching download-client queue item, then routes through the pure
-  `derive/6` function to produce `current_action`, `next_step`, and
+  `derive/7` function to produce `current_action`, `next_step`, and
   `available_actions`. The unit carries the attempt thread (ADR-055);
   the modal shows the sole unit's thread until the multi-unit
   drill-down lands.
 
-  `derive/6` owns *copy*, not lifecycle logic: `Pursuits.Stage` decides where
+  `derive/7` owns *copy*, not lifecycle logic: `Pursuits.Stage` decides where
   the download has got to and this module says it in words. Adding a status
   line means adding a stage there, not another clause here.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Stage, StatusContext, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Stage, StatusContext, Unit}
   alias MediaCentaur.Acquisition.Pursuits.State
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Format
@@ -26,55 +26,56 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     NextStep
   }
 
+  alias MediaCentaur.Acquisition.ViewModels.UnitBoard.Fold
+
   alias MediaCentaur.Downloads.{Phase, QueueItem}
 
   @enforce_keys [
     :pursuit_id,
-    :title,
     :state,
     :origin,
-    :recipe,
     :current_action,
     :available_actions,
     :staleness
   ]
   defstruct [
     :pursuit_id,
-    :title,
     :state,
     :origin,
-    :recipe,
-    :criteria_summary,
     :current_action,
     :next_step,
     :download,
     :staleness,
     :last_activity_at,
-    # Loaded pursuit + unit + target structs, and the page-level
-    # `StatusContext`, are stashed so the queue-tick refresh path
-    # (`Pursuits.refresh_status_download/2`) can re-derive the dynamic fields
-    # against a fresh queue snapshot without a DB round-trip. Not consumed by
-    # the template — purely a memoisation handle for the refresh path.
+    # Loaded pursuit + unit + target structs, the units with their current
+    # targets, the fold, and the page-level `StatusContext`, are stashed so
+    # the queue-tick refresh path (`Pursuits.refresh_status_download/2`) can
+    # re-derive the dynamic fields against a fresh queue snapshot without a
+    # DB round-trip. Not consumed by the template — purely a memoisation
+    # handle for the refresh path. Identity (title, recipe, criteria) is the
+    # header's.
     :pursuit,
     :unit,
     :target,
+    :units,
+    :targets,
+    :fold,
     :context,
     available_actions: [],
     downloads: [],
     search_queries: []
   ]
 
-  @type action :: :cancel | :change_target | :request_decision | :search_again
+  @type action :: :cancel | :request_decision | :search_again
   @type staleness :: :fresh | :stale | :very_stale
 
   @type t :: %__MODULE__{
           pursuit_id: Ecto.UUID.t(),
-          title: String.t(),
           state: State.t(),
           origin: :auto | :manual,
-          recipe: Recipe.t(),
+          # The searching thread's literal indexer queries; the Activity card
+          # lists them beside a searching verb.
           search_queries: [String.t()],
-          criteria_summary: String.t() | nil,
           current_action: CurrentAction.t(),
           next_step: NextStep.t() | nil,
           download: DownloadProgress.t() | nil,
@@ -85,6 +86,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           pursuit: Pursuit.t() | nil,
           unit: Unit.t() | nil,
           target: Target.t() | nil,
+          units: [Unit.t()] | nil,
+          targets: %{Ecto.UUID.t() => Target.t()} | nil,
+          fold: Fold.t() | nil,
           context: StatusContext.t() | nil
         }
 
@@ -106,10 +110,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   5. `Stage.of/4`, mapped to copy.
 
   The unit carries the attempt thread (decision flag, attempt count — ADR-055);
-  the target carries the per-release facts. The recipe lives on the pursuit and
-  drives whether `ChangeTarget` auto-picks or surfaces results, but from here
-  both recipes offer `:change_target` as the recovery action; the worker handles
-  the divergence.
+  the target carries the per-release facts; the `fold` carries the board's
+  counts (`UnitBoard.Fold`), which the terminal and partial branches speak.
+  The one recovery a person can take from here is `:request_decision` — the
+  release picker; the board's swap fires the same.
   """
   @spec derive(
           Pursuit.t(),
@@ -117,57 +121,96 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           Target.t() | nil,
           QueueItem.t() | nil,
           Stage.location(),
-          StatusContext.t()
+          StatusContext.t(),
+          Fold.t()
         ) :: {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(pursuit, unit, target, queue_item, location, context)
+  def derive(pursuit, unit, target, queue_item, location, context, fold)
 
-  def derive(%Pursuit{state: "satisfied"}, _unit, _target, _qi, _location, _context) do
+  def derive(
+        %Pursuit{state: "satisfied"} = pursuit,
+        _unit,
+        _target,
+        _qi,
+        _location,
+        _context,
+        %Fold{} = fold
+      ) do
     {
-      %CurrentAction{
-        verb: "Done",
-        description: "File landed and identity verified.",
-        severity: :success
-      },
+      %CurrentAction{verb: "Done", description: done_description(pursuit, fold), severity: :success},
       nil,
       []
     }
   end
 
-  def derive(%Pursuit{state: "partial"}, _unit, _target, _qi, _location, _context) do
+  def derive(
+        %Pursuit{state: "partial"} = pursuit,
+        _unit,
+        _target,
+        _qi,
+        _location,
+        _context,
+        %Fold{} = fold
+      ) do
     {
       %CurrentAction{
         verb: "Partly done",
-        description: "Some of this download landed; the rest didn't.",
+        description: partial_description(pursuit, fold),
         severity: :warning
       },
-      %NextStep{description: "Search again looks for releases of the rest not tried yet."},
+      %NextStep{description: search_again_next(pursuit, fold)},
       [:search_again]
     }
   end
 
-  def derive(%Pursuit{state: "exhausted"}, unit, _target, _qi, _location, _context) do
-    attempt_count = (unit && unit.attempt_count) || 0
-
+  def derive(
+        %Pursuit{state: "exhausted"} = pursuit,
+        unit,
+        _target,
+        _qi,
+        _location,
+        _context,
+        %Fold{} = fold
+      ) do
     {
       %CurrentAction{
         verb: "Gave up",
-        description: "Gave up after #{attempt_count} attempts.",
+        description: gave_up_description(pursuit, unit, fold),
         severity: :error
       },
-      %NextStep{description: "Search again looks for releases not tried yet."},
+      %NextStep{description: search_again_next(pursuit, fold)},
       [:search_again]
     }
   end
 
-  def derive(%Pursuit{state: "cancelled"}, _unit, _target, _qi, _location, _context) do
+  def derive(
+        %Pursuit{state: "cancelled"} = pursuit,
+        _unit,
+        _target,
+        _qi,
+        _location,
+        _context,
+        %Fold{} = fold
+      ) do
     {
-      %CurrentAction{verb: "Cancelled", description: "This download was cancelled.", severity: :info},
+      %CurrentAction{
+        verb: "Cancelled",
+        description: cancelled_description(pursuit, fold),
+        severity: :info
+      },
       nil,
       []
     }
   end
 
-  def derive(%Pursuit{state: "active"}, unit, target, queue_item, location, %StatusContext{} = context) do
+  def derive(
+        %Pursuit{state: "active"},
+        unit,
+        target,
+        queue_item,
+        location,
+        %StatusContext{} = context,
+        _fold
+      ) do
     stage = Stage.of(target, queue_item, location, context)
 
     cond do
@@ -178,6 +221,76 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
       true -> stage_action(stage, target, unit)
     end
   end
+
+  # ─── The fold in words ───
+
+  defp done_description(_pursuit, %Fold{wanted: wanted}) when wanted <= 1,
+    do: "File landed and identity verified."
+
+  defp done_description(pursuit, %Fold{wanted: wanted}),
+    do: "All #{wanted} #{things(pursuit, wanted)} landed."
+
+  defp partial_description(pursuit, %Fold{} = fold) do
+    "#{fold.landed} of #{fold.wanted} #{things(pursuit, fold.wanted)} landed. " <>
+      missing_sentence(fold) <> tried_sentence(fold)
+  end
+
+  defp gave_up_description(_pursuit, unit, %Fold{wanted: wanted}) when wanted <= 1,
+    do: "Gave up after #{(unit && unit.attempt_count) || 0} attempts."
+
+  defp gave_up_description(pursuit, _unit, %Fold{} = fold),
+    do: "None of the #{fold.wanted} #{things(pursuit, fold.wanted)} landed." <> tried_sentence(fold)
+
+  defp cancelled_description(_pursuit, %Fold{wanted: wanted}) when wanted <= 1,
+    do: "This download was cancelled."
+
+  defp cancelled_description(pursuit, %Fold{} = fold) do
+    "#{fold.landed} of #{fold.wanted} #{things(pursuit, fold.wanted)} had landed when it was cancelled." <>
+      tried_sentence(fold)
+  end
+
+  defp missing_sentence(%Fold{gave_up: gave_up, cancelled: cancelled}) do
+    parts =
+      Enum.reject(
+        [
+          gave_up > 0 && "#{gave_up} gave up",
+          cancelled > 0 && "#{cancelled} #{if cancelled == 1, do: "was", else: "were"} cancelled"
+        ],
+        &(&1 == false)
+      )
+
+    case parts do
+      [] -> ""
+      parts -> Enum.join(parts, " and ") <> "."
+    end
+  end
+
+  defp tried_sentence(%Fold{releases_tried: tried}) when is_integer(tried) and tried > 1,
+    do: " #{tried} releases were tried in all."
+
+  defp tried_sentence(_fold), do: ""
+
+  # Search again's next step; an Auto-grab goal also keeps looking on its own.
+  defp search_again_next(%Pursuit{origin: origin}, %Fold{} = fold) do
+    base =
+      case Fold.missing(fold) do
+        missing when missing > 1 ->
+          "Search again plans the #{missing} that didn't land, skipping every release already tried."
+
+        _one_or_none ->
+          "Search again looks for releases not tried yet."
+      end
+
+    if origin == "auto", do: base <> " Auto-grab keeps looking on its own.", else: base
+  end
+
+  defp things(%Pursuit{tmdb_type: type}, n) when type in ["tv", :tv],
+    do: if(n == 1, do: "episode", else: "episodes")
+
+  defp things(%Pursuit{tmdb_type: type}, n) when type in ["movie", :movie],
+    do: if(n == 1, do: "film", else: "films")
+
+  defp things(_pursuit, n), do: if(n == 1, do: "item", else: "items")
 
   defp awaiting_decision?(%Unit{awaiting_decision_at: %DateTime{}}), do: true
   defp awaiting_decision?(_unit), do: false
@@ -248,7 +361,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :warning
       },
       nil,
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -302,7 +415,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :warning
       },
       %NextStep{description: "Pick a different release."},
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -329,7 +442,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description:
           "It may still be importing or already be in your library; pick a different release to grab another."
       },
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -353,7 +466,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :warning
       },
       %NextStep{description: "Pick a different release."},
-      [:cancel, :change_target, :request_decision]
+      [:cancel, :request_decision]
     }
   end
 
@@ -365,7 +478,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :warning
       },
       %NextStep{description: "Pick a different release to restart."},
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -427,7 +540,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :warning
       },
       %NextStep{description: "Pick a different release, or wait."},
-      [:cancel, :change_target, :request_decision]
+      [:cancel, :request_decision]
     }
   end
 
@@ -444,7 +557,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   end
 
   # SABnzbd's post-download pipeline: verify → repair → unpack → move.
-  # All healthy, all hands-off — offering change_target here invites
+  # All healthy, all hands-off — offering the release picker here invites
   # abandoning a download that is seconds-to-minutes from landing.
   defp at_client_action(%QueueItem{state: state} = qi)
        when state in [:verifying, :repairing, :extracting, :moving] do
@@ -489,7 +602,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description:
           "A different release will be tried automatically — open #{qi.download_client || "your download client"} for the job log."
       },
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -501,7 +614,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :error
       },
       %NextStep{description: "Check your download client or pick a different release."},
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 
@@ -513,7 +626,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         severity: :info
       },
       %NextStep{description: "Pick a different release."},
-      [:cancel, :change_target]
+      [:cancel, :request_decision]
     }
   end
 

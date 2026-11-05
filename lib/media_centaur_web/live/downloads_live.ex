@@ -1523,11 +1523,11 @@ defmodule MediaCentaurWeb.DownloadsLive do
           start_async(socket, {:alternatives_refresh, pursuit_id}, fn ->
             case Pursuits.fetch(pursuit_id) do
               {:ok, pursuit} ->
-                header = Pursuits.header_from(pursuit)
+                %{header: header, status: status} = Pursuits.detail_for(pursuit)
 
                 # "Search Prowlarr again" is the user-initiated refresh —
                 # it bypasses the corpus freshness gate (ADR-055).
-                build_decision(pursuit, header.awaiting_decision?, header.search_queries, force: true)
+                build_decision(pursuit, header.awaiting_decision?, status.search_queries, force: true)
 
               _ ->
                 %{card: nil, results_by_guid: %{}}
@@ -2008,7 +2008,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           decision_card_or_placeholder(
             pursuit,
             header.awaiting_decision?,
-            header.search_queries,
+            status.search_queries,
             socket.assigns.pursuit_detail
           )
 
@@ -2120,8 +2120,8 @@ defmodule MediaCentaurWeb.DownloadsLive do
       |> start_async({:alternatives_fetch, pursuit_id}, fn ->
         case Pursuits.fetch(pursuit_id) do
           {:ok, pursuit} ->
-            header = Pursuits.header_from(pursuit)
-            build_decision(pursuit, header.awaiting_decision?, header.search_queries)
+            %{header: header, status: status} = Pursuits.detail_for(pursuit)
+            build_decision(pursuit, header.awaiting_decision?, status.search_queries)
 
           _ ->
             %{card: nil, results_by_guid: %{}}

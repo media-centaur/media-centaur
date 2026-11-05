@@ -494,7 +494,9 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test "movie recipe carries the year query plus the year-less fallback" do
       pursuit = insert_pursuit(%{tmdb_type: "movie", title: "Sample Movie", year: 2010})
 
-      assert {:ok, %PursuitHeader{search_queries: queries}} = Pursuits.header_for(pursuit.id)
+      assert %MediaCentaur.Acquisition.ViewModels.PursuitStatus{search_queries: queries} =
+               Pursuits.status_from(pursuit, context_with([]))
+
       assert queries == ["Sample Movie 2010", "Sample Movie"]
     end
 
@@ -507,7 +509,9 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
           episode_number: 3
         })
 
-      assert {:ok, %PursuitHeader{search_queries: queries}} = Pursuits.header_for(pursuit.id)
+      assert %MediaCentaur.Acquisition.ViewModels.PursuitStatus{search_queries: queries} =
+               Pursuits.status_from(pursuit, context_with([]))
+
       assert queries == ["Sample Show S01E03"]
     end
   end
@@ -784,7 +788,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
 
       assert {:ok, %PursuitHeader{} = header} = Pursuits.header_for(pursuit.id)
-      assert header.search_queries == ["Sample Show S01E03"]
+      assert header.scope_label == "S01E03"
       assert header.recipe.season_number == 1
       assert header.recipe.episode_number == 3
     end
@@ -794,8 +798,6 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
 
       assert %PursuitStatus{} = status = Pursuits.status_from(pursuit, context_with([]))
       assert status.search_queries == ["Sample Show S01E03"]
-      assert status.recipe.season_number == 1
-      assert status.recipe.episode_number == 3
     end
 
     test "list_rows/1 labels a single-unit pursuit with its unit's episode" do

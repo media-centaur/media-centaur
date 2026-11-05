@@ -23,7 +23,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   }
 
   alias MediaCentaur.Acquisition.Pursuits.Recipe, as: PursuitRecipe
-  alias MediaCentaur.Acquisition.{QueueMatcher, Target}
+  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher, Target}
   alias MediaCentaur.Search.QueryBuilder
 
   alias MediaCentaur.Acquisition.ViewModels.Timeline.Resolver
@@ -309,7 +309,10 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   three view-models from one fetch instead of three.
   """
   @spec header_from(Pursuit.t()) :: PursuitHeader.t()
-  def header_from(%Pursuit{} = pursuit), do: build_header(pursuit)
+  def header_from(%Pursuit{} = pursuit) do
+    units = Units.for_pursuit(pursuit.id)
+    build_header(pursuit, units, covering_targets(units))
+  end
 
   @doc """
   Refreshes only the queue-derived fields of an existing `PursuitStatus`
@@ -352,13 +355,14 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         status.target,
         queue_item,
         download_location(status.target, context.pending_file_paths),
-        context
+        context,
+        status.fold
       )
 
     {current_action, downloads} =
       PursuitStatus.compose_downloads(
         current_action,
-        all_downloads(status.pursuit, status.target, queue_items)
+        all_downloads(status.units, status.targets, status.target, queue_items)
       )
 
     if status.download == download and status.downloads == downloads do
@@ -397,39 +401,59 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   """
   @spec status_from(Pursuit.t(), StatusContext.t()) :: PursuitStatus.t()
   def status_from(%Pursuit{} = pursuit, %StatusContext{} = context) do
+    units = Units.for_pursuit(pursuit.id)
+    covering = covering_targets(units)
+    build_status(pursuit, context, units, covering, build_unit_board(pursuit, units, covering))
+  end
+
+  # The status over the loaded units and covering targets: the lead unit's
+  # thread for the current action, every unit's current job for the strips,
+  # and the board's fold for the terminal copy.
+  defp build_status(
+         %Pursuit{} = pursuit,
+         %StatusContext{} = context,
+         units,
+         covering,
+         %UnitBoard{} = board
+       ) do
     queue_items = context.queue_items
-    unit = lead_unit(pursuit)
-    target = (unit && Units.current_target(unit)) || nil
+    targets_by_id = Map.new(covering, fn {target, _units} -> {target.id, target} end)
+    unit = Units.lead_of(units)
+    target = unit && Map.get(targets_by_id, unit.current_target_id)
     queue_item = find_queue_match(target, queue_items)
     location = download_location(target, context.pending_file_paths)
+    fold = UnitBoard.fold(board)
 
     {current_action, next_step, actions} =
-      PursuitStatus.derive(pursuit, unit, target, queue_item, location, context)
+      PursuitStatus.derive(pursuit, unit, target, queue_item, location, context, fold)
 
     {current_action, downloads} =
-      PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
+      PursuitStatus.compose_downloads(
+        current_action,
+        all_downloads(units, targets_by_id, target, queue_items)
+      )
 
     last_activity_at = latest_event_at(pursuit.id)
-    recipe = PursuitRecipe.for_unit(pursuit, unit)
+    state = String.to_existing_atom(pursuit.state)
 
     %PursuitStatus{
       pursuit_id: pursuit.id,
-      title: pursuit.title,
-      state: String.to_existing_atom(pursuit.state),
+      state: state,
       origin: String.to_existing_atom(pursuit.origin),
-      recipe: recipe,
-      search_queries: search_queries_for(recipe),
-      criteria_summary: summarize_criteria(pursuit.criteria),
+      search_queries: search_queries_for(PursuitRecipe.for_unit(pursuit, unit)),
       current_action: current_action,
       next_step: next_step,
       download: QueueMatcher.to_download(queue_item),
       downloads: downloads,
-      staleness: staleness_for(last_activity_at),
+      staleness: staleness_for(state, last_activity_at),
       last_activity_at: last_activity_at,
       available_actions: actions,
       pursuit: pursuit,
       unit: unit,
       target: target,
+      units: units,
+      targets: targets_by_id,
+      fold: fold,
       context: context
     }
   end
@@ -441,17 +465,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   # Every distinct current target's live queue match, lead target first —
   # a composite pursuit has several torrents in flight at once and the
   # modal must show them all (same plural rule as the index pairing).
-  defp all_downloads(%Pursuit{} = pursuit, lead_target, queue_items) do
-    units = Units.for_pursuit(pursuit.id)
-
-    targets =
-      units
-      |> Enum.map(& &1.current_target_id)
-      |> Enum.reject(&is_nil/1)
-      |> fetch_targets_by_id()
-
+  defp all_downloads(units, targets_by_id, lead_target, queue_items) do
     units
-    |> Enum.map(&Map.get(targets, &1.current_target_id))
+    |> Enum.map(&Map.get(targets_by_id, &1.current_target_id))
     |> Enum.reject(&is_nil/1)
     |> then(fn list -> if lead_target, do: [lead_target | list], else: list end)
     |> Enum.uniq_by(& &1.id)
@@ -479,9 +495,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   the coverage join), and its events, and builds the header, the status,
   History and the coverage board from them. The `Timeline.Resolver` the
   events are read through comes from the same units and targets the board
-  draws, so an event's episode and release are the board's. The header and
-  status builders still take their own reads (campaign `pursuit-window.md`,
-  M5 folds them in).
+  draws, so an event's episode and release are the board's; the header's
+  scope and facts and the status's fold read the same rows.
   """
   @spec detail_for(Pursuit.t()) :: %{
           header: PursuitHeader.t(),
@@ -492,13 +507,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   def detail_for(%Pursuit{} = pursuit) do
     units = Units.for_pursuit(pursuit.id)
     covering = covering_targets(units)
-    targets_by_id = Map.new(covering, fn {target, _units} -> {target.id, target} end)
+    board = build_unit_board(pursuit, units, covering)
 
     %{
-      header: build_header(pursuit),
-      status: status_from(pursuit),
+      header: build_header(pursuit, units, covering),
+      status: build_status(pursuit, StatusContext.load(), units, covering, board),
       timeline: Timeline.build(pursuit.id, events_for(pursuit.id), Resolver.new(covering)),
-      unit_board: build_unit_board(pursuit, units, targets_by_id)
+      unit_board: board
     }
   end
 
@@ -529,11 +544,14 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   # The per-unit coverage board (ADR-055): one row per unit with its
   # current release; the modal renders it for multi-unit pursuits.
-  defp build_unit_board(%Pursuit{} = pursuit, units, targets) do
+  defp build_unit_board(%Pursuit{} = pursuit, units, covering) do
+    targets_by_id = Map.new(covering, fn {target, _units} -> {target.id, target} end)
+
     rows =
       Enum.map(units, fn unit ->
-        target = Map.get(targets, unit.current_target_id)
+        target = Map.get(targets_by_id, unit.current_target_id)
         awaiting? = UnitState.awaiting_decision?(unit)
+        attempts = attempts_for(unit, covering)
 
         %UnitBoard.Row{
           id: unit.id,
@@ -544,7 +562,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
           awaiting_decision?: awaiting?,
           # Awaiting units pivot through the decision card, not the
           # board — offering both would race the user against themselves.
-          actionable?: unit.state == "active" and not awaiting?
+          actionable?: unit.state == "active" and not awaiting?,
+          attempts: attempts,
+          attempt_count: length(attempts)
         }
       end)
 
@@ -556,6 +576,60 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       groups: UnitBoard.group_rows(rows)
     }
   end
+
+  # Every release tried for the unit, newest first, read off the targets
+  # covering it. A satisfied unit's current target is its landing whatever
+  # the target row says (cancelling the download marks every target).
+  defp attempts_for(%Unit{} = unit, covering) do
+    covering
+    |> Enum.filter(fn {_target, units} -> Enum.any?(units, &(&1.id == unit.id)) end)
+    |> Enum.map(fn {target, _units} -> attempt(unit, target) end)
+    |> Enum.sort_by(& &1.started_at, {:desc, DateTime})
+  end
+
+  defp attempt(%Unit{} = unit, %Target{} = target) do
+    %UnitBoard.Attempt{
+      target_id: target.id,
+      release_title: target.release_title || target.title,
+      quality: target.quality,
+      size_bytes: release_value(target.release, :size_bytes),
+      indexer: release_value(target.release, :indexer_name),
+      started_at: target.inserted_at,
+      ended_at: target.cancelled_at || target.acquired_at,
+      detail: target.cancelled_detail,
+      outcome: attempt_outcome(unit, target)
+    }
+  end
+
+  defp attempt_outcome(%Unit{state: "satisfied", current_target_id: id}, %Target{id: id}), do: :landed
+  defp attempt_outcome(_unit, %Target{status: "succeeded"}), do: :landed
+  defp attempt_outcome(_unit, %Target{status: "failed"}), do: :failed
+
+  defp attempt_outcome(_unit, %Target{status: "cancelled", cancelled_reason: reason}) do
+    cond do
+      reason == CancelReasons.pursuit_cancelled() ->
+        :abandoned
+
+      reason in [
+        CancelReasons.download_failed(),
+        CancelReasons.zero_seeders(),
+        CancelReasons.exhausted(),
+        CancelReasons.grab_refused()
+      ] ->
+        :failed
+
+      true ->
+        :stopped
+    end
+  end
+
+  defp attempt_outcome(_unit, _target), do: :trying
+
+  # The indexer's release map, when the target kept one (string or atom keys).
+  defp release_value(%{} = release, key),
+    do: Map.get(release, key) || Map.get(release, Atom.to_string(key))
+
+  defp release_value(_release, _key), do: nil
 
   defp unit_state_to_atom("active"), do: :active
   defp unit_state_to_atom("satisfied"), do: :satisfied
@@ -657,17 +731,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  True when any of the pursuit's units is awaiting a user decision —
-  the pursuit-level read of the unit-level flag (ADR-055).
-  """
-  @spec awaiting_decision?(Pursuit.t()) :: boolean()
-  def awaiting_decision?(%Pursuit{} = pursuit) do
-    Unit
-    |> where([u], u.pursuit_id == ^pursuit.id and not is_nil(u.awaiting_decision_at))
-    |> Repo.exists?()
-  end
-
-  @doc """
   Returns the most recently inserted target linked to a pursuit
   (regardless of which is the pursuit's `current_target_id` — useful
   for history queries that want "the latest attempt").
@@ -719,7 +782,10 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         target,
         nil,
         download_location(target, context.pending_file_paths),
-        context
+        context,
+        UnitBoard.Fold.from_states(
+          Enum.map(units, &{unit_state_to_atom(&1.state), UnitState.awaiting_decision?(&1)})
+        )
       )
 
     {season_number, episode_number} = row_scope(units, lead_unit)
@@ -784,17 +850,17 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   # The recipe is the lead unit's (ADR-055): the pursuit row names the
   # title, the unit names the episode, and the modal acts on the lead.
-  defp build_header(%Pursuit{} = pursuit) do
+  defp build_header(%Pursuit{} = pursuit, units, covering) do
     artwork = header_artwork(pursuit)
-    recipe = PursuitRecipe.for_unit(pursuit, lead_unit(pursuit))
 
     %PursuitHeader{
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
-      awaiting_decision?: awaiting_decision?(pursuit),
-      recipe: recipe,
-      search_queries: search_queries_for(recipe),
+      awaiting_decision?: Enum.any?(units, &UnitState.awaiting_decision?/1),
+      recipe: PursuitRecipe.for_unit(pursuit, Units.lead_of(units)),
+      scope_label: PursuitHeader.scope_label(pursuit, units),
+      facts: PursuitHeader.facts(pursuit, length(covering), DateTime.utc_now(:second)),
       criteria_summary: summarize_criteria(pursuit.criteria),
       backdrop_url: artwork.backdrop_url,
       logo_url: artwork.logo_url
@@ -841,9 +907,12 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Repo.one()
   end
 
-  defp staleness_for(nil), do: :very_stale
+  # Graded for an active pursuit only: on a finished one, "last activity
+  # 11 days ago" is the date it finished, not a warning.
+  defp staleness_for(state, _ts) when state != :active, do: :fresh
+  defp staleness_for(:active, nil), do: :very_stale
 
-  defp staleness_for(%DateTime{} = ts) do
+  defp staleness_for(:active, %DateTime{} = ts) do
     diff_seconds = DateTime.diff(DateTime.utc_now(:second), ts)
 
     cond do

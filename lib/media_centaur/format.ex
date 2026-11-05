@@ -5,13 +5,30 @@ defmodule MediaCentaur.Format do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @doc """
+  The house human duration — `2h 14m`, `1h`, `35m`, `< 1m` — for any
+  informational duration (library cards, status rows, a download's run).
+  `format_seconds/1` is the clock-style `H:MM:SS` for player overlays.
+  """
+  @spec format_human_duration(non_neg_integer() | nil) :: String.t()
+  def format_human_duration(seconds) when is_integer(seconds) and seconds >= 3600 do
+    hours = div(seconds, 3600)
+    minutes = div(rem(seconds, 3600), 60)
+
+    if minutes > 0, do: "#{hours}h #{minutes}m", else: "#{hours}h"
+  end
+
+  def format_human_duration(seconds) when is_integer(seconds) and seconds >= 60,
+    do: "#{div(seconds, 60)}m"
+
+  def format_human_duration(_seconds), do: "< 1m"
+
+  @doc """
   Formats a number of seconds into a clock-style duration string.
 
   Returns `"H:MM:SS"` when the duration is an hour or longer, otherwise `"M:SS"`.
   Returns `"0:00"` for nil.
 
-  For human-formatted strings (`2h 14m`), use
-  `MediaCentaurWeb.LibraryFormatters.format_human_duration/1`.
+  For human-formatted strings (`2h 14m`), use `format_human_duration/1`.
   """
   def format_seconds(nil), do: "0:00"
 

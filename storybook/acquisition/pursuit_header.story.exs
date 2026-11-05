@@ -1,10 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
   @moduledoc """
-  Pinned identity for the pursuit modal — the content of the cinematic
-  frame's `:orientation` slot: the `TitleLayer.lockup` (logo PNG when
-  the artwork cache has one, logotype fallback), the state badge, and
-  one meta line (type icon + label, scope, criteria). The frame itself
-  supplies the backdrop; the header only reads `logo_url`.
+  The pursuit window's pinned identity: lockup (logo or logotype), state
+  word, and the meta line — type, the goal's scope over its units, criteria.
   """
 
   use PhoenixStorybook.Story, :component
@@ -17,7 +14,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
 
   def template do
     """
-    <div class="max-w-2xl glass-inset rounded-xl py-6">
+    <div class="max-w-2xl rounded-xl bg-base-300 pt-6">
       <.psb-variation/>
     </div>
     """
@@ -28,8 +25,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       %Variation{
         id: :tv_with_logo,
         description:
-          "TMDB pursuit with a cached logo — the PNG replaces the text title in the lockup " <>
-            "(inline SVG stand-in; real assets come from /media-images).",
+          "A series goal with a cached logo — the PNG replaces the text title in the lockup " <>
+            "(inline SVG stand-in; real assets come from /media-images). The scope spans the units.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-hero",
@@ -44,57 +41,59 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
               tmdb_id: "10",
               season_number: 1
             },
-            search_queries: ["Sample Show Season 1", "Sample Show S01"],
-            criteria_summary: "min_quality: 1080p"
+            scope_label: "5 seasons · 30 episodes",
+            criteria_summary: "1080p or better, up to 4K"
           }
         }
       },
       %Variation{
         id: :movie_with_year,
-        description: "Movie pursuit, no cached logo — logotype fallback, year on the meta line.",
+        description: "A film: the scope is its year.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-movie",
-            title: "Public Domain Feature 1925",
+            title: "Sample Movie",
             state: :active,
-            recipe: %Recipe{
-              type: :tmdb,
-              title: "Public Domain Feature 1925",
-              tmdb_type: :movie,
-              tmdb_id: "1",
-              year: 1925
-            },
-            search_queries: ["Public Domain Feature 1925"],
-            criteria_summary: "max_quality: 2160p, min_quality: 1080p"
+            recipe: %Recipe{type: :tmdb, title: "Sample Movie", tmdb_type: :movie, year: 2010},
+            scope_label: "2010"
           }
         }
       },
       %Variation{
         id: :tv_episode,
-        description: "TV episode pursuit — SxxExx scope on the meta line.",
+        description: "One episode: the scope is its code.",
         attributes: %{
           vm: %PursuitHeader{
-            id: "story-tv",
-            title: "Sample Show S01E03",
+            id: "story-episode",
+            title: "Sample Show",
             state: :active,
             recipe: %Recipe{
               type: :tmdb,
               title: "Sample Show",
               tmdb_type: :tv,
-              tmdb_id: "10",
               season_number: 1,
-              episode_number: 3
+              episode_number: 4
             },
-            search_queries: ["Sample Show S01E03", "Sample Show Season 1"],
-            criteria_summary: nil
+            scope_label: "S01E04"
+          }
+        }
+      },
+      %Variation{
+        id: :one_season,
+        description: "One season of a series: the season and its episode count.",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-season",
+            title: "Sample Show",
+            state: :partial,
+            recipe: %Recipe{type: :tmdb, title: "Sample Show", tmdb_type: :tv, season_number: 4},
+            scope_label: "Season 4 · 6 episodes"
           }
         }
       },
       %Variation{
         id: :manual_query,
-        description:
-          "Free-form Prowlarr query pursuit — the typed query is the identity (logotype), " <>
-            "the meta line reads Prowlarr query.",
+        description: "A Prowlarr-query goal: the query is the identity, there is no scope.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-manual",
@@ -104,19 +103,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
               type: :prowlarr_query,
               title: "Phantom of the Opera (1925) · 1080p WEB-DL",
               manual_query: "Phantom of the Opera 1925"
-            },
-            search_queries: ["Phantom of the Opera 1925"],
-            criteria_summary: nil
+            }
           }
         }
       },
       %Variation{
         id: :awaiting_decision,
-        description: "Pursuit awaiting user decision (state :active, flag set)",
+        description: "Awaiting a pick: the state badge is the call to action.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-decision",
-            title: "Sample Show S01E04",
+            title: "Sample Show",
             state: :active,
             awaiting_decision?: true,
             recipe: %Recipe{
@@ -126,31 +123,33 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
               season_number: 1,
               episode_number: 4
             },
-            criteria_summary: nil
+            scope_label: "S01E04"
           }
         }
       },
       %Variation{
         id: :terminal_satisfied,
+        description: "Done.",
         attributes: %{
           vm: %PursuitHeader{
-            id: "story-satisfied",
-            title: "Movie A",
+            id: "story-done",
+            title: "Sample Movie",
             state: :satisfied,
-            recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie, year: 2023},
-            criteria_summary: nil
+            recipe: %Recipe{type: :tmdb, title: "Sample Movie", tmdb_type: :movie, year: 2010},
+            scope_label: "2010"
           }
         }
       },
       %Variation{
         id: :terminal_exhausted,
+        description: "Gave up.",
         attributes: %{
           vm: %PursuitHeader{
-            id: "story-exhausted",
-            title: "Movie B",
+            id: "story-gave-up",
+            title: "Sample Movie",
             state: :exhausted,
-            recipe: %Recipe{type: :tmdb, title: "Movie B", tmdb_type: :movie},
-            criteria_summary: nil
+            recipe: %Recipe{type: :tmdb, title: "Sample Movie", tmdb_type: :movie, year: 2010},
+            scope_label: "2010"
           }
         }
       }
