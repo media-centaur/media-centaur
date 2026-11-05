@@ -322,6 +322,25 @@ defmodule MediaCentaur.Watcher.Supervisor do
     DynamicSupervisor.which_children(MediaCentaur.Watcher.DynamicSupervisor) != []
   end
 
+  @doc """
+  Turns watching on or off now and for every later boot: starts or stops
+  the watchers and persists the start flag (`Settings.Services`). What the
+  Settings toggle does; `start_watchers/0` alone is the boot path.
+  """
+  @spec set_enabled(boolean()) :: :ok
+  def set_enabled(true) do
+    start_watchers()
+    start_image_dir_monitors()
+    MediaCentaur.Settings.Services.set(:start_watchers, true)
+    :ok
+  end
+
+  def set_enabled(false) do
+    stop_watchers()
+    MediaCentaur.Settings.Services.set(:start_watchers, false)
+    :ok
+  end
+
   @doc "Whether watching is on (`start_watchers/0` since the last `stop_watchers/0`)."
   @spec enabled?() :: boolean()
   def enabled?, do: :persistent_term.get(@enabled_key, false)

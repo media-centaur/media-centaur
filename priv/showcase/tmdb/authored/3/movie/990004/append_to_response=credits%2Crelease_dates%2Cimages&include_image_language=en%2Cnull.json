@@ -1,0 +1,7 @@
+{
+  "status": 500,
+  "body": {
+    "status_code": 11,
+    "status_message": "Internal error: something went wrong, contact TMDb."
+  }
+}

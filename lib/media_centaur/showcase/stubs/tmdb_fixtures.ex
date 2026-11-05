@@ -9,7 +9,14 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixtures do
 
   ## Fixture files
 
-  One file per request under `dir`, at `fixture_path/2`: the request's
+  Two roots. `recorded` holds what record mode fetched from TMDB for the
+  showcase catalog; only record mode writes there. `authored` holds
+  hand-written answers — the placeholder titles of
+  `MediaCentaur.Showcase.ReviewScenarios` — and is read first. Keeping
+  them apart means re-recording from an empty `recorded` never touches an
+  authored answer.
+
+  One file per request under a root, at `fixture_path/2`: the request's
   path, then its query with the credential (`api_key`) dropped and the
   rest sorted — the identity `MediaCentaur.HttpClient.Cache.Key` gives a
   GET. A file holds `{"status": …, "body": …}`, so a fixture can declare a
@@ -36,16 +43,19 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixtures do
   @excluded_params ["api_key"]
 
   @doc """
-  Attaches the fixture steps to `request`. Options: `:dir` (the fixture
-  root) and `:record` (boolean).
+  Attaches the fixture steps to `request`. Options: `:authored` and
+  `:recorded` (the two roots) and `:record` (boolean).
   """
   @spec attach(Req.Request.t(), keyword()) :: Req.Request.t()
   def attach(%Req.Request{} = request, opts) do
-    dir = Keyword.fetch!(opts, :dir)
-    record? = Keyword.fetch!(opts, :record)
+    config = %{
+      authored: Keyword.fetch!(opts, :authored),
+      recorded: Keyword.fetch!(opts, :recorded),
+      record?: Keyword.fetch!(opts, :record)
+    }
 
     request
-    |> Req.Request.put_private(:showcase_tmdb_fixtures, %{dir: dir, record?: record?})
+    |> Req.Request.put_private(:showcase_tmdb_fixtures, config)
     |> Req.Request.append_request_steps(showcase_tmdb_fixture: &answer/1)
     |> Req.Request.append_response_steps(showcase_tmdb_record: &record/1)
   end
@@ -59,10 +69,10 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixtures do
   end
 
   defp answer(request) do
-    %{dir: dir, record?: record?} = Req.Request.get_private(request, :showcase_tmdb_fixtures)
-    path = fixture_path(dir, request.url)
+    %{authored: authored, recorded: recorded, record?: record?} =
+      Req.Request.get_private(request, :showcase_tmdb_fixtures)
 
-    case File.read(path) do
+    case read_first([fixture_path(authored, request.url), fixture_path(recorded, request.url)]) do
       {:ok, json} ->
         %{"status" => status, "body" => body} = Jason.decode!(json)
         {request, Req.Response.put_private(json_response(status, body), :showcase_tmdb_fixture, :served)}
@@ -77,8 +87,8 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixtures do
   end
 
   defp record({request, %Req.Response{status: 200} = response}) do
-    %{dir: dir, record?: record?} = Req.Request.get_private(request, :showcase_tmdb_fixtures)
-    path = fixture_path(dir, request.url)
+    %{recorded: recorded, record?: record?} = Req.Request.get_private(request, :showcase_tmdb_fixtures)
+    path = fixture_path(recorded, request.url)
 
     if record? and Req.Response.get_private(response, :showcase_tmdb_fixture) != :served and
          not File.exists?(path) do
@@ -94,6 +104,15 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixtures do
   end
 
   defp record(pair), do: pair
+
+  defp read_first(paths) do
+    Enum.find_value(paths, {:error, :enoent}, fn path ->
+      case File.read(path) do
+        {:ok, json} -> {:ok, json}
+        {:error, :enoent} -> nil
+      end
+    end)
+  end
 
   # A search answers with every film sharing a name, remakes included. The
   # recording keeps only the results that are the catalogued title, so a

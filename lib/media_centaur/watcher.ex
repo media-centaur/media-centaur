@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Watcher do
   use Boundary,
-    deps: [MediaCentaur.Library],
+    # `Supervisor.set_enabled/1` persists the start flag (`Settings.Services`).
+    deps: [MediaCentaur.Library, MediaCentaur.Settings],
     # `IgnoreRules` is exported because "is this path library content?"
     # is asked outside this subsystem too: Settings validates a new rule
     # against the same matcher rather than re-deriving path matching in

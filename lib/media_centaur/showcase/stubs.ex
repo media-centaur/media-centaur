@@ -41,8 +41,11 @@ defmodule MediaCentaur.Showcase.Stubs do
   defp route(request, :qbittorrent), do: Req.merge(request, plug: &qbittorrent_plug/1, retry: false)
 
   defp route(request, :tmdb) do
+    root = Application.app_dir(:media_centaur, "priv/showcase/tmdb")
+
     TmdbFixtures.attach(request,
-      dir: Application.app_dir(:media_centaur, "priv/showcase/tmdb"),
+      authored: Path.join(root, "authored"),
+      recorded: Path.join(root, "recorded"),
       record: Application.get_env(:media_centaur, :showcase_tmdb_record, false)
     )
   end

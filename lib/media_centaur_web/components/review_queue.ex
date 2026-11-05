@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.Components.ReviewQueue do
 
   @doc "One review item; the whole row ticks it."
   def queue_item(assigns) do
-    reason = review_reason(assigns.file)
+    reason = MediaCentaur.Review.reason(assigns.file)
 
     assigns =
       assigns

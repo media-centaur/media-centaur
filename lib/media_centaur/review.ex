@@ -217,6 +217,29 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
+  Why a pending file is in the queue, from its own fields: `:importing`
+  (approved, waiting for the library to link it), `:not_added` (the
+  library returned it with an `error_message`), `:no_results` (no best
+  guess), `:tied` (two or more candidates share the best score) or
+  `:low_confidence` (a best guess below the threshold). A dismissed file
+  keeps its reason; its status says it was dismissed.
+  """
+  @spec reason(map()) :: :importing | :not_added | :no_results | :tied | :low_confidence
+  def reason(%{status: :approved}), do: :importing
+  def reason(%{error_message: message}) when is_binary(message), do: :not_added
+  def reason(%{tmdb_id: nil}), do: :no_results
+
+  def reason(file) do
+    case Map.get(file, :candidates) do
+      [%{"score" => best} | [_ | _] = rest] ->
+        if Enum.all?(rest, &(&1["score"] == best)), do: :tied, else: :low_confidence
+
+      _not_tied ->
+        :low_confidence
+    end
+  end
+
+  @doc """
   Discovery's hand-off: the file at `attrs.file_path` needs a person.
   Broadcasts `FileAdded`.
 

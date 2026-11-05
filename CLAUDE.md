@@ -88,7 +88,6 @@ mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:2160 via the dev TOML; bare fallback 1080)
 mix test               # run tests
 mix precommit          # compile + format + credo + boundaries + test-sweep + hex.audit + sobelow + test
-mix seed.review        # populate review UI test cases (one-shot, idempotent)
 ```
 
 > Use `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize compilation.

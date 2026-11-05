@@ -41,6 +41,24 @@ defmodule MediaCentaur.Pipeline.Supervisor do
     Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Discovery)
   end
 
+  @doc """
+  Turns the pipeline on or off now and for every later boot: starts or
+  stops both Broadway processes and persists the start flag
+  (`Settings.Services`). What the Settings toggle does.
+  """
+  @spec set_enabled(boolean()) :: :ok
+  def set_enabled(true) do
+    start_pipeline()
+    MediaCentaur.Settings.Services.set(:start_pipeline, true)
+    :ok
+  end
+
+  def set_enabled(false) do
+    stop_pipeline()
+    MediaCentaur.Settings.Services.set(:start_pipeline, false)
+    :ok
+  end
+
   @doc "Returns true if both pipeline Broadway processes are running."
   def pipeline_running? do
     children = Supervisor.which_children(__MODULE__)

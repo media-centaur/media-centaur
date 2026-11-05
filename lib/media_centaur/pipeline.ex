@@ -11,7 +11,9 @@ defmodule MediaCentaur.Pipeline do
       MediaCentaur.Retention,
       MediaCentaur.Watcher,
       MediaCentaur.EpisodeMapping,
-      MediaCentaur.Review
+      MediaCentaur.Review,
+      # `Supervisor.set_enabled/1` persists the start flag (`Settings.Services`).
+      MediaCentaur.Settings
     ],
     exports: [
       Discovery,

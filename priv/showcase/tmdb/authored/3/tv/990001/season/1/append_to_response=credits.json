@@ -1,0 +1,77 @@
+{
+  "status": 200,
+  "body": {
+    "id": 9900011,
+    "season_number": 1,
+    "name": "Season 1",
+    "air_date": "2015-03-01",
+    "overview": "",
+    "poster_path": null,
+    "credits": {
+      "cast": [],
+      "crew": []
+    },
+    "episodes": [
+      {
+        "id": 99000111,
+        "episode_number": 1,
+        "season_number": 1,
+        "name": "Episode 1",
+        "overview": "",
+        "air_date": "2015-03-01",
+        "runtime": 45,
+        "still_path": null
+      },
+      {
+        "id": 99000112,
+        "episode_number": 2,
+        "season_number": 1,
+        "name": "Episode 2",
+        "overview": "",
+        "air_date": "2015-03-02",
+        "runtime": 45,
+        "still_path": null
+      },
+      {
+        "id": 99000113,
+        "episode_number": 3,
+        "season_number": 1,
+        "name": "Episode 3",
+        "overview": "",
+        "air_date": "2015-03-03",
+        "runtime": 45,
+        "still_path": null
+      },
+      {
+        "id": 99000114,
+        "episode_number": 4,
+        "season_number": 1,
+        "name": "Episode 4",
+        "overview": "",
+        "air_date": "2015-03-04",
+        "runtime": 45,
+        "still_path": null
+      },
+      {
+        "id": 99000115,
+        "episode_number": 5,
+        "season_number": 1,
+        "name": "Episode 5",
+        "overview": "",
+        "air_date": "2015-03-05",
+        "runtime": 45,
+        "still_path": null
+      },
+      {
+        "id": 99000116,
+        "episode_number": 6,
+        "season_number": 1,
+        "name": "Episode 6",
+        "overview": "",
+        "air_date": "2015-03-06",
+        "runtime": 45,
+        "still_path": null
+      }
+    ]
+  }
+}

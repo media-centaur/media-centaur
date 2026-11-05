@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Seed.Showcase do
       Video objects:  #{summary.video_objects}
       Watch progress: #{summary.watch_progress}
       Tracked items:  #{summary.tracked_items}
-      Pending files:  #{summary.pending_files}
+      Review files:   #{summary.review_files}
       Watch events:   #{summary.watch_events}
       Acquisitions:   #{summary.acquisitions}
     """)

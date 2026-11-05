@@ -17,7 +17,7 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixturesTest do
 
     [base_url: @base_url, plug: network, retry: false]
     |> Req.new()
-    |> TmdbFixtures.attach(Keyword.put(opts, :dir, dir))
+    |> TmdbFixtures.attach([authored: Path.join(dir, "authored"), recorded: dir] ++ opts)
   end
 
   defp search(client, query) do
@@ -115,6 +115,39 @@ defmodule MediaCentaur.Showcase.Stubs.TmdbFixturesTest do
 
     assert %{"body" => %{"results" => [%{"id" => 1}], "page" => 1}} =
              path |> File.read!() |> Jason.decode!()
+  end
+
+  @tag :tmp_dir
+  test "an authored answer is read before a recorded one, and record mode never writes there",
+       %{tmp_dir: dir} do
+    url = URI.parse("#{@base_url}/search/movie?query=Movie+F&year=1968")
+
+    for {root, id} <- [{Path.join(dir, "authored"), 1}, {dir, 2}] do
+      path = TmdbFixtures.fixture_path(root, url)
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, Jason.encode!(%{"status" => 200, "body" => %{"results" => [%{"id" => id}]}}))
+    end
+
+    assert {:ok, %{body: %{"results" => [%{"id" => 1}]}}} =
+             dir |> client(record: false) |> search("Movie F")
+
+    movie_g = %{"id" => 7, "title" => "Movie G", "release_date" => "1968-01-01"}
+    recording = client(dir, record: true, network: upstream_answering(200, %{"results" => [movie_g]}))
+    assert {:ok, %{status: 200}} = search(recording, "Movie G")
+
+    refute File.exists?(
+             TmdbFixtures.fixture_path(
+               Path.join(dir, "authored"),
+               URI.parse("#{@base_url}/search/movie?query=Movie+G&year=1968")
+             )
+           )
+
+    assert File.exists?(
+             TmdbFixtures.fixture_path(
+               dir,
+               URI.parse("#{@base_url}/search/movie?query=Movie+G&year=1968")
+             )
+           )
   end
 
   test "a request's fixture path ignores the credential and the query's order" do

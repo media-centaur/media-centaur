@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "id": 990001,
+    "name": "Sample Show",
+    "original_name": "Sample Show",
+    "first_air_date": "2015-03-01",
+    "last_air_date": "2015-04-05",
+    "overview": "A placeholder series for the review scenarios.",
+    "status": "Ended",
+    "genres": [],
+    "poster_path": null,
+    "backdrop_path": null,
+    "number_of_seasons": 1,
+    "number_of_episodes": 6,
+    "seasons": [
+      {
+        "id": 9900011,
+        "season_number": 1,
+        "name": "Season 1",
+        "episode_count": 6,
+        "air_date": "2015-03-01",
+        "poster_path": null
+      }
+    ],
+    "created_by": [],
+    "networks": [],
+    "origin_country": [],
+    "original_language": "en",
+    "vote_average": 0.0,
+    "aggregate_credits": {
+      "cast": [],
+      "crew": []
+    },
+    "external_ids": {},
+    "images": {
+      "backdrops": [],
+      "posters": [],
+      "logos": []
+    }
+  }
+}

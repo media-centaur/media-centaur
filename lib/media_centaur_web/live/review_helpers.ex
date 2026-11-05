@@ -13,21 +13,6 @@ defmodule MediaCentaurWeb.ReviewHelpers do
 
   alias MediaCentaur.Search.TitleForm
 
-  # --- Reason Classification ---
-
-  # An approved file waits for the library to link it (`:importing`); a
-  # file the library did not link comes back with the reason (`:not_added`).
-  def review_reason(%{status: :approved}), do: :importing
-  def review_reason(%{error_message: message}) when is_binary(message), do: :not_added
-
-  def review_reason(file) do
-    cond do
-      is_nil(file.tmdb_id) -> :no_results
-      tied_candidates?(file) -> :tied
-      true -> :low_confidence
-    end
-  end
-
   # --- Reason Display ---
 
   def reason_label(:no_results), do: "No TMDB results"
@@ -41,21 +26,6 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   def reason_text_class(:tied), do: "text-info"
   def reason_text_class(:importing), do: "text-base-content/60"
   def reason_text_class(:not_added), do: "text-error"
-
-  # --- Candidate Analysis ---
-
-  def tied_candidates?(%{candidates: candidates}) when is_list(candidates) do
-    case candidates do
-      [first | [_ | _] = rest] ->
-        first_score = first["score"]
-        Enum.all?(rest, fn candidate -> candidate["score"] == first_score end)
-
-      _ ->
-        false
-    end
-  end
-
-  def tied_candidates?(_), do: false
 
   # --- Type Formatting ---
 

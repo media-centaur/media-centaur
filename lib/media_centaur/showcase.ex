@@ -45,8 +45,8 @@ defmodule MediaCentaur.Showcase do
       bridge does **not** apply here. Use PD/CC titles only.
     * Acquisition grab titles in `seed_acquisition_activity!` — visible on
       `/downloads?zone=activity`; subject to the same rule.
-    * Pending review fixtures in `pending_file_data` — visible in the
-      Review queue screenshots.
+    * Review scenarios in `MediaCentaur.Showcase.ReviewScenarios` — visible
+      in the Review queue screenshots; placeholder titles only.
     * Console log lines in `seed_console_entries!` — visible in the
       Console drawer screenshot.
     * The TMDB recording under `priv/showcase/tmdb/` — a recorded search
@@ -72,7 +72,8 @@ defmodule MediaCentaur.Showcase do
     * Watch progress rows (mix of partial and completed) on a subset of items.
     * Release-tracking items with synthetic future air dates so the Status page
       has upcoming + available releases to display.
-    * Pending review files covering the full palette of review UI states.
+    * Every review state, laid down as placeholder files through the real
+      pipeline (`MediaCentaur.Showcase.ReviewScenarios`).
     * Watch-history events so the /history page is populated.
 
   ## TMDB
@@ -86,18 +87,18 @@ defmodule MediaCentaur.Showcase do
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
+  alias MediaCentaur.Showcase.AcquisitionRows
   alias MediaCentaur.Showcase.CatalogMatch
 
   alias MediaCentaur.Settings.Config
 
   alias MediaCentaur.Library.ImageCache
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
-  alias MediaCentaur.Review
   alias MediaCentaur.Showcase.Catalog
+  alias MediaCentaur.Showcase.ReviewScenarios
   alias MediaCentaur.TMDB
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.WatchHistory
@@ -112,7 +113,7 @@ defmodule MediaCentaur.Showcase do
           video_objects: non_neg_integer(),
           watch_progress: non_neg_integer(),
           tracked_items: non_neg_integer(),
-          pending_files: non_neg_integer(),
+          review_files: non_neg_integer(),
           watch_events: non_neg_integer(),
           acquisitions: non_neg_integer()
         }
@@ -139,7 +140,7 @@ defmodule MediaCentaur.Showcase do
     counts = %{
       watch_progress: seed_watch_progress!(owner_id, movies, tv_series),
       tracked_items: seed_release_tracking!(movies, tv_series),
-      pending_files: seed_pending_files!(client),
+      review_files: seed_review_scenarios!(),
       watch_events: seed_watch_history!(owner_id, movies, tv_series),
       acquisitions: seed_acquisition_activity!()
     }
@@ -588,17 +589,6 @@ defmodule MediaCentaur.Showcase do
   end
 
   # ---------------------------------------------------------------------------
-  # Pending review files
-  # ---------------------------------------------------------------------------
-
-  defp seed_pending_files!(client) do
-    client
-    |> pending_file_data()
-    |> Enum.map(fn attrs -> {:ok, _} = Review.add_pending_file(attrs) end)
-    |> length()
-  end
-
-  # ---------------------------------------------------------------------------
   # Watch history events
   # ---------------------------------------------------------------------------
 
@@ -783,7 +773,7 @@ defmodule MediaCentaur.Showcase do
         })
 
         if target_status do
-          insert_pursuit_with_target!(
+          AcquisitionRows.insert!(
             pursuit_attrs: %{
               recipe_type: "tmdb",
               tmdb_id: to_string(item.tmdb_id),
@@ -812,7 +802,7 @@ defmodule MediaCentaur.Showcase do
   # plus one manual-origin pursuit so the activity feed shows a mix of
   # auto vs user-initiated work.
   defp seed_extra_activity_pursuits! do
-    insert_pursuit_with_target!(
+    AcquisitionRows.insert!(
       pursuit_attrs: %{
         recipe_type: "prowlarr_query",
         manual_query: "Phantom of the Opera 1925",
@@ -828,7 +818,7 @@ defmodule MediaCentaur.Showcase do
       }
     )
 
-    insert_pursuit_with_target!(
+    AcquisitionRows.insert!(
       pursuit_attrs: %{
         recipe_type: "tmdb",
         tmdb_id: "showcase-cancelled-1",
@@ -852,57 +842,16 @@ defmodule MediaCentaur.Showcase do
   defp pursuit_state_for("cancelled"), do: "cancelled"
   defp pursuit_state_for(_), do: "active"
 
-  # Inserts a Pursuit + its current Target. Bypasses changeset validations
-  # so seeded rows can land in any combination of terminal/intermediate
-  # state directly. Real production transitions still flow through the
-  # dedicated changesets elsewhere.
-  defp insert_pursuit_with_target!(pursuit_attrs: p_attrs, target_attrs: t_attrs) do
-    now = DateTime.utc_now(:second)
-    pursuit_base = Map.merge(%{inserted_at: now, updated_at: now}, p_attrs)
-
-    pursuit =
-      %Pursuit{}
-      |> Ecto.Changeset.change(pursuit_base)
-      |> Repo.insert!()
-
-    target_base = Map.merge(t_attrs, %{pursuit_id: pursuit.id, inserted_at: now, updated_at: now})
-
-    target_base =
-      case t_attrs[:status] do
-        "acquired" -> Map.put_new(target_base, :acquired_at, now)
-        "failed" -> Map.put_new(target_base, :cancelled_at, now)
-        "cancelled" -> Map.put_new(target_base, :cancelled_at, now)
-        _ -> target_base
-      end
-
-    target =
-      %Target{}
-      |> Ecto.Changeset.change(target_base)
-      |> Repo.insert!()
-
-    # The attempt thread lives on the unit (ADR-055): one unit mirroring
-    # the pursuit's state, pointing at the target, plus the coverage row.
-    unit =
-      %Unit{}
-      |> Ecto.Changeset.change(%{
-        pursuit_id: pursuit.id,
-        state: pursuit_base[:state] || "active",
-        current_target_id: target.id,
-        inserted_at: now,
-        updated_at: now
-      })
-      |> Repo.insert!()
-
-    %TargetUnit{}
-    |> Ecto.Changeset.change(%{
-      target_id: target.id,
-      unit_id: unit.id,
-      inserted_at: now,
-      updated_at: now
-    })
-    |> Repo.insert!()
-
-    pursuit
+  # A showcase is a working install: its watchers and pipeline run, so a
+  # file laid in its media directory is discovered and a match pressed in
+  # Review imports. The dev environment starts both off (config/dev.exs, to
+  # coexist with a release watching the same directories); a showcase has
+  # its own. Turning them on persists the flags, so the server booted on
+  # this database runs them too.
+  defp seed_review_scenarios! do
+    MediaCentaur.Watcher.Supervisor.set_enabled(true)
+    MediaCentaur.Pipeline.Supervisor.set_enabled(true)
+    ReviewScenarios.seed!(showcase_media_dir())
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"
@@ -1301,99 +1250,6 @@ defmodule MediaCentaur.Showcase do
       defaults/media-centaur-showcase.toml (the demo) or
       defaults/media-centaur-e2e.toml (the Playwright suite) and try again.
       """
-    end
-  end
-
-  defp pending_file_data(client) do
-    # Real TMDB poster paths for public-domain films not in the showcase
-    # catalog, so the "pending review" state is internally consistent
-    # (these aren't already in the library) and the review UI renders
-    # real artwork instead of broken-image boxes.
-    # All four are confirmed public-domain by a non-aggregator source
-    # (non-renewal or defective notice). His Girl Friday (1940) and Detour
-    # (1945) were previously used here but their PD status rests only on
-    # consensus listings — swapped for A Farewell to Arms (1932, non-renewal
-    # per Pierce, *Film History* 2007) and Teenagers from Outer Space (1959,
-    # non-renewal) to hold the showcase's strict every-visible-string bar.
-    stranger_46 = tmdb_poster_path(client, "The Stranger", 1946)
-    farewell_32 = tmdb_poster_path(client, "A Farewell to Arms", 1932)
-    teenagers_59 = tmdb_poster_path(client, "Teenagers from Outer Space", 1959)
-    doa = tmdb_poster_path(client, "D.O.A.", 1949)
-
-    [
-      %{
-        file_path: "/showcase/tv/Uncharted.Series.S01E01.mkv",
-        media_directory: "/showcase/tv",
-        parsed_title: "Uncharted Series",
-        parsed_year: 2025,
-        parsed_type: "tv",
-        season_number: 1,
-        episode_number: 1,
-        tmdb_id: nil,
-        confidence: nil,
-        candidates: []
-      },
-      # Multi-match scenario: parser saw "The Stranger" with no year;
-      # TMDB has several films that plausibly match.
-      %{
-        file_path: "/showcase/movies/The.Stranger.mkv",
-        media_directory: "/showcase/movies",
-        parsed_title: "The Stranger",
-        parsed_year: nil,
-        parsed_type: "movie",
-        tmdb_id: nil,
-        confidence: nil,
-        candidates: [
-          %{
-            "tmdb_id" => 9400,
-            "title" => "The Stranger",
-            "year" => "1946",
-            "confidence" => 0.82,
-            "poster_path" => stranger_46
-          },
-          %{
-            "tmdb_id" => 22_649,
-            "title" => "A Farewell to Arms",
-            "year" => "1932",
-            "confidence" => 0.75,
-            "poster_path" => farewell_32
-          }
-        ]
-      },
-      # Low-confidence match: clean filename but the parser's heuristic
-      # isn't confident enough to auto-approve.
-      %{
-        file_path: "/showcase/movies/Teenagers.From.Outer.Space.1959.mkv",
-        media_directory: "/showcase/movies",
-        parsed_title: "Teenagers from Outer Space",
-        parsed_year: 1959,
-        parsed_type: "movie",
-        tmdb_id: 35_139,
-        confidence: 0.58,
-        match_title: "Teenagers from Outer Space",
-        match_year: "1959",
-        match_poster_path: teenagers_59
-      },
-      # Mismatch / scene-group noise: parser latched onto an unrelated
-      # film with very low confidence.
-      %{
-        file_path: "/showcase/movies/Ambiguous-RELEASE-GROUP.mkv",
-        media_directory: "/showcase/movies",
-        parsed_title: "Ambiguous",
-        parsed_type: nil,
-        tmdb_id: 4330,
-        confidence: 0.21,
-        match_title: "D.O.A.",
-        match_year: "1949",
-        match_poster_path: doa
-      }
-    ]
-  end
-
-  defp tmdb_poster_path(client, title, year) do
-    case TMDB.Client.search_movie(title, year, client: client) do
-      {:ok, [%{"poster_path" => path} | _]} when is_binary(path) -> path
-      _ -> nil
     end
   end
 end

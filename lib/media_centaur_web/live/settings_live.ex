@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{Capabilities, SelfUpdate, Settings, Version}
+  alias MediaCentaur.{Capabilities, SelfUpdate, Version}
   alias MediaCentaur.Platform.Autostart
 
   alias MediaCentaurWeb.Live.SettingsLive.{
@@ -948,26 +948,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("toggle_watchers", _params, socket) do
-    if socket.assigns.watchers_running do
-      Watcher.Supervisor.stop_watchers()
-      persist_service_flag(:start_watchers, false)
-    else
-      Watcher.Supervisor.start_watchers()
-      Watcher.Supervisor.start_image_dir_monitors()
-      persist_service_flag(:start_watchers, true)
-    end
+    Watcher.Supervisor.set_enabled(!socket.assigns.watchers_running)
 
     {:noreply, assign(socket, watchers_running: Watcher.Supervisor.running?())}
   end
 
   def handle_event("toggle_pipeline", _params, socket) do
-    if socket.assigns.pipeline_running do
-      Pipeline.Supervisor.stop_pipeline()
-      persist_service_flag(:start_pipeline, false)
-    else
-      Pipeline.Supervisor.start_pipeline()
-      persist_service_flag(:start_pipeline, true)
-    end
+    Pipeline.Supervisor.set_enabled(!socket.assigns.pipeline_running)
 
     {:noreply, assign(socket, pipeline_running: Pipeline.Supervisor.pipeline_running?())}
   end
@@ -3148,8 +3135,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       media_dirs: config.get(:media_dirs) || []
     }
   end
-
-  defp persist_service_flag(service, value), do: Settings.Services.set(service, value)
 
   # --- Media-dir private helpers ---
 

@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "id": 990031,
+        "title": "Movie Cee Story",
+        "original_title": "Movie Cee Story",
+        "release_date": "2001-06-01",
+        "poster_path": null,
+        "backdrop_path": null,
+        "overview": "",
+        "popularity": 1.0,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "id": 990032,
+        "title": "Movie C",
+        "original_title": "Movie C",
+        "release_date": "1950-02-01",
+        "poster_path": null,
+        "backdrop_path": null,
+        "overview": "",
+        "popularity": 1.0,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "id": 990033,
+        "title": "Movie C",
+        "original_title": "Movie C",
+        "release_date": "2010-09-01",
+        "poster_path": null,
+        "backdrop_path": null,
+        "overview": "",
+        "popularity": 1.0,
+        "vote_average": 0.0,
+        "vote_count": 0
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 3
+  }
+}
