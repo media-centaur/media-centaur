@@ -274,6 +274,38 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute html =~ "Movie Owned"
       assert :binary.match(html, "Out Now") < :binary.match(html, "data-row=\"watchlist\"")
     end
+
+    test "a followed series the library holds is on Out Now when a new season airs, its tile naming the season",
+         %{conn: conn} do
+      today = Date.utc_today()
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 906,
+          media_type: :tv_series,
+          name: "Show Returning",
+          rung: :follow
+        })
+
+      for {season, episode, days} <- [{1, 1, -400}, {2, 1, -3}] do
+        create_tracking_release(%{
+          item_id: item.id,
+          season_number: season,
+          episode_number: episode,
+          air_date: Date.add(today, days)
+        })
+      end
+
+      tv = create_tv_series(%{name: "Show Returning"})
+      create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: "906"})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+      create_episode(%{season_id: season.id, episode_number: 1, name: "Episode 1"})
+      :ok = MediaCentaur.ReleaseTracking.LibraryLinks.refresh_for([tv.id])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "#out-now-row-tv_series-906", "Season 2")
+    end
   end
 
   describe "Reviewed by Friends" do

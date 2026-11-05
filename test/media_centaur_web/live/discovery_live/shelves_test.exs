@@ -125,15 +125,43 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
              ]
     end
 
-    test "an owned title and a title the store lacks are off every shelf" do
-      stages = %{{1, :movie} => %{stage: :home, date: ~D[2026-10-20]}}
-      listed = [listed(1, :list, :movie, "owner-uuid"), listed(2, :list)]
+    test "an owned film, an owned series nobody follows, and a title the store lacks are off every shelf" do
+      stages = %{
+        {1, :movie} => %{stage: :home, date: ~D[2026-10-20]},
+        {3, :tv_series} => %{stage: :home, date: ~D[2020-01-01]}
+      }
+
+      listed = [
+        listed(1, :list, :movie, "owner-uuid"),
+        listed(2, :list),
+        listed(3, :list, :tv_series, "owner-uuid")
+      ]
 
       assert %{out_now: [], in_theaters: [], coming_up: []} =
                Shelves.watchlist_shelves(listed, stages, %{}, %{}, @today)
     end
 
-    test "a followed series is placed by its calendar through the caught-up point, never by its first air date" do
+    test "a followed series the library holds is placed by its calendar, its chip naming the seasons out" do
+      releases = [
+        %Release{season_number: 1, episode_number: 10, air_date: ~D[2026-01-10], in_library: true},
+        %Release{season_number: 1, episode_number: 11, air_date: ~D[2026-10-20]},
+        %Release{season_number: 2, episode_number: 1, air_date: ~D[2026-10-27]}
+      ]
+
+      item = %TrackingItem{
+        media_type: :tv_series,
+        releases: releases,
+        last_library_season: 1,
+        last_library_episode: 10
+      }
+
+      owned = listed(8, :follow, :tv_series, "owner-uuid")
+      shelves = Shelves.watchlist_shelves([owned], %{}, %{{8, :tv_series} => item}, %{}, @today)
+
+      assert [%Item{id: "tv_series-8", chip: "Seasons 1–2", marker: "In library"}] = shelves.out_now
+    end
+
+    test "a followed series is placed by its calendar through the caught-up point, never by its first air date; its chip names the season" do
       stages = %{{6, :tv_series} => %{stage: :home, date: ~D[2023-09-29]}}
 
       releases = [
@@ -145,14 +173,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       item = %TrackingItem{media_type: :tv_series, releases: releases}
       behind = listed(6, :follow, :tv_series)
       shelves = Shelves.watchlist_shelves([behind], stages, %{{6, :tv_series} => item}, %{}, @today)
-      assert [%Item{id: "tv_series-6", chip: nil}] = shelves.out_now
+      assert [%Item{id: "tv_series-6", chip: "Season 1"}] = shelves.out_now
 
       caught_up =
         put_in(put_in(behind.intent.caught_up_season, 1), [:intent, Access.key(:caught_up_episode)], 29)
 
       shelves = Shelves.watchlist_shelves([caught_up], stages, %{{6, :tv_series} => item}, %{}, @today)
       assert shelves.out_now == []
-      assert [%Item{id: "tv_series-6", chip: "Nov"}] = shelves.coming_up
+      assert [%Item{id: "tv_series-6", chip: "Season 1 · Nov 7"}] = shelves.coming_up
 
       ended = %TrackingItem{media_type: :tv_series, releases: Enum.take(releases, 2)}
       shelves = Shelves.watchlist_shelves([caught_up], stages, %{{6, :tv_series} => ended}, %{}, @today)

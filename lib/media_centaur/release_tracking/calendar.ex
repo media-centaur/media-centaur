@@ -57,13 +57,14 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
     if releases == [], do: Extractor.extract_tv_releases(title_payload), else: releases
   end
 
-  @typedoc "A series' calendar read: the aired releases not had, oldest first, and the next date ahead."
-  @type reading :: %{out: [Release.t()], next: Date.t() | nil}
+  @typedoc "A series' calendar read: the aired releases not had, oldest first, and the next release dated ahead."
+  @type reading :: %{out: [Release.t()], next: Release.t() | nil}
 
   @doc """
   What a followed series' calendar says at `today`, given the person's
   caught-up point: `out`, the aired releases not had, oldest first; and
-  `next`, the nearest air date after today, nil when nothing is dated.
+  `next`, the release with the nearest air date after today (the lowest
+  episode on that date), nil when nothing is dated.
   The item carries its releases and its library watermark.
   """
   @spec read(Item.t(), TitleIntent.caught_up() | nil, Date.t()) :: reading()
@@ -73,18 +74,24 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
     out =
       releases
       |> Enum.filter(&(Release.released?(&1, today) and not Had.had?(&1, point)))
-      |> Enum.sort_by(&{&1.air_date, &1.season_number, &1.episode_number}, fn a, b ->
-        compare_release_keys(a, b)
-      end)
+      |> in_air_order()
 
     next =
       releases
-      |> Enum.map(& &1.air_date)
-      |> Enum.filter(&(&1 != nil and Date.after?(&1, today)))
-      |> Enum.min(Date, fn -> nil end)
+      |> Enum.filter(&(&1.air_date != nil and Date.after?(&1.air_date, today)))
+      |> in_air_order()
+      |> List.first()
 
     %{out: out, next: next}
   end
+
+  defp in_air_order(releases),
+    do:
+      Enum.sort_by(
+        releases,
+        &{&1.air_date, &1.season_number, &1.episode_number},
+        &compare_release_keys/2
+      )
 
   defp compare_release_keys({date_a, season_a, episode_a}, {date_b, season_b, episode_b}) do
     case Date.compare(date_a, date_b) do

@@ -123,15 +123,19 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   defp genres(_genres), do: nil
 
   @doc """
-  The watchlist by release stage (decisions 13–15, M16): every listed
-  title the library does not own. A **followed series** — one with a
-  tracking item, passed by ref with its releases — is placed by its
-  calendar (`ReleaseTracking.Calendar.read/3` with the record's caught-up
-  point): **Out Now** while an aired episode is not had, at the latest
-  such date; **Coming Up** when nothing is out and an episode is dated
-  ahead; otherwise off the shelves (the Watchlist page inventories it).
-  Every other title is placed by `TMDB.ReleaseStages`' reading of its
-  record — **Out Now** at the home stage (a digital or disc release
+  The watchlist by release stage (decisions 13–15, M16). A **followed
+  series** — one with a tracking item, passed by ref with its releases —
+  is placed by its calendar (`ReleaseTracking.Calendar.read/3` with the
+  record's caught-up point), whether or not the library holds earlier
+  episodes: **Out Now** while an aired episode is not had, at the latest
+  such date, its chip naming the season (*Season 2*, *Seasons 1–2*);
+  **Coming Up** when nothing is out and an episode is dated ahead, its
+  chip *Season N · <day>*; otherwise off the shelves (the Watchlist page
+  inventories it). Any other title the library owns is off the shelves:
+  an owned film has nothing left to get (`ReleaseTracking.complete?/2`'s
+  rule), and an owned series nobody follows has a release stage that
+  says nothing about what is new. Every other title is placed by
+  `TMDB.ReleaseStages`' reading of its record — **Out Now** at the home stage (a digital or disc release
   passed, a List-only series' first episode aired), newest home date
   first; **In Theaters** at the theatrical stage, newest opening first,
   the opening date as the chip; **Coming Up** unreleased, nearest first,
@@ -149,43 +153,74 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
           watchlist_shelves()
   def watchlist_shelves(listed, stages, tracking, acquisition_states, today) do
     placed =
-      for %{intent: intent, library_owner_id: nil} <- listed,
+      for %{intent: intent, library_owner_id: owner} <- listed,
           ref = {intent.tmdb_id, intent.media_type},
-          {stage, date} <- [placement(intent, Map.get(tracking, ref), Map.get(stages, ref), today)],
+          {stage, date, chip} <- [
+            placement(intent, Map.get(tracking, ref), Map.get(stages, ref), owner, today)
+          ],
           stage in [:home, :theatrical, :unreleased] do
-        {stage, date, item(ref, intent.title, nil, Map.get(acquisition_states, ref), intent.rung)}
+        {stage, date,
+         %{item(ref, intent.title, owner, Map.get(acquisition_states, ref), intent.rung) | chip: chip}}
       end
 
     %{
-      out_now: shelf(placed, :home, :desc, today, nil),
-      in_theaters: shelf(placed, :theatrical, :desc, today, :day),
-      coming_up: shelf(placed, :unreleased, :asc, today, :month)
+      out_now: shelf(placed, :home, :desc),
+      in_theaters: shelf(placed, :theatrical, :desc),
+      coming_up: shelf(placed, :unreleased, :asc)
     }
   end
 
-  # A followed series answers from its calendar; everything else from its stage.
+  # A followed series answers from its calendar, owned or not; any other
+  # owned title is off; everything else answers from its stage. Each
+  # placement carries its tile's chip.
   defp placement(
          %TitleIntent{media_type: :tv_series} = intent,
          %ReleaseTracking.Item{releases: releases} = item,
          _stage,
+         _owner,
          today
        )
        when is_list(releases) do
     case Calendar.read(item, TitleIntent.caught_up(intent), today) do
-      %{out: [_ | _] = out} -> {:home, out |> Enum.map(& &1.air_date) |> Enum.max(Date)}
-      %{next: %Date{} = next} -> {:unreleased, next}
-      %{next: nil} -> {:off, nil}
+      %{out: [_ | _] = out} ->
+        {:home, out |> Enum.map(& &1.air_date) |> Enum.max(Date), seasons_words(out)}
+
+      %{next: %{air_date: next, season_number: season}} ->
+        {:unreleased, next,
+         Enum.join([Format.episode_label(season, nil), Format.date_chip(:day, next, today)], " · ")}
+
+      %{next: nil} ->
+        {:off, nil, nil}
     end
   end
 
-  defp placement(_intent, _item, %{stage: stage, date: date}, _today), do: {stage, date}
-  defp placement(_intent, _item, nil, _today), do: {:unknown, nil}
+  defp placement(_intent, _item, _stage, owner, _today) when owner != nil, do: {:off, nil, nil}
 
-  defp shelf(placed, stage, order, today, chip) do
+  defp placement(_intent, _item, %{stage: stage, date: date}, nil, today),
+    do: {stage, date, Format.date_chip(stage_chip(stage), date, today)}
+
+  defp placement(_intent, _item, nil, nil, _today), do: {:unknown, nil, nil}
+
+  defp stage_chip(:theatrical), do: :day
+  defp stage_chip(:unreleased), do: :month
+  defp stage_chip(_stage), do: nil
+
+  # The season of the episodes out, or the span when they cross seasons.
+  defp seasons_words(out) do
+    out
+    |> Enum.map(& &1.season_number)
+    |> Enum.min_max()
+    |> case do
+      {season, season} -> Format.episode_label(season, nil)
+      {first, last} -> "Seasons #{first}–#{last}"
+    end
+  end
+
+  defp shelf(placed, stage, order) do
     placed
     |> Enum.filter(fn {placed_stage, _date, _item} -> placed_stage == stage end)
     |> Enum.sort_by(fn {_stage, date, _item} -> date || ~D[0001-01-01] end, {order, Date})
-    |> Enum.map(fn {_stage, date, item} -> %{item | chip: Format.date_chip(chip, date, today)} end)
+    |> Enum.map(fn {_stage, _date, item} -> item end)
   end
 
   @doc """

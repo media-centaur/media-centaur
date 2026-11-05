@@ -649,7 +649,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       item = Map.put(ReleaseTracking.get_item(item.id), :releases, releases)
       assert %{out: [], next: next} = ReleaseTracking.Calendar.read(item, {1, 2}, Date.utc_today())
-      assert Date.to_iso8601(next) == future(30)
+      assert Date.to_iso8601(next.air_date) == future(30)
       MediaCentaur.TaskAwaits.await_supervised_tasks()
     end
 

@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
         latest = out |> Enum.map(& &1.air_date) |> Enum.max(Date)
         %State{kind: :episodes_out, count: length(out), date: latest, caught_up: caught_up}
 
-      %{next: %Date{} = next} ->
+      %{next: %{air_date: %Date{} = next}} ->
         %State{kind: :next_episode, date: next, caught_up: caught_up}
 
       %{next: nil} ->

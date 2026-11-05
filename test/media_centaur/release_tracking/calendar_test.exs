@@ -71,7 +71,7 @@ defmodule MediaCentaur.ReleaseTracking.CalendarTest do
       }
     end
 
-    test "out is the aired releases not had, oldest first; next the nearest date ahead" do
+    test "out is the aired releases not had, oldest first; next the nearest release dated ahead" do
       item =
         followed([
           release(2, 3, ~D[2026-09-17]),
@@ -81,7 +81,9 @@ defmodule MediaCentaur.ReleaseTracking.CalendarTest do
           release(2, 5, ~D[2026-10-01])
         ])
 
-      assert %{out: out, next: ~D[2026-09-24]} = Calendar.read(item, nil, @today)
+      assert %{out: out, next: %Release{season_number: 2, episode_number: 4, air_date: ~D[2026-09-24]}} =
+               Calendar.read(item, nil, @today)
+
       assert Enum.map(out, & &1.episode_number) == [2, 3]
     end
 
