@@ -46,6 +46,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Repo
 
   alias MediaCentaur.Watchlist
+  alias MediaCentaur.Library
   alias MediaCentaur.Library.Containers
   alias MediaCentaur.Library.ExternalIds
 
@@ -139,6 +140,20 @@ defmodule MediaCentaur.ReleaseTracking do
         reconcile_refs(refs)
         count
     end
+  end
+
+  @doc """
+  Links every tracked series the library holds but no link names — the
+  other half of `detach_dangling_containers/0`, found by state: a series
+  followed before its link was made at onboarding, or one whose
+  `entities_changed` delivery was lost (`LibraryLinks.attach_unlinked/1`).
+  Run by `SweepJob` every tick.
+  """
+  @spec attach_unlinked_containers() :: :ok
+  def attach_unlinked_containers do
+    from(i in Item, where: i.media_type == :tv_series and is_nil(i.library_container_id))
+    |> Repo.all()
+    |> LibraryLinks.attach_unlinked()
   end
 
   @doc """
@@ -515,7 +530,11 @@ defmodule MediaCentaur.ReleaseTracking do
   free of tracking (ADR-066).
 
   `attrs` may carry `:source`, `:note` and `:activity_id` (applied on
-  creation).
+  creation), and `:profile_id`, the profile acting: raising a series
+  with no caught-up point to Follow or above starts the point at the
+  last episode that profile finished (`Library.last_watched_episode/2`).
+  With no viewing to go on, onboarding sets it to the latest aired
+  episode; a point already set is the person's and is kept.
   """
   @spec set_rung(Title.t(), TitleIntent.rung() | :off, map()) ::
           {:ok, TitleIntent.t() | nil} | {:error, term()}
@@ -536,6 +555,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
     Repo.transaction(fn ->
       with {:ok, intent} <- Watchlist.put_rung(title, rung, attrs),
+           :ok <- start_point(intent, title, attrs),
            {:ok, _job} <- Oban.insert(derivation) do
         intent
       else
@@ -543,6 +563,23 @@ defmodule MediaCentaur.ReleaseTracking do
       end
     end)
   end
+
+  defp start_point(%TitleIntent{} = intent, %Title{media_type: :tv_series} = title, %{
+         profile_id: profile_id
+       })
+       when is_binary(profile_id) do
+    with true <- TitleIntent.follows_releases?(intent.rung),
+         nil <- TitleIntent.caught_up(intent),
+         {_season, _episode} = point <- Library.last_watched_episode(profile_id, title.tmdb_id),
+         {:ok, _intent} <- Watchlist.catch_up(title.tmdb_id, :tv_series, point) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _no_point_to_start -> :ok
+    end
+  end
+
+  defp start_point(_intent, _title, _attrs), do: :ok
 
   @doc """
   Derives the machinery for a title from the rung it stands at now —

@@ -134,6 +134,10 @@ defmodule MediaCentaur.Library do
   @spec watched_tv_series(String.t()) :: [map()]
   defdelegate watched_tv_series(profile_id), to: MediaCentaur.Library.ProgressRecords
 
+  @doc "See `MediaCentaur.Library.ProgressRecords.last_watched_episode/2`."
+  @spec last_watched_episode(String.t(), integer()) :: {pos_integer(), pos_integer()} | nil
+  defdelegate last_watched_episode(profile_id, tmdb_id), to: MediaCentaur.Library.ProgressRecords
+
   @doc "See `MediaCentaur.Library.HomeFeed.list_recently_added/1`."
   def list_recently_added(opts \\ []), do: HomeFeed.list_recently_added(opts)
 

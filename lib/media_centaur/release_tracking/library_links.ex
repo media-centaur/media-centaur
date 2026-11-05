@@ -4,6 +4,12 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinks do
   established by TMDB id, kept current as episodes land, dropped when
   the container is deleted. Database-only, and only ever a link: the
   library never causes a title to be followed.
+
+  A link is made from either side: the library changing
+  (`refresh_for/1`, from `LibraryListener`), or a series being followed
+  that the library already holds (`attach_unlinked/1`, from
+  `Onboarding` and the sweep). Both end in `refresh_for/1`, so the
+  watermark and the in-library releases are set the same way.
   """
   import Ecto.Query
   require MediaCentaur.Log, as: Log
@@ -44,6 +50,26 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinks do
         end)
       end
     end)
+  end
+
+  @doc """
+  Links each unlinked tracked series in `items` to the library series
+  carrying its TMDB id, through `refresh_for/1`. Items already linked,
+  movies, and series the library does not hold are left as they are.
+  """
+  @spec attach_unlinked([ReleaseTracking.Item.t()]) :: :ok
+  def attach_unlinked(items) do
+    tmdb_ids =
+      for %{media_type: :tv_series, library_container_id: nil, tmdb_id: tmdb_id} <- items,
+          do: Integer.to_string(tmdb_id)
+
+    tmdb_ids
+    |> Library.ExternalIds.tv_series_ids_for_tmdb_ids()
+    |> Map.values()
+    |> case do
+      [] -> :ok
+      series_ids -> refresh_for(series_ids)
+    end
   end
 
   @doc """

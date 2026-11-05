@@ -1372,6 +1372,34 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
+  describe "last_watched_episode/2" do
+    test "the latest regular episode the profile finished of the series with that TMDB id" do
+      tv = create_tv_series(%{name: "Show A"})
+      create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: "1001"})
+
+      finished =
+        for {season_number, episode_number, progress} <- [
+              {0, 9, %{completed: true}},
+              {1, 3, %{completed: true}},
+              {2, 1, %{completed: true}},
+              {2, 2, %{position_seconds: 60.0}}
+            ] do
+          season =
+            Enum.find(Library.Seasons.list_for_tv_series(tv.id), &(&1.season_number == season_number)) ||
+              create_season(%{tv_series_id: tv.id, season_number: season_number})
+
+          episode = create_episode(%{season_id: season.id, episode_number: episode_number, name: "E"})
+          create_playable_item_for_episode(episode)
+          create_watch_progress(Map.merge(%{episode_id: episode.id}, progress))
+        end
+
+      assert length(finished) == 4
+      assert Library.last_watched_episode(owner_profile_id(), 1001) == {2, 1}
+      assert Library.last_watched_episode(create_profile(%{name: "Other"}).id, 1001) == nil
+      assert Library.last_watched_episode(owner_profile_id(), 1002) == nil
+    end
+  end
+
   describe "season uniqueness" do
     test "create_season/1 rejects a duplicate (tv_series_id, season_number)" do
       series = create_tv_series(%{name: "Dup Season Show"})

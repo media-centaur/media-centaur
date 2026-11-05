@@ -304,6 +304,26 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   @doc """
+  Maps each TMDB id string in `tmdb_ids` to the id of the series carrying
+  it, whether or not the series has files (unlike `tmdb_owners/1`, which
+  answers for presentable containers only). Ids the library has no
+  series for are absent. Inverse of `tmdb_ids_for_tv_series/1`.
+  """
+  @spec tv_series_ids_for_tmdb_ids([String.t()]) :: %{String.t() => Ecto.UUID.t()}
+  def tv_series_ids_for_tmdb_ids([]), do: %{}
+
+  def tv_series_ids_for_tmdb_ids(tmdb_ids) when is_list(tmdb_ids) do
+    Map.new(
+      Repo.all(
+        from(ext in ExternalId,
+          where: ext.owner_type == :tv_series and ext.source == "tmdb" and ext.external_id in ^tmdb_ids,
+          select: {ext.external_id, ext.owner_id}
+        )
+      )
+    )
+  end
+
+  @doc """
   Every TMDB title the library owns, as `{tmdb_id, media_type}` refs —
   the `tmdb` external id of each movie and series (collections carry a
   `tmdb_collection` id and are not TMDB titles). The library's

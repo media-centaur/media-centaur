@@ -2,6 +2,8 @@ defmodule MediaCentaur.ReleaseTracking.SweepJob do
   @moduledoc """
   The want-ledger sweep, every quarter hour: items whose library container
   is gone are detached (`ReleaseTracking.detach_dangling_containers/0`),
+  series the library holds but no link names are linked
+  (`ReleaseTracking.attach_unlinked_containers/0`),
   `ReleaseTracking.sync_wants/1` runs for every tracked item, then `{:tracking_sweep_completed}` on
   `Topics.release_tracking_updates/0` — the drop planner's clock
   (`Acquisition.Reactor`). No TMDB request: a release becomes wanted
@@ -22,6 +24,9 @@ defmodule MediaCentaur.ReleaseTracking.SweepJob do
     # An item whose library container was deleted while the
     # `containers_deleted` message was lost is detached here first.
     ReleaseTracking.detach_dangling_containers()
+    # And one the library holds but no link names yet is linked, so the
+    # library half of "had" is right before the wants are synced.
+    ReleaseTracking.attach_unlinked_containers()
     Enum.each(ReleaseTracking.list_all_items(), &ReleaseTracking.sync_wants/1)
     Topics.publish(Topics.release_tracking_updates(), {:tracking_sweep_completed})
     :ok

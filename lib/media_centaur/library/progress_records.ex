@@ -407,6 +407,36 @@ defmodule MediaCentaur.Library.ProgressRecords do
     )
   end
 
+  @doc """
+  The latest regular episode (season 1 or later) `profile_id` has
+  finished of the library series carrying TMDB id `tmdb_id`, as
+  `{season, episode}`, or nil when the profile has finished none — the
+  evidence `ReleaseTracking.set_rung/3` starts a followed series' point
+  from.
+  """
+  @spec last_watched_episode(String.t(), integer()) :: {pos_integer(), pos_integer()} | nil
+  def last_watched_episode(profile_id, tmdb_id) when is_binary(profile_id) and is_integer(tmdb_id) do
+    external_id = Integer.to_string(tmdb_id)
+
+    Repo.one(
+      from(wp in WatchProgress,
+        join: pi in PlayableItem,
+        on: pi.id == wp.playable_item_id and pi.container_type == :episode,
+        join: e in Episode,
+        on: e.id == pi.container_id,
+        join: s in Season,
+        on: s.id == e.season_id,
+        join: x in ExternalId,
+        on: x.owner_id == s.tv_series_id and x.owner_type == :tv_series and x.source == "tmdb",
+        where: wp.profile_id == ^profile_id and wp.completed and x.external_id == ^external_id,
+        where: s.season_number >= 1,
+        order_by: [desc: s.season_number, desc: e.episode_number],
+        limit: 1,
+        select: {s.season_number, e.episode_number}
+      )
+    )
+  end
+
   defp episode_rows_by_tv_series(profile_id, tv_series_ids) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,

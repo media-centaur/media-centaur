@@ -110,6 +110,120 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
   end
 
+  describe "a series the library already holds" do
+    # The library holds S01E01–S01E02; TMDB has aired S01E01–S02E01.
+    defp owned_show do
+      tv = create_tv_series(%{name: "Sample Show"})
+
+      create_external_id(%{
+        tv_series_id: tv.id,
+        source: "tmdb",
+        external_id: Integer.to_string(@tmdb_id)
+      })
+
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+
+      episodes =
+        for number <- [1, 2] do
+          episode =
+            create_episode(%{season_id: season.id, episode_number: number, name: "Episode #{number}"})
+
+          create_playable_item_for_episode(episode)
+          episode
+        end
+
+      {tv, episodes}
+    end
+
+    defp wanted do
+      @tmdb_id
+      |> ReleaseTracking.get_item_by_tmdb(:tv_series)
+      |> Map.fetch!(:id)
+      |> ReleaseTracking.open_wants_for_item()
+      |> Enum.map(&{&1.season_number, &1.episode_number})
+    end
+
+    # Regression: following a series the library already held never linked
+    # it (the link was made only when the library changed), so the library
+    # half of "had" read nothing and a point behind the library wanted
+    # episodes the person owns.
+    test "following links the tracked title to its library series, to the last episode held" do
+      {tv, _episodes} = owned_show()
+
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      item = ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series)
+      assert item.library_container_id == tv.id
+      assert {item.last_library_season, item.last_library_episode} == {1, 2}
+
+      await_supervised_tasks()
+    end
+
+    test "the point starts at the last episode the acting profile finished; owned episodes are never wanted" do
+      {_tv, [first, _second]} = owned_show()
+      create_watch_progress(%{episode_id: first.id, completed: true})
+
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert Watchlist.caught_up(@tmdb_id, :tv_series) == {1, 1}
+      # Seen through S01E01, held through S01E02: only S02E01 is wanted.
+      assert wanted() == [{2, 1}]
+
+      await_supervised_tasks()
+    end
+
+    test "raising a listed series to Follow starts the point from the profile's viewing too" do
+      {_tv, [first, _second]} = owned_show()
+      create_watch_progress(%{episode_id: first.id, completed: true})
+
+      {:ok, _} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert Watchlist.caught_up(@tmdb_id, :tv_series) == {1, 1}
+      await_supervised_tasks()
+    end
+
+    test "with no viewing to go on, the point is TMDB's latest aired episode" do
+      owned_show()
+
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
+      assert wanted() == []
+      await_supervised_tasks()
+    end
+
+    test "a point already set is kept when the rung rises" do
+      {_tv, [first, _second]} = owned_show()
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
+
+      create_watch_progress(%{episode_id: first.id, completed: true})
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, %{profile_id: owner_profile_id()})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
+      await_supervised_tasks()
+    end
+
+    test "the sweep links a followed series that the library already held but was never linked" do
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      {tv, _episodes} = owned_show()
+      assert ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series).library_container_id == nil
+
+      :ok = MediaCentaur.ReleaseTracking.SweepJob.perform(%Oban.Job{args: %{}})
+
+      assert ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series).library_container_id == tv.id
+      await_supervised_tasks()
+    end
+  end
+
   describe "lowering the ladder" do
     test "dropping below Follow destroys the tracked title but keeps the listing" do
       {:ok, _} = ReleaseTracking.set_rung(show(), :grab)

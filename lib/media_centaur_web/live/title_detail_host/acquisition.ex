@@ -61,12 +61,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
       TitleIntent.follows_releases?(rung) and
         is_nil(ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type))
 
-    {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
+    # The acting profile's viewing is the evidence a followed series'
+    # caught-up point starts from (`ReleaseTracking.set_rung/3`).
+    {:ok, _intent} = ReleaseTracking.set_rung(title, rung, Map.merge(attrs, profile_attrs(socket)))
 
     if needs_calendar?,
       do: put_flash(socket, :info, "Tracking #{title.name} — its next release shows on your watchlist."),
       else: socket
   end
+
+  defp profile_attrs(%{assigns: %{profile: %{id: profile_id}}}), do: %{profile_id: profile_id}
+  defp profile_attrs(_socket), do: %{}
 
   # --- Download ---
 

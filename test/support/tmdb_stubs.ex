@@ -221,6 +221,7 @@ defmodule MediaCentaur.TmdbStubs do
       "original_name" => "Beispielserie",
       "origin_country" => ["US"],
       "number_of_seasons" => 2,
+      "last_episode_to_air" => %{"season_number" => 2, "episode_number" => 1, "air_date" => "2021-01-01"},
       "seasons" => [
         %{"season_number" => 0, "episode_count" => 1},
         %{"season_number" => 1, "episode_count" => 2},

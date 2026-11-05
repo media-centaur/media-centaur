@@ -10,14 +10,19 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   step, not an act: a person raising a rung is the act, and the context
   announces that. Nothing here decides *whether* a title is followed.
 
-  **Follow means caught up as of now** (campaign `discovery.md`, decision
-  6): a series' calendar is seeded with every episode the wanted seasons
-  hold, aired ones included, and the person's caught-up point is then set
-  to TMDB's latest aired episode (`Calendar.latest_aired/1`, written
-  through `ReleaseTracking.catch_up/2`'s record half), so the aired
-  episodes are *had* and open no want. What was aired before the person
-  followed is the Download button's business, not the ledger's. The
-  first rebuild therefore finds the calendar it would have built.
+  **Follow means caught up as of what you've watched, else as of now**
+  (campaign `discovery.md`, decision 6, amended by
+  `series-latest-season.md` 2026-11-05). The act that raised the rung has
+  already set the point from the acting profile's viewing when there was
+  any (`ReleaseTracking.set_rung/3`). A record still without one is caught
+  up as of now: the point is set to TMDB's latest aired episode
+  (`Calendar.latest_aired/1`, written through `Watchlist.catch_up/3`), so
+  the aired episodes are *had* and open no want; what aired before is the
+  Download button's business. A series the library already holds is
+  linked to it first (`LibraryLinks.attach_unlinked/1`), so episodes the
+  person owns are had whatever the point says. A series' calendar is
+  seeded with every episode the wanted seasons hold, aired ones included,
+  so the first rebuild finds the calendar it would have built.
 
   The only request it can cause is first contact for a title or season
   the store does not hold (`TMDB.Store.ensure/2`, ADR-071); a title the
@@ -36,7 +41,7 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Calendar, Had, Helpers, Wants}
+  alias MediaCentaur.ReleaseTracking.{Calendar, Had, Helpers, LibraryLinks, Wants}
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Watchlist
@@ -56,7 +61,11 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
 
   defp do_onboard(%Title{media_type: :tv_series} = title) do
     with {:ok, record} <- Store.ensure({title.tmdb_id, :tv_series}),
-         {:ok, item} <- track(%{tmdb_id: title.tmdb_id, media_type: :tv_series}) do
+         {:ok, tracked} <- track(%{tmdb_id: title.tmdb_id, media_type: :tv_series}) do
+      # Linked first, so the library half of "had" reads what the library
+      # holds before the calendar and the wants are built.
+      :ok = LibraryLinks.attach_unlinked([tracked])
+      item = ReleaseTracking.get_item(tracked.id)
       point = Had.point(item, Watchlist.caught_up(item.tmdb_id, :tv_series))
       season_payloads = ensure_seasons(item, record, elem(point, 0))
       releases = Calendar.tv_releases(record.payload, season_payloads, point)
@@ -86,10 +95,12 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
     end
   end
 
-  # Follow means caught up as of now: the point lands on the latest aired
-  # episode. A series TMDB has aired nothing of yet has no point to set.
+  # The default point: a record the act gave no point (no viewing to go
+  # on) is caught up as of now, on the latest aired episode. A series TMDB
+  # has aired nothing of yet has no point to set.
   defp catch_up(item, payload) do
-    with latest when latest != nil <- Calendar.latest_aired(payload),
+    with nil <- Watchlist.caught_up(item.tmdb_id, :tv_series),
+         latest when latest != nil <- Calendar.latest_aired(payload),
          {:error, reason} <- Watchlist.catch_up(item.tmdb_id, :tv_series, latest) do
       # The record went Off between the rung write and this derivation;
       # the machinery is dropped by the next derivation, nothing to set.
