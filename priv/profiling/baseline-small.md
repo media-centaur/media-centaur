@@ -18,7 +18,7 @@
 |-----|-------|
 | schedulers_online | 12 |
 | total schedulers | 12 |
-| database_path | `/home/user/src/media-centaur/media-centaur-app/priv/profile/media-centaur.db` |
+| database_path | `<checkout>/priv/profile/media-centaur.db` |
 
 
 ## Deltas vs `2026-05-10T20-22-14.635571Z` (sha `fbf1217b`)

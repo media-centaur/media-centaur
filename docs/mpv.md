@@ -15,7 +15,7 @@ Lua package that gives it couch behaviour, and the example config kept in
 the sibling `contrib` repo. Decision record:
 [ADR-072](../decisions/architecture/2026-09-25-072-bundled-mpv-scripts.md).
 Design and verification transcript:
-[`docs/superpowers/specs/2026-09-25-bundled-mpv-scripts-design.md`](superpowers/specs/2026-09-25-bundled-mpv-scripts-design.md).
+`docs/superpowers/specs/2026-09-25-bundled-mpv-scripts-design.md` (`2026-09-25-bundled-mpv-scripts-design.md`, a local planning document, not in the repository).
 
 ## Two owners
 

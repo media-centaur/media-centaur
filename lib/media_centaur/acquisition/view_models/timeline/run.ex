@@ -2,8 +2,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.Timeline.Run do
   @moduledoc """
   One row of History: a run of consecutive events that read the same —
   one kind, one summary, one detail — drawn once with its count and span.
-  Three releases abandoned in the same sweep are one row, "×3"; the
-  Sample Title Eo case folds 971 events into about three hundred rows.
+  Three releases abandoned in the same sweep are one row, "×3"; the worst
+  real case (30 episodes, 971 events) folds into about three hundred rows.
 
   `entry` is the newest member's `TimelineEntry`; `first_at`/`last_at` span
   the run (oldest to newest); `subjects` are the episode labels the

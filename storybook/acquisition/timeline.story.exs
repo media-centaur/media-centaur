@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitTimeline do
   @moduledoc """
   History for a pursuit: the recent runs, the full log behind its
-  disclosure, and Show more — including a Sample Title Eo-sized fixture
+  disclosure, and Show more — including a worst-case fixture
   (30 episodes, a thousand events) to prove the DOM stays bounded.
   """
 

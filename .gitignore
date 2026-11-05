@@ -37,7 +37,6 @@
 # Per-run reports are machine-specific noise; commit a curated snapshot to
 # priv/profiling/baseline-<scale>.{md,json} instead — those baseline files
 # are explicitly tracked. See ADR-041 and the planning notes at
-# /home/user/.claude/plans/a-local-planning-note.md.
 /priv/profile/
 /priv/profiling/runs/*
 !/priv/profiling/runs/.gitkeep
@@ -120,3 +119,9 @@ npm-debug.log
 # Campaign files are local working notes (CLAUDE.md § Campaigns): the
 # owner keeps them beside the code and out of the repository.
 /campaigns/
+
+# Design specs and implementation plans are local working notes too
+# (CLAUDE.md § Campaigns); kept beside the code, never committed.
+/docs/superpowers/
+/docs/plans/
+/plans/

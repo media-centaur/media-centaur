@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
   @moduledoc """
   The coverage board: units as attempt threads — the one word list, the
   outcome line, the releases tried behind each row, season roll-ups with
-  their counts, the single-unit thread row, and a Sample Title Eo-sized
+  their counts, the single-unit thread row, and a worst-case
   board (30 episodes, three of them failed 48 times).
   """
 

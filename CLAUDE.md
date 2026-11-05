@@ -71,7 +71,7 @@ Map of contributor docs:
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
 | Decision records (ADR-NNN + UIDR-NNN, indexed) | [`decisions/README.md`](decisions/README.md) |
 
-Historical design specs and implementation plans live under [`docs/plans/`](docs/plans/) and [`docs/superpowers/`](docs/superpowers/). They record what was decided at the time and are **not** maintained against the current code — read them for rationale, not for present-tense truth. `docs/getting-started.md` and `docs/installation.md` are pointer stubs to the wiki.
+Historical design specs and implementation plans live under `docs/plans/`, `docs/superpowers/` and `plans/` **on the owner's machine only** — local working notes, gitignored like `campaigns/` (§ Campaigns), not part of the repository. They record what was decided at the time and are **not** maintained against the current code. `docs/getting-started.md` and `docs/installation.md` are pointer stubs to the wiki.
 
 ## Version Control (Git)
 

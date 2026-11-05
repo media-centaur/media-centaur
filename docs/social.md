@@ -14,8 +14,8 @@ relays hold.
 End-user setup lives on the wiki:
 [Social](https://github.com/media-centaur/media-centaur/wiki/Social).
 Design rationale and the build order live in
-[`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`](superpowers/specs/2026-09-02-friends-recommendations-design.md),
-[`docs/superpowers/specs/2026-09-05-social-activity-feed-design.md`](superpowers/specs/2026-09-05-social-activity-feed-design.md)
+`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md` (`2026-09-02-friends-recommendations-design.md`, a local planning document, not in the repository),
+`docs/superpowers/specs/2026-09-05-social-activity-feed-design.md` (`2026-09-05-social-activity-feed-design.md`, a local planning document, not in the repository)
 and `campaigns/friends-recommendations.md` (completed and removed — see git history).
 
 - [Contexts](#contexts)

@@ -17,7 +17,6 @@
 # unless --keep-db is set.
 #
 # See decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md
-# and /home/user/.claude/plans/a-local-planning-note.md.
 
 set -euo pipefail
 
