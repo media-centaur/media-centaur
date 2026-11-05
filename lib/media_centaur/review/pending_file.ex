@@ -35,6 +35,10 @@ defmodule MediaCentaur.Review.PendingFile do
     field :match_year, :string
     field :match_poster_path, :string
 
+    # The title a grab of ours asked for, when the match contradicts it
+    # (`Pipeline.Stages.Search`); the row's reason names it.
+    field :wanted_title, :string
+
     # All scored candidates (JSON array of maps)
     field :candidates, {:array, :map}
 
@@ -64,6 +68,7 @@ defmodule MediaCentaur.Review.PendingFile do
     :match_year,
     :match_poster_path,
     :candidates,
+    :wanted_title,
     :error_message
   ]
 
@@ -150,12 +155,14 @@ defmodule MediaCentaur.Review.PendingFile do
 
   @doc """
   A person matched the item to a title: the match is set and the item is
-  approved in one step. Clears the candidates and any old reason.
+  approved in one step. Clears the candidates and any old reason, a grab
+  conflict included: the person's match answers it.
   """
   def match_changeset(pending_file, attrs) do
     pending_file
     |> cast(attrs, [:tmdb_id, :tmdb_type, :confidence, :match_title, :match_year, :match_poster_path])
     |> put_change(:candidates, [])
+    |> put_change(:wanted_title, nil)
     |> approve_changeset()
   end
 
@@ -167,7 +174,7 @@ defmodule MediaCentaur.Review.PendingFile do
   def rediscovered_changeset(%__MODULE__{error_message: nil} = pending_file, attrs) do
     pending_file
     |> cast(
-      Map.put_new(attrs, :candidates, []),
+      attrs |> Map.put_new(:candidates, []) |> Map.put_new(:wanted_title, nil),
       @create_fields -- [:file_path, :media_directory, :error_message]
     )
     |> validate_status(:pending)

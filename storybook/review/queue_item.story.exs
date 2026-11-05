@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.Storybook.Review.QueueItem do
         confidence: nil,
         candidates: [],
         status: :pending,
-        error_message: nil
+        error_message: nil,
+        wanted_title: nil
       },
       overrides
     )
@@ -63,6 +64,30 @@ defmodule MediaCentaurWeb.Storybook.Review.QueueItem do
               match_title: "Movie A",
               match_year: "1999",
               confidence: 0.72
+            })
+        }
+      },
+      %Variation{
+        id: :grab_conflict,
+        description:
+          "A confident match that contradicts what a grab of ours asked for; the row names that title",
+        attributes: %{
+          id: "item-grab-conflict",
+          file:
+            file(%{
+              file_path:
+                "/media/Movie.I.2003.1080p.BluRay.x264-GROUP/Movie.I.2003.1080p.BluRay.x264-GROUP.mkv",
+              parsed_title: "Movie I",
+              parsed_year: 2003,
+              parsed_type: "movie",
+              parsed_season: nil,
+              parsed_episode: nil,
+              tmdb_id: 990_009,
+              tmdb_type: "movie",
+              match_title: "Movie I",
+              match_year: "2003",
+              confidence: 1.05,
+              wanted_title: "Movie J"
             })
         }
       },

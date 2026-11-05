@@ -582,6 +582,42 @@ defmodule MediaCentaur.ReviewTest do
   # fix never reached the queue: six episodes stayed "Sample Show Signed"
   # after the parser learned the tag (campaign `review-bulk-match`).
   describe "add_pending_file/1 on a waiting item — re-discovery" do
+    test "re-discovery that finds no grab conflict clears the wanted title" do
+      path = "/media/test/Movie.I.2003.mkv"
+
+      create_pending_file(%{
+        file_path: path,
+        parsed_title: "Movie I",
+        tmdb_id: 7,
+        tmdb_type: "movie",
+        wanted_title: "Movie J"
+      })
+
+      assert {:ok, refreshed} =
+               Review.add_pending_file(%{
+                 file_path: path,
+                 parsed_title: "Movie I",
+                 tmdb_id: 7,
+                 tmdb_type: "movie"
+               })
+
+      assert refreshed.wanted_title == nil
+    end
+
+    test "a person's match clears the conflict it answers" do
+      pending =
+        create_pending_file(%{
+          parsed_title: "Movie I",
+          tmdb_id: 7,
+          tmdb_type: "movie",
+          wanted_title: "Movie J"
+        })
+
+      {:ok, 1} = Review.match([pending.id], %{tmdb_id: 8, tmdb_type: "movie", title: "Movie J"})
+
+      assert Repo.reload!(pending).wanted_title == nil
+    end
+
     test "refreshes the parse and the best guess" do
       path = "/media/test/Sample.Show.Signed.S01E01.mkv"
 

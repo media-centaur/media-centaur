@@ -18,12 +18,14 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   def reason_label(:no_results), do: "No TMDB results"
   def reason_label(:low_confidence), do: "Low confidence"
   def reason_label(:tied), do: "Tied match"
+  def reason_label(:grab_conflict), do: "Grab conflict"
   def reason_label(:importing), do: "Importing"
   def reason_label(:not_added), do: "Not added"
 
   def reason_text_class(:no_results), do: "text-error"
   def reason_text_class(:low_confidence), do: "text-warning"
   def reason_text_class(:tied), do: "text-info"
+  def reason_text_class(:grab_conflict), do: "text-warning"
   def reason_text_class(:importing), do: "text-base-content/60"
   def reason_text_class(:not_added), do: "text-error"
 

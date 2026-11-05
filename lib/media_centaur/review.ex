@@ -219,14 +219,18 @@ defmodule MediaCentaur.Review do
   @doc """
   Why a pending file is in the queue, from its own fields: `:importing`
   (approved, waiting for the library to link it), `:not_added` (the
-  library returned it with an `error_message`), `:no_results` (no best
+  library returned it with an `error_message`), `:grab_conflict` (its
+  match contradicts what a grab of ours asked for, `wanted_title`),
+  `:no_results` (no best
   guess), `:tied` (two or more candidates share the best score) or
   `:low_confidence` (a best guess below the threshold). A dismissed file
   keeps its reason; its status says it was dismissed.
   """
-  @spec reason(map()) :: :importing | :not_added | :no_results | :tied | :low_confidence
+  @spec reason(map()) ::
+          :importing | :not_added | :grab_conflict | :no_results | :tied | :low_confidence
   def reason(%{status: :approved}), do: :importing
   def reason(%{error_message: message}) when is_binary(message), do: :not_added
+  def reason(%{wanted_title: title}) when is_binary(title), do: :grab_conflict
   def reason(%{tmdb_id: nil}), do: :no_results
 
   def reason(file) do

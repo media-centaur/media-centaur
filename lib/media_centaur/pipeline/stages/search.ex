@@ -121,7 +121,10 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
         candidates: []
     }
 
-    if contradicts_grab?(payload, updated), do: {:needs_review, updated}, else: {:ok, updated}
+    case grab_conflict(payload, updated) do
+      nil -> {:ok, updated}
+      wanted_title -> {:needs_review, %{updated | wanted_title: wanted_title}}
+    end
   end
 
   defp apply_match(payload, {result, score, title_key}, top_matches) do
@@ -161,8 +164,10 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
           candidates: top_matches
       }
 
+    wanted_title = grab_conflict(payload, updated)
+
     cond do
-      contradicts_grab?(payload, updated) -> {:needs_review, updated}
+      wanted_title -> {:needs_review, %{updated | wanted_title: wanted_title}}
       score < Confidence.threshold() -> {:needs_review, updated}
       tied? and not resolvable_tie? -> {:needs_review, updated}
       true -> {:ok, updated}
@@ -176,13 +181,14 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   # here named an identity, and the match contradicts it by external id,
   # a person decides. Silence here is what turned one bad grab into a
   # loop: the want could never close, so the sweep re-grabbed daily.
-  defp contradicts_grab?(%Payload{file_path: file_path}, matched) when is_binary(file_path) do
-    file_path
-    |> Acquisition.GrabProvenance.wanted_identity_for_file()
-    |> contradicts_match?(matched)
+  # Returns the title the grab wanted when the match contradicts it, which
+  # the review row names as its reason; nil when nothing is contradicted.
+  defp grab_conflict(%Payload{file_path: file_path}, matched) when is_binary(file_path) do
+    wanted = Acquisition.GrabProvenance.wanted_identity_for_file(file_path)
+    if contradicts_match?(wanted, matched), do: wanted.title
   end
 
-  defp contradicts_grab?(_payload, _matched), do: false
+  defp grab_conflict(_payload, _matched), do: nil
 
   # A TMDB id only names a work within its own type — movie 550 and
   # series 550 are unrelated. Comparing across types would read a

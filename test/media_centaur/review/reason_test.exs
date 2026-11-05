@@ -23,6 +23,13 @@ defmodule MediaCentaur.Review.ReasonTest do
       assert Review.reason(%{tmdb_id: 123}) == :low_confidence
     end
 
+    # A match that contradicts what a grab of ours asked for waits for a
+    # person whatever its score; the row names the title the grab wanted.
+    test "a match contradicting a grab is :grab_conflict, whatever its score" do
+      file = %{tmdb_id: 123, confidence: 1.05, candidates: [%{"score" => 1.05}], wanted_title: "Movie J"}
+      assert Review.reason(file) == :grab_conflict
+    end
+
     # An approved item stays in the queue until the library reports its
     # file linked; until then it is importing, whatever its match looked like.
     test "an approved file is :importing" do

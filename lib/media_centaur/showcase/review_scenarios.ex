@@ -32,7 +32,7 @@ defmodule MediaCentaur.Showcase.ReviewScenarios do
   alias MediaCentaur.Review
   alias MediaCentaur.Showcase.AcquisitionRows
 
-  @type reason :: :no_results | :low_confidence | :tied | :not_added | :dismissed
+  @type reason :: :no_results | :low_confidence | :tied | :grab_conflict | :not_added | :dismissed
   @type scenario :: %{
           name: String.t(),
           about: String.t(),
@@ -134,7 +134,7 @@ defmodule MediaCentaur.Showcase.ReviewScenarios do
           "A grab asked for one title; the search confidently finds another under the " <>
             "release name (Pipeline.Stages.Search, GrabProvenance).",
         files: ["#{@grab.release_title}/#{@grab.release_title}.mkv"],
-        lands_in: :low_confidence
+        lands_in: :grab_conflict
       }
     ]
   end

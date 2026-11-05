@@ -182,7 +182,8 @@ defmodule MediaCentaur.Pipeline.Discovery do
       match_title: payload.match_title,
       match_year: payload.match_year,
       match_poster_path: payload.match_poster_path,
-      candidates: normalize_candidates(payload.candidates)
+      candidates: normalize_candidates(payload.candidates),
+      wanted_title: payload.wanted_title
     })
   end
 

@@ -336,6 +336,46 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
       assert result.tmdb_id == 1_417_935
     end
 
+    test "a match contradicting the grab carries the title the grab wanted" do
+      grab_wanting("Sample.Film.2026.1080p.WEB-DL-GROUP", %{
+        tmdb_id: "663875",
+        title: "Sample Film",
+        imdb_id: "tt11887594"
+      })
+
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 1_417_935,
+          "title" => "Sample Film",
+          "release_date" => "2026-08-26"
+        })
+      ])
+
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Film.2026.1080p.WEB-DL-GROUP/Sample.Film.2026.mkv",
+          title: "Sample Film",
+          year: 2026
+        })
+
+      assert {:needs_review, %{wanted_title: "Sample Film"}} = Search.run(payload)
+    end
+
+    test "a match the grab does not contradict carries no wanted title" do
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 1_417_935,
+          "title" => "Movie Kay Returns",
+          "release_date" => "1990-01-01"
+        })
+      ])
+
+      payload =
+        payload_with_parsed(%{file_path: "/media/Movie.K.2026.mkv", title: "Movie K", year: 2026})
+
+      assert {:needs_review, %{wanted_title: nil}} = Search.run(payload)
+    end
+
     test "a matched film agreeing with the grab's identity files normally" do
       grab_wanting("Sample.Film.2026.1080p.WEB-DL-GROUP", %{
         tmdb_id: "550",

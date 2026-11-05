@@ -23,6 +23,8 @@ defmodule MediaCentaur.Pipeline.Payload do
   - `match_year` — year of the matched TMDB result
   - `match_poster_path` — poster path from TMDB
   - `candidates` — list of all scored candidates (for review)
+  - `wanted_title` — the title a grab of ours asked for, set when the
+    match contradicts it (the review row's reason)
 
   **Discovery outcome (set by `Discovery.process/1`):**
   - `discovery_status` — `:matched` or `:needs_review`. The Discovery
@@ -58,6 +60,7 @@ defmodule MediaCentaur.Pipeline.Payload do
     :match_year,
     :match_poster_path,
     :candidates,
+    :wanted_title,
 
     # Discovery outcome
     :discovery_status,

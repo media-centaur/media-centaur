@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.Components.ReviewQueue do
   attr :file, :map,
     required: true,
     doc:
-      "a `Review.PendingFile`: parsed title/season/episode, `file_path`, `media_directory`, the best guess (`tmdb_id`, `match_title`, `match_year`, `match_poster_path`, `confidence`, `candidates`), `status`, `error_message`."
+      "a `Review.PendingFile`: parsed title/season/episode, `file_path`, `media_directory`, the best guess (`tmdb_id`, `match_title`, `match_year`, `match_poster_path`, `confidence`, `candidates`), the title a contradicted grab wanted (`wanted_title`), `status`, `error_message`."
 
   attr :ticked, :boolean, default: false
   attr :selectable, :boolean, default: true, doc: "false for an importing item: no tick, not a control."
@@ -374,6 +374,7 @@ defmodule MediaCentaurWeb.Components.ReviewQueue do
   defp aria_checked(_state), do: "false"
 
   defp reason_text(:low_confidence, file), do: "Unsure · #{round((file.confidence || 0) * 100)}%"
+  defp reason_text(:grab_conflict, file), do: "Grab wanted #{file.wanted_title}"
   defp reason_text(:dismissed, _file), do: "Dismissed"
   defp reason_text(reason, _file), do: reason_label(reason)
 

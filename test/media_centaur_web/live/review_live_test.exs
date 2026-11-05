@@ -373,6 +373,23 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert html =~ "Adding it to the library failed. Approve it again to retry."
     end
 
+    test "a match contradicting a grab names the title the grab wanted, not a score", %{conn: conn} do
+      create_pending_file(%{
+        parsed_title: "Movie I",
+        parsed_type: "movie",
+        tmdb_id: 990_009,
+        tmdb_type: "movie",
+        match_title: "Movie I",
+        confidence: 1.05,
+        wanted_title: "Movie J"
+      })
+
+      html = render(open(conn))
+
+      assert html =~ "Grab wanted Movie J"
+      refute html =~ "105%"
+    end
+
     test "file_added reloads the list after its debounce", %{conn: conn} do
       view = open(conn)
       create_pending_file(%{parsed_title: "Newly Arrived File", parsed_type: "movie"})
