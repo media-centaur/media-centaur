@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Review.DismissedFiles do
   @moduledoc """
-  Story for a review queue's dismissed files — the disclosure both review
-  surfaces render under their list, each file with Restore.
+  Story for a review queue's dismissed files — the disclosure Episode
+  mapping renders under its list, each file with Restore.
   """
 
   use PhoenixStorybook.Story, :component
@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Storybook.Review.DismissedFiles do
   def function, do: &MediaCentaurWeb.Components.DismissedFiles.dismissed_files/1
   def render_source, do: :function
 
-  # Both pages render it in a list pane about 300px wide.
+  # Episode mapping renders it in a list pane about 300px wide.
   def template, do: ~s|<div class="w-[300px]"><.psb-variation/></div>|
 
   defp files do

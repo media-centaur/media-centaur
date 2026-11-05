@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.SettingsLive.ImportSection do
   @moduledoc """
   The Media Import section of the Settings page (UIDR-041): the extras
-  folder names as a list setting, the match auto-approve threshold as a
-  stepper, and the artwork resolution as a choice. Ignore rules used to
+  folder names as a list setting, the remembered matches (answers given in
+  Review, kept for the name the files were read as; `Review.RememberedMatch`)
+  with Forget, the match auto-approve threshold as a stepper, and the
+  artwork resolution as a choice. Ignore rules used to
   sit here as a second list; they moved to Library → Ignore rules, where
   the path-matched half already lived. Extras names stay because they
   are classification — which title a file belongs to — not admission.
@@ -24,6 +26,10 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
     required: true,
     doc: "settings config map (reads :extras_dirs, :auto_approve_threshold)."
 
+  attr :remembered_matches, :list,
+    default: [],
+    doc: "`Review.RememberedMatch` rows, from `Review.list_remembered_matches/0`."
+
   def render(assigns) do
     assigns = assign(assigns, :threshold, assigns.config[:auto_approve_threshold] || threshold_default())
 
@@ -40,6 +46,19 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
           add_event="config_list_add"
           event_value={%{"key" => "extras_dirs"}}
           placeholder="Featurettes"
+        />
+      </.settings_card>
+
+      <.settings_card
+        title="Remembered matches"
+        description="When you match files in Review by hand, the title you chose is remembered for the name the files were read as. New files read the same way match without asking."
+      >
+        <.settings_list
+          id="remembered-matches"
+          items={Enum.map(@remembered_matches, &{&1.id, remembered_match_label(&1)})}
+          remove_event="forget_remembered_match"
+          remove_label="Forget"
+          empty_text="Nothing yet. Matching files by hand in Review adds them here."
         />
       </.settings_card>
 
@@ -70,6 +89,25 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
       </.settings_card>
     </div>
     """
+  end
+
+  @doc """
+  One remembered match as the card lists it: the name the files were read
+  as, with its year and type, and the title it means —
+  `Sample Show Signed · TV → Sample Show (1995)`.
+  """
+  @spec remembered_match_label(map()) :: String.t()
+  def remembered_match_label(remembered) do
+    name =
+      if remembered.parsed_year,
+        do: "#{remembered.parsed_title} (#{remembered.parsed_year})",
+        else: remembered.parsed_title
+
+    type = if remembered.media_type == "tv", do: "TV", else: String.capitalize(remembered.media_type)
+    title = remembered.match_title || "TMDB #{remembered.tmdb_id}"
+    title = if remembered.match_year, do: "#{title} (#{remembered.match_year})", else: title
+
+    "#{name} · #{type} → #{title}"
   end
 
   @doc "The auto-approve stepper's rungs: 0.50 to 1.00 in steps of 0.05."

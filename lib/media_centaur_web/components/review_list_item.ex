@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.Components.ReviewListItem do
   @moduledoc """
-  One row of a review queue's master list — the Identity queue's file
-  groups (`ReviewLive`) and Episode mapping's shows (`EpisodeMappingLive`).
+  One row of a review queue's master list — Episode mapping's shows
+  (`EpisodeMappingLive`). Identity is a bulk list of ticked rows instead
+  (`Components.ReviewQueue`).
   A nav item; the selected row carries the selected tint and
   `aria-current`. The host passes its select event and `phx-value-*`
   through `rest` and draws the row's content in the slot.

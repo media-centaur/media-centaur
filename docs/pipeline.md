@@ -77,8 +77,8 @@ Identifies what a file is — parses the filename, searches TMDB, and decides if
 **Processing flow:**
 1. **Dedup check** — query `library_watched_files` directly (not through Library context) to skip already-linked files
 2. **Parse** — extract title, year, type, season, episode from the file path
-3. **Search** — search TMDB, score confidence
-   - High confidence → batcher emits `{:file_matched, ...}` to `"pipeline:matched"`
+3. **Search** — a name a person answered in Review before takes that answer (`Review.remembered_match/3`, see *Remembered matches*); otherwise search TMDB and score confidence. Either way the match is checked against the grab that fetched the file (`Acquisition.GrabProvenance`)
+   - High confidence, or a remembered match → batcher emits `{:file_matched, ...}` to `"pipeline:matched"`
    - Low confidence → broadcast `{:needs_review, attrs}` to `"review:intake"`, stop
 
 ---
@@ -148,7 +148,7 @@ All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Ea
 | Stage | Module | Used by | Purpose |
 |-------|--------|---------|---------|
 | Parse | `Stages.Parse` | Discovery, Import | Extracts title, year, type from file path via `Parser` |
-| Search | `Stages.Search` | Discovery | Searches TMDB, scores confidence, decides approve/review |
+| Search | `Stages.Search` | Discovery | Takes a remembered match, or searches TMDB and scores confidence; decides approve/review |
 | FetchMetadata | `Stages.FetchMetadata` | Import | Reads TMDB details from the store (first contact for a new title), maps to domain metadata |
 | Ingest | `Stages.Ingest` | Import | Broadcasts entity event to `"pipeline:publish"` |
 
@@ -213,16 +213,25 @@ That list comes from `Settings.Config.extras_dirs/0` — one accessor, read by e
 
 Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `{:needs_review, attrs}` to `"review:intake"`. `Review.Intake` creates a PendingFile for human review. Review decides a file's **identity** only; a TV file whose position its name does not settle is parked for episode mapping on import (*Where a position is decided*).
 
-The `/review` UI groups PendingFiles by series root. A group is judged by `Review.representative/1`, its first file still awaiting a decision. The reviewer can:
-1. **Approve** — `Review.approve_group/1`, synchronous: the group's pending files are approved and each match is sent as `{:file_matched, ...}` to `"pipeline:matched"`, then `FilesApproved` is broadcast. The group is refused whole unless its pending files share one identity (`Review.group_identity/1`: `:no_identity`, `:mixed_identities`); the approve changeset also requires one
-2. **Search** — manual TMDB search; the chosen result becomes the match of every file in the group
-3. **Dismiss** — flips the PendingFile to `status: :dismissed`. Discovery skips a dismissed path before parsing or searching — see the already-settled check above
-4. **Restore** — the page lists dismissed files; `Review.restore/1` returns one to `:pending` with the match it had
-5. **Delete** — deletes the group's files from disk (the whole folder when `DeleteTargets` finds one safe to delete) and their rows
+The `/review` UI is a bulk list (UIDR-058): every open item from `Review.list_queue/0`, sorted by parsed title, year, season and episode, with a divider where the parsed title changes. Nothing groups files automatically — a group keyed on the top-level folder split one show's episodes into one group per release folder. The reviewer ticks rows (one, a divider's block, or every row the filter shows) and acts on the ticked ids:
+
+1. **Match** — `Review.match/2`, synchronous: each ticked `:pending` item takes the chosen TMDB title, is approved and sent as `{:file_matched, ...}` to `"pipeline:matched"`, then `FilesApproved` is broadcast. There is no staged match: pressing a search result is the approval. A title without an id or type is refused whole (`:no_identity`)
+2. **Accept best guess** — `Review.approve/1`: each ticked item approved under its own best guess; one without a guess is skipped
+3. **Dismiss** — `Review.dismiss/1` flips the items to `:dismissed`. Discovery skips a dismissed path before parsing or searching — see the already-settled check above
+4. **Restore** — the Dismissed view; `Review.restore/1` returns items to `:pending` with the match they had
+5. **Delete** — the ticked files from disk, each release folder judged on its own by `DeleteTargets` (the whole folder when safe), then their rows (`Review.delete_files/1`, `Review.destroy_pending_files/1`)
+
+Match and accept also **remember** the answer (below).
+
+### Remembered matches
+
+A person's answer is kept for the name the files were read as (`Review.RememberedMatch`): the parsed title in `Search.TitleForm.compare/1` form, the type it is searched as (`Parser.effective_media_type/1`) and the parsed year — a name with a year is often a remake. One row per name, the latest answer replacing an earlier one. Discovery's Search stage takes it before searching TMDB, so a release name TMDB cannot find (a broadcaster's tag, an odd spelling) is answered once, not once per episode or per week. The answer is still checked against grab provenance like any match.
+
+Settings → Media Import lists them, each with Forget. A rematch forgets the remembered matches for the names its released files are read as under the current parser (`Review.add_files_for_review/1`) — the only names discovery will look those files up by; left in place, one would import the files to the same wrong title on the next rescan.
 
 ### One row per path
 
-`file_path` carries a unique index, so a path has at most one queue row. `find_or_create_pending_file/1` returns an existing row unchanged whatever its status — `:pending` (repeated detection is idempotent), `:approved` (an import outstanding) or `:dismissed` (a decision that keeps blocking). `Review.reopen_for_review/1` is the override the re-match path uses (`Review.RematchJob` putting an entity's files back in the queue): a re-match is an explicit act on files the user owns, so it supersedes any earlier decision.
+`file_path` carries a unique index, so a path has at most one queue row. `Review.add_pending_file/1` (discovery's hand-off) acts on an existing row by its status: a `:pending` row is refreshed with the fresh parse and best guess, so a parser fix reaches the queue on the next rescan — a not-added row keeps the match the person chose and its reason, taking only the fresh parse; `:approved` (an import outstanding) and `:dismissed` (a decision that keeps blocking) are left alone. `Review.reopen_for_review/1` is the override the re-match path uses (`Review.RematchJob` putting an entity's files back in the queue): a re-match is an explicit act on files the user owns, so it supersedes any earlier decision.
 
 ### Membership follows the library
 

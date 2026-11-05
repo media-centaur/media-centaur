@@ -1,8 +1,17 @@
 defmodule MediaCentaurWeb.ReviewHelpers do
   @moduledoc """
-  Pure helper functions for the review LiveView — reason classification,
-  candidate analysis, confidence display, and sorting.
+  Pure helper functions for the review LiveView (ADR-030) — reason
+  classification, labels, and the bulk list: statuses, the
+  filter, the rows with their dividers, ticks, the search prefill and the
+  delete partitions.
+
+  The bulk list has no groups (campaign `review-bulk-match`). Rows follow
+  `Review.list_queue/0`'s order, and a divider marks where the parsed
+  title or year changes; ticking it ticks the rows beneath it, and it
+  decides nothing. What a person ticks is what an action applies to.
   """
+
+  alias MediaCentaur.Search.TitleForm
 
   # --- Reason Classification ---
 
@@ -18,50 +27,6 @@ defmodule MediaCentaurWeb.ReviewHelpers do
       true -> :low_confidence
     end
   end
-
-  # Files, not groups: the chips sit beside the "N pending" file count.
-  def count_by_reason(groups) do
-    zero = %{no_results: 0, tied: 0, low_confidence: 0, importing: 0, not_added: 0}
-
-    for group <- groups, file <- group.files, reduce: zero do
-      acc -> Map.update!(acc, review_reason(file), &(&1 + 1))
-    end
-  end
-
-  # --- Approval ---
-
-  @doc """
-  Whether the reviewer can approve `group` now, or what stands in the way:
-  `:approvable`; `:importing` when no file is left pending; `:tied` when a
-  file's candidates are tied; or the reason `Review.group_identity/1` gives
-  for its pending files.
-  """
-  def approval(%{files: files}) do
-    pending = Enum.filter(files, &(&1.status == :pending))
-
-    cond do
-      pending == [] ->
-        :importing
-
-      Enum.any?(pending, &tied_candidates?/1) ->
-        :tied
-
-      true ->
-        case MediaCentaur.Review.group_identity(pending) do
-          {:ok, _identity} ->
-            :approvable
-
-          {:error, reason} ->
-            reason
-        end
-    end
-  end
-
-  @doc "The flash for an approval `Review.approve_group/1` refused."
-  def approval_refusal(:no_identity), do: "A file in this group has no match. Search TMDB to choose one."
-
-  def approval_refusal(:mixed_identities),
-    do: "These files carry different matches. Search TMDB to choose one for all of them."
 
   # --- Reason Display ---
 
@@ -92,26 +57,6 @@ defmodule MediaCentaurWeb.ReviewHelpers do
 
   def tied_candidates?(_), do: false
 
-  def sort_candidates_by_year(candidates) do
-    Enum.sort_by(candidates, fn candidate ->
-      case candidate["year"] do
-        nil -> 9999
-        year when is_binary(year) -> String.to_integer(year)
-        year when is_integer(year) -> year
-      end
-    end)
-  end
-
-  # --- Confidence Display ---
-
-  def confidence_text_class(score) when score >= 0.8, do: "text-success"
-  def confidence_text_class(score) when score >= 0.5, do: "text-warning"
-  def confidence_text_class(_), do: "text-error"
-
-  def confidence_bar_class(score) when score >= 0.8, do: "bg-success"
-  def confidence_bar_class(score) when score >= 0.5, do: "bg-warning"
-  def confidence_bar_class(_), do: "bg-error"
-
   # --- Type Formatting ---
 
   def format_type("movie"), do: "Movie"
@@ -122,14 +67,142 @@ defmodule MediaCentaurWeb.ReviewHelpers do
   def format_type(type) when is_atom(type), do: type |> Atom.to_string() |> String.capitalize()
   def format_type(type), do: type |> to_string() |> String.capitalize()
 
-  # --- Sort ---
+  # --- Bulk list ---
 
-  # Groups awaiting a decision first, weakest match first; importing groups
-  # need nothing from the reviewer and sort last.
-  def sort_groups(groups) do
-    Enum.sort_by(groups, fn %{representative: file} ->
-      {if(review_reason(file) == :importing, do: 1, else: 0), if(file.tmdb_id, do: 1, else: 0),
-       file.confidence || 0}
+  @typedoc "Which items the list shows: one status at a time."
+  @type status :: :waiting | :importing | :dismissed
+
+  @doc "The list status of a review item: waiting on a person, importing, or dismissed."
+  @spec status_of(map()) :: status()
+  def status_of(%{status: :approved}), do: :importing
+  def status_of(%{status: :dismissed}), do: :dismissed
+  def status_of(_waiting), do: :waiting
+
+  @doc "How many items each status holds."
+  @spec count_by_status([map()]) :: %{status() => non_neg_integer()}
+  def count_by_status(files) do
+    Enum.reduce(files, %{waiting: 0, importing: 0, dismissed: 0}, fn file, acc ->
+      Map.update!(acc, status_of(file), &(&1 + 1))
     end)
   end
+
+  @doc """
+  The items of `status` that the filter `query` matches: the query, in
+  folded form, inside the parsed title or the file name. Separators do not
+  count, so `sample show` finds `Sample.Show.2005.S01E07.mkv`.
+  """
+  @spec visible([map()], status(), String.t()) :: [map()]
+  def visible(files, status, query) do
+    needle = TitleForm.compare(query || "")
+
+    Enum.filter(files, fn file ->
+      status_of(file) == status and
+        (needle == "" or
+           String.contains?(TitleForm.compare(file.parsed_title || ""), needle) or
+           String.contains?(TitleForm.compare(Path.basename(file.file_path)), needle))
+    end)
+  end
+
+  @doc """
+  The list's rows, in `files`' order: `{:divider, %{id, label, ids}}`
+  wherever the parsed title (case-folded) or year changes, then
+  `{:item, file}` for each item beneath it.
+  """
+  @spec rows([map()]) :: [{:divider, map()} | {:item, map()}]
+  def rows(files) do
+    files
+    |> Enum.chunk_by(&{String.downcase(&1.parsed_title || ""), &1.parsed_year})
+    |> Enum.flat_map(fn [first | _] = block ->
+      ids = Enum.map(block, & &1.id)
+
+      label =
+        if first.parsed_year,
+          do: "#{first.parsed_title} (#{first.parsed_year})",
+          else: first.parsed_title || "Unknown"
+
+      [{:divider, %{id: "divider-" <> first.id, label: label, ids: ids}} | Enum.map(block, &{:item, &1})]
+    end)
+  end
+
+  @doc "Ticks `ids` when any of them is unticked; unticks them all when every one is ticked."
+  @spec toggle(MapSet.t(), [String.t()]) :: MapSet.t()
+  def toggle(selected, ids) do
+    if Enum.all?(ids, &MapSet.member?(selected, &1)),
+      do: MapSet.difference(selected, MapSet.new(ids)),
+      else: MapSet.union(selected, MapSet.new(ids))
+  end
+
+  @doc "A block's checkbox: `:checked`, `:indeterminate` when some are ticked, else `:unchecked`."
+  @spec tick_state(MapSet.t(), [String.t()]) :: :checked | :indeterminate | :unchecked
+  def tick_state(_selected, []), do: :unchecked
+
+  def tick_state(selected, ids) do
+    case Enum.count(ids, &MapSet.member?(selected, &1)) do
+      0 -> :unchecked
+      count when count == length(ids) -> :checked
+      _some -> :indeterminate
+    end
+  end
+
+  @doc """
+  What the action bar's search starts from: the first ticked item's parsed
+  title, searched as its type — an extra with a season as a series, one
+  without as a film. `nil` with nothing ticked.
+  """
+  @spec search_prefill([map()], MapSet.t()) :: {String.t(), :tv | :movie} | nil
+  def search_prefill(files, selected) do
+    case Enum.find(files, &MapSet.member?(selected, &1.id)) do
+      nil -> nil
+      file -> {file.parsed_title || "", search_type(file)}
+    end
+  end
+
+  defp search_type(%{parsed_type: "tv"}), do: :tv
+  defp search_type(%{parsed_type: "extra", parsed_season: season}) when is_integer(season), do: :tv
+  defp search_type(_file), do: :movie
+
+  @doc "Whether the ticked items can be accepted under their own best guesses: every one has one."
+  @spec accept_guesses?([map()]) :: boolean()
+  def accept_guesses?([]), do: false
+  def accept_guesses?(files), do: Enum.all?(files, &(&1.tmdb_id != nil))
+
+  @doc """
+  `paths` split by the folder that holds them, in first-seen order. Each
+  part is judged on its own by `MediaCentaur.DeleteTargets`, so a
+  selection spanning release folders deletes those folders, never a
+  common ancestor.
+  """
+  @spec delete_partitions([String.t()]) :: [[String.t()]]
+  def delete_partitions(paths) do
+    paths
+    |> Enum.group_by(&Path.dirname/1)
+    |> Enum.sort_by(fn {_dir, [first | _]} -> Enum.find_index(paths, &(&1 == first)) end)
+    |> Enum.map(fn {_dir, part} -> part end)
+  end
+
+  @doc "`S01E07` for an item with a parsed season and episode, else an empty string."
+  @spec episode_label(map()) :: String.t()
+  def episode_label(%{parsed_season: season, parsed_episode: episode})
+      when is_integer(season) and is_integer(episode), do: "S#{pad(season)}E#{pad(episode)}"
+
+  def episode_label(_file), do: ""
+
+  defp pad(number), do: number |> to_string() |> String.pad_leading(2, "0")
+
+  @doc """
+  The armed Delete's words for a resolved delete plan — each part a
+  `{:folder, dir, paths}` that goes whole (`DeleteTargets` found it safe)
+  or `{:files, paths}` deleted one by one.
+  """
+  @spec delete_label([{:folder, String.t(), [String.t()]} | {:files, [String.t()]}]) :: String.t()
+  def delete_label(plan) do
+    files = Enum.sum(for part <- plan, do: length(elem(part, tuple_size(part) - 1)))
+    folders = Enum.count(plan, &match?({:folder, _dir, _paths}, &1))
+
+    "Press again to delete " <>
+      plural(files, "file") <> if(folders > 0, do: " and " <> plural(folders, "folder"), else: "")
+  end
+
+  defp plural(1, noun), do: "1 #{noun}"
+  defp plural(count, noun), do: "#{count} #{noun}s"
 end

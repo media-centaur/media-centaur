@@ -440,6 +440,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 046 | The Feed is the app's list beside a rail of people — the poster row, the identity tile, the person card's acts strip with centred glyphs and the grade, Library's frame; no still, no per-surface type floors |
 | 049 | What people did with a title is the social capsule — social glyphs at their grade on every title surface, one feed, drawn when a friend did it; no pennant, no rose |
 | 050 | The watchlist is Downloads' first tab; the schedule is on its rows |
+| 058 | Review → Identity is a bulk list matched by selection — no automatic groups, an action bar for the ticked rows, remembered matches |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -464,7 +465,10 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
 | `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_select/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
 | `binding_row/1` | `settings/binding_row.ex` | One binding's keycaps and Unbinds (Settings → Controls); the row is the nav item, its controls sub-items | ✅ |
-| `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Identity and Episode mapping | ✅ |
+| `dismissed_files/1` | `dismissed_files.ex` | A review queue's dismissed files behind a disclosure, each with Restore — Episode mapping | ✅ |
+| `checkbox/1`, `checkbox_mark/1` | `checkbox.ex` | The house checkbox: its own control (plan modal), or the square alone for a row that is the control (Review's bulk list) | ✅ |
+| `filter_field/1` | `filter_field.ex` | The house filter pill — Library's toolbar, the cast panel, Review's bulk list | ✅ |
+| `queue_header/1`, `queue_divider/1`, `queue_item/1`, `match_bar/1`, `match_result/1` | `review_queue.ex` | Review → Identity's bulk list and its action bar (UIDR-058) | ✅ |
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards (a `scroll_row/1` tenant) |
@@ -514,7 +518,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dow
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
 | **Discovery** | `/discovery` | The page for titles you do not own yet, built like Home: media search (`Live.MediaSearch`, UIDR-014 amended) over a hero from the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); the *choose* stage (UIDR-057); an optional feature (ADR-081), on by default, its off state while off |
 | **Watchlist** | `/watchlist` | The inventory of every title intent by rung — Auto-grab, Tracking, On your list, Ignored — each row with its state block and the rung changed in place (`Components.Watchlist.Row`, UIDR-050 amended); a side view (UIDR-057 amended), not a feature, so ungated |
-| **Review** | `/review` | Manual TMDB matching for pending files |
+| **Review** | `/review` | Identity: the bulk list of files waiting for a title, matched by selection (UIDR-058) |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
 | **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
 | **Settings** | `/settings`, `?section=…` | Sections: acquisition, import, social, system, maintenance, danger zone |

@@ -1,8 +1,9 @@
 defmodule MediaCentaur.Review do
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.TMDB],
+    deps: [MediaCentaur.Library, MediaCentaur.Search, MediaCentaur.TMDB],
     exports: [
       PendingFile,
+      RememberedMatch,
       Rematch,
       Search,
       # Subscribers to `review:updates` pattern-match these payloads, so
@@ -18,8 +19,15 @@ defmodule MediaCentaur.Review do
   The review domain — files requiring human review before library ingestion.
 
   Provides the `PendingFile` resource for tracking low-confidence matches.
-  The ReviewLive UI reads PendingFile records for display and uses these
-  functions for approve, dismiss, search, and match-selection workflows.
+  The review page is a bulk list (`list_queue/0`): a person ticks any set
+  of items and acts on their ids — `match/2` (one title for all of them,
+  approved in the same step), `approve/1` (each under its own best guess),
+  `dismiss/1`, `restore/1`, `delete_files/1`. Nothing here groups files:
+  the selection is the unit of decision.
+
+  A person's answer is remembered for the name the files were read as
+  (`RememberedMatch`, `remembered_match/3`), and discovery takes it before
+  searching TMDB.
 
   Approval broadcasts a `{:file_matched, ...}` event to `MediaCentaur.Topics.pipeline_matched()`,
   which the Import Pipeline Producer picks up for async processing via Broadway.
@@ -52,6 +60,8 @@ defmodule MediaCentaur.Review do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Review.RememberedMatch
+  alias MediaCentaur.Search.TitleForm
 
   require MediaCentaur.Log, as: Log
 
@@ -92,15 +102,6 @@ defmodule MediaCentaur.Review do
     end
   end
 
-  def list_pending_files_for_review do
-    Repo.all(
-      from(p in open(PendingFile),
-        where: p.status == :pending,
-        order_by: [asc: p.inserted_at]
-      )
-    )
-  end
-
   @doc "Number of files still awaiting review (status `:pending`, not linked)."
   @spec count_pending() :: non_neg_integer()
   def count_pending do
@@ -134,24 +135,6 @@ defmodule MediaCentaur.Review do
   end
 
   def create_pending_file!(attrs), do: Repo.bang!(create_pending_file(attrs))
-
-  @doc """
-  The open review for `attrs`' path, creating one if there is none.
-
-  `file_path` is unique, so there is at most one row per path, and an
-  existing one is returned unchanged whatever its status: `:pending` is an
-  open review (repeated detection is idempotent), `:approved` is an import
-  still outstanding, and `:dismissed` is a person's decision that keeps
-  blocking — `reopen_for_review/1` is the deliberate override.
-  """
-  def find_or_create_pending_file(attrs) do
-    file_path = attrs[:file_path] || attrs["file_path"]
-
-    case Repo.get_by(PendingFile, file_path: file_path) do
-      nil -> Repo.insert(PendingFile.create_changeset(attrs))
-      existing -> {:ok, existing}
-    end
-  end
 
   @doc """
   Puts a path back in the queue whatever was decided about it before,
@@ -233,16 +216,39 @@ defmodule MediaCentaur.Review do
     %{closed: closed, resent: length(unfinished)}
   end
 
-  def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
-
   @doc """
-  Adds a file to the review queue from pre-normalized attributes and
-  broadcasts `FileAdded`. Idempotent on `file_path` — a second call
-  returns the existing record.
+  Discovery's hand-off: the file at `attrs.file_path` needs a person.
+  Broadcasts `FileAdded`.
+
+  `file_path` is unique, so there is one row per path, and what happens
+  to an existing one depends on its status:
+
+    * `:pending` — discovery ran again (startup, Settings → rescan), so
+      the item takes the fresh parse and best guess; a fixed parser reaches
+      the queue this way. A not-added item (one with an `error_message`)
+      keeps the match the person chose and the reason it failed, and takes
+      only the fresh parse.
+    * `:approved` — an import still outstanding; left alone.
+    * `:dismissed` — a person's decision, which keeps blocking;
+      `reopen_for_review/1` is the deliberate override.
   """
   @spec add_pending_file(map()) :: {:ok, PendingFile.t()} | {:error, term()}
   def add_pending_file(attrs) do
-    with {:ok, pending_file} <- find_or_create_pending_file(attrs) do
+    file_path = attrs[:file_path] || attrs["file_path"]
+
+    result =
+      case Repo.get_by(PendingFile, file_path: file_path) do
+        nil ->
+          Repo.insert(PendingFile.create_changeset(attrs))
+
+        %PendingFile{status: :pending} = waiting ->
+          Repo.update(PendingFile.rediscovered_changeset(waiting, attrs))
+
+        decided ->
+          {:ok, decided}
+      end
+
+    with {:ok, pending_file} <- result do
       Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
       {:ok, pending_file}
     end
@@ -250,14 +256,20 @@ defmodule MediaCentaur.Review do
 
   @doc """
   Adds files handed back by a rematch — each `%{file_path, media_dir}`
-  is parsed for its metadata first. Returns `{:ok, count}` of files
+  is parsed for its metadata first. A rematch says the title was wrong,
+  so the remembered matches for the names these files are read as are
+  forgotten first; left in place, they would import the files to the
+  same title on the next rescan. Returns `{:ok, count}` of files
   added; one that fails to save is logged and skipped.
   """
   @spec add_files_for_review([map()]) :: {:ok, non_neg_integer()}
   def add_files_for_review(files) do
+    parsed = Enum.map(files, &parsed_pending_attrs/1)
+    forget_names(parsed)
+
     added =
-      Enum.count(files, fn file ->
-        case reopen_for_review(parsed_pending_attrs(file)) do
+      Enum.count(parsed, fn attrs ->
+        case reopen_for_review(attrs) do
           {:ok, _pending_file} ->
             true
 
@@ -275,7 +287,7 @@ defmodule MediaCentaur.Review do
   True when `file_path` was dismissed in review — a person decided it
   is not library content.
 
-  Terminal, the same way being linked is. `find_or_create_pending_file/1`
+  Terminal, the same way being linked is. `add_pending_file/1`
   keys on `file_path` regardless of status, so a dismissed row can never
   be replaced by a fresh pending one: any match computed for that path
   afterwards is discarded. `Pipeline.Discovery` reads this to stop before
@@ -310,7 +322,7 @@ defmodule MediaCentaur.Review do
   library content, so there is no decision left to make about them.
 
   Status-blind on purpose: a `:dismissed` row is queue state too, and
-  `find_or_create_pending_file/1` keys on `file_path` regardless of
+  `add_pending_file/1` keys on `file_path` regardless of
   status, so leaving one behind would keep the path permanently
   un-queueable if it ever came back.
 
@@ -442,18 +454,6 @@ defmodule MediaCentaur.Review do
     |> Map.merge(%{file_path: file.file_path, media_directory: file.media_dir})
   end
 
-  def approve_pending_file(pending_file) do
-    Repo.update(PendingFile.approve_changeset(pending_file))
-  end
-
-  def dismiss_pending_file(pending_file) do
-    Repo.update(PendingFile.dismiss_changeset(pending_file))
-  end
-
-  def set_pending_file_match(pending_file, attrs) do
-    Repo.update(PendingFile.set_tmdb_match_changeset(pending_file, attrs))
-  end
-
   def destroy_pending_file(pending_file), do: Repo.delete(pending_file)
 
   def destroy_pending_file!(pending_file) do
@@ -466,173 +466,166 @@ defmodule MediaCentaur.Review do
   # ---------------------------------------------------------------------------
 
   @doc """
-  The review page's groups: every open item — `:pending`, awaiting a
-  decision, and `:approved`, awaiting its file's link outcome — grouped by
-  series root, the first directory component below the media directory.
-  Two files share a group when they have the same
-  `{media_directory, series_root}`.
-
-  Returns a list of group maps:
-
-      %{key: {media_dir, root}, files: [pending_files], representative: file}
-
-  Single-file groups (movies, flat downloads) are groups of 1 — same shape.
-  The representative is `representative/1` of the files.
+  The review page's list: every open item — `:pending`, awaiting a
+  decision; `:approved`, awaiting its file's link outcome; `:dismissed`,
+  restorable — ordered by parsed title (case-folded), then year, season,
+  episode and path. Files the parser read the same way sit together
+  whatever folder they came from; nothing groups them. The selection a
+  person makes on the page is the unit of decision.
   """
-  def fetch_review_groups do
-    Repo.all(
-      from(p in open(PendingFile),
-        where: p.status in [:pending, :approved],
-        order_by: [asc: p.inserted_at]
+  @spec list_queue() :: [PendingFile.t()]
+  def list_queue do
+    open(PendingFile)
+    |> Repo.all()
+    |> Enum.sort_by(fn file ->
+      {String.downcase(file.parsed_title || ""), file.parsed_year || 0, file.parsed_season || 0,
+       file.parsed_episode || 0, file.file_path}
+    end)
+  end
+
+  @doc """
+  Matches the items `ids` to one TMDB title and approves them in the same
+  step: each item still `:pending` takes the title (`tmdb_id`,
+  `tmdb_type`, `title`, `year`, `poster_path`), becomes `:approved` and is
+  sent to Import. Items already approved or dismissed are left alone.
+
+  `{:error, :no_identity}` when the title has no id or type — nothing is
+  touched, since Import cannot place a file without both. Returns
+  `{:ok, matched_count}` and broadcasts `FilesApproved`.
+  """
+  @spec match([Ecto.UUID.t()], map()) :: {:ok, non_neg_integer()} | {:error, :no_identity}
+  def match(ids, %{tmdb_id: tmdb_id, tmdb_type: tmdb_type} = title) when is_list(ids) do
+    if is_nil(tmdb_id) or tmdb_type not in ["movie", "tv"] do
+      {:error, :no_identity}
+    else
+      attrs = %{
+        tmdb_id: to_integer(tmdb_id),
+        tmdb_type: tmdb_type,
+        match_title: title[:title],
+        match_year: title[:year] && to_string(title[:year]),
+        match_poster_path: title[:poster_path],
+        confidence: 1.0
+      }
+
+      approve_each(ids, &PendingFile.match_changeset(&1, attrs))
+    end
+  end
+
+  @doc """
+  Approves each `:pending` item in `ids` under its own best guess and
+  sends it to Import — several unsure items whose guesses are right, each
+  a different title, accepted in one press. An item with no guess is
+  skipped and stays. Returns `{:ok, approved_count}` and broadcasts
+  `FilesApproved`.
+  """
+  @spec approve([Ecto.UUID.t()]) :: {:ok, non_neg_integer()}
+  def approve(ids) when is_list(ids), do: approve_each(ids, &PendingFile.approve_changeset/1)
+
+  defp approve_each(ids, changeset_fun) do
+    approved =
+      for file <- pending_by_ids(ids),
+          {:ok, approved} <- [Repo.update(changeset_fun.(file))] do
+        Log.info(
+          :review,
+          "approved \"#{Path.basename(approved.file_path)}\" — tmdb:#{approved.tmdb_id} (#{approved.tmdb_type})"
+        )
+
+        send_to_import(approved)
+        approved.id
+      end
+
+    if approved != [] do
+      remember(Repo.all(from(p in PendingFile, where: p.id in ^approved)))
+      Events.broadcast(%FilesApproved{pending_file_ids: approved})
+    end
+
+    {:ok, length(approved)}
+  end
+
+  defp pending_by_ids(ids),
+    do:
+      Repo.all(
+        from(p in PendingFile, where: p.id in ^ids and p.status == :pending, order_by: p.file_path)
       )
-    )
-    |> Enum.group_by(fn file ->
-      {file.media_directory, series_root(file)}
-    end)
-    |> Enum.map(fn {key, files} ->
-      %{key: key, files: files, representative: representative(files)}
-    end)
+
+  defp to_integer(id) when is_integer(id), do: id
+  defp to_integer(id) when is_binary(id), do: String.to_integer(id)
+
+  @doc """
+  Dismisses each `:pending` item in `ids` — a person decided the file is
+  not library content. Returns `{:ok, dismissed_count}`.
+  """
+  @spec dismiss([Ecto.UUID.t()]) :: {:ok, non_neg_integer()}
+  def dismiss(ids) when is_list(ids) do
+    dismissed =
+      for file <- pending_by_ids(ids),
+          {:ok, dismissed} <- [Repo.update(PendingFile.dismiss_changeset(file))] do
+        Log.info(:review, "dismissed \"#{Path.basename(dismissed.file_path)}\"")
+        broadcast_reviewed(dismissed.id)
+      end
+
+    {:ok, length(dismissed)}
   end
 
   @doc """
-  The file a group is shown and judged by: its first file still awaiting
-  a decision, or its first file when every one is importing. A file that
-  joins a group whose other files are importing is what the reviewer acts
-  on, not hidden behind them.
+  Undoes the dismissal of each `:dismissed` item in `ids`: it returns to
+  the queue as `:pending`, with the match it had. Broadcasts `FileAdded`
+  per item. Returns `{:ok, restored_count}`.
   """
-  @spec representative([PendingFile.t(), ...]) :: PendingFile.t()
-  def representative([first | _] = files), do: Enum.find(files, first, &(&1.status == :pending))
+  @spec restore([Ecto.UUID.t()]) :: {:ok, non_neg_integer()}
+  def restore(ids) when is_list(ids) do
+    dismissed = Repo.all(from(p in PendingFile, where: p.id in ^ids and p.status == :dismissed))
 
-  @doc """
-  Extracts the series root — the first path component below the media directory.
+    restored =
+      for file <- dismissed, {:ok, restored} <- [Repo.update(PendingFile.restore_changeset(file))] do
+        Log.info(:review, "restored \"#{Path.basename(restored.file_path)}\" — back in review")
+        Events.broadcast(%FileAdded{pending_file_id: restored.id})
+      end
 
-  Examples:
-
-      /media/tv/Sample Show (2001)/Season 1/ep.mkv  ->  "Sample Show (2001)"
-      /media/movies/movie.mkv                   ->  "movie.mkv"
-  """
-  def series_root(%{file_path: file_path, media_directory: nil}), do: file_path
-
-  def series_root(%{file_path: file_path, media_directory: media_dir}) do
-    relative = String.replace_prefix(file_path, media_dir <> "/", "")
-
-    case Path.split(relative) do
-      [single] -> single
-      [root | _] -> root
-    end
+    {:ok, length(restored)}
   end
 
   @doc """
-  Approves a group as one decision: its files still `:pending`, read fresh
-  by `file_ids`, are approved and each match is sent to Import. Files
-  already approved or dismissed are left alone.
-
-  The group is refused whole when its pending files do not share one
-  identity (`group_identity/1`) — a file without one would reach Import
-  with no type, and files with different ones are not the single match the
-  reviewer saw. Returns `{:ok, approved_count}` and broadcasts
-  `FilesApproved`, or `{:error, :no_identity | :mixed_identities}`.
-  """
-  @spec approve_group([Ecto.UUID.t()]) ::
-          {:ok, non_neg_integer()} | {:error, :no_identity | :mixed_identities}
-  def approve_group(file_ids) when is_list(file_ids) do
-    pending = Repo.all(from(p in PendingFile, where: p.id in ^file_ids and p.status == :pending))
-
-    with {:ok, _identity} <- group_identity(pending) do
-      approved_ids =
-        for file <- pending, match?({:ok, _}, approve_and_process(file)), do: file.id
-
-      if approved_ids != [], do: Events.broadcast(%FilesApproved{pending_file_ids: approved_ids})
-      {:ok, length(approved_ids)}
-    end
-  end
-
-  @doc """
-  The identity — `{tmdb_id, tmdb_type}` — every file in `files` shares, or
-  why there is none: `:no_identity` when a file has no match (reported
-  first, since choosing a match fixes both), `:mixed_identities` when the
-  files carry different ones. An empty list has no identity.
-  """
-  @spec group_identity([PendingFile.t()]) ::
-          {:ok, {integer(), String.t()}} | {:error, :no_identity | :mixed_identities}
-  def group_identity(files) do
-    identities = files |> Enum.map(&{&1.tmdb_id, &1.tmdb_type}) |> Enum.uniq()
-
-    cond do
-      identities == [] -> {:error, :no_identity}
-      Enum.any?(identities, fn {id, type} -> is_nil(id) or is_nil(type) end) -> {:error, :no_identity}
-      match?([_], identities) -> {:ok, hd(identities)}
-      true -> {:error, :mixed_identities}
-    end
-  end
-
-  @doc """
-  Dismisses all files in a group.
-  Returns `{dismissed_count, error_count}`.
-  """
-  def dismiss_group(files) do
-    results = Enum.map(files, &dismiss/1)
-    dismissed = Enum.count(results, &match?({:ok, _}, &1))
-    errors = Enum.count(results, &match?({:error, _}, &1))
-    {dismissed, errors}
-  end
-
-  @doc """
-  Deletes all files in a group individually from disk (and their DB
-  records) — for review items the user never wants, e.g. a broken/
-  incomplete download. Use this when no shared folder was deemed safe
-  to delete wholesale (see `MediaCentaur.DeleteTargets`); when one was,
-  the caller deletes the folder itself and calls
-  `destroy_pending_files/1` instead.
+  Deletes each item's file in `ids` from disk (and its
+  `Library.FilePresence` row, via `Deletion.delete_file/1` — the primitive
+  the title page uses), then its item — for files the user never wants,
+  such as a broken download. Use this when no shared folder was found safe
+  to delete wholesale (`MediaCentaur.DeleteTargets`); when one was, the
+  caller deletes the folder itself and calls `destroy_pending_files/1`.
   Returns `{deleted_count, error_count}`.
   """
-  def delete_group(files) do
-    results = Enum.map(files, &delete_pending_file/1)
-    deleted = Enum.count(results, &match?({:ok, _}, &1))
-    errors = Enum.count(results, &match?({:error, _}, &1))
-    {deleted, errors}
+  @spec delete_files([Ecto.UUID.t()]) :: {non_neg_integer(), non_neg_integer()}
+  def delete_files(ids) when is_list(ids) do
+    results =
+      for file <- Repo.all(from(p in PendingFile, where: p.id in ^ids)) do
+        case Deletion.delete_file(file.file_path) do
+          {:ok, _entity_ids} ->
+            destroy_and_report(file)
+            :ok
+
+          {:error, reason} ->
+            Log.warning(:review, "failed to delete #{file.file_path}: #{inspect(reason)}")
+            :error
+        end
+      end
+
+    {Enum.count(results, &(&1 == :ok)), Enum.count(results, &(&1 == :error))}
   end
 
   @doc """
-  Destroys the `PendingFile` records for `files` without touching disk —
-  for when the caller has already deleted the containing folder directly
-  (via `MediaCentaur.Library.Deletion.delete_folder/2`, guarded
-  by `MediaCentaur.DeleteTargets.resolve_folder_target/1`). This only
-  cleans up the DB record Review alone owns; `Deletion` has no
-  concept of a `PendingFile`.
+  Destroys the items `ids` without touching disk — for when the caller has
+  already deleted the containing folder (`Library.Deletion.delete_folder/2`,
+  guarded by `MediaCentaur.DeleteTargets.resolve_folder_target/1`).
   """
-  @spec destroy_pending_files([PendingFile.t()]) :: :ok
-  def destroy_pending_files(files) do
-    Enum.each(files, fn file ->
-      destroy_pending_file(file)
-      Log.info(:review, "deleted \"#{Path.basename(file.file_path)}\" — removed from review")
-      broadcast_reviewed(file.id)
-    end)
-
-    :ok
+  @spec destroy_pending_files([Ecto.UUID.t()]) :: :ok
+  def destroy_pending_files(ids) when is_list(ids) do
+    Enum.each(Repo.all(from(p in PendingFile, where: p.id in ^ids)), &destroy_and_report/1)
   end
 
-  @doc """
-  Sets the TMDB match on all files in a group.
-  Returns `{updated_count, error_count}`.
-  """
-  def set_group_match(files, match) do
-    results = Enum.map(files, &set_tmdb_match(&1, match))
-    updated = Enum.count(results, &match?({:ok, _}, &1))
-    errors = Enum.count(results, &match?({:error, _}, &1))
-    {updated, errors}
-  end
-
-  defp approve_and_process(pending_file) do
-    Log.info(
-      :review,
-      "approved \"#{Path.basename(pending_file.file_path)}\" — tmdb:#{pending_file.tmdb_id} (#{pending_file.tmdb_type})"
-    )
-
-    with {:ok, pending_file} <- approve_pending_file(pending_file) do
-      send_to_import(pending_file)
-      {:ok, pending_file}
-    end
+  defp destroy_and_report(file) do
+    {:ok, _} = destroy_pending_file(file)
+    Log.info(:review, "deleted \"#{Path.basename(file.file_path)}\" — removed from review")
+    broadcast_reviewed(file.id)
   end
 
   # Sends an approved file's match to Import. The message is a nudge for
@@ -651,95 +644,103 @@ defmodule MediaCentaur.Review do
     )
   end
 
-  @doc "Dismissed files the library has not linked, most recently dismissed first."
-  @spec list_dismissed() :: [PendingFile.t()]
-  def list_dismissed do
-    Repo.all(from(p in open(PendingFile), where: p.status == :dismissed, order_by: [desc: p.updated_at]))
-  end
+  # ---------------------------------------------------------------------------
+  # Remembered matches
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Undoes a dismissal: the file returns to the queue as `:pending`, with the
-  match it had. Broadcasts `FileAdded`. `{:error, changeset}` for a file
-  that is not dismissed.
+  The answer a person gave for files named `title` (searched as
+  `media_type`, with `year`), or `nil`. See `RememberedMatch` for how
+  names compare.
   """
-  @spec restore(Ecto.UUID.t()) :: {:ok, PendingFile.t()} | {:error, :not_found | Ecto.Changeset.t()}
-  def restore(id) do
-    with {:ok, pending_file} <- fetch_pending_file(id),
-         {:ok, restored} <- Repo.update(PendingFile.restore_changeset(pending_file)) do
-      Log.info(:review, "restored \"#{Path.basename(restored.file_path)}\" — back in review")
-      Events.broadcast(%FileAdded{pending_file_id: restored.id})
-      {:ok, restored}
-    end
+  @spec remembered_match(String.t(), :movie | :tv | :unknown, integer() | nil) ::
+          RememberedMatch.t() | nil
+  def remembered_match(title, media_type, year) when is_binary(title) do
+    title
+    |> name_query(to_string(media_type), year)
+    |> Repo.one()
   end
 
-  def dismiss(pending_file) do
-    result = dismiss_pending_file(pending_file)
-
-    if match?({:ok, _}, result) do
-      Log.info(:review, "dismissed \"#{Path.basename(pending_file.file_path)}\"")
-      broadcast_reviewed(pending_file.id)
-    end
-
-    result
+  @doc "Every remembered match, by the name it was read as."
+  @spec list_remembered_matches() :: [RememberedMatch.t()]
+  def list_remembered_matches do
+    RememberedMatch
+    |> Repo.all()
+    |> Enum.sort_by(&{String.downcase(&1.parsed_title), &1.parsed_year || 0, &1.media_type})
   end
 
-  @doc """
-  Deletes the underlying file from disk (and its `Library.FilePresence`
-  row, via `Deletion.delete_file/1` — the same primitive the
-  entity detail page uses), then destroys the `PendingFile` record
-  entirely. Unlike `dismiss/1` (which only flips `status: :dismissed`
-  and leaves everything else in place), this removes the clutter for a
-  review item the user never wants imported.
-  """
-  @spec delete_pending_file(PendingFile.t()) :: {:ok, PendingFile.t()} | {:error, term()}
-  def delete_pending_file(pending_file) do
-    case Deletion.delete_file(pending_file.file_path) do
-      {:ok, _entity_ids} ->
-        result = destroy_pending_file(pending_file)
+  @doc "Forgets a remembered match; the next file with its name is searched on TMDB again."
+  @spec forget_remembered_match(Ecto.UUID.t()) :: :ok
+  def forget_remembered_match(id) do
+    Repo.delete_all(from(r in RememberedMatch, where: r.id == ^id))
+    :ok
+  end
 
-        if match?({:ok, _}, result) do
-          Log.info(
-            :review,
-            "deleted \"#{Path.basename(pending_file.file_path)}\" — removed from review"
-          )
+  # One answer per name: the latest replaces an earlier one.
+  defp remember(files) do
+    for file <- files, name = name_of(file), name != nil do
+      {name, file}
+    end
+    |> Enum.uniq_by(fn {name, _file} -> name end)
+    |> Enum.each(fn {{title_form, media_type, year}, file} ->
+      Repo.transaction(fn ->
+        Repo.delete_all(name_match(RememberedMatch, title_form, media_type, year))
 
-          broadcast_reviewed(pending_file.id)
-        end
-
-        result
-
-      {:error, reason} ->
-        Log.warning(
-          :review,
-          "failed to delete #{pending_file.file_path}: #{inspect(reason)}"
+        Repo.insert!(
+          RememberedMatch.create_changeset(%{
+            title_form: title_form,
+            media_type: media_type,
+            parsed_year: year,
+            parsed_title: file.parsed_title,
+            tmdb_id: file.tmdb_id,
+            tmdb_type: file.tmdb_type,
+            match_title: file.match_title,
+            match_year: file.match_year,
+            match_poster_path: file.match_poster_path
+          })
         )
+      end)
+    end)
+  end
 
-        {:error, reason}
+  defp forget_names(parsed) do
+    for attrs <- parsed, {title_form, media_type, year} <- [name_of(attrs)] do
+      Repo.delete_all(name_match(RememberedMatch, title_form, media_type, year))
     end
   end
 
-  defp set_tmdb_match(pending_file, %{
-         tmdb_id: tmdb_id,
-         tmdb_type: tmdb_type,
-         title: title,
-         year: year,
-         poster_path: poster_path
-       }) do
-    tmdb_id_int =
-      case tmdb_id do
-        id when is_integer(id) -> id
-        id when is_binary(id) -> String.to_integer(id)
-      end
+  # The name a file is remembered under, from its parsed columns, or nil
+  # when the parser read no title.
+  defp name_of(%{parsed_title: title} = parsed) when is_binary(title) and title != "" do
+    type = parsed.parsed_type && String.to_existing_atom(parsed.parsed_type)
 
-    set_pending_file_match(pending_file, %{
-      tmdb_id: tmdb_id_int,
-      tmdb_type: tmdb_type,
-      match_title: title,
-      match_year: year,
-      match_poster_path: poster_path,
-      confidence: 1.0
-    })
+    media_type =
+      Parser.effective_media_type(%Parser.Result{
+        file_path: "",
+        title: title,
+        type: type || :unknown,
+        season: Map.get(parsed, :parsed_season)
+      })
+
+    {TitleForm.compare(title), to_string(media_type), Map.get(parsed, :parsed_year)}
   end
+
+  defp name_of(_parsed), do: nil
+
+  defp name_query(title, media_type, year),
+    do: name_match(RememberedMatch, TitleForm.compare(title), media_type, year)
+
+  defp name_match(queryable, title_form, media_type, nil),
+    do:
+      from(r in queryable,
+        where: r.title_form == ^title_form and r.media_type == ^media_type and is_nil(r.parsed_year)
+      )
+
+  defp name_match(queryable, title_form, media_type, year),
+    do:
+      from(r in queryable,
+        where: r.title_form == ^title_form and r.media_type == ^media_type and r.parsed_year == ^year
+      )
 
   defp broadcast_reviewed(file_id) do
     Events.broadcast(%FileReviewed{pending_file_id: file_id})

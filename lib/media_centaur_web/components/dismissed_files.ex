@@ -2,8 +2,9 @@ defmodule MediaCentaurWeb.Components.DismissedFiles do
   @moduledoc """
   The dismissed files of a review queue, behind a disclosure, each with
   Restore — the one way to undo a dismissal from the page. Rendered by
-  both review surfaces, Identity (`ReviewLive`) and Episode mapping
-  (`EpisodeMappingLive`); the host answers the `event` with the file's id.
+  Episode mapping (`EpisodeMappingLive`); the host answers the `event`
+  with the file's id. Identity lists its dismissed files in its bulk list's
+  Dismissed view instead (`Components.ReviewQueue`).
   """
 
   use MediaCentaurWeb, :html

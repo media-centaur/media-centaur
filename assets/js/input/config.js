@@ -93,12 +93,13 @@ export const inputConfig = {
     // each a GlassMenu list, walked as MENUs with left/right between them.
     viewing_audio: "[data-nav-zone='viewing_audio'] [data-nav-item]",
     viewing_subtitles: "[data-nav-zone='viewing_subtitles'] [data-nav-item]",
-    "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
-    "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
-    // The detail's decision row (Approve, Search TMDB, Dismiss, Delete) and,
-    // under it while open, the TMDB search panel.
-    "review-actions": "[data-nav-zone='review-actions'] [data-nav-item]",
-    "review-search": "[data-nav-zone='review-search'] [data-nav-item]",
+    // Review → Identity's bulk list (/review): the status pill and filter,
+    // the rows (header tick, dividers, items), the action bar's controls and
+    // its search results.
+    "review-toolbar": "[data-nav-zone='review-toolbar'] [data-nav-item]",
+    "review-rows": "[data-nav-zone='review-rows'] [data-nav-item]",
+    "review-bar": "[data-nav-zone='review-bar'] [data-nav-item]",
+    "review-results": "[data-nav-zone='review-results'] [data-nav-item]",
     // Episode mapping (/episode-mapping) — the same master/detail shape as review
     "episode-mapping-list": "[data-nav-zone='episode-mapping-list'] [data-nav-item]",
     "episode-mapping-actions": "[data-nav-zone='episode-mapping-actions'] [data-nav-item]",
@@ -140,10 +141,10 @@ export const inputConfig = {
     viewing_audio: Context.MENU,
     viewing_subtitles: Context.MENU,
     bindings: Context.TREE,
-    "review-list": Context.MENU,
-    "review-detail": Context.MENU,
-    "review-actions": Context.TOOLBAR,
-    "review-search": Context.MENU,
+    "review-toolbar": Context.TOOLBAR,
+    "review-rows": Context.TREE,
+    "review-bar": Context.TOOLBAR,
+    "review-results": Context.SHELF,
     "episode-mapping-list": Context.MENU,
     "episode-mapping-actions": Context.TOOLBAR,
     "episode-mapping-detail": Context.MENU,
@@ -461,24 +462,25 @@ export const inputConfig = {
       "drill-in": { up: ["subsystems"] },
       sidebar:    { right: ["subsystems", "toolbar"] },
     },
-    // The two review surfaces — identity (/review) and episode mapping
-    // (/episode-mapping) — share the ReviewTabs strip and the same master/detail
-    // shape, so their layouts are deliberately identical apart from the zone
-    // names. Up from either pane reaches the tab strip (MENU walls route
-    // through the graph); the strip's own down edge returns to whichever pane
-    // has items, so the empty state still navigates. Each detail's decision
-    // buttons are a TOOLBAR row of their own (LEFT/RIGHT along it, UP/DOWN
-    // out of it). Review's sits between the detail (tied candidates, the
-    // files disclosure) and the TMDB search panel, which BACK closes back to
-    // the row; Episode mapping's heads the detail.
+    // Review → Identity, the bulk list (campaign `review-bulk-match`): the
+    // status pill and filter over the rows, the action bar under them while
+    // rows are ticked. UP/DOWN walk the rows (a TREE: SELECT ticks one, a
+    // divider ticks its block); DOWN off the last row, or RIGHT from any row,
+    // reaches the bar, so ticking and then acting never means walking a long
+    // list. The bar's results are a shelf beneath its controls. BACK from the
+    // bar or the results returns to the rows, not to the main menu: the rows
+    // are what the bar acts on.
     review: {
-      zone_tabs:        { down: ["review-list", "review-detail", "review-actions"] },
-      "review-list":    { up: ["zone_tabs"], right: ["review-detail", "review-actions", "review-search"] },
-      "review-detail":  { up: ["zone_tabs"], left: ["review-list"], down: ["review-actions", "review-search"] },
-      "review-actions": { up: ["review-detail", "zone_tabs"], left: ["review-list"], down: ["review-search"] },
-      "review-search":  { up: ["review-actions", "review-detail"], left: ["review-list"], back: ["review-actions"] },
-      sidebar:          { right: ["review-list", "review-detail", "review-actions", "zone_tabs"] },
+      zone_tabs:        { down: ["review-toolbar", "review-rows"] },
+      "review-toolbar": { up: ["zone_tabs"], down: ["review-rows", "review-bar"] },
+      "review-rows":    { up: ["review-toolbar", "zone_tabs"], down: ["review-bar"], right: ["review-results", "review-bar"] },
+      "review-bar":     { up: ["review-rows", "review-toolbar"], down: ["review-results"], back: ["review-rows"] },
+      "review-results": { up: ["review-bar"], back: ["review-rows"] },
+      sidebar:          { right: ["review-rows", "review-toolbar", "zone_tabs"] },
     },
+    // Episode mapping (/episode-mapping) shares Identity's tab strip and keeps
+    // the master/detail shape: up from either pane reaches the tab strip, and
+    // its decision buttons are a TOOLBAR heading the detail.
     "episode-mapping": {
       zone_tabs:                 { down: ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail"] },
       "episode-mapping-list":    { up: ["zone_tabs"], right: ["episode-mapping-actions", "episode-mapping-detail"] },
@@ -611,7 +613,7 @@ export const inputConfig = {
     settings:  ["sections", "grid", "bindings", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["subsystems", "toolbar", "sidebar"],
-    review:    ["review-list", "review-detail", "review-actions", "review-search", "zone_tabs", "sidebar"],
+    review:    ["review-rows", "review-toolbar", "zone_tabs", "sidebar"],
     "episode-mapping": ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail", "zone_tabs", "sidebar"],
     downloads:  ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["history_rows", "toolbar", "sidebar"],

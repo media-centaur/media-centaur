@@ -55,7 +55,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
 
     test "drops a row whatever its status — a dismissed row is queue state too" do
       dismissed = create_pending_file(%{file_path: "/media/test/dismissed.mkv"})
-      {:ok, _} = Review.dismiss_pending_file(dismissed)
+      {:ok, 1} = Review.dismiss([dismissed.id])
 
       assert {:ok, 1} = Review.drop_pending_files(["/media/test/dismissed.mkv"])
       assert Review.list_pending_files() == []
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
 
     test "closes the item of a file the library reports linked" do
       pending = create_pending_file(%{file_path: "/media/test/linked.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       Topics.publish(Topics.library_file_events(), {:file_linked, "/media/test/linked.mkv"})
       :ok = FileEventHandler.__sync_for_test__()
@@ -93,7 +93,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
 
     test "closes the item of a file the library reports parked" do
       pending = create_pending_file(%{file_path: "/media/test/parked.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       Topics.publish(Topics.library_file_events(), {:file_parked, "/media/test/parked.mkv"})
       :ok = FileEventHandler.__sync_for_test__()
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
 
     test "reopens the item of a file the library reports not linked" do
       pending = create_pending_file(%{file_path: "/media/test/unlinked.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       Topics.publish(
         Topics.library_file_events(),
@@ -118,7 +118,7 @@ defmodule MediaCentaur.Review.FileEventHandlerTest do
 
       :ok = FileEventHandler.__sync_for_test__()
 
-      assert [reopened] = Review.list_pending_files_for_review()
+      assert [reopened] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert reopened.id == pending.id
       assert reopened.error_message
     end

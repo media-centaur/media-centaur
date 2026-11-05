@@ -189,7 +189,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       assert {:ok, 1} = Review.add_files_for_review(files)
 
-      [pending] = MediaCentaur.Review.list_pending_files_for_review()
+      [pending] = Enum.filter(MediaCentaur.Review.list_queue(), &(&1.status == :pending))
       assert pending.file_path == "/media/movies/Sample Movie 2049 (2017).mkv"
       assert pending.media_directory == "/media/movies"
       assert pending.parsed_title == "Sample Movie"
@@ -212,7 +212,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       assert {:ok, 2} = Review.add_files_for_review(files)
 
-      pending_files = MediaCentaur.Review.list_pending_files_for_review()
+      pending_files = Enum.filter(MediaCentaur.Review.list_queue(), &(&1.status == :pending))
       assert length(pending_files) == 2
 
       Enum.each(pending_files, fn file ->
@@ -233,7 +233,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
       assert {:ok, 1} = Review.add_files_for_review(files)
 
       # Still only one PendingFile
-      assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
+      assert length(Enum.filter(MediaCentaur.Review.list_queue(), &(&1.status == :pending))) == 1
     end
 
     # Review intake parses the same path discovery and import parse, so it
@@ -253,7 +253,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       assert {:ok, 1} = Review.add_files_for_review(files)
 
-      [pending] = Review.list_pending_files_for_review()
+      [pending] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert pending.parsed_type == "extra"
     end
 
@@ -269,7 +269,7 @@ defmodule MediaCentaur.ReviewIntakeTest do
 
       assert {:ok, 1} = Review.add_files_for_review(files)
 
-      [pending] = Review.list_pending_files_for_review()
+      [pending] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       refute pending.parsed_type == "extra"
     end
   end

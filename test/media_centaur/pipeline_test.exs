@@ -230,7 +230,7 @@ defmodule MediaCentaur.PipelineTest do
       assert_receive {:file_added, %MediaCentaur.Review.Events.FileAdded{}}, 1000
 
       # PendingFile created
-      pending_files = Review.list_pending_files_for_review()
+      pending_files = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert length(pending_files) == 1
       pending = hd(pending_files)
       assert pending.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
@@ -299,7 +299,7 @@ defmodule MediaCentaur.PipelineTest do
       # search never ran — not merely that its result was ignored.
       path = "/media/pipeline/Sample.Capture.2025-06-29.mkv"
       pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
-      {:ok, _dismissed} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
 
@@ -315,7 +315,7 @@ defmodule MediaCentaur.PipelineTest do
       # No TMDB stub: `:skipped` is proof the search never ran.
       path = "/media/pipeline/Sample.Movie.2010.mkv"
       pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
-      {:ok, _approved} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
 
@@ -539,7 +539,7 @@ defmodule MediaCentaur.PipelineTest do
           tmdb_type: "movie"
         })
 
-      {:ok, _approved} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       import_payload =
         ImportProducer.build_payload(%{

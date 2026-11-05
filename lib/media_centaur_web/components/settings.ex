@@ -427,13 +427,23 @@ defmodule MediaCentaurWeb.Components.Settings do
   end
 
   attr :id, :string, default: nil
-  attr :items, :list, required: true, doc: "the current entries, strings."
+
+  attr :items, :list,
+    required: true,
+    doc: "the current entries: strings, or `{value, label}` when what is shown is not what Remove sends."
 
   attr :remove_event, :string,
     required: true,
-    doc: "pushed with `phx-value-item` = the entry, plus `event_value`."
+    doc: "pushed with `phx-value-item` = the entry (its value), plus `event_value`."
 
-  attr :add_event, :string, required: true, doc: "the inline form's submit; the input is named `item`."
+  attr :remove_label, :string, default: "Remove"
+
+  attr :add_event, :string,
+    default: nil,
+    doc:
+      "the inline form's submit; the input is named `item`. Unset for a list whose entries are made elsewhere."
+
+  attr :empty_text, :string, default: nil, doc: "shown when there are no entries and no add form."
 
   attr :event_value, :map,
     default: %{},
@@ -463,14 +473,21 @@ defmodule MediaCentaurWeb.Components.Settings do
     default: nil,
     doc: "names this list when a card holds more than one — omit it for a card's only list."
 
-  @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
+  @doc """
+  A list setting (UIDR-041 §32): one row per entry with Remove, an inline
+  input with Add, an optional error line. Without `add_event` the entries
+  are made elsewhere — Review's remembered matches — and the list only
+  shows and removes them.
+  """
   def settings_list(assigns) do
+    assigns = update(assigns, :items, fn items -> Enum.map(items, &entry/1) end)
+
     ~H"""
     <div id={@id} class="space-y-2">
       <span :if={@label} class="block text-sm font-medium">{@label}</span>
       <ul :if={@items != []} class="space-y-2">
         <li
-          :for={item <- @items}
+          :for={{value, label} <- @items}
           class="flex items-center gap-3 rounded-md bg-base-content/5 px-3 py-2"
         >
           <span
@@ -480,11 +497,11 @@ defmodule MediaCentaurWeb.Components.Settings do
               !@truncate_left && "truncate",
               @mono && "font-mono"
             ]}
-            data-tip={item}
+            data-tip={label}
           >
-            <bdo :if={@truncate_left} dir="ltr">{item}</bdo>
+            <bdo :if={@truncate_left} dir="ltr">{label}</bdo>
             <%= if !@truncate_left do %>
-              {item}
+              {label}
             <% end %>
           </span>
           <.button
@@ -492,16 +509,20 @@ defmodule MediaCentaurWeb.Components.Settings do
             size="xs"
             class="shrink-0"
             phx-click={@remove_event}
-            phx-value-item={item}
+            phx-value-item={value}
             {phx_values(@event_value)}
             data-nav-item
             tabindex="0"
           >
-            Remove
+            {@remove_label}
           </.button>
         </li>
       </ul>
+      <p :if={@items == [] && !@add_event && @empty_text} class="text-sm text-base-content/55">
+        {@empty_text}
+      </p>
       <form
+        :if={@add_event}
         id={@id && "#{@id}-add"}
         phx-submit={@add_event}
         phx-change={@change_event}
@@ -532,4 +553,7 @@ defmodule MediaCentaurWeb.Components.Settings do
     </div>
     """
   end
+
+  defp entry({value, label}), do: {value, label}
+  defp entry(item), do: {item, item}
 end

@@ -17,36 +17,38 @@ describe("createReviewBehavior", () => {
 })
 
 describe("review layout", () => {
-  // The search panel is a nested region of the decision row: the input core
-  // moves the cursor into it when it opens and closes it when the cursor leaves.
-  test("the search panel backs onto the decision row", () => {
-    const counts = { zone_tabs: 2, "review-list": 3, "review-detail": 2, "review-actions": 4, "review-search": 5 }
-    const graph = buildNavGraph("review", counts, inputConfig)
-    expect(graph["review-search"].back).toBe("review-actions")
+  // The bulk list (campaign `review-bulk-match`): the toolbar over the rows,
+  // the action bar under them while rows are ticked.
+  const ticked = { zone_tabs: 2, "review-toolbar": 4, "review-rows": 9, "review-bar": 6, "review-results": 3 }
+
+  test("the rows are a tree between the toolbar and the action bar", () => {
+    const graph = buildNavGraph("review", ticked, inputConfig)
+
+    expect(inputConfig.instanceTypes["review-rows"]).toBe(Context.TREE)
+    expect(graph["review-toolbar"].down).toBe("review-rows")
+    expect(graph["review-rows"].up).toBe("review-toolbar")
+    expect(graph["review-rows"].down).toBe("review-bar")
   })
 
-  test("the decision buttons are a toolbar between the detail and the search panel", () => {
-    const counts = { zone_tabs: 2, "review-list": 3, "review-detail": 2, "review-actions": 4, "review-search": 5 }
-    const graph = buildNavGraph("review", counts, inputConfig)
+  test("RIGHT from any row reaches the results, so acting never means walking the list", () => {
+    const graph = buildNavGraph("review", ticked, inputConfig)
+    expect(graph["review-rows"].right).toBe("review-results")
 
-    expect(inputConfig.instanceTypes["review-actions"]).toBe(Context.TOOLBAR)
-    expect(graph["review-detail"].down).toBe("review-actions")
-    expect(graph["review-actions"].up).toBe("review-detail")
-    expect(graph["review-actions"].down).toBe("review-search")
-    expect(graph["review-actions"].left).toBe("review-list")
-    expect(graph["review-search"].up).toBe("review-actions")
+    const noResults = buildNavGraph("review", { ...ticked, "review-results": 0 }, inputConfig)
+    expect(noResults["review-rows"].right).toBe("review-bar")
   })
 
-  test("a single file with nothing above the row: the list's RIGHT lands on the row", () => {
-    const counts = { zone_tabs: 2, "review-list": 3, "review-detail": 0, "review-actions": 4, "review-search": 0 }
-    const graph = buildNavGraph("review", counts, inputConfig)
-
-    expect(graph["review-list"].right).toBe("review-actions")
-    expect(graph["review-actions"].up).toBe("zone_tabs")
+  test("BACK from the bar or its results returns to the rows they act on", () => {
+    const graph = buildNavGraph("review", ticked, inputConfig)
+    expect(graph["review-bar"].back).toBe("review-rows")
+    expect(graph["review-results"].back).toBe("review-rows")
+    expect(inputConfig.instanceTypes["review-results"]).toBe(Context.SHELF)
   })
 
-  test("BACK from the search panel returns to the row (the zone's dismiss event closes it)", () => {
-    expect(inputConfig.layouts.review["review-search"].back).toEqual(["review-actions"])
+  test("nothing ticked: the rows have no edge below and the page opens on them", () => {
+    const graph = buildNavGraph("review", { ...ticked, "review-bar": 0, "review-results": 0 }, inputConfig)
+    expect(graph["review-rows"].down).toBeUndefined()
+    expect(inputConfig.cursorStartPriority.review[0]).toBe("review-rows")
   })
 })
 

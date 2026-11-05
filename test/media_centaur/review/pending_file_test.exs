@@ -45,94 +45,38 @@ defmodule MediaCentaur.Review.PendingFileTest do
     end
   end
 
-  describe ":find_or_create action" do
-    test "returns existing record for same file_path" do
-      first = Review.find_or_create_pending_file!(@valid_attrs)
-      second = Review.find_or_create_pending_file!(@valid_attrs)
+  describe "add_pending_file/1" do
+    test "returns the existing record for the same file_path" do
+      {:ok, first} = Review.add_pending_file(@valid_attrs)
+      {:ok, second} = Review.add_pending_file(@valid_attrs)
 
       assert first.id == second.id
     end
   end
 
-  describe ":approve action" do
+  describe "approve/1" do
     test "transitions status from :pending to :approved" do
       pending_file = Review.create_pending_file!(@valid_attrs)
 
-      {:ok, approved} = Review.approve_pending_file(pending_file)
-
-      assert approved.status == :approved
+      assert {:ok, 1} = Review.approve([pending_file.id])
+      assert {:ok, %{status: :approved}} = Review.fetch_pending_file(pending_file.id)
     end
 
-    test "rejects non-pending status" do
+    test "approving an approved item again approves nothing" do
       pending_file = Review.create_pending_file!(@valid_attrs)
 
-      {:ok, approved} = Review.approve_pending_file(pending_file)
+      {:ok, 1} = Review.approve([pending_file.id])
 
-      assert {:error, _} = Review.approve_pending_file(approved)
+      assert {:ok, 0} = Review.approve([pending_file.id])
     end
   end
 
-  describe ":dismiss action" do
+  describe "dismiss/1" do
     test "transitions status from :pending to :dismissed" do
       pending_file = Review.create_pending_file!(@valid_attrs)
 
-      {:ok, dismissed} = Review.dismiss_pending_file(pending_file)
-
-      assert dismissed.status == :dismissed
-    end
-  end
-
-  describe ":set_tmdb_match action" do
-    test "updates match fields while keeping status :pending" do
-      pending_file =
-        Review.create_pending_file!(%{
-          file_path: "/media/movies/Unknown.mkv",
-          parsed_title: "Unknown"
-        })
-
-      {:ok, updated} =
-        Review.set_pending_file_match(pending_file, %{
-          tmdb_id: 12_345,
-          tmdb_type: "movie",
-          confidence: 1.0,
-          match_title: "The Unknown Movie",
-          match_year: "2020",
-          match_poster_path: "/poster.jpg"
-        })
-
-      assert updated.status == :pending
-      assert updated.tmdb_id == 12_345
-      assert updated.match_title == "The Unknown Movie"
-      assert updated.confidence == 1.0
-    end
-  end
-
-  describe ":pending read action" do
-    test "returns only :pending records sorted by inserted_at" do
-      first =
-        Review.create_pending_file!(%{
-          file_path: "/media/first.mkv",
-          parsed_title: "First"
-        })
-
-      dismissed_file =
-        Review.create_pending_file!(%{
-          file_path: "/media/dismissed.mkv",
-          parsed_title: "Dismissed"
-        })
-
-      {:ok, _dismissed} = Review.dismiss_pending_file(dismissed_file)
-
-      second =
-        Review.create_pending_file!(%{
-          file_path: "/media/second.mkv",
-          parsed_title: "Second"
-        })
-
-      pending = Review.list_pending_files_for_review()
-
-      assert length(pending) == 2
-      assert Enum.map(pending, & &1.id) == [first.id, second.id]
+      assert {:ok, 1} = Review.dismiss([pending_file.id])
+      assert {:ok, %{status: :dismissed}} = Review.fetch_pending_file(pending_file.id)
     end
   end
 
@@ -157,7 +101,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
           parsed_title: "Dismissed"
         })
 
-      {:ok, _dismissed} = Review.dismiss_pending_file(dismissed)
+      {:ok, 1} = Review.dismiss([dismissed.id])
 
       approved =
         Review.create_pending_file!(%{
@@ -167,7 +111,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
           tmdb_type: "movie"
         })
 
-      {:ok, _approved} = Review.approve_pending_file(approved)
+      {:ok, 1} = Review.approve([approved.id])
 
       assert Review.count_pending() == 1
       assert :ok = Review.destroy_pending_file!(first)

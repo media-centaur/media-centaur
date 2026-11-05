@@ -49,7 +49,7 @@ defmodule MediaCentaur.Status do
       episode_count: stats.episodes,
       total_size_bytes: FilePresence.total_size_bytes(),
       recently_added: Library.list_recently_added(limit: @recently_added_limit),
-      pending_review_count: length(Review.list_pending_files_for_review()),
+      pending_review_count: Review.count_pending(),
       in_flight_count: length(Pursuits.list_active()),
       missing_artwork_count: missing_images.missing,
       missing_images: missing_images,

@@ -32,6 +32,29 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsList do
         }
       },
       %Variation{
+        id: :read_only,
+        description:
+          "Entries made elsewhere, each a value with its label and a Forget; no add form. Settings → Media Import's remembered matches.",
+        attributes: %{
+          items: [
+            {"rm-1", "Sample Show Signed · TV → Sample Show (1995)"},
+            {"rm-2", "Movie A Directors Cut (1999) · Movie → Movie A (1999)"}
+          ],
+          remove_event: "forget_remembered_match",
+          remove_label: "Forget"
+        }
+      },
+      %Variation{
+        id: :read_only_empty,
+        description: "A read-only list with nothing in it says what will appear.",
+        attributes: %{
+          items: [],
+          remove_event: "forget_remembered_match",
+          remove_label: "Forget",
+          empty_text: "Nothing yet. Matching files by hand in Review adds them here."
+        }
+      },
+      %Variation{
         id: :empty_with_error,
         description: "Nothing listed yet; the last add was refused and says why.",
         attributes: %{

@@ -602,7 +602,7 @@ defmodule MediaCentaur.Showcase do
   defp seed_pending_files!(client) do
     client
     |> pending_file_data()
-    |> Enum.map(&Review.find_or_create_pending_file!/1)
+    |> Enum.map(fn attrs -> {:ok, _} = Review.add_pending_file(attrs) end)
     |> length()
   end
 

@@ -47,13 +47,13 @@ defmodule MediaCentaur.Review.RematchTest do
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert {:error, _gone} = Library.Containers.fetch(:movie, movie.id)
-      assert [pending] = Review.list_pending_files_for_review()
+      assert [pending] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert pending.file_path == "/media/movies/Sample Movie (2017).mkv"
     end
 
     test "a job for an entity already released does nothing" do
       assert :ok = perform_job(RematchJob, %{"entity_id" => Ecto.UUID.generate()})
-      assert Review.list_pending_files_for_review() == []
+      assert Enum.filter(Review.list_queue(), &(&1.status == :pending)) == []
     end
   end
 end

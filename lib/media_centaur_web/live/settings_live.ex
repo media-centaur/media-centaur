@@ -252,6 +252,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(acquisition_running: false)
      |> assign(media_dirs: [])
      |> assign(ignore_rules: %{path: [], name: []})
+     |> assign(remembered_matches: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
      |> assign(connections: IntegrationHealth.all_statuses(), editing: nil)
@@ -554,6 +555,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       acquisition_running: Acquisition.auto_grab_running?(),
       media_dirs: Config.media_dirs_entries(),
       ignore_rules: load_ignore_rules(),
+      remembered_matches: MediaCentaur.Review.list_remembered_matches(),
       # The per-image disk walk already ran in the Overview projection;
       # read its result instead of walking every file on each mount
       # (audit P4). A repair re-walks live in its own result handler.
@@ -867,6 +869,11 @@ defmodule MediaCentaurWeb.SettingsLive do
     :ok = Config.update(config_key, List.delete(socket.assigns.ignore_rules[kind_key], item))
 
     {:noreply, assign(socket, :ignore_rules, load_ignore_rules())}
+  end
+
+  def handle_event("forget_remembered_match", %{"item" => id}, socket) do
+    :ok = MediaCentaur.Review.forget_remembered_match(id)
+    {:noreply, assign(socket, :remembered_matches, MediaCentaur.Review.list_remembered_matches())}
   end
 
   def handle_event("scan", _params, socket) do
@@ -2252,6 +2259,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 service_action_pending={@service_action_pending}
                 media_dirs={@media_dirs}
                 ignore_rules={@ignore_rules}
+                remembered_matches={@remembered_matches}
                 ignore_rule_input={@ignore_rule_input}
                 ignore_rule_error={@ignore_rule_error}
                 bindings={@bindings}
@@ -2468,7 +2476,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "import"} = assigns) do
     ~H"""
-    <ImportSection.render config={@config} />
+    <ImportSection.render config={@config} remembered_matches={@remembered_matches} />
     """
   end
 

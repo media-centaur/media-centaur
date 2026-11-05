@@ -1,348 +1,303 @@
 defmodule MediaCentaurWeb.ReviewLiveTest do
+  @moduledoc """
+  Review → Identity, the bulk list (campaign `review-bulk-match`). Rewritten
+  2026-11-05 with the page: the master/detail groups by folder are gone, so
+  the tests that drove `select_item`, `open_search` and `select_match` on a
+  group are replaced by the same behaviours over ticked rows — the search,
+  the type a match is saved under, arm-to-dismiss, arm-to-delete without
+  ever removing a media root, live updates, the not-added reason, restore.
+  """
   use MediaCentaurWeb.ConnCase, async: false
 
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
-  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.TmdbStubs
 
-  # `ReviewLive.ensure_loaded/1` defers `Review.fetch_review_groups/0`
-  # to an owned `start_async(:review_load, …)` (ADR-049). `render_async/1`
-  # awaits it deterministically — no wall-clock sleep.
-  defp render_after_async_load(view) do
+  defp open(conn, path \\ "/review") do
+    {:ok, view, _html} = live_async!(conn, path)
     render_async(view)
+    view
   end
 
-  defp select_first_group(view) do
-    view
-    |> element("[phx-click='select_item']")
-    |> render()
-    |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+  defp waiting_episode(path, episode, overrides \\ %{}) do
+    create_pending_file(
+      Map.merge(
+        %{
+          file_path: path,
+          media_directory: "/media/test",
+          parsed_title: "Sample Show Signed",
+          parsed_type: "tv",
+          parsed_season: 1,
+          parsed_episode: episode,
+          tmdb_id: nil,
+          tmdb_type: nil,
+          confidence: nil,
+          match_title: nil
+        },
+        overrides
+      )
+    )
   end
+
+  defp tick(view, file), do: view |> element("#review-item-#{file.id}") |> render_click()
+
+  defp waiting, do: Enum.filter(Review.list_queue(), &(&1.status == :pending))
 
   describe "GET /review" do
-    test "renders without crashing", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/review")
-      # Empty-state copy or list section heading.
-      assert html =~ "Review" or html =~ "Movies" or html =~ "TV Series"
-    end
-
-    test "lists pending files on initial mount", %{conn: conn} do
-      _file =
-        create_pending_file(%{
-          parsed_title: "Initial Mount Pending",
-          parsed_type: "movie"
-        })
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      assert render_after_async_load(view) =~ "Initial Mount Pending"
-    end
-
-    test "first paint (disconnected render) lists pending files, not an empty flash",
-         %{conn: conn} do
-      # Desktop first-paint correctness: the static HTTP render must already
-      # list the review backlog, not an empty placeholder that flashes until
-      # the socket connects. `get/2` exercises the disconnected first render.
-      _file =
-        create_pending_file(%{
-          parsed_title: "First Paint Pending File",
-          parsed_type: "movie"
-        })
+    test "first paint (disconnected render) lists the waiting files, not an empty flash", %{conn: conn} do
+      create_pending_file(%{parsed_title: "First Paint Pending File", parsed_type: "movie"})
 
       html = conn |> get("/review") |> html_response(200)
 
       assert html =~ "First Paint Pending File",
-             "pending files must render on the disconnected first paint"
+             "waiting files must render on the disconnected first paint"
+    end
+
+    test "the empty queue says what lands in it", %{conn: conn} do
+      assert render(open(conn)) =~ "Unmatched files show up here"
     end
   end
 
-  describe "search panel" do
-    test "re-selecting the already-selected row keeps an open search panel open",
-         %{conn: conn} do
-      # Regression: in the real browser, `select_item` for the already-selected
-      # row got re-fired during a re-render (observed ~12ms after a search
-      # submit, via the spatial-input focus path — exact trigger still under
-      # investigation). It reset `search_open: nil` unconditionally, collapsing
-      # the open TMDB search panel. The guard is idempotency: re-selecting the
-      # row you are already on must be a no-op, whatever re-fired it.
-      _file =
-        create_pending_file(%{
-          parsed_title: "Panel Pending Show",
-          parsed_type: "tv",
-          parsed_season: 1,
-          parsed_episode: 1
+  # The case that opened the campaign: six episodes of one show, each in its
+  # own release folder, none found on TMDB under the name they carry. One
+  # tick on the divider, one search, one press.
+  describe "matching episodes from separate release folders" do
+    setup do
+      enable_tmdb!()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+
+      files =
+        for episode <- 1..6 do
+          waiting_episode(
+            "/media/test/Sample.Show.Signed.S01E0#{episode}-GROUP/Sample.Show.Signed.S01E0#{episode}.mkv",
+            episode
+          )
+        end
+
+      TmdbStubs.stub_search_tv([
+        TmdbStubs.tv_search_result(%{
+          "id" => 4242,
+          "name" => "Sample Show",
+          "first_air_date" => "1995-04-21"
         })
+      ])
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
+      %{files: files}
+    end
 
-      # The group key is on the (always-rendered) list row. The "Search TMDB"
-      # button is gated on tmdb_ready (false in tests), so drive the events
-      # directly with that key rather than through the hidden button.
-      key =
-        view
-        |> element("[phx-click='select_item']")
-        |> render()
-        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+    test "the divider ticks all six; the bar searches the parsed title and one press matches them",
+         %{conn: conn, files: [first | _] = files} do
+      view = open(conn)
 
-      render_click(view, "open_search", %{"key" => key})
-      assert has_element?(view, "form[phx-submit='search']"), "search panel should open"
+      view |> element("#review-divider-#{first.id}") |> render_click()
+      render_until(view, "review-result-tv-4242")
 
-      # Re-select the row that is already selected — the redundant activation
-      # the input system fires on every re-render. Panel must survive.
-      render_click(view, "select_item", %{"key" => key})
+      assert has_element?(view, "#review-match-bar", "6 files ticked")
+      assert has_element?(view, "#review-search-form input[name='query'][value='Sample Show Signed']")
 
-      assert has_element?(view, "form[phx-submit='search']"),
-             "re-selecting the current row must not close the open search panel"
+      view |> element("#review-result-tv-4242") |> render_click()
+
+      for file <- files do
+        path = file.file_path
+        assert_receive {:file_matched, %{file_path: ^path, tmdb_id: 4242, tmdb_type: "tv"}}
+      end
+
+      assert render(view) =~ "Matched 6 files to Sample Show"
+      refute has_element?(view, "#review-match-bar")
+      assert waiting() == []
+    end
+
+    test "unticking a row leaves it out of the match", %{conn: conn, files: [first, second | _]} do
+      view = open(conn)
+
+      view |> element("#review-divider-#{first.id}") |> render_click()
+      tick(view, second)
+      render_until(view, "review-result-tv-4242")
+      view |> element("#review-result-tv-4242") |> render_click()
+
+      assert [%{id: left}] = waiting()
+      assert left == second.id
     end
   end
 
-  describe "choosing a match keeps the type it was found under" do
-    # Regression: `select_match` stamped every match with the search form's
-    # Type select, whatever produced the match. A scored candidate for a TV
-    # file was saved as a movie (the select defaults to Movie), and changing
-    # the select after a search relabelled results already on screen.
-
-    test "a scored candidate is saved under the file's type", %{conn: conn} do
-      file =
-        create_pending_file(%{
-          file_path: "/media/test/Sample.Show.S01E01.1080p.mkv",
-          parsed_title: "Sample Show",
-          parsed_type: "tv",
-          parsed_season: 1,
-          parsed_episode: 1,
-          tmdb_type: "tv",
-          # Two candidates on one score: the chooser only shows for a tie.
-          candidates: [
-            %{"tmdb_id" => "555", "title" => "Sample Show", "year" => "2010", "score" => 0.7},
-            %{"tmdb_id" => "556", "title" => "Sample Show", "year" => "2014", "score" => 0.7}
-          ]
-        })
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      view
-      |> element("[phx-click='select_match'][phx-value-tmdb-id='555']")
-      |> render_click()
-
-      saved = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, file.id)
-      assert saved.tmdb_id == 555
-      assert saved.tmdb_type == "tv"
+  describe "the search" do
+    setup do
+      enable_tmdb!()
+      :ok
     end
 
-    test "a search result is saved under the type it was searched as", %{conn: conn} do
+    # Regression (kept from the group page): a match was stamped with the
+    # form's Type select, whatever found it. A result carries the type it
+    # was searched as, so flipping the select afterwards cannot relabel it.
+    test "a result is saved under the type it was searched as", %{conn: conn} do
       file =
         create_pending_file(%{
           parsed_title: "Movie A",
           parsed_type: "movie",
-          tmdb_type: "movie"
+          tmdb_id: nil,
+          tmdb_type: nil
         })
 
-      MediaCentaur.TmdbStubs.stub_search_movie([
-        %{"id" => 777, "title" => "Movie A", "release_date" => "2001-01-01"}
-      ])
+      TmdbStubs.stub_search_movie([%{"id" => 777, "title" => "Movie A", "release_date" => "2001-01-01"}])
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-      key = select_first_group(view)
+      view = open(conn)
+      tick(view, file)
+      render_until(view, "review-result-movie-777")
 
-      render_click(view, "open_search", %{"key" => key})
+      view |> element("#review-result-movie-777") |> render_click()
+
+      saved = MediaCentaur.Repo.get!(Review.PendingFile, file.id)
+      assert {saved.tmdb_id, saved.tmdb_type, saved.status} == {777, "movie", :approved}
+    end
+
+    test "a typed query replaces the prefill and searches", %{conn: conn} do
+      file = waiting_episode("/media/test/a.mkv", 1)
+      TmdbStubs.stub_search_tv([TmdbStubs.tv_search_result(%{"id" => 99, "name" => "Other Show"})])
+
+      view = open(conn)
+      tick(view, file)
 
       view
-      |> form("form[phx-submit='search']", %{"query" => "Movie A", "type" => "movie"})
-      |> render_submit()
-
-      render_until(view, &String.contains?(&1, "review-result-777"))
-
-      # The user flips the Type select after the results arrived.
-      view
-      |> form("form[phx-submit='search']", %{"query" => "Movie A", "type" => "tv"})
+      |> form("#review-search-form", %{"query" => "Other Show", "type" => "tv"})
       |> render_change()
 
-      view
-      |> element("[phx-click='select_match'][phx-value-tmdb-id='777']")
-      |> render_click()
-
-      saved = MediaCentaur.Repo.get!(MediaCentaur.Review.PendingFile, file.id)
-      assert saved.tmdb_id == 777
-      assert saved.tmdb_type == "movie"
+      render_until(view, "review-result-tv-99")
+      assert has_element?(view, "#review-search-form input[name='query'][value='Other Show']")
     end
-  end
 
-  describe "a multi-file group's file list" do
-    # The list is a disclosure in the page's DisclosureState: it opens on
-    # its head and stays open while the page re-renders.
-    test "opens on its head to list the group's files", %{conn: conn} do
-      files =
-        for episode <- [1, 2] do
-          create_pending_file(%{
-            file_path: "/media/test/Sample Show/Season 1/Sample.Show.S01E0#{episode}.mkv",
-            parsed_title: "Sample Show",
-            parsed_type: "tv",
-            parsed_season: 1,
-            parsed_episode: episode
-          })
-        end
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      head = "[data-nav-group] > .disclosure-head[aria-controls^='review-files-']"
-      assert has_element?(view, head <> "[aria-expanded='false']")
-      refute has_element?(view, "#review-file-#{hd(files).id}")
-
-      view |> element(head) |> render_click()
-
-      assert has_element?(view, head <> "[aria-expanded='true']")
-      for file <- files, do: assert(has_element?(view, "#review-file-#{file.id}"))
-    end
-  end
-
-  describe "search task failure" do
     test "a crashed TMDB search clears searching and tells the user", %{conn: conn} do
-      create_pending_file(%{
-        parsed_title: "Crash Pending Show",
-        parsed_type: "tv",
-        parsed_season: 1,
-        parsed_episode: 1
-      })
-
-      # The task calls TMDB through its Req.Test stub; a stub that raises
-      # crashes the task, which reaches the LiveView as `{:exit, _}`.
+      file = waiting_episode("/media/test/a.mkv", 1)
       Req.Test.stub(:tmdb, fn _conn -> raise "stub crashed" end)
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
+      view = open(conn)
+      tick(view, file)
 
-      key =
-        view
-        |> element("[phx-click='select_item']")
-        |> render()
-        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
-
-      render_click(view, "open_search", %{"key" => key})
-
-      view
-      |> form("form[phx-submit='search']", %{"query" => "Crash Pending Show", "type" => "tv"})
-      |> render_submit()
-
-      # The failure copy is produced by the crashed task's `{:exit, _}` reaching
-      # the view; wait for it rather than for `render_async/1`'s fixed budget.
       render_until(view, "TMDB search failed")
-      refute has_element?(view, "form[phx-submit='search'] button[disabled]")
+      refute has_element?(view, "#review-search-form button[disabled]")
     end
   end
 
-  describe "dismiss flow (click-to-confirm)" do
-    test "Dismiss arms on the first click and fires on the second", %{conn: conn} do
-      create_pending_file(%{parsed_title: "Dismissable Show", parsed_type: "tv"})
+  describe "accepting best guesses" do
+    test "approves each ticked row under its own guess", %{conn: conn} do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      assert render_after_async_load(view) =~ "Dismissable Show"
+      first =
+        create_pending_file(%{file_path: "/media/test/Movie.A.mkv", parsed_title: "Movie A", tmdb_id: 1})
 
-      key =
-        view
-        |> element("[phx-click='select_item']")
-        |> render()
-        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+      second =
+        create_pending_file(%{file_path: "/media/test/Movie.B.mkv", parsed_title: "Movie B", tmdb_id: 2})
 
-      html = render_click(view, "dismiss", %{"key" => key})
-      assert html =~ "Press again to dismiss"
-      assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
+      view = open(conn)
+      tick(view, first)
+      tick(view, second)
+      view |> element("button", "Accept best guesses") |> render_click()
 
-      render_click(view, "dismiss", %{"key" => key})
-      assert MediaCentaur.Review.list_pending_files_for_review() == []
+      assert_receive {:file_matched, %{file_path: "/media/test/Movie.A.mkv", tmdb_id: 1}}
+      assert_receive {:file_matched, %{file_path: "/media/test/Movie.B.mkv", tmdb_id: 2}}
+    end
+
+    test "is not offered when a ticked row has no guess", %{conn: conn} do
+      guessed = create_pending_file(%{parsed_title: "Movie A", tmdb_id: 1})
+      unguessed = create_pending_file(%{parsed_title: "Movie B", tmdb_id: nil, tmdb_type: nil})
+
+      view = open(conn)
+      tick(view, guessed)
+      tick(view, unguessed)
+
+      refute has_element?(view, "button", "Accept best")
     end
   end
 
-  describe "delete flow (click-to-confirm)" do
+  describe "dismiss and restore" do
+    test "Dismiss arms on the first press and fires on the second", %{conn: conn} do
+      file = create_pending_file(%{parsed_title: "Dismissable Show", parsed_type: "tv"})
+
+      view = open(conn)
+      tick(view, file)
+
+      assert view |> element("#review-match-bar button", "Dismiss") |> render_click() =~
+               "Press again to dismiss"
+
+      assert length(waiting()) == 1
+
+      view |> element("#review-match-bar button", "Press again to dismiss") |> render_click()
+      assert waiting() == []
+    end
+
+    test "a tick between the presses disarms", %{conn: conn} do
+      first = create_pending_file(%{parsed_title: "AAA"})
+      second = create_pending_file(%{parsed_title: "ZZZ"})
+
+      view = open(conn)
+      tick(view, first)
+      view |> element("#review-match-bar button", "Dismiss") |> render_click()
+      tick(view, second)
+
+      refute render(view) =~ "Press again to dismiss"
+    end
+
+    test "the Dismissed view lists dismissed files, and Restore puts one back", %{conn: conn} do
+      file = create_pending_file(%{parsed_title: "Restorable File"})
+      {:ok, 1} = Review.dismiss([file.id])
+
+      view = open(conn, "/review?status=dismissed")
+      assert render(view) =~ "Restorable File"
+
+      tick(view, file)
+      view |> element("#review-match-bar button", "Restore") |> render_click()
+
+      assert [%{id: restored}] = waiting()
+      assert restored == file.id
+    end
+  end
+
+  describe "delete" do
     setup do
-      media_dir =
-        Path.join(System.tmp_dir!(), "review_live_test_#{System.unique_integer([:positive])}")
-
+      media_dir = Path.join(System.tmp_dir!(), "review_live_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(media_dir)
       on_exit(fn -> File.rm_rf!(media_dir) end)
-
       %{media_dir: media_dir}
     end
 
-    test "first click arms confirmation, second click deletes the file and clears the row", %{
+    test "the first press arms and names what goes; the second deletes the file", %{
       conn: conn,
       media_dir: media_dir
     } do
-      path = Path.join(media_dir, "broken.mkv")
+      release = Path.join(media_dir, "Broken.Release")
+      File.mkdir_p!(release)
+      path = Path.join(release, "broken.mkv")
       File.write!(path, "garbage")
 
-      _file =
+      file =
         create_pending_file(%{
           file_path: path,
           media_directory: media_dir,
           parsed_title: "Broken Download"
         })
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      assert render_after_async_load(view) =~ "Broken Download"
-
-      key =
-        view
-        |> element("[phx-click='select_item']")
-        |> render()
-        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
-
-      html = render_click(view, "delete_prompt", %{"key" => key})
-      assert html =~ "Press again to delete"
-      assert File.exists?(path), "the first click must only arm the confirmation, not delete"
-
-      render_click(view, "delete_prompt", %{"key" => key})
-      # The delete runs off the LiveView process (ADR-044, 2026-09-29).
+      view = open(conn)
+      tick(view, file)
       render_async(view)
 
-      refute File.exists?(path)
+      assert view |> element("#review-match-bar button", "Delete") |> render_click() =~
+               "Press again to delete 1 file and 1 folder"
+
+      assert File.exists?(path), "the first press must only arm"
+
+      view |> element("#review-match-bar button", "Press again to delete") |> render_click()
+      render_async(view)
+
+      refute File.exists?(release)
       refute render(view) =~ "Broken Download"
     end
 
-    test "selecting a different item cancels an armed confirmation", %{
+    test "never deletes a configured media directory root — only the file", %{
       conn: conn,
       media_dir: media_dir
     } do
-      path_a = Path.join(media_dir, "a.mkv")
-      path_b = Path.join(media_dir, "b.mkv")
-      File.write!(path_a, "x")
-      File.write!(path_b, "x")
-
-      create_pending_file(%{file_path: path_a, media_directory: media_dir, parsed_title: "AAA"})
-      create_pending_file(%{file_path: path_b, media_directory: media_dir, parsed_title: "ZZZ"})
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      [key_a, key_b] =
-        view
-        |> element("[data-nav-zone='review-list']")
-        |> render()
-        |> then(&Regex.scan(~r/phx-value-key="([^"]+)"/, &1))
-        |> Enum.map(&List.last/1)
-
-      render_click(view, "select_item", %{"key" => key_a})
-      html = render_click(view, "delete_prompt", %{"key" => key_a})
-      assert html =~ "Press again to delete"
-
-      render_click(view, "select_item", %{"key" => key_b})
-      render_click(view, "select_item", %{"key" => key_a})
-      html = render(view)
-
-      refute html =~ "Press again to delete"
-      assert File.exists?(path_a), "switching away must cancel the arm, not delete"
-    end
-
-    test "never deletes a configured media directory root — only the file, for a flat top-level release",
-         %{conn: conn, media_dir: media_dir} do
-      # A flat file directly in the media root has no meaningful "release
-      # folder" of its own — its dirname IS the media root. This is
-      # exactly the shape that must fall back to file-only deletion:
-      # confirm the whole media directory survives, not just this file.
       config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
@@ -353,24 +308,17 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       path = Path.join(media_dir, "flat_movie.mkv")
       File.write!(path, "x")
 
-      create_pending_file(%{
-        file_path: path,
-        media_directory: media_dir,
-        parsed_title: "Flat Movie"
-      })
+      file =
+        create_pending_file(%{file_path: path, media_directory: media_dir, parsed_title: "Flat Movie"})
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
+      view = open(conn)
+      tick(view, file)
+      render_async(view)
 
-      key =
-        view
-        |> element("[phx-click='select_item']")
-        |> render()
-        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+      assert view |> element("#review-match-bar button", "Delete") |> render_click() =~
+               "Press again to delete 1 file"
 
-      assert render_click(view, "delete_prompt", %{"key" => key}) =~ "Press again to delete file"
-
-      render_click(view, "delete_prompt", %{"key" => key})
+      view |> element("#review-match-bar button", "Press again to delete") |> render_click()
       render_async(view)
 
       refute File.exists?(path)
@@ -378,124 +326,38 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
-  # Replaces "choosing the episode of a series match" (2026-09-29, campaign
-  # `review-coherence`): Review offered an episode picker for a series match
-  # whose name numbered no episode and withheld Approve until one was chosen.
-  # Episode mapping now decides the position, so Review approves the match.
-  describe "a series match whose name numbers no episode" do
-    test "can be approved, with no episode to choose", %{conn: conn} do
-      create_pending_file(%{
-        file_path: "/media/test/Sample Special 2025/Sample.Special.2025.1080p.WEBRip.mp4",
-        media_directory: "/media/test",
-        parsed_title: "Sample Special",
-        parsed_year: 2025,
-        parsed_type: "movie",
-        tmdb_id: 1396,
-        tmdb_type: "tv",
-        match_title: "Sample Show",
-        confidence: 0.6
-      })
+  describe "the view" do
+    test "the filter narrows the rows to the parsed title or file name", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Sample Show Signed"})
+      create_pending_file(%{parsed_title: "Movie A"})
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
+      view = open(conn, "/review?q=sample")
 
-      refute has_element?(view, "select[name='episode']")
-
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
-      view |> element("button", "Approve") |> render_click()
-
-      assert_receive {:file_matched, %{tmdb_id: 1396, tmdb_type: "tv"}}
-    end
-  end
-
-  describe "live updates from review intake" do
-    # The review queue is the user's choke point — every file the
-    # auto-matcher couldn't decide on lands here. If the LV doesn't react
-    # to file_added in real time, an operator trying to clear a backlog
-    # has to refresh constantly to know if new work has landed.
-
-    test "file_added broadcast triggers a debounced reload",
-         %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, "/review")
-      refute html =~ "Newly Arrived File"
-
-      _file =
-        create_pending_file(%{
-          parsed_title: "Newly Arrived File",
-          parsed_type: "movie"
-        })
-
-      send(view.pid, {:file_added, %FileAdded{pending_file_id: Ecto.UUID.generate()}})
-
-      # The new file appears only after the 500ms reload_groups debounce fires.
-      assert render_until(view, "Newly Arrived File") =~ "Newly Arrived File"
+      assert render(view) =~ "Sample Show Signed"
+      refute render(view) =~ "Movie A"
     end
 
-    test "file_reviewed broadcast removes the file from the list",
-         %{conn: conn} do
-      file =
-        create_pending_file(%{
-          parsed_title: "Single Review File",
-          parsed_type: "movie"
-        })
+    test "a filter that matches nothing says so and offers to clear it", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Movie A"})
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      assert render_after_async_load(view) =~ "Single Review File"
+      view = open(conn, "/review?q=nothing-like-it")
 
-      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file.id}})
-
-      refute render(view) =~ "Single Review File"
+      assert render(view) =~ "Nothing here matches"
+      assert has_element?(view, "button", "Clear the filter")
     end
 
-    # Changed 2026-09-29 (campaign `review-closes-on-link`): approval no
-    # longer removes the group. It stays, marked as importing, until the
-    # library reports each file linked (`file_reviewed`) or returns it with a
-    # reason. Removing it at approval is how an approval that linked
-    # nothing looked like one that worked.
-    #
-    # Changed again 2026-09-29 (campaign `review-coherence`): approval is a
-    # synchronous call, not a task reporting back through `group_approved`,
-    # so the test clicks Approve instead of sending that message.
-    test "an approved group stays listed as importing until its files are linked",
-         %{conn: conn} do
-      file_a =
-        create_pending_file(%{
-          file_path: "/media/test/Approved Show/S01E01.mkv",
-          media_directory: "/media/test",
-          parsed_title: "Approved Show",
-          parsed_type: "tv",
-          parsed_season: 1,
-          parsed_episode: 1,
-          tmdb_id: 4242,
-          tmdb_type: "tv"
-        })
+    # Changed 2026-11-05: an approved file used to stay in its group marked
+    # importing. It is listed in the Importing view until its file is
+    # linked, which removes it.
+    test "a matched file is listed under Importing until the library links it", %{conn: conn} do
+      file = waiting_episode("/media/test/Approved Show/S01E01.mkv", 1, %{parsed_title: "Approved Show"})
+      {:ok, 1} = Review.match([file.id], %{tmdb_id: 4242, tmdb_type: "tv", title: "Approved Show"})
 
-      file_b =
-        create_pending_file(%{
-          file_path: "/media/test/Approved Show/S01E02.mkv",
-          media_directory: "/media/test",
-          parsed_title: "Approved Show",
-          parsed_type: "tv",
-          parsed_season: 1,
-          parsed_episode: 2,
-          tmdb_id: 4242,
-          tmdb_type: "tv"
-        })
+      view = open(conn, "/review?status=importing")
+      assert render(view) =~ "Approved Show"
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      assert render_after_async_load(view) =~ "Approved Show"
-
-      view |> element("button", "Approve All") |> render_click()
-
-      html = render(view)
-      assert html =~ "Approved Show"
-      assert html =~ "Importing"
-      refute has_element?(view, "button", "Approve All")
-
-      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_a.id}})
-      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file_b.id}})
-
-      refute render(view) =~ "Approved Show"
+      :ok = Review.file_linked(file.file_path)
+      refute render_until(view, &(not String.contains?(&1, "Approved Show"))) =~ "Approved Show"
     end
 
     test "a file returned from the library shows why it was not added", %{conn: conn} do
@@ -505,155 +367,33 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         error_message: "Adding it to the library failed. Approve it again to retry."
       })
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      html = render_after_async_load(view)
+      html = render(open(conn))
 
       assert html =~ "Not added"
       assert html =~ "Adding it to the library failed. Approve it again to retry."
     end
 
-    # Replaces "group_error broadcast surfaces a flash" (2026-09-29, campaign
-    # `review-coherence`): approval reports its outcome synchronously and no
-    # longer broadcasts `group_error`. What that test guarded — a group that
-    # cannot be approved stays listed and says why — is asserted here.
-    test "a group whose files carry different matches cannot be approved until one is chosen",
-         %{conn: conn} do
-      for {episode, tmdb_id} <- [{1, 4242}, {2, 9999}] do
-        create_pending_file(%{
-          file_path: "/media/test/Mixed Show/S01E0#{episode}.mkv",
-          media_directory: "/media/test",
-          parsed_title: "Mixed Show",
-          parsed_type: "tv",
-          parsed_season: 1,
-          parsed_episode: episode,
-          tmdb_id: tmdb_id,
-          tmdb_type: "tv"
-        })
-      end
+    test "file_added reloads the list after its debounce", %{conn: conn} do
+      view = open(conn)
+      create_pending_file(%{parsed_title: "Newly Arrived File", parsed_type: "movie"})
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      html = render_after_async_load(view)
+      send(view.pid, {:file_added, %FileAdded{pending_file_id: Ecto.UUID.generate()}})
 
-      assert html =~ "Mixed Show"
-      refute has_element?(view, "button", "Approve All")
-      assert html =~ "different matches"
+      assert render_until(view, "Newly Arrived File") =~ "Newly Arrived File"
     end
   end
 
   describe "keyboard and gamepad reach" do
-    test "the search panel's controls are nav items", %{conn: conn} do
-      # Regression: the query, type and close were not nav items, and the
-      # form's Search button trapped the keyboard.
-      create_pending_file(%{parsed_title: "Search Reach Movie", parsed_type: "movie"})
+    test "the rows, the toolbar and, once a row is ticked, the bar are nav zones", %{conn: conn} do
+      file = create_pending_file(%{parsed_title: "Sample Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-      render_click(view, "open_search", %{"key" => select_first_group(view)})
+      view = open(conn)
+      assert has_element?(view, "[data-nav-zone='review-toolbar'] [data-nav-item]")
+      assert has_element?(view, "[data-nav-zone='review-rows'] #review-item-#{file.id}[data-nav-item]")
+      refute has_element?(view, "[data-nav-zone='review-bar']")
 
-      zone = "[data-nav-zone='review-search'][data-nav-dismiss-event='close_search']"
-      assert has_element?(view, "#{zone} input[name='query'][data-nav-item]")
-      assert has_element?(view, "#{zone} select[name='type'][data-nav-item]")
-      assert has_element?(view, "#{zone} button[phx-click='close_search'][data-nav-item]")
-    end
-
-    test "the decision buttons are a toolbar of their own", %{conn: conn} do
-      create_pending_file(%{parsed_title: "Toolbar Movie", parsed_type: "movie", tmdb_id: 1})
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      assert has_element?(view, "[data-nav-zone='review-actions'] button[phx-click='dismiss']")
-      assert has_element?(view, "[data-nav-zone='review-actions'] button[phx-click='delete_prompt']")
-    end
-
-    test "the selected list row says so", %{conn: conn} do
-      create_pending_file(%{parsed_title: "Selected Row Movie", parsed_type: "movie"})
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      assert has_element?(
-               view,
-               "[data-nav-zone='review-list'] [aria-current='true']",
-               "Selected Row Movie"
-             )
-    end
-
-    test "a dismissed file's Restore shows its full path on focus", %{conn: conn} do
-      file =
-        create_pending_file(%{
-          file_path: "/media/test/Long Folder/Sample.Movie.2010.mkv",
-          media_directory: "/media/test",
-          parsed_title: "Sample Movie"
-        })
-
-      {:ok, _} = MediaCentaur.Review.dismiss(file)
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-      view |> element("#review-dismissed .disclosure-head") |> render_click()
-
-      assert has_element?(
-               view,
-               "#review-dismissed-#{file.id} button[data-tip='Long Folder/Sample.Movie.2010.mkv']",
-               "Restore"
-             )
-    end
-  end
-
-  describe "copy" do
-    test "the empty queue says what lands in it", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/review")
-      assert html =~ "Unmatched files show up here"
-    end
-
-    test "a file with no TMDB results says so in the list", %{conn: conn} do
-      create_pending_file(%{parsed_title: "Nothing Found Movie", parsed_type: "movie", tmdb_id: nil})
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      assert has_element?(view, "[data-review-pending]", "No results")
-    end
-  end
-
-  # 2026-09-29: a dismissal could not be undone from the page.
-  describe "dismissed files" do
-    test "are listed under Dismissed, and Restore puts one back in the queue", %{conn: conn} do
-      file =
-        create_pending_file(%{
-          file_path: "/media/test/Dismissed Movie/Dismissed.Movie.2010.mkv",
-          media_directory: "/media/test",
-          parsed_title: "Dismissed Movie"
-        })
-
-      {:ok, _} = MediaCentaur.Review.dismiss(file)
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-
-      view |> element("#review-dismissed .disclosure-head") |> render_click()
-      assert has_element?(view, "#review-dismissed-#{file.id}")
-
-      view |> element("#review-dismissed-#{file.id} button", "Restore") |> render_click()
-
-      refute has_element?(view, "#review-dismissed")
-      assert render(view) =~ "Dismissed Movie"
-      assert [%{id: restored_id}] = MediaCentaur.Review.list_pending_files_for_review()
-      assert restored_id == file.id
-    end
-
-    test "dismissing a group lists it under Dismissed", %{conn: conn} do
-      create_pending_file(%{parsed_title: "Soon Dismissed", parsed_type: "movie"})
-
-      {:ok, view, _html} = live_async!(conn, "/review")
-      render_after_async_load(view)
-      key = select_first_group(view)
-
-      render_click(view, "dismiss", %{"key" => key})
-      render_click(view, "dismiss", %{"key" => key})
-
-      assert has_element?(view, "#review-dismissed")
+      tick(view, file)
+      assert has_element?(view, "[data-nav-zone='review-bar'] [data-nav-item]")
     end
   end
 end

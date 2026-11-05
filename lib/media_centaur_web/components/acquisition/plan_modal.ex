@@ -67,6 +67,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitlePreview
+  alias MediaCentaurWeb.Components.Checkbox
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.DownloadsLive.PlanLogic
   alias MediaCentaurWeb.Components.CinematicShell
@@ -443,7 +444,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       id={@id}
       class="glass-inset rounded-lg opacity-50 flex items-center gap-3 px-4 py-2.5"
     >
-      <.tri_checkbox state={:disabled} />
+      <Checkbox.checkbox state={:disabled} />
       <span class="text-sm font-medium">Season {@season.season_number}</span>
       <span class="text-sm text-base-content/55">{season_meta(@season)}</span>
     </div>
@@ -458,7 +459,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       body_class="border-t border-base-content/5"
     >
       <:leading>
-        <.tri_checkbox
+        <Checkbox.checkbox
           state={@state}
           phx-click="plan_toggle_season"
           phx-value-season={@season.season_number}
@@ -477,7 +478,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             (!episode.aired? || episode.in_library?) && "opacity-40"
           ]}
         >
-          <.tri_checkbox
+          <Checkbox.checkbox
             :if={episode.aired? && !episode.in_library?}
             state={
               if MapSet.member?(@chosen, {episode.season_number, episode.episode_number}),
@@ -515,39 +516,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </li>
       </ul>
     </.disclosure>
-    """
-  end
-
-  attr :state, :atom,
-    required: true,
-    doc:
-      ":checked | :indeterminate | :unchecked | :disabled — the closed set PlanLogic.season_state/3 returns; private component, exercised through the targeting variation."
-
-  attr :small, :boolean, default: false
-
-  attr :rest, :global,
-    doc: "phx-click/phx-value-* passthrough — the checkbox is a dumb button; callers own the event."
-
-  defp tri_checkbox(assigns) do
-    ~H"""
-    <button
-      type="button"
-      class={[
-        "flex-shrink-0 rounded border flex items-center justify-center transition-colors",
-        @small && "w-4 h-4",
-        !@small && "w-[18px] h-[18px]",
-        @state in [:checked, :indeterminate] && "bg-primary/80 border-primary",
-        @state == :unchecked && "border-base-content/30 hover:border-base-content/60",
-        @state == :disabled && "border-base-content/15"
-      ]}
-      disabled={@state == :disabled}
-      data-nav-item
-      tabindex="0"
-      {@rest}
-    >
-      <.icon :if={@state == :checked} name="hero-check-mini" class="size-3 text-base-100" />
-      <.icon :if={@state == :indeterminate} name="hero-minus-mini" class="size-3 text-base-100" />
-    </button>
     """
   end
 

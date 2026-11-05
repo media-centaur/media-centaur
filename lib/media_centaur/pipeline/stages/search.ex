@@ -1,7 +1,9 @@
 defmodule MediaCentaur.Pipeline.Stages.Search do
   @moduledoc """
-  Pipeline stage 2: searches TMDB for the parsed title/year/type and scores
-  results using `TMDB.Confidence`.
+  Pipeline stage 2: identifies the parsed title. A name a person answered
+  in Review before (`Review.remembered_match/3`) takes that answer;
+  otherwise TMDB is searched for the parsed title/year/type and the
+  results are scored using `TMDB.Confidence`.
 
   Returns `{:ok, payload}` when confidence >= threshold (auto-approved),
   `{:needs_review, payload}` when confidence is low or no results found,
@@ -13,6 +15,7 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Review
   alias MediaCentaur.TMDB.{Client, Confidence, TitleIdentity}
 
   @behaviour MediaCentaur.Pipeline.Stage
@@ -26,19 +29,50 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
       {:error, :no_title}
     else
       search_type = Parser.effective_media_type(parsed)
-      Log.info(:pipeline, "searching TMDB — #{search_title} (#{search_type})")
 
-      case search(search_title, search_year, search_type) do
-        {:ok, []} ->
-          {:needs_review, %{payload | candidates: []}}
-
-        {:ok, {best, top_matches}} ->
-          apply_match(payload, best, top_matches)
-
-        {:error, reason} ->
-          {:error, reason}
+      case Review.remembered_match(search_title, search_type, search_year) do
+        nil -> search_tmdb(payload, search_title, search_year, search_type)
+        remembered -> apply_remembered(payload, remembered)
       end
     end
+  end
+
+  defp search_tmdb(payload, search_title, search_year, search_type) do
+    Log.info(:pipeline, "searching TMDB — #{search_title} (#{search_type})")
+
+    case search(search_title, search_year, search_type) do
+      {:ok, []} ->
+        {:needs_review, %{payload | candidates: []}}
+
+      {:ok, {best, top_matches}} ->
+        apply_match(payload, best, top_matches)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # A person answered this name in Review before (`Review.RememberedMatch`):
+  # their answer stands in for the search. It is still checked against the
+  # grab that fetched the file, like any match.
+  defp apply_remembered(payload, remembered) do
+    Log.info(
+      :pipeline,
+      "remembered match for #{inspect(remembered.parsed_title)} — tmdb:#{remembered.tmdb_id}"
+    )
+
+    updated = %{
+      payload
+      | tmdb_id: remembered.tmdb_id,
+        tmdb_type: String.to_existing_atom(remembered.tmdb_type),
+        confidence: 1.0,
+        match_title: remembered.match_title,
+        match_year: remembered.match_year,
+        match_poster_path: remembered.match_poster_path,
+        candidates: []
+    }
+
+    if contradicts_grab?(payload, updated), do: {:needs_review, updated}, else: {:ok, updated}
   end
 
   defp apply_match(payload, {result, score, title_key}, top_matches) do

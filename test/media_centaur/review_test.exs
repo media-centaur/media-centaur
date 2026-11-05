@@ -23,7 +23,7 @@ defmodule MediaCentaur.ReviewTest do
     # bulk approve on 2026-06-08.
     #
     # They are not inert: `file_path` is unique and
-    # `find_or_create_pending_file/1` returns a row whatever its status,
+    # `add_pending_file/1` keeps a decided row whatever discovery found,
     # so a re-match landing on one gets a row the queue does not list —
     # the file leaves the library and cannot be re-reviewed.
     #
@@ -34,7 +34,7 @@ defmodule MediaCentaur.ReviewTest do
     test "deletes an approved row whose file is linked" do
       path = "/media/test/imported.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
@@ -52,7 +52,7 @@ defmodule MediaCentaur.ReviewTest do
       pending =
         create_pending_file(%{file_path: "/media/test/in-flight.mkv"})
 
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
       MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
 
       assert %{closed: 0, resent: 1} = Review.settle_with_library()
@@ -63,7 +63,7 @@ defmodule MediaCentaur.ReviewTest do
 
     test "an approval younger than the cutoff may still be in flight and is left alone" do
       pending = create_pending_file(%{file_path: "/media/test/in-flight.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
       MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
 
       cutoff = DateTime.add(DateTime.utc_now(), -15 * 60, :second)
@@ -90,13 +90,13 @@ defmodule MediaCentaur.ReviewTest do
       create_pending_file(%{file_path: "/media/test/awaiting.mkv"})
 
       assert %{closed: 0, resent: 0} = Review.settle_with_library()
-      assert length(Review.list_pending_files_for_review()) == 1
+      assert length(Enum.filter(Review.list_queue(), &(&1.status == :pending))) == 1
     end
 
     test "keeps a dismissed row whatever its file's state" do
       path = "/media/test/dismissed.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
@@ -118,7 +118,7 @@ defmodule MediaCentaur.ReviewTest do
       })
 
       unfinished = create_pending_file(%{file_path: "/media/test/unfinished.mkv"})
-      {:ok, _} = Review.approve_pending_file(unfinished)
+      {:ok, 1} = Review.approve([unfinished.id])
 
       Review.subscribe()
       MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
@@ -137,11 +137,11 @@ defmodule MediaCentaur.ReviewTest do
   describe "Review.SettleJob — the periodic pass" do
     test "re-sends an approval older than its cutoff, and not a fresh one" do
       old = create_pending_file(%{file_path: "/media/test/old.mkv"})
-      {:ok, old} = Review.approve_pending_file(old)
+      {:ok, 1} = Review.approve([old.id])
       backdate(old, :updated_at, DateTime.add(DateTime.utc_now(:second), -30 * 60, :second))
 
       fresh = create_pending_file(%{file_path: "/media/test/fresh.mkv"})
-      {:ok, _fresh} = Review.approve_pending_file(fresh)
+      {:ok, 1} = Review.approve([fresh.id])
 
       MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
 
@@ -169,153 +169,165 @@ defmodule MediaCentaur.ReviewTest do
           tmdb_type: "tv"
         })
 
-      assert {:ok, 1} = Review.approve_group([pending.id])
+      assert {:ok, 1} = Review.approve([pending.id])
     end
   end
 
-  # 2026-09-29 regression: the approve button checked only the group's first
-  # file, and approval required no identity. A sibling without a match was
-  # published with `tmdb_type: nil`; the Import producer raised on it and lost
-  # every import queued behind it, leaving those items "Importing" until a
-  # restart. Approval also ran on an unmonitored task that reported back by
-  # broadcast; it is now one synchronous call.
-  describe "approve_group/1" do
+  # The review page's selection is the unit of decision (campaign
+  # `review-bulk-match`): a person ticks any set of items and names one
+  # title for them. Six episodes that arrived in six release folders are
+  # one decision, not six.
+  describe "match/2" do
     setup do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
       :ok
     end
 
-    defp matched_file(path, overrides \\ %{}) do
-      create_pending_file(
-        Map.merge(
-          %{
-            file_path: path,
-            media_directory: "/media/test",
-            parsed_type: "tv",
-            parsed_season: 1,
-            parsed_episode: 1,
-            tmdb_id: 4242,
-            tmdb_type: "tv",
-            confidence: 0.6
-          },
-          overrides
-        )
+    defp chosen_title(overrides \\ %{}) do
+      Map.merge(
+        %{
+          tmdb_id: 4242,
+          tmdb_type: "tv",
+          title: "Sample Show",
+          year: "1995",
+          poster_path: "/sample.jpg"
+        },
+        overrides
       )
     end
 
-    test "approves the group's pending files and sends each match to Import" do
-      first = matched_file("/media/test/Sample Show/S01E01.mkv")
-      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{parsed_episode: 2})
-
-      assert {:ok, 2} = Review.approve_group([first.id, second.id])
-
-      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E01.mkv", tmdb_id: 4242}}
-      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E02.mkv", tmdb_id: 4242}}
-      assert Enum.all?(Review.list_pending_files(), &(&1.status == :approved))
+    defp unmatched_episode(path, episode) do
+      create_pending_file(%{
+        file_path: path,
+        media_directory: "/media/test",
+        parsed_title: "Sample Show Signed",
+        parsed_type: "tv",
+        parsed_season: 1,
+        parsed_episode: episode,
+        tmdb_id: nil,
+        tmdb_type: nil,
+        confidence: nil,
+        match_title: nil
+      })
     end
 
-    test "refuses a group with a file that has no identity, and sends nothing" do
-      matched = matched_file("/media/test/Sample Show/S01E01.mkv")
+    test "matches files from different release folders to the chosen title and sends each to Import" do
+      first = unmatched_episode("/media/test/Sample.Show.Signed.S01E01-GROUP/a.mkv", 1)
+      second = unmatched_episode("/media/test/Sample.Show.Signed.S01E02-GROUP/b.mkv", 2)
 
-      unmatched =
-        matched_file("/media/test/Sample Show/S01E02.mkv", %{tmdb_id: nil, tmdb_type: nil})
+      assert {:ok, 2} = Review.match([first.id, second.id], chosen_title())
 
-      assert {:error, :no_identity} = Review.approve_group([matched.id, unmatched.id])
+      assert_receive {:file_matched,
+                      %{
+                        file_path: "/media/test/Sample.Show.Signed.S01E01-GROUP/a.mkv",
+                        tmdb_id: 4242,
+                        tmdb_type: "tv"
+                      }}
 
-      refute_receive {:file_matched, _}
-      assert Enum.all?(Review.list_pending_files(), &(&1.status == :pending))
+      assert_receive {:file_matched,
+                      %{
+                        file_path: "/media/test/Sample.Show.Signed.S01E02-GROUP/b.mkv",
+                        tmdb_id: 4242,
+                        tmdb_type: "tv"
+                      }}
+
+      for file <- Review.list_pending_files() do
+        assert file.status == :approved
+        assert file.match_title == "Sample Show"
+        assert file.match_year == "1995"
+        assert file.match_poster_path == "/sample.jpg"
+      end
     end
 
-    test "refuses a group whose files carry different identities" do
-      first = matched_file("/media/test/Sample Show/S01E01.mkv")
-      second = matched_file("/media/test/Sample Show/S01E02.mkv", %{tmdb_id: 9999})
+    test "accepts a TMDB id handed over as a string, as a page sends it" do
+      file = unmatched_episode("/media/test/Sample Show/S01E01.mkv", 1)
 
-      assert {:error, :mixed_identities} = Review.approve_group([first.id, second.id])
+      assert {:ok, 1} = Review.match([file.id], chosen_title(%{tmdb_id: "4242"}))
+      assert_receive {:file_matched, %{tmdb_id: 4242}}
+    end
+
+    # 2026-09-29 regression, re-aimed from `approve_group/1`: a file without
+    # an identity was published with `tmdb_type: nil`, and the Import
+    # producer raised on it. A match without a type is refused whole.
+    test "refuses a title with no type, and sends nothing" do
+      file = unmatched_episode("/media/test/Sample Show/S01E01.mkv", 1)
+
+      assert {:error, :no_identity} = Review.match([file.id], chosen_title(%{tmdb_type: nil}))
+      refute_receive {:file_matched, _}
+      assert [%{status: :pending}] = Review.list_pending_files()
+    end
+
+    test "matches waiting items only — an importing or dismissed one is left alone" do
+      importing = unmatched_episode("/media/test/Sample Show/S01E01.mkv", 1)
+      {:ok, 1} = Review.match([importing.id], chosen_title(%{tmdb_id: 1}))
+      assert_receive {:file_matched, _}
+
+      dismissed = unmatched_episode("/media/test/Sample Show/S01E02.mkv", 2)
+      {:ok, 1} = Review.dismiss([dismissed.id])
+      waiting = unmatched_episode("/media/test/Sample Show/S01E03.mkv", 3)
+
+      assert {:ok, 1} = Review.match([importing.id, dismissed.id, waiting.id], chosen_title())
+
+      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E03.mkv"}}
       refute_receive {:file_matched, _}
     end
 
-    test "approves only the files still pending — an importing sibling is left alone" do
-      importing = matched_file("/media/test/Sample Show/S01E01.mkv")
-      {:ok, _} = Review.approve_pending_file(importing)
-      pending = matched_file("/media/test/Sample Show/S01E02.mkv", %{parsed_episode: 2})
+    test "matching a not-added item clears its reason" do
+      file = unmatched_episode("/media/test/Sample Show/S01E01.mkv", 1)
+      force_attrs(file, %{error_message: "Importing it failed. Approve it again to retry."})
 
-      assert {:ok, 1} = Review.approve_group([importing.id, pending.id])
-
-      assert_receive {:file_matched, %{file_path: "/media/test/Sample Show/S01E02.mkv"}}
-      refute_receive {:file_matched, _}
+      assert {:ok, 1} = Review.match([file.id], chosen_title())
+      assert [%{error_message: nil}] = Review.list_pending_files()
     end
 
     test "tells review subscribers which files were approved" do
-      file = matched_file("/media/test/Sample Show/S01E01.mkv")
+      file = unmatched_episode("/media/test/Sample Show/S01E01.mkv", 1)
       Review.subscribe()
 
-      assert {:ok, 1} = Review.approve_group([file.id])
+      assert {:ok, 1} = Review.match([file.id], chosen_title())
 
       file_id = file.id
 
       assert_receive {:files_approved,
                       %MediaCentaur.Review.Events.FilesApproved{pending_file_ids: [^file_id]}}
     end
-
-    test "a single file without an identity cannot be approved" do
-      unmatched =
-        create_pending_file(%{
-          file_path: "/media/test/Movie.A.mkv",
-          parsed_type: "movie",
-          tmdb_id: nil,
-          tmdb_type: nil
-        })
-
-      assert {:error, changeset} = Review.approve_pending_file(unmatched)
-      assert %{tmdb_id: _} = errors_on(changeset)
-    end
   end
 
-  describe "group_identity/1" do
-    test "is the one identity the files share" do
-      files = [
-        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
-        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"})
-      ]
-
-      assert {:ok, {4242, "tv"}} = Review.group_identity(files)
+  # Several unsure items whose best guesses are right — three films, each
+  # its own title — are accepted in one press, each under its own guess.
+  describe "approve/1" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+      :ok
     end
 
-    test "reports a missing identity before a mixed one" do
-      files = [
-        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
-        build_pending_file(%{tmdb_id: nil, tmdb_type: nil}),
-        build_pending_file(%{tmdb_id: 9999, tmdb_type: "tv"})
-      ]
+    test "approves each waiting item under its own best guess" do
+      first =
+        create_pending_file(%{file_path: "/media/test/Movie.A.mkv", tmdb_id: 1, tmdb_type: "movie"})
 
-      assert {:error, :no_identity} = Review.group_identity(files)
+      second =
+        create_pending_file(%{file_path: "/media/test/Movie.B.mkv", tmdb_id: 2, tmdb_type: "movie"})
+
+      assert {:ok, 2} = Review.approve([first.id, second.id])
+
+      assert_receive {:file_matched, %{file_path: "/media/test/Movie.A.mkv", tmdb_id: 1}}
+      assert_receive {:file_matched, %{file_path: "/media/test/Movie.B.mkv", tmdb_id: 2}}
     end
 
-    test "reports different identities" do
-      files = [
-        build_pending_file(%{tmdb_id: 4242, tmdb_type: "tv"}),
-        build_pending_file(%{tmdb_id: 4242, tmdb_type: "movie"})
-      ]
+    # 2026-09-29 regression, re-aimed from `approve_group/1`: an item with
+    # no identity reached Import with no type. It is skipped and stays.
+    test "skips an item without a best guess, and sends nothing for it" do
+      guessed =
+        create_pending_file(%{file_path: "/media/test/Movie.A.mkv", tmdb_id: 1, tmdb_type: "movie"})
 
-      assert {:error, :mixed_identities} = Review.group_identity(files)
-    end
-  end
+      unguessed =
+        create_pending_file(%{file_path: "/media/test/Movie.B.mkv", tmdb_id: nil, tmdb_type: nil})
 
-  describe "fetch_review_groups/0 — the representative" do
-    # 2026-09-29: the group's state was read from its first file. A file that
-    # joined a group still importing was hidden behind "Importing", with no
-    # action, until its siblings finished.
-    test "is a pending file when the group has one" do
-      importing =
-        create_pending_file(%{file_path: "/media/test/Sample Show/S01E01.mkv"})
+      assert {:ok, 1} = Review.approve([guessed.id, unguessed.id])
 
-      {:ok, _} = Review.approve_pending_file(importing)
-
-      pending =
-        create_pending_file(%{file_path: "/media/test/Sample Show/S01E02.mkv"})
-
-      assert [%{representative: representative}] = Review.fetch_review_groups()
-      assert representative.id == pending.id
+      assert_receive {:file_matched, %{file_path: "/media/test/Movie.A.mkv"}}
+      refute_receive {:file_matched, _}
+      assert {:ok, %{status: :pending}} = Review.fetch_pending_file(unguessed.id)
     end
   end
 
@@ -329,31 +341,39 @@ defmodule MediaCentaur.ReviewTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert Review.fetch_review_groups() == []
-      assert Review.list_pending_files_for_review() == []
+      assert Review.list_queue() == []
       assert Review.count_pending() == 0
       refute MapSet.member?(Review.pending_file_paths(), path)
     end
   end
 
-  describe "fetch_review_groups/0" do
-    # An approved item waits in the queue for its file's link outcome, so
-    # the review page lists it (as importing) alongside the open items.
-    test "lists pending and approved items, not dismissed ones" do
-      create_pending_file(%{file_path: "/media/test/Open/open.mkv", media_directory: "/media/test"})
+  describe "list_queue/0" do
+    # Every open item — waiting, importing and dismissed — in one list
+    # ordered by how the files were named, so files the parser read the
+    # same way sit together whatever folder they came from.
+    test "lists waiting, approved and dismissed items ordered by parsed title, season and episode" do
+      create_pending_file(%{
+        file_path: "/media/test/Second/e2.mkv",
+        parsed_title: "sample show",
+        parsed_season: 1,
+        parsed_episode: 2
+      })
 
       approved =
-        create_pending_file(%{file_path: "/media/test/Approved/a.mkv", media_directory: "/media/test"})
+        create_pending_file(%{
+          file_path: "/media/test/First/e1.mkv",
+          parsed_title: "Sample Show",
+          parsed_season: 1,
+          parsed_episode: 1
+        })
 
-      {:ok, _} = Review.approve_pending_file(approved)
+      {:ok, 1} = Review.approve([approved.id])
 
-      dismissed =
-        create_pending_file(%{file_path: "/media/test/Dismissed/d.mkv", media_directory: "/media/test"})
+      dismissed = create_pending_file(%{file_path: "/media/test/Movie.A.mkv", parsed_title: "Movie A"})
+      {:ok, 1} = Review.dismiss([dismissed.id])
 
-      {:ok, _} = Review.dismiss(dismissed)
-
-      roots = Enum.map(Review.fetch_review_groups(), fn %{key: {_dir, root}} -> root end)
-      assert Enum.sort(roots) == ["Approved", "Open"]
+      assert ["/media/test/Movie.A.mkv", "/media/test/First/e1.mkv", "/media/test/Second/e2.mkv"] =
+               Enum.map(Review.list_queue(), & &1.file_path)
     end
   end
 
@@ -361,7 +381,7 @@ defmodule MediaCentaur.ReviewTest do
     test "removes an approved item and tells review subscribers" do
       Review.subscribe()
       pending = create_pending_file(%{file_path: "/media/test/linked.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       assert :ok = Review.file_linked("/media/test/linked.mkv")
 
@@ -387,7 +407,7 @@ defmodule MediaCentaur.ReviewTest do
     # A parked file belongs to the episode-mapping queue from here on.
     test "removes the item" do
       pending = create_pending_file(%{file_path: "/media/test/parked.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       assert :ok = Review.file_parked("/media/test/parked.mkv")
 
@@ -409,7 +429,7 @@ defmodule MediaCentaur.ReviewTest do
           match_title: "Sample Show"
         })
 
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       assert :ok =
                Review.file_not_linked(%{
@@ -419,7 +439,7 @@ defmodule MediaCentaur.ReviewTest do
                  match: %{tmdb_id: 1396, tmdb_type: :tv}
                })
 
-      reopened = hd(Review.list_pending_files_for_review())
+      reopened = hd(Enum.filter(Review.list_queue(), &(&1.status == :pending)))
       assert reopened.id == pending.id
       assert reopened.error_message =~ "Adding it to the library failed"
       assert reopened.tmdb_id == 1396
@@ -440,9 +460,9 @@ defmodule MediaCentaur.ReviewTest do
                  match: %{tmdb_id: 550, tmdb_type: :movie}
                })
 
-      assert [queued] = Review.list_pending_files_for_review()
+      assert [queued] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert {queued.tmdb_id, queued.tmdb_type} == {550, "movie"}
-      assert {:ok, 1} = Review.approve_group([queued.id])
+      assert {:ok, 1} = Review.approve([queued.id])
     end
 
     test "queues a file that has no item, with the reason" do
@@ -454,7 +474,7 @@ defmodule MediaCentaur.ReviewTest do
                  match: nil
                })
 
-      assert [queued] = Review.list_pending_files_for_review()
+      assert [queued] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert queued.file_path == "/media/test/Sample.Show.S01.1080p.mkv"
       assert queued.media_directory == "/media/test"
       assert queued.parsed_title == "Sample Show"
@@ -465,7 +485,7 @@ defmodule MediaCentaur.ReviewTest do
     # describes it, and showing it beside "Importing" reads as a failure.
     test "approving a returned item clears its reason" do
       pending = create_pending_file(%{file_path: "/media/test/retry.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       :ok =
         Review.file_not_linked(%{
@@ -478,13 +498,13 @@ defmodule MediaCentaur.ReviewTest do
       returned = Repo.get_by!(Review.PendingFile, file_path: "/media/test/retry.mkv")
       assert returned.error_message
 
-      assert {:ok, approved} = Review.approve_pending_file(returned)
-      assert approved.error_message == nil
+      assert {:ok, 1} = Review.approve([returned.id])
+      assert {:ok, %{error_message: nil}} = Review.fetch_pending_file(returned.id)
     end
 
     test "leaves a dismissed item dismissed" do
       pending = create_pending_file(%{file_path: "/media/test/dismissed.mkv"})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       assert :ok =
                Review.file_not_linked(%{
@@ -519,7 +539,7 @@ defmodule MediaCentaur.ReviewTest do
     end
   end
 
-  describe "find_or_create_pending_file/1 on a terminal row" do
+  describe "add_pending_file/1 on a decided item" do
     # Changed 2026-09-29 (campaign `review-coherence`): this reopened the
     # row, because a leftover approved row hid its path from the queue for
     # good. The queue now reads membership from the library: the row of a
@@ -527,33 +547,103 @@ defmodule MediaCentaur.ReviewTest do
     test "leaves a leftover approved row of a linked file alone — the queue does not list it" do
       path = "/media/test/stale.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: path, media_dir: "/media/test", movie_id: movie.id})
 
-      assert {:ok, %{status: :approved}} = Review.find_or_create_pending_file(%{file_path: path})
-      assert Review.fetch_review_groups() == []
+      assert {:ok, %{status: :approved}} = Review.add_pending_file(%{file_path: path})
+      assert Review.list_queue() == []
     end
 
     test "leaves an approved row alone while its import is outstanding" do
       path = "/media/test/in-flight.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
-      assert {:ok, same} = Review.find_or_create_pending_file(%{file_path: path})
+      assert {:ok, same} = Review.add_pending_file(%{file_path: path})
       assert same.status == :approved
-      assert Review.list_pending_files_for_review() == []
+      assert Enum.filter(Review.list_queue(), &(&1.status == :pending)) == []
     end
 
     test "leaves a dismissed row blocking — that is what dismiss means" do
       path = "/media/test/dismissed.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
-      assert {:ok, same} = Review.find_or_create_pending_file(%{file_path: path})
+      assert {:ok, same} = Review.add_pending_file(%{file_path: path})
       assert same.status == :dismissed
-      assert Review.list_pending_files_for_review() == []
+      assert Enum.filter(Review.list_queue(), &(&1.status == :pending)) == []
+    end
+  end
+
+  # Discovery runs again on a waiting file at startup and from Settings →
+  # rescan. The item used to keep the parse it was created with, so a parser
+  # fix never reached the queue: six episodes stayed "Sample Show Signed"
+  # after the parser learned the tag (campaign `review-bulk-match`).
+  describe "add_pending_file/1 on a waiting item — re-discovery" do
+    test "refreshes the parse and the best guess" do
+      path = "/media/test/Sample.Show.Signed.S01E01.mkv"
+
+      create_pending_file(%{
+        file_path: path,
+        parsed_title: "Sample Show Signed",
+        tmdb_id: nil,
+        tmdb_type: nil,
+        confidence: nil,
+        match_title: nil
+      })
+
+      assert {:ok, refreshed} =
+               Review.add_pending_file(%{
+                 file_path: path,
+                 parsed_title: "Sample Show",
+                 parsed_type: "tv",
+                 tmdb_id: 4242,
+                 tmdb_type: "tv",
+                 confidence: 0.7,
+                 match_title: "Sample Show",
+                 candidates: [%{"tmdb_id" => 4242}]
+               })
+
+      assert refreshed.status == :pending
+      assert refreshed.parsed_title == "Sample Show"
+
+      assert {refreshed.tmdb_id, refreshed.confidence, refreshed.match_title} ==
+               {4242, 0.7, "Sample Show"}
+
+      assert refreshed.candidates == [%{"tmdb_id" => 4242}]
+    end
+
+    # Owner decision 2026-11-05: a not-added item keeps the match the
+    # person chose and the reason it failed, so the reader still sees what
+    # went wrong; only the parse is refreshed.
+    test "a not-added item keeps its match and reason; only the parse is refreshed" do
+      path = "/media/test/Movie.A.Signed.1999.mkv"
+
+      returned =
+        create_pending_file(%{
+          file_path: path,
+          parsed_title: "Movie A Signed",
+          tmdb_id: 550,
+          tmdb_type: "movie"
+        })
+
+      force_attrs(returned, %{error_message: "Importing it failed. Approve it again to retry."})
+
+      assert {:ok, refreshed} =
+               Review.add_pending_file(%{
+                 file_path: path,
+                 parsed_title: "Movie A",
+                 parsed_year: 1999,
+                 tmdb_id: 999,
+                 tmdb_type: "movie",
+                 confidence: 0.4
+               })
+
+      assert {refreshed.parsed_title, refreshed.parsed_year} == {"Movie A", 1999}
+      assert {refreshed.tmdb_id, refreshed.tmdb_type} == {550, "movie"}
+      assert refreshed.error_message =~ "Importing it failed"
     end
   end
 
@@ -564,7 +654,7 @@ defmodule MediaCentaur.ReviewTest do
     test "reopens a dismissed row" do
       path = "/media/test/dismissed.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       assert {:ok, reopened} = Review.reopen_for_review(%{file_path: path})
       assert reopened.status == :pending
@@ -574,7 +664,7 @@ defmodule MediaCentaur.ReviewTest do
     test "reopens an approved row" do
       path = "/media/test/approved.mkv"
       pending = create_pending_file(%{file_path: path})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       assert {:ok, reopened} = Review.reopen_for_review(%{file_path: path})
       assert reopened.status == :pending
@@ -588,7 +678,7 @@ defmodule MediaCentaur.ReviewTest do
     test "refreshes the parsed metadata it is handed" do
       path = "/media/test/renamed.mkv"
       pending = create_pending_file(%{file_path: path, parsed_title: "Old Guess"})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       assert {:ok, reopened} = Review.reopen_for_review(%{file_path: path, parsed_title: "New Guess"})
       assert reopened.parsed_title == "New Guess"
@@ -597,50 +687,42 @@ defmodule MediaCentaur.ReviewTest do
 
   # 2026-09-29: a dismissal could not be undone from the UI — the only way
   # back was a rematch, and Discovery never searches a dismissed file again.
-  describe "list_dismissed/0 and restore/1" do
-    test "lists dismissed files the library has not linked" do
-      dismissed = create_pending_file(%{file_path: "/media/test/dismissed.mkv"})
-      {:ok, _} = Review.dismiss(dismissed)
-      create_pending_file(%{file_path: "/media/test/open.mkv"})
-
-      assert [%{id: id}] = Review.list_dismissed()
-      assert id == dismissed.id
-    end
-
+  describe "restore/1" do
     test "restore returns a dismissed file to the queue, keeping its match" do
       dismissed = create_pending_file(%{file_path: "/media/test/dismissed.mkv", tmdb_id: 550})
-      {:ok, _} = Review.dismiss(dismissed)
+      {:ok, 1} = Review.dismiss([dismissed.id])
       Review.subscribe()
 
-      assert {:ok, restored} = Review.restore(dismissed.id)
+      assert {:ok, 1} = Review.restore([dismissed.id])
+      {:ok, restored} = Review.fetch_pending_file(dismissed.id)
 
       assert restored.status == :pending
       assert restored.tmdb_id == 550
       refute Review.dismissed?("/media/test/dismissed.mkv")
-      assert [%{id: listed}] = Review.list_pending_files_for_review()
+      assert [%{id: listed}] = Enum.filter(Review.list_queue(), &(&1.status == :pending))
       assert listed == dismissed.id
 
       restored_id = dismissed.id
       assert_receive {:file_added, %Review.Events.FileAdded{pending_file_id: ^restored_id}}
     end
 
-    test "restore refuses a file that is not dismissed" do
+    test "restore leaves a file that is not dismissed as it is" do
       open = create_pending_file(%{file_path: "/media/test/open.mkv"})
 
-      assert {:error, %Ecto.Changeset{}} = Review.restore(open.id)
-      assert {:error, :not_found} = Review.restore(Ecto.UUID.generate())
+      assert {:ok, 0} = Review.restore([open.id, Ecto.UUID.generate()])
+      assert {:ok, %{status: :pending}} = Review.fetch_pending_file(open.id)
     end
   end
 
   describe "dismissed?/1" do
     # Dismiss is a person deciding the file is not library content, and
-    # `find_or_create_pending_file/1` keys on file_path regardless of
+    # `add_pending_file/1` keys on file_path regardless of
     # status — so the decision is terminal whether or not anything reads
     # it. `Pipeline.Discovery` reads it to stop before the parse and the
     # TMDB searches it would then discard.
     test "true for a path dismissed in review" do
       pending = create_pending_file(%{file_path: "/media/test/capture.mkv"})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
 
       assert Review.dismissed?("/media/test/capture.mkv")
     end
@@ -653,7 +735,7 @@ defmodule MediaCentaur.ReviewTest do
 
     test "false for a path that was approved" do
       pending = create_pending_file(%{file_path: "/media/test/approved.mkv"})
-      {:ok, _} = Review.approve_pending_file(pending)
+      {:ok, 1} = Review.approve([pending.id])
 
       refute Review.dismissed?("/media/test/approved.mkv")
     end
@@ -664,7 +746,7 @@ defmodule MediaCentaur.ReviewTest do
 
     test "false once the dismissed row is dropped" do
       pending = create_pending_file(%{file_path: "/media/test/capture.mkv"})
-      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.dismiss([pending.id])
       {:ok, 1} = Review.drop_pending_files(["/media/test/capture.mkv"])
 
       refute Review.dismissed?("/media/test/capture.mkv")
@@ -675,14 +757,14 @@ defmodule MediaCentaur.ReviewTest do
     test "destroys every pending file, whatever its status" do
       create_pending_file()
       dismissed = create_pending_file()
-      {:ok, _} = Review.dismiss_pending_file(dismissed)
+      {:ok, 1} = Review.dismiss([dismissed.id])
 
       assert :ok = Review.clear_all()
       assert Review.list_pending_files() == []
     end
   end
 
-  describe "delete_pending_file/1" do
+  describe "delete_files/1" do
     test "removes the file from disk, its FilePresence row, and the PendingFile row", %{
       media_dir: media_dir
     } do
@@ -693,7 +775,7 @@ defmodule MediaCentaur.ReviewTest do
       pending_file =
         create_pending_file(%{file_path: path, media_directory: media_dir, parsed_title: "Broken"})
 
-      assert {:ok, _} = Review.delete_pending_file(pending_file)
+      assert {1, 0} = Review.delete_files([pending_file.id])
 
       refute File.exists?(path)
       refute MapSet.member?(FilePresence.list_paths_for_media_dir(media_dir), path)
@@ -708,13 +790,13 @@ defmodule MediaCentaur.ReviewTest do
       pending_file =
         create_pending_file(%{file_path: path, media_directory: media_dir, parsed_title: "Gone"})
 
-      assert {:ok, _} = Review.delete_pending_file(pending_file)
+      assert {1, 0} = Review.delete_files([pending_file.id])
       assert Review.fetch_pending_file(pending_file.id) == {:error, :not_found}
     end
   end
 
-  describe "delete_group/1" do
-    test "deletes every file in the group and reports counts", %{media_dir: media_dir} do
+  describe "delete_files/1 — several files" do
+    test "deletes every file and reports counts", %{media_dir: media_dir} do
       paths =
         for name <- ["a.mkv", "b.mkv"] do
           path = Path.join(media_dir, name)
@@ -727,7 +809,7 @@ defmodule MediaCentaur.ReviewTest do
           create_pending_file(%{file_path: path, media_directory: media_dir, parsed_title: "Group"})
         end)
 
-      assert {2, 0} = Review.delete_group(files)
+      assert {2, 0} = Review.delete_files(Enum.map(files, & &1.id))
       assert Enum.all?(paths, &(not File.exists?(&1)))
     end
   end

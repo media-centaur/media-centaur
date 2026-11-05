@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           parsed_episode: 1
         })
 
-      {:ok, _} = MediaCentaur.Review.approve_pending_file(importing)
+      {:ok, 1} = MediaCentaur.Review.approve([importing.id])
 
       create_pending_file(%{
         file_path: "/media/test/Sample Show/S01E02.mkv",
@@ -125,8 +125,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         error_message: "Importing it failed. Approve it again to retry."
       })
 
-      {:ok, _} =
-        MediaCentaur.Review.dismiss(create_pending_file(%{file_path: "/media/test/Home.Video.mkv"}))
+      home_video = create_pending_file(%{file_path: "/media/test/Home.Video.mkv"})
+      {:ok, 1} = MediaCentaur.Review.dismiss([home_video.id])
 
       {:ok, _} =
         MediaCentaur.EpisodeMapping.divert(%{
@@ -150,12 +150,20 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       :ok
     end
 
-    test "/review renders groups, reasons and the dismissed list", %{conn: conn} do
+    test "/review renders the waiting rows, their reasons and the view counts", %{conn: conn} do
       assert {:ok, view, _html} = smoke!(conn, "/review")
       html = render_async(view)
 
-      assert html =~ "Dismissed (1)"
-      assert html =~ "not added"
+      assert html =~ "Dismissed · 1"
+      assert html =~ "Not added"
+    end
+
+    test "/review?status=importing and ?status=dismissed render their views", %{conn: conn} do
+      assert {:ok, importing, _html} = smoke!(conn, "/review?status=importing")
+      assert render_async(importing) =~ "Importing"
+
+      assert {:ok, dismissed, _html} = smoke!(conn, "/review?status=dismissed")
+      assert render_async(dismissed) =~ "Dismissed"
     end
 
     test "/episode-mapping renders the show's mapping and the dismissed list", %{conn: conn} do

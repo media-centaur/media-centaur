@@ -400,6 +400,83 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
     end
   end
 
+  # Campaign `review-bulk-match`: a person's answer in Review is kept for
+  # the name the file was read as, and discovery uses it before asking
+  # TMDB — next week's episode of a show TMDB cannot find by its release
+  # name never reaches Review again.
+  describe "a name a person answered before" do
+    defp answer_in_review(parsed_title, title) do
+      file =
+        create_pending_file(%{
+          file_path: "/media/answered/#{Ecto.UUID.generate()}.mkv",
+          parsed_title: parsed_title,
+          parsed_type: title.tmdb_type,
+          parsed_season: 1,
+          parsed_episode: 1,
+          tmdb_id: nil,
+          tmdb_type: nil
+        })
+
+      {:ok, 1} = MediaCentaur.Review.match([file.id], title)
+    end
+
+    test "takes the remembered title without searching TMDB" do
+      answer_in_review("Sample Show Signed", %{
+        tmdb_id: 4242,
+        tmdb_type: "tv",
+        title: "Sample Show",
+        year: "1995",
+        poster_path: "/sample.jpg"
+      })
+
+      # No TMDB stub is installed: a search here would fail the test.
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Show.Signed.S01E07.mkv",
+          title: "Sample Show Signed",
+          year: nil,
+          type: :tv,
+          season: 1,
+          episode: 7
+        })
+
+      assert {:ok, result} = Search.run(payload)
+      assert {result.tmdb_id, result.tmdb_type} == {4242, :tv}
+      assert {result.match_title, result.match_year} == {"Sample Show", "1995"}
+      assert result.confidence == 1.0
+    end
+
+    test "a remembered title contradicting the grab's identity goes to review" do
+      answer_in_review("Sample Film", %{
+        tmdb_id: 1_417_935,
+        tmdb_type: "movie",
+        title: "Sample Film",
+        year: "2026"
+      })
+
+      create_pursuit_with_target(%{
+        recipe_type: "tmdb",
+        tmdb_type: "movie",
+        status: "succeeded",
+        release_title: "Sample.Film.1080p.WEB-DL-GROUP",
+        tmdb_id: "663875",
+        title: "Sample Film",
+        imdb_id: "tt11887594"
+      })
+
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Film.1080p.WEB-DL-GROUP/Sample.Film.mkv",
+          title: "Sample Film",
+          year: nil,
+          type: :movie
+        })
+
+      assert {:needs_review, result} = Search.run(payload)
+      assert result.tmdb_id == 1_417_935
+    end
+  end
+
   describe "errors" do
     test "TMDB API error returns {:error, reason}" do
       stub_tmdb_error("/search/movie", 500)

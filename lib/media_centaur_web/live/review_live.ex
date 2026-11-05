@@ -1,18 +1,36 @@
 defmodule MediaCentaurWeb.ReviewLive do
   @moduledoc """
-  Master/detail UI for files awaiting review (`Review.PendingFile` records).
+  Review → Identity: the bulk list of files waiting for a title
+  (campaign `review-bulk-match`).
 
-  Lists pending files in the left pane with a detail editor on the right —
-  user accepts the proposed match, manually rematches, or skips the file.
+  One flat list of review items (`Review.list_queue/0`), sorted by how the
+  files were named, with a divider where the parsed title changes. A
+  person ticks rows — one, a divider's block, everything a filter shows —
+  and the action bar acts on what is ticked: its search starts from the
+  first ticked row's parsed title and runs at once, and pressing a result
+  matches and imports every ticked row (`Review.match/2`). Accept best
+  guess approves each ticked row under its own guess (`Review.approve/1`).
+  Nothing groups files automatically: six episodes in six release folders
+  are gathered by the divider or the filter, not by a folder rule that
+  can split them.
+
+  The page's state in the URL: `status` (`waiting` | `importing` |
+  `dismissed`, the segmented control) and `q` (the filter). The ticks are
+  the LiveView's and never outlive what they tick: a row that leaves the
+  view or the queue leaves the selection.
+
+  View logic lives in `MediaCentaurWeb.ReviewHelpers` (ADR-030); the rows
+  and the bar are `Components.ReviewQueue`. Delete reads the media
+  directory, so the plan resolves and the delete runs off the LiveView
+  process (ADR-044), each release folder judged on its own by
+  `MediaCentaur.DeleteTargets`.
   """
   use MediaCentaurWeb, :live_view
 
   require MediaCentaur.Log, as: Log
 
-  import MediaCentaurWeb.Components.DismissedFiles
-  import MediaCentaurWeb.Components.ReviewListItem
+  import MediaCentaurWeb.Components.ReviewQueue
   import MediaCentaurWeb.Components.ReviewTabs
-  import MediaCentaurWeb.Components.Settings, only: [settings_input: 1, settings_select: 1]
   import MediaCentaurWeb.ReviewHelpers
 
   alias MediaCentaur.DeleteTargets
@@ -21,433 +39,203 @@ defmodule MediaCentaurWeb.ReviewLive do
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Review.Events.FilesApproved
+  alias MediaCentaurWeb.Components.FilterField
   alias MediaCentaurWeb.Live.ArmGesture
-  alias MediaCentaurWeb.Live.DisclosureState
-  alias MediaCentaurWeb.LiveHelpers
+
+  @statuses %{"waiting" => :waiting, "importing" => :importing, "dismissed" => :dismissed}
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, page_title: "Review")
-
     # No Review.subscribe() here — MediaCentaurWeb.ShellBadges (default
     # live_session on_mount) already subscribes every LiveView to
     # review:updates; a second subscribe would double-deliver each message.
     {:ok,
      socket
-     |> assign(loaded?: false)
-     |> assign(groups: [])
-     |> assign(groups_by_key: %{})
-     |> assign(dismissed: [])
-     |> assign(deleting: nil)
-     |> assign(delete_target: nil)
-     |> assign(tmdb_ready: false)
-     |> assign(selected_key: nil)
-     |> assign(search_open: nil)
-     |> assign(search_query: "")
-     |> assign(search_type: :movie)
-     |> assign(search_results: [])
-     |> assign(searching: false)
-     |> assign(searched: false)
-     |> assign(reload_timer: nil)
-     |> apply_group_stats()
-     |> ensure_selection()}
+     |> assign(page_title: "Review")
+     |> assign(loaded?: false, files: [], visible: [], status: :waiting, query: "")
+     |> assign(selected: MapSet.new(), tmdb_ready: false, reload_timer: nil)
+     |> assign(deleting: false, delete_plan: nil)
+     |> reset_search()}
   end
+
+  # First-render data load runs on both the static and the connected
+  # render, so the first paint lists the queue — never an empty-state
+  # flash. `list_queue/0` is a local query; do not add a `connected?` gate.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    socket =
+      socket
+      |> assign(status: Map.get(@statuses, params["status"], :waiting), query: params["q"] || "")
+      |> then(fn socket ->
+        if socket.assigns.loaded?,
+          do: socket,
+          else: assign(socket, loaded?: true, tmdb_ready: MediaCentaur.Capabilities.tmdb_ready?())
+      end)
+
+    {:noreply, reload(socket)}
+  end
+
+  # --- The list ---
 
   @impl true
-  def handle_params(_params, _uri, socket) do
-    {:noreply, ensure_loaded(socket)}
+  def handle_event("set_status", %{"choice" => choice}, socket) do
+    {:noreply, patch(socket, status: choice)}
   end
 
-  # First-render data load — runs on BOTH the disconnected (static) and
-  # connected renders so the first paint already lists the review backlog,
-  # never an empty-state flash. Desktop first-paint correctness (see
-  # AGENTS.md → LiveView callbacks): `fetch_review_groups/0` is a local
-  # query, so there is no traffic-scaling reason to defer it. Do not re-add
-  # a `connected?` gate.
-  defp ensure_loaded(socket) do
-    if socket.assigns.loaded? do
-      socket
-    else
-      socket
-      |> assign(tmdb_ready: MediaCentaur.Capabilities.tmdb_ready?())
-      |> load_review()
-      |> assign(:loaded?, true)
-    end
+  def handle_event("filter", %{"q" => query}, socket) do
+    {:noreply, patch(socket, q: query)}
   end
 
-  # Synchronous first-render load: fetch the pending groups, then run the
-  # derived-assigns pipeline (`apply_group_stats`, `ensure_selection`) so
-  # the master/detail panes settle into a consistent state.
-  defp load_review(socket) do
-    groups = Review.fetch_review_groups()
-
-    socket
-    |> assign(groups: groups)
-    |> assign_dismissed()
-    |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-    |> apply_group_stats()
-    |> ensure_selection()
-    |> resolve_delete_target()
+  def handle_event("clear_filter", _params, socket) do
+    {:noreply, patch(socket, q: "")}
   end
 
-  defp refresh_groups(socket) do
-    groups = Review.fetch_review_groups()
-
-    socket
-    |> assign(groups: groups)
-    |> assign_dismissed()
-    |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-    |> apply_group_stats()
-    |> ensure_selection()
-    |> resolve_delete_target()
+  def handle_event("tick", %{"id" => id}, socket) do
+    {:noreply, select(socket, toggle(socket.assigns.selected, [id]))}
   end
 
-  # Whether the selected group's files sit in a folder safe to delete
-  # wholesale (`MediaCentaur.DeleteTargets`) — it reads the media
-  # directory, so it resolves off the LiveView process (ADR-044) and the
-  # Delete button waits for it. Kept as `{paths, target}`: an answer for
-  # other paths than the selected group's is stale.
-  defp resolve_delete_target(socket) do
-    with %{} = group <- socket.assigns.groups_by_key[socket.assigns.selected_key],
-         paths = Enum.map(group.files, & &1.file_path),
-         false <- match?({^paths, _target}, socket.assigns.delete_target) do
-      socket
-      |> assign(delete_target: {paths, :resolving})
-      |> start_async(:delete_target, fn -> {paths, DeleteTargets.resolve_folder_target(paths)} end)
-    else
-      _ -> socket
-    end
+  def handle_event("tick_block", %{"ids" => ids}, socket) do
+    {:noreply, select(socket, toggle(socket.assigns.selected, String.split(ids, ",")))}
   end
 
-  defp assign_dismissed(socket) do
-    dismissed = for file <- Review.list_dismissed(), do: %{id: file.id, path: relative_file_path(file)}
-    assign(socket, dismissed: dismissed)
-  end
-
-  @impl true
-  def handle_event("select_item", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-
-    if group_key == socket.assigns.selected_key do
-      # Re-selecting the row that is already selected is a no-op. The spatial
-      # input system re-fires `select_item` for the focused row during
-      # re-renders; tearing down transient detail state — most visibly the
-      # open TMDB search panel — on those redundant activations is what
-      # collapsed the panel ~12ms after a search submit. State only resets
-      # when the selection actually changes.
-      {:noreply, socket}
-    else
-      {:noreply,
-       socket
-       |> assign(selected_key: group_key)
-       |> assign(search_open: nil)
-       |> assign(search_query: "")
-       |> assign(search_results: [])
-       |> assign(searching: false)
-       |> assign(searched: false)
-       |> resolve_delete_target()}
-    end
-  end
-
-  def handle_event("approve", %{"key" => key}, socket) do
-    case socket.assigns.groups_by_key[decode_key(key)] do
-      nil ->
-        {:noreply, socket}
-
-      group ->
-        case Review.approve_group(Enum.map(group.files, & &1.id)) do
-          {:ok, _approved} ->
-            {:noreply, refresh_groups(socket)}
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, approval_refusal(reason))}
-        end
-    end
-  end
-
-  # Dismiss and delete take the arm gesture (MC0027 tier 2): the first
-  # click arms the group, the second on the same group fires.
-  def handle_event("dismiss", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-
-    with %{} = group <- socket.assigns.groups_by_key[group_key],
-         {:fire, socket} <- ArmGesture.press(socket, "dismiss", group_key) do
-      {_dismissed, errors} = Review.dismiss_group(group.files)
-      {:noreply, socket |> report_errors(errors, "dismiss") |> refresh_groups()}
-    else
-      {:armed, socket} -> {:noreply, socket}
-      nil -> {:noreply, socket}
-    end
-  end
-
-  def handle_event("restore", %{"id" => id}, socket) do
-    case Review.restore(id) do
-      {:ok, _restored} ->
-        {:noreply, refresh_groups(socket)}
-
-      {:error, _reason} ->
-        {:noreply, socket |> put_flash(:error, "Could not restore the file") |> refresh_groups()}
-    end
-  end
-
-  # The button's label and "Deleting…" state come from the shared
-  # `LiveHelpers.delete_gesture_state/3`, as on the title detail. The
-  # delete touches the media directory, so it runs off the LiveView
-  # process (ADR-044) and lands in `handle_async({:delete, _}, ...)`.
-  def handle_event("delete_prompt", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-
-    with nil <- socket.assigns.deleting,
-         %{} = group <- socket.assigns.groups_by_key[group_key],
-         {:fire, socket} <- ArmGesture.press(socket, "delete_prompt", group_key) do
-      files = group.files
-
-      {:noreply,
-       socket
-       |> assign(deleting: group_key)
-       |> start_async({:delete, group_key}, fn -> execute_delete(files) end)}
-    else
-      {:armed, socket} -> {:noreply, socket}
-      _in_flight_or_gone -> {:noreply, socket}
-    end
-  end
-
-  def handle_event("open_search", %{"key" => key}, socket) do
-    group_key = decode_key(key)
-    group = socket.assigns.groups_by_key[group_key]
-    file = group && group.representative
-
-    search_type =
-      case file && file.parsed_type do
-        "tv" -> :tv
-        _ -> :movie
-      end
-
+  def handle_event("tick_all", _params, socket) do
     {:noreply,
-     socket
-     |> assign(search_open: group_key)
-     |> assign(search_query: (file && file.parsed_title) || "")
-     |> assign(search_type: search_type)
-     |> assign(search_results: [])
-     |> assign(searching: false)
-     |> assign(searched: false)}
+     select(socket, toggle(socket.assigns.selected, Enum.map(socket.assigns.visible, & &1.id)))}
   end
 
-  def handle_event("close_search", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(search_open: nil)
-     |> assign(search_query: "")
-     |> assign(search_results: [])
-     |> assign(searching: false)
-     |> assign(searched: false)}
+  def handle_event("clear_selection", _params, socket) do
+    {:noreply, select(socket, MapSet.new())}
   end
+
+  # --- The search ---
 
   def handle_event("update_search", %{"query" => query, "type" => type}, socket) do
-    {:noreply, assign(socket, search_query: query, search_type: safe_existing_atom(type, :movie))}
+    type = if type == "tv", do: :tv, else: :movie
+    {:noreply, socket |> assign(search_edited: true) |> run_search(query, type)}
   end
 
   def handle_event("search", %{"query" => query, "type" => type}, socket) do
-    type = safe_existing_atom(type, :movie)
-
-    socket =
-      start_async(socket, :tmdb_search, fn ->
-        outcome =
-          try do
-            Review.Search.tmdb(query, type)
-          catch
-            kind, reason -> {:error, {kind, reason}}
-          end
-
-        %{query: query, type: type, outcome: outcome}
-      end)
-
-    {:noreply, assign(socket, searching: true, search_query: query, search_type: type)}
+    type = if type == "tv", do: :tv, else: :movie
+    {:noreply, socket |> assign(search_edited: true, search_cache: %{}) |> run_search(query, type)}
   end
+
+  # --- Decisions on the ticked rows ---
 
   def handle_event(
-        "select_match",
-        %{"key" => key, "tmdb-id" => tmdb_id, "tmdb-type" => tmdb_type, "title" => title} = params,
+        "match",
+        %{"tmdb-id" => tmdb_id, "tmdb-type" => tmdb_type, "title" => title} = params,
         socket
-      )
-      when tmdb_type in ~w(movie tv) do
-    group_key = decode_key(key)
-    group = socket.assigns.groups_by_key[group_key]
+      ) do
+    title = %{
+      tmdb_id: tmdb_id,
+      tmdb_type: tmdb_type,
+      title: title,
+      year: params["year"],
+      poster_path: params["poster-path"]
+    }
 
-    if group do
-      match = %{
-        tmdb_id: tmdb_id,
-        # The type the match was found under: the file's type for a scored
-        # candidate, the searched type for a result. Never the form's Type
-        # select, which can change while results are on screen.
-        tmdb_type: tmdb_type,
-        title: title,
-        year: params["year"],
-        poster_path: params["poster-path"]
-      }
-
-      {updated, errors} = Review.set_group_match(group.files, match)
-
-      socket =
-        if errors > 0 do
-          put_flash(socket, :error, "Failed to set match on #{errors} file(s)")
-        else
-          socket
-        end
-
-      if updated > 0 do
+    case Review.match(ticked_ids(socket), title) do
+      {:ok, count} ->
         {:noreply,
          socket
-         |> assign(search_open: nil)
-         |> assign(search_results: [])
-         |> refresh_groups()}
-      else
-        {:noreply, socket}
-      end
-    else
-      {:noreply, socket}
+         |> put_flash(:info, "Matched #{plural(count, "file")} to #{title.title}")
+         |> select(MapSet.new())
+         |> reload()}
+
+      {:error, :no_identity} ->
+        {:noreply, put_flash(socket, :error, "That result has no TMDB id. Search again.")}
     end
   end
 
-  # One disclosure per group; the key is a term, so the id hashes it.
-  defp files_disclosure_id(group), do: "review-files-#{:erlang.phash2(group.key)}"
-
-  defp report_errors(socket, 0, _verb), do: socket
-
-  defp report_errors(socket, errors, verb),
-    do: put_flash(socket, :error, "#{errors} file(s) failed to #{verb}")
-
-  # Resolves fresh (never cached — see `MediaCentaur.DeleteTargets`) whether
-  # this group's files sit in a folder safe to delete wholesale. When they
-  # do, the whole folder goes (nfo/txt/samples included) and Review only
-  # has to clean up its own `PendingFile` rows afterward; otherwise each
-  # file is deleted individually. Runs in the delete task.
-  defp execute_delete(files) do
-    paths = Enum.map(files, & &1.file_path)
-
-    case DeleteTargets.resolve_folder_target(paths) do
-      {:folder, dir} ->
-        case Deletion.delete_folder(dir, paths) do
-          {:ok, _entity_ids} ->
-            Review.destroy_pending_files(files)
-            {length(files), 0}
-
-          {:error, reason} ->
-            Log.warning(:library, "failed to delete folder #{dir}: #{inspect(reason)}")
-            {0, length(files)}
-        end
-
-      :file_only ->
-        Review.delete_group(files)
-    end
-  end
-
-  @impl true
-  def handle_info({:file_added, %FileAdded{}}, socket) do
-    {:noreply, debounce(socket, :reload_timer, :reload_groups, 500)}
-  end
-
-  def handle_info(:reload_groups, socket) do
-    {:noreply, socket |> assign(reload_timer: nil) |> refresh_groups()}
-  end
-
-  def handle_info({:file_reviewed, %FileReviewed{pending_file_id: file_id}}, socket) do
-    {groups, groups_by_key} =
-      Enum.reduce(
-        socket.assigns.groups,
-        {[], socket.assigns.groups_by_key},
-        fn group, {acc, by_key} ->
-          files = Enum.reject(group.files, &(&1.id == file_id))
-
-          cond do
-            files == group.files ->
-              {[group | acc], by_key}
-
-            files == [] ->
-              {acc, Map.delete(by_key, group.key)}
-
-            true ->
-              updated = %{group | files: files, representative: Review.representative(files)}
-              {[updated | acc], Map.put(by_key, group.key, updated)}
-          end
-        end
-      )
-
-    groups = Enum.reverse(groups)
+  def handle_event("accept_guesses", _params, socket) do
+    {:ok, count} = Review.approve(ticked_ids(socket))
 
     {:noreply,
      socket
-     |> assign(groups: groups)
-     |> assign(groups_by_key: groups_by_key)
-     |> assign_dismissed()
-     |> apply_group_stats()
-     |> advance_selection(socket.assigns.selected_key)
-     |> resolve_delete_target()}
+     |> put_flash(:info, "Accepted #{plural(count, "best guess")}")
+     |> select(MapSet.new())
+     |> reload()}
   end
 
-  # Another page (or tab) approved files; this one shows them importing.
-  def handle_info({:files_approved, %FilesApproved{}}, socket) do
-    {:noreply, refresh_groups(socket)}
+  # Dismiss and Delete take the arm gesture (MC0027 tier 2): the first
+  # press arms, the second fires; any other event — a tick — disarms.
+  def handle_event("dismiss", _params, socket) do
+    case ArmGesture.press(socket, "dismiss") do
+      {:fire, socket} ->
+        {:ok, _count} = Review.dismiss(ticked_ids(socket))
+        {:noreply, socket |> select(MapSet.new()) |> reload()}
+
+      {:armed, socket} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore", _params, socket) do
+    {:ok, _count} = Review.restore(ticked_ids(socket))
+    {:noreply, socket |> select(MapSet.new()) |> reload()}
+  end
+
+  def handle_event("delete", _params, socket) do
+    with false <- socket.assigns.deleting,
+         {:fire, socket} <- ArmGesture.press(socket, "delete") do
+      files = ticked_files(socket)
+
+      {:noreply,
+       socket
+       |> assign(deleting: true)
+       |> start_async(:delete, fn -> execute_delete(files) end)}
+    else
+      {:armed, socket} -> {:noreply, socket}
+      true -> {:noreply, socket}
+    end
+  end
+
+  # --- Queue updates ---
+
+  @impl true
+  def handle_info({:file_added, %FileAdded{}}, socket), do: {:noreply, debounced_reload(socket)}
+  def handle_info({:file_reviewed, %FileReviewed{}}, socket), do: {:noreply, debounced_reload(socket)}
+  def handle_info({:files_approved, %FilesApproved{}}, socket), do: {:noreply, debounced_reload(socket)}
+
+  def handle_info(:reload_queue, socket) do
+    {:noreply, socket |> assign(reload_timer: nil) |> reload()}
   end
 
   def handle_info(:capabilities_changed, socket) do
     {:noreply, assign(socket, tmdb_ready: MediaCentaur.Capabilities.tmdb_ready?())}
   end
 
-  def handle_info(_msg, socket) do
-    {:noreply, socket}
-  end
+  def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Async results (owned via start_async/3, ADR-049) ---
 
+  # A result for a query the bar no longer shows is cached and not shown:
+  # the person typed on while it was in flight.
   @impl true
   def handle_async(:tmdb_search, {:ok, %{query: query, type: type, outcome: outcome}}, socket) do
-    # Discard stale results — the user may have changed query/type while the
-    # async TMDB call was in flight. Without this guard, a slow earlier
-    # search would clobber the latest one.
-    if socket.assigns.search_query == query and socket.assigns.search_type == type do
-      case outcome do
-        {:ok, results} ->
-          {:noreply, assign(socket, search_results: results, searching: false, searched: true)}
+    current? = socket.assigns.search_query == query and socket.assigns.search_type == type
 
-        {:error, _reason} ->
-          {:noreply,
-           socket
-           |> assign(search_results: [], searching: false, searched: true)
-           |> put_flash(:error, "TMDB search failed")}
-      end
-    else
-      {:noreply, socket}
+    case outcome do
+      {:ok, results} ->
+        socket = update(socket, :search_cache, &Map.put(&1, {query, type}, results))
+
+        if current?,
+          do: {:noreply, assign(socket, search_results: results, searching: false, searched: true)},
+          else: {:noreply, socket}
+
+      {:error, _reason} when current? ->
+        {:noreply,
+         socket
+         |> assign(search_results: [], searching: false, searched: true)
+         |> put_flash(:error, "TMDB search failed")}
+
+      {:error, _reason} ->
+        {:noreply, socket}
     end
   end
 
-  def handle_async(:delete_target, {:ok, {paths, target}}, socket) do
-    if match?({^paths, :resolving}, socket.assigns.delete_target),
-      do: {:noreply, assign(socket, delete_target: {paths, target})},
-      else: {:noreply, socket}
-  end
-
-  # Unresolved, the target falls back to the files alone — never a folder.
-  def handle_async(:delete_target, {:exit, reason}, socket) do
-    Log.warning(:review, "resolving the delete target failed — #{inspect(reason)}")
-
-    case socket.assigns.delete_target do
-      {paths, :resolving} -> {:noreply, assign(socket, delete_target: {paths, :file_only})}
-      _other -> {:noreply, socket}
-    end
-  end
-
-  def handle_async({:delete, _group_key}, {:ok, {_deleted, errors}}, socket) do
-    {:noreply, socket |> assign(deleting: nil) |> report_errors(errors, "delete") |> refresh_groups()}
-  end
-
-  def handle_async({:delete, _group_key}, {:exit, reason}, socket) do
-    Log.error(:review, "delete task crashed — #{inspect(reason)}")
-    {:noreply, socket |> assign(deleting: nil) |> put_flash(:error, "Delete failed") |> refresh_groups()}
-  end
-
-  # A crashed search must clear `searching`; leaving it true strands the
-  # panel on a disabled Search button (audit DS17).
+  # A crashed search must clear `searching`, or the bar is stranded on a
+  # disabled Search button (audit DS17).
   def handle_async(:tmdb_search, {:exit, reason}, socket) do
     Log.warning(:review, "TMDB search task exited — #{inspect(reason)}")
 
@@ -457,8 +245,41 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> put_flash(:error, "TMDB search failed")}
   end
 
+  def handle_async(:delete_plan, {:ok, {paths, plan}}, socket) do
+    if paths == ticked_paths(socket),
+      do: {:noreply, assign(socket, delete_plan: plan)},
+      else: {:noreply, socket}
+  end
+
+  # Unresolved, every ticked file is deleted on its own — never a folder.
+  def handle_async(:delete_plan, {:exit, reason}, socket) do
+    Log.warning(:review, "resolving the delete plan failed — #{inspect(reason)}")
+    {:noreply, assign(socket, delete_plan: [{:files, ticked_paths(socket)}])}
+  end
+
+  def handle_async(:delete, {:ok, {_deleted, errors}}, socket) do
+    socket =
+      if errors > 0,
+        do: put_flash(socket, :error, "#{plural(errors, "file")} failed to delete"),
+        else: socket
+
+    {:noreply, socket |> assign(deleting: false) |> select(MapSet.new()) |> reload()}
+  end
+
+  def handle_async(:delete, {:exit, reason}, socket) do
+    Log.error(:review, "delete task crashed — #{inspect(reason)}")
+    {:noreply, socket |> assign(deleting: false) |> put_flash(:error, "Delete failed") |> reload()}
+  end
+
+  # --- Render ---
+
   @impl true
   def render(assigns) do
+    assigns =
+      assigns
+      |> assign(:counts, count_by_status(assigns.files))
+      |> assign(:selectable, assigns.status != :importing)
+
     ~H"""
     <Layouts.app
       profile={@profile}
@@ -474,28 +295,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         data-page-behavior="review"
         data-nav-default-zone="review"
       >
-        <%!-- Header with stats chips --%>
-        <div class="flex items-center justify-between">
-          <.page_header title="Review" />
-          <div :if={@groups != []} class="flex items-center gap-2">
-            <.badge :if={@total_files > 0} variant="warning">{@total_files} pending</.badge>
-            <.badge :if={@reason_counts.no_results > 0} variant="error">
-              {@reason_counts.no_results} no results
-            </.badge>
-            <.badge :if={@reason_counts.tied > 0} variant="info">
-              {@reason_counts.tied} tied
-            </.badge>
-            <.badge :if={@reason_counts.low_confidence > 0} variant="warning">
-              {@reason_counts.low_confidence} low confidence
-            </.badge>
-            <.badge :if={@reason_counts.not_added > 0} variant="error">
-              {@reason_counts.not_added} not added
-            </.badge>
-            <.badge :if={@reason_counts.importing > 0} variant="ghost">
-              {@reason_counts.importing} importing
-            </.badge>
-          </div>
-        </div>
+        <.page_header title="Review" />
 
         <.review_tabs
           active={:identity}
@@ -503,818 +303,274 @@ defmodule MediaCentaurWeb.ReviewLive do
           mapping_count={@badges.mapping_pending}
         />
 
-        <%!-- Empty state. The copy explains what the queue is for rather than
-              confirming it is empty — the screen already shows that, and a new
-              user has never seen the queue populated. --%>
-        <div :if={@groups == []} class="space-y-4" data-nav-zone="review-list">
-          <.empty_state icon="hero-check-circle" headline="Unmatched files show up here">
-            When a file in your media directories cannot be matched to a title with confidence, it
-            waits here for you to pick the right one by hand.
-          </.empty_state>
-          <.dismissed_files
-            id="review-dismissed"
-            open={DisclosureState.open?(@disclosures, "review-dismissed")}
-            files={@dismissed}
-            hint={dismissed_hint()}
+        <.empty_state
+          :if={@files == []}
+          icon="hero-check-circle"
+          headline="Unmatched files show up here"
+        >
+          When a file in your media directories cannot be matched to a title with confidence, it
+          waits here for you to pick the right one by hand.
+        </.empty_state>
+
+        <div
+          :if={@files != []}
+          class="flex items-center gap-3 flex-wrap"
+          data-nav-zone="review-toolbar"
+        >
+          <.segmented_control
+            label="Show"
+            options={[
+              {"waiting", "Waiting · #{@counts.waiting}"},
+              {"importing", "Importing · #{@counts.importing}"},
+              {"dismissed", "Dismissed · #{@counts.dismissed}"}
+            ]}
+            selected={Atom.to_string(@status)}
+            event="set_status"
           />
+          <form id="review-filter-form" phx-change="filter" phx-submit="filter">
+            <FilterField.filter_field
+              id="review-filter"
+              name="q"
+              value={@query}
+              placeholder="Filter by title or file name…"
+              aria_label="Filter by title or file name"
+              clear_event="clear_filter"
+              class="w-72"
+            />
+          </form>
+          <span class="ml-auto text-sm text-base-content/55">
+            {length(@visible)} of {Map.fetch!(@counts, @status)} shown
+          </span>
         </div>
 
-        <%!-- Master-detail layout --%>
-        <div :if={@groups != []} class="flex gap-6 flex-1 min-h-0 overflow-x-auto">
-          <%!-- Left: scrollable list --%>
-          <div
-            class="w-[340px] shrink-0 overflow-hidden flex flex-col h-full glass-surface rounded-lg"
-            data-nav-zone="review-list"
+        <div
+          :if={@files != []}
+          class="glass-surface rounded-lg flex-1 min-h-0 overflow-y-auto thin-scrollbar"
+        >
+          <.empty_state
+            :if={@visible == [] && @query != ""}
+            headline={"Nothing here matches “#{@query}”"}
           >
-            <.list_section
-              groups={@sorted_groups}
-              selected_key={@selected_key}
-            />
-            <div
-              :if={@dismissed != []}
-              class="shrink-0 max-h-[40%] overflow-y-auto thin-scrollbar p-3 border-t border-base-content/6"
-            >
-              <.dismissed_files
-                id="review-dismissed"
-                open={DisclosureState.open?(@disclosures, "review-dismissed")}
-                files={@dismissed}
-                hint={dismissed_hint()}
+            The filter looks in the parsed title and the file name.
+            <:action>
+              <.button variant="secondary" size="sm" phx-click="clear_filter">Clear the filter</.button>
+            </:action>
+          </.empty_state>
+          <.empty_state :if={@visible == [] && @query == ""} headline={empty_headline(@status)}>
+            {empty_body(@status)}
+          </.empty_state>
+
+          <div :if={@visible != []} class="pb-2" data-nav-zone="review-rows">
+            <div class="sticky top-0 z-[1] bg-base-200/95">
+              <.queue_header
+                state={tick_state(@selected, Enum.map(@visible, & &1.id))}
+                selectable={@selectable}
+                phx-click="tick_all"
               />
             </div>
-          </div>
-
-          <%!-- Right: detail panel --%>
-          <div class="flex-1 min-w-[360px] min-h-0" data-nav-zone="review-detail">
-            <.detail_panel
-              :if={@selected_key && @groups_by_key[@selected_key]}
-              group={@groups_by_key[@selected_key]}
-              armed_gesture={@armed_gesture}
-              delete_target={@delete_target}
-              deleting={@deleting}
-              search_open={@search_open == @selected_key}
-              search_query={@search_query}
-              search_type={@search_type}
-              search_results={@search_results}
-              searching={@searching}
-              searched={@searched}
-              disclosures={@disclosures}
-              tmdb_ready={@tmdb_ready}
-            />
-            <div
-              :if={!@selected_key || !@groups_by_key[@selected_key]}
-              class="glass-surface rounded-lg h-full flex flex-col items-center justify-center gap-3 text-base-content/55"
-            >
-              <.icon name="hero-arrow-left" class="size-8" />
-              <p class="text-sm">Select an item to review</p>
-            </div>
+            <%= for row <- rows(@visible) do %>
+              <%= case row do %>
+                <% {:divider, divider} -> %>
+                  <.queue_divider
+                    id={"review-#{divider.id}"}
+                    label={divider.label}
+                    count={length(divider.ids)}
+                    state={tick_state(@selected, divider.ids)}
+                    selectable={@selectable}
+                    phx-click="tick_block"
+                    phx-value-ids={Enum.join(divider.ids, ",")}
+                  />
+                <% {:item, file} -> %>
+                  <.queue_item
+                    id={"review-item-#{file.id}"}
+                    file={file}
+                    ticked={MapSet.member?(@selected, file.id)}
+                    selectable={@selectable}
+                    phx-click="tick"
+                    phx-value-id={file.id}
+                  />
+              <% end %>
+            <% end %>
           </div>
         </div>
+
+        <.match_bar
+          :if={@selectable && MapSet.size(@selected) > 0}
+          count={MapSet.size(@selected)}
+          status={@status}
+          query={@search_query}
+          type={@search_type}
+          searching={@searching}
+          searched={@searched}
+          results={@search_results}
+          tmdb_ready={@tmdb_ready}
+          accept_guesses={accept_guesses?(ticked_files(@visible, @selected))}
+          dismiss_armed={ArmGesture.armed?(@armed_gesture, "dismiss")}
+          delete_armed={ArmGesture.armed?(@armed_gesture, "delete")}
+          deleting={@deleting}
+          delete_label={@delete_plan && delete_label(@delete_plan)}
+        />
       </div>
     </Layouts.app>
     """
   end
 
-  # --- Private Function Components ---
+  defp empty_headline(:waiting), do: "Nothing waits for a title"
+  defp empty_headline(:importing), do: "Nothing is importing"
+  defp empty_headline(:dismissed), do: "No dismissed files"
 
-  defp list_section(assigns) do
-    {movies, tv} =
-      Enum.split_with(assigns.groups, fn group ->
-        group.representative.parsed_type != "tv"
-      end)
+  defp empty_body(:waiting),
+    do: "Every file found so far has a title. New ones that cannot be matched appear here."
 
-    assigns =
-      assigns
-      |> assign(movies: movies)
-      |> assign(tv: tv)
+  defp empty_body(:importing), do: "Files you match go here until they are in the library."
 
-    ~H"""
-    <div class="flex-1 overflow-y-auto p-2 thin-scrollbar">
-      <div
-        :if={@movies != []}
-        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/55 px-3 pt-3 pb-1.5"
-      >
-        Movies
-      </div>
-      <.list_item
-        :for={group <- @movies}
-        id={"review-group-#{:erlang.phash2(group.key)}"}
-        group={group}
-        selected={group.key == @selected_key}
-      />
-      <div
-        :if={@tv != []}
-        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/55 px-3 pt-3 pb-1.5 mt-2"
-      >
-        TV Series
-      </div>
-      <.list_item
-        :for={group <- @tv}
-        id={"review-group-#{:erlang.phash2(group.key)}"}
-        group={group}
-        selected={group.key == @selected_key}
-      />
-    </div>
-    """
+  defp empty_body(:dismissed),
+    do: "Files you dismiss are skipped on every scan and listed here, where you can restore them."
+
+  # --- State ---
+
+  defp patch(socket, changes) do
+    params =
+      %{"status" => Atom.to_string(socket.assigns.status), "q" => socket.assigns.query}
+      |> Map.merge(Map.new(changes, fn {key, value} -> {Atom.to_string(key), value} end))
+      |> Enum.reject(fn {key, value} -> value == "" or {key, value} == {"status", "waiting"} end)
+
+    push_patch(socket, to: ~p"/review?#{params}")
   end
 
-  defp list_item(assigns) do
-    file = assigns.group.representative
-    file_count = length(assigns.group.files)
-    reason = review_reason(file)
+  defp reload(socket) do
+    files = Review.list_queue()
 
-    assigns =
-      assigns
-      |> assign(file: file)
-      |> assign(file_count: file_count)
-      |> assign(reason: reason)
-      |> assign(encoded_key: encode_key(assigns.group.key))
-
-    ~H"""
-    <.review_list_item
-      id={@id}
-      selected={@selected}
-      phx-click="select_item"
-      phx-focus="select_item"
-      phx-value-key={@encoded_key}
-      data-review-pending
-    >
-      <img
-        :if={@file.match_poster_path}
-        src={tmdb_cdn_url(@file.match_poster_path, :w92)}
-        alt=""
-        class="w-10 h-[60px] rounded object-cover shrink-0"
-      />
-      <div
-        :if={!@file.match_poster_path}
-        class="w-10 h-[60px] rounded flex items-center justify-center shrink-0 glass-inset"
-      >
-        <.icon name="hero-film" class="size-4 opacity-30" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-          {display_title(@group)}
-        </div>
-        <div
-          :if={@file_count > 1}
-          class="text-[0.6875rem] text-base-content/55 mt-0.5"
-        >
-          {@file_count} episodes{if @file.parsed_season, do: " · S#{zero_pad(@file.parsed_season)}"}
-        </div>
-        <div :if={@file_count == 1} class="text-xs text-base-content/55 mt-0.5">
-          {if @file.parsed_year, do: "#{@file.parsed_year} · "}{format_type(@file.parsed_type)}
-        </div>
-      </div>
-      <.list_badge reason={@reason} confidence={@file.confidence} />
-    </.review_list_item>
-    """
+    socket
+    |> assign(files: files, visible: visible(files, socket.assigns.status, socket.assigns.query))
+    |> select(socket.assigns.selected)
   end
 
-  defp list_badge(%{reason: :importing} = assigns) do
-    ~H"""
-    <span class="text-xs text-base-content/60 shrink-0">Importing</span>
-    """
+  defp debounced_reload(socket), do: debounce(socket, :reload_timer, :reload_queue, 500)
+
+  # Every change of the ticks goes through here: the selection keeps only
+  # rows the view shows and can act on; the bar's search follows the first
+  # ticked row until the person types in it; the delete plan re-resolves.
+  defp select(socket, selected) do
+    visible_ids =
+      if socket.assigns.status == :importing, do: [], else: Enum.map(socket.assigns.visible, & &1.id)
+
+    selected = MapSet.intersection(selected, MapSet.new(visible_ids))
+    changed? = selected != socket.assigns.selected
+    socket = assign(socket, selected: selected)
+
+    cond do
+      MapSet.size(selected) == 0 ->
+        socket |> reset_search() |> assign(delete_plan: nil)
+
+      changed? ->
+        socket |> follow_prefill() |> resolve_delete_plan()
+
+      true ->
+        socket
+    end
   end
 
-  defp list_badge(%{reason: :not_added} = assigns) do
-    ~H"""
-    <span class="text-xs text-error shrink-0">Not added</span>
-    """
+  defp follow_prefill(%{assigns: %{search_edited: true}} = socket), do: socket
+
+  defp follow_prefill(socket) do
+    {query, type} = search_prefill(socket.assigns.visible, socket.assigns.selected)
+
+    if {query, type} == {socket.assigns.search_query, socket.assigns.search_type} and
+         socket.assigns.searched,
+       do: socket,
+       else: run_search(socket, query, type)
   end
 
-  defp list_badge(%{reason: :no_results} = assigns) do
-    ~H"""
-    <span class="text-xs text-error shrink-0">No results</span>
-    """
-  end
-
-  defp list_badge(%{reason: :tied} = assigns) do
-    ~H"""
-    <span class="text-xs text-info shrink-0">Tied</span>
-    """
-  end
-
-  defp list_badge(%{reason: :low_confidence} = assigns) do
-    confidence_pct = if assigns.confidence, do: round(assigns.confidence * 100), else: 0
-
-    assigns = assign(assigns, confidence_pct: confidence_pct)
-
-    ~H"""
-    <span class={["text-xs shrink-0", confidence_text_class(@confidence)]}>
-      {@confidence_pct}%
-    </span>
-    """
-  end
-
-  defp detail_panel(assigns) do
-    file = assigns.group.representative
-    file_count = length(assigns.group.files)
-    tied = tied_candidates?(file)
-    reason = review_reason(file)
-
-    paths = Enum.map(assigns.group.files, & &1.file_path)
-
-    delete_target =
-      case assigns.delete_target do
-        {^paths, target} -> target
-        _stale_or_none -> :resolving
-      end
-
-    gesture =
-      LiveHelpers.delete_gesture_state(
-        assigns.group.key,
-        assigns.deleting,
-        ArmGesture.armed_target(assigns.armed_gesture, "delete_prompt")
-      )
-
-    assigns =
-      assigns
-      |> assign(file: file)
-      |> assign(file_count: file_count)
-      |> assign(tied: tied)
-      |> assign(reason: reason)
-      |> assign(encoded_key: encode_key(assigns.group.key))
-      |> assign(delete_target: delete_target)
-      |> assign(delete_gesture: gesture)
-      |> assign(approval: approval(assigns.group))
-
-    ~H"""
-    <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
-      <div class="p-6 space-y-5">
-        <%!-- Header: title + filepath + reason --%>
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1 min-w-0">
-            <h2 class="text-lg font-semibold">{display_title(@group)}</h2>
-            <p
-              :if={@file_count == 1}
-              class="font-mono text-xs text-base-content/55 truncate-left mt-1"
-              data-tip={relative_file_path(@file)}
-            >
-              <bdo dir="ltr">{relative_file_path(@file)}</bdo>
-            </p>
-          </div>
-          <span class={["text-sm shrink-0", reason_text_class(@reason)]}>
-            {reason_label(@reason)}
-          </span>
-        </div>
-
-        <p :if={@file.error_message} class="text-sm text-error">{@file.error_message}</p>
-        <p :if={@approval == :mixed_identities} class="text-sm text-warning">
-          These files carry different matches. Search TMDB to choose one for all of them.
-        </p>
-
-        <.parsed_info file={@file} />
-
-        <.tmdb_match file={@file} tied={@tied} />
-
-        <%!-- Tied candidates chooser --%>
-        <.tied_candidates
-          :if={@tied}
-          candidates={sort_candidates_by_year(@file.candidates)}
-          tmdb_type={@file.tmdb_type}
-          encoded_key={@encoded_key}
-        />
-
-        <.episode_list
-          :if={@file_count > 1}
-          group={@group}
-          file_count={@file_count}
-          disclosures={@disclosures}
-          encoded_key={@encoded_key}
-        />
-
-        <%!-- Action buttons. An importing group has nothing to decide until the
-              library reports its files. A row of its own (`review-actions`, a
-              TOOLBAR): LEFT/RIGHT walk it, UP/DOWN leave it. --%>
-        <div
-          :if={@reason != :importing}
-          class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6"
-          data-nav-zone="review-actions"
-        >
-          <.button
-            :if={@approval == :approvable}
-            variant="action"
-            size="sm"
-            phx-click="approve"
-            phx-value-key={@encoded_key}
-            data-nav-item
-            tabindex="0"
-          >
-            {if @file_count > 1, do: "Approve All", else: "Approve"}
-          </.button>
-          <.button
-            :if={@tmdb_ready}
-            variant="info"
-            size="sm"
-            phx-click="open_search"
-            phx-value-key={@encoded_key}
-            data-nav-item
-            tabindex="0"
-          >
-            Search TMDB
-          </.button>
-          <.armed_button
-            armed={ArmGesture.armed?(@armed_gesture, "dismiss", @group.key)}
-            event="dismiss"
-            armed_label={
-              if @file_count > 1, do: "Press again to dismiss all", else: "Press again to dismiss"
-            }
-            variant="dismiss"
-            phx-value-key={@encoded_key}
-          >
-            {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
-          </.armed_button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="delete_prompt"
-            phx-value-key={@encoded_key}
-            disabled={@delete_target == :resolving or @delete_gesture == :deleting}
-            data-nav-item
-            tabindex="0"
-            aria-label={delete_action_label(@delete_gesture, @delete_target, @file_count)}
-          >
-            {delete_action_label(@delete_gesture, @delete_target, @file_count)}
-          </.button>
-        </div>
-
-        <%!-- Search panel --%>
-        <.search_panel
-          :if={@search_open}
-          file={@file}
-          encoded_key={@encoded_key}
-          query={@search_query}
-          type={@search_type}
-          results={@search_results}
-          searching={@searching}
-          searched={@searched}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  # Compact parsed-metadata row (title / year / type / SxxEyy).
-  defp parsed_info(assigns) do
-    ~H"""
-    <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-      <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/55 shrink-0">
-        Parsed
-      </span>
-      <span class="text-sm font-medium">{@file.parsed_title || "Unknown"}</span>
-      <span :if={@file.parsed_year} class="text-sm text-base-content/55">
-        ({@file.parsed_year})
-      </span>
-      <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
-      <span
-        :if={@file.parsed_season && @file.parsed_episode}
-        class="text-sm text-base-content/60"
-      >
-        S{zero_pad(@file.parsed_season)}E{zero_pad(@file.parsed_episode)}
-      </span>
-    </div>
-    """
-  end
-
-  # TMDB match block: poster + title/year/confidence + link when matched and
-  # not tied; an empty-state otherwise (tied → "Multiple tied matches").
-  defp tmdb_match(assigns) do
-    ~H"""
-    <div class="glass-inset rounded-lg p-4">
-      <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/55 mb-3">
-        TMDB Match
-      </p>
-      <%= if @file.tmdb_id && !@tied do %>
-        <div class="flex gap-4">
-          <img
-            :if={@file.match_poster_path}
-            src={tmdb_cdn_url(@file.match_poster_path, :w342)}
-            alt="poster"
-            class="w-[120px] rounded-lg shrink-0 self-start"
-          />
-          <div
-            :if={!@file.match_poster_path}
-            class="w-[120px] aspect-[2/3] glass-inset rounded-lg flex items-center justify-center shrink-0"
-          >
-            <.icon name="hero-film" class="size-8 opacity-20" />
-          </div>
-          <div class="flex-1 min-w-0 space-y-2">
-            <p class="text-sm font-medium">
-              {@file.match_title || "TMDB ##{@file.tmdb_id}"}
-            </p>
-            <p :if={@file.match_year} class="text-sm text-base-content/55">
-              ({@file.match_year})
-            </p>
-            <div :if={@file.confidence} class="mt-1">
-              <p class="text-xs text-base-content/55 mb-1">Confidence</p>
-              <div class="h-1.5 rounded-full bg-base-content/8 overflow-hidden max-w-48">
-                <div
-                  class={["h-full rounded-full", confidence_bar_class(@file.confidence)]}
-                  style={"width: #{round(@file.confidence * 100)}%"}
-                >
-                </div>
-              </div>
-              <p class={["text-xs font-semibold mt-1", confidence_text_class(@file.confidence)]}>
-                {round(@file.confidence * 100)}%
-              </p>
-            </div>
-            <a
-              href={tmdb_url(@file.tmdb_type, @file.tmdb_id)}
-              target="_blank"
-              rel="noopener"
-              class="text-xs text-info hover:underline inline-flex items-center gap-1"
-            >
-              TMDB #{@file.tmdb_id}
-              <.icon name="hero-arrow-top-right-on-square" class="size-3" />
-            </a>
-          </div>
-        </div>
-      <% else %>
-        <div class="flex flex-col items-center justify-center py-8 gap-2 text-base-content/55">
-          <.icon name="hero-question-mark-circle" class="size-10" />
-          <p class="text-sm">
-            {if @tied, do: "Multiple tied matches", else: "No results found"}
-          </p>
-        </div>
-      <% end %>
-    </div>
-    """
-  end
-
-  # Collapsible episode list for multi-file groups.
-  defp episode_list(assigns) do
-    ~H"""
-    <.disclosure
-      id={files_disclosure_id(@group)}
-      open={DisclosureState.open?(@disclosures, files_disclosure_id(@group))}
-      variant={:bare}
-      class="space-y-2"
-      head_class="inline-flex items-center gap-1"
-      body_class="glass-inset rounded-lg p-3"
-    >
-      <:head>
-        <.badge>{@file_count} episodes</.badge>
-      </:head>
-      <ul class="space-y-1">
-        <li
-          :for={file <- @group.files}
-          id={"review-file-#{file.id}"}
-          class="flex items-center gap-2"
-        >
-          <.badge
-            :if={file.parsed_season && file.parsed_episode}
-            variant="ghost"
-            size="xs"
-            class="font-mono"
-          >
-            S{zero_pad(file.parsed_season)}E{zero_pad(file.parsed_episode)}
-          </.badge>
-          <span
-            class="font-mono text-xs text-base-content/70 truncate-left"
-            data-tip={relative_file_path(file)}
-          >
-            <bdo dir="ltr">{relative_file_path(file)}</bdo>
-          </span>
-        </li>
-      </ul>
-    </.disclosure>
-    """
-  end
-
-  defp tied_candidates(assigns) do
-    ~H"""
-    <div class="glass-inset rounded-lg p-4 space-y-3">
-      <div class="flex items-center gap-2 text-warning">
-        <.icon name="hero-exclamation-triangle" class="size-5" />
-        <p class="text-sm font-medium">
-          Multiple TMDB results matched equally — choose the correct one:
-        </p>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div
-          :for={candidate <- @candidates}
-          id={"review-candidate-#{candidate["tmdb_id"]}"}
-          class="glass-surface p-3 rounded-lg flex flex-col hover:border-primary transition-colors"
-        >
-          <div class="flex gap-3">
-            <div :if={candidate["poster_path"]} class="shrink-0">
-              <img
-                src={tmdb_cdn_url(candidate["poster_path"], :w154)}
-                alt="poster"
-                class="w-[100px] rounded"
-              />
-            </div>
-            <div
-              :if={!candidate["poster_path"]}
-              class="shrink-0 w-[100px] h-[150px] glass-inset rounded flex items-center justify-center"
-            >
-              <.icon name="hero-film" class="size-6 opacity-30" />
-            </div>
-            <div class="flex-1 min-w-0 space-y-1">
-              <div class="flex items-baseline gap-2">
-                <p class="text-sm font-medium">{candidate["title"]}</p>
-                <span :if={candidate["year"]} class="text-xs text-base-content/60">
-                  ({candidate["year"]})
-                </span>
-              </div>
-              <p :if={candidate["overview"]} class="text-xs text-base-content/60 line-clamp-3">
-                {candidate["overview"]}
-              </p>
-            </div>
-          </div>
-          <div class="flex items-center justify-between mt-auto pt-3">
-            <a
-              href={tmdb_url(@tmdb_type, candidate["tmdb_id"])}
-              target="_blank"
-              rel="noopener"
-              class="text-xs text-info hover:underline inline-flex items-center gap-1"
-            >
-              TMDB #{candidate["tmdb_id"]}
-              <.icon name="hero-arrow-top-right-on-square" class="size-3" />
-            </a>
-            <.button
-              variant="info"
-              size="sm"
-              phx-click="select_match"
-              phx-value-key={@encoded_key}
-              phx-value-tmdb-id={candidate["tmdb_id"]}
-              phx-value-tmdb-type={@tmdb_type}
-              phx-value-title={candidate["title"]}
-              phx-value-year={candidate["year"]}
-              phx-value-poster-path={candidate["poster_path"]}
-              data-nav-item
-              tabindex="0"
-            >
-              Select
-            </.button>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # Its own zone (`review-search`) under the action row; Search TMDB moves the
-  # cursor into it (review_behavior.js) onto the query, its first item. BACK
-  # returns to the action row and closes it (`data-nav-dismiss-event`).
-  defp search_panel(assigns) do
-    ~H"""
-    <div
-      class="glass-inset rounded-lg p-4 space-y-3"
-      data-nav-zone="review-search"
-      data-nav-dismiss-event="close_search"
-    >
-      <div class="flex items-center gap-2">
-        <.icon name="hero-magnifying-glass" class="size-5 text-base-content/60" />
-        <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/55">
-          TMDB Search
-        </span>
-      </div>
-
-      <p :if={@type == :tv} class="text-sm text-base-content/70">
-        Match this episode to a TV series.
-        <span :if={@file.parsed_season && @file.parsed_episode}>
-          Season {@file.parsed_season}, Episode {@file.parsed_episode} already parsed from the
-          filename.
-        </span>
-      </p>
-      <p :if={@type != :tv} class="text-sm text-base-content/70">
-        Find the correct title for this file.
-      </p>
-
-      <form
-        id="review-search-form"
-        phx-submit="search"
-        phx-change="update_search"
-        class="flex gap-2 items-center"
-      >
-        <.settings_input
-          name="query"
-          value={@query}
-          phx-debounce="300"
-          aria-label="Search TMDB"
-          placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
-          class="min-w-0 flex-1"
-        />
-        <.settings_select
-          name="type"
-          aria_label="Type"
-          options={[{"movie", "Movie"}, {"tv", "TV"}]}
-          selected={to_string(@type)}
-        />
-        <.button
-          type="submit"
-          variant="primary"
-          size="sm"
-          disabled={@searching}
-          data-nav-item
-          tabindex="0"
-        >
-          {if @searching, do: "Searching…", else: "Search"}
-        </.button>
-        <.button
-          type="button"
-          variant="dismiss"
-          size="sm"
-          phx-click="close_search"
-          data-nav-item
-          tabindex="0"
-        >
-          Cancel
-        </.button>
-      </form>
-
-      <p class="text-xs text-base-content/55">
-        {if @type == :tv,
-          do: "Search by show name only — season and episode numbers are stripped automatically.",
-          else: "Search by movie title. Year is optional and will be ignored."}
-      </p>
-
-      <p :if={@results == [] && @searched} class="text-sm text-base-content/55">
-        No results found. Try a simpler title — leave out years, seasons, and episode numbers.
-      </p>
-
-      <div :if={@results != []} class="space-y-2">
-        <div
-          :for={result <- @results}
-          id={"review-result-#{result.tmdb_id}"}
-          class="glass-surface p-3 rounded-lg flex items-center gap-3 hover:border-primary transition-colors"
-        >
-          <div :if={result.poster_path} class="shrink-0">
-            <img
-              src={tmdb_cdn_url(result.poster_path, :w92)}
-              alt="poster"
-              class="w-12 rounded"
-            />
-          </div>
-          <div
-            :if={!result.poster_path}
-            class="shrink-0 w-12 aspect-[2/3] glass-inset rounded flex items-center justify-center"
-          >
-            <.icon name="hero-film" class="size-4 opacity-30" />
-          </div>
-
-          <div class="flex-1 min-w-0">
-            <p class="font-medium text-sm">
-              {result.title}
-              <span :if={result.year} class="text-base-content/60">({result.year})</span>
-            </p>
-            <p :if={result.overview} class="text-xs text-base-content/60 line-clamp-2">
-              {result.overview}
-            </p>
-          </div>
-
-          <.button
-            variant="info"
-            size="sm"
-            class="shrink-0"
-            phx-click="select_match"
-            phx-value-key={@encoded_key}
-            phx-value-tmdb-id={result.tmdb_id}
-            phx-value-tmdb-type={result.tmdb_type}
-            phx-value-title={result.title}
-            phx-value-year={result.year}
-            phx-value-poster-path={result.poster_path}
-            data-nav-item
-            tabindex="0"
-          >
-            Select
-          </.button>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # --- Derived Assigns ---
-
-  defp apply_group_stats(socket) do
-    groups = socket.assigns.groups
-
-    total_files =
-      Enum.reduce(groups, 0, fn group, acc ->
-        acc + Enum.count(group.files, &(&1.status == :pending))
-      end)
-
+  defp reset_search(socket) do
     assign(socket,
-      sorted_groups: sort_groups(groups),
-      total_files: total_files,
-      reason_counts: count_by_reason(groups)
+      search_query: "",
+      search_type: :tv,
+      search_edited: false,
+      search_results: [],
+      searching: false,
+      searched: false,
+      search_cache: Map.get(socket.assigns, :search_cache, %{})
     )
   end
 
-  defp ensure_selection(socket) do
-    selected = socket.assigns.selected_key
-    sorted = socket.assigns.sorted_groups
+  defp run_search(socket, query, type) do
+    socket = assign(socket, search_query: query, search_type: type)
 
-    if selected && socket.assigns.groups_by_key[selected] do
-      socket
-    else
-      case sorted do
-        [first | _] -> assign(socket, selected_key: first.key)
-        [] -> assign(socket, selected_key: nil)
+    cond do
+      String.trim(query) == "" or not socket.assigns.tmdb_ready ->
+        assign(socket, search_results: [], searching: false, searched: false)
+
+      results = socket.assigns.search_cache[{query, type}] ->
+        assign(socket, search_results: results, searching: false, searched: true)
+
+      true ->
+        socket
+        |> assign(searching: true)
+        |> start_async(:tmdb_search, fn ->
+          outcome =
+            try do
+              Review.Search.tmdb(query, type)
+            catch
+              kind, reason -> {:error, {kind, reason}}
+            end
+
+          %{query: query, type: type, outcome: outcome}
+        end)
+    end
+  end
+
+  defp resolve_delete_plan(socket) do
+    paths = ticked_paths(socket)
+
+    socket
+    |> assign(delete_plan: nil)
+    |> start_async(:delete_plan, fn -> {paths, delete_plan(paths)} end)
+  end
+
+  # Each release folder is judged on its own; a folder goes whole only when
+  # `DeleteTargets` finds nothing else of the library under it.
+  defp delete_plan(paths) do
+    for part <- delete_partitions(paths) do
+      case DeleteTargets.resolve_folder_target(part) do
+        {:folder, dir} -> {:folder, dir, part}
+        :file_only -> {:files, part}
       end
     end
   end
 
-  defp advance_selection(socket, removed_key) do
-    sorted = socket.assigns.sorted_groups
+  # Resolved again at the moment of deleting — never from the cached plan
+  # (`MediaCentaur.DeleteTargets`). Runs in the delete task.
+  defp execute_delete(files) do
+    ids_by_path = Map.new(files, &{&1.file_path, &1.id})
 
-    case sorted do
-      [] ->
-        assign(socket, selected_key: nil)
+    files
+    |> Enum.map(& &1.file_path)
+    |> delete_plan()
+    |> Enum.reduce({0, 0}, fn
+      {:folder, dir, paths}, {deleted, errors} ->
+        case Deletion.delete_folder(dir, paths) do
+          {:ok, _entity_ids} ->
+            Review.destroy_pending_files(Enum.map(paths, &ids_by_path[&1]))
+            {deleted + length(paths), errors}
 
-      _ ->
-        if socket.assigns.groups_by_key[removed_key] do
-          # Key still exists (e.g. group still has files), keep it
-          socket
-        else
-          # Find where the removed key was in the old sort order and pick the next
-          # Since it's already removed, just ensure_selection picks first available
-          ensure_selection(assign(socket, selected_key: nil))
+          {:error, reason} ->
+            Log.warning(:library, "failed to delete folder #{dir}: #{inspect(reason)}")
+            {deleted, errors + length(paths)}
         end
-    end
+
+      {:files, paths}, {deleted, errors} ->
+        {ok, failed} = Review.delete_files(Enum.map(paths, &ids_by_path[&1]))
+        {deleted + ok, errors + failed}
+    end)
   end
 
-  # --- Helpers ---
+  defp ticked_files(socket), do: ticked_files(socket.assigns.visible, socket.assigns.selected)
+  defp ticked_files(visible, selected), do: Enum.filter(visible, &MapSet.member?(selected, &1.id))
+  defp ticked_ids(socket), do: socket |> ticked_files() |> Enum.map(& &1.id)
+  defp ticked_paths(socket), do: socket |> ticked_files() |> Enum.map(& &1.file_path)
 
-  defp display_title(%{representative: file} = group) do
-    file_count = length(group.files)
-
-    if file_count > 1 do
-      series_root_name(group)
-    else
-      file.parsed_title || "Unknown"
-    end
-  end
-
-  defp series_root_name(%{key: {_media_dir, root}}), do: root
-
-  defp dismissed_hint, do: "Dismissed files are skipped on every scan. Restore one to review it again."
-
-  defp tmdb_url("tv", id), do: "https://www.themoviedb.org/tv/#{id}"
-  defp tmdb_url(_, id), do: "https://www.themoviedb.org/movie/#{id}"
-
-  defp zero_pad(number) when number < 10, do: "0#{number}"
-  defp zero_pad(number), do: "#{number}"
-
-  @doc """
-  Label for the delete button across its three-state gesture
-  (`LiveHelpers.delete_gesture_state/3`) and the resolved delete target
-  (`MediaCentaur.DeleteTargets.resolve_folder_target/1`). Names what
-  will actually be removed — a folder by name, or a file count — so
-  confirming is never a guess; a plain "Delete", disabled, only while the
-  target is still resolving.
-  """
-  @spec delete_action_label(
-          :idle | :confirm | :deleting,
-          {:folder, String.t()} | :file_only | :resolving,
-          pos_integer()
-        ) ::
-          String.t()
-  def delete_action_label(:deleting, _delete_target, _file_count), do: "Deleting…"
-  def delete_action_label(_gesture, :resolving, _file_count), do: "Delete"
-
-  def delete_action_label(:confirm, {:folder, dir}, _file_count) do
-    "Press again to delete folder \"#{Path.basename(dir)}\""
-  end
-
-  def delete_action_label(:confirm, :file_only, file_count) when file_count > 1 do
-    "Press again to delete #{file_count} files"
-  end
-
-  def delete_action_label(:confirm, :file_only, _file_count), do: "Press again to delete file"
-
-  def delete_action_label(:idle, {:folder, dir}, _file_count) do
-    "Delete folder \"#{Path.basename(dir)}\""
-  end
-
-  def delete_action_label(:idle, :file_only, file_count) when file_count > 1 do
-    "Delete #{file_count} files"
-  end
-
-  def delete_action_label(:idle, :file_only, _file_count), do: "Delete file"
-
-  defp relative_file_path(file) do
-    case file.media_directory do
-      nil -> file.file_path
-      dir -> String.replace_prefix(file.file_path, dir <> "/", "")
-    end
-  end
-
-  # Group keys are `{media_dir, series_root}` tuples. We encode them as a
-  # single string for phx-value-key attributes and decode on the way back.
-  defp encode_key({media_dir, root}) do
-    Base.url_encode64(:erlang.term_to_binary({media_dir, root}))
-  end
-
-  # sobelow_skip ["Misc.BinToTerm"]
-  # `:safe` prevents atom creation; the encoded payload is always a
-  # `{media_dir, root}` string tuple created by `encode_key/1` above and
-  # round-tripped through the URL by the same LiveView. Phoenix's request
-  # size limits bound any DoS-via-large-term attack surface.
-  defp decode_key(encoded) do
-    encoded
-    |> Base.url_decode64!()
-    |> :erlang.binary_to_term([:safe])
-  end
+  defp plural(1, noun), do: "1 #{noun}"
+  defp plural(count, "best guess"), do: "#{count} best guesses"
+  defp plural(count, noun), do: "#{count} #{noun}s"
 end

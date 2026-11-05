@@ -39,6 +39,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
 
   alias MediaCentaurWeb.Components.Detail.{CastSelection, People}
+  alias MediaCentaurWeb.Components.FilterField
 
   attr :entity, :map,
     required: true,
@@ -229,20 +230,14 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
             shrink-wraps the input, which carries its own width, so a
             right-pinned host (flex justify-end) keeps the idle icon pill
             on the container's right edge and grows the field leftward. --%>
-      <div class="library-filter-wrap">
-        <.icon name="hero-magnifying-glass-mini" class="library-filter-icon" />
-        <input
-          type="search"
-          name="cast_filter"
-          value={@filter}
-          phx-debounce="150"
-          class="library-filter w-64 bg-base-content/5"
-          placeholder="Filter cast"
-          aria-label="Filter cast members"
-          data-nav-item
-          tabindex="0"
-        />
-      </div>
+      <FilterField.filter_field
+        type="search"
+        name="cast_filter"
+        value={@filter}
+        placeholder="Filter cast"
+        aria_label="Filter cast members"
+        class="w-64 bg-base-content/5"
+      />
     </form>
     """
   end

@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
   alias MediaCentaur.Library.ContinueWatchingProgress
+  alias MediaCentaurWeb.Components.FilterField
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.PlayOverlay
 
@@ -204,31 +205,14 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       </div>
 
       <form id="library-filter-form" phx-change="filter" class="ml-auto">
-        <div class="library-filter-wrap">
-          <.icon name="hero-magnifying-glass-mini" class="library-filter-icon" />
-          <input
-            id="library-filter"
-            type="text"
-            name="filter_text"
-            value={@filter_text}
-            placeholder="Filter by name…"
-            aria-label="Filter by name"
-            phx-debounce="150"
-            class="input library-filter w-56"
-            data-nav-item
-            tabindex="0"
-          />
-          <button
-            :if={@filter_text != ""}
-            type="button"
-            phx-click="clear_filter"
-            class="library-filter-clear"
-            aria-label="Clear search"
-            tabindex="0"
-          >
-            <.icon name="hero-x-mark-mini" class="size-4" />
-          </button>
-        </div>
+        <FilterField.filter_field
+          id="library-filter"
+          name="filter_text"
+          value={@filter_text}
+          placeholder="Filter by name…"
+          aria_label="Filter by name"
+          clear_event="clear_filter"
+        />
       </form>
     </div>
     """

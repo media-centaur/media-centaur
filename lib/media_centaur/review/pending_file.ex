@@ -47,6 +47,8 @@ defmodule MediaCentaur.Review.PendingFile do
     timestamps()
   end
 
+  @parsed_fields [:parsed_title, :parsed_year, :parsed_type, :parsed_season, :parsed_episode]
+
   @create_fields [
     :file_path,
     :media_directory,
@@ -146,18 +148,35 @@ defmodule MediaCentaur.Review.PendingFile do
     change(pending_file, status: :pending, error_message: message)
   end
 
-  def set_tmdb_match_changeset(pending_file, attrs) do
+  @doc """
+  A person matched the item to a title: the match is set and the item is
+  approved in one step. Clears the candidates and any old reason.
+  """
+  def match_changeset(pending_file, attrs) do
     pending_file
-    |> cast(attrs, [
-      :tmdb_id,
-      :tmdb_type,
-      :confidence,
-      :match_title,
-      :match_year,
-      :match_poster_path
-    ])
-    |> validate_status(:pending)
+    |> cast(attrs, [:tmdb_id, :tmdb_type, :confidence, :match_title, :match_year, :match_poster_path])
     |> put_change(:candidates, [])
+    |> approve_changeset()
+  end
+
+  @doc """
+  Discovery ran again on a waiting item: it takes the fresh parse, and the
+  fresh best guess unless it is a not-added item, whose match a person
+  chose and whose reason the reader still needs.
+  """
+  def rediscovered_changeset(%__MODULE__{error_message: nil} = pending_file, attrs) do
+    pending_file
+    |> cast(
+      Map.put_new(attrs, :candidates, []),
+      @create_fields -- [:file_path, :media_directory, :error_message]
+    )
+    |> validate_status(:pending)
+  end
+
+  def rediscovered_changeset(pending_file, attrs) do
+    pending_file
+    |> cast(attrs, @parsed_fields)
+    |> validate_status(:pending)
   end
 
   defp validate_status(changeset, expected) do
