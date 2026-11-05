@@ -40,7 +40,8 @@ defmodule MediaCentaur.Parser do
   5. Otherwise → use filename base
 
   **Quality token stripping:** bracket patterns first, then quality keywords,
-  then release groups.
+  then release groups. A trailing `Signed` (sign-language-interpreted
+  broadcast) is stripped from TV and movie titles.
 
   **TV title extraction:** strips year tokens, cleans title, strips trailing
   season markers (`S01`), falls back to directory names when the result is empty.
@@ -555,6 +556,7 @@ defmodule MediaCentaur.Parser do
       |> strip_year_tokens()
       |> clean_title(strip_release_group: false)
       |> strip_trailing_season_marker()
+      |> strip_sign_language_tag()
 
     if cleaned == "" do
       # Title was blank — use show directory name
@@ -582,6 +584,14 @@ defmodule MediaCentaur.Parser do
 
   defp strip_trailing_season_marker(title) do
     Regex.replace(~r/\s+[Ss]\d{1,2}$/, title, "")
+  end
+
+  # UK broadcaster releases mark a sign-language-interpreted broadcast by
+  # appending "Signed" to the title (`Show.Signed.S01E01`). It is a
+  # release tag, not part of the title; only the trailing word is stripped,
+  # so a title that starts with "Signed" keeps it.
+  defp strip_sign_language_tag(title) do
+    Regex.replace(~r/(?<=\S)\s+Signed$/i, title, "")
   end
 
   defp extract_year_from_tv_title(raw_title) do
@@ -691,7 +701,7 @@ defmodule MediaCentaur.Parser do
 
     title =
       case Regex.run(~r/^(.+?)[\s.\[(]#{year_str}/, candidate, capture: :all_but_first) do
-        [raw_title] -> clean_title(raw_title, strip_release_group: false)
+        [raw_title] -> raw_title |> clean_title(strip_release_group: false) |> strip_sign_language_tag()
         nil -> clean_title(candidate)
       end
 

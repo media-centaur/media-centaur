@@ -886,6 +886,38 @@ defmodule MediaCentaur.ParserTest do
 
   # ─── Unknown fallback ─────────────────────────────────────────────────────
 
+  describe "sign-language tag — Signed after the title marks an interpreted broadcast, not part of the title" do
+    test "tv release with Signed between the show name and SxxExx" do
+      result =
+        Parser.parse(
+          "/media/Sample.Show.Signed.S01E01.Sample.Episode.1080p.ALL4.WEB-DL.AAC2.0.H.264-GROUP/Sample.Show.Signed.S01E01.Sample.Episode.1080p.ALL4.WEB-DL.AAC2.0.H.264-GROUP.mkv"
+        )
+
+      assert result.title == "Sample Show"
+      assert result.year == nil
+      assert result.type == :tv
+      assert result.season == 1
+      assert result.episode == 1
+      assert result.episode_title == "Sample Episode"
+    end
+
+    test "movie release with Signed between the title and the year" do
+      result = Parser.parse("/media/Movie.A.Signed.1999.1080p.WEB-DL.H.264-GROUP.mkv")
+
+      assert result.title == "Movie A"
+      assert result.year == 1999
+      assert result.type == :movie
+    end
+
+    test "Signed at the start of a title stays part of the title" do
+      result = Parser.parse("/media/Signed.Sample.Show.S01E02.1080p.WEB-DL-GROUP.mkv")
+
+      assert result.title == "Signed Sample Show"
+      assert result.season == 1
+      assert result.episode == 2
+    end
+  end
+
   describe "unknown fallback" do
     test "completely unrecognised filename" do
       result = Parser.parse("/mnt/videos/Videos/logitech-support-video-312.mp4")
