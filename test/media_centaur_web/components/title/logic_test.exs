@@ -156,28 +156,45 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
   describe "row_markers/1" do
     test "in library wins, then the acquisition state" do
       assert Logic.row_markers(%{
+               media_type: :movie,
                in_library?: true,
                acquisition_state: :downloading,
                rung: :list
              }) == ["In library"]
 
       assert Logic.row_markers(%{
+               media_type: :movie,
                in_library?: false,
                acquisition_state: :needs_review,
                rung: :list
              }) == ["Needs review", "On your list"]
 
       assert Logic.row_markers(%{
+               media_type: :movie,
                in_library?: false,
                acquisition_state: nil,
                rung: nil
              }) == []
     end
+
+    test "an owned series you follow leads with what is happening to it, In library after" do
+      owned = %{media_type: :tv_series, in_library?: true, acquisition_state: nil}
+
+      assert Logic.row_markers(Map.put(owned, :rung, :grab)) == ["Auto-grab", "In library"]
+      assert Logic.row_markers(Map.put(owned, :rung, :follow)) == ["Tracking", "In library"]
+
+      assert %{owned | acquisition_state: :downloading} |> Map.put(:rung, :grab) |> Logic.row_markers() ==
+               ["Downloading", "Auto-grab", "In library"]
+
+      # Not followed, the library's claim is the whole story.
+      assert Logic.row_markers(Map.put(owned, :rung, :list)) == ["In library"]
+      assert Logic.row_markers(Map.put(owned, :rung, nil)) == ["In library"]
+    end
   end
 
   describe "row_markers/1 tracking" do
-    test "a followed title says Tracking, a grabbing one Auto-grab; Off and owned say nothing" do
-      base = %{in_library?: false, acquisition_state: nil, rung: nil}
+    test "a followed title says Tracking, a grabbing one Auto-grab; Off and an owned film say nothing" do
+      base = %{media_type: :movie, in_library?: false, acquisition_state: nil, rung: nil}
 
       assert Logic.row_markers(%{base | rung: :follow}) == ["Tracking"]
       assert Logic.row_markers(%{base | rung: :grab}) == ["Auto-grab"]
@@ -187,7 +204,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
 
     test "an ignored title carries no marker — Ignored is a Feed stance, not an acquisition state" do
-      base = %{in_library?: false, acquisition_state: nil}
+      base = %{media_type: :movie, in_library?: false, acquisition_state: nil}
       assert Logic.row_markers(Map.put(base, :rung, :ignored)) == []
     end
   end

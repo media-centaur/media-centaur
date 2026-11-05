@@ -195,18 +195,30 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   @doc """
   The quiet text markers a title row shows after its type and year, in
   order: the library or acquisition state (one of them — In library
-  wins), then the tracking rung (Tracking at Follow, Auto-grab at Grab;
-  never for an owned title, whose tracking is the library detail's). A
-  listed title says so: On your list at List.
+  wins), then the tracking rung (Tracking at Follow, Auto-grab at Grab).
+  A listed title says so: On your list at List. An owned film shows In
+  library alone: it is complete, and nothing tracking says is news.
+
+  An owned series you follow is the exception to In library winning: what
+  you follow it for is episodes the library does not have yet, so it
+  leads with what is happening to them — the acquisition state, then the
+  rung — and In library comes last. A surface with room for one marker
+  (a poster tile) shows the rung, not the library's claim.
 
   What people did with the title is the social glyphs', and a feed row's
   sender/when line is the host's; neither is a marker.
   """
   @spec row_markers(%{
+          required(:media_type) => Title.media_type(),
           required(:in_library?) => boolean(),
           required(:acquisition_state) => acquisition_state(),
           optional(:rung) => TitleIntent.rung() | nil
         }) :: [String.t()]
+  def row_markers(%{media_type: :tv_series, in_library?: true, rung: rung} = facts)
+      when rung in [:follow, :grab] do
+    Enum.reject([acquisition_marker(facts.acquisition_state), rung_word(rung), "In library"], &is_nil/1)
+  end
+
   def row_markers(facts) do
     state =
       cond do

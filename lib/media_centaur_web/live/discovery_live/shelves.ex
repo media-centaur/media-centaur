@@ -255,8 +255,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
     end
   end
 
-  defp item(ref, %Title{} = title, owner_id, acquisition_state, rung) do
-    facts = %{in_library?: owner_id != nil, acquisition_state: acquisition_state, rung: rung}
+  defp item({_tmdb_id, media_type} = ref, %Title{} = title, owner_id, acquisition_state, rung) do
+    facts = %{
+      media_type: media_type,
+      in_library?: owner_id != nil,
+      acquisition_state: acquisition_state,
+      rung: rung
+    }
 
     %PosterRow.Item{
       id: TitleRef.param(ref),

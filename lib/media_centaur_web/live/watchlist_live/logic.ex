@@ -67,6 +67,7 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
         owned?: owner != nil,
         markers:
           TitleLogic.row_markers(%{
+            media_type: intent.media_type,
             in_library?: owner != nil,
             acquisition_state: Map.get(acquisition_states, ref)
           }),
@@ -105,7 +106,8 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
         rung: nil,
         poster_url: poster_url(nil, title),
         owned?: true,
-        markers: TitleLogic.row_markers(%{in_library?: true, acquisition_state: nil}),
+        markers:
+          TitleLogic.row_markers(%{media_type: :tv_series, in_library?: true, acquisition_state: nil}),
         state: %State{kind: quiet_kind(status)}
       }
     end

@@ -205,6 +205,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     ref = Title.ref(result)
 
     Logic.row_markers(%{
+      media_type: result.media_type,
       in_library?: MapSet.member?(assigns.in_library_refs, ref),
       acquisition_state: nil,
       rung: Map.get(assigns.title_rungs, ref)

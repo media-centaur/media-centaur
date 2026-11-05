@@ -158,7 +158,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       owned = listed(8, :follow, :tv_series, "owner-uuid")
       shelves = Shelves.watchlist_shelves([owned], %{}, %{{8, :tv_series} => item}, %{}, @today)
 
-      assert [%Item{id: "tv_series-8", chip: "Seasons 1–2", marker: "In library"}] = shelves.out_now
+      assert [%Item{id: "tv_series-8", chip: "Seasons 1–2", marker: "Tracking"}] = shelves.out_now
     end
 
     test "a followed series is placed by its calendar through the caught-up point, never by its first air date; its chip names the season" do
