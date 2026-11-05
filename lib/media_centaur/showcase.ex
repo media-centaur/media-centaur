@@ -49,6 +49,9 @@ defmodule MediaCentaur.Showcase do
       Review queue screenshots.
     * Console log lines in `seed_console_entries!` — visible in the
       Console drawer screenshot.
+    * The TMDB recording under `priv/showcase/tmdb/` — a recorded search
+      keeps only the results that are the catalogued title
+      (`MediaCentaur.Showcase.CatalogMatch.qualifies?/3`).
 
   Note on borderline titles: *House on Haunted Hill (1959)* is **not**
   treated as public-domain by this project despite being widely listed as
@@ -57,10 +60,10 @@ defmodule MediaCentaur.Showcase do
   the Living Dead, Plan 9 from Outer Space, Carnival of Souls, The Last
   Man on Earth, plus CC titles like Sita Sings the Blues and Pioneer One.
 
-  Parser regression tests under `test/media_centaur/parser_test.exs` are
-  exempt: those filenames are real-world paths the parser has been
-  observed to encounter, are append-only per ADR-027, and are never
-  rendered to a screenshot or marketing surface.
+  Outside the showcase, everything authored into the codebase — parser
+  regression filenames included — uses placeholder titles (CLAUDE.md
+  § Test and example content); real titles appear only here, and only
+  when public-domain or Creative Commons.
 
   ## Data created
 
