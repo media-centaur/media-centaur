@@ -50,7 +50,7 @@ export async function waitForSections(page, { min = 1 } = {}) {
  * @param {number} [opts.min=1]
  */
 export async function waitForReviewItems(page, { min = 1 } = {}) {
-  await page.locator("[data-nav-zone='review-list'] [data-nav-item]").nth(min - 1).waitFor({ state: "attached" })
+  await page.locator("[data-nav-zone='review-rows'] [data-nav-item]").nth(min - 1).waitFor({ state: "attached" })
 }
 
 /**
