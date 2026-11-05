@@ -3,7 +3,9 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   Pipeline stage 2: identifies the parsed title. A name a person answered
   in Review before (`Review.remembered_match/3`) takes that answer;
   otherwise TMDB is searched for the parsed title/year/type and the
-  results are scored using `TMDB.Confidence`.
+  results are scored using `TMDB.Confidence`. When the search cannot
+  decide and the file came from a grab of ours, the grab's identity
+  answers (`answer_from_grab/2`).
 
   Returns `{:ok, payload}` when confidence >= threshold (auto-approved),
   `{:needs_review, payload}` when confidence is low or no results found,
@@ -31,8 +33,11 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
       search_type = Parser.effective_media_type(parsed)
 
       case Review.remembered_match(search_title, search_type, search_year) do
-        nil -> search_tmdb(payload, search_title, search_year, search_type)
-        remembered -> apply_remembered(payload, remembered)
+        nil ->
+          payload |> search_tmdb(search_title, search_year, search_type) |> answer_from_grab(payload)
+
+        remembered ->
+          apply_remembered(payload, remembered)
       end
     end
   end
@@ -51,6 +56,50 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
         {:error, reason}
     end
   end
+
+  # The search could not decide — nothing found under the release's name, a
+  # tie, a guess below the threshold — but acquisition knows what it asked
+  # for (`Acquisition.GrabProvenance`). The grab's identity answers when the
+  # search found nothing, or found the grab's title among what it found; a
+  # search that found a different title instead is a conflict for a person.
+  defp answer_from_grab({:needs_review, searched} = outcome, %Payload{file_path: file_path} = payload)
+       when is_binary(file_path) do
+    with %TitleIdentity{} = wanted <- Acquisition.GrabProvenance.wanted_identity_for_file(file_path),
+         true <- grab_among_found?(wanted, searched) do
+      Log.info(
+        :pipeline,
+        "search undecided — took the grab's identity tmdb:#{wanted.tmdb_id} (#{wanted.title})"
+      )
+
+      {:ok,
+       %{
+         payload
+         | tmdb_id: String.to_integer(wanted.tmdb_id),
+           tmdb_type: wanted.tmdb_type,
+           confidence: 1.0,
+           match_title: wanted.title,
+           match_year: wanted.year && to_string(wanted.year),
+           match_poster_path: nil,
+           candidates: []
+       }}
+    else
+      _no_grab_or_conflict -> outcome
+    end
+  end
+
+  defp answer_from_grab(outcome, _payload), do: outcome
+
+  defp grab_among_found?(_wanted, %Payload{tmdb_id: nil}), do: true
+
+  defp grab_among_found?(
+         %TitleIdentity{tmdb_id: wanted_id, tmdb_type: type},
+         %Payload{tmdb_type: type} = searched
+       ) do
+    found = for {result, _score, _title_key} <- searched.candidates || [], do: to_string(result["id"])
+    wanted_id in [to_string(searched.tmdb_id) | found]
+  end
+
+  defp grab_among_found?(_wanted, _searched), do: false
 
   # A person answered this name in Review before (`Review.RememberedMatch`):
   # their answer stands in for the search. It is still checked against the

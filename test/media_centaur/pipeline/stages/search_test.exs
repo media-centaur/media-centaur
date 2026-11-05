@@ -400,6 +400,69 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
     end
   end
 
+  # Campaign `review-bulk-match`, M6: acquisition knows what it asked for.
+  # When the search cannot decide — nothing found under the release's name,
+  # a tie, a guess below the threshold — the grab's identity answers, as
+  # long as the search did not find something else instead.
+  describe "a file our grab asked for, that the search cannot decide" do
+    defp grab_for(release_title, identity_attrs) do
+      create_pursuit_with_target(
+        Map.merge(
+          %{recipe_type: "tmdb", tmdb_type: "tv", status: "succeeded", release_title: release_title},
+          identity_attrs
+        )
+      )
+    end
+
+    defp grabbed_episode do
+      payload_with_parsed(%{
+        file_path: "/media/Sample.Show.Signed.S01E01.1080p.WEB-DL-GROUP/Sample.Show.Signed.S01E01.mkv",
+        title: "Sample Show Signed",
+        year: nil,
+        type: :tv,
+        season: 1,
+        episode: 1
+      })
+    end
+
+    test "takes the grab's identity when TMDB finds nothing under the release's name" do
+      grab_for("Sample.Show.Signed.S01E01.1080p.WEB-DL-GROUP", %{
+        tmdb_id: "4242",
+        title: "Sample Show",
+        year: 1995
+      })
+
+      stub_search_tv([])
+
+      assert {:ok, result} = Search.run(grabbed_episode())
+      assert {result.tmdb_id, result.tmdb_type, result.match_title} == {4242, :tv, "Sample Show"}
+    end
+
+    test "takes the grab's identity when the guess below the threshold is the grab's title" do
+      grab_for("Sample.Show.Signed.S01E01.1080p.WEB-DL-GROUP", %{tmdb_id: "4242", title: "Sample Show"})
+      # TMDB lists the series under a name far from the release's, so the
+      # guess scores below the threshold — but it is the title the grab named.
+      stub_search_tv([tv_search_result(%{"id" => 4242, "name" => "Programme Collection"})])
+
+      assert {:ok, result} = Search.run(grabbed_episode())
+      assert {result.tmdb_id, result.confidence} == {4242, 1.0}
+    end
+
+    test "a guess below the threshold for a different title still goes to review" do
+      grab_for("Sample.Show.Signed.S01E01.1080p.WEB-DL-GROUP", %{tmdb_id: "4242", title: "Sample Show"})
+      stub_search_tv([tv_search_result(%{"id" => 777, "name" => "Other Show Entirely"})])
+
+      assert {:needs_review, result} = Search.run(grabbed_episode())
+      assert result.tmdb_id == 777
+    end
+
+    test "a file no grab accounts for and TMDB cannot find goes to review" do
+      stub_search_tv([])
+
+      assert {:needs_review, %{tmdb_id: nil}} = Search.run(grabbed_episode())
+    end
+  end
+
   # Campaign `review-bulk-match`: a person's answer in Review is kept for
   # the name the file was read as, and discovery uses it before asking
   # TMDB — next week's episode of a show TMDB cannot find by its release

@@ -77,7 +77,7 @@ Identifies what a file is — parses the filename, searches TMDB, and decides if
 **Processing flow:**
 1. **Dedup check** — query `library_watched_files` directly (not through Library context) to skip already-linked files
 2. **Parse** — extract title, year, type, season, episode from the file path
-3. **Search** — a name a person answered in Review before takes that answer (`Review.remembered_match/3`, see *Remembered matches*); otherwise search TMDB and score confidence. Either way the match is checked against the grab that fetched the file (`Acquisition.GrabProvenance`)
+3. **Search** — a name a person answered in Review before takes that answer (`Review.remembered_match/3`, see *Remembered matches*); otherwise search TMDB and score confidence. Either way the match is checked against the grab that fetched the file (`Acquisition.GrabProvenance`). When the search cannot decide — nothing found, a tie, a guess below the threshold — and the file came from a grab of ours, the grab's identity answers, unless the search found a different title instead
    - High confidence, or a remembered match → batcher emits `{:file_matched, ...}` to `"pipeline:matched"`
    - Low confidence → broadcast `{:needs_review, attrs}` to `"review:intake"`, stop
 
