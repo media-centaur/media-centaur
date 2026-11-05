@@ -4,14 +4,13 @@ import { createWatchHistoryBehavior } from "../watch_history_behavior.js"
 import { inputConfig } from "../config.js"
 import { buildNavGraph, Context } from "../core/index.js"
 
-/** A fake page: the search box, the type filter's All option, the date chip. */
-function fakeDom({ search = "", allPressed = true, dateChip = false } = {}) {
+/** A fake page: the search box and the type filter's All option. */
+function fakeDom({ search = "", allPressed = true } = {}) {
   const calls = []
   return {
     calls,
     getSearchInput: () => ({ value: search, clear: () => calls.push("search") }),
     resetType: () => { if (!allPressed) calls.push("type") },
-    clearDate: () => { if (dateChip) calls.push("date") },
   }
 }
 
@@ -26,10 +25,10 @@ describe("watch_history behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("CLEAR wipes the search and resets the type and date filters", () => {
-    const dom = fakeDom({ search: "sample", allPressed: false, dateChip: true })
+  test("CLEAR wipes the search and resets the type filter", () => {
+    const dom = fakeDom({ search: "sample", allPressed: false })
     createWatchHistoryBehavior(dom).onClear()
-    expect(dom.calls).toEqual(["search", "type", "date"])
+    expect(dom.calls).toEqual(["search", "type"])
   })
 
   test("CLEAR with no filter set touches nothing", () => {

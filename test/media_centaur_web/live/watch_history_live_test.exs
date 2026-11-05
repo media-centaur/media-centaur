@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     end
 
     test "a history that has never been written to ships no heatmap payload at all", %{conn: conn} do
-      # Zero cells used to carry ~40KB of dead tooltip/date payload, trimmed to
+      # Zero cells used to carry ~40KB of dead tooltip payload, trimmed to
       # nothing. A history with no rows now drops the whole grid: three zeroes,
       # an empty 52-week block and a filter for nothing are not worth rendering
       # above an empty state that already says the place is empty.
@@ -39,18 +39,16 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       assert count_substrings(html, "data-heatmap=") == 0
       assert tipped_cells(html) == 0
-      assert count_substrings(html, "phx-value-date") == 0
       assert html =~ "Every finished watch lands here"
     end
 
-    test "active cells keep tooltip and date-filter payload", %{conn: conn} do
+    test "an active cell keeps its tooltip", %{conn: conn} do
       movie = create_movie(%{name: "Heatmap Cell Movie"})
       create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Heatmap Cell Movie"})
 
       {:ok, _view, html} = live_async!(conn, "/history")
 
       assert tipped_cells(html) == 1
-      assert count_substrings(html, "phx-value-date") == 1
     end
 
     test "type filter swaps the rendered heatmap variant", %{conn: conn} do

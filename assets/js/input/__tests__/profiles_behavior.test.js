@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Action } from "../core/index"
 import { createProfilesBehavior } from "../profiles_behavior"
+import { inputConfig } from "../config.js"
 
 /** A focused element, inside the open add form or not, with the form's Cancel. */
 function focusedField({ inAddForm }) {
@@ -52,5 +53,11 @@ describe("profiles behavior", () => {
 
     expect(behavior.onAction(Action.SELECT, "profile_picker", focused)).toBe(false)
     expect(focused.cancel.clicked).toBe(0)
+  })
+})
+
+describe("profiles nav (real config)", () => {
+  test("on a switch the picker enters at the current profile's tile, not the first", () => {
+    expect(inputConfig.entryDefaults.profile_picker).toBe("[aria-current='true']")
   })
 })

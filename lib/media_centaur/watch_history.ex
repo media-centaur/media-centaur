@@ -46,7 +46,6 @@ defmodule MediaCentaur.WatchHistory do
   Options:
   - `:entity_type` — filter to `:movie`, `:episode`, or `:video_object`
   - `:search` — case-insensitive title substring match
-  - `:date` — filter to a specific `Date`
   - `:limit` — max rows (default 100)
   - `:offset` — rows to skip (default 0)
   """
@@ -59,7 +58,6 @@ defmodule MediaCentaur.WatchHistory do
     |> scoped(profile_id)
     |> maybe_filter_type(Keyword.get(opts, :entity_type))
     |> maybe_filter_search(Keyword.get(opts, :search))
-    |> maybe_filter_date(Keyword.get(opts, :date))
     |> order_by([e], desc: e.completed_at)
     |> limit(^limit)
     |> offset(^offset)
@@ -210,13 +208,5 @@ defmodule MediaCentaur.WatchHistory do
 
     pattern = "%#{escaped}%"
     where(query, [e], fragment("lower(?) LIKE lower(?)", e.title, ^pattern))
-  end
-
-  defp maybe_filter_date(query, nil), do: query
-
-  defp maybe_filter_date(query, %Date{} = date) do
-    start_dt = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
-    end_dt = DateTime.new!(date, ~T[23:59:59], "Etc/UTC")
-    where(query, [e], e.completed_at >= ^start_dt and e.completed_at <= ^end_dt)
   end
 end

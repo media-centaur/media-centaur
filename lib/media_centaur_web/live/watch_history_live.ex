@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   the sidebar there.
 
   Navigation (`watch_history` in `assets/js/input/config.js`): the
-  toolbar — type filter, search, the date chip — over the `history_rows`
+  toolbar — type filter and search — over the `history_rows`
   tree. A row is one item and its Remove the row's sub-item; the pager
   and the empty states' buttons are items of the same tree.
   """
@@ -42,7 +42,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         rewatch_counts: %{movie: %{}, episode: %{}, video_object: %{}},
         filter_type: nil,
         filter_search: "",
-        filter_date: nil,
         page: 1,
         events: [],
         has_next: false,
@@ -95,8 +94,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       profile_id: socket.assigns.profile.id,
       page: socket.assigns.page,
       filter_type: socket.assigns.filter_type,
-      filter_search: socket.assigns.filter_search,
-      filter_date: socket.assigns.filter_date
+      filter_search: socket.assigns.filter_search
     }
   end
 
@@ -162,8 +160,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               {heatmap_title(@filter_type)} — last 52 weeks
             </h2>
             <svg width="676" height="91" viewBox="0 0 676 91" xmlns="http://www.w3.org/2000/svg">
-              <%!-- Zero-count cells carry no tooltip/click attrs — on an
-                    empty year that's ~40KB of dead payload per navigation. --%>
+              <%!-- The heatmap is a picture, not a control: no input
+                    filters by day. Zero-count cells carry no tooltip — on
+                    an empty year that's ~40KB of dead payload per
+                    navigation. --%>
               <rect
                 :for={cell <- @heatmap_cells_by_type[@filter_type]}
                 x={cell.x}
@@ -171,9 +171,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
                 width="11"
                 height="11"
                 rx="2"
-                class={[heatmap_class(cell.count), cell.count > 0 && "cursor-pointer"]}
-                phx-click={if cell.count > 0, do: "filter_date"}
-                phx-value-date={if cell.count > 0, do: Date.to_iso8601(cell.date)}
+                class={heatmap_class(cell.count)}
                 data-tip={if cell.count > 0, do: heatmap_tooltip(cell)}
               />
             </svg>
@@ -212,20 +210,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             data-nav-item
             tabindex="0"
           />
-
-          <.button
-            :if={@filter_date}
-            id="history-date-filter"
-            variant="primary"
-            size="xs"
-            class="gap-1"
-            data-nav-item
-            tabindex="0"
-            phx-click="clear_date_filter"
-          >
-            {Calendar.strftime(@filter_date, "%b %-d, %Y")}
-            <.icon name="hero-x-mark-mini" class="size-3" />
-          </.button>
         </div>
 
         <%!-- Event list --%>
@@ -362,31 +346,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
-  @impl true
-  def handle_event("filter_date", %{"date" => date_str}, socket) do
-    case Date.from_iso8601(date_str) do
-      {:ok, date} ->
-        socket = assign(socket, filter_date: date, page: 1)
-        {events, has_next} = fetch_page(socket)
-        {:noreply, assign(socket, events: events, has_next: has_next)}
-
-      {:error, _} ->
-        {:noreply, socket}
-    end
-  end
-
   # The `:no_matches` empty state offers one way back to rows, so it clears
   # every filter rather than making the reader find which one is hiding them.
   @impl true
   def handle_event("clear_filters", _params, socket) do
-    socket = assign(socket, filter_type: nil, filter_search: "", filter_date: nil, page: 1)
-    {events, has_next} = fetch_page(socket)
-    {:noreply, assign(socket, events: events, has_next: has_next)}
-  end
-
-  @impl true
-  def handle_event("clear_date_filter", _params, socket) do
-    socket = assign(socket, filter_date: nil, page: 1)
+    socket = assign(socket, filter_type: nil, filter_search: "", page: 1)
     {events, has_next} = fetch_page(socket)
     {:noreply, assign(socket, events: events, has_next: has_next)}
   end
@@ -504,7 +468,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       WatchHistory.list_events(filters.profile_id,
         entity_type: filters.filter_type,
         search: filters.filter_search,
-        date: filters.filter_date,
         limit: @page_size + 1,
         offset: offset
       )
@@ -555,12 +518,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   @spec empty_reason(%{
           :events => list(),
           :filter_type => atom(),
-          :filter_search => String.t(),
-          :filter_date => Date.t() | nil
+          :filter_search => String.t()
         }) :: :none | :no_history | :no_matches
   def empty_reason(%{events: [_ | _]}), do: :none
 
-  def empty_reason(%{filter_type: nil, filter_search: "", filter_date: nil}), do: :no_history
+  def empty_reason(%{filter_type: nil, filter_search: ""}), do: :no_history
 
   def empty_reason(_state), do: :no_matches
 

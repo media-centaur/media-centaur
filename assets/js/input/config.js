@@ -389,6 +389,9 @@ export const inputConfig = {
     detail_actions: "#detail-download-toggle",
     manage_tools: "#manage-refresh-from-tmdb",
     subsystems: "[data-selected]",
+    // On a switch the picker opens on the profile you are (aria-current);
+    // at the door no tile is current and it falls to the first.
+    profile_picker: "[aria-current='true']",
   },
 
   // Zone layouts for nav graph. No content context carries a left edge to the

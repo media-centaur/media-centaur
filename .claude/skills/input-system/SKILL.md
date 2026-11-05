@@ -31,7 +31,7 @@ All app-specific knowledge lives in `config.js`. The framework core is parameter
 - **`activeMarkers`** — selectors marking a context's current selection (active page/tab/section classes, a segmented control's chosen option)
 - **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
 - **`overlays`** — region overlays (`detail`, `plan`, `review`, `apps_modal`, `viewing_menu`): `entry` priority and internal `layout`
-- **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`; `detail_actions` and `manage_tools` name a non-committing control so a stray SELECT never downloads or deletes)
+- **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`, `profile_picker: [aria-current='true']`; `detail_actions` and `manage_tools` name a non-committing control so a stray SELECT never downloads or deletes)
 - **`entryAnchors`** — fixed entry index (`hero: 0`)
 - **`glider`** — the page's one scroll animator (`assets/js/scroll_glider.js`)
 - **`createBehavior`** — factory function for page behaviors
