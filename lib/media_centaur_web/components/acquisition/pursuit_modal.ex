@@ -94,6 +94,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
       scroll_key={@pursuit_id}
       view_key={:main}
       data-pursuit-modal
+      data-nav-overlay={@open && "pursuit"}
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@on_close}
     >

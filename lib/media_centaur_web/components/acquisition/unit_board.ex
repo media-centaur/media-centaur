@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
 
   def unit_board(assigns) do
     ~H"""
-    <div class="glass-inset rounded-lg p-3 space-y-2">
+    <div data-nav-zone="pursuit_board" class="glass-inset rounded-lg p-3 space-y-2">
       <div :if={@vm.wanted > 1} class="flex items-baseline justify-between gap-3">
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
           Coverage
@@ -171,7 +171,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
             phx-value-unit-id={@unit.id}
             data-tip="Pick a different release for this episode"
             aria-label="Pick a different release"
-            data-nav-item
+            data-nav-sub-item
             tabindex="0"
           >
             <.icon name="hero-arrow-path-mini" class="size-3" />

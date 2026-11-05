@@ -34,7 +34,9 @@ defmodule MediaCentaur.Credo.Checks.CodeWordInCopy do
 
   @code_word ~r/(?<![\w\-])pursuits?(?![\w\-])/i
   @heex_comment ~r/<%!--.*?--%>/s
-  @identifier_value ~r/=["']pursuits?["']/i
+  # `data-nav-zone="pursuits"`, `{@open && "pursuit"}`: a bare quoted word
+  # is an identifier, never copy (copy is a sentence).
+  @identifier_value ~r/["']pursuits?["']/i
   @doc_attributes [:doc, :moduledoc, :typedoc, :storybook_reason]
 
   @impl true
@@ -134,8 +136,7 @@ defmodule MediaCentaur.Credo.Checks.CodeWordInCopy do
 
   defp text(parts), do: parts |> Enum.filter(&is_binary/1) |> Enum.join()
 
-  # `data-nav-zone="pursuits"` is an identifier, not copy: an attribute whose
-  # whole value is the word is dropped before the match.
+  # A bare quoted word is an identifier, not copy; dropped before the match.
   defp without_identifier_values(line), do: Regex.replace(@identifier_value, line, ~s(=""))
 
   # A comment is replaced by as many newlines as it spans, so the lines

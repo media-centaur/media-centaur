@@ -35,7 +35,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
           prompt, alternatives (or empty state), and all actions —
           Cancel pursuit and Search Prowlarr again live together in one
           action row instead of being scattered across two cards. --%>
-    <section class="glass-surface rounded-xl p-5 space-y-4 border-warning/40">
+    <section
+      data-nav-zone="pursuit_decision"
+      class="glass-surface rounded-xl p-5 space-y-4 border-warning/40"
+    >
       <p class="text-sm text-base-content/80">{@vm.prompt}</p>
 
       <%!-- The literal Prowlarr queries the alternatives below came from

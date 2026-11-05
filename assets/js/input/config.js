@@ -38,6 +38,12 @@ export const inputConfig = {
     // controls) over the episode grid over the body (release rows,
     // decisions, footer). Each stage before the board puts everything in
     // `plan_body`.
+    // The pursuit window's regions: the coverage board, the release picker,
+    // the Activity card's controls, History.
+    pursuit_board: "[data-nav-zone='pursuit_board'] [data-nav-item]",
+    pursuit_decision: "[data-nav-zone='pursuit_decision'] [data-nav-item]",
+    pursuit_actions: "[data-nav-zone='pursuit_actions'] [data-nav-item]",
+    pursuit_history: "[data-nav-zone='pursuit_history'] [data-nav-item]",
     plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
     plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
@@ -211,6 +217,10 @@ export const inputConfig = {
     // arrangement carries its meaning (season rows, capsules for packs), so
     // it is a SHELF — geometry answers adjacency across wrapped rows and
     // capsule groups without an adjacency table.
+    pursuit_board: Context.TREE,
+    pursuit_decision: Context.TREE,
+    pursuit_actions: Context.TOOLBAR,
+    pursuit_history: Context.TREE,
     plan_head: Context.TREE,
     plan_grid: Context.SHELF,
     plan_body: Context.TREE,
@@ -326,6 +336,21 @@ export const inputConfig = {
     // the body and, through the list's `data-nav-dismiss-event`, closes it.
     // The modal opens on a loading stage with no controls; the orchestrator
     // enters the first region that populates.
+    // The pursuit window (campaign pursuit-window, M6): the coverage board
+    // (season heads and episode rows, each row's swap a sub-item) over the
+    // release picker or the Activity card's controls, over History (the
+    // recent runs, the log's head and rows, Show more). It opens on the
+    // board — every download renders one, and its first control commits
+    // nothing. No `back` edges: BACK closes the window from any region.
+    pursuit: {
+      entry: ["pursuit_board", "pursuit_decision", "pursuit_actions", "pursuit_history"],
+      layout: {
+        pursuit_board: { down: ["pursuit_decision", "pursuit_actions", "pursuit_history"] },
+        pursuit_decision: { up: ["pursuit_board"], down: ["pursuit_history"] },
+        pursuit_actions: { up: ["pursuit_board"], down: ["pursuit_history"] },
+        pursuit_history: { up: ["pursuit_actions", "pursuit_decision", "pursuit_board"] },
+      },
+    },
     plan: {
       entry: ["plan_head", "plan_body", "plan_grid"],
       layout: {

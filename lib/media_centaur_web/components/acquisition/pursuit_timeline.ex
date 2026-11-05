@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
     ~H"""
     <%!-- Flat section inside the modal panel. See `pursuit_header.ex`
           for the rationale. --%>
-    <div class="space-y-3">
+    <div data-nav-zone="pursuit_history" class="space-y-3">
       <div class="flex items-baseline justify-between gap-3">
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">History</h3>
         <span :if={@vm.total_events > 0} class="text-xs text-base-content/60 tabular-nums">

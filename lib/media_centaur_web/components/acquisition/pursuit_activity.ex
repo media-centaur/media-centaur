@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   def pursuit_activity(assigns) do
     ~H"""
-    <section class="glass-inset rounded-xl p-5 space-y-4">
+    <section data-nav-zone="pursuit_actions" class="glass-inset rounded-xl p-5 space-y-4">
       <div class="space-y-1">
         <div class={"text-base font-medium #{severity_class(@vm.current_action.severity)}"}>
           {@vm.current_action.verb}
