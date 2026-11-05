@@ -96,7 +96,10 @@ const TOUR = [
         .locator("[data-nav-zone='review-rows'] [data-nav-item]", { hasText: "6 files" })
         .first()
         .click({ timeout: 5_000 })
-      await page.locator("[data-nav-zone='review-results'] [data-nav-item]").first().waitFor({ timeout: 5_000 })
+      const result = page.locator("[data-nav-zone='review-results'] [data-nav-item]").first()
+      await result.waitFor({ timeout: 5_000 })
+      // The bar sits under the rows, below the fold at the tour's size.
+      await result.scrollIntoViewIfNeeded()
     },
     settleMs: 600,
   },
