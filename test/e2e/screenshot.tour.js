@@ -84,12 +84,19 @@ const TOUR = [
 
   // ─── Review ──────────────────────────────────────────────────────────
   { name: "review-queue", url: "/review" },
+  // Matching: the release-folder scenario's six episodes ticked by their
+  // title divider, the match bar showing the show its search found
+  // (`MediaCentaur.Showcase.ReviewScenarios`). The file keeps its old name,
+  // which the wiki's Review page embeds.
   {
     name: "review-detail",
     url: "/review",
     action: async (page) => {
-      const first = page.locator("[data-review-pending]").first()
-      await first.click({ timeout: 5_000 }).catch(() => {})
+      await page
+        .locator("[data-nav-zone='review-rows'] [data-nav-item]", { hasText: "6 files" })
+        .first()
+        .click({ timeout: 5_000 })
+      await page.locator("[data-nav-zone='review-results'] [data-nav-item]").first().waitFor({ timeout: 5_000 })
     },
     settleMs: 600,
   },
