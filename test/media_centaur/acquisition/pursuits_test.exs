@@ -512,7 +512,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
   end
 
-  describe "timeline_for/1" do
+  describe "detail_for/1 — History" do
     alias MediaCentaur.Acquisition.ViewModels.{Timeline, TimelineEntry}
 
     test "returns a Timeline VM with all events newest-first" do
@@ -521,23 +521,23 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       insert_event(pursuit, "stall_confirmed", DateTime.add(DateTime.utc_now(:second), -60))
       insert_event(pursuit, "user_decision_requested", DateTime.utc_now(:second))
 
-      timeline = Pursuits.timeline_for(pursuit.id)
+      %{timeline: timeline} = Pursuits.detail_for(pursuit)
 
-      assert %Timeline{pursuit_id: pid} = timeline
+      assert %Timeline{pursuit_id: pid, total_events: 3, total_runs: 3} = timeline
       assert pid == pursuit.id
 
-      kinds = Enum.map(timeline.entries, & &1.kind)
+      kinds = Enum.map(timeline.recent, & &1.entry.kind)
       assert kinds == ["user_decision_requested", "stall_confirmed", "pursuit_started"]
 
-      stall = Enum.find(timeline.entries, &(&1.kind == "stall_confirmed"))
-      assert %TimelineEntry{severity: :warning} = stall
+      stall = Enum.find(timeline.recent, &(&1.entry.kind == "stall_confirmed"))
+      assert %TimelineEntry{severity: :warning} = stall.entry
     end
 
     test "returns an empty Timeline when there are no events" do
       pursuit = insert_pursuit()
-      timeline = Pursuits.timeline_for(pursuit.id)
+      %{timeline: timeline} = Pursuits.detail_for(pursuit)
       assert timeline.pursuit_id == pursuit.id
-      assert timeline.entries == []
+      assert timeline.recent == [] and timeline.rest == [] and timeline.total_events == 0
     end
 
     test "search_started entries surface the literal query in the summary" do
@@ -547,8 +547,8 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
         payload: %{"query" => "Sample Show S01E03"}
       })
 
-      timeline = Pursuits.timeline_for(pursuit.id)
-      [entry] = timeline.entries
+      %{timeline: timeline} = Pursuits.detail_for(pursuit)
+      [%{entry: entry}] = timeline.recent
       assert entry.summary == "Searching Prowlarr — Sample Show S01E03"
     end
 
@@ -559,8 +559,8 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
         payload: %{"query" => "Sample Show S01E03"}
       })
 
-      timeline = Pursuits.timeline_for(pursuit.id)
-      [entry] = timeline.entries
+      %{timeline: timeline} = Pursuits.detail_for(pursuit)
+      [%{entry: entry}] = timeline.recent
       assert entry.summary == "No acceptable release found — Sample Show S01E03"
     end
   end
@@ -701,7 +701,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
   end
 
-  describe "unit_board_for/1 (ADR-055 drill-down)" do
+  describe "detail_for/1 — the coverage board (ADR-055 drill-down)" do
     test "one row per unit, in position order, with release and counts" do
       {pursuit, _target} =
         create_pursuit_with_target(%{
@@ -722,7 +722,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
           state: "satisfied"
         })
 
-      board = Pursuits.unit_board_for(pursuit)
+      %{unit_board: board} = Pursuits.detail_for(pursuit)
 
       assert board.pursuit_id == pursuit.id
       assert board.wanted == 2
@@ -743,7 +743,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test "an awaiting-decision unit is flagged and not actionable" do
       pursuit = create_pursuit(%{awaiting_decision_at: DateTime.utc_now(:second)})
 
-      board = Pursuits.unit_board_for(pursuit)
+      %{unit_board: board} = Pursuits.detail_for(pursuit)
 
       assert [row] = board.units
       assert row.awaiting_decision?

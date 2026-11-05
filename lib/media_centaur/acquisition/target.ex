@@ -98,6 +98,9 @@ defmodule MediaCentaur.Acquisition.Target do
     field :last_attempt_outcome, :string
     field :cancelled_at, :utc_datetime
     field :cancelled_reason, :string
+    # The download client's own words for why the release was abandoned
+    # (SABnzbd's fail message); nil when the client gave none.
+    field :cancelled_detail, :string
     field :origin, :string, default: "auto"
     field :prowlarr_guid, :string
     # The release chosen for a `grabbing` target (`SearchResult.to_map/1`),

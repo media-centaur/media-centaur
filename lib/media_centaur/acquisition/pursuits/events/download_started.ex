@@ -3,5 +3,5 @@ defmodule MediaCentaur.Acquisition.Pursuits.Events.DownloadStarted do
 
   use MediaCentaur.Acquisition.Pursuits.Events.Define,
     kind: "download_started",
-    payload_keys: [:client, :infohash]
+    payload_keys: [:client, :infohash, :target_id]
 end

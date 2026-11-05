@@ -222,4 +222,33 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
                run(%{pursuit_id: Ecto.UUID.generate(), reason: :zero_seeders})
     end
   end
+
+  describe "execute/1 — the abandoned release keeps its ending" do
+    test "the target carries the client's words and the event names the target" do
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          status: "acquired",
+          release_title: "Sample.Show.S01E01.x264",
+          prowlarr_guid: "dead-release-2"
+        })
+
+      assert {:ok, _pivoted} =
+               run(%{
+                 pursuit_id: pursuit.id,
+                 reason: :download_failed,
+                 detail: "Aborted, cannot be completed"
+               })
+
+      abandoned = Repo.get!(MediaCentaur.Acquisition.Target, target.id)
+      assert abandoned.status == "cancelled"
+      assert abandoned.cancelled_detail == "Aborted, cannot be completed"
+
+      [event] =
+        Event
+        |> where([e], e.pursuit_id == ^pursuit.id and e.kind == "auto_cancelled")
+        |> Repo.all()
+
+      assert event.payload["target_id"] == target.id
+    end
+  end
 end

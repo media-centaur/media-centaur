@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
 
   alias MediaCentaur.Acquisition.Pursuits.Recipe
 
+  alias MediaCentaur.Acquisition.Pursuits.Event
+  alias MediaCentaur.Acquisition.ViewModels.Timeline.Resolver
+
   alias MediaCentaur.Acquisition.ViewModels.{
     Alternative,
     CurrentAction,
@@ -25,8 +28,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
     NextStep,
     PursuitHeader,
     PursuitStatus,
-    Timeline,
-    TimelineEntry
+    Timeline
   }
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitModal.pursuit_modal/1
@@ -364,64 +366,57 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   end
 
   # --- timeline fixtures -----------------------------------------------------
+  #
+  # History is built from events, as the window builds it.
 
   defp ago(seconds), do: DateTime.add(~U[2026-05-08 12:00:00Z], -seconds)
 
-  defp entry(kind, summary, severity, occurred_at, detail \\ nil) do
-    %TimelineEntry{
+  defp event(kind, occurred_at, payload \\ %{}) do
+    struct(Event, %{
+      pursuit_id: "story",
       kind: kind,
+      payload: payload,
       occurred_at: occurred_at,
-      summary: summary,
-      severity: severity,
-      detail: detail
-    }
+      denormalized_pursuit_title: "Sample Feature"
+    })
   end
 
+  defp timeline(id, events), do: Timeline.build(id, events, Resolver.empty())
+
   defp short_timeline do
-    %Timeline{
-      pursuit_id: "story-active",
-      entries: [
-        entry("download_started", "Download started", :info, ago(180)),
-        entry(
-          "release_picked",
-          "Release picked — Public.Domain.Feature.1925.1080p",
-          :success,
-          ago(240),
-          "ExampleIndexer • 1080p"
-        ),
-        entry("pursuit_started", "Pursuit started (auto)", :info, ago(300))
-      ]
-    }
+    timeline("story-active", [
+      event("download_started", ago(180), %{"client" => "qbittorrent"}),
+      event("release_picked", ago(240), %{
+        "release_title" => "Public.Domain.Feature.1925.1080p",
+        "indexer" => "ExampleIndexer",
+        "quality" => "1080p"
+      }),
+      event("pursuit_started", ago(300), %{"origin" => "auto"})
+    ])
   end
 
   defp stall_timeline do
-    %Timeline{
-      pursuit_id: "story-decision",
-      entries: [
-        entry("user_decision_requested", "User decision requested", :info, ago(600)),
-        entry("stall_confirmed", "Stall confirmed", :warning, ago(86_400)),
-        entry("download_started", "Download started", :info, ago(172_800)),
-        entry("pursuit_started", "Pursuit started (auto)", :info, ago(259_200))
-      ]
-    }
+    timeline("story-decision", [
+      event("user_decision_requested", ago(600), %{
+        "prompt" => "Download stalled for 24+ hours — pick an alternative release."
+      }),
+      event("stall_confirmed", ago(86_400)),
+      event("download_started", ago(172_800), %{"client" => "qbittorrent"}),
+      event("pursuit_started", ago(259_200), %{"origin" => "auto"})
+    ])
   end
 
   defp stall_to_satisfied_timeline do
-    %Timeline{
-      pursuit_id: "story-satisfied",
-      entries: [
-        entry("pursuit_satisfied", "Pursuit satisfied", :success, ago(60)),
-        entry(
-          "identity_verified",
-          "Identity verified",
-          :success,
-          ago(120),
-          "/library/incoming/Movie.A.2023.1080p.mkv"
-        ),
-        entry("download_started", "Download started", :info, ago(180)),
-        entry("pursuit_started", "Pursuit started (auto)", :info, ago(259_200))
-      ]
-    }
+    timeline("story-satisfied", [
+      event("pursuit_satisfied", ago(60)),
+      event("identity_verified", ago(120), %{"file_path" => "/library/incoming/Movie.A.2023.1080p.mkv"}),
+      event("download_started", ago(180), %{"client" => "qbittorrent"}),
+      event("user_decision_recorded", ago(300), %{"choice" => "Movie.A.2023.1080p"}),
+      event("user_decision_requested", ago(600), %{"prompt" => "Download stalled — pick an alternative."}),
+      event("stall_confirmed", ago(86_400)),
+      event("download_started", ago(172_800), %{"client" => "qbittorrent"}),
+      event("pursuit_started", ago(259_200), %{"origin" => "auto"})
+    ])
   end
 
   defp composite_unit_board do

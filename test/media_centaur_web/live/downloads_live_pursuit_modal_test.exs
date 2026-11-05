@@ -528,4 +528,52 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
       assert patched =~ "selected=#{pursuit.id}"
     end
   end
+
+  describe "History — runs, the full log and Show more" do
+    test "repeated events fold into one counted row; the log opens a page at a time", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{status: "acquired", release_title: "Sample.Show.S01E01.1080p"})
+
+      base = DateTime.utc_now(:second)
+      failed = %{"reason" => "download_failed", "detail" => "Aborted, cannot be completed"}
+
+      for i <- 1..3 do
+        create_pursuit_event(pursuit, "auto_cancelled", %{
+          payload: failed,
+          occurred_at: DateTime.add(base, -i, :second)
+        })
+      end
+
+      # Sixty alternating pairs: no two neighbours read the same, so 120 rows.
+      for i <- 1..60 do
+        create_pursuit_event(pursuit, "download_started", %{
+          payload: %{"client" => "sabnzbd"},
+          occurred_at: DateTime.add(base, -60 - i * 60, :second)
+        })
+
+        create_pursuit_event(pursuit, "health_changed", %{
+          payload: %{"from_state" => "downloading", "to_state" => "error"},
+          occurred_at: DateTime.add(base, -90 - i * 60, :second)
+        })
+      end
+
+      {:ok, view, html} = live(conn, "/downloads?selected=#{pursuit.id}")
+
+      # 123 events, 121 rows: the three abandonments are one row with its count.
+      assert html =~ "Release abandoned — download failed"
+      assert html =~ "×3"
+      assert html =~ "123 events in 121 rows"
+
+      # Closed, the log holds no rows — the DOM stays bounded.
+      refute has_element?(view, "#history-log-#{pursuit.id}-body li")
+
+      # Open: the first fifty older rows, then Show more with the rest.
+      view |> element("#history-log-#{pursuit.id}-head") |> render_click()
+      assert has_element?(view, "#history-log-#{pursuit.id}-body li")
+      assert has_element?(view, "button", "Show more (65 more)")
+
+      view |> element("button", "Show more") |> render_click()
+      assert has_element?(view, "button", "Show more (15 more)")
+    end
+  end
 end

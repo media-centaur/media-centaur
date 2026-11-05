@@ -6,15 +6,18 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   severity classification, and the optional sub-line detail
   (release-picked indexer/quality, target-changed prior title, etc.).
 
-  Build with `from_event/1` from a persisted `%Event{}` row. Pure
-  module — no DB, no I/O.
+  Build with `from_event/2` from a persisted `%Event{}` row and the
+  window's `Timeline.Resolver`, which turns the target an event names into
+  `subjects` (the episodes it covers) and `release`. Pure module — no DB,
+  no I/O.
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition.Pursuits.Event
+  alias MediaCentaur.Acquisition.ViewModels.Timeline.Resolver
 
   @enforce_keys [:kind, :occurred_at, :summary, :severity]
-  defstruct [:kind, :occurred_at, :summary, :severity, :detail]
+  defstruct [:kind, :occurred_at, :summary, :severity, :detail, :release, subjects: []]
 
   @type severity :: :info | :success | :warning | :error
   @type t :: %__MODULE__{
@@ -22,18 +25,26 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
           occurred_at: DateTime.t(),
           summary: String.t(),
           severity: severity(),
-          detail: String.t() | nil
+          detail: String.t() | nil,
+          # The episode labels of the target the event names; [] when the
+          # event names none or the resolver cannot place it.
+          subjects: [String.t()],
+          release: String.t() | nil
         }
 
   @doc "Builds a `TimelineEntry` from a persisted `Event` row."
-  @spec from_event(Event.t()) :: t()
-  def from_event(%Event{} = event) do
+  @spec from_event(Event.t(), Resolver.t()) :: t()
+  def from_event(%Event{} = event, %Resolver{} = resolver) do
+    subject = Resolver.lookup(resolver, event.payload)
+
     %__MODULE__{
       kind: event.kind,
       occurred_at: event.occurred_at,
       summary: summary_for(event.kind, event.payload),
       severity: severity_for(event.kind),
-      detail: detail_for(event)
+      detail: detail_for(event),
+      subjects: (subject && subject.labels) || [],
+      release: subject && subject.release
     }
   end
 

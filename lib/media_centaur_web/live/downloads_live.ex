@@ -203,6 +203,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
+         history_shown: 0,
          pursuit_detail: nil,
          alternatives_fetches_in_flight: MapSet.new(),
          plan_param: nil,
@@ -493,7 +494,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
       socket
     else
       socket
-      |> assign(:selected_pursuit_id, id)
+      |> assign(selected_pursuit_id: id, history_shown: 0)
       |> load_pursuit_detail()
     end
   end
@@ -692,6 +693,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           timeline={@pursuit_detail && @pursuit_detail.timeline}
           unit_board={@pursuit_detail && @pursuit_detail.unit_board}
           disclosures={@disclosures}
+          history_shown={@history_shown}
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
@@ -1326,6 +1328,12 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
     {:noreply, open_plan(socket, PlanQuery.board(plan_id))}
+  end
+
+  # History's Show more: one more page of the older runs (`Timeline.page/0`).
+  def handle_event("show_more_history", _params, socket) do
+    shown = socket.assigns.history_shown + MediaCentaur.Acquisition.ViewModels.Timeline.page()
+    {:noreply, assign(socket, history_shown: shown)}
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -1991,11 +1999,10 @@ defmodule MediaCentaurWeb.DownloadsLive do
         # Prowlarr decision-card fetch is dispatched off-process so the
         # modal opens in <5 ms regardless of indexer latency
         # (ADR-044).
-        header = Pursuits.header_from(pursuit)
-        status = Pursuits.status_from(pursuit)
+        %{header: header, status: status, timeline: timeline, unit_board: unit_board} =
+          Pursuits.detail_for(pursuit)
+
         socket = maybe_fetch_artwork(socket, header)
-        timeline = Pursuits.timeline_for(pursuit.id)
-        unit_board = Pursuits.unit_board_for(pursuit)
 
         {card, results_by_guid, needs_fetch?} =
           decision_card_or_placeholder(

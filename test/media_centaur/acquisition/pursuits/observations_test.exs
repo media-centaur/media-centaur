@@ -366,4 +366,31 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
       assert all_events(pursuit.id) == []
     end
   end
+
+  describe "observe!/4 — a job event names its target" do
+    test "DownloadStarted and HealthChanged both carry the target's id" do
+      {pursuit, target} = pursuit_with_target()
+
+      first =
+        Observations.observe!(
+          pursuit,
+          target,
+          [queue_item(%{id: "abc", state: :downloading, health: :healthy})],
+          @now
+        )
+
+      Observations.observe!(
+        pursuit,
+        first,
+        [queue_item(%{id: "abc", state: :stalled, health: :frozen})],
+        DateTime.add(@now, 600, :second)
+      )
+
+      assert [started] = events_for(pursuit.id, "download_started")
+      assert started.payload["target_id"] == target.id
+
+      assert [changed] = events_for(pursuit.id, "health_changed")
+      assert changed.payload["target_id"] == target.id
+    end
+  end
 end

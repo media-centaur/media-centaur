@@ -5,7 +5,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.UnitBoard do
 
   One row per unit: what the unit wants (its label/term), where its
   thread stands (state + awaiting flag), and which release currently
-  covers it. Built by `MediaCentaur.Acquisition.Pursuits.unit_board_for/1`;
+  covers it. Built by `MediaCentaur.Acquisition.Pursuits.detail_for/1`;
   the modal renders it only for multi-unit pursuits (`wanted > 1`) —
   a single-unit pursuit's thread is already the whole modal.
 

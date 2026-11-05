@@ -12,5 +12,5 @@ defmodule MediaCentaur.Acquisition.Pursuits.Events.HealthChanged do
 
   use MediaCentaur.Acquisition.Pursuits.Events.Define,
     kind: "health_changed",
-    payload_keys: [:from_state, :to_state, :from_health, :to_health]
+    payload_keys: [:from_state, :to_state, :from_health, :to_health, :target_id]
 end

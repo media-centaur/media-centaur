@@ -26,12 +26,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   alias MediaCentaur.Acquisition.{QueueMatcher, Target}
   alias MediaCentaur.Search.QueryBuilder
 
+  alias MediaCentaur.Acquisition.ViewModels.Timeline.Resolver
+
   alias MediaCentaur.Acquisition.ViewModels.{
     PursuitHeader,
     PursuitRow,
     PursuitStatus,
     Timeline,
-    TimelineEntry,
     UnitBoard
   }
 
@@ -472,21 +473,63 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  Builds the `UnitBoard` view-model for a pursuit's per-unit drill-down
-  (ADR-055): one row per unit in display order, each paired with the
-  release its current target carries. Two queries total (units +
-  batched targets).
+  Everything the pursuit window draws, from one read.
+
+  Loads the pursuit's units once, every target covering them once (through
+  the coverage join), and its events, and builds the header, the status,
+  History and the coverage board from them. The `Timeline.Resolver` the
+  events are read through comes from the same units and targets the board
+  draws, so an event's episode and release are the board's. The header and
+  status builders still take their own reads (campaign `pursuit-window.md`,
+  M5 folds them in).
   """
-  @spec unit_board_for(Pursuit.t()) :: UnitBoard.t()
-  def unit_board_for(%Pursuit{} = pursuit) do
+  @spec detail_for(Pursuit.t()) :: %{
+          header: PursuitHeader.t(),
+          status: PursuitStatus.t(),
+          timeline: Timeline.t(),
+          unit_board: UnitBoard.t()
+        }
+  def detail_for(%Pursuit{} = pursuit) do
     units = Units.for_pursuit(pursuit.id)
+    covering = covering_targets(units)
+    targets_by_id = Map.new(covering, fn {target, _units} -> {target.id, target} end)
 
-    targets =
-      units
-      |> Enum.map(& &1.current_target_id)
-      |> Enum.reject(&is_nil/1)
-      |> fetch_targets_by_id()
+    %{
+      header: build_header(pursuit),
+      status: status_from(pursuit),
+      timeline: Timeline.build(pursuit.id, events_for(pursuit.id), Resolver.new(covering)),
+      unit_board: build_unit_board(pursuit, units, targets_by_id)
+    }
+  end
 
+  # Every target covering one of the units, each with the units it covers
+  # (in position order) — one query through `acquisition_target_units`.
+  defp covering_targets([]), do: []
+
+  defp covering_targets(units) do
+    units_by_id = Map.new(units, &{&1.id, &1})
+    unit_ids = Map.keys(units_by_id)
+
+    from(tu in MediaCentaur.Acquisition.Pursuits.TargetUnit,
+      join: t in Target,
+      on: t.id == tu.target_id,
+      where: tu.unit_id in ^unit_ids,
+      select: {t, tu.unit_id}
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {target, unit_id}, acc ->
+      Map.update(acc, target.id, {target, [unit_id]}, fn {t, ids} -> {t, [unit_id | ids]} end)
+    end)
+    |> Map.values()
+    |> Enum.sort_by(fn {target, _ids} -> target.inserted_at end, {:asc, DateTime})
+    |> Enum.map(fn {target, ids} ->
+      {target, ids |> Enum.map(&Map.fetch!(units_by_id, &1)) |> Enum.sort_by(& &1.position)}
+    end)
+  end
+
+  # The per-unit coverage board (ADR-055): one row per unit with its
+  # current release; the modal renders it for multi-unit pursuits.
+  defp build_unit_board(%Pursuit{} = pursuit, units, targets) do
     rows =
       Enum.map(units, fn unit ->
         target = Map.get(targets, unit.current_target_id)
@@ -518,17 +561,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   defp unit_state_to_atom("satisfied"), do: :satisfied
   defp unit_state_to_atom("exhausted"), do: :exhausted
   defp unit_state_to_atom("cancelled"), do: :cancelled
-
-  @doc "Returns a `Timeline` view-model containing every event for a pursuit."
-  @spec timeline_for(Ecto.UUID.t()) :: Timeline.t()
-  def timeline_for(pursuit_id) do
-    entries =
-      pursuit_id
-      |> events_for()
-      |> Enum.map(&TimelineEntry.from_event/1)
-
-    %Timeline{pursuit_id: pursuit_id, entries: entries}
-  end
 
   @doc """
   The prompt of the pursuit's most recent `user_decision_requested`

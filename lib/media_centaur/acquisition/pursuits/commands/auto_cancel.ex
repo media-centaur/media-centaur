@@ -24,12 +24,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   `:unit_id` is given — ADR-055):
 
   1. Mark every in-flight target *covering this unit* as `cancelled`
-     with the auto-cancel reason (typically just the unit's
+     with the auto-cancel reason and the client's words (`cancelled_detail`) (typically just the unit's
      `current_target`).
   2. Bump `unit.attempt_count` and append the previous target's
      `prowlarr_guid` to `unit.tried_release_guids` (so the next search
      filters it out).
-  3. Record `auto_cancelled` event.
+  3. Record `auto_cancelled`, naming the target abandoned (`target_id`).
   4. If a target was cancelled, insert a fresh `seeking` target covering
      the unit — with its `Jobs.PursueTarget`, in the same transaction
      (`Targets.start_seeking/1`, ADR-077 rule 1) — update
@@ -77,7 +77,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
         # status flip; removed from the client post-commit.
         abandoned_hashes = Targets.in_flight_hashes_for_unit(unit.id)
         prior_guid = previous_target_guid(unit)
-        cancel_in_flight_targets(unit, reason, now)
+        cancel_in_flight_targets(unit, reason, detail, now)
 
         with {:ok, attempted_unit} <-
                Repo.update(Unit.record_attempt_changeset(unit, prior_guid)),
@@ -87,7 +87,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
                  pursuit_title: pursuit.title,
                  occurred_at: now,
                  reason: Atom.to_string(reason),
-                 detail: detail
+                 detail: detail,
+                 target_id: unit.current_target_id
                }) do
           with {:ok, {pivoted, new_target}} <- follow_on(next, pursuit, attempted_unit, unit, now) do
             {:ok, {pivoted, new_target, abandoned_hashes}}
@@ -127,7 +128,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
   # Cancels in-flight targets covering THIS unit only — sibling units'
   # downloads are untouched (ADR-055).
-  defp cancel_in_flight_targets(%Unit{} = unit, reason, now) do
+  # The target keeps the client's words beside its reason: an attempt's
+  # ending is read from the target, the event is the log line of it.
+  defp cancel_in_flight_targets(%Unit{} = unit, reason, detail, now) do
     covering = from(tu in TargetUnit, where: tu.unit_id == ^unit.id, select: tu.target_id)
 
     Target
@@ -137,6 +140,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
         status: "cancelled",
         cancelled_at: now,
         cancelled_reason: CancelReasons.from_policy(reason),
+        cancelled_detail: detail,
         next_attempt_at: nil,
         updated_at: now
       ]

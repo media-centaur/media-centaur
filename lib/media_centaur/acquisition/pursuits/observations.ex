@@ -140,7 +140,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
           pursuit_title: pursuit.title,
           occurred_at: now,
           client: client_name(item),
-          infohash: item.id
+          infohash: item.id,
+          target_id: target.id
         }
 
       from_state != to_state or from_health != to_health ->
@@ -151,7 +152,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
           from_state: from_state,
           to_state: to_state,
           from_health: from_health,
-          to_health: to_health
+          to_health: to_health,
+          target_id: target.id
         }
 
       true ->

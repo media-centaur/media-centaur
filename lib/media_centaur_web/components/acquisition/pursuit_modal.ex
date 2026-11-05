@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   attr :timeline, :any,
     default: nil,
-    doc: "%Timeline{} | nil — chronological pursuit events."
+    doc: "%Timeline{} | nil — History: the recent runs and the paged log."
 
   attr :decision_card, :any,
     default: nil,
@@ -52,7 +52,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   attr :disclosures, MapSet,
     default: MapSet.new(),
-    doc: "the page's `DisclosureState` — the unit board's season groups."
+    doc: "the page's `DisclosureState` — the unit board's season groups and History's full log."
+
+  attr :history_shown, :integer,
+    default: 0,
+    doc: "how many older History runs Show more has revealed beyond the first page."
 
   attr :client_url, :string,
     default: nil,
@@ -133,7 +137,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
             cancel_armed={@cancel_armed}
           />
 
-          <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+          <PursuitTimeline.timeline
+            :if={@timeline}
+            vm={@timeline}
+            shown={@history_shown}
+            disclosures={@disclosures}
+          />
         </div>
       </:body>
     </CinematicShell.cinematic_shell>

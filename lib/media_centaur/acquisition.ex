@@ -86,6 +86,10 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.PursuitWithDownload,
       ViewModels.SearchOutage,
       ViewModels.Timeline,
+      # History's rows and the pointer resolver: the component draws a Run,
+      # stories and tests build a Resolver (pursuit-window M4).
+      ViewModels.Timeline.Run,
+      ViewModels.Timeline.Resolver,
       ViewModels.TimelineEntry,
       ViewModels.UnitBoard,
       ViewModels.UnitBoard.Group,
