@@ -175,6 +175,33 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
     end
   end
 
+  describe "execute/1 — giving up when the attempt budget is spent" do
+    test "cancels the dead release, exhausts the unit and starts no new search" do
+      {pursuit, current_target} =
+        create_pursuit_with_target(%{
+          status: "acquired",
+          attempt_count: 3,
+          prowlarr_guid: "dead-release-4"
+        })
+
+      assert {:ok, %Pursuit{state: "exhausted"}} =
+               run(%{pursuit_id: pursuit.id, reason: :download_failed, next: :give_up})
+
+      unit = Units.single!(pursuit.id)
+      assert unit.state == "exhausted"
+      assert unit.attempt_count == 4
+      assert "dead-release-4" in unit.tried_release_guids
+      assert Repo.get!(Target, current_target.id).status == "cancelled"
+      assert Repo.aggregate(Target, :count) == 1
+      assert [] = enqueued_pursue_target_jobs()
+
+      kinds = Event |> order_by(:inserted_at) |> Repo.all() |> Enum.map(& &1.kind)
+      assert "auto_cancelled" in kinds
+      assert "pursuit_exhausted" in kinds
+      refute "target_changed" in kinds
+    end
+  end
+
   describe "execute/1 — no current target" do
     test "records auto_cancelled, does not create a new target, does not enqueue" do
       pursuit = create_pursuit()

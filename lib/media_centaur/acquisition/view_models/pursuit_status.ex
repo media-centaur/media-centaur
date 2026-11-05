@@ -64,7 +64,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     search_queries: []
   ]
 
-  @type action :: :cancel | :change_target | :request_decision
+  @type action :: :cancel | :change_target | :request_decision | :search_again
   @type staleness :: :fresh | :stale | :very_stale
 
   @type t :: %__MODULE__{
@@ -140,8 +140,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Some of this pursuit landed; the rest didn't.",
         severity: :warning
       },
-      nil,
-      []
+      %NextStep{description: "Search again looks for releases of the rest not tried yet."},
+      [:search_again]
     }
   end
 
@@ -154,8 +154,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
         description: "Exhausted after #{attempt_count} attempts.",
         severity: :error
       },
-      %NextStep{description: "Start a new pursuit if you still want this."},
-      []
+      %NextStep{description: "Search again looks for releases not tried yet."},
+      [:search_again]
     }
   end
 

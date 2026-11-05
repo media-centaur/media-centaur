@@ -17,7 +17,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
 
   @keys [
     "pursuits.max_attempts",
-    "pursuits.min_age_days",
     "pursuits.stall_window_hours",
     "pursuits.zero_seeders_window_hours",
     "pursuits.handoff_window_minutes"
@@ -25,7 +24,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
 
   @builtin_defaults %{
     max_attempts: 4,
-    min_age_days: 6,
     stall_window_hours: 24,
     zero_seeders_window_hours: 6,
     handoff_window_minutes: 30
@@ -35,7 +33,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
 
   @type t :: %__MODULE__{
           max_attempts: pos_integer(),
-          min_age_days: pos_integer(),
           stall_window_hours: pos_integer(),
           zero_seeders_window_hours: pos_integer(),
           handoff_window_minutes: pos_integer()
@@ -48,7 +45,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
 
     %__MODULE__{
       max_attempts: read(entries, "pursuits.max_attempts", @builtin_defaults.max_attempts),
-      min_age_days: read(entries, "pursuits.min_age_days", @builtin_defaults.min_age_days),
       stall_window_hours:
         read(entries, "pursuits.stall_window_hours", @builtin_defaults.stall_window_hours),
       zero_seeders_window_hours:

@@ -19,13 +19,28 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Exhaust do
     Runner.run(id, "pursuit exhausted", fn pursuit ->
       unit = resolve_unit(pursuit, args)
 
-      with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
-           {:ok, exhausted_unit} <- Repo.update(Unit.exhaust_changeset(unit)),
-           {:ok, refolded, _transition} <- Refold.refold!(pursuit),
-           :ok <- maybe_close_and_record(refolded, exhausted_unit, reason) do
-        {:ok, refolded}
+      if pursuit.state in State.in_flight() do
+        exhaust_unit(pursuit, unit, reason)
+      else
+        {:error, :not_eligible}
       end
     end)
+  end
+
+  @doc """
+  The give-up step itself, for a caller already inside a pursuit
+  command's transaction (`AutoCancel`, when the failure it records spends
+  the unit's last attempt): exhausts the unit, refolds the pursuit and,
+  when that lands it terminal, closes its in-flight targets and records
+  `pursuit_exhausted`.
+  """
+  @spec exhaust_unit(Pursuit.t(), Unit.t(), atom()) :: {:ok, Pursuit.t()} | {:error, term()}
+  def exhaust_unit(%Pursuit{} = pursuit, %Unit{} = unit, reason) do
+    with {:ok, exhausted_unit} <- Repo.update(Unit.exhaust_changeset(unit)),
+         {:ok, refolded, _transition} <- Refold.refold!(pursuit),
+         :ok <- maybe_close_and_record(refolded, exhausted_unit, reason) do
+      {:ok, refolded}
+    end
   end
 
   defp resolve_unit(_pursuit, %{unit_id: unit_id}) when is_binary(unit_id) do

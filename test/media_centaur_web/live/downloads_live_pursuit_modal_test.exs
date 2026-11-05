@@ -379,6 +379,31 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
       assert reloaded.state == "cancelled"
     end
 
+    test "Search again on a given-up pursuit plans its episodes anew", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          state: "exhausted",
+          status: "cancelled"
+        })
+
+      force_attrs(Units.single!(pursuit.id), state: "exhausted")
+
+      {:ok, view, _html} = live_async!(conn, "/downloads?selected=#{pursuit.id}")
+      assert has_element?(view, "#pursuit-modal button", "Search again")
+
+      render_click(view, "search_again", %{})
+      _ = render(view)
+
+      assert [%{tmdb_id: "246810", title: "Sample Show"}] =
+               Repo.all(MediaCentaur.Acquisition.Plans.Plan)
+    end
+
     test "Request decision sets awaiting_decision_at on the pursuit's unit", %{conn: conn} do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})

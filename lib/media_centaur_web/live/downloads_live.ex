@@ -1417,6 +1417,25 @@ defmodule MediaCentaurWeb.DownloadsLive do
     end
   end
 
+  # Search again plans the given-up episodes under the person's planning
+  # mode, as the Download button does; the plan skips every release they
+  # already tried, so an empty board means nothing new has appeared.
+  def handle_event("search_again", _params, socket) do
+    mode = PlanningMode.value()
+
+    case Plans.search_again(socket.assigns.selected_pursuit_id,
+           approval_policy: PlanningMode.approval_policy(mode)
+         ) do
+      {:ok, plan} ->
+        socket = socket |> assign(plan_drafts: load_drafts()) |> build_view()
+        {:noreply, PlanFlow.land_plan(socket, mode, plan, plan.title, :leave)}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "search again failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("search again", reason))}
+    end
+  end
+
   def handle_event("request_decision", params, socket) do
     # An optional `unit-id` (unit-board swap) scopes the decision to one
     # unit of a composite — the alternatives list follows it because the

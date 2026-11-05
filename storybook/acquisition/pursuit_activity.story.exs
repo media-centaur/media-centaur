@@ -200,6 +200,23 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
         }
       },
       %Variation{
+        id: :gave_up,
+        description: "A given-up pursuit — Search again plans the episodes that did not land",
+        attributes: %{
+          vm:
+            base(
+              current_action: %CurrentAction{
+                verb: "Gave up",
+                description: "Exhausted after 4 attempts.",
+                severity: :error
+              },
+              next_step: %NextStep{description: "Search again looks for releases not tried yet."},
+              available_actions: [:search_again]
+            ),
+          on_search_again: "noop"
+        }
+      },
+      %Variation{
         id: :downloaded_not_landed,
         attributes: %{
           vm:

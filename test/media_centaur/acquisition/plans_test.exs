@@ -848,6 +848,111 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end
   end
 
+  describe "releases that already failed for a unit" do
+    # Regression: Auto-grab skipped releases a previous pursuit had tried,
+    # but the Download button did not — a person retrying a given-up
+    # episode was offered the same dead releases again. Every door plans
+    # through one function, so every door now skips them.
+    defp failed_before(attrs, guids) do
+      {pursuit, _target} =
+        create_pursuit_with_target(Map.merge(%{recipe_type: "tmdb", status: "failed"}, attrs))
+
+      [unit] = Units.for_pursuit(pursuit.id)
+      force_attrs(unit, state: "exhausted", tried_release_guids: guids)
+    end
+
+    test "a series plan's unit excludes the releases tried for that episode before" do
+      failed_before(
+        %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show", season_number: 1, episode_number: 1},
+        ["dead-1", "dead-2"]
+      )
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+
+      by_episode = Map.new(Plans.units_for(plan.id), &{&1.episode_number, &1.excluded_release_guids})
+      assert Enum.sort(by_episode[1]) == ["dead-1", "dead-2"]
+      assert by_episode[2] == []
+    end
+
+    test "a release that landed is not a failure — downloading the title again may pick it" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          status: "succeeded",
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1
+        })
+
+      [unit] = Units.for_pursuit(pursuit.id)
+      force_attrs(unit, state: "satisfied", tried_release_guids: ["landed-1"])
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      assert [%{excluded_release_guids: []}] = Plans.units_for(plan.id)
+    end
+
+    test "a movie plan excludes the releases tried for that film before" do
+      failed_before(%{tmdb_id: "246813", tmdb_type: "movie", title: "Sample Movie"}, ["dead-m"])
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [%{excluded_release_guids: ["dead-m"]}] = Plans.units_for(plan.id)
+    end
+  end
+
+  describe "search_again/2" do
+    defp given_up_episode do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          state: "exhausted",
+          status: "cancelled"
+        })
+
+      [unit] = Units.for_pursuit(pursuit.id)
+      force_attrs(unit, state: "exhausted", tried_release_guids: ["dead-1"])
+      pursuit
+    end
+
+    test "plans the given-up episodes again, skipping the releases that failed" do
+      pursuit = given_up_episode()
+
+      assert {:ok, plan} = Plans.search_again(pursuit.id, approval_policy: "review")
+
+      assert plan.tmdb_id == "246810"
+      assert plan.title == "Sample Show"
+      assert plan.approval_policy == "review"
+
+      assert [%{season_number: 1, episode_number: 1, excluded_release_guids: ["dead-1"]}] =
+               Plans.units_for(plan.id)
+    end
+
+    test "a pursuit with nothing given up has nothing to search for" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "246813",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          state: "satisfied",
+          status: "succeeded"
+        })
+
+      [unit] = Units.for_pursuit(pursuit.id)
+      force_attrs(unit, state: "satisfied")
+
+      assert {:error, :nothing_to_plan} = Plans.search_again(pursuit.id, approval_policy: "review")
+    end
+  end
+
   describe "external identity on the plan" do
     test "a series plan snapshots how TMDB spells the show elsewhere" do
       stub_ladder_results()

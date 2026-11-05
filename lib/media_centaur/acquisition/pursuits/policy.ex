@@ -14,11 +14,18 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
 
   1. Pursuit or unit already terminal → `:no_action`
   2. Unit awaiting user input (`awaiting_decision_at` set) → `:no_action`
-  3. Client-reported terminal failure → `{:auto_cancel, :download_failed}`
-  4. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders}`
+  3. Client-reported terminal failure → `{:auto_cancel, :download_failed, next}`
+  4. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders, next}`
   5. Sustained stall confirmed → `{:request_decision, prompt}`
   6. Exhaustion budget reached → `{:exhaust, :max_attempts}`
   7. Otherwise → `:no_action`
+
+  A dead release (rules 3 and 4) is one attempt. `next` is `:pivot` —
+  search for another release — unless that attempt is the unit's last
+  (`max_attempts`), when it is `:give_up`. The budget is attempts, not
+  age: when every release of an episode fails at the client (a takedown
+  leaves them all incomplete), a pivot ahead of an age-gated exhaustion
+  rule grabbed a new release every sweep for days.
 
   Terminal failure (rule 3) has **no observation window**: the client
   itself declared the download unrecoverable (SABnzbd's
@@ -38,8 +45,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
       State.terminal?(snapshot.pursuit.state) -> :no_action
       UnitState.terminal?(snapshot.unit.state) -> :no_action
       UnitState.awaiting_decision?(snapshot.unit) -> :no_action
-      is_binary(snapshot.download_failure_message) -> {:auto_cancel, :download_failed}
-      zero_seeders_confirmed?(snapshot) -> {:auto_cancel, :zero_seeders}
+      is_binary(snapshot.download_failure_message) -> dead_release(snapshot, :download_failed)
+      zero_seeders_confirmed?(snapshot) -> dead_release(snapshot, :zero_seeders)
       stall_confirmed?(snapshot) -> {:request_decision, stall_prompt(snapshot)}
       exhaustion_reached?(snapshot) -> {:exhaust, :max_attempts}
       true -> :no_action
@@ -59,8 +66,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
   defp stall_prompt(%Snapshot{thresholds: %{stall_window_hours: hours}}),
     do: "Download stalled for #{hours}+ hours — pick an alternative release."
 
-  defp exhaustion_reached?(%Snapshot{unit: unit, now: now, thresholds: thresholds}) do
-    unit.attempt_count >= thresholds.max_attempts and
-      DateTime.diff(now, unit.inserted_at, :day) >= thresholds.min_age_days
+  defp dead_release(%Snapshot{unit: unit, thresholds: thresholds}, reason) do
+    next = if unit.attempt_count + 1 >= thresholds.max_attempts, do: :give_up, else: :pivot
+    {:auto_cancel, reason, next}
+  end
+
+  defp exhaustion_reached?(%Snapshot{unit: unit, thresholds: thresholds}) do
+    unit.attempt_count >= thresholds.max_attempts
   end
 end

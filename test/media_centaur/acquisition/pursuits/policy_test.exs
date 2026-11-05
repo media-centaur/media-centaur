@@ -81,29 +81,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
       assert Policy.evaluate(snapshot) == :no_action
     end
 
-    test "max attempts but pursuit too young returns :no_action" do
+    # The budget is attempts, not age: a unit wanted for an hour that has
+    # spent its attempts gives up as surely as one wanted for a week.
+    test "max attempts returns {:exhaust, :max_attempts} however young the unit" do
       snapshot =
         build_snapshot(%{
           state: "active",
           attempt_count: 4,
-          inserted_at: ~U[2026-04-09 00:00:00Z]
-        })
-
-      assert Policy.evaluate(snapshot) == :no_action
-    end
-
-    test "max attempts AND pursuit older than the deadline returns {:exhaust, :max_attempts}" do
-      snapshot =
-        build_snapshot(%{
-          state: "active",
-          attempt_count: 4,
-          inserted_at: ~U[2026-04-01 00:00:00Z]
+          inserted_at: ~U[2026-04-09 23:00:00Z]
         })
 
       assert Policy.evaluate(snapshot) == {:exhaust, :max_attempts}
     end
 
-    test "more than max attempts AND old enough returns {:exhaust, :max_attempts}" do
+    test "more than max attempts returns {:exhaust, :max_attempts}" do
       snapshot =
         build_snapshot(%{
           state: "active",
@@ -117,7 +108,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
     test "honours custom thresholds from the snapshot (Settings-driven override)" do
       thresholds = %Thresholds{
         max_attempts: 2,
-        min_age_days: 1,
         stall_window_hours: 24,
         zero_seeders_window_hours: 6
       }
@@ -143,7 +133,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
           %{download_failure_message: "Repair failed, not enough repair blocks"}
         )
 
-      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed}
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed, :pivot}
+    end
+
+    # Regression: every release of an episode failed at the client, and the
+    # pivot ran ahead of the exhaustion rule on every tick, so the unit tried
+    # 48 releases in 13 hours and would have gone on for six days.
+    test "the failure that spends the last attempt gives up instead of pivoting" do
+      snapshot =
+        build_snapshot(
+          %{state: "active", attempt_count: 3},
+          %{download_failure_message: "Aborted, cannot be completed"}
+        )
+
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed, :give_up}
     end
 
     test "takes precedence over zero seeders and stall" do
@@ -159,7 +162,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
           }
         )
 
-      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed}
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed, :pivot}
     end
 
     test "a terminal pursuit stays untouched even when its download failed" do
@@ -191,7 +194,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
           %{zero_seeders_observed?: true, zero_seeders_window_elapsed?: true}
         )
 
-      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders}
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders, :pivot}
     end
 
     test "not observed → no auto-cancel even if elapsed flag is true" do
@@ -216,7 +219,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
           }
         )
 
-      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders}
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders, :pivot}
     end
   end
 
@@ -256,7 +259,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
     test "prompt reflects the threshold value carried on the snapshot" do
       thresholds = %Thresholds{
         max_attempts: 4,
-        min_age_days: 6,
         stall_window_hours: 12,
         zero_seeders_window_hours: 6
       }

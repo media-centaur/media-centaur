@@ -38,6 +38,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   Unit and pursuit states remain `active` throughout — the
   goal is still chasing, just chasing a different release.
 
+  ## Giving up
+
+  `next: :give_up` (Policy's verdict when this failure spends the unit's
+  last attempt) replaces step 4: the unit is exhausted through
+  `Exhaust.exhaust_unit/3` and no new search starts. `next` defaults to
+  `:pivot`.
+
   When the unit has no current target (idle edge case), the command
   records `auto_cancelled` only — there's nothing to pivot to.
   """
@@ -46,7 +53,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
   alias MediaCentaur.Acquisition.CancelReasons
 
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Exhaust, Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
@@ -61,6 +68,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     # The client's own failure message (SABnzbd's fail_message) for
     # :download_failed — recorded on the event so the timeline says why.
     detail = Map.get(args, :detail)
+    next = Map.get(args, :next, :pivot)
 
     result =
       Runner.run(id, label, fn pursuit ->
@@ -81,8 +89,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
                  reason: Atom.to_string(reason),
                  detail: detail
                }) do
-          with {:ok, {pivoted, new_target}} <-
-                 pivot_if_had_target(pursuit, attempted_unit, unit, now) do
+          with {:ok, {pivoted, new_target}} <- follow_on(next, pursuit, attempted_unit, unit, now) do
             {:ok, {pivoted, new_target, abandoned_hashes}}
           end
         end
@@ -135,6 +142,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
       ]
     )
   end
+
+  defp follow_on(:give_up, pursuit, attempted_unit, _unit, _now) do
+    with {:ok, refolded} <- Exhaust.exhaust_unit(pursuit, attempted_unit, :max_attempts) do
+      {:ok, {refolded, nil}}
+    end
+  end
+
+  defp follow_on(:pivot, pursuit, attempted_unit, unit, now),
+    do: pivot_if_had_target(pursuit, attempted_unit, unit, now)
 
   # Only pivot when the unit had a current target — idle units
   # (current_target_id == nil) have nothing to pivot to.

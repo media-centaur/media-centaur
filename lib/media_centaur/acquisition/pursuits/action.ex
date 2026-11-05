@@ -5,7 +5,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Action do
   The Watcher dispatches each variant to a single command:
 
       :no_action                       -> (skip)
-      {:auto_cancel, reason}           -> Commands.AutoCancel
+      {:auto_cancel, reason, next}     -> Commands.AutoCancel
       {:request_decision, prompt}      -> Commands.RequestDecision
       {:exhaust, reason}               -> Commands.Exhaust
 
@@ -22,12 +22,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.Action do
   dispatcher must handle.
   """
 
-  @type cancel_reason :: :zero_seeders
+  @type cancel_reason :: :zero_seeders | :download_failed
   @type exhaust_reason :: :max_attempts
+
+  @typedoc """
+  What follows the dead release's cancellation: `:pivot` searches for the
+  next release; `:give_up` exhausts the unit, because this failure spent
+  its last attempt.
+  """
+  @type next :: :pivot | :give_up
 
   @type t ::
           :no_action
-          | {:auto_cancel, cancel_reason()}
+          | {:auto_cancel, cancel_reason(), next()}
           | {:request_decision, prompt :: String.t()}
           | {:exhaust, exhaust_reason()}
 end

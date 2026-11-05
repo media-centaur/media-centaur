@@ -66,7 +66,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
   describe "perform/1" do
     test "exhausts pursuits that meet the exhaustion criteria" do
-      # 4 attempts, > 6 days old → Policy returns {:exhaust, :max_attempts}
+      # 4 attempts → Policy returns {:exhaust, :max_attempts}
       old_pursuit =
         insert_pursuit(%{
           attempt_count: 4,
@@ -236,6 +236,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       assert event.payload["reason"] == "download_failed"
       assert event.payload["detail"] == "Repair failed, not enough repair blocks"
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
+    end
+
+    test "a failure that spends the last attempt gives the unit up instead of grabbing again" do
+      release = "Sample.Show.S01E01.1080p.WEB-DL"
+      pursuit = insert_pursuit(%{attempt_count: 3})
+      set_current_target_release(pursuit, release)
+
+      seed_queue([queue_item(release, state: :error, failure_message: "Aborted, cannot be completed")])
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+      end)
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "exhausted"
     end
 
     test "a closed observation window is no action — the Watcher decides, it does not observe" do

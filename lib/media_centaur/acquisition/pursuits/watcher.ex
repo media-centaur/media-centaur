@@ -68,10 +68,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
 
   defp dispatch(:no_action, _pursuit, _unit, _snapshot), do: :ok
 
-  defp dispatch({:auto_cancel, reason}, pursuit, unit, snapshot) do
+  defp dispatch({:auto_cancel, reason, next}, pursuit, unit, snapshot) do
     Log.info(
       :acquisition,
-      "pursuit watcher dispatch — auto_cancel (#{reason}) — #{pursuit.title}"
+      "pursuit watcher dispatch — auto_cancel (#{reason}, #{next}) — #{pursuit.title}"
     )
 
     # `detail` is the client's own failure message (set for
@@ -81,6 +81,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
       pursuit_id: pursuit.id,
       unit_id: unit.id,
       reason: reason,
+      next: next,
       detail: snapshot.download_failure_message
     })
   end

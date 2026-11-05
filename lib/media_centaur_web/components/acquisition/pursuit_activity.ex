@@ -21,6 +21,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
   attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
   attr :on_request_decision, :string, default: nil
 
+  attr :on_search_again, :string,
+    default: nil,
+    doc:
+      "Search again on a given-up pursuit — plans the episodes that did not land, skipping releases already tried."
+
   attr :client_url, :string,
     default: nil,
     doc:
@@ -84,6 +89,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           tabindex="0"
         >
           Pick a different release
+        </.button>
+        <.button
+          :if={:search_again in @vm.available_actions and @on_search_again}
+          variant="primary"
+          size="sm"
+          phx-click={@on_search_again}
+          data-nav-item
+          tabindex="0"
+        >
+          Search again
         </.button>
         <.armed_button
           :if={:cancel in @vm.available_actions and @on_cancel}

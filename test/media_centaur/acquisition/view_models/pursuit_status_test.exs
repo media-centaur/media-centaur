@@ -561,13 +561,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert actions == []
     end
 
-    test "exhausted -> Gave up, no actions" do
+    test "exhausted -> Gave up, offers Search again" do
       {action, _next, actions} =
         derive(pursuit(:exhausted), unit(%{state: "exhausted"}), target(:failed), nil)
 
       assert action.verb == "Gave up"
       assert action.severity == :error
-      assert actions == []
+      assert actions == [:search_again]
+    end
+
+    test "partial -> the episodes that gave up can be searched again" do
+      {_action, _next, actions} =
+        derive(pursuit(:partial), unit(%{state: "exhausted"}), target(:failed), nil)
+
+      assert actions == [:search_again]
     end
 
     test "cancelled -> Cancelled, no actions" do

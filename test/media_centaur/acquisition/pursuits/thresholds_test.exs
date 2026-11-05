@@ -8,7 +8,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.ThresholdsTest do
     test "returns built-in defaults when no Settings entries are present" do
       assert %Thresholds{
                max_attempts: 4,
-               min_age_days: 6,
                stall_window_hours: 24,
                zero_seeders_window_hours: 6
              } = Thresholds.load()
@@ -20,7 +19,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.ThresholdsTest do
 
       assert %Thresholds{
                max_attempts: 10,
-               min_age_days: 6,
                stall_window_hours: 48,
                zero_seeders_window_hours: 6
              } = Thresholds.load()

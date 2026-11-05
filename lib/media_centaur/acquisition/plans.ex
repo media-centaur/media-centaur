@@ -21,6 +21,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, DownloadScope, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit, UnitState}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Format
@@ -225,6 +226,55 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp title_year(_title), do: nil
 
   @doc """
+  Plans a given-up pursuit's episodes again — the Search again door on
+  Downloads. The new plan covers the pursuit's units that did not land —
+  given up (`exhausted`) or `cancelled`; a partial pursuit's landed units
+  stay landed — takes the pursuit's own
+  identity and criteria, and, like every plan, skips the releases those
+  units already tried (`exclude_tried_releases/2`), so it can only find
+  genuinely new ones. `approval_policy:` as for the other doors.
+
+  `{:error, :nothing_to_plan}` when every unit landed.
+  """
+  @spec search_again(Ecto.UUID.t(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
+  def search_again(pursuit_id, opts \\ []) do
+    with %Pursuit{recipe_type: "tmdb"} = pursuit <- Repo.get(Pursuit, pursuit_id),
+         [_ | _] = units <- given_up_units(pursuit_id) do
+      unit_specs =
+        units
+        |> Enum.with_index()
+        |> Enum.map(fn {unit, index} ->
+          %{
+            season_number: unit.season_number,
+            episode_number: unit.episode_number,
+            label: unit.label || pursuit.title,
+            position: index
+          }
+        end)
+
+      create_plan(
+        %{
+          identity: TitleIdentity.new(Map.from_struct(pursuit)),
+          criteria: pursuit.criteria || %{},
+          approval_policy: Keyword.get(opts, :approval_policy, "review")
+        },
+        unit_specs
+      )
+    else
+      nil -> {:error, :not_found}
+      [] -> {:error, :nothing_to_plan}
+      %Pursuit{} -> {:error, :nothing_to_plan}
+    end
+  end
+
+  defp given_up_units(pursuit_id) do
+    Unit
+    |> where([u], u.pursuit_id == ^pursuit_id and u.state in ^UnitState.terminal_failure())
+    |> order_by([u], asc: u.position)
+    |> Repo.all()
+  end
+
+  @doc """
   Creates a release-tracking drop plan (ADR-056 Phase 2) and starts the
   planning run. `plan_attrs` carries the tmdb identity, `tracking_item_id`
   and the item's `span_sizes` (its recorded season sizes — the fit
@@ -297,7 +347,7 @@ defmodule MediaCentaur.Acquisition.Plans do
       result =
         Repo.transaction(fn ->
           with {:ok, plan} <- Repo.insert(Plan.create_changeset(resolve_title_bounds(plan_attrs))),
-               :ok <- insert_units(plan, unit_specs),
+               :ok <- insert_units(plan, exclude_tried_releases(unit_specs, plan_attrs)),
                {:ok, _job} <- Oban.insert(RunPlan.new(%{"plan_id" => plan.id})) do
             plan
           else
@@ -341,6 +391,46 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp item_media_type("tv"), do: {:ok, :tv_series}
   defp item_media_type("movie"), do: {:ok, :movie}
   defp item_media_type(_other), do: :error
+
+  # Releases an earlier pursuit of this title tried for a unit and that did
+  # not work are excluded from the new plan's unit, whichever door plans it
+  # — Auto-grab, the Download button, Search again. A unit's
+  # `tried_release_guids` holds every release it grabbed, so what "did not
+  # work" means depends on the door:
+  #
+  # * A tracking plan plans an **open** want, so every earlier grab for that
+  #   unit left the want open — satisfied units included (a release that
+  #   brought back a different film "satisfied" its unit). All are excluded.
+  #   Without this the same wrong film was grabbed once a day for five days.
+  # * Any other plan is a person asking for the title; a release that is
+  #   downloading or that landed is not a failure. Only units that ended
+  #   given up (`exhausted`) or `cancelled` count, so retrying a given-up
+  #   episode never offers the same dead releases again.
+  defp exclude_tried_releases(unit_specs, %{tmdb_id: tmdb_id, tmdb_type: tmdb_type} = plan_attrs) do
+    states = if Map.get(plan_attrs, :origin) == "tracking", do: :all, else: UnitState.terminal_failure()
+    tried = tried_releases_by_unit(to_string(tmdb_id), tmdb_type, states)
+
+    Enum.map(unit_specs, fn spec ->
+      key = {Map.get(spec, :season_number), Map.get(spec, :episode_number)}
+      excluded = Enum.uniq(Map.get(spec, :excluded_release_guids, []) ++ Map.get(tried, key, []))
+      Map.put(spec, :excluded_release_guids, excluded)
+    end)
+  end
+
+  defp tried_releases_by_unit(tmdb_id, tmdb_type, states) do
+    Unit
+    |> join(:inner, [u], p in Pursuit, on: p.id == u.pursuit_id)
+    |> where([u, p], p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
+    |> in_states(states)
+    |> select([u, _p], {u.season_number, u.episode_number, u.tried_release_guids})
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {season, episode, guids}, acc ->
+      Map.update(acc, {season, episode}, guids || [], &Enum.uniq(&1 ++ (guids || [])))
+    end)
+  end
+
+  defp in_states(query, :all), do: query
+  defp in_states(query, states), do: where(query, [u, _p], u.state in ^states)
 
   defp insert_units(plan, unit_specs) do
     Enum.reduce_while(unit_specs, :ok, fn spec, :ok ->

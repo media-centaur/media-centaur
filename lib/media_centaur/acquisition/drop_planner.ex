@@ -92,7 +92,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
              MapSet.member?(claimed, {want.season_number, want.episode_number})
            end) do
       {min_quality, max_quality} = bounds(item, settings)
-      failed_guids = failed_guids_by_unit(tmdb_id, "tv")
 
       unit_specs =
         wants
@@ -104,8 +103,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
             air_date: want.air_date,
             label: unit_label(want),
             position: index,
-            min_quality: nil,
-            excluded_release_guids: Map.get(failed_guids, {want.season_number, want.episode_number}, [])
+            min_quality: nil
           }
         end)
 
@@ -180,34 +178,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   end
 
   # ---------------------------------------------------------------------------
-
-  # The Q5 loop-breaker: releases already tried by a previous pursuit of
-  # this title are seeded as plan-unit exclusions, so a re-plan only ever
-  # assigns genuinely new releases — no grab-regrab loop. The union is
-  # per unit identity.
-  #
-  # This deliberately does not filter on unit state. It used to count
-  # only terminally-failed units, reasoning that a satisfied unit's want
-  # was closed and so its attempts could not matter. That reasoning is
-  # circular: this function is only ever consulted while planning an
-  # **open** want, so reaching here at all means the want did not close.
-  # A grab that left the want open did not work — whatever it brought
-  # back, repeating it cannot help, and a different release might. The
-  # cost of the old reading was the same wrong film downloaded once a
-  # day for five days.
-  defp failed_guids_by_unit(tmdb_id, tmdb_type) do
-    import Ecto.Query
-
-    MediaCentaur.Acquisition.Pursuits.Unit
-    |> join(:inner, [u], p in MediaCentaur.Acquisition.Pursuits.Pursuit, on: p.id == u.pursuit_id)
-    |> where([u, p], p.recipe_type == "tmdb")
-    |> where([u, p], p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
-    |> select([u, _p], {u.season_number, u.episode_number, u.tried_release_guids})
-    |> MediaCentaur.Repo.all()
-    |> Enum.reduce(%{}, fn {season, episode, guids}, acc ->
-      Map.update(acc, {season, episode}, guids || [], &Enum.uniq(&1 ++ (guids || [])))
-    end)
-  end
 
   # Who commits the plan is the person's planning mode — the same answer
   # the Download button gives (spec 2026-09-14): manual select parks it
