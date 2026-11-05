@@ -1,0 +1,1469 @@
+{
+  "body": {
+    "_id": "52574fb4760ee36aaa19b31c",
+    "air_date": "1969-09-27",
+    "credits": {
+      "cast": [
+        {
+          "adult": false,
+          "character": "Joe Carson",
+          "credit_id": "52574fd3760ee36aaa19f576",
+          "gender": 2,
+          "id": 30512,
+          "known_for_department": "Acting",
+          "name": "Edgar Buchanan",
+          "order": 1,
+          "original_name": "Edgar Buchanan",
+          "popularity": 1.2933,
+          "profile_path": "/zKcqHZrqVsS0N4kdnqaD8vdOINI.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Steve Elliott",
+          "credit_id": "52574fd1760ee36aaa19f445",
+          "gender": 2,
+          "id": 1217529,
+          "known_for_department": "Acting",
+          "name": "Mike Minor",
+          "order": 1,
+          "original_name": "Mike Minor",
+          "popularity": 0.3557,
+          "profile_path": "/aON4OSLydjlBOsvx4lTzqRUA0A9.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Billie Jo Bradley",
+          "credit_id": "52574fd1760ee36aaa19f47f",
+          "gender": 1,
+          "id": 160580,
+          "known_for_department": "Acting",
+          "name": "Meredith MacRae",
+          "order": 2,
+          "original_name": "Meredith MacRae",
+          "popularity": 0.3827,
+          "profile_path": "/hEL6tnDQzgo1pZFHp7WUm6Mr6C2.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Betty Jo Bradley",
+          "credit_id": "678a627022f810f7f99765de",
+          "gender": 1,
+          "id": 1614112,
+          "known_for_department": "Acting",
+          "name": "Linda Henning",
+          "order": 2,
+          "original_name": "Linda Henning",
+          "popularity": 0.379,
+          "profile_path": "/n6MPWz0U59UTIxcZVUKpC2sX0h.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Bobbie Jo Bradley",
+          "credit_id": "52574fd1760ee36aaa19f4bf",
+          "gender": 1,
+          "id": 102827,
+          "known_for_department": "Acting",
+          "name": "Lori Saunders",
+          "order": 3,
+          "original_name": "Lori Saunders",
+          "popularity": 0.7509,
+          "profile_path": "/nXuG5MiAVRxCQN0POT1FHGVKN5o.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Sam Drucker",
+          "credit_id": "649e525cc9dbf900c9ec7e19",
+          "gender": 2,
+          "id": 93622,
+          "known_for_department": "Acting",
+          "name": "Frank Cady",
+          "order": 6,
+          "original_name": "Frank Cady",
+          "popularity": 0.5188,
+          "profile_path": "/sq8kRVaXOszxsFegXAQliU65eCv.jpg"
+        },
+        {
+          "adult": false,
+          "character": "Janet Craig",
+          "credit_id": "64fef18d6a222700aba802c7",
+          "gender": 1,
+          "id": 13997,
+          "known_for_department": "Acting",
+          "name": "June Lockhart",
+          "order": 12,
+          "original_name": "June Lockhart",
+          "popularity": 1.1605,
+          "profile_path": "/xTETf5AXFEyzmxOTBwyCUzi8fK3.jpg"
+        }
+      ],
+      "crew": [
+        {
+          "adult": false,
+          "credit_id": "52574fd4760ee36aaa19f6a5",
+          "department": "Production",
+          "gender": 0,
+          "id": 1213896,
+          "job": "Producer",
+          "known_for_department": "Writing",
+          "name": "Jay Sommers",
+          "original_name": "Jay Sommers",
+          "popularity": 0.2795,
+          "profile_path": null
+        }
+      ]
+    },
+    "episodes": [
+      {
+        "air_date": "1969-09-27",
+        "crew": [],
+        "episode_number": 1,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "The Hobo",
+            "credit_id": "65f52aefd4d5090149aa356b",
+            "gender": 2,
+            "id": 22602,
+            "known_for_department": "Acting",
+            "name": "J. Pat O'Malley",
+            "order": 998,
+            "original_name": "J. Pat O'Malley",
+            "popularity": 1.2743,
+            "profile_path": "/AaaALfecdxxSsW65eIQoznII0li.jpg"
+          }
+        ],
+        "id": 246377,
+        "name": "Make Room for Baby",
+        "overview": "The dog suddenly becomes a second-class citizen at the Shady Rest hotel when Steve and Betty Jo and Betty Jo move in.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-10-04",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 2,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Judge Clayton",
+            "credit_id": "63e3f6dc1283e900843c8db5",
+            "gender": 2,
+            "id": 12426,
+            "known_for_department": "Acting",
+            "name": "Charles Seel",
+            "order": 682,
+            "original_name": "Charles Seel",
+            "popularity": 0.4587,
+            "profile_path": "/n1ICxxpvMWTvHwvTmfoHiC17Gl8.jpg"
+          }
+        ],
+        "id": 246375,
+        "name": "The Game Warden",
+        "overview": "Uncle Joe, caught with too many fish in his possessions by Game Warden Orrin Pike, is threatened with a jail sentence.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-10-11",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 3,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mr. Fiskee",
+            "credit_id": "52574fb5760ee36aaa19b409",
+            "gender": 2,
+            "id": 153537,
+            "known_for_department": "Acting",
+            "name": "Herbie Faye",
+            "order": 515,
+            "original_name": "Herbie Faye",
+            "popularity": 0.4759,
+            "profile_path": "/c0XYKwYW3pIY6f0Rvd36H55ukHQ.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Mr. Haney",
+            "credit_id": "52574fc9760ee36aaa19e1d1",
+            "gender": 2,
+            "id": 21460,
+            "known_for_department": "Acting",
+            "name": "Pat Buttram",
+            "order": 635,
+            "original_name": "Pat Buttram",
+            "popularity": 0.8324,
+            "profile_path": "/jRVB0shCimyljcDYlIUpdcAVe8E.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Stanley",
+            "credit_id": "52574fcb760ee36aaa19e576",
+            "gender": 2,
+            "id": 127643,
+            "known_for_department": "Acting",
+            "name": "Marvin Kaplan",
+            "order": 642,
+            "original_name": "Marvin Kaplan",
+            "popularity": 0.5857,
+            "profile_path": "/jQ64Eu8L7RPiT5l9IujkwwxadkS.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Mrs. Benson",
+            "credit_id": "52574fb9760ee36aaa19bc22",
+            "gender": 1,
+            "id": 165041,
+            "known_for_department": "Acting",
+            "name": "Alice Nunn",
+            "order": 660,
+            "original_name": "Alice Nunn",
+            "popularity": 0.4359,
+            "profile_path": "/2a1sCOLJI5966mIqAJI8NODm4rC.jpg"
+          }
+        ],
+        "id": 246378,
+        "name": "The Other Woman",
+        "overview": "Betty Jo finds herself growing jealous of the attention Steve is giving to their daughter, so the pair go on a second honeymoon together, at their old cottage. But the couple's romantic mood is spoiled by a lack of electricity, Mr. Haney's intrusive realty service, and a bunch of hobos.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-10-18",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 4,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e4e8",
+            "gender": 2,
+            "id": 1218965,
+            "known_for_department": "Acting",
+            "name": "Harry Stanton",
+            "order": 605,
+            "original_name": "Harry Stanton",
+            "popularity": 0.3491,
+            "profile_path": null
+          },
+          {
+            "adult": false,
+            "character": "Roger Budd",
+            "credit_id": "52574fb5760ee36aaa19b37a",
+            "gender": 2,
+            "id": 157641,
+            "known_for_department": "Acting",
+            "name": "Jack Bannon",
+            "order": 613,
+            "original_name": "Jack Bannon",
+            "popularity": 0.7551,
+            "profile_path": "/mCQCsW3dc7vxwZtYSHO0TCuPzCo.jpg"
+          },
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e512",
+            "gender": 2,
+            "id": 5048,
+            "known_for_department": "Acting",
+            "name": "Harry Dean Stanton",
+            "order": 641,
+            "original_name": "Harry Dean Stanton",
+            "popularity": 1.8031,
+            "profile_path": "/9zOTpVMwMHNjPFBNoPy9vOBT1NC.jpg"
+          }
+        ],
+        "id": 246376,
+        "name": "One of Our Chickens is Missing",
+        "overview": "Two rough motorcyclists,suspected of poaching, are too many and too tough for Game Warren Orrin Pike to capture.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-10-25",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 5,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mr. Davis",
+            "credit_id": "52574fc3760ee36aaa19d12d",
+            "gender": 2,
+            "id": 34559,
+            "known_for_department": "Acting",
+            "name": "Harold Peary",
+            "order": 530,
+            "original_name": "Harold Peary",
+            "popularity": 0.6662,
+            "profile_path": "/zh1IOcd813geZzUVJcWngUZGgQM.jpg"
+          }
+        ],
+        "id": 246379,
+        "name": "The Three Queens",
+        "overview": "Sparks fly when the three Bradley sisters and Dr. Craig find themself competitors in a beauty contest.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-11-01",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 6,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Henry Phillips",
+            "credit_id": "52574fb7760ee36aaa19b89e",
+            "gender": 2,
+            "id": 86369,
+            "known_for_department": "Acting",
+            "name": "Parley Baer",
+            "order": 657,
+            "original_name": "Parley Baer",
+            "popularity": 0.728,
+            "profile_path": "/a6b9pONRmi03ggBpHpevyGokxgJ.jpg"
+          }
+        ],
+        "id": 246384,
+        "name": "The Glen Tinker Caper",
+        "overview": "An unknown singer tries to smuggle an adorable Vietnamese orphan into the United States by bringing her to Hooterville.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-11-08",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 7,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "David Benton",
+            "credit_id": "52574fc9760ee36aaa19e091",
+            "gender": 2,
+            "id": 123380,
+            "known_for_department": "Acting",
+            "name": "Frank Aletter",
+            "order": 523,
+            "original_name": "Frank Aletter",
+            "popularity": 0.7332,
+            "profile_path": "/udCMgEj5dccmkOpK8Y7dXwFJQ0a.jpg"
+          },
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e655",
+            "gender": 1,
+            "id": 14733,
+            "known_for_department": "Acting",
+            "name": "Leslie Parrish",
+            "order": 532,
+            "original_name": "Leslie Parrish",
+            "popularity": 1.1447,
+            "profile_path": "/nvmsCxlXv6D7tfinM2FCD8iaqo4.jpg"
+          }
+        ],
+        "id": 246383,
+        "name": "The Tenant",
+        "overview": "When a glamorous author, with her eyes on Steve, moves into the Shady Rest hotel to write a novel, the girls work overtime to find a way to get her to leave.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-11-15",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 8,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e60e",
+            "gender": 2,
+            "id": 89527,
+            "known_for_department": "Acting",
+            "name": "Peter Whitney",
+            "order": 531,
+            "original_name": "Peter Whitney",
+            "popularity": 0.7922,
+            "profile_path": "/mWd5P1lIFwSFpRrVtokbngZDcw5.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Newt Kiley",
+            "credit_id": "52574fb8760ee36aaa19b959",
+            "gender": 2,
+            "id": 61702,
+            "known_for_department": "Acting",
+            "name": "Kay E. Kuter",
+            "order": 643,
+            "original_name": "Kay E. Kuter",
+            "popularity": 0.4671,
+            "profile_path": "/twkGYOkqE8FtEDE1XjvCGIBWuTS.jpg"
+          }
+        ],
+        "id": 246382,
+        "name": "Sorry Doctor, I Ain't Taking No Shots",
+        "overview": "Dr. Craig mobilizes an effort to inoculate the whole valley with flu shots, but a hillbilly family with a stubborn patriarch threatens to ruin her plans.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-11-22",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 9,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mr. Haney",
+            "credit_id": "52574fc9760ee36aaa19e1d1",
+            "gender": 2,
+            "id": 21460,
+            "known_for_department": "Acting",
+            "name": "Pat Buttram",
+            "order": 635,
+            "original_name": "Pat Buttram",
+            "popularity": 0.8324,
+            "profile_path": "/jRVB0shCimyljcDYlIUpdcAVe8E.jpg"
+          }
+        ],
+        "id": 246381,
+        "name": "A Most Momentous Occasion",
+        "overview": "Bickering over sharing a bathroom with Uncle Joe leads to Steve & Betty Jo considering moving out. They haven't much luck with Mr. Haney's realty choices, and Haney isn't much help either in helping Joe install a new bathroom at the hotel.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-11-29",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 10,
+        "episode_type": "standard",
+        "guest_stars": [],
+        "id": 246380,
+        "name": "The Camping Trip",
+        "overview": "Bobby Jo's boyfriend Orrin finally manages to make friends with Uncle Joe when he rescues the old fellow from a hungry bear.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-12-06",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 11,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mr. Fiskee",
+            "credit_id": "52574fb5760ee36aaa19b409",
+            "gender": 2,
+            "id": 153537,
+            "known_for_department": "Acting",
+            "name": "Herbie Faye",
+            "order": 515,
+            "original_name": "Herbie Faye",
+            "popularity": 0.4759,
+            "profile_path": "/c0XYKwYW3pIY6f0Rvd36H55ukHQ.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Mrs. Benson",
+            "credit_id": "52574fb9760ee36aaa19bc22",
+            "gender": 1,
+            "id": 165041,
+            "known_for_department": "Acting",
+            "name": "Alice Nunn",
+            "order": 660,
+            "original_name": "Alice Nunn",
+            "popularity": 0.4359,
+            "profile_path": "/2a1sCOLJI5966mIqAJI8NODm4rC.jpg"
+          }
+        ],
+        "id": 246385,
+        "name": "Kathy Jo's First Birthday (1)",
+        "overview": "Baby Kathy Jo almost misses her ffirst birthday party when she lands in jail with Uncle Joe.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-12-13",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 12,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Barney Morgan",
+            "credit_id": "52574fb5760ee36aaa19b433",
+            "gender": 2,
+            "id": 134614,
+            "known_for_department": "Acting",
+            "name": "Herb Vigran",
+            "order": 607,
+            "original_name": "Herb Vigran",
+            "popularity": 0.6033,
+            "profile_path": "/2CG32FVQmmbgDDNBmUN85sEza4f.jpg"
+          }
+        ],
+        "id": 246390,
+        "name": "Goodbye, Mr. Chimp (2)",
+        "overview": "Uncle Joe tries to get rid of the pet chimp who is gradually wrecking the Shady Rest hotel.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-12-20",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 13,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mort Morton",
+            "credit_id": "52574fc5760ee36aaa19d6b2",
+            "gender": 2,
+            "id": 129995,
+            "known_for_department": "Acting",
+            "name": "Bartlett Robinson",
+            "order": 536,
+            "original_name": "Bartlett Robinson",
+            "popularity": 0.6687,
+            "profile_path": "/lzyyrYAIq9ZjZMs8xYAh350eb2.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Grandpappy Miller",
+            "credit_id": "52574fb5760ee36aaa19b4c8",
+            "gender": 2,
+            "id": 85990,
+            "known_for_department": "Acting",
+            "name": "Walter Baldwin",
+            "order": 608,
+            "original_name": "Walter Baldwin",
+            "popularity": 0.7099,
+            "profile_path": "/oS2Cymq1iHV6b2MopFvp3DiX6pE.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Newt Kiley",
+            "credit_id": "52574fb8760ee36aaa19b959",
+            "gender": 2,
+            "id": 61702,
+            "known_for_department": "Acting",
+            "name": "Kay E. Kuter",
+            "order": 643,
+            "original_name": "Kay E. Kuter",
+            "popularity": 0.4671,
+            "profile_path": "/twkGYOkqE8FtEDE1XjvCGIBWuTS.jpg"
+          }
+        ],
+        "id": 246391,
+        "name": "The Golden Spike Ceremony",
+        "overview": "Uncle Joe discovers that the 75th anniversary of the railroad between Hooterville & Pixley is approaching, and seeks to take control of the ceremony.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1969-12-27",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 14,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Station Master",
+            "credit_id": "52574fba760ee36aaa19bd45",
+            "gender": 2,
+            "id": 19552,
+            "known_for_department": "Acting",
+            "name": "Rolfe Sedan",
+            "order": 535,
+            "original_name": "Rolfe Sedan",
+            "popularity": 0.5649,
+            "profile_path": "/1dQdX1rmnCc93ZmUV7QPKMQJ0WJ.jpg"
+          },
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcc760ee36aaa19e787",
+            "gender": 2,
+            "id": 83452,
+            "known_for_department": "Acting",
+            "name": "Rudy Vallee",
+            "order": 606,
+            "original_name": "Rudy Vallee",
+            "popularity": 0.3579,
+            "profile_path": "/fqa6WyXJaBymQTdSqoUggemogXD.jpg"
+          }
+        ],
+        "id": 246389,
+        "name": "But I've Never Been in Erie, PA",
+        "overview": "An industrialist registers at the Shady Rest and offers Uncle Joe a chance to make a fortune.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-01-03",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 15,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e6dc",
+            "gender": 2,
+            "id": 1211977,
+            "known_for_department": "Acting",
+            "name": "Greg Mullavey",
+            "order": 533,
+            "original_name": "Greg Mullavey",
+            "popularity": 0.5783,
+            "profile_path": "/b9I0Pnx8wVbNesq0LM7bq94fOVf.jpg"
+          }
+        ],
+        "id": 246386,
+        "name": "How to Arrange a Marriage",
+        "overview": "Bobbie Jo attempts to soften up Billie's Jo's new boyfriend for marriage.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-01-10",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 16,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mrs. Stroud",
+            "credit_id": "52574fb6760ee36aaa19b58b",
+            "gender": 1,
+            "id": 1949,
+            "known_for_department": "Acting",
+            "name": "Elvia Allman",
+            "order": 514,
+            "original_name": "Elvia Allman",
+            "popularity": 0.6193,
+            "profile_path": "/r8MDamNJNwi83TXXn4lt41PtmTD.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Freddie Kirby",
+            "credit_id": "52574fc4760ee36aaa19d3b1",
+            "gender": 2,
+            "id": 1223624,
+            "known_for_department": "Acting",
+            "name": "Jack Sheldon",
+            "order": 538,
+            "original_name": "Jack Sheldon",
+            "popularity": 0.3876,
+            "profile_path": "/vOuB45AUYJKr4N9aVTBs8pUYBW2.jpg"
+          }
+        ],
+        "id": 246393,
+        "name": "Selma Plout's Plot",
+        "overview": "Selme Plout's scheme to snag a husband for her daughter almost forces Steve out of the crop-dusting business.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-01-17",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 17,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcc760ee36aaa19e80e",
+            "gender": 2,
+            "id": 165055,
+            "known_for_department": "Acting",
+            "name": "Merlin Olsen",
+            "order": 537,
+            "original_name": "Merlin Olsen",
+            "popularity": 0.4652,
+            "profile_path": "/dG3ulLZyHvbKzmkvro1yqh73hGF.jpg"
+          }
+        ],
+        "id": 246392,
+        "name": "With This Ring...",
+        "overview": "Orrin Pike is osserved buying a ring, and the family jumps to the conclusion that he's going to propose to Bobbie Jo.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-01-24",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 18,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcb760ee36aaa19e740",
+            "gender": 2,
+            "id": 137389,
+            "known_for_department": "Acting",
+            "name": "William Mims",
+            "order": 534,
+            "original_name": "William Mims",
+            "popularity": 0.3243,
+            "profile_path": null
+          }
+        ],
+        "id": 246388,
+        "name": "The Valley's New Owner",
+        "overview": "Shy Orrin Pike becomes a big man when an old deed indicates he is the legal owner of the entire Hooterville Valley.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-01-31",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 19,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Uncle George",
+            "credit_id": "52574fcc760ee36aaa19e8b3",
+            "gender": 2,
+            "id": 18156,
+            "known_for_department": "Acting",
+            "name": "Don Ameche",
+            "order": 540,
+            "original_name": "Don Ameche",
+            "popularity": 1.2965,
+            "profile_path": "/p2Q0LE3SECDvb5W2yAvvfRtzIyo.jpg"
+          }
+        ],
+        "id": 246395,
+        "name": "Steve's Uncle George",
+        "overview": "Steve's Uncle George visits the Shady Rest hotel and lives up to his repulation as a troublemaker.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-02-07",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 20,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Grandpappy Miller",
+            "credit_id": "52574fb5760ee36aaa19b4c8",
+            "gender": 2,
+            "id": 85990,
+            "known_for_department": "Acting",
+            "name": "Walter Baldwin",
+            "order": 608,
+            "original_name": "Walter Baldwin",
+            "popularity": 0.7099,
+            "profile_path": "/oS2Cymq1iHV6b2MopFvp3DiX6pE.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Doc Stuart",
+            "credit_id": "52574fc8760ee36aaa19de54",
+            "gender": 2,
+            "id": 30115,
+            "known_for_department": "Acting",
+            "name": "Frank Ferguson",
+            "order": 646,
+            "original_name": "Frank Ferguson",
+            "popularity": 1.089,
+            "profile_path": "/u71gKHci5XMUrpOou8peFEYphXM.jpg"
+          }
+        ],
+        "id": 246387,
+        "name": "Susan B. Anthony, I Love You",
+        "overview": "Bille Jo returns from Chicago with a visionary zeal for the women's liberation movement, and enlists her sisters in \"\"the cause.\"\"",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-02-14",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 21,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcc760ee36aaa19e872",
+            "gender": 2,
+            "id": 135125,
+            "known_for_department": "Acting",
+            "name": "Robert Rockwell",
+            "order": 539,
+            "original_name": "Robert Rockwell",
+            "popularity": 0.4261,
+            "profile_path": "/hArAXLyizNHS4T7pz5rBQhQYDPp.jpg"
+          }
+        ],
+        "id": 246394,
+        "name": "Spare That Cottage",
+        "overview": "It becomes a tragic matter when it appears that Steve and Betty Jo's honeymoon cottage will be demolished for a new highway.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-02-28",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 22,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Mrs. Stroud",
+            "credit_id": "52574fb6760ee36aaa19b58b",
+            "gender": 1,
+            "id": 1949,
+            "known_for_department": "Acting",
+            "name": "Elvia Allman",
+            "order": 514,
+            "original_name": "Elvia Allman",
+            "popularity": 0.6193,
+            "profile_path": "/r8MDamNJNwi83TXXn4lt41PtmTD.jpg"
+          },
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcd760ee36aaa19e97c",
+            "gender": 2,
+            "id": 152682,
+            "known_for_department": "Acting",
+            "name": "Buddy Lester",
+            "order": 542,
+            "original_name": "Buddy Lester",
+            "popularity": 0.3964,
+            "profile_path": "/tG1M2qfkrOkZrXV4RYRngovyLLv.jpg"
+          }
+        ],
+        "id": 246398,
+        "name": "Whiplash, Whiplash",
+        "overview": "Selma Plout tries to slap a lawsuit against Uncle Jo for a whiplash injury suffered in a fall from a hammock.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-03-07",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 23,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "Floyd Smoot",
+            "credit_id": "649e5416c9dbf90148cf0c16",
+            "gender": 2,
+            "id": 164965,
+            "known_for_department": "Acting",
+            "name": "Rufe Davis",
+            "order": 7,
+            "original_name": "Rufe Davis",
+            "popularity": 0.3594,
+            "profile_path": "/rUd4zDTpXe9t3hEPZ4n08VWUJbk.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Henry Phillips",
+            "credit_id": "52574fb7760ee36aaa19b89e",
+            "gender": 2,
+            "id": 86369,
+            "known_for_department": "Acting",
+            "name": "Parley Baer",
+            "order": 657,
+            "original_name": "Parley Baer",
+            "popularity": 0.728,
+            "profile_path": "/a6b9pONRmi03ggBpHpevyGokxgJ.jpg"
+          },
+          {
+            "adult": false,
+            "character": "Mr. Benton",
+            "credit_id": "66f83a4d140fbf6a1a5f45ab",
+            "gender": 2,
+            "id": 2101,
+            "known_for_department": "Acting",
+            "name": "Percy Helton",
+            "order": 999,
+            "original_name": "Percy Helton",
+            "popularity": 0.8649,
+            "profile_path": "/4dGePXw3uVfMviRiyN0ufPAo7Zn.jpg"
+          }
+        ],
+        "id": 246397,
+        "name": "Last Train to Pixley",
+        "overview": "Floyd retires, leaving Uncle Joe to take over the duties of running the Cannonball, once again. His strict schedule-keeping is the least of the valley's worries, as the C&FW Railroad is planning to scrap the train for a tax write-off!",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-03-21",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 24,
+        "episode_type": "standard",
+        "guest_stars": [],
+        "id": 246400,
+        "name": "Love Rears Its Ugly Head",
+        "overview": "Billie Jo tries to spread love through the valley with a new theory of sensitivity training.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-03-28",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 25,
+        "episode_type": "standard",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcd760ee36aaa19e9c3",
+            "gender": 2,
+            "id": 15953,
+            "known_for_department": "Acting",
+            "name": "Keith Andes",
+            "order": 543,
+            "original_name": "Keith Andes",
+            "popularity": 0.7391,
+            "profile_path": "/na8kkJgaGprZApP5s6sG5aR9YCR.jpg"
+          }
+        ],
+        "id": 246399,
+        "name": "No, No, You Can't Take Her Away",
+        "overview": "The Bradley's are shaken by the news that a handsome and wealthy male doctor is coming to visit their own Dr. Janet Craig, with intentions of offering her a place at his side at a new practice in Hawaii.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "air_date": "1970-04-04",
+        "crew": [
+          {
+            "adult": false,
+            "credit_id": "52574fca760ee36aaa19e4ab",
+            "department": "Directing",
+            "gender": 2,
+            "id": 165052,
+            "job": "Director",
+            "known_for_department": "Directing",
+            "name": "Elliott Lewis",
+            "original_name": "Elliott Lewis",
+            "popularity": 0.4088,
+            "profile_path": "/AcQfQmugghS2X57qAEZErD3g59k.jpg"
+          }
+        ],
+        "episode_number": 26,
+        "episode_type": "finale",
+        "guest_stars": [
+          {
+            "adult": false,
+            "character": "",
+            "credit_id": "52574fcc760ee36aaa19e8f4",
+            "gender": 1,
+            "id": 3469,
+            "known_for_department": "Acting",
+            "name": "Nora Denney",
+            "order": 541,
+            "original_name": "Nora Denney",
+            "popularity": 1.0885,
+            "profile_path": "/c2rsz7pFPg4fDdIVsbkD8t3ixhI.jpg"
+          }
+        ],
+        "id": 246396,
+        "name": "Betty Jo's Business",
+        "overview": "Betty Jo Elliott starts a day nursery to augment the family income.",
+        "production_code": "",
+        "runtime": null,
+        "season_number": 7,
+        "show_id": 3346,
+        "still_path": null,
+        "vote_average": 0.0,
+        "vote_count": 0
+      }
+    ],
+    "id": 10353,
+    "name": "Season 7",
+    "networks": [
+      {
+        "id": 16,
+        "logo_path": "/wju8KhOUsR5y4bH9p3Jc50hhaLO.png",
+        "name": "CBS",
+        "origin_country": "US"
+      }
+    ],
+    "overview": "",
+    "poster_path": "/7uaSkjH3CyTejfaZE1CoFHWW0Dy.jpg",
+    "season_number": 7,
+    "vote_average": 0.0
+  },
+  "status": 200
+}

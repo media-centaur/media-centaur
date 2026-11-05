@@ -1,0 +1,33 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/u1zRxIN8FLmdXTcGkl2Gt64tREA.jpg",
+        "genre_ids": [
+          16,
+          18,
+          10402,
+          10749,
+          14
+        ],
+        "id": 20529,
+        "original_language": "en",
+        "original_title": "Sita Sings the Blues",
+        "overview": "Utilizing the 1920s jazz vocals of Annette Hanshaw, the epic Indian tale of exiled prince Ramayana and his bride Sita is mirrored by a spurned woman's contemporary personal life, and light-hearted but knowledgeable discussion of historical background by a trio of Indian shadow puppets.",
+        "popularity": 2.4107,
+        "poster_path": "/hrtW78FNfwFSiIetgey0cR8AT0g.jpg",
+        "release_date": "2008-02-11",
+        "softcore": false,
+        "title": "Sita Sings the Blues",
+        "video": false,
+        "vote_average": 7.0,
+        "vote_count": 87
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

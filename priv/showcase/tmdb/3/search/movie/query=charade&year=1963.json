@@ -1,0 +1,31 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/1Q1yTxHjadsLMf7yy9xABUH6zaT.jpg",
+        "genre_ids": [
+          35,
+          9648,
+          10749
+        ],
+        "id": 4808,
+        "original_language": "en",
+        "original_title": "Charade",
+        "overview": "After Regina Lampert falls for the dashing Peter Joshua on a skiing holiday in the French Alps, she discovers upon her return to Paris that her husband has been murdered. Soon, she and Peter are giving chase to three of her late husband's World War II cronies, Tex, Scobie and Gideon, who are after a quarter of a million dollars the quartet stole while behind enemy lines.",
+        "popularity": 4.6052,
+        "poster_path": "/qqaPjC5FQidtKY65jbAKZPiOTaS.jpg",
+        "release_date": "1963-12-01",
+        "softcore": false,
+        "title": "Charade",
+        "video": false,
+        "vote_average": 7.661,
+        "vote_count": 1627
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

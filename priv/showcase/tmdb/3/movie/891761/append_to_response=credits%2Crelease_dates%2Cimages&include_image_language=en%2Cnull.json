@@ -1,0 +1,815 @@
+{
+  "body": {
+    "adult": false,
+    "backdrop_path": "/aCMT1okuiKFnyKHdCOez66rJKyT.jpg",
+    "belongs_to_collection": null,
+    "budget": 0,
+    "credits": {
+      "cast": [
+        {
+          "adult": false,
+          "cast_id": 15,
+          "character": "Ellie (voice)",
+          "credit_id": "617d2c2aa097dc004281361d",
+          "gender": 1,
+          "id": 225978,
+          "known_for_department": "Writing",
+          "name": "Valerie LaPointe",
+          "order": 0,
+          "original_name": "Valerie LaPointe",
+          "popularity": 0.3989,
+          "profile_path": "/6bvaPm3vqVnMVwKaDtuK2qoAvTd.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 16,
+          "character": "Rex (voice)",
+          "credit_id": "617d2c3c3876510044a28ddf",
+          "gender": 2,
+          "id": 2182343,
+          "known_for_department": "Directing",
+          "name": "Gabriel Bisset-Smith",
+          "order": 1,
+          "original_name": "Gabriel Bisset-Smith",
+          "popularity": 0.7509,
+          "profile_path": "/szxEXqKGmmEGLKlylrmy3M0s6rJ.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 17,
+          "character": "Victoria (voice)",
+          "credit_id": "617d2c9dbe2d49002b28b8b0",
+          "gender": 0,
+          "id": 3290207,
+          "known_for_department": "Acting",
+          "name": "Nicole Davis",
+          "order": 2,
+          "original_name": "Nicole Davis",
+          "popularity": 0.2195,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 18,
+          "character": "Jay (voice)",
+          "credit_id": "617d2cab0d5d8500916ed605",
+          "gender": 2,
+          "id": 1656815,
+          "known_for_department": "Acting",
+          "name": "Homer Todiwala",
+          "order": 3,
+          "original_name": "Homer Todiwala",
+          "popularity": 0.2981,
+          "profile_path": "/6hSjot6m0CW20WfCkSF7A2diYs3.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 40,
+          "character": "Phil (voice)",
+          "credit_id": "651290fd26dac100cabbd543",
+          "gender": 2,
+          "id": 1364950,
+          "known_for_department": "Acting",
+          "name": "Ed Kear",
+          "order": 4,
+          "original_name": "Ed Kear",
+          "popularity": 0.5554,
+          "profile_path": "/jB1QY1DSN253bbtz51MHXEBj9O8.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 20,
+          "character": "Elder Sprite (voice)",
+          "credit_id": "617d2cfce323f30045bb1f2b",
+          "gender": 2,
+          "id": 53376,
+          "known_for_department": "Acting",
+          "name": "Eric Peterson",
+          "order": 5,
+          "original_name": "Eric Peterson",
+          "popularity": 0.9087,
+          "profile_path": "/yDSXor1RJzjkfJ6sd7z3bqXMyZP.jpg"
+        }
+      ],
+      "crew": [
+        {
+          "adult": false,
+          "credit_id": "617d295ad388ae0043ee057f",
+          "department": "Directing",
+          "gender": 2,
+          "id": 1993493,
+          "job": "Director",
+          "known_for_department": "Writing",
+          "name": "Matthew Luhn",
+          "original_name": "Matthew Luhn",
+          "popularity": 0.2809,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d29abd6dbba0066cbef6c",
+          "department": "Art",
+          "gender": 2,
+          "id": 7927,
+          "job": "Production Design",
+          "known_for_department": "Art",
+          "name": "Ricky Nierva",
+          "original_name": "Ricky Nierva",
+          "popularity": 0.3916,
+          "profile_path": "/aJ5Quu5h2exF12oVXJ0UySjAh8g.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2975d388ae00611be24c",
+          "department": "Writing",
+          "gender": 2,
+          "id": 1993493,
+          "job": "Writer",
+          "known_for_department": "Writing",
+          "name": "Matthew Luhn",
+          "original_name": "Matthew Luhn",
+          "popularity": 0.2809,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d29bf387651002ad0889b",
+          "department": "Directing",
+          "gender": 0,
+          "id": 1289553,
+          "job": "Co-Director",
+          "known_for_department": "Visual Effects",
+          "name": "Hjalti Hjálmarsson",
+          "original_name": "Hjalti Hjálmarsson",
+          "popularity": 0.2521,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3136bc2cb300629c44dc",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290245,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Mònica Eggert Roig",
+          "original_name": "Mònica Eggert Roig",
+          "popularity": 0.1668,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ad0be2d490045bfb414",
+          "department": "Sound",
+          "gender": 0,
+          "id": 1652303,
+          "job": "Sound Designer",
+          "known_for_department": "Sound",
+          "name": "Sander Houtman",
+          "original_name": "Sander Houtman",
+          "popularity": 0.2419,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2bd6a097dc002aadf980",
+          "department": "Sound",
+          "gender": 0,
+          "id": 3290204,
+          "job": "Songs",
+          "known_for_department": "Sound",
+          "name": "Phil Peterson",
+          "original_name": "Phil Peterson",
+          "popularity": 0.1103,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3101bc2cb30044f51268",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 1289553,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Hjalti Hjálmarsson",
+          "original_name": "Hjalti Hjálmarsson",
+          "popularity": 0.2521,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3158229ae20064a0c936",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290246,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Ruth Taylor",
+          "original_name": "Ruth Taylor",
+          "popularity": 0.0884,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2bbecb6db5006226acba",
+          "department": "Sound",
+          "gender": 0,
+          "id": 3290203,
+          "job": "Songs",
+          "known_for_department": "Sound",
+          "name": "David Drury",
+          "original_name": "David Drury",
+          "popularity": 0.1207,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3112142ef1008e66f974",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290244,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Mack Bo Ross",
+          "original_name": "Mack Bo Ross",
+          "popularity": 0.1342,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2991142ef10043c209a4",
+          "department": "Art",
+          "gender": 0,
+          "id": 58958,
+          "job": "Art Direction",
+          "known_for_department": "Art",
+          "name": "Andreas Goralczyk",
+          "original_name": "Andreas Goralczyk",
+          "popularity": 0.5675,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ae2d236e600433d3883",
+          "department": "Sound",
+          "gender": 0,
+          "id": 2383510,
+          "job": "Foley Artist",
+          "known_for_department": "Sound",
+          "name": "Daimo da Costa",
+          "original_name": "Daimo da Costa",
+          "popularity": 0.422,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2f48bc2cb300629c43ca",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 58958,
+          "job": "VFX Lighting Artist",
+          "known_for_department": "Art",
+          "name": "Andreas Goralczyk",
+          "original_name": "Andreas Goralczyk",
+          "popularity": 0.5675,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d29e0a3d027002c819628",
+          "department": "Production",
+          "gender": 0,
+          "id": 1289551,
+          "job": "Producer",
+          "known_for_department": "Production",
+          "name": "Francesco Siddi",
+          "original_name": "Francesco Siddi",
+          "popularity": 0.0925,
+          "profile_path": "/pIDS0x5yIlLJEj0RImf6sgOCzMr.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "617d324c142ef10043c20f5f",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290247,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Demeter Dzadik",
+          "original_name": "Demeter Dzadik",
+          "popularity": 0.0884,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ec70d5d85002afbd825",
+          "department": "Writing",
+          "gender": 0,
+          "id": 3290238,
+          "job": "Story Artist",
+          "known_for_department": "Writing",
+          "name": "Dirk van Dulmen",
+          "original_name": "Dirk van Dulmen",
+          "popularity": 0.1337,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d29efa097dc002aadf7f4",
+          "department": "Production",
+          "gender": 2,
+          "id": 133632,
+          "job": "Executive Producer",
+          "known_for_department": "Production",
+          "name": "Ton Roosendaal",
+          "original_name": "Ton Roosendaal",
+          "popularity": 0.3492,
+          "profile_path": "/2iRRkA2oCsPLSSLz1HKDhwJZlgy.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2b2d5294e7004401f0b6",
+          "department": "Sound",
+          "gender": 0,
+          "id": 2807807,
+          "job": "Foley Mixer",
+          "known_for_department": "Sound",
+          "name": "Burak Öztaș",
+          "original_name": "Burak Öztaș",
+          "popularity": 0.3025,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3023d236e60065078a47",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290239,
+          "job": "VFX Lighting Artist",
+          "known_for_department": "Visual Effects",
+          "name": "Beau Gerbrands",
+          "original_name": "Beau Gerbrands",
+          "popularity": 0.1352,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d308bcb6db5006226b005",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 2284012,
+          "job": "Modeling",
+          "known_for_department": "Visual Effects",
+          "name": "Julien Kaspar",
+          "original_name": "Julien Kaspar",
+          "popularity": 0.1144,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ab6be2d490045bfb40f",
+          "department": "Sound",
+          "gender": 0,
+          "id": 3290197,
+          "job": "Music",
+          "known_for_department": "Sound",
+          "name": "Ben J. Lee",
+          "original_name": "Ben J. Lee",
+          "popularity": 0.1457,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d30793f7e1d002c40013d",
+          "department": "Crew",
+          "gender": 0,
+          "id": 1289553,
+          "job": "Cinematography",
+          "known_for_department": "Visual Effects",
+          "name": "Hjalti Hjálmarsson",
+          "original_name": "Hjalti Hjálmarsson",
+          "popularity": 0.2521,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d32dc229ae20090102ee8",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290248,
+          "job": "Pipeline Technical Director",
+          "known_for_department": "Visual Effects",
+          "name": "Paul Golter",
+          "original_name": "Paul Golter",
+          "popularity": 0.1079,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2b4ca097dc002aadf938",
+          "department": "Sound",
+          "gender": 0,
+          "id": 3290198,
+          "job": "Sound Effects Editor",
+          "known_for_department": "Sound",
+          "name": "Cristo Pruppers",
+          "original_name": "Cristo Pruppers",
+          "popularity": 0.0942,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ea9a3d027002c8198ee",
+          "department": "Editing",
+          "gender": 0,
+          "id": 2380339,
+          "job": "Colorist",
+          "known_for_department": "Editing",
+          "name": "Bart Verraest",
+          "original_name": "Bart Verraest",
+          "popularity": 0.2226,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d309c0d5d85004387c4ba",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290240,
+          "job": "Shading",
+          "known_for_department": "Visual Effects",
+          "name": "Simon Thommes",
+          "original_name": "Simon Thommes",
+          "popularity": 0.0988,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d30f2d388ae002cf0f138",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3290243,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Gerard Manresa Ortega",
+          "original_name": "Gerard Manresa Ortega",
+          "popularity": 0.2015,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2ff467825900627ed611",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3246475,
+          "job": "Modeling",
+          "known_for_department": "Visual Effects",
+          "name": "Angela Guenette",
+          "original_name": "Angela Guenette",
+          "popularity": 0.175,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d30cd3e2ec8002a90ab68",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 3205809,
+          "job": "Animation",
+          "known_for_department": "Directing",
+          "name": "Daniela Avilés",
+          "original_name": "Daniela Avilés",
+          "popularity": 0.0884,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d2fddd236e60065078a39",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 2199377,
+          "job": "Lead Animator",
+          "known_for_department": "Visual Effects",
+          "name": "Rik Schutte",
+          "original_name": "Rik Schutte",
+          "popularity": 0.138,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "617d3147387651008c1137d4",
+          "department": "Visual Effects",
+          "gender": 0,
+          "id": 2284013,
+          "job": "Animation",
+          "known_for_department": "Visual Effects",
+          "name": "Pablo Fournier",
+          "original_name": "Pablo Fournier",
+          "popularity": 0.1136,
+          "profile_path": null
+        }
+      ]
+    },
+    "genres": [
+      {
+        "id": 16,
+        "name": "Animation"
+      },
+      {
+        "id": 27,
+        "name": "Horror"
+      },
+      {
+        "id": 35,
+        "name": "Comedy"
+      },
+      {
+        "id": 14,
+        "name": "Fantasy"
+      }
+    ],
+    "homepage": "https://studio.blender.org/films/sprite-fright/",
+    "id": 891761,
+    "images": {
+      "backdrops": [
+        {
+          "aspect_ratio": 1.779,
+          "file_path": "/aCMT1okuiKFnyKHdCOez66rJKyT.jpg",
+          "height": 850,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 1512
+        },
+        {
+          "aspect_ratio": 1.779,
+          "file_path": "/aXZuvuQpcXivXHasXFAkOhfTTfb.jpg",
+          "height": 850,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 1512
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/m5j4NBQiGztZuOR6uXzEFCBaY4o.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/m800nfWNJK04f1tpnKkEAqJFiAy.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/uGYmqb9m6MCpqREfBkbUtEz8L3A.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/evin3eEaTYuNVxFYx0ceIZkohn.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/oHdUtFFibowXXVDwidl1YA7VVV8.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/j1tNDaluZtE4Kx0aYvhbYAevSIm.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/4FjgY3jaT9JReawYbaNH9nr5fux.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/f33qoxzuOarzEkYdn42Av5EuFLt.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/yMe32uqkcfuGFjx56VoNqTvb5g5.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/nXWlFqD64b1pjPvW1RhBJYxyR37.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/9GBsKTrV4Kp9RmFk4hV626GBW6Y.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/nhl7wjQwKWmDGtESdYzxABHGj9H.jpg",
+          "height": 900,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1600
+        }
+      ],
+      "logos": [
+        {
+          "aspect_ratio": 1.757,
+          "file_path": "/eHUj6cIvrKH0bDIDnpOeYS1qCHY.png",
+          "height": 881,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1548
+        }
+      ],
+      "posters": [
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/AjWJQOogG4Irpff6K49tzrUTb1s.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 2,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.707,
+          "file_path": "/sduiFFm3rYwpZF0y74zbjhzbFvo.jpg",
+          "height": 990,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 1.75,
+          "vote_count": 2,
+          "width": 700
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/mvlU54q7U8Qgcq3FBlBb6IxaP1i.jpg",
+          "height": 1500,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 1.75,
+          "vote_count": 2,
+          "width": 1000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/rGWI4KpzfdzhCbRtxSWH3Pdkkj6.jpg",
+          "height": 1264,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 843
+        }
+      ]
+    },
+    "imdb_id": "tt15804252",
+    "origin_country": [
+      "US"
+    ],
+    "original_language": "en",
+    "original_title": "Sprite Fright",
+    "overview": "Set in 80’s-Britain, when a group of rowdy teenagers trek into an isolated forest, they discover peaceful mushroom creatures that turn out to be an unexpected force of nature.",
+    "popularity": 0.802,
+    "poster_path": "/AjWJQOogG4Irpff6K49tzrUTb1s.jpg",
+    "production_companies": [
+      {
+        "id": 6908,
+        "logo_path": "/l7mhd4PXPeJPOxSL1MqSfKUtTRW.png",
+        "name": "Blender Foundation",
+        "origin_country": "NL"
+      },
+      {
+        "id": 116844,
+        "logo_path": null,
+        "name": "Blender Animation Studio",
+        "origin_country": ""
+      },
+      {
+        "id": 219862,
+        "logo_path": null,
+        "name": "Keflix Global Networks",
+        "origin_country": ""
+      }
+    ],
+    "production_countries": [
+      {
+        "iso_3166_1": "NL",
+        "name": "Netherlands"
+      }
+    ],
+    "release_date": "2024-04-06",
+    "release_dates": {
+      "results": [
+        {
+          "iso_3166_1": "NL",
+          "release_dates": [
+            {
+              "certification": "14",
+              "descriptors": [],
+              "iso_639_1": "es",
+              "note": "At Eye Film",
+              "release_date": "2024-04-06T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "US",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "en",
+              "note": "Youtube",
+              "release_date": "2021-10-29T00:00:00.000Z",
+              "type": 4
+            }
+          ]
+        }
+      ]
+    },
+    "revenue": 0,
+    "runtime": 11,
+    "softcore": false,
+    "spoken_languages": [
+      {
+        "english_name": "English",
+        "iso_639_1": "en",
+        "name": "English"
+      }
+    ],
+    "status": "Released",
+    "tagline": "Not all mushrooms are fun guys.",
+    "title": "Sprite Fright",
+    "video": false,
+    "vote_average": 7.7,
+    "vote_count": 7
+  },
+  "status": 200
+}

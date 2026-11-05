@@ -72,8 +72,14 @@ defmodule MediaCentaur.Showcase do
     * Pending review files covering the full palette of review UI states.
     * Watch-history events so the /history page is populated.
 
-  All TMDB lookups go through `MediaCentaur.TMDB.Client` which honours the
-  persistent-term stub used by tests — so `mix test` never hits the real API.
+  ## TMDB
+
+  Every TMDB API request is answered from the committed recording under
+  `priv/showcase/tmdb/` (`MediaCentaur.Showcase.Stubs.TmdbFixtures`), so a
+  seed needs no API key; artwork still comes from TMDB's public image CDN.
+  Adding a catalog entry means re-recording: `scripts/reseed-showcase
+  --record` runs `mix seed.showcase --record-tmdb` with a real key, which
+  fetches and writes whatever the recording lacks.
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
@@ -129,7 +135,7 @@ defmodule MediaCentaur.Showcase do
 
     counts = %{
       watch_progress: seed_watch_progress!(owner_id, movies, tv_series),
-      tracked_items: seed_release_tracking!(client),
+      tracked_items: seed_release_tracking!(movies, tv_series),
       pending_files: seed_pending_files!(client),
       watch_events: seed_watch_history!(owner_id, movies, tv_series),
       acquisitions: seed_acquisition_activity!()
@@ -193,15 +199,15 @@ defmodule MediaCentaur.Showcase do
 
       maybe_seed_track_override!(owner_id, movie.id, entry)
 
-      movie
+      Map.put(movie, :tmdb_id, tmdb_id)
     else
       {:error, reason} ->
         raise """
         showcase seed failed for movie "#{title}" (#{year}): #{inspect(reason)}.
 
-        TMDB lookups must succeed for the seed to produce usable data.
-        Set TMDB_API_KEY to a valid key before running `mix seed.showcase`
-        (scripts/start-showcase inherits it from the dev DB's stored key).
+        TMDB lookups are answered from the recording in priv/showcase/tmdb/.
+        A catalog entry missing from it is recorded with
+        `scripts/reseed-showcase --record` (needs a real TMDB key).
         """
     end
   end
@@ -263,15 +269,15 @@ defmodule MediaCentaur.Showcase do
         )
       end)
 
-      Map.put(series, :seasons, seasons)
+      series |> Map.put(:seasons, seasons) |> Map.put(:tmdb_id, tmdb_id)
     else
       {:error, reason} ->
         raise """
         showcase seed failed for TV series "#{title}" (#{year}): #{inspect(reason)}.
 
-        TMDB lookups must succeed for the seed to produce usable data.
-        Set TMDB_API_KEY to a valid key before running `mix seed.showcase`
-        (scripts/start-showcase inherits it from the dev DB's stored key).
+        TMDB lookups are answered from the recording in priv/showcase/tmdb/.
+        A catalog entry missing from it is recorded with
+        `scripts/reseed-showcase --record` (needs a real TMDB key).
         """
     end
   end
@@ -477,12 +483,14 @@ defmodule MediaCentaur.Showcase do
   # Release tracking — upcoming + available-now
   # ---------------------------------------------------------------------------
 
-  defp seed_release_tracking!(client) do
+  defp seed_release_tracking!(movies, tv_series) do
     # Public-domain and CC-licensed titles only — the showcase is a
     # legally-safe demo, so even metadata references stick to PD/CC.
     # All seven titles already live in the showcase library; tracking
     # them here models the "watch for restorations / new seasons" flow
-    # without referencing copyrighted properties. Four TV series are
+    # without referencing copyrighted properties. Each is tracked under the
+    # TMDB id its catalog entry was confirmed as (`CatalogMatch`), never a
+    # fresh search: a search's first hit is the famous same-named film. Four TV series are
     # tracked so the home "Coming Up" marquee (which dedups by series)
     # renders all four badge states side-by-side.
     upcoming = [
@@ -496,8 +504,10 @@ defmodule MediaCentaur.Showcase do
     ]
 
     count =
-      Enum.reduce(upcoming, 0, fn {media_type, title}, acc ->
-        case track_upcoming(client, media_type, title) do
+      Enum.reduce(upcoming, 0, fn {media_type, name}, acc ->
+        seeded = if media_type == :movie, do: movies, else: tv_series
+
+        case track_upcoming(Enum.find(seeded, &(&1.name == name)), media_type) do
           :ok -> acc + 1
           _ -> acc
         end
@@ -565,33 +575,12 @@ defmodule MediaCentaur.Showcase do
     name
   end
 
-  defp track_upcoming(client, :movie, title) do
-    case TMDB.Client.search_movie(title, nil, client: client) do
-      {:ok, [%{"id" => id, "title" => name} | _]} ->
-        title = Title.new!(%{tmdb_id: id, media_type: :movie, name: name})
+  defp track_upcoming(%{tmdb_id: tmdb_id, name: name}, media_type) do
+    title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
 
-        case ReleaseTracking.set_rung(title, :grab) do
-          {:ok, _intent} -> :ok
-          _ -> :error
-        end
-
-      _ ->
-        :error
-    end
-  end
-
-  defp track_upcoming(client, :tv_series, title) do
-    case TMDB.Client.search_tv(title, nil, client: client) do
-      {:ok, [%{"id" => id, "name" => name} | _]} ->
-        title = Title.new!(%{tmdb_id: id, media_type: :tv_series, name: name})
-
-        case ReleaseTracking.set_rung(title, :grab) do
-          {:ok, _intent} -> :ok
-          _ -> :error
-        end
-
-      _ ->
-        :error
+    case ReleaseTracking.set_rung(title, :grab) do
+      {:ok, _intent} -> :ok
+      _ -> :error
     end
   end
 
@@ -923,6 +912,12 @@ defmodule MediaCentaur.Showcase do
     # the setup wizard so `/` and `/library` render instead of redirecting to
     # `/setup` (see MediaCentaurWeb.Plugs.SetupRedirect).
     Config.update(:setup_wizard_dismissed, true)
+
+    # Every upstream below is answered by a stand-in (`Showcase.Stubs`); the
+    # placeholder credentials make the instance read as configured. A
+    # recording run keeps the real TMDB key it records with.
+    if !Application.get_env(:media_centaur, :showcase_tmdb_record, false),
+      do: Config.update(:tmdb_api_key, "showcase-tmdb-key")
 
     Config.update(:prowlarr_url, "http://localhost:9696")
     Config.update(:prowlarr_api_key, "showcase-prowlarr-key")

@@ -1,0 +1,30 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/osCupz9uxvUoca6aqSSkns1UnlQ.jpg",
+        "genre_ids": [
+          53,
+          80
+        ],
+        "id": 20246,
+        "original_language": "en",
+        "original_title": "The Stranger",
+        "overview": "An investigator from the War Crimes Commission travels to Connecticut to find an infamous Nazi, who may be hiding out in a small town in the guise of a distinguished professor engaged to the Supreme Court Justice’s daughter.",
+        "popularity": 2.2442,
+        "poster_path": "/bzjoPScBLUWpSu10m3GbSbSwVhS.jpg",
+        "release_date": "1946-06-02",
+        "softcore": false,
+        "title": "The Stranger",
+        "video": false,
+        "vote_average": 7.218,
+        "vote_count": 671
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 3
+  },
+  "status": 200
+}

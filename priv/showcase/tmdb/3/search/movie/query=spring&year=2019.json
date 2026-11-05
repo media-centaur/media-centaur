@@ -1,0 +1,48 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/lL04DVOu1b64Xoj1EuWHZdtcfaZ.jpg",
+        "genre_ids": [
+          14,
+          16,
+          12
+        ],
+        "id": 593048,
+        "original_language": "en",
+        "original_title": "Spring",
+        "overview": "The story of a shepherd girl and her dog who face ancient spirits in order to continue the cycle of life.",
+        "popularity": 1.2866,
+        "poster_path": "/g5dSJtpoXYCSVx70srSAc3wqNFc.jpg",
+        "release_date": "2019-04-04",
+        "softcore": false,
+        "title": "Spring",
+        "video": false,
+        "vote_average": 7.6,
+        "vote_count": 20
+      },
+      {
+        "adult": false,
+        "backdrop_path": null,
+        "genre_ids": [],
+        "id": 657894,
+        "original_language": "en",
+        "original_title": "Spring",
+        "overview": "A man is determined to save his failing relationship with the help of a mysterious phenomenon.",
+        "popularity": 0.1414,
+        "poster_path": null,
+        "release_date": "2019-08-08",
+        "softcore": false,
+        "title": "Spring",
+        "video": false,
+        "vote_average": 0.0,
+        "vote_count": 0
+      }
+    ],
+    "total_pages": 3,
+    "total_results": 56
+  },
+  "status": 200
+}

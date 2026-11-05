@@ -2,28 +2,52 @@ defmodule MediaCentaur.Showcase.Stubs do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Runtime HTTP stubs used by the showcase instance so the /download
-  page renders rich fixture data without a live Prowlarr or
-  qBittorrent backend. Activated when `MediaCentaur.Settings.Config.get(:showcase_mode)`
-  returns true — `Search.Prowlarr.default_client/0` and the
-  `Downloads.DownloadClient.QBittorrent` driver swap their real HTTP
-  clients for `Req.new(plug: ...)` wrappers that call the functions in
-  this module.
+  The showcase's stand-ins for its upstreams, so a showcase-mode instance
+  (`showcase_mode = true` in its override TOML) answers Prowlarr,
+  qBittorrent and the TMDB API without a live backend or an API key.
+
+  `MediaCentaur.HttpClient.new/2` passes every client it builds through
+  `attach/2`, which does nothing outside showcase mode. In showcase mode it
+  routes by upstream: Prowlarr and qBittorrent to the fixture plugs below,
+  the TMDB API to the recorded responses of
+  `MediaCentaur.Showcase.Stubs.TmdbFixtures`. Every other upstream — the
+  TMDB image CDN included — stays live. Stubbed requests still go through
+  the real client, so they emit telemetry and land in the request time
+  series like any other traffic (see `MediaCentaur.Showcase.SyntheticTraffic`).
 
   All fixtures use public-domain media (Big Buck Bunny, Metropolis,
   Nosferatu, Plan 9, Night of the Living Dead) so the marketing
   screenshots never depict piracy of copyrighted content.
   """
 
+  alias MediaCentaur.Showcase.Stubs.TmdbFixtures
+
   @doc """
-  The upstreams these stubs answer for. Their requests go out through the
-  real `MediaCentaur.HttpClient`, so they emit real telemetry and land in
-  the request time series like any other traffic — which is why
-  `MediaCentaur.Showcase.SyntheticTraffic` must not fabricate a present
-  for them on top.
+  Routes `request` to the stand-in for `upstream` when this instance is in
+  showcase mode; returns it unchanged otherwise.
+
+  TMDB answers from `priv/showcase/tmdb/`, recording what it lacks when
+  the application env sets `:showcase_tmdb_record` (`mix seed.showcase
+  --record-tmdb`).
   """
-  @spec upstreams() :: [atom()]
-  def upstreams, do: [:prowlarr, :qbittorrent]
+  @spec attach(Req.Request.t(), atom()) :: Req.Request.t()
+  def attach(%Req.Request{} = request, upstream) do
+    if MediaCentaur.Settings.Config.get(:showcase_mode),
+      do: route(request, upstream),
+      else: request
+  end
+
+  defp route(request, :prowlarr), do: Req.merge(request, plug: &prowlarr_plug/1, retry: false)
+  defp route(request, :qbittorrent), do: Req.merge(request, plug: &qbittorrent_plug/1, retry: false)
+
+  defp route(request, :tmdb) do
+    TmdbFixtures.attach(request,
+      dir: Application.app_dir(:media_centaur, "priv/showcase/tmdb"),
+      record: Application.get_env(:media_centaur, :showcase_tmdb_record, false)
+    )
+  end
+
+  defp route(request, _live_upstream), do: request
 
   # --- Prowlarr plug ---
 

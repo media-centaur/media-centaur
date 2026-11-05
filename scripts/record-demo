@@ -41,7 +41,7 @@ command -v ffmpeg >/dev/null || { echo "error: ffmpeg not found" >&2; exit 1; }
 
 if [ ! -f "$SHOWCASE_DB" ]; then
   echo "error: showcase DB missing at $SHOWCASE_DB" >&2
-  echo "Seed it first:  TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+  echo "Seed it first:  scripts/reseed-showcase" >&2
   exit 1
 fi
 

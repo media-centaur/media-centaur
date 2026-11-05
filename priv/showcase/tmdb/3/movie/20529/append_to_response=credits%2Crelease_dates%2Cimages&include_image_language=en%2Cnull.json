@@ -1,0 +1,450 @@
+{
+  "body": {
+    "adult": false,
+    "backdrop_path": "/u1zRxIN8FLmdXTcGkl2Gt64tREA.jpg",
+    "belongs_to_collection": null,
+    "budget": 290000,
+    "credits": {
+      "cast": [
+        {
+          "adult": false,
+          "cast_id": 3,
+          "character": "Sita",
+          "credit_id": "52fe43ebc3a368484e005ddf",
+          "gender": 0,
+          "id": 115232,
+          "known_for_department": "Acting",
+          "name": "Reena Shah",
+          "order": 0,
+          "original_name": "Reena Shah",
+          "popularity": 0.2426,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 4,
+          "character": "Rama",
+          "credit_id": "52fe43ebc3a368484e005de3",
+          "gender": 2,
+          "id": 115233,
+          "known_for_department": "Acting",
+          "name": "Debargo Sanyal",
+          "order": 1,
+          "original_name": "Debargo Sanyal",
+          "popularity": 0.3761,
+          "profile_path": "/iD9I9b8yhWWcEnekpz1JjFNWKDg.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 5,
+          "character": "Sita (singing)",
+          "credit_id": "52fe43ebc3a368484e005de7",
+          "gender": 1,
+          "id": 1285400,
+          "known_for_department": "Acting",
+          "name": "Annette Hanshaw",
+          "order": 2,
+          "original_name": "Annette Hanshaw",
+          "popularity": 0.2711,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 6,
+          "character": "Narrator",
+          "credit_id": "52fe43ebc3a368484e005deb",
+          "gender": 0,
+          "id": 1285401,
+          "known_for_department": "Acting",
+          "name": "Aseem Chhabra",
+          "order": 3,
+          "original_name": "Aseem Chhabra",
+          "popularity": 0.353,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 7,
+          "character": "Narrator",
+          "credit_id": "52fe43ebc3a368484e005def",
+          "gender": 0,
+          "id": 1285402,
+          "known_for_department": "Acting",
+          "name": "Bhavana Nagulapally",
+          "order": 4,
+          "original_name": "Bhavana Nagulapally",
+          "popularity": 1.0407,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 8,
+          "character": "Narrator",
+          "credit_id": "52fe43ebc3a368484e005df3",
+          "gender": 0,
+          "id": 85677,
+          "known_for_department": "Acting",
+          "name": "Manish Acharya",
+          "order": 5,
+          "original_name": "Manish Acharya",
+          "popularity": 0.3805,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 9,
+          "character": "Dave / Dasharatha / Ravana / Dhobi / Valmiki",
+          "credit_id": "52fe43ebc3a368484e005df7",
+          "gender": 2,
+          "id": 113694,
+          "known_for_department": "Acting",
+          "name": "Sanjiv Jhaveri",
+          "order": 6,
+          "original_name": "Sanjiv Jhaveri",
+          "popularity": 0.2437,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 10,
+          "character": "Surphanaka",
+          "credit_id": "52fe43ebc3a368484e005dfb",
+          "gender": 1,
+          "id": 81678,
+          "known_for_department": "Acting",
+          "name": "Pooja Kumar",
+          "order": 7,
+          "original_name": "Pooja Kumar",
+          "popularity": 1.2718,
+          "profile_path": "/5oTtCUA4KgvyA0YOiDkzEPU64be.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 11,
+          "character": "Mareecha/ Hunuman",
+          "credit_id": "52fe43ebc3a368484e005dff",
+          "gender": 0,
+          "id": 1285403,
+          "known_for_department": "Acting",
+          "name": "Aladdin Ullah",
+          "order": 8,
+          "original_name": "Aladdin Ullah",
+          "popularity": 0.2817,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 14,
+          "character": "Nina",
+          "credit_id": "69b2e3e89db1d87b814b71d8",
+          "gender": 1,
+          "id": 86523,
+          "known_for_department": "Directing",
+          "name": "Nina Paley",
+          "order": 9,
+          "original_name": "Nina Paley",
+          "popularity": 0.7982,
+          "profile_path": "/8QUMoE5xR9ee1MyGgddBCjLQPQr.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 15,
+          "character": "Luv / Kush",
+          "credit_id": "69b2e4145b67e7d2208177fc",
+          "gender": 1,
+          "id": 1596910,
+          "known_for_department": "Acting",
+          "name": "Nitya Vidyasagar",
+          "order": 10,
+          "original_name": "Nitya Vidyasagar",
+          "popularity": 0.5521,
+          "profile_path": "/cOjEIumye0bTMjDWoSC6MMBLkzX.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 16,
+          "character": "Kaikeyi",
+          "credit_id": "69b2e427db411f1a7c817811",
+          "gender": 1,
+          "id": 176829,
+          "known_for_department": "Acting",
+          "name": "Deepti Gupta",
+          "order": 11,
+          "original_name": "Deepti Gupta",
+          "popularity": 0.4717,
+          "profile_path": "/kMvUaVfUXBbFpoRTwIiaeKlg1vj.jpg"
+        }
+      ],
+      "crew": [
+        {
+          "adult": false,
+          "credit_id": "52fe43ebc3a368484e005dd5",
+          "department": "Directing",
+          "gender": 1,
+          "id": 86523,
+          "job": "Director",
+          "known_for_department": "Directing",
+          "name": "Nina Paley",
+          "original_name": "Nina Paley",
+          "popularity": 0.7982,
+          "profile_path": "/8QUMoE5xR9ee1MyGgddBCjLQPQr.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "5733065b92514165750025db",
+          "department": "Writing",
+          "gender": 1,
+          "id": 86523,
+          "job": "Writer",
+          "known_for_department": "Directing",
+          "name": "Nina Paley",
+          "original_name": "Nina Paley",
+          "popularity": 0.7982,
+          "profile_path": "/8QUMoE5xR9ee1MyGgddBCjLQPQr.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "5a82a30c0e0a26083500677a",
+          "department": "Crew",
+          "gender": 2,
+          "id": 11,
+          "job": "Other",
+          "known_for_department": "Writing",
+          "name": "David Reynolds",
+          "original_name": "David Reynolds",
+          "popularity": 0.6977,
+          "profile_path": null
+        }
+      ]
+    },
+    "genres": [
+      {
+        "id": 16,
+        "name": "Animation"
+      },
+      {
+        "id": 18,
+        "name": "Drama"
+      },
+      {
+        "id": 10402,
+        "name": "Music"
+      },
+      {
+        "id": 10749,
+        "name": "Romance"
+      },
+      {
+        "id": 14,
+        "name": "Fantasy"
+      }
+    ],
+    "homepage": "http://www.sitasingstheblues.com",
+    "id": 20529,
+    "images": {
+      "backdrops": [
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/u1zRxIN8FLmdXTcGkl2Gt64tREA.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/zdXkFNE27BrBt938yNCiiEMiAwj.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 1.75,
+          "vote_count": 2,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/sxG9b9dmvmUPqsywBGPTLYO0pzS.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/42vEuQ22YzxBjEHruths3TPol5Y.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/4iJUT1Dfl3C3hKRLFZRSVtCitHU.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/2JUWqGgWm7dJGuU8KIAqSuYB2SW.jpg",
+          "height": 720,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1280
+        }
+      ],
+      "logos": [
+        {
+          "aspect_ratio": 4.438,
+          "file_path": "/mCWBjqwgUjX0FYouAt9QkL0xQhH.png",
+          "height": 89,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 395
+        }
+      ],
+      "posters": [
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/hrtW78FNfwFSiIetgey0cR8AT0g.jpg",
+          "height": 1440,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 960
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/6qgz1eMEzmb20zwmNSKLny4D1YX.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/oTIcAuNNNYGe86jhOifru8UpTVn.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        }
+      ]
+    },
+    "imdb_id": "tt1172203",
+    "origin_country": [
+      "US"
+    ],
+    "original_language": "en",
+    "original_title": "Sita Sings the Blues",
+    "overview": "Utilizing the 1920s jazz vocals of Annette Hanshaw, the epic Indian tale of exiled prince Ramayana and his bride Sita is mirrored by a spurned woman's contemporary personal life, and light-hearted but knowledgeable discussion of historical background by a trio of Indian shadow puppets.",
+    "popularity": 2.4107,
+    "poster_path": "/hrtW78FNfwFSiIetgey0cR8AT0g.jpg",
+    "production_companies": [
+      {
+        "id": 76628,
+        "logo_path": null,
+        "name": "Nina Paley",
+        "origin_country": ""
+      }
+    ],
+    "production_countries": [
+      {
+        "iso_3166_1": "US",
+        "name": "United States of America"
+      }
+    ],
+    "release_date": "2008-02-11",
+    "release_dates": {
+      "results": [
+        {
+          "iso_3166_1": "CA",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Ottawa International Animation Festival",
+              "release_date": "2008-09-19T00:00:00.000Z",
+              "type": 1
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "DE",
+          "release_dates": [
+            {
+              "certification": "12",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Berlin International Film Festival",
+              "release_date": "2008-02-11T00:00:00.000Z",
+              "type": 2
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "FR",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "2009-08-12T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "US",
+          "release_dates": [
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "2009-02-28T00:00:00.000Z",
+              "type": 4
+            }
+          ]
+        }
+      ]
+    },
+    "revenue": 0,
+    "runtime": 82,
+    "softcore": false,
+    "spoken_languages": [
+      {
+        "english_name": "English",
+        "iso_639_1": "en",
+        "name": "English"
+      }
+    ],
+    "status": "Released",
+    "tagline": "The Greatest Break-Up Story Ever Told.",
+    "title": "Sita Sings the Blues",
+    "video": false,
+    "vote_average": 7.0,
+    "vote_count": 87
+  },
+  "status": 200
+}

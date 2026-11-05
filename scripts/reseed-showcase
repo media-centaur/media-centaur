@@ -5,14 +5,21 @@
 #   1. Stop any showcase server listening on :4003 (best-effort).
 #   2. Delete priv/showcase/media-centaur.db{,-shm,-wal}.
 #   3. ecto.create + ecto.migrate against the showcase override TOML.
-#   4. Pull the TMDB API key from the dev DB's settings_entries (the one
-#      and only place it's stored on this machine) and export it so the
-#      seeder can fetch real metadata and artwork.
-#   5. mix seed.showcase (populates ~14 movies, 2 TV series, stubs for
+#   4. mix seed.showcase (populates ~14 movies, 2 TV series, stubs for
 #      content files so the detail modals don't show "missing" banners).
+#      TMDB answers come from the committed recording in
+#      priv/showcase/tmdb/; no key is needed. Artwork comes from TMDB's
+#      public image CDN.
 #
-# All state lives inside priv/showcase/ — `rm -rf priv/showcase/` is a
-# full reset and this script will rebuild from scratch.
+#   scripts/reseed-showcase            reseed from the recording
+#   scripts/reseed-showcase --record   first record what the recording
+#                                      lacks (a seed with --record-tmdb and a
+#                                      real key: TMDB_API_KEY, else the dev
+#                                      DB's stored key, never printed), then
+#                                      reseed from the recording
+#
+# All generated state lives inside priv/showcase/ — removing the database,
+# media and images there is a full reset and this script rebuilds it.
 
 set -euo pipefail
 
@@ -22,7 +29,6 @@ cd "$REPO_ROOT"
 # Showcase config override + isolated build root (see scripts/showcase-env).
 . "$REPO_ROOT/scripts/showcase-env"
 SHOWCASE_DB="priv/showcase/media-centaur.db"
-DEV_DB="$HOME/.local/share/media-centaur/media-centaur.db"
 SHOWCASE_PORT=4003
 
 # 1. Stop any showcase-on-4003 so the DB isn't locked when we wipe.
@@ -39,50 +45,35 @@ if [ -n "$pid" ]; then
   done
 fi
 
-# 1b. Salvage the TMDB key from the existing showcase DB before we wipe
-# it — once a real key has been used to seed the showcase, that DB
-# itself is the durable source. Without this, every reseed would
-# re-fetch from the dev DB (which often holds a placeholder) and the
-# user would have to re-supply the key they already provided once.
-# Caller-supplied TMDB_API_KEY still wins (handled in step 4).
-if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$SHOWCASE_DB" ]; then
-  showcase_key=$(sqlite3 "$SHOWCASE_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
-  if [ -n "$showcase_key" ] && [ "$showcase_key" != "dummy-tmdb-key" ]; then
-    TMDB_API_KEY="$showcase_key"
-    export TMDB_API_KEY
-    echo "salvaged TMDB key from existing showcase DB"
+RECORD=0
+[ "${1:-}" = "--record" ] && RECORD=1
+
+# 2–3. Wipe the DB + WAL sidecars, then create + migrate.
+# MEDIA_CENTAUR_CONFIG_OVERRIDE (from showcase-env) points at the shipped
+# showcase TOML, which carries an explicit priv/showcase/media-centaur.db
+# path so there's no risk of hitting the default dev DB.
+fresh_database() {
+  rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
+  mise exec -- mix ecto.create
+  mise exec -- mix ecto.migrate
+}
+
+# Recording reaches the live TMDB API, so it needs a real key: the
+# caller's TMDB_API_KEY, else the dev DB's stored one (read-only).
+if [ "$RECORD" = 1 ]; then
+  dev_db="$HOME/.local/share/media-centaur/media-centaur.db"
+  if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$dev_db" ]; then
+    TMDB_API_KEY=$(sqlite3 "$dev_db" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
   fi
-  unset showcase_key
+  if [ -z "${TMDB_API_KEY:-}" ]; then
+    echo "error: --record needs a TMDB key: set TMDB_API_KEY, or save one in the dev app's Settings → TMDB." >&2
+    exit 1
+  fi
+  fresh_database
+  TMDB_API_KEY="$TMDB_API_KEY" mise exec -- mix seed.showcase --record-tmdb
 fi
 
-# 2. Wipe showcase DB + WAL sidecars.
-rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
-
-# 3. Create + migrate. MEDIA_CENTAUR_CONFIG_OVERRIDE (from showcase-env)
-# points at the shipped showcase TOML, which carries an explicit
-# priv/showcase/media-centaur.db path so there's no risk of hitting the
-# default dev DB.
-mise exec -- mix ecto.create
-mise exec -- mix ecto.migrate
-
-# 4. TMDB key resolution. Priority:
-#   1. TMDB_API_KEY already exported in the caller's env (one-shot override)
-#   2. Dev DB's settings_entries (the historical source of truth)
-# Read-only on the dev DB; does not mutate it.
-if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$DEV_DB" ]; then
-  TMDB_API_KEY=$(sqlite3 "$DEV_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
-  export TMDB_API_KEY
-fi
-
-if [ -z "${TMDB_API_KEY:-}" ] || [ "$TMDB_API_KEY" = "dummy-tmdb-key" ]; then
-  echo "error: TMDB_API_KEY is unset or holds the placeholder 'dummy-tmdb-key'." >&2
-  echo "" >&2
-  echo "Provide a real TMDB v3 key one of these ways:" >&2
-  echo "  TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
-  echo "  or: open the dev app, Settings → TMDB → paste the key, save," >&2
-  echo "      then re-run scripts/reseed-showcase (no env var needed)." >&2
-  exit 1
-fi
-
-# 5. Seed.
-mise exec -- mix seed.showcase
+# 4. Seed from the recording. The variable is cleared so the seed cannot
+# lean on a key: whatever it asks for must be recorded.
+fresh_database
+env -u TMDB_API_KEY mise exec -- mix seed.showcase

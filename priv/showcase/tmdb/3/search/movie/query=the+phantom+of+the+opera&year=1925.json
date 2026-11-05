@@ -1,0 +1,30 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/6FSs7jMimg1PBYdhZtPNQhtKtEc.jpg",
+        "genre_ids": [
+          27,
+          10402
+        ],
+        "id": 964,
+        "original_language": "en",
+        "original_title": "The Phantom of the Opera",
+        "overview": "The deformed Phantom who haunts the Paris Opera House causes murder and mayhem in an attempt to make the woman he loves a star.",
+        "popularity": 3.3706,
+        "poster_path": "/mvaYpAYj957C2tlq3vVJPSzGJXK.jpg",
+        "release_date": "1925-06-29",
+        "softcore": false,
+        "title": "The Phantom of the Opera",
+        "video": false,
+        "vote_average": 7.135,
+        "vote_count": 425
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

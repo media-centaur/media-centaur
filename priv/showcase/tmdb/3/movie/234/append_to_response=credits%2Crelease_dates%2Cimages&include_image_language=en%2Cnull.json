@@ -1,0 +1,1293 @@
+{
+  "body": {
+    "adult": false,
+    "backdrop_path": "/sLq72hBx8Xs2IISVsZJqgjOd31b.jpg",
+    "belongs_to_collection": null,
+    "budget": 18000,
+    "credits": {
+      "cast": [
+        {
+          "adult": false,
+          "cast_id": 19,
+          "character": "Dr. Caligari",
+          "credit_id": "52fe422ac3a36847f80090df",
+          "gender": 2,
+          "id": 3000,
+          "known_for_department": "Acting",
+          "name": "Werner Krauss",
+          "order": 0,
+          "original_name": "Werner Krauß",
+          "popularity": 0.3439,
+          "profile_path": "/xlyS30qzcndmczxG5JdJWwJ1heI.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 13,
+          "character": "Cesare",
+          "credit_id": "52fe422ac3a36847f80090cb",
+          "gender": 2,
+          "id": 3001,
+          "known_for_department": "Acting",
+          "name": "Conrad Veidt",
+          "order": 1,
+          "original_name": "Conrad Veidt",
+          "popularity": 0.8158,
+          "profile_path": "/rmlK341dwK57BVWz1S96tpv7SSF.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 20,
+          "character": "Francis",
+          "credit_id": "52fe422ac3a36847f80090e3",
+          "gender": 2,
+          "id": 590591,
+          "known_for_department": "Directing",
+          "name": "Friedrich Fehér",
+          "order": 2,
+          "original_name": "Friedrich Fehér",
+          "popularity": 1.0885,
+          "profile_path": "/rGStxJtUovcSItqU8TOZtpb9IL8.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 15,
+          "character": "Jane",
+          "credit_id": "52fe422ac3a36847f80090cf",
+          "gender": 1,
+          "id": 3005,
+          "known_for_department": "Acting",
+          "name": "Lil Dagover",
+          "order": 3,
+          "original_name": "Lil Dagover",
+          "popularity": 0.43,
+          "profile_path": "/eNdCKI0PjnDapWEbTuZln7U2hCl.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 16,
+          "character": "Alan",
+          "credit_id": "52fe422ac3a36847f80090d3",
+          "gender": 2,
+          "id": 3007,
+          "known_for_department": "Acting",
+          "name": "Hans Heinrich von Twardowski",
+          "order": 4,
+          "original_name": "Hans Heinrich von Twardowski",
+          "popularity": 1.0675,
+          "profile_path": "/kip8D2tvcdEJiPtZaGioQD6vSjV.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 25,
+          "character": "Dr. Olsen",
+          "credit_id": "59d3bcc59251414b5c001613",
+          "gender": 2,
+          "id": 1016382,
+          "known_for_department": "Acting",
+          "name": "Rudolf Lettinger",
+          "order": 5,
+          "original_name": "Rudolf Lettinger",
+          "popularity": 0.32,
+          "profile_path": "/3NK7jmvEV3OMMZDy4ke1qxFlLZC.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 22,
+          "character": "Young Doctor (uncredited)",
+          "credit_id": "52fe422ac3a36847f80090eb",
+          "gender": 2,
+          "id": 1090550,
+          "known_for_department": "Acting",
+          "name": "Henri Peters-Arnolds",
+          "order": 6,
+          "original_name": "Henri Peters-Arnolds",
+          "popularity": 0.4451,
+          "profile_path": "/cSAwbfXurAQ7RNQiTQ2zS4dHbV2.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 18,
+          "character": "Criminal (uncredited)",
+          "credit_id": "52fe422ac3a36847f80090db",
+          "gender": 2,
+          "id": 77,
+          "known_for_department": "Acting",
+          "name": "Rudolf Klein-Rogge",
+          "order": 7,
+          "original_name": "Rudolf Klein-Rogge",
+          "popularity": 0.7004,
+          "profile_path": "/fbP75fGfXFQlkf3Q5oHbJ4wjG1g.jpg"
+        },
+        {
+          "adult": false,
+          "cast_id": 21,
+          "character": "Old Man (uncredited)",
+          "credit_id": "52fe422ac3a36847f80090e7",
+          "gender": 2,
+          "id": 29568,
+          "known_for_department": "Acting",
+          "name": "Hans Lanser-Rudolf",
+          "order": 8,
+          "original_name": "Hans Lanser-Rudolf",
+          "popularity": 0.2919,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 23,
+          "character": "Murderer (uncredited)",
+          "credit_id": "52fe422ac3a36847f80090ef",
+          "gender": 2,
+          "id": 1090552,
+          "known_for_department": "Acting",
+          "name": "Ludwig Rex",
+          "order": 9,
+          "original_name": "Ludwig Rex",
+          "popularity": 0.3413,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "cast_id": 24,
+          "character": "Landlady (uncredited)",
+          "credit_id": "52fe422ac3a36847f80090f3",
+          "gender": 1,
+          "id": 37889,
+          "known_for_department": "Acting",
+          "name": "Elsa Wagner",
+          "order": 10,
+          "original_name": "Elsa Wagner",
+          "popularity": 0.3254,
+          "profile_path": "/f8ELn1caKeFZjxaGS3VAK2M4pA1.jpg"
+        }
+      ],
+      "crew": [
+        {
+          "adult": false,
+          "credit_id": "52fe422ac3a36847f80090a9",
+          "department": "Sound",
+          "gender": 2,
+          "id": 2996,
+          "job": "Original Music Composer",
+          "known_for_department": "Sound",
+          "name": "Giuseppe Becce",
+          "original_name": "Giuseppe Becce",
+          "popularity": 0.3294,
+          "profile_path": "/zodhUsaja5ThLTRSajC0jbfOkfx.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "52fe422ac3a36847f800908b",
+          "department": "Directing",
+          "gender": 2,
+          "id": 2991,
+          "job": "Director",
+          "known_for_department": "Directing",
+          "name": "Robert Wiene",
+          "original_name": "Robert Wiene",
+          "popularity": 0.5171,
+          "profile_path": "/hljvbcgEYOHJM6FI5r6Vi2OULwg.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "52fe422ac3a36847f80090b5",
+          "department": "Sound",
+          "gender": 2,
+          "id": 3022,
+          "job": "Original Music Composer",
+          "known_for_department": "Sound",
+          "name": "Alfredo Antonini",
+          "original_name": "Alfredo Antonini",
+          "popularity": 0.2544,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "52fe422ac3a36847f80090af",
+          "department": "Camera",
+          "gender": 2,
+          "id": 2998,
+          "job": "Director of Photography",
+          "known_for_department": "Camera",
+          "name": "Willy Hameister",
+          "original_name": "Willy Hameister",
+          "popularity": 0.3014,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "59d3bd0d9251414b7f00169a",
+          "department": "Art",
+          "gender": 2,
+          "id": 29121,
+          "job": "Production Design",
+          "known_for_department": "Art",
+          "name": "Walter Reimann",
+          "original_name": "Walter Reimann",
+          "popularity": 0.3867,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "59d3bdc49251414b990016f9",
+          "department": "Writing",
+          "gender": 2,
+          "id": 2992,
+          "job": "Screenplay",
+          "known_for_department": "Writing",
+          "name": "Hans Janowitz",
+          "original_name": "Hans Janowitz",
+          "popularity": 0.7013,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "59d3bdebc3a3684550001687",
+          "department": "Writing",
+          "gender": 2,
+          "id": 2792,
+          "job": "Screenplay",
+          "known_for_department": "Writing",
+          "name": "Carl Mayer",
+          "original_name": "Carl Mayer",
+          "popularity": 1.318,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "59d3bd20c3a36845500015ae",
+          "department": "Art",
+          "gender": 0,
+          "id": 1309016,
+          "job": "Production Design",
+          "known_for_department": "Art",
+          "name": "Walter Röhrig",
+          "original_name": "Walter Röhrig",
+          "popularity": 0.5085,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "59d3bd339251414b830015e4",
+          "department": "Art",
+          "gender": 2,
+          "id": 11579,
+          "job": "Production Design",
+          "known_for_department": "Art",
+          "name": "Hermann Warm",
+          "original_name": "Hermann Warm",
+          "popularity": 0.95,
+          "profile_path": null
+        },
+        {
+          "adult": false,
+          "credit_id": "679018928a20ceeeb7aac808",
+          "department": "Production",
+          "gender": 2,
+          "id": 67,
+          "job": "Producer",
+          "known_for_department": "Production",
+          "name": "Erich Pommer",
+          "original_name": "Erich Pommer",
+          "popularity": 0.3216,
+          "profile_path": "/tDYZA5sghHNO1g4hpkRbDei2SoK.jpg"
+        },
+        {
+          "adult": false,
+          "credit_id": "679018d2e1af20590faacc7b",
+          "department": "Production",
+          "gender": 2,
+          "id": 2994,
+          "job": "Producer",
+          "known_for_department": "Directing",
+          "name": "Rudolf Meinert",
+          "original_name": "Rudolf Meinert",
+          "popularity": 0.5754,
+          "profile_path": "/dYSOaJmda2XqNTA9cjNgpkZ0QBc.jpg"
+        }
+      ]
+    },
+    "genres": [
+      {
+        "id": 18,
+        "name": "Drama"
+      },
+      {
+        "id": 27,
+        "name": "Horror"
+      },
+      {
+        "id": 53,
+        "name": "Thriller"
+      },
+      {
+        "id": 80,
+        "name": "Crime"
+      }
+    ],
+    "homepage": "",
+    "id": 234,
+    "images": {
+      "backdrops": [
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/diOdVlwLqtwDarNt5lQqTCuZon6.jpg",
+          "height": 2160,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/sLq72hBx8Xs2IISVsZJqgjOd31b.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/A291ofGZZMc1LdiIeOMDIWrU65g.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 2.278,
+          "vote_count": 3,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/lplE17AkAjLhQPXsST2YHnXWA1n.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 2.278,
+          "vote_count": 3,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/mk2m1sOMEFeaS1iCwcEksqoVLYW.jpg",
+          "height": 2160,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 1.75,
+          "vote_count": 2,
+          "width": 3840
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/iNNNkYuUU365LhnPwQqfzBvKnsg.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 1.75,
+          "vote_count": 2,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/m0N89MIIu6qYZcujCRzBHrkZbns.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 1.222,
+          "vote_count": 3,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/ujaUJzloLboGsFSQfo8QZrnHMCQ.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.958,
+          "vote_count": 4,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.775,
+          "file_path": "/nLgg8cX3CzxLfoHYmkfGTXhCknS.jpg",
+          "height": 721,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.775,
+          "file_path": "/e5GvrG4YihnkjqFPQ1IgMZYgXEK.jpg",
+          "height": 721,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/bd7d9owGqoNHy2kBtwK3tbdDHI6.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/rBG8qF5EJNxQD0Rl2P6yGjZjFCo.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/lIv8zOYJzG4NaA4YAdXvQnENwV.jpg",
+          "height": 1152,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2048
+        },
+        {
+          "aspect_ratio": 1.776,
+          "file_path": "/jWt3Qmacl6G28PfoaiqfHn2MHgB.jpg",
+          "height": 808,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1435
+        },
+        {
+          "aspect_ratio": 1.776,
+          "file_path": "/61c7u8BJzWsTheiTgwiLxuNbodj.jpg",
+          "height": 809,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1437
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/v3UXzq2X3EZxzNHyS2mmojkSN9x.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.778,
+          "file_path": "/9Ypq8h0PV3tBye2TN47eQgCOoiN.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1920
+        },
+        {
+          "aspect_ratio": 1.777,
+          "file_path": "/wPYb9MHrY2ZAKhYpAJM5sGATejl.jpg",
+          "height": 820,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1457
+        },
+        {
+          "aspect_ratio": 1.777,
+          "file_path": "/xztmfOdcXpMohWDTkTRhEdAG476.jpg",
+          "height": 820,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1457
+        },
+        {
+          "aspect_ratio": 1.777,
+          "file_path": "/250y74KZKIkFGVsRLy1VX5ZVn41.jpg",
+          "height": 820,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1457
+        },
+        {
+          "aspect_ratio": 1.777,
+          "file_path": "/mQcDkHWiq6Fq4Yhr8GlEqNZzeRw.jpg",
+          "height": 820,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1457
+        },
+        {
+          "aspect_ratio": 1.777,
+          "file_path": "/rW3EJS44x0FCWCw0wKZfVu5BHxz.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1919
+        },
+        {
+          "aspect_ratio": 1.779,
+          "file_path": "/hCj8fbzvnYk5mUE1h5dYTdYhZmG.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1921
+        },
+        {
+          "aspect_ratio": 1.779,
+          "file_path": "/jLNL9PnBMfdS8pbZuqBhVvXcfd4.jpg",
+          "height": 1080,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1921
+        }
+      ],
+      "logos": [
+        {
+          "aspect_ratio": 2.057,
+          "file_path": "/hq59WYcb78C1rktN6ooiku926Fv.png",
+          "height": 1838,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 3781
+        },
+        {
+          "aspect_ratio": 2.057,
+          "file_path": "/zRtGLZbj13Y92b2Gni4YgE6g5pI.png",
+          "height": 1838,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 3781
+        },
+        {
+          "aspect_ratio": 2.057,
+          "file_path": "/cMAXiuWTe9nmgbBT83pWOhCqgwM.png",
+          "height": 1838,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 2,
+          "width": 3781
+        },
+        {
+          "aspect_ratio": 4.14,
+          "file_path": "/eVuVSCtTeJVR6yy0cDcuMQ30f28.png",
+          "height": 301,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.166,
+          "vote_count": 2,
+          "width": 1246
+        },
+        {
+          "aspect_ratio": 1.282,
+          "file_path": "/5VOPqd0Pbmhom0Y1LFsOyGCcY2z.png",
+          "height": 854,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1095
+        }
+      ],
+      "posters": [
+        {
+          "aspect_ratio": 0.666,
+          "file_path": "/myK9DeIsXWGKgUTZyGXg2IfFk0W.jpg",
+          "height": 1847,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 6.834,
+          "vote_count": 40,
+          "width": 1231
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/cXSzcOF6RINcXrExn0nR4ExFoR3.jpg",
+          "height": 1920,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 5.786,
+          "vote_count": 8,
+          "width": 1280
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/uHlhT0VhHggkQYKc1wKvJunPSE.jpg",
+          "height": 3000,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/vw3QfEyIX1iK2R4M8oQByCKZ5bk.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 3,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/f29VD3kfwkc1F1GJatKT6u3fTBH.jpg",
+          "height": 3000,
+          "iso_3166_1": null,
+          "iso_639_1": null,
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/vp9daDL7l1GA9nExGeTE6Eltoss.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/vp2g4BMMBraDzAKbfWf54Ff0FvB.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/3qCO09a8jCkxhQgDSFNqJiJImKi.jpg",
+          "height": 1800,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 1200
+        },
+        {
+          "aspect_ratio": 0.75,
+          "file_path": "/eAaL5QuPnLWPnugNXP2d95g7sj1.jpg",
+          "height": 1500,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 3.334,
+          "vote_count": 1,
+          "width": 1125
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/7QHXyXP8uhuEn2XWsVCIQb4G5C2.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 2.278,
+          "vote_count": 3,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/oIepB4SgHjfuJW5XgpIQoE4pyu2.jpg",
+          "height": 1500,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 1.75,
+          "vote_count": 6,
+          "width": 1000
+        },
+        {
+          "aspect_ratio": 0.707,
+          "file_path": "/hJt9N5tmVT1VrR6Mf25MnM322jI.jpg",
+          "height": 1800,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 1.066,
+          "vote_count": 5,
+          "width": 1272
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/zRwnFRFbvd4oSqiYSgyahnE9ozy.jpg",
+          "height": 750,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 1.066,
+          "vote_count": 6,
+          "width": 500
+        },
+        {
+          "aspect_ratio": 0.652,
+          "file_path": "/12a55W98ep4LyQe239UEFm0brX8.jpg",
+          "height": 890,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.854,
+          "vote_count": 8,
+          "width": 580
+        },
+        {
+          "aspect_ratio": 0.695,
+          "file_path": "/1rIABedyip39QgReX6RKl71cxB9.jpg",
+          "height": 978,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.5,
+          "vote_count": 4,
+          "width": 680
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/9WTHO3SAKi9GhNX6Ppdgq6tBLpW.jpg",
+          "height": 750,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.5,
+          "vote_count": 4,
+          "width": 500
+        },
+        {
+          "aspect_ratio": 0.751,
+          "file_path": "/b0AzEjsFESxwBNdDIPzEdpBcYpF.jpg",
+          "height": 751,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.5,
+          "vote_count": 4,
+          "width": 564
+        },
+        {
+          "aspect_ratio": 0.665,
+          "file_path": "/3N4SUDKWcn8zApU8NXd9B9HFxNq.jpg",
+          "height": 1451,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.166,
+          "vote_count": 2,
+          "width": 965
+        },
+        {
+          "aspect_ratio": 0.665,
+          "file_path": "/w2Zw3DML74BSGBtjQEIYQXoQLJy.jpg",
+          "height": 1451,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.166,
+          "vote_count": 2,
+          "width": 965
+        },
+        {
+          "aspect_ratio": 0.666,
+          "file_path": "/42GkuNYxAMyR0eH50cBN2S88Td7.jpg",
+          "height": 1105,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 736
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/N79eRGSO1A9ZfyhShoadD77upO.jpg",
+          "height": 1500,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.166,
+          "vote_count": 1,
+          "width": 1000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/dqUeaEZDG2nEKNJ1LXW6W85J8YM.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/64CFt3CstOWddU6bofRF73PBBu1.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/gxsJei4a7pq1GvDjI6RJgxmEXs8.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.704,
+          "file_path": "/jt5sCg7989o7r4Brj9gS6JOQEC7.jpg",
+          "height": 784,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 552
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/5IJcr3yp2TIKelvsJyhSKy3VCP.jpg",
+          "height": 1800,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 1200
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/nxGbpqAIM92ChAnXvU6eMW2IBXc.jpg",
+          "height": 750,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 500
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/7pSLj6nXoTtOjKIVCwy0QmnMcGr.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        },
+        {
+          "aspect_ratio": 0.667,
+          "file_path": "/9G7Jgk3v9N0Jd44e679NMwzFENL.jpg",
+          "height": 3000,
+          "iso_3166_1": "US",
+          "iso_639_1": "en",
+          "vote_average": 0.0,
+          "vote_count": 0,
+          "width": 2000
+        }
+      ]
+    },
+    "imdb_id": "tt0010323",
+    "origin_country": [
+      "DE"
+    ],
+    "original_language": "de",
+    "original_title": "Das Cabinet des Dr. Caligari",
+    "overview": "Francis, a young man, recalls in his memory the horrible experiences he and his fiancée Jane recently went through. Francis and his friend Alan visit The Cabinet of Dr. Caligari, an exhibit where the mysterious doctor shows the somnambulist Cesare, and awakens him for some moments from his death-like sleep.",
+    "popularity": 5.1983,
+    "poster_path": "/myK9DeIsXWGKgUTZyGXg2IfFk0W.jpg",
+    "production_companies": [
+      {
+        "id": 55,
+        "logo_path": null,
+        "name": "Decla Film Gesellschaft Holz & Co.",
+        "origin_country": "DE"
+      }
+    ],
+    "production_countries": [
+      {
+        "iso_3166_1": "DE",
+        "name": "Germany"
+      }
+    ],
+    "release_date": "1920-02-27",
+    "release_dates": {
+      "results": [
+        {
+          "iso_3166_1": "AR",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1921-06-07T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "DE",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "de",
+              "note": "Berliner Filmtheater „Marmorhaus“ ",
+              "release_date": "1920-02-26T00:00:00.000Z",
+              "type": 1
+            },
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "de",
+              "note": "",
+              "release_date": "1920-02-27T00:00:00.000Z",
+              "type": 3
+            },
+            {
+              "certification": "12",
+              "descriptors": [],
+              "iso_639_1": "de",
+              "note": "ZDF: Erste Restaurierung ",
+              "release_date": "1983-05-15T00:00:00.000Z",
+              "type": 6
+            },
+            {
+              "certification": "12",
+              "descriptors": [],
+              "iso_639_1": "de",
+              "note": "Arte: Digital restaurierten Fassung ",
+              "release_date": "2014-02-12T00:00:00.000Z",
+              "type": 6
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "DK",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1921-04-11T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "FR",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Paris",
+              "release_date": "1921-11-14T00:00:00.000Z",
+              "type": 1
+            },
+            {
+              "certification": "12",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1922-03-15T00:00:00.000Z",
+              "type": 3
+            },
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "de",
+              "note": "ARTE, 2013 restoration",
+              "release_date": "2014-02-12T00:00:00.000Z",
+              "type": 6
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "GB",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Rated A",
+              "release_date": "1922-01-17T00:00:00.000Z",
+              "type": 1
+            },
+            {
+              "certification": "U",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Re-release",
+              "release_date": "2005-08-16T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Rated A",
+              "release_date": "1924-01-31T00:00:00.000Z",
+              "type": 3
+            },
+            {
+              "certification": "U",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "DVD premiere",
+              "release_date": "2017-01-16T00:00:00.000Z",
+              "type": 5
+            },
+            {
+              "certification": "U",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "VHS",
+              "release_date": "1993-05-26T00:00:00.000Z",
+              "type": 5
+            },
+            {
+              "certification": "U",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "DVD",
+              "release_date": "1997-06-27T00:00:00.000Z",
+              "type": 5
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "GR",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Re-Issue",
+              "release_date": "2026-08-20T00:00:00.000Z",
+              "type": 2
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "HU",
+          "release_dates": [
+            {
+              "certification": "KN",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1921-03-11T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "JP",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1921-05-14T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "NL",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Imagine Film Festival (digitally restored version)",
+              "release_date": "2016-04-18T00:00:00.000Z",
+              "type": 1
+            },
+            {
+              "certification": "16",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Datum 1e filmkeuring",
+              "release_date": "1930-09-21T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "PL",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1920-03-18T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "PT",
+          "release_dates": [
+            {
+              "certification": "M/12",
+              "descriptors": [],
+              "iso_639_1": "en",
+              "note": "Cineclube do Porto",
+              "release_date": "1975-05-08T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Porto, Batalha Centro de Cinema",
+              "release_date": "2026-01-10T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "M/12",
+              "descriptors": [],
+              "iso_639_1": "en",
+              "note": "",
+              "release_date": "1929-01-17T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "SE",
+          "release_dates": [
+            {
+              "certification": "15",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1920-02-27T00:00:00.000Z",
+              "type": 3
+            },
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "",
+              "release_date": "1921-02-21T00:00:00.000Z",
+              "type": 3
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "US",
+          "release_dates": [
+            {
+              "certification": "",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "New York",
+              "release_date": "1921-04-03T00:00:00.000Z",
+              "type": 1
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Los Angeles Film Festival",
+              "release_date": "2003-06-14T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "San Francisco Silent Film Festival",
+              "release_date": "2014-09-20T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "MoMA International Festival of Film Preservation",
+              "release_date": "2014-10-25T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "New York",
+              "release_date": "2014-10-31T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Wisconsin Film Festival",
+              "release_date": "2015-04-11T00:00:00.000Z",
+              "type": 2
+            },
+            {
+              "certification": "NR",
+              "descriptors": [],
+              "iso_639_1": "",
+              "note": "Video premiere",
+              "release_date": "1996-05-01T00:00:00.000Z",
+              "type": 5
+            }
+          ]
+        }
+      ]
+    },
+    "revenue": 8811,
+    "runtime": 77,
+    "softcore": false,
+    "spoken_languages": [
+      {
+        "english_name": "No Language",
+        "iso_639_1": "xx",
+        "name": "No Language"
+      }
+    ],
+    "status": "Released",
+    "tagline": "You must become Caligari!",
+    "title": "The Cabinet of Dr. Caligari",
+    "video": false,
+    "vote_average": 7.93,
+    "vote_count": 1851
+  },
+  "status": 200
+}

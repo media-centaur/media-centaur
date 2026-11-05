@@ -164,23 +164,11 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
     end)
   end
 
-  # The Req client for a slot: the configured base URL (or, in showcase
-  # mode, the fixture plug) plus the session cookie when one is held.
+  # The Req client for a slot: the configured base URL plus the session
+  # cookie when one is held.
   defp req(%ClientConfig{} = config) do
     base =
-      if MediaCentaur.Settings.Config.get(:showcase_mode) do
-        MediaCentaur.HttpClient.new(__MODULE__,
-          upstream: :qbittorrent,
-          plug: &MediaCentaur.Showcase.Stubs.qbittorrent_plug/1,
-          retry: false
-        )
-      else
-        MediaCentaur.HttpClient.new(__MODULE__,
-          upstream: :qbittorrent,
-          base_url: config.url,
-          retry: false
-        )
-      end
+      MediaCentaur.HttpClient.new(__MODULE__, upstream: :qbittorrent, base_url: config.url, retry: false)
 
     case :persistent_term.get({__MODULE__, :cookie}, nil) do
       nil -> base

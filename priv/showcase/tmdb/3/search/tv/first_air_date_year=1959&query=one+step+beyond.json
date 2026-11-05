@@ -1,0 +1,33 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/rYWPWFUF3N8zIEzyH2git8hbXWy.jpg",
+        "first_air_date": "1959-01-20",
+        "genre_ids": [
+          9648,
+          18,
+          10765
+        ],
+        "id": 10377,
+        "name": "One Step Beyond",
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "One Step Beyond",
+        "overview": "Alcoa Presents: One Step Beyond is an American anthology series that dramatized purportedly real-life supernatural and paranormal experiences. The series was hosted by John Newland and ran for three seasons on ABC from January 1959 to July 1961.",
+        "popularity": 28.256,
+        "poster_path": "/c0IHtUsTGy2XbAEPuPScwqDdcEB.jpg",
+        "softcore": false,
+        "vote_average": 5.7,
+        "vote_count": 15
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

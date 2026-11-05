@@ -1,0 +1,31 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/esIoQw7VaykfHsw6fx2VltZ1R7U.jpg",
+        "genre_ids": [
+          27,
+          9648,
+          14
+        ],
+        "id": 16093,
+        "original_language": "en",
+        "original_title": "Carnival of Souls",
+        "overview": "Mary Henry ends up the sole survivor of a fatal car accident through mysterious circumstances. Trying to put the incident behind her, she moves to Utah and takes a job as a church organist. But her fresh start is interrupted by visions of a fiendish man. As the visions begin to occur more frequently, Mary finds herself drawn to the deserted carnival on the outskirts of town. The strangely alluring carnival may hold the secret to her tragic past.",
+        "popularity": 3.1792,
+        "poster_path": "/AdbQsFB8pS090l0NO3uBtLZy2zw.jpg",
+        "release_date": "1962-11-02",
+        "softcore": false,
+        "title": "Carnival of Souls",
+        "video": false,
+        "vote_average": 6.952,
+        "vote_count": 568
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

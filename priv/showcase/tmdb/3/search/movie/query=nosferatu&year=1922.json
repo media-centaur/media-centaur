@@ -1,0 +1,30 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/cA9iGtvjRGJHzDBfrq48l0eyCvA.jpg",
+        "genre_ids": [
+          27,
+          14
+        ],
+        "id": 653,
+        "original_language": "de",
+        "original_title": "Nosferatu, eine Symphonie des Grauens",
+        "overview": "The mysterious Count Orlok summons a happily married real estate agent to his castle, located up in the Transylvanian mountains, to finalise a terrifying deal.",
+        "popularity": 9.431,
+        "poster_path": "/zv7J85D8CC9qYagAEhPM63CIG6j.jpg",
+        "release_date": "1922-02-16",
+        "softcore": false,
+        "title": "Nosferatu",
+        "video": false,
+        "vote_average": 7.646,
+        "vote_count": 2577
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

@@ -105,25 +105,18 @@ defmodule MediaCentaur.Search.Prowlarr do
   @ping_timeout_ms 5_000
 
   defp build_client do
-    if Config.get(:showcase_mode) do
-      MediaCentaur.HttpClient.new(__MODULE__,
-        upstream: :prowlarr,
-        plug: &MediaCentaur.Showcase.Stubs.prowlarr_plug/1
-      )
-    else
-      url = Config.get(:prowlarr_url)
-      api_key = MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key))
+    url = Config.get(:prowlarr_url)
+    api_key = MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key))
 
-      # An unconfigured URL or key is left out rather than sent as nil; the
-      # request then fails at the transport, and `Acquisition.available?/0`
-      # keeps callers from getting this far in the first place.
-      MediaCentaur.HttpClient.new(
-        __MODULE__,
-        [upstream: :prowlarr, receive_timeout: @search_timeout_ms, retry: false] ++
-          if(is_binary(url) and url != "", do: [base_url: url], else: []) ++
-          if(api_key, do: [headers: [{"x-api-key", api_key}]], else: [])
-      )
-    end
+    # An unconfigured URL or key is left out rather than sent as nil; the
+    # request then fails at the transport, and `Acquisition.available?/0`
+    # keeps callers from getting this far in the first place.
+    MediaCentaur.HttpClient.new(
+      __MODULE__,
+      [upstream: :prowlarr, receive_timeout: @search_timeout_ms, retry: false] ++
+        if(is_binary(url) and url != "", do: [base_url: url], else: []) ++
+        if(api_key, do: [headers: [{"x-api-key", api_key}]], else: [])
+    )
   end
 
   @doc """

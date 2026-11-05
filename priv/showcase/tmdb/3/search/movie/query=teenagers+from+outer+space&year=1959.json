@@ -1,0 +1,33 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/kkOZz1mNVvZSrRzc02gaE2lPxX7.jpg",
+        "genre_ids": [
+          80,
+          27,
+          878,
+          10749,
+          53
+        ],
+        "id": 35139,
+        "original_language": "en",
+        "original_title": "Teenagers from Outer Space",
+        "overview": "A young alien falls for a pretty teenage Earth girl and they team up to try to stop the plans of his invading cohorts, who intend to use Earth as a food-breeding ground for giant lobsters from their planet.",
+        "popularity": 1.2521,
+        "poster_path": "/i3T50v0ZNJFyVOpRdEhc41fFV6f.jpg",
+        "release_date": "1959-06-01",
+        "softcore": false,
+        "title": "Teenagers from Outer Space",
+        "video": false,
+        "vote_average": 4.1,
+        "vote_count": 65
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

@@ -34,21 +34,29 @@ defmodule MediaCentaur.Showcase.CatalogMatch do
   @spec pick([map()], String.t(), integer(), String.t()) ::
           {:ok, integer()} | {:error, {:no_match, [String.t()]}}
   def pick(results, title, year, title_key) do
-    wanted = normalize(title)
-
     results
-    |> Enum.filter(&titles_match?(&1, wanted, title_key))
-    |> Enum.map(&{&1["id"], year_of(&1)})
-    |> Enum.filter(fn {_id, found} -> found && abs(found - year) <= @year_tolerance end)
-    |> Enum.min_by(fn {_id, found} -> abs(found - year) end, fn -> nil end)
+    |> Enum.filter(&qualifies?(&1, title, year))
+    |> Enum.min_by(&abs(year_of(&1) - year), fn -> nil end)
     |> case do
-      {id, _year} -> {:ok, id}
+      %{"id" => id} -> {:ok, id}
       nil -> {:error, {:no_match, Enum.map(results, &describe(&1, title_key))}}
     end
   end
 
-  defp titles_match?(result, wanted, title_key) do
-    [result[title_key], result["original_title"], result["original_name"]]
+  @doc """
+  True when a TMDB search `result` is the catalogued `title` from `year`:
+  the same title under its title, name or original title, released within
+  a year of `year`. What `pick/4` chooses among, and what the showcase's
+  TMDB recording keeps of a search (`Showcase.Stubs.TmdbFixtures`).
+  """
+  @spec qualifies?(map(), String.t(), integer()) :: boolean()
+  def qualifies?(result, title, year) do
+    found = year_of(result)
+    titles_match?(result, normalize(title)) and found != nil and abs(found - year) <= @year_tolerance
+  end
+
+  defp titles_match?(result, wanted) do
+    [result["title"], result["name"], result["original_title"], result["original_name"]]
     |> Enum.reject(&is_nil/1)
     |> Enum.any?(&(normalize(&1) == wanted))
   end

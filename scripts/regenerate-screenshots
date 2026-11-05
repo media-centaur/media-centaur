@@ -95,7 +95,7 @@ if [ "$RUN_TOUR" -eq 1 ]; then
     echo "error: showcase DB missing at $SHOWCASE_DB" >&2
     echo "" >&2
     echo "Seed it first:" >&2
-    echo "    TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+    echo "    scripts/reseed-showcase" >&2
     exit 1
   fi
 

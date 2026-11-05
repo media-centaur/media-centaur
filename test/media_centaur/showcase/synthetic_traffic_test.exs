@@ -2,7 +2,6 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
   use MediaCentaur.Case, async: false
 
   alias MediaCentaur.HttpClient.{Instrument, Traffic, Upstream}
-  alias MediaCentaur.Showcase.Stubs
   alias MediaCentaur.Showcase.SyntheticTraffic
   alias MediaCentaur.TimeSeries.{Store, Window}
 
@@ -137,21 +136,20 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
   end
 
   describe "which upstreams are fabricated" do
-    test "the stubbed upstreams are backfilled but not generated live" do
+    test "the stand-ins the app polls are backfilled but not generated live" do
       # Showcase.Stubs answers Prowlarr and the download client from
       # fixtures, but through the real HTTP client — the queue monitor's
       # poll is a genuine recorded request. Fabricating alongside it would
       # count one poll twice. The past is still fabricated: nothing was
       # observed before this boot.
-      for upstream <- Stubs.upstreams() do
+      for upstream <- [:prowlarr, :qbittorrent] do
         refute upstream in SyntheticTraffic.live_upstreams(),
-               "#{upstream} talks for real; generating its present double-counts"
+               "#{upstream} is polled for real; generating its present double-counts"
       end
     end
 
-    test "live upstreams are the instance's upstreams minus the stubbed ones" do
-      assert SyntheticTraffic.live_upstreams() ==
-               Enum.reject(SyntheticTraffic.upstreams(), &(&1 in Stubs.upstreams()))
+    test "TMDB is generated live: its stand-in answers requests, but nothing polls it" do
+      assert :tmdb in SyntheticTraffic.live_upstreams()
     end
 
     test "every strip the panel can row has a generator behind it" do

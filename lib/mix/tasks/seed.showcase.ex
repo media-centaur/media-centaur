@@ -24,9 +24,10 @@ defmodule Mix.Tasks.Seed.Showcase do
   alias MediaCentaur.Showcase
 
   @impl true
-  def run(_args) do
+  def run(args) do
     case System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE") do
       override when is_binary(override) and override != "" ->
+        if "--record-tmdb" in args, do: enable_tmdb_recording!()
         Mix.Task.run("app.start")
         summary = Showcase.seed!()
         print_summary(summary)
@@ -42,6 +43,18 @@ defmodule Mix.Tasks.Seed.Showcase do
         This prevents seeding the default dev/prod DB by accident.
         """)
     end
+  end
+
+  # Recording reaches the live TMDB API for every request the committed
+  # recording lacks (`Showcase.Stubs.TmdbFixtures`), so it needs a real key.
+  defp enable_tmdb_recording! do
+    if System.get_env("TMDB_API_KEY") in [nil, ""] do
+      Mix.raise(
+        "mix seed.showcase --record-tmdb needs TMDB_API_KEY: recording fetches from the live TMDB API."
+      )
+    end
+
+    Application.put_env(:media_centaur, :showcase_tmdb_record, true)
   end
 
   defp print_summary(summary) do

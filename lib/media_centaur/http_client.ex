@@ -37,6 +37,14 @@ defmodule MediaCentaur.HttpClient do
       so no test reaches the network and no test has to smuggle a
       stubbed client into a cache: a client is built from its settings
       on every call. A caller may also pass `plug:` directly.
+    * **Showcase stand-ins** — in showcase mode
+      `MediaCentaur.Showcase.Stubs.attach/2` answers Prowlarr,
+      qBittorrent and the TMDB API in place of the network. It is keyed
+      by upstream where test stubs are keyed by calling module: a
+      stand-in answers an upstream's API whoever calls it, while a test
+      needs to tell apart two modules speaking one upstream (`:steam`)
+      and one module speaking two (`ImageFiles`). It runs ahead of the
+      response cache, so a stand-in answers before a cache lookup.
 
   Anything HTTP that bypasses this function is invisible to the panel,
   which is why the Credo check MC0029 (`OutboundHttpSeam`) forbids
@@ -71,6 +79,7 @@ defmodule MediaCentaur.HttpClient do
     |> stub_route(module)
     |> Req.new()
     |> Instrument.attach(upstream)
+    |> MediaCentaur.Showcase.Stubs.attach(upstream)
     |> attach_cache(cache)
   end
 

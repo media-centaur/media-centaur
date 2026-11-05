@@ -1,0 +1,32 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/nA19z9LnWYebUt3iqoYvkwRKIUI.jpg",
+        "first_air_date": "1962-09-26",
+        "genre_ids": [
+          35,
+          10751
+        ],
+        "id": 1930,
+        "name": "The Beverly Hillbillies",
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "The Beverly Hillbillies",
+        "overview": "Jed Clampett's swamp is loaded with oil. When a wildcatter discovers the huge pool, Jed sells his land to the O.K. Oil Company and at the urging of cousin Pearl, moves his family to a 35-room mansion in Beverly Hills, California.",
+        "popularity": 43.2543,
+        "poster_path": "/sEZs4szkwBXIK3DOm37MnQN9fIe.jpg",
+        "softcore": false,
+        "vote_average": 6.9,
+        "vote_count": 140
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

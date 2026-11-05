@@ -1,0 +1,31 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/rsl2YCe2bSeni2qGdaMoDBS7sLo.jpg",
+        "genre_ids": [
+          9648,
+          53,
+          80
+        ],
+        "id": 18995,
+        "original_language": "en",
+        "original_title": "D.O.A.",
+        "overview": "Frank Bigelow is about to die, and he knows it. The accountant has been poisoned and has only 24 hours before the lethal concoction kills him. Determined to find out who his murderer is, Frank, with the help of his assistant and girlfriend, Paula, begins to trace back over his last steps. As he frantically tries to unravel the mystery behind his own impending demise, his sleuthing leads him to a group of crooked businessmen and another murder.",
+        "popularity": 1.3242,
+        "poster_path": "/m7wZXWOt9XQKJT8r9pbAFo7jB46.jpg",
+        "release_date": "1949-12-23",
+        "softcore": false,
+        "title": "D.O.A.",
+        "video": false,
+        "vote_average": 6.859,
+        "vote_count": 213
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 2
+  },
+  "status": 200
+}

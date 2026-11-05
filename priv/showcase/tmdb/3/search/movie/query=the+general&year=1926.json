@@ -1,0 +1,31 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/mzox4HbcV9W42MH2dB1QsdDVGo3.jpg",
+        "genre_ids": [
+          35,
+          10752,
+          10749
+        ],
+        "id": 961,
+        "original_language": "en",
+        "original_title": "The General",
+        "overview": "During America’s Civil War, Union spies steal engineer Johnnie Gray's beloved locomotive, 'The General'—with Johnnie's lady love aboard an attached boxcar—and he single-handedly must do all in his power to both get The General back and to rescue Annabelle.",
+        "popularity": 4.2208,
+        "poster_path": "/4NmV1Wei4LxT2lpjViCAScgCZLq.jpg",
+        "release_date": "1926-12-25",
+        "softcore": false,
+        "title": "The General",
+        "video": false,
+        "vote_average": 7.913,
+        "vote_count": 1489
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 2
+  },
+  "status": 200
+}

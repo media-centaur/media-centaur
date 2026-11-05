@@ -1,0 +1,30 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/5KtmBSqFtHY3I9t8lgH27Mc0bqY.jpg",
+        "genre_ids": [
+          27,
+          878
+        ],
+        "id": 10331,
+        "original_language": "en",
+        "original_title": "Night of the Living Dead",
+        "overview": "A ragtag group barricade themselves in an old Pennsylvania farmhouse to remain safe from a horde of flesh-eating ghouls ravaging the Northeast.",
+        "popularity": 9.602,
+        "poster_path": "/rb2NWyb008u1EcKCOyXs2Nmj0ra.jpg",
+        "release_date": "1968-10-04",
+        "softcore": false,
+        "title": "Night of the Living Dead",
+        "video": false,
+        "vote_average": 7.601,
+        "vote_count": 2885
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

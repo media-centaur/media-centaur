@@ -1,0 +1,32 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/sLq72hBx8Xs2IISVsZJqgjOd31b.jpg",
+        "genre_ids": [
+          18,
+          27,
+          53,
+          80
+        ],
+        "id": 234,
+        "original_language": "de",
+        "original_title": "Das Cabinet des Dr. Caligari",
+        "overview": "Francis, a young man, recalls in his memory the horrible experiences he and his fiancée Jane recently went through. Francis and his friend Alan visit The Cabinet of Dr. Caligari, an exhibit where the mysterious doctor shows the somnambulist Cesare, and awakens him for some moments from his death-like sleep.",
+        "popularity": 5.1983,
+        "poster_path": "/myK9DeIsXWGKgUTZyGXg2IfFk0W.jpg",
+        "release_date": "1920-02-27",
+        "softcore": false,
+        "title": "The Cabinet of Dr. Caligari",
+        "video": false,
+        "vote_average": 7.93,
+        "vote_count": 1851
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

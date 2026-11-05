@@ -47,7 +47,6 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   """
 
   alias MediaCentaur.HttpClient.{Instrument, Traffic}
-  alias MediaCentaur.Showcase.Stubs
   alias MediaCentaur.Showcase.SyntheticTraffic.Profile
   alias MediaCentaur.TimeSeries.Store
 
@@ -160,19 +159,26 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   @spec upstreams() :: [atom()]
   def upstreams, do: Profile.upstreams()
 
-  @doc """
-  The upstreams whose *present* is fabricated: the ones the showcase does
-  not actually talk to.
+  # The stand-ins the app polls on its own: the queue monitor polls the
+  # download client every few seconds and indexer health polls Prowlarr.
+  # Their present is real, recorded traffic. The TMDB stand-in is also a
+  # stand-in (`Showcase.Stubs`), but nothing polls it — its few
+  # real requests do not draw a working install's strip.
+  @polled_stand_ins [:prowlarr, :qbittorrent]
 
-  `Showcase.Stubs` answers Prowlarr and the download client from fixtures,
-  but those requests still go out through the real HTTP client — the
-  queue monitor's poll every few seconds is a genuine, recorded request.
-  Fabricating alongside it would count one poll twice and inflate the
-  strip with every hour of uptime. Their history is still backfilled: the
-  past, before this boot, was never observed.
+  @doc """
+  The upstreams whose *present* is fabricated: every one except the
+  stand-ins the app polls on its own (Prowlarr, the download client).
+
+  `Showcase.Stubs` answers those from fixtures, but their requests still
+  go out through the real HTTP client — the queue monitor's poll every few
+  seconds is a genuine, recorded request. Fabricating alongside it would
+  count one poll twice and inflate the strip with every hour of uptime.
+  Their history is still backfilled: the past, before this boot, was never
+  observed.
   """
   @spec live_upstreams() :: [atom()]
-  def live_upstreams, do: Enum.reject(upstreams(), &(&1 in Stubs.upstreams()))
+  def live_upstreams, do: Enum.reject(upstreams(), &(&1 in @polled_stand_ins))
 
   defp start_generating do
     now = System.os_time(:second)

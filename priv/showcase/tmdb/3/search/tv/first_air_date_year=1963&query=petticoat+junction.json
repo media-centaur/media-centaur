@@ -1,0 +1,32 @@
+{
+  "body": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/hQWWSbiUz4HKQxRQJtPXpO8ixJB.jpg",
+        "first_air_date": "1963-09-24",
+        "genre_ids": [
+          35,
+          10751
+        ],
+        "id": 3346,
+        "name": "Petticoat Junction",
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "Petticoat Junction",
+        "overview": "The Bradley family are proud owners of the Shady Rest Hotel. Kate and her three young daughters do the job of running the hotel.",
+        "popularity": 40.1426,
+        "poster_path": "/2kTGzz870hmdmQ074CYTdKFRqSm.jpg",
+        "softcore": false,
+        "vote_average": 5.9,
+        "vote_count": 43
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 1
+  },
+  "status": 200
+}

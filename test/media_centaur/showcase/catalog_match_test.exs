@@ -76,4 +76,40 @@ defmodule MediaCentaur.Showcase.CatalogMatchTest do
       assert {:ok, 3} = CatalogMatch.pick(results, "Sample Show", 1962, "name")
     end
   end
+
+  describe "qualifies?/3" do
+    test "the same title within a year qualifies, under its title, name or original title" do
+      assert CatalogMatch.qualifies?(
+               %{"title" => "Movie A", "release_date" => "1969-01-01"},
+               "movie a",
+               1968
+             )
+
+      assert CatalogMatch.qualifies?(
+               %{"name" => "Show A", "first_air_date" => "1960-01-01"},
+               "Show A",
+               1960
+             )
+
+      assert CatalogMatch.qualifies?(
+               %{"title" => "X", "original_title" => "Movie A", "release_date" => "1968"},
+               "Movie A",
+               1968
+             )
+    end
+
+    test "a remake under the same title, or another title, does not qualify" do
+      refute CatalogMatch.qualifies?(
+               %{"title" => "Movie A", "release_date" => "2024-12-25"},
+               "Movie A",
+               1968
+             )
+
+      refute CatalogMatch.qualifies?(
+               %{"title" => "Movie B", "release_date" => "1968-01-01"},
+               "Movie A",
+               1968
+             )
+    end
+  end
 end

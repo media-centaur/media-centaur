@@ -68,29 +68,10 @@ if ! setup_database; then
 fi
 
 if [ ! -f "$seeded_marker" ]; then
-  # Seeding — and only seeding — reaches the live TMDB API, because the
-  # showcase catalog is built from real metadata. It happens once per database
-  # (this marker), never per test run: the suite itself runs entirely offline
-  # against what was seeded. Same key lookup as scripts/start-showcase.
-  #
-  # This is the one thing standing between the suite and CI, where there is no
-  # dev database to read a key from. Converging on an offline fixture seeder is
-  # tracked in docs/plans/2026-09-24-firefox-parity-and-controller-layout.md.
-  dev_db="$HOME/.local/share/media-centaur/media-centaur.db"
-  if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$dev_db" ]; then
-    TMDB_API_KEY=$(sqlite3 "$dev_db" \
-      "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" \
-      2>/dev/null || true)
-    export TMDB_API_KEY
-  fi
-
-  if [ -z "${TMDB_API_KEY:-}" ]; then
-    echo "e2e-server: no TMDB_API_KEY and no dev database to read one from." >&2
-    echo "e2e-server: the showcase catalog needs live metadata to seed. Set TMDB_API_KEY and retry." >&2
-    exit 1
-  fi
-
-  echo "e2e-server: seeding priv/e2e/ (one-time, reaches TMDB)" >&2
+  # Seeding needs no TMDB key: showcase mode answers the TMDB API from
+  # the committed recording (priv/showcase/tmdb/). Artwork still comes
+  # from TMDB's public image CDN, so seeding needs the network.
+  echo "e2e-server: seeding priv/e2e/ (one-time)" >&2
   mix seed.showcase
   touch "$seeded_marker"
 fi
