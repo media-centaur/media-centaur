@@ -4,6 +4,40 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.5.0 — 2026-11-05
+
+### New
+
+- **A download's window now tells you what happened, episode by episode.** Open a download on the Downloads page and its coverage board lists each episode by season with one word for where it stands — Landed, Trying, Needs a pick, Gave up or Cancelled — and what it cost ("Landed · 28th release", "Cancelled · 47 releases failed"). Press an episode to see every release that was tried for it: the release, its quality, how it ended and, when the download client gave up on it, the client's own words. A season with an episode that gave up or was cancelled opens on its own. A single film gets the same row.
+- **The window's header spans the whole goal** ("5 seasons · 30 episodes", or a film's year) and carries a facts line under it: who started the download (you, or Auto-grab), when, how long it ran, how many releases it tried and how it ended.
+- **History reads as a story, not a log.** Repeated events fold into one row with a count ("Release abandoned — download failed ×3 · S04E01, S04E04, S04E05"), the six most recent rows are always shown, and the rest wait behind **Show the full log**, fifty at a time. New entries name the episode and the release they are about.
+- **Search again.** A download that gave up on some episodes, or that you cancelled part-way, offers **Search again**: it plans the episodes that never arrived as a fresh download and skips every release already tried, so it only picks up releases that are new since.
+- **A database migration runs on update.** Each release attempt now keeps the download client's reason for abandoning it, which the coverage board shows. Nothing you need to do.
+
+### Improved
+
+- **One set of words for downloading.** The app now says **download** for the thing you asked for, **job** for an item in your download client, and **release** for one candidate tried — on the Downloads page, in the window, in the plan dialog, in Settings and in the guide. The section for client items nothing here started is **Other jobs**; the download's own states read Active, Done, Partly done, Gave up and Cancelled.
+- **The download window by keyboard, remote and gamepad.** The cursor starts on the coverage board; Up and Down walk the seasons and episodes, Enter opens an episode's releases, Right steps onto an episode's swap control, Down past the board reaches the window's buttons and then History, and Escape or B closes it from anywhere.
+- **The download window is light on the TV.** Where the worst case used to render a thousand rows, it now renders a bounded page.
+- **The guide has a Downloads chapter** describing the window, its states and what each control does.
+- **A finished download no longer carries a stale-activity warning.** "Last activity" in amber or red now appears on active downloads only; a download that finished days ago is not a problem.
+- **Every page is reachable by keyboard, remote and gamepad.** Social, the Watchlist, Downloads, Watch history, Apps, Status, Setup, the Console, Review and Episode mapping each gained the controls their keyboard and gamepad users were missing, and the remaining keyboard traps are gone.
+- **Armed buttons say "Press again",** never "click", since a remote or a gamepad presses.
+
+### Fixed
+
+- **A failed release no longer retries forever.** When your download client could not finish a release (missing articles, no seeders), the next one was tried every fifteen minutes with no end; one show went through 48 releases per episode overnight. Each failed release now counts as an attempt, the fourth gives up on that episode, and every search skips releases that already failed. With Auto-grab on, a given-up episode stays wanted and release tracking looks again on its own.
+- **The watch-history heatmap is a picture again,** not a day filter that narrowed the list under it.
+- **The profile switcher opens on the current profile.**
+- **The Downloads History filter** draws with the house control instead of hand-made chips.
+- **Pressing Down onto a shorter last row of the library grid** lands on its last card instead of stopping.
+- **Adding a profile:** Escape or B cancels the form and keeps the cursor on the add tile; Settings → Players' TV app link is a navigation item; an unknown Settings section says so once.
+- **Review and Episode mapping:** the search form no longer swallows every key; its field, type and Cancel are ordinary controls, and each file's decision buttons are one row.
+- **Status:** the report wizard, the issue view, drill-in links and recently added posters are all reachable; the subsystem tiles are a shelf.
+- **Setup:** Skip the tour is reachable, Remove on a media directory asks twice and is no longer the step's first stop.
+- **The Console's clear button asks twice in place** instead of opening the browser's own dialog.
+- **Apps keeps one navigation item per card** and walks the Steam picker by position.
+
 ## v2.4.1 — 2026-11-04
 
 ### New
