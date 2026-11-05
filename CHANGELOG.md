@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.7.0 — 2026-11-05
+
+### Fixed
+
+- **Escape in Review's match bar goes back to the list.** The bar's search box arrives filled in with the title of the files you ticked; pressing Escape there used to wipe that search before a second press left the bar. One press now returns to the list and keeps the search.
+- **Left from the search results returns to the list,** onto the row you came from. It used to stop at the first result.
+
 ## v2.6.0 — 2026-11-05
 
 ### New
