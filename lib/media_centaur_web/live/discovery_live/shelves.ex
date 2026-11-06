@@ -70,8 +70,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
 
   @doc """
   The hero's pool (decision 1): the first #{@hero_pool} New Releases
-  members whose backdrop the referenced artwork tier holds on disk — the
-  canvas decodes a local file, never a hotlink — each as a `HeroCard.Item`
+  members the library does not own whose backdrop the referenced artwork
+  tier holds on disk — the canvas decodes a local file, never a hotlink;
+  an owned title is Home's hero, not Discovery's — each as a `HeroCard.Item`
   from the store's record: the lockup or name, year, genres, runtime,
   overview, the local backdrop and logo. `HeroRotation.select/2` picks
   one of them per seven-hour block, as Home picks among its candidates.
@@ -79,14 +80,16 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   @spec hero_candidates(
           [Member.t()],
           %{MediaCentaur.TMDB.Store.ref() => Title.t()},
-          %{MediaCentaur.TMDB.Store.ref() => map()}
+          %{MediaCentaur.TMDB.Store.ref() => map()},
+          %{MediaCentaur.TMDB.Store.ref() => String.t()}
         ) :: [HeroCard.Item.t()]
-  def hero_candidates(members, snapshots, payloads) do
+  def hero_candidates(members, snapshots, payloads, owners) do
     members
     |> Enum.flat_map(fn member ->
       ref = Member.ref(member)
 
-      with %Title{} = title <- Map.get(snapshots, ref),
+      with false <- Map.has_key?(owners, ref),
+           %Title{} = title <- Map.get(snapshots, ref),
            %{} = payload <- Map.get(payloads, ref),
            %{backdrop_url: "/media-images/" <> _} = urls <- TitleArtwork.urls(title, %{}, :w342) do
         [hero_item(ref, title, payload, urls)]

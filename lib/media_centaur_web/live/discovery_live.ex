@@ -19,7 +19,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   Discovery is the second artwork page (UIDR-010 and UIDR-033, amended
   2026-11-01): a full-bleed backdrop painted by the hero canvas from the
   referenced artwork tier, and a hero card for the most notable new
-  release — one of the shelf's first five members with a backdrop on disk,
+  release — one of the shelf's first five members the library does not own
+  with a backdrop on disk,
   rotated every seven hours as Home rotates its own (`HeroRotation`) —
   whose actions are **Add to watchlist** (the bookmark at hero size,
   UIDR-039), **Download** (the host's `title_download`, absent once the
@@ -143,7 +144,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     payloads =
       member_refs |> Store.get_many() |> Map.new(fn {ref, record} -> {ref, record.payload} end)
 
-    hero = members |> Shelves.hero_candidates(member_snapshots, payloads) |> HeroRotation.select()
+    hero =
+      members |> Shelves.hero_candidates(member_snapshots, payloads, owners) |> HeroRotation.select()
 
     hero_slots =
       hero &&

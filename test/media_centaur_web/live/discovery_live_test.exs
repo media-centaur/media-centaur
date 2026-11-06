@@ -159,6 +159,29 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    test "a member the library owns is never the hero; the next one with a backdrop is",
+         %{conn: conn} = context do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache(context)
+      store_movie(901, "Movie A")
+      store_movie(902, "Movie B")
+
+      for tmdb_id <- [901, 902] do
+        backdrop = MediaCentaur.TmdbArtwork.on_disk_path(:backdrop, :movie, tmdb_id)
+        File.mkdir_p!(Path.dirname(backdrop))
+        File.write!(backdrop, "jpeg")
+      end
+
+      movie = create_movie(%{name: "Movie A", tmdb_id: "901"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      :ok = NewReleases.replace([digital(901), digital(902)])
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie B")
+      refute has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie A")
+    end
+
     test "no member with a backdrop on disk: no hero, no canvas, the page title stays", %{conn: conn} do
       store_movie(901, "Movie A")
       :ok = NewReleases.replace([digital(901)])
