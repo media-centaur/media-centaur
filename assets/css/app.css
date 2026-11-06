@@ -2846,6 +2846,12 @@ button.poster-tile-tool-on:hover {
   min-height: 0;
 }
 
+/* See all sharing a column is one slot high, a third of the column; the
+   tiles above it share the rest. Alone in a column it fills it. */
+.marquee-column > [data-component="marquee-see-all"]:not(:only-child) {
+  flex: 0 0 calc((100% - 2 * 0.625rem) / 3);
+}
+
 /* Hero row variant — single item per "page", no inter-card gap */
 .row-scroll-hero {
   --card-w: 100%;

@@ -55,6 +55,8 @@ defmodule MediaCentaurWeb.Storybook.Composites.Marquee do
   end
 
   defp description(1), do: "1 show — See all alone in the column beside the lead tile"
+  defp description(2), do: "2 shows — See all one slot high under the column's one tile"
+  defp description(5), do: "5 shows — See all one slot high under the second column's one tile"
   defp description(7), do: "7 shows, the cap — two full columns, See all alone in a third"
   defp description(count), do: "#{count} shows"
 

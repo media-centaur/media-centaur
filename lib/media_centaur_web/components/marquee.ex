@@ -5,7 +5,9 @@ defmodule MediaCentaurWeb.Components.Marquee do
   `ScrollRow.scroll_row/1`, ending in a See all tile when the shelf has a
   page of its own (`SeeAllTile`). The See all tile takes the slot after the
   last tile, so it shares a column when one has room and starts a column of
-  its own after a full one (`columns/2`).
+  its own after a full one (`columns/2`). Sharing a column, it is one slot
+  high — a third of the column — and the tiles above it share the rest; alone
+  in a column it fills it.
 
   Widths come from the row's width, not from fixed card sizes:
   `column = (row − 2 × gap) ÷ (ratio + 1 + peek)` and `lead = ratio ×
