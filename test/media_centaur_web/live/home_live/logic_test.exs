@@ -178,19 +178,18 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       assert coming_up([], ~D[2026-04-27]) == []
     end
 
-    test "at most ten shows, soonest first — the eleventh waits behind See all" do
+    test "at most seven shows, soonest first — the eighth waits behind See all" do
       today = ~D[2026-04-27]
 
       releases =
-        for day <- 1..12 do
+        for day <- 1..9 do
           release("Sample Show #{day}", Date.add(today, day))
         end
 
       [lead | tiles] = coming_up(releases, today)
 
       assert lead.name == "Sample Show 1"
-      assert length(tiles) == 9
-      refute Enum.any?(tiles, &(&1.name in ["Sample Show 11", "Sample Show 12"]))
+      assert Enum.map(tiles, & &1.name) == Enum.map(2..7, &"Sample Show #{&1}")
     end
 
     test "a show's count covers every release it has in the window" do

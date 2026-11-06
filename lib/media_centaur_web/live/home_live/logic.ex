@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     end
   end
 
-  @coming_up_cap 10
+  @coming_up_cap 7
 
   @doc """
   Choose Coming Up's shows from the releases in its window: one pick per

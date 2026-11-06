@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.Marquee do
   @moduledoc """
   The marquee: the lead tile, then columns of up to three tiles, ending in
   the See all tile, which takes the slot after the last tile. One variation
-  per show count Home's Coming Up can produce (it caps at 10). Widths come
+  per show count Home's Coming Up can produce (it caps at 7). Widths come
   from the row's width (`.row-scroll-marquee`), so resize the browser to see
   the formula hold. No artwork in the catalog: the tiles show their glass
   and text.
@@ -33,15 +33,12 @@ defmodule MediaCentaurWeb.Storybook.Composites.Marquee do
     {"Sample Show D", "Sun", "+ 3 more", nil},
     {"Sample Show E", "Mon", "S01E01", %{label: "Acquired", variant: :success}},
     {"Movie F", "Nov 14", nil, nil},
-    {"Sample Show G", "Nov 15", "+ 9 more", nil},
-    {"Sample Show H", "Nov 18", "S03E02", nil},
-    {"Sample Show I", "Nov 21", "+ 1 more", %{label: "Seeking", variant: :info}},
-    {"Sample Show J", "Nov 27", "S04E10", nil}
+    {"Sample Show G", "Nov 15", "+ 9 more", %{label: "Seeking", variant: :info}}
   ]
 
   def variations do
     for(
-      count <- [1, 2, 3, 4, 5, 6, 7, 8, 10],
+      count <- [1, 2, 3, 4, 5, 6, 7],
       do: %Variation{
         id: String.to_atom("shows_#{count}"),
         description: description(count),
@@ -58,7 +55,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.Marquee do
   end
 
   defp description(1), do: "1 show — See all alone in the column beside the lead tile"
-  defp description(10), do: "10 shows, the cap — three full columns, See all alone in a fourth"
+  defp description(7), do: "7 shows, the cap — two full columns, See all alone in a third"
   defp description(count), do: "#{count} shows"
 
   defp items(count) do

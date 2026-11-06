@@ -17,7 +17,8 @@ defmodule MediaCentaurWeb.Components.Marquee do
 
   The marquee draws what it is given and caps nothing; the caller decides
   how many items to pass. Home's Coming Up is the first user
-  (`HomeLive.Logic.coming_up_items/2`, up to 10 shows).
+  (`HomeLive.Logic.coming_up_items/2`, up to 7 shows: the lead tile and
+  two full columns, See all alone in a third).
 
   A tile opens the title detail in place (UIDR-043): `select_entity` when
   the item has a library entity, else `open_title` by its TMDB ref — the
