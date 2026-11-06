@@ -140,8 +140,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   first; **In Theaters** at the theatrical stage, newest opening first,
   the opening date as the chip; **Coming Up** unreleased, nearest first,
   the release month as the chip. A title whose stage is unknown, or whose
-  record the store lacks, waits off the shelves. The marker is the rung's
-  word.
+  record the store lacks, waits off the shelves. A title at **Grab** is
+  never on Out Now: the app is getting it, and a grab that fails shows on
+  Downloads. The marker is the rung's word.
   """
   @spec watchlist_shelves(
           [listed()],
@@ -158,7 +159,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
           {stage, date, chip} <- [
             placement(intent, Map.get(tracking, ref), Map.get(stages, ref), owner, today)
           ],
-          stage in [:home, :theatrical, :unreleased] do
+          stage in [:theatrical, :unreleased] or (stage == :home and intent.rung != :grab) do
         {stage, date,
          %{item(ref, intent.title, owner, Map.get(acquisition_states, ref), intent.rung) | chip: chip}}
       end

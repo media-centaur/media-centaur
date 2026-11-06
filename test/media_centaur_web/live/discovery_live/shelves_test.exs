@@ -161,6 +161,42 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
       assert [%Item{id: "tv_series-8", chip: "Seasons 1–2", marker: "Tracking"}] = shelves.out_now
     end
 
+    test "a title at Grab is off Out Now — the app is getting it — and waits on Coming Up like any title" do
+      stages = %{
+        {1, :movie} => %{stage: :home, date: ~D[2026-10-20]},
+        {2, :movie} => %{stage: :unreleased, date: ~D[2027-02-01]}
+      }
+
+      out = %TrackingItem{
+        media_type: :tv_series,
+        releases: [%Release{season_number: 1, episode_number: 1, air_date: ~D[2026-10-20]}]
+      }
+
+      next = %TrackingItem{
+        media_type: :tv_series,
+        releases: [%Release{season_number: 2, episode_number: 1, air_date: ~D[2026-11-20]}]
+      }
+
+      listed = [
+        listed(1, :grab),
+        listed(2, :grab),
+        listed(3, :grab, :tv_series, "owner-uuid"),
+        listed(4, :grab, :tv_series)
+      ]
+
+      shelves =
+        Shelves.watchlist_shelves(
+          listed,
+          stages,
+          %{{3, :tv_series} => out, {4, :tv_series} => next},
+          %{},
+          @today
+        )
+
+      assert shelves.out_now == []
+      assert Enum.map(shelves.coming_up, & &1.id) == ["tv_series-4", "movie-2"]
+    end
+
     test "a followed series is placed by its calendar through the caught-up point, never by its first air date; its chip names the season" do
       stages = %{{6, :tv_series} => %{stage: :home, date: ~D[2023-09-29]}}
 

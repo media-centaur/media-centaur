@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   a hero the page keeps its title and the scrim alone.
 
   The shelves, in order (decisions 13–16): **Out Now**, the listed titles
-  at the home release stage, first because it is the actionable one;
+  at the home release stage that are not at Grab, first because it is the
+  actionable one;
   **New Releases**, `NewReleases.members/0` as a poster row of TMDB
   identities from the store's snapshots; **Reviewed by Friends**, the
   titles friends have reviewed with their social glyphs, while the Social
