@@ -59,6 +59,23 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     :ok
   end
 
+  @doc """
+  The same pass for one title, now — `Jobs.PlanGrab`'s work, run shortly
+  after a person raises the title to Grab so its backlog does not wait
+  for the next sweep. The same guards hold: Prowlarr answering, the
+  title still at Grab, each want due and unclaimed. An untracked title
+  has nothing to plan.
+  """
+  @spec run_for(integer(), :movie | :tv_series, DateTime.t()) :: :ok
+  def run_for(tmdb_id, media_type, now \\ DateTime.utc_now(:second)) do
+    with true <- IntegrationAvailability.available?(:prowlarr),
+         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
+      plan_item(item.id, ReleaseTracking.open_wants_for_item(item.id), AutoGrabSettings.load(), now)
+    end
+
+    :ok
+  end
+
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
          true <- Watchlist.grabs?(item.tmdb_id, item.media_type) do

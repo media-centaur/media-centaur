@@ -1,14 +1,18 @@
 defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
   use MediaCentaur.DataCase, async: false
+  use Oban.Testing, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite
 
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans}
+  alias MediaCentaur.Acquisition.Jobs.PlanGrab
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Topics
+  alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.Watchlist.Events.RungChanged
 
   @movie %{tmdb_id: "246813", title: "Sample Movie", year: 2005}
 
@@ -105,6 +109,74 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
       # waits for the running callback, so the Reactor's database work
       # never outlives this test's connection (ADR-049).
       :ok = GenServer.stop(reactor)
+    end
+  end
+
+  describe "rung_changed/1" do
+    defp rung_changed(previous_rung, rung) do
+      %RungChanged{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        title: Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"}),
+        previous_rung: previous_rung,
+        rung: rung,
+        actor: nil
+      }
+    end
+
+    defp in_seconds(seconds), do: DateTime.add(DateTime.utc_now(), seconds)
+
+    test "a raise to Grab plans the title twenty seconds later, so an accidental click can be undone" do
+      assert :ok = Handlers.rung_changed(rung_changed(:follow, :grab))
+
+      assert_enqueued(
+        worker: PlanGrab,
+        args: %{"tmdb_id" => 246_810, "media_type" => "tv_series"},
+        scheduled_at: {in_seconds(20), delta: 2}
+      )
+    end
+
+    test "a move that does not arrive at Grab plans nothing" do
+      for {previous_rung, rung} <- [{nil, :list}, {:list, :follow}, {:grab, :follow}, {:grab, nil}] do
+        assert :ok = Handlers.rung_changed(rung_changed(previous_rung, rung))
+      end
+
+      refute_enqueued(worker: PlanGrab)
+    end
+
+    test "a second raise inside the window restarts it: one job, at the later time" do
+      assert :ok = Handlers.rung_changed(rung_changed(:follow, :grab))
+
+      [job] = all_enqueued(worker: PlanGrab)
+      force_where(Oban.Job, scheduled_at: in_seconds(5))
+
+      assert :ok = Handlers.rung_changed(rung_changed(:follow, :grab))
+
+      assert [later] = all_enqueued(worker: PlanGrab)
+      assert later.id == job.id
+      assert DateTime.diff(later.scheduled_at, DateTime.utc_now()) in 18..20
+    end
+
+    test "the scheduled job plans the title's open wants" do
+      stub_search([release("Sample.Show.S01E01.1080p.WEB-DL", "ep-1080p", 30)])
+      item = tracked_episode_want()
+
+      assert :ok = Handlers.rung_changed(rung_changed(:follow, :grab))
+      assert :ok = perform_job(PlanGrab, %{"tmdb_id" => item.tmdb_id, "media_type" => "tv_series"})
+
+      assert [plan] = Repo.all(Plans.Plan)
+      assert plan.tracking_item_id == item.id
+    end
+
+    test "the Reactor routes a rung change here" do
+      {:ok, reactor} = MediaCentaur.Acquisition.Reactor.start_link([])
+
+      :ok = MediaCentaur.Watchlist.Events.broadcast(rung_changed(:list, :grab))
+
+      # A stop is handled after the broadcast already in the mailbox.
+      :ok = GenServer.stop(reactor)
+
+      assert_enqueued(worker: PlanGrab, args: %{"tmdb_id" => 246_810, "media_type" => "tv_series"})
     end
   end
 

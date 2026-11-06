@@ -444,6 +444,58 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     end
   end
 
+  describe "run_for/2 — one title, now" do
+    test "plans the open wants of the one title, and no other" do
+      stub_results(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ]
+      })
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      other = create_tracking_item(%{tmdb_id: 246_811, name: "Sample Show B"})
+      create_aired_release(other, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(other)
+
+      assert :ok = DropPlanner.run_for(item.tmdb_id, item.media_type)
+
+      assert [plan] = Repo.all(Plans.Plan)
+      assert plan.tracking_item_id == item.id
+      assert [other_want] = ReleaseTracking.open_wants_for_item(other.id)
+      refute other_want.last_searched_at
+    end
+
+    test "a title below Grab plans nothing — a raise undone inside the window" do
+      item = create_tracked_show(%{rung: :follow})
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      assert :ok = DropPlanner.run_for(item.tmdb_id, item.media_type)
+
+      assert Repo.all(Plans.Plan) == []
+    end
+
+    test "a known-down Prowlarr plans nothing" do
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+
+      assert :ok = DropPlanner.run_for(item.tmdb_id, item.media_type)
+
+      assert Repo.all(Plans.Plan) == []
+    end
+
+    test "an untracked title plans nothing" do
+      assert :ok = DropPlanner.run_for(246_899, :tv_series)
+      assert Repo.all(Plans.Plan) == []
+    end
+  end
+
   describe "sweep tick — mode-off reconciliation (Q11)" do
     # Use-case 11: flipping an item to `off` mid-flight. Entry point is
     # the real one — `Handlers.tracking_sweep_completed/0`, which runs

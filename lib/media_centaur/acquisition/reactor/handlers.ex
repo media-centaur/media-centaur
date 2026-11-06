@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   @moduledoc """
-  Translates release-tracking PubSub events into pursuit-orchestration
-  side effects.
+  Translates release-tracking and watchlist PubSub events into
+  pursuit-orchestration side effects.
 
   Called by `Acquisition.Reactor` (the GenServer that owns the
   subscription). Splitting the handlers out of the Reactor keeps the
@@ -15,11 +15,15 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   - `tracking_sweep_completed/0` — run the drop planner tick (ADR-056).
   - `prowlarr_available/0` — run the drop planner tick on Prowlarr's
     recovery.
+  - `rung_changed/1` — schedule `Jobs.PlanGrab` for a title raised to
+    Grab.
 
   Pure dispatch + Acquisition-context side effects. No GenServer state.
   """
 
   alias MediaCentaur.Acquisition.{DropPlanner, ModeReconciler}
+  alias MediaCentaur.Acquisition.Jobs.PlanGrab
+  alias MediaCentaur.Watchlist.Events.RungChanged
 
   @doc """
   Runs the sweep-tick pipeline — called when the refresher's sweep
@@ -41,4 +45,18 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   """
   @spec prowlarr_available() :: :ok
   def prowlarr_available, do: DropPlanner.run_tick()
+
+  @doc """
+  A title arrived at Grab — plan its open wants shortly
+  (`Jobs.PlanGrab`), rather than at the next sweep. Every other move
+  plans nothing here; a move off Grab is the sweep's reconciliation.
+  """
+  @spec rung_changed(RungChanged.t()) :: :ok
+  def rung_changed(%RungChanged{rung: :grab, previous_rung: previous_rung} = event)
+      when previous_rung != :grab do
+    {:ok, _job} = Oban.insert(PlanGrab.for_title(event.tmdb_id, event.media_type))
+    :ok
+  end
+
+  def rung_changed(%RungChanged{}), do: :ok
 end
