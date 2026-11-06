@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.9.0 — 2026-11-06
+
+### New
+
+- **The download plan is one list.** When you press Download on a title, the plan's window now reads top to bottom as what you'll get and what you won't: each release the planner chose, with the episodes it covers drawn beneath its name, then whatever is not covered — episodes still being searched, episodes available only in lower quality, episodes not found, a season pack you can opt into, episodes you dropped — each on its own line with its decision at the end (**Take lower quality for this show**, **Search again**, **Grab the pack**). Every episode appears once, in the line that explains it; the episode grid and the separate release list are gone, and so are the stacked warning boxes. A coloured edge now marks only a line that needs a decision, so a plan where everything was found shows none.
+- **The verdict stays in view.** The one sentence that says where the plan stands — "Everything you asked for was found.", "No indexer had anything for these episodes.", or what the search is doing right now — sits under the title and stays there however far you scroll the list. The step-by-step **How we searched** record is always shown at the foot of the list instead of hiding behind a toggle.
+- **Approve is always in reach.** Cancel, Download, Stop searching, Discard, Approve plan and Add to watchlist sit in a band at the bottom of the window that stays put while the list scrolls — no more scrolling past a long season to find the button.
+
+### Fixed
+
+- **The artwork no longer jumps.** Opening a season in the episode picker, opening a release's other options, or the plan changing while you look at it used to re-crop the backdrop and slide its fade. The picture now holds still on every title window — the plan window, a title's details, a download's window — and a short window fades its artwork out cleanly at the bottom edge.
+- **Hover or focus an episode cell to see which episode it is.** The line of text under the grid that used to name the episode is replaced by the same tooltip the rest of the app uses, which also works with a remote or gamepad.
+- **A series with many missing episodes no longer lists every one of them under the verdict.** The not-found line shows them as cells instead; on a TV, a 54-episode list used to fill the window.
+
 ## v2.8.0 — 2026-11-06
 
 ### New
