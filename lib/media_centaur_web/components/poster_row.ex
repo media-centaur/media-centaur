@@ -41,6 +41,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
+  alias MediaCentaurWeb.Components.SeeAllTile
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.ToolbarSlots
   alias MediaCentaurWeb.TitleRef
@@ -111,18 +112,12 @@ defmodule MediaCentaurWeb.Components.PosterRow do
     <ScrollRow.scroll_row :if={@items != []} id={@id} variant={:poster} data-component="poster-row">
       <.tile :for={item <- @items} row_id={@id} item={item} show_play_button={@show_play_button} />
 
-      <.link
+      <SeeAllTile.see_all_tile
         :if={@see_all_href}
         navigate={@see_all_href}
-        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
+        shape={:poster}
         data-component="poster-row-see-all"
-        data-row-item
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon name="hero-arrow-right-circle" class="size-10" />
-        <span class="text-sm font-medium">See all</span>
-      </.link>
+      />
     </ScrollRow.scroll_row>
     """
   end

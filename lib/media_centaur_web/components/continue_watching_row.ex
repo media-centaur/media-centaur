@@ -17,11 +17,11 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   @storybook_reason "Depends on watch-history feed — covered by page smoke tests"
 
   use Phoenix.Component
-  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
+  alias MediaCentaurWeb.Components.SeeAllTile
 
   # Cards sit in a `.row-scroll-backdrop-lg` track, so each is
   # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
@@ -125,17 +125,11 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         </div>
       </div>
 
-      <.link
+      <SeeAllTile.see_all_tile
         navigate="/library?sort=watched"
-        class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
+        shape={:backdrop}
         data-component="continue-watching-see-all"
-        data-row-item
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon name="hero-arrow-right-circle" class="size-10" />
-        <span class="text-sm font-medium">See all</span>
-      </.link>
+      />
     </ScrollRow.scroll_row>
     """
   end
