@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.10.1 — 2026-11-06
+
+### Improved
+
+- **Auto-grab starts within seconds.** Switching a title to Auto-grab now plans its missing aired episodes about 20 seconds later, instead of waiting up to fifteen minutes for the next check. If you switch it back off within those 20 seconds, nothing is searched for, so an accidental click costs nothing.
+- **Out Now is for what needs you.** Discovery's Out Now no longer lists titles set to Auto-grab, because the app is already getting them. A download that fails shows on the Downloads page.
+- **Discovery's hero shows something new.** The large banner at the top of Discovery no longer features a title you already have; owned titles belong to Home's banner.
+
+### Fixed
+
+- **Only what you do is shared with friends.** Background maintenance that changes your watchlist, such as a repair after an update, no longer posts those changes to your friends as if you had made them.
+- **See all on Home's Coming Up lines up.** When the See all tile shares a column with other titles, it now sits in its own slot instead of one slot too high.
+
 ## v2.10.0 — 2026-11-06
 
 ### New
