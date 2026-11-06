@@ -594,6 +594,11 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert has_element?(view, "#plan-download[phx-click='plan_create']", "Download 2 episodes")
       refute has_element?(view, "#plan-download-menu")
 
+      # The picker's actions sit in the frame's foot, the `plan_foot`
+      # region pinned at the panel's bottom — never inside the scrolling body.
+      assert has_element?(view, "#plan-modal [data-nav-zone='plan_foot'] #plan-download")
+      refute has_element?(view, "#plan-modal [data-nav-zone='plan_body'] #plan-download")
+
       view |> element("#plan-download-toggle") |> render_click()
       assert has_element?(view, "#plan-download-menu[data-nav-zone='plan_menu']")
 
@@ -837,6 +842,13 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert html =~ "Sample.Show.S01.COMPLETE.1080p.WEB-DL"
       assert html =~ "Season 1 pack"
       assert html =~ "Approve plan"
+
+      # The board's actions sit in the frame's foot (`plan_foot`), pinned at
+      # the panel's bottom, so Approve is in reach however long the body is.
+      assert has_element?(
+               view,
+               "#plan-modal [data-nav-zone='plan_foot'] button[phx-click='plan_approve']"
+             )
 
       view
       |> element("button[phx-click='plan_approve']")
@@ -1403,9 +1415,8 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       refute has_element?(view, "button", "Search for something to watch")
     end
 
-    test "the board navigates as head / grid / body regions and its cells caption themselves", %{
-      conn: conn
-    } do
+    test "the board navigates as head / grid / body / foot regions and its cells caption themselves",
+         %{conn: conn} do
       stub_plan_tmdb()
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
@@ -1417,7 +1428,9 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       assert has_element?(view, "[data-plan-modal][data-nav-overlay='plan']")
       assert has_element?(view, "[data-nav-zone='plan_head'] [data-nav-item]")
-      assert has_element?(view, "[data-nav-zone='plan_body'] [data-nav-item]")
+      # Nothing was found, so the body has no release row to focus; the acts
+      # (Discard, the watchlist slot) are in the frame's foot.
+      assert has_element?(view, "[data-nav-zone='plan_foot'] [data-nav-item]")
 
       # Cells are focusable and carry their caption for the grid's caption
       # line (UIDR-029) — no per-cell tooltip, which a cursor never sees.

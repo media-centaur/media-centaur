@@ -23,8 +23,17 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   Tenants supply the content through slots: `:hero_corner` (the social
   capsule in the hero window's upper right), `:orientation`
-  (identity lockup, metadata, controls — the block that pins), and
-  `:body` (the scrolling document below).
+  (identity lockup, metadata, controls — the block that pins),
+  `:body` (the scrolling document below) and `:foot` (a band of actions at
+  the panel's bottom edge, outside the scroll — the plan modal's Cancel,
+  Download and Approve; empty for the title detail and the pursuit window).
+
+  The frame's geometry holds still while the body changes: the backdrop
+  box is the constant `--modal-panel-h × 0.7` on every panel (the box the
+  orientation backing replicates), never a share of the panel's height, so
+  a disclosure opening or a row arriving clips more or less of the same
+  picture and re-crops nothing (`app.css`, "The backdrop box is a
+  constant").
 
   **The byte-identity invariant is structural here.** The panel backdrop
   and the orientation backing render the *same* `<img>` src (both through
@@ -103,6 +112,14 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
   slot :body,
     doc: "the scrolling document below the orientation block. Omit for content-fit panels."
 
+  slot :foot,
+    doc:
+      "the tenant's actions, as a band at the panel's bottom edge outside the scroll " <>
+        "(`.modal-foot`): it sits under the document while the panel is content-fit and " <>
+        "pins there once the body overflows. The tenant's root carries the band's " <>
+        "`data-nav-zone`. The plan modal fills it on every stage; the title detail and " <>
+        "the pursuit window leave it empty."
+
   def cinematic_shell(assigns) do
     assigns = assign(assigns, :placeholder?, assigns.present && is_nil(assigns.backdrop_url))
 
@@ -127,6 +144,12 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
               extends under the reserved scrollbar gutter, so the rail
               blends into the picture instead of cutting it off. --%>
         <CinematicBackdrop.backdrop backdrop_url={@backdrop_url} />
+        <%!-- The panel-bottom fade: finishes the backdrop's dissolve at the
+              panel's own edge when the panel is shorter than the constant
+              backdrop box. Painted after the backdrop and BEFORE the
+              atmosphere, so the scrim dims it like everything under it and
+              a short panel's foot reads no lighter than its rows. --%>
+        <div class="modal-page-bottom-fade z-0" aria-hidden="true"></div>
         <%!-- Atmosphere scrim is panel-fixed like the backdrop: the pinned
               orientation block's backing replicates it verbatim, and that
               replica only equals the real thing at every scroll depth if
@@ -212,6 +235,13 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
               </div>
             </div>
           </div>
+        </div>
+        <%!-- The foot: a flex-none band after the scrollport, so a tenant's
+              actions sit at the panel's bottom edge whatever the body's
+              height, and pin there once it overflows. Its tone is the
+              sheet's plateau (`.modal-foot`). --%>
+        <div :if={@foot != []} class="modal-foot">
+          {render_slot(@foot)}
         </div>
       <% end %>
     </.modal>

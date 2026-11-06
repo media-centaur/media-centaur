@@ -334,15 +334,17 @@ describe("Detail overlay cast region (real config)", () => {
   })
 })
 
-// The plan modal (UIDR-029): its board is a vertical head (status, verdict
-// and their controls) over the episode grid over the rest (release rows,
-// decisions, footer). The grid is a SHELF — a 2-D arrangement resolved by
-// geometry, like the cast grid — between two TREE regions. Nothing declares
-// a `back` edge: BACK dismisses the modal from anywhere, as it did when the
-// modal was one flat list. Movies render no grid; the candidate lists fall
-// through head ↔ body. The other stages (targeting, movie confirm, error)
-// put every control in `plan_body`, so they navigate as the one list they
-// always were.
+// The plan modal (UIDR-029; campaign plan-modal M2): on the board a
+// vertical head (status, verdict and their controls) over the episode grid
+// over the body (release rows, decisions), with the actions in the frame's
+// foot — a TOOLBAR pinned at the panel's bottom, outside the scroll. The
+// grid is a SHELF — a 2-D arrangement resolved by geometry, like the cast
+// grid — between two TREE regions. Nothing but the picker's open menu
+// declares a `back` edge: BACK dismisses the modal from anywhere else.
+// Movies render no grid; the candidate lists fall through head ↔ body.
+// The other stages (targeting, movie confirm) put their controls in
+// `plan_body` and their Cancel + Download in the foot; the error stage's
+// one Close is in the body.
 describe("Plan overlay regions (real config)", () => {
   const openPlan = counts =>
     buildNavGraph("downloads", counts, {
@@ -350,47 +352,55 @@ describe("Plan overlay regions (real config)", () => {
       overlayLayout: inputConfig.overlays.plan.layout,
     })
 
-  test("head and body are trees, the grid is a shelf, entry prefers head then body", () => {
+  test("head and body are trees, the grid a shelf, the foot a toolbar; entry prefers head, body, grid, foot", () => {
     expect(inputConfig.instanceTypes.plan_head).toBe(Context.TREE)
     expect(inputConfig.instanceTypes.plan_grid).toBe(Context.SHELF)
     expect(inputConfig.instanceTypes.plan_body).toBe(Context.TREE)
-    expect(inputConfig.overlays.plan.entry).toEqual(["plan_head", "plan_body", "plan_grid"])
+    expect(inputConfig.instanceTypes.plan_foot).toBe(Context.TOOLBAR)
+    expect(inputConfig.overlays.plan.entry).toEqual(["plan_head", "plan_body", "plan_grid", "plan_foot"])
     expect(inputConfig.contextSelectors.plan_grid).toBe("[data-nav-zone='plan_grid'] [data-nav-item]")
+    expect(inputConfig.contextSelectors.plan_foot).toBe("[data-nav-zone='plan_foot'] [data-nav-item]")
   })
 
-  test("series board: down from the head enters the grid, down from the grid the body, and back up", () => {
-    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, sidebar: 7 })
+  test("series board: down from the head enters the grid, the grid the body, the body the foot, and back up", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, plan_foot: 2, sidebar: 7 })
     expect(graph.plan_head.down).toBe("plan_grid")
     expect(graph.plan_grid.down).toBe("plan_body")
+    expect(graph.plan_body.down).toBe("plan_foot")
+    expect(graph.plan_foot.up).toBe("plan_body")
     expect(graph.plan_grid.up).toBe("plan_head")
     expect(graph.plan_body.up).toBe("plan_grid")
   })
 
-  test("movie board (no grid): head and body meet directly", () => {
-    const graph = openPlan({ plan_head: 2, plan_grid: 0, plan_body: 6, sidebar: 7 })
+  test("movie board (no grid): head and body meet directly; an empty body hands the head to the foot", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 0, plan_body: 6, plan_foot: 2, sidebar: 7 })
     expect(graph.plan_head.down).toBe("plan_body")
     expect(graph.plan_body.up).toBe("plan_head")
+    const empty = openPlan({ plan_head: 2, plan_grid: 0, plan_body: 0, plan_foot: 2, sidebar: 7 })
+    expect(empty.plan_head.down).toBe("plan_foot")
+    expect(empty.plan_foot.up).toBe("plan_head")
   })
 
-  // The picker's Download is a split button (spec 2026-09-23 follow-up):
-  // its open menu is a tree region nested in the body, present only while
-  // open — DOWN from the body enters it, BACK returns to the body and, through
-  // the list's dismiss event, closes it. The one back edge in the overlay.
-  test("the picker's open Download menu is a tree region nested in the body: DOWN enters it, BACK climbs out", () => {
+  // The picker's Download is a split button (spec 2026-09-23 follow-up) in
+  // the foot: its open menu is a tree region nested in the foot, present
+  // only while open — DOWN from the foot enters it, BACK returns to the foot
+  // and, through the list's dismiss event, closes it. The one back edge.
+  test("the picker's open Download menu is a tree region nested in the foot: DOWN enters it, BACK climbs out", () => {
     expect(inputConfig.instanceTypes.plan_menu).toBe(Context.TREE)
     expect(inputConfig.contextSelectors.plan_menu).toBe("[data-nav-zone='plan_menu'] [data-nav-item]")
-    const graph = openPlan({ plan_head: 0, plan_grid: 0, plan_body: 6, plan_menu: 1, sidebar: 7 })
-    expect(graph.plan_body.down).toBe("plan_menu")
-    expect(graph.plan_menu.up).toBe("plan_body")
-    expect(graph.plan_menu.back).toBe("plan_body")
+    const graph = openPlan({ plan_head: 0, plan_grid: 0, plan_body: 6, plan_foot: 2, plan_menu: 1, sidebar: 7 })
+    expect(graph.plan_foot.down).toBe("plan_menu")
+    expect(graph.plan_menu.up).toBe("plan_foot")
+    expect(graph.plan_menu.back).toBe("plan_foot")
   })
 
   test("no other region declares a back edge — BACK dismisses the modal from anywhere else", () => {
-    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, plan_menu: 0, sidebar: 7 })
+    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, plan_foot: 2, plan_menu: 0, sidebar: 7 })
     expect(graph.plan_head.back).toBeUndefined()
     expect(graph.plan_grid.back).toBeUndefined()
     expect(graph.plan_body.back).toBeUndefined()
-    expect(graph.plan_body.down).toBeUndefined()
+    expect(graph.plan_foot.back).toBeUndefined()
+    expect(graph.plan_foot.down).toBeUndefined()
   })
 })
 

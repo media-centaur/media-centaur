@@ -33,22 +33,24 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     `TMDB.ReleaseWindow` through `gap_verdict`.
   * `:error` — targeting failed (TMDB unreachable etc.).
 
-  The targeting and movie-confirm footers carry the Download split
+  The targeting and movie-confirm feet carry the Download split
   (`GlassMenu.split_button`, the title detail's control): the main
   segment performs `mode` — the mode the picker was opened with — and
   the menu names the other, sending it as the create event's `mode`
   (spec 2026-09-23 follow-up). The host owns the menu's open state
   (`menu_open`, events `plan_mode_toggle` / `plan_menu_close`).
 
-  Keyboard/gamepad navigation: the modal is a `plan` overlay with three
+  Keyboard/gamepad navigation: the modal is a `plan` overlay with four
   regions (`config.overlays.plan`). The board is a `plan_head` TREE
   (status line, verdict and their controls) over the `plan_grid` SHELF
   (episode cells, walked by geometry) over the `plan_body` TREE
-  (release rows, decisions, footer). Every other stage puts all of its
-  controls in `plan_body`, so it navigates as the one list it is; the
-  Download split's open menu is a `plan_menu` TREE nested in it, the
+  (release rows, decisions) over the `plan_foot` TOOLBAR — the frame's
+  foot, carrying the acts (Stop searching, Discard, Approve, the
+  watchlist slot). Targeting and movie confirm put their controls in
+  `plan_body` and Cancel + the Download split in `plan_foot`; the
+  split's open menu is a `plan_menu` TREE nested in the foot, the
   overlay's one `back` edge, so BACK closes the list before it dismisses
-  the modal. Grid cells are nav items carrying `data-caption`; the
+  the modal. The error stage's one Close is in `plan_body`. Grid cells are nav items carrying `data-caption`; the
   `PlanGridCaption` hook writes the focused or hovered cell's caption
   under the grid (UIDR-029) — there are no per-cell tooltips.
 
@@ -236,18 +238,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           selection={@selection}
           chosen={@chosen || MapSet.new()}
           disclosures={@disclosures}
-          mode={@mode}
-          menu_open={@menu_open}
-          on_close={@on_close}
         />
 
-        <.movie_stage
-          :if={@stage == :movie_confirm && @movie}
-          movie={@movie}
-          mode={@mode}
-          menu_open={@menu_open}
-          on_close={@on_close}
-        />
+        <.movie_stage :if={@stage == :movie_confirm && @movie} movie={@movie} />
 
         <.board_stage
           :if={@stage == :board && @board}
@@ -265,6 +258,34 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           on_close={@on_close}
         />
       </:body>
+      <%!-- The acts live in the frame's foot (campaign plan-modal, M2): a
+            band at the panel's bottom edge, outside the scroll, so Cancel,
+            Download and Approve stay in reach however long the body is.
+            The error stage keeps its one Close in the body; loading has
+            no controls. --%>
+      <:foot :if={@stage in [:targeting, :movie_confirm, :board]}>
+        <.targeting_foot
+          :if={@stage == :targeting && @selection}
+          chosen_count={MapSet.size(@chosen || MapSet.new())}
+          mode={@mode}
+          menu_open={@menu_open}
+          on_close={@on_close}
+        />
+        <.movie_foot
+          :if={@stage == :movie_confirm && @movie}
+          movie={@movie}
+          mode={@mode}
+          menu_open={@menu_open}
+          on_close={@on_close}
+        />
+        <.board_foot
+          :if={@stage == :board && @board}
+          board={@board}
+          discard_armed={@discard_armed}
+          subject={@subject}
+          rung={@rung}
+        />
+      </:foot>
     </CinematicShell.cinematic_shell>
     """
   end
@@ -291,100 +312,104 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :selection, Targeting.Selection, required: true
   attr :chosen, :any, required: true, doc: "MapSet — typed at the public attr."
   attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
-  attr :mode, :atom, required: true
-  attr :menu_open, :boolean, required: true
-  attr :on_close, :string, required: true
 
   defp targeting_stage(assigns) do
     assigns = assign(assigns, :chosen_count, MapSet.size(assigns.chosen))
 
     ~H"""
-    <div data-nav-zone="plan_body" class="flex flex-col max-h-full">
-      <div class="p-6 pb-6 space-y-5">
-        <%!-- Identity (logo/title) lives in the pinned lockup above; this
-              line carries the stage's facts — season/episode meta and the
-              tracked marker. --%>
-        <p class="text-sm text-base-content/60 text-on-image">
-          {selection_meta(@selection)}
-          <.badge :if={@selection.tracked?} variant="warning" size="xs" class="ml-2 align-middle">
-            Tracked
-          </.badge>
-        </p>
+    <div data-nav-zone="plan_body" class="p-6 pb-6 space-y-5">
+      <%!-- Identity (logo/title) lives in the pinned lockup above; this
+          line carries the stage's facts — season/episode meta and the
+          tracked marker. --%>
+      <p class="text-sm text-base-content/60 text-on-image">
+        {selection_meta(@selection)}
+        <.badge :if={@selection.tracked?} variant="warning" size="xs" class="ml-2 align-middle">
+          Tracked
+        </.badge>
+      </p>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <.button
-            variant="neutral"
-            size="sm"
-            phx-click="plan_preset"
-            phx-value-preset="everything_aired"
-            data-nav-item
-            tabindex="0"
-          >
-            Everything aired
-          </.button>
-          <.button
-            variant="neutral"
-            size="sm"
-            phx-click="plan_preset"
-            phx-value-preset="continue"
-            data-nav-item
-            tabindex="0"
-          >
-            Continue from my library
-          </.button>
-          <.button
-            variant="neutral"
-            size="sm"
-            phx-click="plan_preset"
-            phx-value-preset="latest_season"
-            data-nav-item
-            tabindex="0"
-          >
-            Latest season
-          </.button>
-          <.button
-            variant="neutral"
-            size="sm"
-            phx-click="plan_preset"
-            phx-value-preset="clear"
-            data-nav-item
-            tabindex="0"
-          >
-            Clear selected
-          </.button>
-          <span class="ml-auto text-sm text-base-content/55 tabular-nums">
-            {@chosen_count} selected
-          </span>
-        </div>
-
-        <div class="space-y-2">
-          <.season_row
-            :for={season <- @selection.seasons}
-            season={season}
-            selection={@selection}
-            chosen={@chosen}
-            disclosures={@disclosures}
-          />
-        </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <.button
+          variant="neutral"
+          size="sm"
+          phx-click="plan_preset"
+          phx-value-preset="everything_aired"
+          data-nav-item
+          tabindex="0"
+        >
+          Everything aired
+        </.button>
+        <.button
+          variant="neutral"
+          size="sm"
+          phx-click="plan_preset"
+          phx-value-preset="continue"
+          data-nav-item
+          tabindex="0"
+        >
+          Continue from my library
+        </.button>
+        <.button
+          variant="neutral"
+          size="sm"
+          phx-click="plan_preset"
+          phx-value-preset="latest_season"
+          data-nav-item
+          tabindex="0"
+        >
+          Latest season
+        </.button>
+        <.button
+          variant="neutral"
+          size="sm"
+          phx-click="plan_preset"
+          phx-value-preset="clear"
+          data-nav-item
+          tabindex="0"
+        >
+          Clear selected
+        </.button>
+        <span class="ml-auto text-sm text-base-content/55 tabular-nums">
+          {@chosen_count} selected
+        </span>
       </div>
 
-      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-4">
-        <div class="flex items-center gap-2">
-          <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
-            Cancel
-          </.button>
-          <.download_split mode={@mode} menu_open={@menu_open} inert={@chosen_count == 0}>
-            Download {@chosen_count} {if @chosen_count == 1, do: "episode", else: "episodes"}
-          </.download_split>
-        </div>
+      <div class="space-y-2">
+        <.season_row
+          :for={season <- @selection.seasons}
+          season={season}
+          selection={@selection}
+          chosen={@chosen}
+          disclosures={@disclosures}
+        />
       </div>
     </div>
     """
   end
 
-  # The one Download control of both footers: the title detail's split,
-  # opening upward from the footer's end so the list stays inside the
-  # scrolling body. Inert (aria-disabled, dimmed) rather than disabled
+  # The picker's foot: Cancel and the Download split, in the frame's foot
+  # (`plan_foot`), so the act stays in reach however long the season list.
+  attr :chosen_count, :integer, required: true
+  attr :mode, :atom, required: true
+  attr :menu_open, :boolean, required: true
+  attr :on_close, :string, required: true
+
+  defp targeting_foot(assigns) do
+    ~H"""
+    <div data-nav-zone="plan_foot" class="px-6 py-4 flex items-center justify-end gap-2">
+      <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
+        Cancel
+      </.button>
+      <.download_split mode={@mode} menu_open={@menu_open} inert={@chosen_count == 0}>
+        Download {@chosen_count} {if @chosen_count == 1, do: "episode", else: "episodes"}
+      </.download_split>
+    </div>
+    """
+  end
+
+  # The one Download control of both feet: the title detail's split,
+  # opening upward from the foot's end, over the body, so the list stays
+  # inside the panel. Inert (aria-disabled, dimmed) rather than disabled
   # while there is nothing to download, so the nav graph never shifts.
   attr :mode, :atom, required: true, doc: "what the main segment performs; the menu names the other"
   attr :menu_open, :boolean, required: true
@@ -527,29 +552,32 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "detail-shaped preview built by `TitlePreview.movie/3` in the host's targeting task."
 
-  attr :mode, :atom, required: true
-  attr :menu_open, :boolean, required: true
-  attr :on_close, :string, required: true
-
   defp movie_stage(assigns) do
     # The identity (logo/title/tagline) lives in the frame's pinned
     # lockup; the hero imagery is the frame's backdrop (the host feeds
     # it backdrop-or-poster via PlanLogic.shell_backdrop_url). This
     # stage is the facts below.
     ~H"""
-    <div data-nav-zone="plan_body">
-      <div class="px-6 pt-6 pb-6">
-        <PreviewBody.preview_body preview={@movie} library_state />
-      </div>
+    <div data-nav-zone="plan_body" class="px-6 pt-6 pb-6">
+      <PreviewBody.preview_body preview={@movie} library_state />
+    </div>
+    """
+  end
 
-      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
-        <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
-          Cancel
-        </.button>
-        <.download_split mode={@mode} menu_open={@menu_open} inert={@movie.in_library?}>
-          Download
-        </.download_split>
-      </div>
+  attr :movie, TitlePreview, required: true
+  attr :mode, :atom, required: true
+  attr :menu_open, :boolean, required: true
+  attr :on_close, :string, required: true
+
+  defp movie_foot(assigns) do
+    ~H"""
+    <div data-nav-zone="plan_foot" class="px-6 py-4 flex items-center justify-end gap-2">
+      <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
+        Cancel
+      </.button>
+      <.download_split mode={@mode} menu_open={@menu_open} inert={@movie.in_library?}>
+        Download
+      </.download_split>
     </div>
     """
   end
@@ -903,59 +931,71 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
           <p :if={@last_activity} class="text-sm text-base-content/55">{@last_activity}</p>
         </div>
+      </div>
+    </div>
+    """
+  end
 
-        <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
-          <span class="text-sm text-base-content/55 tabular-nums">
-            {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
-            {if length(@board.releases) == 1, do: "release", else: "releases"}
-            <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
-          </span>
-          <div class="flex items-center gap-2">
-            <.button
-              :if={@board.status == :planning}
-              variant="dismiss"
-              size="sm"
-              phx-click="plan_stop_searching"
-              data-tip="Stop now and keep what's been found so far — nothing is grabbed"
-              data-nav-item
-              tabindex="0"
-            >
-              Stop searching
-            </.button>
-            <%!-- Discarding loses the draft and the release choices, and
-                 nothing has been grabbed — costly but recoverable, so the
-                 house arm gesture rather than an overlay (MC0027 tier 2).
-                 A confirmation modal here also had to out-stack the modal
-                 it belonged to, which is a problem it need not have. --%>
-            <.armed_button
-              :if={@board.status == :ready}
-              armed={@discard_armed}
-              event="plan_discard"
-              armed_label="Press again to discard"
-              variant="dismiss"
-              size="sm"
-            >
-              Discard
-            </.armed_button>
-            <.button
-              :if={@board.status == :ready && @board.releases != []}
-              variant="primary"
-              size="sm"
-              phx-click="plan_approve"
-              data-nav-item
-              tabindex="0"
-            >
-              <%!-- The release count and total size sit in the footer summary
-                  to the left; the button names the act, not the tally. --%>
-              Approve plan
-            </.button>
-            <.watchlist_slot
-              :if={@subject && PlanBoard.empty?(@board)}
-              subject={@subject}
-              rung={@rung}
-            />
-          </div>
-        </div>
+  # The board's foot: the summary and the acts — Stop searching while
+  # planning; Discard (armed) and Approve, or the watchlist slot on an
+  # empty board, once ready — in the frame's foot (`plan_foot`).
+  attr :board, PlanBoard, required: true
+  attr :discard_armed, :boolean, required: true
+  attr :subject, :any, required: true, doc: "Title.t() | nil — typed at the public attr."
+  attr :rung, :atom, required: true
+
+  defp board_foot(assigns) do
+    ~H"""
+    <div data-nav-zone="plan_foot" class="px-6 py-4 flex items-center justify-between gap-4">
+      <span class="text-sm text-base-content/55 tabular-nums">
+        {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
+        {if length(@board.releases) == 1, do: "release", else: "releases"}
+        <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
+      </span>
+      <div class="flex items-center gap-2">
+        <.button
+          :if={@board.status == :planning}
+          variant="dismiss"
+          size="sm"
+          phx-click="plan_stop_searching"
+          data-tip="Stop now and keep what's been found so far — nothing is grabbed"
+          data-nav-item
+          tabindex="0"
+        >
+          Stop searching
+        </.button>
+        <%!-- Discarding loses the draft and the release choices, and
+               nothing has been grabbed — costly but recoverable, so the
+               house arm gesture rather than an overlay (MC0027 tier 2).
+               A confirmation modal here also had to out-stack the modal
+               it belonged to, which is a problem it need not have. --%>
+        <.armed_button
+          :if={@board.status == :ready}
+          armed={@discard_armed}
+          event="plan_discard"
+          armed_label="Press again to discard"
+          variant="dismiss"
+          size="sm"
+        >
+          Discard
+        </.armed_button>
+        <.button
+          :if={@board.status == :ready && @board.releases != []}
+          variant="primary"
+          size="sm"
+          phx-click="plan_approve"
+          data-nav-item
+          tabindex="0"
+        >
+          <%!-- The release count and total size sit in the footer summary
+                to the left; the button names the act, not the tally. --%>
+          Approve plan
+        </.button>
+        <.watchlist_slot
+          :if={@subject && PlanBoard.empty?(@board)}
+          subject={@subject}
+          rung={@rung}
+        />
       </div>
     </div>
     """

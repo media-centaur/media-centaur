@@ -24,7 +24,13 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.CinematicShell.cinematic_shell/1
-  def imports, do: [{MediaCentaurWeb.Components.Title.Social, social_capsule: 1}]
+
+  def imports,
+    do: [
+      {MediaCentaurWeb.Components.Title.Social, social_capsule: 1},
+      {MediaCentaurWeb.CoreComponents, button: 1}
+    ]
+
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -144,6 +150,57 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
               </div>
             </div>
           </:body>
+          """
+        ]
+      },
+      %Variation{
+        id: :open_full_with_foot,
+        description:
+          "Open, `full: true`, with the `:foot` slot — the band at the panel's bottom " <>
+            "edge, outside the scroll, that the plan modal fills with its acts: the body " <>
+            "scrolls under the pinned orientation block and above the pinned foot. The " <>
+            "backdrop box is the same constant whatever the panel's height, so a disclosure " <>
+            "opening in the body re-crops nothing.",
+        attributes: %{
+          id: "cinematic-foot",
+          open: true,
+          dismiss: :ephemeral,
+          on_close: close_event(:open_full_with_foot),
+          present: true,
+          full: true,
+          scroll_key: "sample-subject-foot",
+          view_key: :main
+        },
+        slots: [
+          """
+          <:orientation>
+            <div class="px-6 pt-2">
+              <h2 class="text-2xl font-bold text-white text-on-image-lg">Sample Subject</h2>
+            </div>
+            <div class="px-4 pt-6 pb-4 text-sm text-base-content/70">
+              Orientation block content — the verdict a plan board puts here.
+            </div>
+          </:orientation>
+          """,
+          """
+          <:body>
+            <div class="space-y-3 pt-2">
+              <div :for={n <- 1..14} class="glass-inset rounded-lg p-4 text-sm text-base-content/70">
+                Body row {n} — scrolls between the pinned block and the pinned foot.
+              </div>
+            </div>
+          </:body>
+          """,
+          """
+          <:foot>
+            <div class="px-6 py-4 flex items-center justify-between gap-4">
+              <span class="text-sm text-base-content/55">4 episodes · 2 releases · ≈ 12.4 GB</span>
+              <div class="flex items-center gap-2">
+                <.button variant="dismiss" size="sm">Discard</.button>
+                <.button variant="primary" size="sm">Approve plan</.button>
+              </div>
+            </div>
+          </:foot>
           """
         ]
       },

@@ -749,6 +749,12 @@ body:has(.modal-backdrop[data-state="open"]) {
       oklch(0% 0 0 / 0.55) calc(36 * var(--pvh)),
       oklch(0% 0 0 / 0.55) 100%
     );
+  /* The sheet's settled tone — the plateau its ramp reaches by 20rem and
+     holds to the end. One token, three readers: the ramp below, the
+     orientation backing's sheet replica (through this same variable) and
+     the frame's foot (`.modal-foot`), which sits outside the scroll and
+     must match the body's settled rows by construction. */
+  --detail-sheet-plateau: rgb(15 17 22 / 0.78);
   --detail-sheet: linear-gradient(
     to bottom,
     rgb(15 17 22 / 0) 0,
@@ -756,8 +762,8 @@ body:has(.modal-backdrop[data-state="open"]) {
     rgb(15 17 22 / 0.28) 8rem,
     rgb(15 17 22 / 0.50) 12rem,
     rgb(15 17 22 / 0.69) 16rem,
-    rgb(15 17 22 / 0.78) 20rem,
-    rgb(15 17 22 / 0.78) 100%
+    var(--detail-sheet-plateau) 20rem,
+    var(--detail-sheet-plateau) 100%
   );
   /* How far the sheet's box reaches ABOVE #detail-content's row flow —
      up behind the orientation block's metadata/synopsis section. The
@@ -795,35 +801,53 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: opacity 150ms ease-out, transform 150ms ease-out;
 }
 
-/* Entries whose content region can scroll (TV seasons, movie-series
-   lists, extras, the Manage/More-info sub-views —
-   `DetailPanel.scrollable_content?/2`) are content-fit like everything
-   else: a collapsed season list no longer reserves a full-height panel
-   of empty space. That is safe because the backdrop box is sized in
-   --modal-panel-h units instead of a panel percentage, so it is
-   CONSTANT regardless of the panel's actual height. Growing/shrinking
-   the panel just clips more or less of the same image — identical to
-   the pinned value whenever the panel is at max height, which is the
-   only state the pinned orientation backing (same calc) can be
-   visible in. */
-/* `min()` of the two readings, because they only agree at the cap and
-   each is wrong on the other side of it:
+/* ── The backdrop box is a constant ──
+   Every cinematic panel paints its backdrop into the same box,
+   `--modal-panel-h × 0.7` (`.modal-page-backdrop` below) — the box the
+   pinned orientation backing already rebuilds from inside the scroller
+   (`.orientation-backing-image`, same calc), so the two copies agree by
+   construction at every panel height. It is deliberately NOT a share of
+   the panel: panels are content-fit under the cap (a collapsed season
+   list, a bare movie, a short plan board), and a box that followed the
+   panel re-cropped the `object-fit: cover` image and slid the fade on
+   every height change — opening a disclosure visibly re-framed the
+   artwork (campaign plan-modal, M2). Growing or shrinking the panel now
+   clips more or less of the same picture and moves nothing.
 
-   - The constant (--modal-panel-h × 0.7) is what the pinned orientation
-     backing rebuilds, so it must win whenever the block can pin. It can
-     only pin while the document scrolls, and a content-fit panel under a
-     max-height cap only overflows once it is AT the cap — where 70% of
-     the panel IS the constant. So the constant never loses a case it
-     owns.
-   - Below the cap the constant overshoots the panel, and the backdrop's
-     fade-to-base-100 (--detail-backdrop-fade, opaque only at 100% of
-     this box) gets clipped mid-ramp. The panel's bottom edge then lands
-     on half-dissolved artwork — a pale grey strip under the last row,
-     reported on a 2-movie collection: `movie_series` is unconditionally
-     --full but its short list leaves the panel far below the cap.
-     The percentage tracks the panel, so the fade always finishes. */
-.modal-panel--full .modal-page-backdrop {
-  height: min(70%, calc(var(--modal-panel-h, 100vh) * 0.7));
+   A panel shorter than the box would land its bottom edge on the fade
+   mid-ramp (the pale strip once reported on a 2-movie collection); the
+   panel-anchored `.modal-page-bottom-fade` finishes the dissolve at the
+   panel's own edge whatever its height. `CinematicShell` renders it
+   between the backdrop and the atmosphere, so DOM order at z 0 puts it
+   over the image and under the scrim — the scrim dims it as it dims the
+   image, and the panel's foot reads no lighter than its rows. */
+.modal-page-bottom-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--color-base-100));
+}
+
+/* The frame's foot (`CinematicShell` `:foot` slot): a flex-none band
+   after the scrollport, so a tenant's actions sit at the panel's bottom
+   edge and pin there once the body overflows — never inside the scroll.
+   Its tone is the sheet's plateau over the panel-fixed atmosphere, the
+   same two layers the body's settled rows sit on, so the band matches
+   them exactly; on a panel short enough for the backdrop box to reach
+   it, dimmed artwork shows through as it does under the rows. Its side
+   padding is the content sheet's (`px-4`) plus, on the right, the
+   scrollbar rail the scrollport reserves (`--modal-rail-w`), so a
+   tenant's foot content lines up with its body content on both edges. */
+.modal-foot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  padding: 0 calc(1rem + var(--modal-rail-w, 0px)) 0 1rem;
+  border-top: 1px solid oklch(from var(--color-base-content) l c h / 0.1);
+  background: var(--detail-sheet-plateau);
 }
 
 /* Scrollable (--full) panels are top-anchored at the exact spot where
@@ -1167,13 +1191,15 @@ body:has(.modal-backdrop[data-state="open"]) {
    Mirror of `.page-backdrop` (HomeLive) but scoped to the modal panel.
    Anchored to the top of the panel and fades into base-100 — the image
    continues past the hero region into the metadata area before
-   resolving to a clean surface for the dense content below. */
+   resolving to a clean surface for the dense content below. Its height
+   is the constant box (see "The backdrop box is a constant" above),
+   never a share of the panel. */
 .modal-page-backdrop {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 70%;
+  height: calc(var(--modal-panel-h, 100vh) * 0.7);
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
