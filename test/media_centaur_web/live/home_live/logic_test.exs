@@ -1,7 +1,13 @@
 defmodule MediaCentaurWeb.HomeLive.LogicTest do
   use MediaCentaur.Case, async: true
 
+  alias MediaCentaurWeb.Components.Marquee
   alias MediaCentaurWeb.HomeLive.Logic
+
+  # Picks then items — what Home does, minus the status lookup between them.
+  defp coming_up(releases, today) do
+    releases |> Logic.coming_up_picks() |> Logic.coming_up_items(today)
+  end
 
   defp progress_row(id) do
     %{
@@ -156,25 +162,59 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
     end
   end
 
-  describe "coming_up_marquee/2" do
-    test "single release in window → hero populated, no secondaries" do
+  describe "coming_up_picks/1 + coming_up_items/2" do
+    test "single release in window → a lead tile, no tiles" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", today, season: 5, episode: 4, status: :grabbed)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | tiles] = coming_up(releases, today)
 
-      assert marquee.hero != nil
-      assert marquee.hero.name == "Sample Show A"
-      assert marquee.secondaries == []
+      assert lead != nil
+      assert lead.name == "Sample Show A"
+      assert tiles == []
     end
 
-    test "empty input → hero is nil and secondaries is empty" do
-      marquee = Logic.coming_up_marquee([], ~D[2026-04-27])
-      assert marquee.hero == nil
-      assert marquee.secondaries == []
+    test "empty input → no items" do
+      assert coming_up([], ~D[2026-04-27]) == []
     end
 
-    test "deduplicates by series, hero has rollup, secondaries are distinct shows" do
+    test "at most ten shows, soonest first — the eleventh waits behind See all" do
+      today = ~D[2026-04-27]
+
+      releases =
+        for day <- 1..12 do
+          release("Sample Show #{day}", Date.add(today, day))
+        end
+
+      [lead | tiles] = coming_up(releases, today)
+
+      assert lead.name == "Sample Show 1"
+      assert length(tiles) == 9
+      refute Enum.any?(tiles, &(&1.name in ["Sample Show 11", "Sample Show 12"]))
+    end
+
+    test "a show's count covers every release it has in the window" do
+      today = ~D[2026-04-27]
+
+      weekly =
+        for week <- 0..12 do
+          release("Sample Show A", Date.add(today, week * 7), season: 2, episode: 1 + week)
+        end
+
+      [pick] = Logic.coming_up_picks(weekly)
+
+      assert pick.count == 13
+      assert pick.release.air_date == today
+    end
+
+    test "every item is a Marquee.Item" do
+      today = ~D[2026-04-27]
+      releases = [release("Sample Show A", today), release("Sample Show B", Date.add(today, 1))]
+
+      assert Enum.all?(coming_up(releases, today), &match?(%Marquee.Item{}, &1))
+    end
+
+    test "deduplicates by series, the lead has the rollup, tiles are distinct shows" do
       today = ~D[2026-04-27]
 
       show_a_releases =
@@ -188,20 +228,20 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         release("Sample Show D", Date.add(today, 8), season: 1, episode: 3)
       ]
 
-      marquee = Logic.coming_up_marquee(show_a_releases ++ other_releases, today)
+      [lead | tiles] = coming_up(show_a_releases ++ other_releases, today)
 
-      assert marquee.hero.name == "Sample Show A"
-      assert marquee.hero.rollup =~ "6 more"
+      assert lead.name == "Sample Show A"
+      assert lead.line =~ "6 more"
 
-      assert length(marquee.secondaries) == 3
-      secondary_names = Enum.map(marquee.secondaries, & &1.name)
-      assert "Sample Show B" in secondary_names
-      assert "Sample Show C" in secondary_names
-      assert "Sample Show D" in secondary_names
-      refute "Sample Show A" in secondary_names
+      assert length(tiles) == 3
+      tile_names = Enum.map(tiles, & &1.name)
+      assert "Sample Show B" in tile_names
+      assert "Sample Show C" in tile_names
+      assert "Sample Show D" in tile_names
+      refute "Sample Show A" in tile_names
     end
 
-    test "secondaries ordered by air_date ascending" do
+    test "tiles ordered by air_date ascending" do
       today = ~D[2026-04-27]
 
       releases = [
@@ -211,55 +251,55 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         release("Hero Show", today)
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | tiles] = coming_up(releases, today)
 
-      assert marquee.hero.name == "Hero Show"
-      assert Enum.map(marquee.secondaries, & &1.name) == ["Early Show", "Mid Show", "Late Show"]
+      assert lead.name == "Hero Show"
+      assert Enum.map(tiles, & &1.name) == ["Early Show", "Mid Show", "Late Show"]
     end
 
-    test "today's release → hero eyebrow says 'Tonight' and contains S0xE0y" do
+    test "today's release → lead eyebrow says 'Tonight' and contains S0xE0y" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", today, season: 5, episode: 4)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow =~ "Tonight"
-      assert marquee.hero.eyebrow =~ "S05E04"
+      assert lead.eyebrow =~ "Tonight"
+      assert lead.eyebrow =~ "S05E04"
     end
 
-    test "tomorrow's release → hero eyebrow says 'Tomorrow'" do
+    test "tomorrow's release → lead eyebrow says 'Tomorrow'" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", Date.add(today, 1), season: 5, episode: 4)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow =~ "Tomorrow"
-      assert marquee.hero.eyebrow =~ "S05E04"
+      assert lead.eyebrow =~ "Tomorrow"
+      assert lead.eyebrow =~ "S05E04"
     end
 
     test "release within 6 days → eyebrow uses weekday name, no 'Tonight'/'Tomorrow'" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", Date.add(today, 4), season: 5, episode: 4)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      refute marquee.hero.eyebrow =~ "Tonight"
-      refute marquee.hero.eyebrow =~ "Tomorrow"
+      refute lead.eyebrow =~ "Tonight"
+      refute lead.eyebrow =~ "Tomorrow"
       # Friday May 1 2026 — confirms a weekday name is used
-      assert marquee.hero.eyebrow =~ "Fri"
-      assert marquee.hero.eyebrow =~ "S05E04"
+      assert lead.eyebrow =~ "Fri"
+      assert lead.eyebrow =~ "S05E04"
     end
 
     test "release more than 6 days out → eyebrow uses absolute date" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", Date.add(today, 14), season: 5, episode: 4)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow =~ "May 11"
+      assert lead.eyebrow =~ "May 11"
     end
 
-    test "mixed status — hero acquired badge, scheduled secondaries have nil badge" do
+    test "mixed status — lead acquired badge, scheduled tiles have nil badge" do
       today = ~D[2026-04-27]
 
       releases = [
@@ -268,13 +308,13 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         release("Sample Show C", Date.add(today, 2), status: :scheduled)
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | tiles] = coming_up(releases, today)
 
-      assert marquee.hero.badge.variant == :success
-      assert marquee.hero.badge.label == "Acquired"
+      assert lead.badge.variant == :success
+      assert lead.badge.label == "Acquired"
       # "Scheduled" is the default state of every Coming Up item; carrying
       # a "SCHEDULED" badge on every tile is noise. nil here is signal.
-      assert Enum.all?(marquee.secondaries, &(&1.badge == nil))
+      assert Enum.all?(tiles, &(&1.badge == nil))
     end
 
     test "actionable statuses (downloading, seeking) still surface a badge" do
@@ -285,61 +325,61 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         release("Sample Show C", Date.add(today, 1), status: :seeking)
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | tiles] = coming_up(releases, today)
 
-      assert marquee.hero.badge.label == "Downloading"
-      assert marquee.hero.badge.variant == :info
-      [secondary] = marquee.secondaries
-      assert secondary.badge.label == "Seeking"
-      assert secondary.badge.variant == :info
+      assert lead.badge.label == "Downloading"
+      assert lead.badge.variant == :info
+      [tile] = tiles
+      assert tile.badge.label == "Seeking"
+      assert tile.badge.variant == :info
     end
 
     test "a release whose chosen release is being grabbed reads Grabbing" do
       today = ~D[2026-04-27]
 
-      marquee = Logic.coming_up_marquee([release("Sample Show B", today, status: :grabbing)], today)
+      [lead | _tiles] = coming_up([release("Sample Show B", today, status: :grabbing)], today)
 
-      assert marquee.hero.badge.label == "Grabbing"
-      assert marquee.hero.badge.variant == :info
+      assert lead.badge.label == "Grabbing"
+      assert lead.badge.variant == :info
     end
 
     test "release with no logo_url → item logo_url is nil (component falls back to typography)" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", today, logo_url: nil)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.logo_url == nil
+      assert lead.logo_url == nil
       # Backdrop still present so the card has visual content.
-      assert marquee.hero.backdrop_url != nil
+      assert lead.backdrop_url != nil
     end
 
-    test "season premiere (episode 1) → rollup mentions 'season premiere'" do
+    test "season premiere (episode 1) → line mentions 'season premiere'" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show C", today, season: 4, episode: 1)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.rollup =~ "season premiere"
+      assert lead.line =~ "season premiere"
     end
 
-    test "single release with no upcoming siblings → no rollup count" do
+    test "single release with no upcoming siblings → no rollup line" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show B", today, season: 2, episode: 8)]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      # nil rollup is the canonical "no rollup" value; the component
-      # uses :if={@item.rollup} to avoid rendering an empty line.
-      assert marquee.hero.rollup == nil
+      # nil is the canonical "no line" value; the component
+      # uses :if={@item.line} to avoid rendering an empty line.
+      assert lead.line == nil
     end
 
-    test "secondary tile with multiple upcoming → sub mentions count" do
+    test "a tile with multiple upcoming → its line mentions the count" do
       today = ~D[2026-04-27]
 
       show_a = release("Sample Show A", today)
 
-      pitt_releases =
+      show_d_releases =
         for week <- 0..2 do
           release("Sample Show D", Date.add(today, 1 + week * 7),
             season: 1,
@@ -347,25 +387,25 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
           )
         end
 
-      marquee = Logic.coming_up_marquee([show_a | pitt_releases], today)
+      [_lead | tiles] = coming_up([show_a | show_d_releases], today)
 
-      [secondary] = marquee.secondaries
-      assert secondary.name == "Sample Show D"
-      # 3 Pitt releases total; the secondary represents the soonest, so 2 more.
-      assert secondary.sub =~ "2 more"
+      [tile] = tiles
+      assert tile.name == "Sample Show D"
+      # 3 Sample Show D releases total; the tile represents the soonest, so 2 more.
+      assert tile.line =~ "2 more"
     end
 
     test "entity_id passes through for click target" do
       today = ~D[2026-04-27]
       releases = [release("Sample Show A", today, entity_id: "library-uuid-sample-a")]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.entity_id == "library-uuid-sample-a"
+      assert lead.entity_id == "library-uuid-sample-a"
     end
   end
 
-  describe "coming_up_marquee/2 — movie and theatrical labeling" do
+  describe "coming_up_items/2 — movie and theatrical labeling" do
     # A bare "Tonight" on a movie tile is ambiguous: it reads as "expect
     # the download tonight" even when the date is a theatrical premiere
     # that will never be grabbed. The eyebrow carries the venue instead
@@ -375,18 +415,18 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       today = ~D[2026-04-27]
       releases = [movie_release("Sample Movie A", today, release_type: "digital")]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow == "Today"
+      assert lead.eyebrow == "Today"
     end
 
     test "theatrical date today → eyebrow 'In theaters · Today'" do
       today = ~D[2026-04-27]
       releases = [movie_release("Sample Movie A", today, release_type: "theatrical")]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow == "In theaters · Today"
+      assert lead.eyebrow == "In theaters · Today"
     end
 
     test "theatrical date tomorrow → eyebrow 'In theaters · Tomorrow'" do
@@ -396,9 +436,9 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         movie_release("Sample Movie A", Date.add(today, 1), release_type: "theatrical")
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow == "In theaters · Tomorrow"
+      assert lead.eyebrow == "In theaters · Tomorrow"
     end
 
     test "theatrical date within the week → 'In theaters · <weekday>'" do
@@ -408,10 +448,10 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         movie_release("Sample Movie A", Date.add(today, 4), release_type: "theatrical")
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
       # Friday May 1 2026
-      assert marquee.hero.eyebrow == "In theaters · Fri"
+      assert lead.eyebrow == "In theaters · Fri"
     end
 
     test "theatrical date beyond a week → 'In theaters · <Mon DD>'" do
@@ -421,12 +461,12 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         movie_release("Sample Movie A", Date.add(today, 14), release_type: "theatrical")
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.eyebrow == "In theaters · May 11"
+      assert lead.eyebrow == "In theaters · May 11"
     end
 
-    test "theatrical labeling applies on secondary tiles too" do
+    test "theatrical labeling applies on tiles too" do
       today = ~D[2026-04-27]
 
       releases = [
@@ -434,10 +474,10 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         movie_release("Sample Movie A", Date.add(today, 2), release_type: "theatrical")
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [_lead | tiles] = coming_up(releases, today)
 
-      [secondary] = marquee.secondaries
-      assert secondary.eyebrow == "In theaters · Wed"
+      [tile] = tiles
+      assert tile.eyebrow == "In theaters · Wed"
     end
 
     test "a movie's later second date never yields a 'more this season' rollup" do
@@ -454,12 +494,12 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         )
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [lead | _tiles] = coming_up(releases, today)
 
-      assert marquee.hero.rollup == nil
+      assert lead.line == nil
     end
 
-    test "a movie secondary with a later second date keeps sub nil" do
+    test "a movie tile with a later second date keeps its line nil" do
       today = ~D[2026-04-27]
 
       releases = [
@@ -474,10 +514,10 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
         )
       ]
 
-      marquee = Logic.coming_up_marquee(releases, today)
+      [_lead | tiles] = coming_up(releases, today)
 
-      [secondary] = marquee.secondaries
-      assert secondary.sub == nil
+      [tile] = tiles
+      assert tile.line == nil
     end
   end
 

@@ -23,11 +23,11 @@ defmodule MediaCentaurWeb.HomeLive do
   alias MediaCentaur.ReleaseTracking.Views, as: ReleaseTrackingViews
 
   alias MediaCentaurWeb.Components.{
-    ComingUpMarquee,
     ContinueWatchingRow,
     DetailPanel,
     HeroBackdrop,
     HeroCard,
+    Marquee,
     PosterRow,
     ShelfHead
   }
@@ -79,10 +79,7 @@ defmodule MediaCentaurWeb.HomeLive do
     socket
     |> assign(:hero, nil)
     |> assign(:continue_items, [])
-    |> assign(:coming_up_marquee, %MediaCentaurWeb.Components.ComingUpMarquee.Marquee{
-      hero: nil,
-      secondaries: []
-    })
+    |> assign(:coming_up, [])
     |> assign(:recently_added, [])
   end
 
@@ -227,26 +224,20 @@ defmodule MediaCentaurWeb.HomeLive do
           </section>
 
           <section
-            :if={@coming_up_marquee.hero != nil}
+            :if={@coming_up != []}
             data-row="coming-up"
             data-nav-zone="coming_up"
             data-nav-reveal
             data-nav-reveal-block="end"
           >
-            <ShelfHead.shelf_head
-              title="Coming Up"
-              see_all_href={if :discovery in @features, do: "/discovery"}
-            />
-            <ComingUpMarquee.coming_up_marquee
-              marquee={@coming_up_marquee}
-              see_all?={:discovery in @features}
-            />
+            <ShelfHead.shelf_head title="Coming Up" see_all_href="/watchlist" />
+            <Marquee.marquee id="coming-up-marquee" items={@coming_up} see_all_href="/watchlist" />
           </section>
 
           <%!-- Empty state if everything is empty --%>
           <.home_empty_state
             :if={
-              @hero == nil and @continue_items == [] and @coming_up_marquee.hero == nil and
+              @hero == nil and @continue_items == [] and @coming_up == [] and
                 @recently_added == []
             }
             media_dirs_configured?={@media_dirs_configured?}
@@ -451,7 +442,14 @@ defmodule MediaCentaurWeb.HomeLive do
   end
 
   defp assign_coming_up(socket, today) do
-    assign(socket, :coming_up_marquee, Logic.coming_up_marquee(load_coming_up(today), today))
+    items =
+      today
+      |> load_coming_up()
+      |> Logic.coming_up_picks()
+      |> with_grab_statuses()
+      |> Logic.coming_up_items(today)
+
+    assign(socket, :coming_up, items)
   end
 
   defp assign_recently_added(socket) do
@@ -468,32 +466,28 @@ defmodule MediaCentaurWeb.HomeLive do
 
   defp load_progress(socket), do: Views.continue_watching(socket.assigns.profile.id, limit: 24)
 
-  defp load_coming_up(today) do
-    # Show all upcoming releases in the next 90 days. The row scrolls
-    # horizontally now, so a wider window is what users expect — all
-    # tracked coming-soon items, sorted by air date, scrollable.
-    to_date = Date.add(today, 90)
-    releases = ReleaseTrackingViews.coming_up(today, to_date, limit: 30)
+  # Every tracked release in the next 90 days; Logic picks the shows.
+  defp load_coming_up(today), do: ReleaseTrackingViews.coming_up(today, Date.add(today, 90))
 
+  # The grab status of each pick's release — looked up for the shown
+  # releases only, since the lookup is one SQL clause per key.
+  defp with_grab_statuses(picks) do
     grab_statuses =
       if Capabilities.prowlarr_ready?() do
-        keys = Enum.map(releases, &release_grab_key/1)
-        Acquisition.statuses_for_releases(keys)
+        picks |> Enum.map(&release_grab_key(&1.release)) |> Acquisition.statuses_for_releases()
       else
         %{}
       end
 
-    Enum.map(releases, fn release ->
-      key = release_grab_key(release)
-
+    Enum.map(picks, fn %{release: release} = pick ->
       status =
-        case Map.get(grab_statuses, key) do
+        case Map.get(grab_statuses, release_grab_key(release)) do
           nil -> :scheduled
           {_pursuit, nil} -> :seeking
           {_pursuit, target} -> target_status_atom(target.status)
         end
 
-      %{release | status: status}
+      %{pick | release: %{release | status: status}}
     end)
   end
 

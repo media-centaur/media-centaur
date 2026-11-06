@@ -130,7 +130,8 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `social.reader_view/1` | ✅ covered | A friend, a published name, the picture off, a hue override, a member, hidden |
 | `social.hidden_person_row/1` | ✅ covered | A hidden friend with a name; a hidden member with none (the person glyph, Unnamed) |
 | `title/flag.ex` | ⚠️ skip | Pure vocabulary (flags, glyph names, mast order), not a function component |
-| `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
+| `marquee/1` | ✅ covered | The lead tile and columns at every show count Coming Up produces (1–8, the cap of 10) and without a page to see |
+| `see_all_tile/1` | ✅ covered | Each shape: beside posters, beside backdrops, alone in a marquee column, a third of one |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
 | `console_components.log_view/1` | ✅ | `storybook/console/log_view.story.exs` (list form; the stream form is the console page's) |
 | `console_components.journal_list/1` | ⚠️ skip | Log stream is sticky LiveView state |

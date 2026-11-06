@@ -312,7 +312,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     end
   end
 
-  describe "Coming Up grab status enrichment" do
+  describe "Coming Up" do
     test "Coming Up section renders without a status badge for scheduled items", %{conn: conn} do
       # In the test environment Prowlarr is never configured, so load_coming_up/1
       # skips Acquisition.statuses_for_releases/1 and every release falls back to
@@ -366,6 +366,83 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
 
       assert has_element?(view, "[data-nav-zone='coming_up'][data-nav-reveal]")
+    end
+
+    test "a show after three weekly series still makes the shelf", %{conn: conn} do
+      # Three weekly series fill 39 releases in the 90-day window. Coming Up
+      # used to cut the window at 30 releases before grouping by show, so a
+      # fourth show airing later never reached Home.
+      today = Date.utc_today()
+
+      for name <- ["Sample Show A", "Sample Show B", "Sample Show C"] do
+        item =
+          create_tracking_item(%{
+            tmdb_id: :rand.uniform(999_999),
+            media_type: :tv_series,
+            name: name
+          })
+
+        for week <- 0..12 do
+          create_tracking_release(%{
+            item_id: item.id,
+            season_number: 1,
+            episode_number: week + 1,
+            air_date: Date.add(today, 1 + week * 7),
+            released: false
+          })
+        end
+      end
+
+      late =
+        create_tracking_item(%{
+          tmdb_id: :rand.uniform(999_999),
+          media_type: :tv_series,
+          name: "Sample Show D"
+        })
+
+      create_tracking_release(%{
+        item_id: late.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(today, 85),
+        released: false
+      })
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(view, "[data-row='coming-up'] [data-card='tile']", "Sample Show D")
+    end
+
+    test "the See all tile ends the shelf and goes to the Watchlist", %{conn: conn} do
+      # With two or more shows there was no See all tile, and the shelf
+      # head's link is pointer-only — keyboard and gamepad could not reach
+      # the whole list.
+      today = Date.utc_today()
+
+      for {name, day} <- [{"Sample Show A", 2}, {"Sample Show B", 4}, {"Sample Show C", 6}] do
+        item =
+          create_tracking_item(%{
+            tmdb_id: :rand.uniform(999_999),
+            media_type: :tv_series,
+            name: name
+          })
+
+        create_tracking_release(%{
+          item_id: item.id,
+          season_number: 1,
+          episode_number: 1,
+          air_date: Date.add(today, day),
+          released: false
+        })
+      end
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               "[data-row='coming-up'] a[href='/watchlist'][data-nav-item]",
+               "See all"
+             )
     end
   end
 
@@ -432,7 +509,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
 
       view
-      |> element(~s|[data-component="coming-up-marquee"] button[data-card="hero"]|)
+      |> element(~s|[data-row="coming-up"] button[data-card="lead"]|)
       |> render_click()
 
       assert_patch(view, "/?title=tv_series-246810")

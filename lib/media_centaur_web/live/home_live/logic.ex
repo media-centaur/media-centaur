@@ -7,10 +7,10 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   HomeLive composes data from Library, ReleaseTracking, and WatchHistory
   contexts; this module shapes that data into the item maps each row
   component expects (see `MediaCentaurWeb.Components.{ContinueWatchingRow,
-  ComingUpMarquee, PosterRow, HeroCard}`).
+  Marquee, PosterRow, HeroCard}`).
   """
 
-  alias MediaCentaurWeb.Components.{ComingUpMarquee, ContinueWatchingRow, HeroCard, PosterRow}
+  alias MediaCentaurWeb.Components.{ContinueWatchingRow, HeroCard, Marquee, PosterRow}
   alias MediaCentaurWeb.LibraryFormatters
 
   @doc """
@@ -69,66 +69,51 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     end
   end
 
+  @coming_up_cap 10
+
   @doc """
-  Shape ReleaseTracking releases into a `ComingUpMarquee.Marquee` view-model.
-
-  Behaviour:
-
-    * Deduplicates releases by series (a single show with seven upcoming
-      episodes appears once, not seven times).
-    * The soonest release becomes the hero. Up to three other distinct
-      shows fill the secondary tiles, ordered by air date.
-    * The hero carries a `rollup` line ("+ 6 more this season",
-      "season premiere", or both); secondary tiles carry a `sub`
-      ("S0xE0y" or "+ N more").
-    * Eyebrow text is "Tonight" / "Tomorrow" / abbreviated weekday /
-      absolute "Mon DD" relative to `today`. Hero eyebrows include the
-      season/episode label; secondary eyebrows just carry the day part
-      and put the episode label in `sub`. Movies say "Today" instead of
-      "Tonight", and a theatrical date gets an "In theaters · " prefix —
-      a bare day would falsely promise a download for a date that is
-      never grabbed.
-    * An empty input returns `%Marquee{hero: nil, secondaries: []}` so
-      the caller can render nothing without special-casing.
+  Choose Coming Up's shows from the releases in its window: one pick per
+  show, its earliest release and how many releases the show has in the
+  window, soonest first, at most #{@coming_up_cap} — the rest wait behind
+  the marquee's See all. Grouping happens over the whole window, so a show
+  with many episodes never crowds out the shows after it.
   """
-  @spec coming_up_marquee([map()], Date.t()) :: ComingUpMarquee.Marquee.t()
-  def coming_up_marquee(releases, today) do
-    by_series = Enum.group_by(releases, & &1.item.id)
+  @spec coming_up_picks([map()]) :: [%{release: map(), count: pos_integer()}]
+  def coming_up_picks(releases) do
+    releases
+    |> Enum.group_by(& &1.item.id)
+    |> Enum.map(fn {_item_id, show_releases} ->
+      %{release: Enum.min_by(show_releases, & &1.air_date, Date), count: length(show_releases)}
+    end)
+    |> Enum.sort_by(& &1.release.item.name)
+    |> Enum.sort_by(& &1.release.air_date, Date)
+    |> Enum.take(@coming_up_cap)
+  end
 
-    earliest_per_series =
-      by_series
-      |> Enum.map(fn {_series_id, releases} ->
-        Enum.min_by(releases, & &1.air_date, Date)
-      end)
-      |> Enum.sort_by(& &1.air_date, Date)
+  @doc """
+  Shape Coming Up's picks into marquee items, the lead tile first.
 
-    case earliest_per_series do
-      [] ->
-        %ComingUpMarquee.Marquee{hero: nil, secondaries: []}
+    * The lead's eyebrow carries the day and the episode ("Tonight ·
+      S05E04"); its line is the rollup ("+ 6 more this season", "season
+      premiere", or both).
+    * A tile's eyebrow is the day alone; its line is "+ N more" or the
+      episode label.
+    * Day words are relative to `today`: "Tonight" / "Tomorrow" / weekday /
+      "Mon DD". Movies say "Today" instead of "Tonight", and a theatrical
+      date reads "In theaters · " — a bare day would promise a download for
+      a date that is never grabbed. A movie's other dates never count as
+      "+ N more".
+  """
+  @spec coming_up_items([%{release: map(), count: pos_integer()}], Date.t()) :: [
+          Marquee.Item.t()
+        ]
+  def coming_up_items([], _today), do: []
 
-      [hero_release | rest] ->
-        hero =
-          build_marquee_item(
-            hero_release,
-            length(by_series[hero_release.item.id]),
-            today,
-            :hero
-          )
-
-        secondaries =
-          rest
-          |> Enum.take(3)
-          |> Enum.map(fn release ->
-            build_marquee_item(
-              release,
-              length(by_series[release.item.id]),
-              today,
-              :secondary
-            )
-          end)
-
-        %ComingUpMarquee.Marquee{hero: hero, secondaries: secondaries}
-    end
+  def coming_up_items([lead | tiles], today) do
+    [
+      build_marquee_item(lead, today, :lead)
+      | Enum.map(tiles, &build_marquee_item(&1, today, :tile))
+    ]
   end
 
   @doc "Shape Library entity rows into PosterRow items."
@@ -171,26 +156,26 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
 
   # --- Private helpers ---
 
-  defp build_marquee_item(release, series_count, today, role) do
+  defp build_marquee_item(%{release: release, count: count}, today, role) do
     kind = release_kind(release)
     # A movie's sibling releases are its other dates for the same film
     # (theatrical → digital → physical), not additional titles — never
     # advertise them as "+ N more".
-    more_count = if kind == :episode, do: series_count - 1, else: 0
+    more_count = if kind == :episode, do: count - 1, else: 0
     episode_label = season_episode_label(release)
     day_part = day_part_for(release.air_date, today, kind)
 
-    eyebrow =
+    {eyebrow, line} =
       case role do
-        :hero -> [day_part, episode_label] |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
-        :secondary -> day_part
+        :lead ->
+          {[day_part, episode_label] |> Enum.reject(&is_nil/1) |> Enum.join(" · "),
+           lead_line(release, more_count)}
+
+        :tile ->
+          {day_part, tile_line(more_count, episode_label)}
       end
 
-    rollup = if role == :hero, do: rollup_text(release, more_count)
-    sub = if role == :secondary, do: sub_text(more_count, episode_label)
-
-    %ComingUpMarquee.Item{
-      id: release.item.id,
+    %Marquee.Item{
       entity_id: Map.get(release.item, :entity_id),
       ref: {Map.get(release.item, :tmdb_id), Map.get(release.item, :media_type)},
       name: release.item.name,
@@ -198,8 +183,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
       badge: badge_for_status(release.status),
       backdrop_url: Map.get(release, :backdrop_url),
       logo_url: Map.get(release, :logo_url),
-      rollup: rollup,
-      sub: sub
+      line: line
     }
   end
 
@@ -230,7 +214,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     end
   end
 
-  defp rollup_text(release, more_count) do
+  defp lead_line(release, more_count) do
     premiere? = release.episode_number == 1
 
     cond do
@@ -241,7 +225,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     end
   end
 
-  defp sub_text(more_count, episode_label) do
+  defp tile_line(more_count, episode_label) do
     cond do
       more_count > 0 -> "+ #{more_count} more"
       episode_label -> episode_label
