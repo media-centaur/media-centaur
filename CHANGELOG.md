@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.10.0 — 2026-11-06
+
+### New
+
+- **Coming Up scrolls.** Home's Coming Up shows up to seven of the titles you track: the soonest in the large tile, the rest in columns of three beside it that scroll right, like the other rows. It now ends in a **See all** tile, which you can reach with the keyboard, a remote or a gamepad, and which opens the Watchlist page. **See all →** above the row opens the Watchlist too, whether or not Discovery is on.
+
+### Fixed
+
+- **Coming Up no longer drops titles behind busy series.** A few weekly series used to fill the row's list before later titles were counted, so a show airing later in the three months never appeared. Every tracked title in the window now counts, and a tile's "+ N more" counts every upcoming episode in that window.
+
 ## v2.9.0 — 2026-11-06
 
 ### New
