@@ -394,7 +394,7 @@ export class FocusContextMachine {
    * Shelf: a sequence of media tiles that happens to be laid out spatially —
    * the home page's hero CTAs, Continue Watching, Recently Added, and the
    * Coming Up marquee. Most shelves are a single row; the marquee is a mosaic
-   * (one large tile beside a stacked column). Both are the same thing, so
+   * (a lead tile, then columns of up to three stacked tiles). Both are the same thing, so
    * there is one context type and one navigation path.
    *
    * All four directions return `navigate` and are resolved by the

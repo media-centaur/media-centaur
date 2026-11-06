@@ -114,8 +114,8 @@ function isInDirection(fromRect, point, direction) {
  * A candidate whose cross-axis span lies wholly inside the origin's is
  * *perfectly* aligned and pays no penalty at all — there is nothing to be more
  * in line with. This is what a tall tile facing a stack of short ones looks
- * like (the Coming Up marquee's large tile beside its column of secondaries):
- * every secondary is equally in line, so they tie on distance and the caller's
+ * like (the Coming Up marquee's lead tile beside its first column of tiles):
+ * every tile is equally in line, so they tie on distance and the caller's
  * document order breaks the tie, which reads as "the next one". Scoring by
  * centre distance instead would silently pick the middle of the stack.
  */

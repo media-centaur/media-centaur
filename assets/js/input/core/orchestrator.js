@@ -1130,20 +1130,20 @@ export class Orchestrator {
    *
    * 1. **The layout.** `findNearest` against the live rects. This is the whole
    *    answer for anything the arrangement makes unambiguous, and it is why
-   *    the Coming Up mosaic needs no adjacency table of its own — a table
-   *    would be wrong the moment the marquee renders a fourth tile.
+   *    the Coming Up marquee needs no adjacency table of its own — its lead
+   *    tile and columns of up to three change shape with every show count.
    * 2. **The nav graph.** Nothing in this direction means we're at the shelf's
    *    edge, so try crossing into a neighbouring zone (the shelf above, the
    *    sidebar to the left).
    * 3. **The sequence, on the inline axis only.** A shelf is still an ordered
    *    set of tiles, and that order reads left to right — so when the layout
    *    offers nothing and there is nowhere to cross to, "right" means the next
-   *    tile, which is what carries you from the marquee's top secondary to the
-   *    one below it. UP and DOWN never reach here: their answer is geometry's
-   *    or the graph's, and "the next tile" on a vertical press would move the
-   *    cursor sideways. In a single row the fallback only fires at the ends,
-   *    where the sequence has nothing to offer either, so it is inert
-   *    everywhere except a mosaic.
+   *    tile, which is what carries you from a tile in the marquee's last
+   *    column to the one below it. UP and DOWN never reach here: their answer
+   *    is geometry's or the graph's, and "the next tile" on a vertical press
+   *    would move the cursor sideways. In a single row the fallback only fires
+   *    at the ends, where the sequence has nothing to offer either, so it is
+   *    inert everywhere except a mosaic.
    */
   _shelfNavigate(context, direction) {
     const currentIndex = this.reader.getFocusedIndex(context)

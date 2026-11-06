@@ -913,11 +913,11 @@ describe("Orchestrator", () => {
     })
   })
 
-  // The Coming Up marquee is a mosaic, not a row: one large tile on the left
-  // and a stacked column of secondaries on the right. Adjacency is answered by
+  // The Coming Up marquee with one column (two or three shows): the lead tile
+  // on the left and a stacked column on the right. Adjacency is answered by
   // geometry; where the layout has no spatial answer the shelf falls back to
-  // its sequence (right/down = next tile), which is what makes RIGHT from the
-  // top secondary reach the one below it.
+  // its sequence (right = next tile), which is what makes RIGHT from the top
+  // tile of the last column reach the one below it.
   const MOSAIC_RECTS = [
     { x: 0, y: 0, width: 1040, height: 360 },     // 0 — large tile, full height
     { x: 1056, y: 0, width: 610, height: 175 },   // 1 — top secondary
@@ -1034,6 +1034,65 @@ describe("Orchestrator", () => {
 
       system._handleAction(Action.BACK)
       expect(system.focusMachine.context).toBe("sidebar")
+    })
+  })
+
+  // The marquee at a 1798px row: the lead tile, a full column of three, and a
+  // second column holding one tile and See all. Columns sit side by side, so
+  // RIGHT moves between them and UP/DOWN within one.
+  const MARQUEE_RECTS = [
+    { x: 0, y: 0, width: 1018, height: 360 },     // 0 — lead tile
+    { x: 1034, y: 0, width: 599, height: 113 },   // 1 — column 1, top
+    { x: 1034, y: 123, width: 599, height: 113 }, // 2 — column 1, middle
+    { x: 1034, y: 246, width: 599, height: 114 }, // 3 — column 1, bottom
+    { x: 1649, y: 0, width: 599, height: 175 },   // 4 — column 2, top
+    { x: 1649, y: 185, width: 599, height: 175 }, // 5 — column 2, See all
+  ]
+
+  describe("Marquee navigation across columns", () => {
+    function marquee(focusedIndex) {
+      const { system, calls } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => focusedIndex,
+        getItemCount: (ctx) =>
+          ctx === "coming_up" ? MARQUEE_RECTS.length : ctx === "sidebar" ? 4 : 5,
+        getItemRects: (ctx) => (ctx === "coming_up" ? MARQUEE_RECTS : rowRects(5)),
+      })
+      system.start({})
+      system.focusMachine.forceContext("coming_up")
+      calls.length = 0
+      return { system, calls }
+    }
+
+    function focusedIndexAfter(calls) {
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "coming_up"
+      )
+      return focusCalls.length > 0 ? focusCalls[focusCalls.length - 1].args[1] : null
+    }
+
+    test("right from a column's top tile goes to the next column's top tile", () => {
+      const { system, calls } = marquee(1)
+      system._handleAction(Action.NAVIGATE_RIGHT)
+      expect(focusedIndexAfter(calls)).toBe(4)
+    })
+
+    test("right from a column's bottom tile goes to the See all beside it", () => {
+      const { system, calls } = marquee(3)
+      system._handleAction(Action.NAVIGATE_RIGHT)
+      expect(focusedIndexAfter(calls)).toBe(5)
+    })
+
+    test("down within a column stays in the column", () => {
+      const { system, calls } = marquee(4)
+      system._handleAction(Action.NAVIGATE_DOWN)
+      expect(focusedIndexAfter(calls)).toBe(5)
+    })
+
+    test("left from the second column returns to the first", () => {
+      const { system, calls } = marquee(4)
+      system._handleAction(Action.NAVIGATE_LEFT)
+      expect(focusedIndexAfter(calls)).toBe(1)
     })
   })
 
