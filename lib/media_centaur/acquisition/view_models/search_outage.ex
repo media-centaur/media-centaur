@@ -11,8 +11,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchOutage do
   a probe says otherwise, where the cached roster observation only ever
   said what someone last happened to see.
 
-  Reads as "Couldn't check availability — Prowlarr is unreachable —
-  Season 2".
+  Reads as "Couldn't check availability — Prowlarr is unreachable."
+  (the board's not-found line names what is missing).
 
   Pure (ADR-030) in `reason/1`; `reason/0` is the thin read of the
   published value.

@@ -1306,7 +1306,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert html =~ "No indexer had anything for these episodes."
 
       assert html =~
-               "5 searches — checked just now. Still missing: S01E01 · Episode 1, S01E02 · Episode 2."
+               "5 searches — checked just now."
 
       # TV recourse is deferred — no escape hatch on aggregate gaps. The
       # button exists on movie boards; a shared banner must not carry it

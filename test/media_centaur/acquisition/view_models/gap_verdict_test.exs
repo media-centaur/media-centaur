@@ -253,17 +253,18 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       assert verdict.world == :rejected
       assert verdict.headline == "9 results came back, but none worked for these episodes."
 
-      assert verdict.evidence_line ==
-               "3 searches — checked 12 minutes ago. Still missing: S01E03, S01E05."
+      # The not-found line names the episodes with its cells; the evidence
+      # line carries the receipts alone.
+      assert verdict.evidence_line == "3 searches — checked 12 minutes ago."
 
       refute verdict.show_rejected?
     end
 
-    test "live nothing names the episodes" do
+    test "live nothing on a series speaks of the episodes and leaves naming them to the not-found line" do
       verdict = build(evidence(%{}), gaps: ["S01E03"], movie?: false)
 
       assert verdict.headline == "No indexer had anything for these episodes."
-      assert verdict.evidence_line == "2 searches — checked 1 minute ago. Still missing: S01E03."
+      assert verdict.evidence_line == "2 searches — checked 1 minute ago."
     end
   end
 
@@ -274,7 +275,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       verdict = build(evidence, blind_reason: "Prowlarr is unreachable")
 
       assert verdict.world == :blind
-      assert verdict.headline == "Couldn't check availability — Prowlarr is unreachable — Sample Movie"
+      assert verdict.headline == "Couldn't check availability — Prowlarr is unreachable."
       assert verdict.evidence_line == nil
       refute verdict.show_rejected?
     end
@@ -283,7 +284,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       verdict = build(evidence(%{}), blind_reason: "no indexers are answering")
 
       assert verdict.world == :blind
-      assert verdict.headline == "Couldn't check availability — no indexers are answering — Sample Movie"
+      assert verdict.headline == "Couldn't check availability — no indexers are answering."
     end
 
     test "no outage sentence means the counts speak for themselves" do

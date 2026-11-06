@@ -239,11 +239,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     "#{count(releases, "lower-quality release")} — checked #{checked}."
   end
 
-  defp blind(reason, gaps) do
-    %__MODULE__{
-      world: :blind,
-      headline: "Couldn't check availability — #{reason} — #{Enum.join(gaps, ", ")}"
-    }
+  # The not-found line names what is missing (UIDR-029 as amended
+  # 2026-11-06); the headline carries the reason alone.
+  defp blind(reason, _gaps) do
+    %__MODULE__{world: :blind, headline: "Couldn't check availability — #{reason}."}
   end
 
   defp diagnose(nil, gaps, movie?, now),
@@ -328,11 +327,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     Enum.join(rest, ", ") <> " and " <> last
   end
 
-  # The movie's identity is the modal's lockup — naming it again is
-  # noise. TV gaps are specific episodes the grid alone doesn't call
-  # out, so the line names them.
-  defp still_missing(line, _gaps, true), do: line
-  defp still_missing(line, gaps, false), do: "#{line} Still missing: #{Enum.join(gaps, ", ")}."
+  # The evidence line carries the receipts alone: a movie's identity is
+  # the modal's lockup, and a series' missing episodes are the not-found
+  # line's cells (UIDR-029 as amended 2026-11-06) — a 54-episode list
+  # here once filled the pinned block on the TV.
+  defp still_missing(line, _gaps, _movie?), do: line
 
   defp subject(true), do: "this title"
   defp subject(false), do: "these episodes"
