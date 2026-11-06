@@ -14,4 +14,5 @@ defmodule MediaCentaurWeb.Storybook.Composites do
   def entry("scroll_row"), do: [icon: {:fa, "arrows-left-right", :thin}, name: "Scroll row"]
   def entry("shelf_head"), do: [icon: {:fa, "heading", :thin}, name: "Shelf head"]
   def entry("see_all_tile"), do: [icon: {:fa, "circle-arrow-right", :thin}, name: "See all tile"]
+  def entry("marquee"), do: [icon: {:fa, "table-cells-large", :thin}, name: "Marquee"]
 end

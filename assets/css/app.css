@@ -2799,6 +2799,53 @@ button.poster-tile-tool-on:hover {
   --gap: 0.75rem;
 }
 
+/* The marquee (`Components.Marquee`): the lead tile, then columns of up to
+   three tiles. Its widths are a function of the row's width, not card
+   tokens — the lead tile and the first column fill the row the way the
+   two-column grid this replaced did (ratio 1.7 : 1), shrunk so a quarter of
+   the next column shows as the sign the shelf scrolls:
+     column = (row − 2 × gap) ÷ (ratio + 1 + peek), lead = ratio × column.
+   `100cqi` is the row: `.marquee` is the size container, and the track's
+   ring-reserve padding and negative margin cancel, so its content box is
+   the container's width. `--card-w` is the column, which sizes the scroll
+   reserve (`scroll-padding-inline` above) — the cursor parks a column
+   short of the edge, as it parks a card short on the other rows.
+   The last column grows into free width: a marquee that fits ends flush,
+   and an overflowing track has no free width to give. */
+.marquee {
+  container-type: inline-size;
+}
+
+.row-scroll-marquee {
+  --gap: 1rem;
+  --marquee-ratio: 1.7;
+  --marquee-peek: 0.25;
+  --marquee-h: 360px;
+  --card-w: calc((100cqi - 2 * var(--gap)) / (var(--marquee-ratio) + 1 + var(--marquee-peek)));
+}
+
+.row-scroll-marquee > .marquee-lead {
+  flex: 0 0 calc(var(--card-w) * var(--marquee-ratio));
+  height: var(--marquee-h);
+}
+
+.row-scroll-marquee > .marquee-column {
+  flex: 0 0 var(--card-w);
+  height: var(--marquee-h);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.row-scroll-marquee > .marquee-column:last-child {
+  flex-grow: 1;
+}
+
+.marquee-column > * {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 /* Hero row variant — single item per "page", no inter-card gap */
 .row-scroll-hero {
   --card-w: 100%;

@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.ScrollRow do
   `data-at-end` the right, both drop both. In the app the `ScrollRow` hook
   writes those from the track's geometry; the storybook loads no hooks, so
   each variation sets them as a fixture — the state matrix, not the motion.
+  The `:marquee` variant's matrix is the marquee's own story.
   """
 
   use PhoenixStorybook.Story, :component

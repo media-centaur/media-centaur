@@ -39,9 +39,9 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
 
   attr :variant, :atom,
     required: true,
-    values: [:backdrop_lg, :poster, :backdrop_sm],
+    values: [:backdrop_lg, :poster, :backdrop_sm, :marquee],
     doc:
-      "the track's card size: `:backdrop_lg` (Continue Watching), `:poster` (Recently Added), `:backdrop_sm` (the collection rail)"
+      "the track's card size: `:backdrop_lg` (Continue Watching), `:poster` (Recently Added), `:backdrop_sm` (the collection rail), `:marquee` (the marquee — sized from the row's width)"
 
   attr :rest, :global, doc: "lands on the track — not `class`, the variant owns it"
 
@@ -81,4 +81,5 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
   defp track_class(:backdrop_lg), do: "row-scroll-backdrop-lg"
   defp track_class(:poster), do: "row-scroll-poster"
   defp track_class(:backdrop_sm), do: "row-scroll-backdrop-sm"
+  defp track_class(:marquee), do: "row-scroll-marquee"
 end
