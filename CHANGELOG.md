@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.8.0 — 2026-11-06
+
+### New
+
+- **Download just the latest season.** A series' download menu now reads **First missing season**, **All seasons**, **Latest season** and **Choose episodes**. **Latest season** downloads the aired episodes of the newest season that you don't have yet. It appears for series with more than one season. The plain Download button still gets the first missing season.
+- **Grab new episodes as they air.** A switch beside Download puts the series on Auto-grab while it downloads what has aired so far, so you no longer have to go back for the rest of the season. It is on by default for **Latest season**, and appears for a series that is not on your watchlist and still has episodes to come.
+- **Series you've watched, on the Watchlist page.** A closed **Series you've watched** group lists the series in your library that you have watched but never added to your watchlist, leaving out ended and cancelled ones. Each row's menu reads **Not listed**; pick Tracking or Auto-grab there to follow the series.
+- **Between seasons.** Followed series that have nothing new out and no date for their next episode move into a closed **Between seasons** group, out of the way of the series that are airing.
+- **Discovery shows new seasons of the series you follow,** including the ones already in your library. A season that is out appears on **Out Now** labelled with its season ("Season 18"), and a dated one appears on **Coming Up** with its date ("Season 6 · Nov 9").
+
+### Fixed
+
+- **Following a series you already have starts from what you've watched.** Episodes after the last one you finished are wanted, and episodes already in your library are recognised as had, so Auto-grab no longer misses the episodes in between or fetches files you already have. If you haven't watched the series, it starts from the newest aired episode, as before. Series you followed before this update link to your library automatically.
+- **An owned series you follow shows Tracking or Auto-grab** in search results and on Discovery, ahead of **In library**.
+
 ## v2.7.0 — 2026-11-05
 
 ### Fixed
