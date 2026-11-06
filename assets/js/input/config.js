@@ -34,11 +34,11 @@ export const inputConfig = {
     detail_cast_filter: "[data-nav-zone='detail_cast_filter'] [data-nav-item]",
     detail_tracking: "[data-nav-zone='detail_tracking'] [data-nav-item]",
     detail_tracking_menu: "[data-nav-zone='detail_tracking_menu'] [data-nav-item]",
-    // The plan modal's regions (UIDR-029): head (status, verdict, their
-    // controls) over the episode grid over the body (release rows,
-    // decisions), with the actions in the frame's foot. Each stage before
-    // the board puts its controls in `plan_body` and its Cancel + Download
-    // in `plan_foot`.
+    // The plan modal's regions (UIDR-029 as amended 2026-11-06): the head
+    // (the verdict's controls) over the lines (the manifest: each line an
+    // item, its controls and cells sub-items) with the actions in the
+    // frame's foot. Each stage before the board puts its controls in
+    // `plan_body` and its Cancel + Download in `plan_foot`.
     // The pursuit window's regions: the coverage board, the release picker,
     // the Activity card's controls, History.
     pursuit_board: "[data-nav-zone='pursuit_board'] [data-nav-item]",
@@ -46,7 +46,7 @@ export const inputConfig = {
     pursuit_actions: "[data-nav-zone='pursuit_actions'] [data-nav-item]",
     pursuit_history: "[data-nav-zone='pursuit_history'] [data-nav-item]",
     plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
-    plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
+    plan_lines: "[data-nav-zone='plan_lines'] [data-nav-item]",
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     plan_foot: "[data-nav-zone='plan_foot'] [data-nav-item]",
     // The picker's Download split menu — a GlassMenu list nested in `plan_foot`, present only while open.
@@ -216,17 +216,15 @@ export const inputConfig = {
     // two switch rows and the acceptance Reset stack vertically — UP/DOWN.
     detail_tracking: Context.TREE,
     detail_tracking_menu: Context.TREE,
-    // The plan modal: two vertical lists around the episode grid, over the
+    // The plan modal: the head and the lines are vertical lists (a line's
+    // controls and cells are its sub-items — RIGHT walks them), over the
     // foot — the frame's pinned action row, a TOOLBAR walked LEFT/RIGHT.
-    // The grid's arrangement carries its meaning (season rows, capsules for
-    // packs), so it is a SHELF — geometry answers adjacency across wrapped
-    // rows and capsule groups without an adjacency table.
     pursuit_board: Context.TREE,
     pursuit_decision: Context.TREE,
     pursuit_actions: Context.TOOLBAR,
     pursuit_history: Context.TREE,
     plan_head: Context.TREE,
-    plan_grid: Context.SHELF,
+    plan_lines: Context.TREE,
     plan_body: Context.TREE,
     plan_foot: Context.TOOLBAR,
     // The picker's open Download menu: the other planning mode, a short list nested in the foot.
@@ -331,18 +329,18 @@ export const inputConfig = {
         detail_tracking_menu: { up: ["detail_tracking"], back: ["detail_tracking"] },
       },
     },
-    // The plan modal (UIDR-029; campaign plan-modal M2). Regions stack
-    // vertically — head, grid, body, then the foot pinned at the panel's
-    // bottom; a movie board has no grid and the candidate lists fall through
-    // head ↔ body ↔ foot. The regions declare no `back` edges: BACK dismisses
-    // from anywhere, as it did when the modal was one flat list — they exist
-    // so the grid can be walked spatially, not to add depth. The one
-    // exception is `plan_menu`, the picker's open Download menu, a glass list
-    // nested in the foot and present only while open: DOWN from the foot
-    // enters it, BACK returns to the foot and, through the list's
-    // `data-nav-dismiss-event`, closes it. The modal opens on a loading stage
-    // with no controls; the orchestrator enters the first region that
-    // populates.
+    // The plan modal (UIDR-029 as amended 2026-11-06; campaign plan-modal).
+    // Regions stack vertically — the head (the verdict's controls), then the
+    // board's lines or an earlier stage's body, then the foot pinned at the
+    // panel's bottom; the candidate lists fall through whichever is empty.
+    // The regions declare no `back` edges: BACK dismisses from anywhere, as
+    // it did when the modal was one flat list — they exist so the foot can
+    // be reached, not to add depth. The one exception is `plan_menu`, the
+    // picker's open Download menu, a glass list nested in the foot and
+    // present only while open: DOWN from the foot enters it, BACK returns to
+    // the foot and, through the list's `data-nav-dismiss-event`, closes it.
+    // The modal opens on a loading stage with no controls; the orchestrator
+    // enters the first region that populates.
     // The pursuit window (campaign pursuit-window, M6): the coverage board
     // (season heads and episode rows, each row's swap a sub-item) over the
     // release picker or the Activity card's controls, over History (the
@@ -359,12 +357,12 @@ export const inputConfig = {
       },
     },
     plan: {
-      entry: ["plan_head", "plan_body", "plan_grid", "plan_foot"],
+      entry: ["plan_lines", "plan_body", "plan_head", "plan_foot"],
       layout: {
-        plan_head: { down: ["plan_grid", "plan_body", "plan_foot"] },
-        plan_grid: { up: ["plan_head"], down: ["plan_body", "plan_foot"] },
-        plan_body: { up: ["plan_grid", "plan_head"], down: ["plan_foot"] },
-        plan_foot: { up: ["plan_body", "plan_grid", "plan_head"], down: ["plan_menu"] },
+        plan_head: { down: ["plan_lines", "plan_body", "plan_foot"] },
+        plan_lines: { up: ["plan_head"], down: ["plan_foot"] },
+        plan_body: { up: ["plan_head"], down: ["plan_foot"] },
+        plan_foot: { up: ["plan_lines", "plan_body", "plan_head"], down: ["plan_menu"] },
         plan_menu: { up: ["plan_foot"], back: ["plan_foot"] },
       },
     },

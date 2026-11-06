@@ -282,14 +282,16 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       board = Plans.Board.build(plan)
 
       assert %PlanBoard.BelowPreference{units: 1, releases: 3, unit_label: "Sample Movie"} =
-               board.below_preference
+               PlanBoard.below_preference(board)
 
-      assert board.below_preference.unit_id == unit.id
+      assert PlanBoard.below_preference(board).unit_id == unit.id
 
       # The grouped row owns the unit — it is not also a bare "not
       # available" gap, and its cell reads as available-below-preference.
-      assert board.gaps == []
-      assert [%{cells: [%{state: :below_preference}]}] = board.seasons
+      assert PlanBoard.gap_labels(board) == []
+
+      assert [%PlanBoard.Line{kind: :below_preference, rows: [row]}] = board.lines
+      assert [%{state: :below_preference}] = row.cells
     end
 
     test "the candidates are choosable through the swap picker, with display-quality labels" do
@@ -317,7 +319,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert grabbed.assigned_quality == "720p"
 
       {:ok, reloaded} = Plans.fetch(created.id)
-      assert Plans.Board.build(reloaded).below_preference == nil
+      assert PlanBoard.below_preference(Plans.Board.build(reloaded)) == nil
     end
   end
 
@@ -446,7 +448,9 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       board = Plans.Board.build(plan)
 
       # One offer for the pack, not one per unfound unit.
-      assert [offer] = board.offers
+      assert [%PlanBoard.Line{kind: :offer, offer: offer}] =
+               Enum.filter(board.lines, &(&1.kind == :offer))
+
       assert offer.guid == "pack-s1"
       assert offer.scope_label == "Season 1 pack"
       assert offer.unit_label == "2 episodes"
@@ -456,7 +460,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:ok, _plan} = Plans.Alternatives.choose_release(offer.unit_id, offer.guid)
       regrabbed = Plans.units_for(plan.id)
       assert Enum.all?(regrabbed, &(&1.assigned_guid == "pack-s1"))
-      assert Plans.Board.build(plan).offers == []
+      refute Enum.any?(Plans.Board.build(plan).lines, &(&1.kind == :offer))
     end
 
     test "the swap picker: find-more live-fills the unit's terms consult-first, suspicious flagged not hidden, choice reassigns" do
@@ -563,7 +567,10 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # physically contains E01. The board flags it, CTA aimed at the pack.
       {:ok, plan} = Plans.fetch(plan.id)
       board = Plans.Board.build(plan)
-      assert [overlap] = board.overlaps
+
+      assert [overlap] =
+               board |> PlanBoard.releases() |> Enum.map(& &1.overlap) |> Enum.reject(&is_nil/1)
+
       assert overlap.exclude_guid == "pack-s1"
       assert overlap.description =~ "download twice"
 
@@ -581,7 +588,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, plan} = Plans.fetch(plan.id)
-      assert Plans.Board.build(plan).overlaps == []
+      assert plan |> Plans.Board.build() |> PlanBoard.releases() |> Enum.all?(&is_nil(&1.overlap))
 
       units = Plans.units_for(plan.id)
       assert Enum.find(units, &(&1.episode_number == 1)).assigned_guid == "e1-uhd"

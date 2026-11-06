@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
   alias MediaCentaur.Acquisition.Targeting
@@ -97,7 +98,10 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
       {plan, unit} = create_gap_movie()
 
       assert unit.status == "unfound"
-      assert Plans.Board.build(plan).gaps == ["Sample Movie"]
+
+      assert PlanBoard.gap_labels(Plans.Board.build(plan)) == [
+               "Sample Movie"
+             ]
 
       evidence = Plans.Alternatives.gap_evidence(plan)
 
@@ -209,8 +213,8 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
 
       board = Plans.Board.build(elem(Plans.fetch(plan.id), 1))
       assert board.covered == 1
-      assert [%{guid: "other-1"}] = board.releases
-      assert board.gaps == []
+      assert [%{guid: "other-1"}] = PlanBoard.releases(board)
+      assert PlanBoard.gap_labels(board) == []
     end
 
     test "refuses TV units — the override is movie-only" do

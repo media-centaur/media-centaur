@@ -17,12 +17,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     season rows, episode drill-in; in-library rows greyed (shown,
     never hidden), unaired rows inert.
   * `:movie_confirm` — the movie fast path: one card, two clicks.
-  * `:board` — the live coverage board over the durable draft plan:
-    unit cells in season rows (consecutive same-release cells fuse
-    into a capsule — consolidation made visible), the chosen releases
-    beneath with swap/exclude, below-floor offers ("lower quality
-    available" with the picker as the explicit override), gaps as an
-    explicit warning row, and the approval footer. Refresh-safe by
+  * `:board` — the manifest over the durable draft plan (UIDR-029 as
+    amended 2026-11-06): the verdict in the pinned block, then one list
+    of lines (`PlanLine`) — each release with the episode cells it
+    covers, then the outcomes (searching, lower quality only, not
+    found, a pack offer, dropped by you) each with its cells and its
+    decision at the line's end — then the receipts (*How we searched*,
+    always shown), and the acts in the frame's foot. Refresh-safe by
     construction. An *empty* board — ready, nothing found — carries
     the bookmark in the footer's primary slot instead of Approve (spec
     2026-09-14): *Add to watchlist*, or the *On your watchlist* marker
@@ -42,17 +43,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   Keyboard/gamepad navigation: the modal is a `plan` overlay with four
   regions (`config.overlays.plan`). The board is a `plan_head` TREE
-  (status line, verdict and their controls) over the `plan_grid` SHELF
-  (episode cells, walked by geometry) over the `plan_body` TREE
-  (release rows, decisions) over the `plan_foot` TOOLBAR — the frame's
-  foot, carrying the acts (Stop searching, Discard, Approve, the
-  watchlist slot). Targeting and movie confirm put their controls in
-  `plan_body` and Cancel + the Download split in `plan_foot`; the
-  split's open menu is a `plan_menu` TREE nested in the foot, the
-  overlay's one `back` edge, so BACK closes the list before it dismisses
-  the modal. The error stage's one Close is in `plan_body`. Grid cells are nav items carrying `data-caption`; the
-  `PlanGridCaption` hook writes the focused or hovered cell's caption
-  under the grid (UIDR-029) — there are no per-cell tooltips.
+  (the verdict's Undo) over the `plan_lines` TREE (each line an item,
+  its controls and then its cells sub-items; the open picker's rows
+  beneath their line) over the `plan_foot` TOOLBAR — the frame's foot,
+  carrying the acts (Stop searching, Discard, Approve, the watchlist
+  slot). Targeting and movie confirm put their controls in `plan_body`
+  and Cancel + the Download split in `plan_foot`; the split's open menu
+  is a `plan_menu` TREE nested in the foot, the overlay's one `back`
+  edge, so BACK closes the list before it dismisses the modal. The
+  error stage's one Close is in `plan_body`. A cell's tip is its
+  episode label through the app tooltip.
 
   Pure rendering; the host owns all state and events.
   """
@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
   alias MediaCentaurWeb.Live.DisclosureState
-  alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
+  alias MediaCentaurWeb.Components.Acquisition.PlanLine
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
@@ -128,7 +128,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :disclosures, :any,
     default: MapSet.new(),
-    doc: "the page's `DisclosureState` — the board's How we searched."
+    doc: "the page's `DisclosureState` — the picker's season rows."
 
   attr :alternatives, :any,
     default: nil,
@@ -211,12 +211,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       data-dismiss-event={@on_close}
     >
       <:orientation>
-        <div :if={@lockup} class="px-6 pb-5">
+        <div :if={@lockup} class="px-6 pb-5 space-y-4">
           <TitleLayer.lockup
             title={@lockup.title}
             logo_url={@lockup.logo_url}
             tagline={@lockup.tagline}
           />
+          <%!-- The board's one verdict, in the block that pins: the
+                sentence over the lines stays in view however far the
+                manifest scrolls (UIDR-029 as amended 2026-11-06). --%>
+          <.board_verdict :if={@stage == :board && @board} board={@board} gap_verdict={@gap_verdict} />
         </div>
       </:orientation>
       <:body>
@@ -248,14 +252,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           alternatives={@alternatives}
           last_activity={@last_activity}
           search_progress={@search_progress}
-          disclosures={@disclosures}
-          search_health={@search_health}
           gap_verdict={@gap_verdict}
           rejected={@rejected}
-          discard_armed={@discard_armed}
-          subject={@subject}
-          rung={@rung}
-          on_close={@on_close}
         />
       </:body>
       <%!-- The acts live in the frame's foot (campaign plan-modal, M2): a
@@ -587,6 +585,53 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   # ---------------------------------------------------------------------------
 
   attr :board, PlanBoard, required: true
+  attr :gap_verdict, :any, required: true, doc: "GapVerdict.t() | nil — typed at the public attr."
+
+  # The verdict slot, seated in the pinned orientation block: one
+  # sentence for every state the board can be in (`PlanLogic.verdict/2`),
+  # its evidence line, and the accepted-lower-quality line with Undo. The
+  # `plan_head` region's only control is Undo.
+  defp board_verdict(assigns) do
+    assigns = assign(assigns, :verdict, PlanLogic.verdict(assigns.board, assigns.gap_verdict))
+
+    ~H"""
+    <div data-nav-zone="plan_head" class="space-y-1">
+      <p
+        id="plan-verdict"
+        class={[
+          "text-lg leading-snug text-on-image",
+          @verdict.tone == :warning && "text-warning/90",
+          @verdict.tone == :success && "text-success",
+          is_nil(@verdict.tone) && "text-base-content/90"
+        ]}
+      >
+        <span :if={@verdict.planning?} class="loading loading-spinner loading-sm align-middle mr-2"></span>
+        {@verdict.headline}
+      </p>
+      <p :if={@verdict.evidence_line} class="text-xs text-base-content/55 text-on-image">
+        {@verdict.evidence_line}
+      </p>
+      <p
+        :if={@board.lower_quality_accepted?}
+        id="plan-lower-quality-accepted"
+        class="text-xs text-base-content/55 text-on-image"
+      >
+        Lower quality accepted for this show — it keeps using the best release there is.
+        <.button
+          variant="dismiss"
+          size="xs"
+          phx-click="plan_undo_lower_quality"
+          data-nav-item
+          tabindex="0"
+        >
+          Undo
+        </.button>
+      </p>
+    </div>
+    """
+  end
+
+  attr :board, PlanBoard, required: true
 
   attr :alternatives, :any,
     required: true,
@@ -599,12 +644,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%SearchProgressPanel.View{} | nil — typed at the public attr."
 
-  attr :disclosures, :any, required: true, doc: "the page's `DisclosureState`."
-
-  attr :search_health, :any,
-    required: true,
-    doc: "IndexerHealth.t() | nil — typed at the public attr."
-
   attr :gap_verdict, :any,
     required: true,
     doc: "GapVerdict.t() | nil — typed at the public attr."
@@ -613,328 +652,81 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%{unit_id, items} | nil — typed at the public attr."
 
-  attr :discard_armed, :boolean, required: true
-
-  attr :subject, :any, required: true, doc: "Title.t() | nil — typed at the public attr."
-
-  attr :rung, :atom, required: true, doc: "the subject's rung — typed at the public attr."
-
-  attr :on_close, :string, required: true
-
+  # The manifest (UIDR-029 as amended 2026-11-06): the lines, each with
+  # the picker that opens under it when it is that line's; then the
+  # receipts — while planning the latest search over the live step rows,
+  # once ready the step rows alone, always shown. The verdict is in the
+  # pinned block above; the acts are in the frame's foot below.
   defp board_stage(assigns) do
+    assigns =
+      assign(assigns,
+        rejectable?: match?(%{show_rejected?: true}, assigns.gap_verdict),
+        movie_gap_unit_id: PlanBoard.movie_gap_unit_id(assigns.board)
+      )
+
     ~H"""
-    <div class="flex flex-col max-h-full">
-      <%!-- Three nav regions stacked (see the moduledoc): head, grid, body.
-            Each carries the 24px rhythm below itself so the gap holds
-            whether or not the grid renders (movies have none). --%>
-      <div data-nav-zone="plan_head" class="p-6 space-y-6">
-        <div>
-          <%!-- The title lives in the pinned lockup; this is the plan's
-                live status line. --%>
-          <p class="text-sm text-on-image">
-            <span :if={@board.status == :planning} class="text-base-content/55">
-              <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
-              Planning · {@board.wanted} {if @board.movie?, do: "film", else: "episodes"} wanted
-            </span>
-            <span :if={@board.status == :ready} class="text-info">
-              Plan ready · {@board.covered} of {@board.wanted} covered
-            </span>
-            <span :if={@board.status == :committed} class="text-success">
-              Approved — now on the Activity tab.
-            </span>
-          </p>
-          <p
-            :if={@board.lower_quality_accepted?}
-            id="plan-lower-quality-accepted"
-            class="mt-1 text-xs text-base-content/55"
-          >
-            Lower quality accepted for this show — it keeps using the best release there is.
-            <.button
-              variant="dismiss"
-              size="xs"
-              phx-click="plan_undo_lower_quality"
-              data-nav-item
-              tabindex="0"
-            >
-              Undo
-            </.button>
-          </p>
-        </div>
-
-        <div :if={@board.status == :ready && @gap_verdict} class="space-y-2">
-          <%!-- The adaptive diagnosis verdict (UIDR-022): the headline
-                states the world the counts prove; the muted line beneath
-                carries the receipts (queries, freshness). --%>
-          <div
-            :if={@gap_verdict.world == :below_preference}
-            id="plan-verdict"
-            class="space-y-1"
-          >
-            <p class="text-lg leading-snug text-base-content/90">{@gap_verdict.headline}</p>
-            <p :if={@gap_verdict.evidence_line} class="text-xs text-base-content/55">
-              {@gap_verdict.evidence_line}
-            </p>
-          </div>
-          <div
-            :if={@gap_verdict.world != :below_preference}
-            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-          >
-            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
-            <span class="min-w-0 flex-1 text-sm">
-              <span class="block text-warning/90">{@gap_verdict.headline}</span>
-              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/55 mt-1">
-                {@gap_verdict.evidence_line}
-              </span>
-            </span>
-            <.button
-              :if={@gap_verdict.show_rejected?}
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click={if @rejected, do: "plan_hide_rejected", else: "plan_show_rejected"}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @rejected, do: "Hide", else: "Show them anyway"}
-            </.button>
-            <.button
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_search_again"
-              data-nav-item
-              tabindex="0"
-            >
-              Search again
-            </.button>
-          </div>
-
+    <div data-nav-zone="plan_lines" class="px-6 pt-2 pb-6 space-y-6">
+      <div class="space-y-2">
+        <%= for line <- @board.lines do %>
+          <PlanLine.plan_line
+            line={line}
+            ready?={@board.status == :ready}
+            movie?={@board.movie?}
+            picker_open={picker_open?(line, @alternatives, @rejected)}
+            rejectable?={line.kind == :not_found && @rejectable?}
+          />
           <.alternatives_panel
-            :if={@rejected}
+            :if={
+              line.kind == :release && @alternatives &&
+                @alternatives.unit_id == line.release.swap_unit_id
+            }
+            alternatives={@alternatives}
+            release={line.release}
+          />
+          <.alternatives_panel
+            :if={
+              line.kind == :below_preference && @alternatives && line.below.unit_id &&
+                @alternatives.unit_id == line.below.unit_id
+            }
+            alternatives={@alternatives}
+          />
+          <.alternatives_panel
+            :if={line.kind == :not_found && @rejected}
             alternatives={%{unit_id: @rejected.unit_id, items: @rejected.items}}
             variant={:rejected}
           />
-        </div>
-
-        <div
-          :if={@search_progress && @board.status == :planning}
-          class="glass-inset rounded-lg px-4 py-3 space-y-2"
-        >
-          <%!-- The board's one verdict slot while planning (UIDR-029): the
-                searching world's headline, over the step rows. --%>
-          <p :if={@gap_verdict} class="text-sm text-base-content/70">{@gap_verdict.headline}</p>
-          <.search_progress_rows search_progress={@search_progress} />
-        </div>
-
-        <.disclosure
-          :if={@search_progress && @board.status != :planning}
-          id="plan-how-we-searched"
-          variant={:panel}
-          open={DisclosureState.open?(@disclosures, "plan-how-we-searched")}
-          label="How we searched"
-        >
-          <div class="space-y-2">
-            <.search_progress_rows search_progress={@search_progress} />
-          </div>
-        </.disclosure>
+        <% end %>
       </div>
 
-      <%!-- The episode grid is its own SHELF region: cells are focusable
-            and the caption line beneath speaks for the cell under the
-            cursor or pointer (UIDR-029). --%>
+      <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
+
       <div
-        :if={!@board.movie?}
-        id="plan-grid"
-        phx-hook="PlanGridCaption"
-        data-nav-zone="plan_grid"
-        class="px-6 pb-6 space-y-2"
+        :if={@search_progress || (@board.status == :planning && @last_activity)}
+        class="space-y-2"
       >
-        <div :for={season <- @board.seasons} class="flex items-start gap-3">
-          <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/55 tabular-nums">
-            S{season.season_number}
-          </span>
-          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-            <%= for run <- PlanLogic.cell_runs(season.cells) do %>
-              <div
-                :if={match?({:capsule, _, _}, run)}
-                class="flex flex-wrap gap-px rounded-lg border border-primary/60 bg-primary/10 p-0.5"
-              >
-                <.board_cell :for={cell <- elem(run, 2)} cell={cell} in_capsule />
-              </div>
-              <.board_cell :if={match?({:cell, _}, run)} cell={elem(run, 1)} />
-            <% end %>
-          </div>
-        </div>
-        <p
-          id="plan-grid-caption"
-          data-plan-caption
-          aria-live="polite"
-          class="min-h-4 pl-13 text-xs text-base-content/55 truncate"
-        >
+        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
+          How we searched
+        </h3>
+        <p :if={@board.status == :planning && @last_activity} class="text-sm text-base-content/55">
+          {@last_activity}
         </p>
-      </div>
-
-      <div data-nav-zone="plan_body" class="flex flex-col">
-        <div class="px-6 pb-6 space-y-6">
-          <div :if={@board.releases != []} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-              Releases — {length(@board.releases)}
-            </h3>
-            <div :for={release <- @board.releases} class="space-y-2">
-              <div
-                id={"plan-release-#{release.swap_unit_id}"}
-                class="glass-inset rounded-lg px-4 py-2.5 flex items-center gap-3"
-              >
-                <ReleaseFacts.release_facts entry={release_entry(release)} />
-                <.button
-                  :if={@board.status == :ready}
-                  variant="neutral"
-                  size="xs"
-                  class="flex-shrink-0"
-                  phx-click={
-                    if @alternatives && @alternatives.unit_id == release.swap_unit_id,
-                      do: "plan_hide_alternatives",
-                      else: "plan_show_alternatives"
-                  }
-                  phx-value-unit-id={release.swap_unit_id}
-                  data-tip="See the other options for this"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Options
-                </.button>
-                <.button
-                  :if={@board.status == :ready}
-                  variant="destructive_inline"
-                  size="xs"
-                  shape="square"
-                  class="flex-shrink-0"
-                  phx-click="plan_swap_release"
-                  phx-value-unit-id={release.swap_unit_id}
-                  phx-value-guid={release.guid}
-                  data-tip="Remove this release — exclude it everywhere and re-solve"
-                  aria-label="Remove this release"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  <.icon name="hero-x-mark-mini" class="size-3.5" />
-                </.button>
-              </div>
-
-              <.alternatives_panel
-                :if={@alternatives && @alternatives.unit_id == release.swap_unit_id}
-                alternatives={@alternatives}
-                release={release}
-              />
-            </div>
-          </div>
-
-          <div
-            :for={overlap <- @board.overlaps}
-            :if={@board.status == :ready}
-            id={"plan-overlap-#{:erlang.phash2(overlap.exclude_guid)}"}
-            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-          >
-            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
-            <span class="min-w-0 flex-1 text-sm text-warning/90">{overlap.description}</span>
-            <.button
-              variant="risky"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_swap_release"
-              phx-value-unit-id={overlap.exclude_unit_id}
-              phx-value-guid={overlap.exclude_guid}
-              data-tip="Exclude this release everywhere and let the planner re-solve without it"
-              data-nav-item
-              tabindex="0"
-            >
-              {overlap.action_label}
-            </.button>
-          </div>
-
-          <div
-            :for={offer <- @board.offers}
-            :if={@board.status == :ready}
-            id={"plan-offer-#{offer.unit_id}"}
-            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-          >
-            <.icon name="hero-archive-box-mini" class="size-4 text-warning flex-shrink-0" />
-            <span class="min-w-0 flex-1 text-sm text-warning/90">
-              No right-sized release for {offer.unit_label} — only a {offer.scope_label}<span :if={
-                offer.size_bytes
-              }>, {format_size(offer.size_bytes)}</span>, which brings episodes you didn't ask for.
-            </span>
-            <.button
-              variant="risky"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_choose_release"
-              phx-value-unit-id={offer.unit_id}
-              phx-value-guid={offer.guid}
-              data-tip={offer.title}
-              data-nav-item
-              tabindex="0"
-            >
-              Grab the pack
-            </.button>
-          </div>
-
-          <div :if={@board.below_preference} id="plan-below-preference" class="space-y-2">
-            <div class="glass-inset rounded-lg px-4 py-3 border border-info/30 flex items-center gap-3">
-              <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
-              <span class="min-w-0 flex-1 text-sm">
-                <span class="text-base-content/90">{below_preference_line(@board)}</span>
-                <span class="block text-xs text-base-content/55 mt-1">
-                  Taking them uses the best release there is, for this title only. Your quality preference for everything else stays as it is.
-                </span>
-              </span>
-              <.button
-                :if={@board.below_preference.unit_id}
-                variant="neutral"
-                size="xs"
-                class="flex-shrink-0"
-                phx-click={
-                  if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
-                    do: "plan_hide_alternatives",
-                    else: "plan_show_alternatives"
-                }
-                phx-value-unit-id={@board.below_preference.unit_id}
-                data-nav-item
-                tabindex="0"
-              >
-                {if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
-                  do: "Hide",
-                  else: "Show them"}
-              </.button>
-              <.button
-                variant="action"
-                size="xs"
-                class="flex-shrink-0"
-                phx-click="plan_accept_lower_quality"
-                data-tip="Grab the best of what exists for this title, and keep accepting lower quality for it"
-                data-nav-item
-                tabindex="0"
-              >
-                {if @board.movie?, do: "Take lower quality", else: "Take lower quality for this show"}
-              </.button>
-            </div>
-
-            <.alternatives_panel
-              :if={
-                @alternatives && @board.below_preference.unit_id &&
-                  @alternatives.unit_id == @board.below_preference.unit_id
-              }
-              alternatives={@alternatives}
-            />
-          </div>
-
-          <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
-          <p :if={@last_activity} class="text-sm text-base-content/55">{@last_activity}</p>
-        </div>
+        <.search_progress_rows :if={@search_progress} search_progress={@search_progress} />
       </div>
     </div>
     """
   end
+
+  # Whether the picker under this line is open: the swap picker for a
+  # release or the one below-preference unit, the rejected list for a
+  # movie's not-found line.
+  defp picker_open?(%PlanBoard.Line{kind: :release, release: release}, alternatives, _rejected),
+    do: alternatives != nil and alternatives.unit_id == release.swap_unit_id
+
+  defp picker_open?(%PlanBoard.Line{kind: :below_preference, below: below}, alternatives, _rejected),
+    do: alternatives != nil and below.unit_id != nil and alternatives.unit_id == below.unit_id
+
+  defp picker_open?(%PlanBoard.Line{kind: :not_found}, _alternatives, rejected), do: rejected != nil
+  defp picker_open?(%PlanBoard.Line{}, _alternatives, _rejected), do: false
 
   # The board's foot: the summary and the acts — Stop searching while
   # planning; Discard (armed) and Approve, or the watchlist slot on an
@@ -945,12 +737,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :rung, :atom, required: true
 
   defp board_foot(assigns) do
+    assigns =
+      assign(assigns,
+        releases: PlanBoard.releases(assigns.board),
+        total_size_bytes: PlanBoard.total_size_bytes(assigns.board)
+      )
+
     ~H"""
     <div data-nav-zone="plan_foot" class="px-6 py-4 flex items-center justify-between gap-4">
       <span class="text-sm text-base-content/55 tabular-nums">
-        {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
-        {if length(@board.releases) == 1, do: "release", else: "releases"}
-        <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
+        {@board.covered} of {@board.wanted} covered · {length(@releases)}
+        {if length(@releases) == 1, do: "release", else: "releases"}
+        <span :if={@total_size_bytes}>· ≈ {format_size(@total_size_bytes)}</span>
       </span>
       <div class="flex items-center gap-2">
         <.button
@@ -980,7 +778,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           Discard
         </.armed_button>
         <.button
-          :if={@board.status == :ready && @board.releases != []}
+          :if={@board.status == :ready && @releases != []}
           variant="primary"
           size="sm"
           phx-click="plan_approve"
@@ -1103,7 +901,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       </div>
 
       <p :if={@alternatives.items == []} class="text-xs text-base-content/55 py-1">
-        Nothing else in the corpus yet — Find more runs this span's searches.
+        Nothing else known yet — Find more runs this span's searches.
       </p>
 
       <div
@@ -1171,68 +969,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     """
   end
 
-  attr :cell, PlanBoard.Cell, required: true
-  attr :in_capsule, :boolean, default: false
-
-  # The cell is the per-unit control: clicking drops that episode from the
-  # plan, clicking again puts it back. The strikethrough treatment already
-  # carried the excluded state long before anything could set it; this is the
-  # affordance that produces it. Tailwind v4 Preflight sets no cursor on a
-  # button, so it is spelled out.
-  defp board_cell(assigns) do
-    ~H"""
-    <button
-      type="button"
-      id={"plan-cell-#{@cell.plan_unit_id}"}
-      data-nav-item
-      tabindex="0"
-      data-caption={cell_title(@cell)}
-      aria-pressed={to_string(@cell.state == :excluded)}
-      phx-click="plan_toggle_unit_excluded"
-      phx-value-unit-id={@cell.plan_unit_id}
-      class={[
-        "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums",
-        "select-none cursor-pointer",
-        @cell.state |> CellVocabulary.from_plan_state(@in_capsule) |> CellVocabulary.cell_treatment()
-      ]}
-    >
-      {@cell.episode_number}
-    </button>
-    """
-  end
-
   # ---------------------------------------------------------------------------
-
-  defp cell_title(%PlanBoard.Cell{release_title: title} = cell) when is_binary(title),
-    do: "#{cell.label} — #{title}"
-
-  defp cell_title(%PlanBoard.Cell{state: :searching} = cell), do: "#{cell.label} — searching"
-
-  defp cell_title(%PlanBoard.Cell{state: :excluded} = cell),
-    do: "#{cell.label} — you excluded this earlier"
-
-  defp cell_title(%PlanBoard.Cell{state: :below_preference} = cell),
-    do: "#{cell.label} — available only in lower quality"
-
-  defp cell_title(%PlanBoard.Cell{state: :unfound} = cell), do: "#{cell.label} — not available"
-  defp cell_title(%PlanBoard.Cell{} = cell), do: cell.label
-
-  # One grouped sentence for the below-preference row (UIDR-029). Never
-  # says "floor" — user copy calls it the quality preference.
-  defp below_preference_line(%PlanBoard{below_preference: below} = board) do
-    releases = "#{below.releases} #{if below.releases == 1, do: "release", else: "releases"}"
-
-    cond do
-      board.movie? ->
-        "This movie is available only in lower quality — #{releases} found."
-
-      below.units == 1 ->
-        "#{below.unit_label} is available only in lower quality — #{releases} found."
-
-      true ->
-        "#{below.units} episodes are available only in lower quality — #{releases} found."
-    end
-  end
 
   defp selection_meta(%Targeting.Selection{} = selection) do
     aired = selection.seasons |> Enum.flat_map(& &1.episodes) |> Enum.count(& &1.aired?)

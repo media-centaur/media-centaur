@@ -33,7 +33,6 @@ import {HeroBackdrop, heroBitmapCache, warmHeroBackdrops} from "./hooks/hero_bac
 import {Tooltip} from "./hooks/tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
-import {PlanGridCaption} from "./hooks/plan_grid_caption"
 import {StripChart} from "./hooks/strip_chart"
 import {FeedHead} from "./hooks/feed_head"
 import {ImageCrop} from "./hooks/image_crop"
@@ -56,7 +55,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
     FlashAutoDismiss,
     HeroBackdrop,
     Tooltip,
-    PlanGridCaption,
     StripChart,
     FeedHead,
     ImageCrop,

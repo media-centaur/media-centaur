@@ -11,16 +11,40 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoardTest do
         status: :ready,
         wanted: 1,
         covered: 0,
-        seasons: [],
-        releases: [],
-        gaps: ["Sample Movie"]
+        movie?: true,
+        lines: [%PlanBoard.Line{id: "not-found", kind: :not_found, rows: [row(:unfound)]}]
       },
       overrides
     )
   end
 
-  defp release do
-    %PlanBoard.Release{guid: "g", title: "Sample.Movie.2005.1080p", units_count: 1, swap_unit_id: "u"}
+  defp row(state) do
+    %PlanBoard.SeasonRow{
+      season_number: nil,
+      cells: [
+        %PlanBoard.Cell{
+          plan_unit_id: "u",
+          season_number: nil,
+          episode_number: nil,
+          label: "Sample Movie",
+          state: state
+        }
+      ]
+    }
+  end
+
+  defp release_line do
+    %PlanBoard.Line{
+      id: "release-1",
+      kind: :release,
+      rows: [row(:assigned)],
+      release: %PlanBoard.Release{
+        guid: "g",
+        title: "Sample.Movie.2005.1080p",
+        units_count: 1,
+        swap_unit_id: "u"
+      }
+    }
   end
 
   describe "empty?/1" do
@@ -29,7 +53,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoardTest do
     end
 
     test "a ready board with a release is not" do
-      refute PlanBoard.empty?(board(%{releases: [release()], covered: 1, gaps: []}))
+      refute PlanBoard.empty?(board(%{lines: [release_line()], covered: 1}))
     end
 
     test "a board still planning is not empty yet, whatever it holds" do

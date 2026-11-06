@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("media_results"), do: [icon: {:fa, "list", :thin}, name: "Media results"]
 
   def entry("plan_modal"), do: [icon: {:fa, "chess-board", :thin}, name: "Plan modal"]
+  def entry("plan_line"), do: [icon: {:fa, "list-check", :thin}, name: "Plan line"]
   def entry("pursuit_row"), do: [icon: {:fa, "list-tree", :thin}, name: "Pursuit row"]
   def entry("pursuit_group"), do: [icon: {:fa, "layer-group", :thin}, name: "Pursuit group"]
   def entry("pursuit_header"), do: [icon: {:fa, "heading", :thin}, name: "Pursuit header"]

@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict, PlanBoard}
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
@@ -155,27 +155,6 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   end
 
   @doc """
-  Chunks a season row's cells into render runs for the coverage grid:
-  consecutive `:assigned` cells sharing one release fuse into a
-  `{:capsule, guid, cells}` (the consolidation visual — one pack, one
-  outline); everything else renders as `{:cell, cell}` singles.
-  """
-  @spec cell_runs([struct()]) :: [{:capsule, String.t(), [struct()]} | {:cell, struct()}]
-  def cell_runs(cells) do
-    cells
-    |> Enum.chunk_by(fn cell ->
-      if cell.state == :assigned, do: {:assigned, cell.release_guid}, else: :single
-    end)
-    |> Enum.flat_map(fn
-      [%{state: :assigned, release_guid: guid} | _rest] = run when length(run) > 1 ->
-        [{:capsule, guid, run}]
-
-      run ->
-        Enum.map(run, &{:cell, &1})
-    end)
-  end
-
-  @doc """
   The plan modal's shell backdrop — one cinematic identity following the
   request through every stage (UIDR-014). Sources, in the order each
   stage trusts them:
@@ -300,18 +279,56 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   defp reason_label(:excluded), do: "you excluded this earlier"
 
   @doc """
-  The movie board's single gap unit — the rejected pick's assignment
-  target. Nil for TV boards (the override is movie-only, UIDR-022) and
-  for boards without an unfound cell.
+  The board's one verdict slot (UIDR-029 as amended 2026-11-06): the
+  sentence over the lines, whatever the plan's state. While planning,
+  `GapVerdict`'s searching world (or the wanted count before the first
+  broadcast); once ready, the gap verdict's world when there is one,
+  else the clean sentence; once committed, where the download went.
+  `tone` colours the sentence only when something is missing — the
+  below-preference world's decision row already carries its blue.
   """
-  @spec movie_gap_unit_id(PlanBoard.t()) :: Ecto.UUID.t() | nil
-  def movie_gap_unit_id(%PlanBoard{movie?: true} = board) do
-    Enum.find_value(board.seasons, fn season ->
-      Enum.find_value(season.cells, &(&1.state == :unfound && &1.plan_unit_id))
-    end)
+  @spec verdict(PlanBoard.t(), GapVerdict.t() | nil) :: %{
+          headline: String.t(),
+          evidence_line: String.t() | nil,
+          tone: :warning | :success | nil,
+          planning?: boolean()
+        }
+  def verdict(%PlanBoard{status: :committed}, _gap_verdict) do
+    %{
+      headline: "Approved — now on the Activity tab.",
+      evidence_line: nil,
+      tone: :success,
+      planning?: false
+    }
   end
 
-  def movie_gap_unit_id(%PlanBoard{}), do: nil
+  def verdict(%PlanBoard{status: :planning} = board, gap_verdict) do
+    headline =
+      case gap_verdict do
+        %GapVerdict{headline: headline} -> headline
+        nil -> "Planning · #{board.wanted} #{if board.movie?, do: "film", else: "episodes"} wanted"
+      end
+
+    %{headline: headline, evidence_line: nil, tone: nil, planning?: true}
+  end
+
+  def verdict(%PlanBoard{} = board, nil) do
+    headline =
+      if board.movie?,
+        do: "Found at your quality preference.",
+        else: "Everything you asked for was found."
+
+    %{headline: headline, evidence_line: nil, tone: nil, planning?: false}
+  end
+
+  def verdict(%PlanBoard{}, %GapVerdict{} = gap_verdict) do
+    %{
+      headline: gap_verdict.headline,
+      evidence_line: gap_verdict.evidence_line,
+      tone: if(gap_verdict.world != :below_preference, do: :warning),
+      planning?: false
+    }
+  end
 
   @doc """
   The board ticker's line for a `PlanEvents.SearchActivity` — same
@@ -326,7 +343,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
         "Search failed: #{activity.term}"
 
       {:corpus, count, _outage} ->
-        "#{activity.term} — #{count} known (corpus)"
+        "#{activity.term} — #{count} known from an earlier search"
 
       {:live, 0, outage} when not is_nil(outage) ->
         "Searched: #{activity.term} — couldn't reach any indexer"

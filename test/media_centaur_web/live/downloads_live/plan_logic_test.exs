@@ -304,9 +304,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
         status: :ready,
         wanted: 3,
         covered: 3,
-        seasons: [],
-        releases: [],
-        gaps: []
+        lines: []
       }
 
       selection = %Targeting.Selection{
@@ -364,33 +362,6 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
     end
   end
 
-  describe "movie_gap_unit_id/1" do
-    test "finds the movie board's unfound cell and refuses TV boards" do
-      cell = %PlanBoard.Cell{
-        plan_unit_id: "unit-1",
-        season_number: nil,
-        episode_number: nil,
-        label: "Sample Movie",
-        state: :unfound
-      }
-
-      board = %PlanBoard{
-        plan_id: "plan-1",
-        title: "Sample Movie",
-        status: :ready,
-        wanted: 1,
-        covered: 0,
-        seasons: [%PlanBoard.SeasonRow{season_number: nil, cells: [cell]}],
-        releases: [],
-        gaps: ["Sample Movie"],
-        movie?: true
-      }
-
-      assert PlanLogic.movie_gap_unit_id(board) == "unit-1"
-      assert PlanLogic.movie_gap_unit_id(%{board | movie?: false}) == nil
-    end
-  end
-
   describe "search_activity_line/2" do
     defp activity(outcome, result_count) do
       %PlanEvents.SearchActivity{
@@ -421,7 +392,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
 
     test "corpus and error outcomes are unchanged" do
       assert PlanLogic.search_activity_line(activity(:corpus, 5), nil) ==
-               "Sample Movie 2005 — 5 known (corpus)"
+               "Sample Movie 2005 — 5 known from an earlier search"
 
       assert PlanLogic.search_activity_line(activity(:error, 0), nil) ==
                "Search failed: Sample Movie 2005"

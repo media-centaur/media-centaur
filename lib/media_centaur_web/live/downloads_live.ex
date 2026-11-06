@@ -98,10 +98,11 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
   alias MediaCentaur.Acquisition.ViewModels.{
     Alternative,
-    SearchProgressPanel,
     GapVerdict,
+    PlanBoard,
     PursuitWithDownload,
-    SearchOutage
+    SearchOutage,
+    SearchProgressPanel
   }
 
   alias MediaCentaur.Capabilities
@@ -1161,7 +1162,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
   # `movie_gap_unit_id/1` is nil elsewhere and the button never renders.
   def handle_event("plan_show_rejected", _params, socket) do
     with %{plan_id: plan_id} = board <- socket.assigns.plan_board,
-         unit_id when is_binary(unit_id) <- PlanLogic.movie_gap_unit_id(board),
+         unit_id when is_binary(unit_id) <- PlanBoard.movie_gap_unit_id(board),
          {:ok, plan} <- Plans.fetch(plan_id) do
       items = plan |> Plans.Alternatives.gap_evidence() |> PlanLogic.rejected_items()
       {:noreply, assign(socket, plan_rejected: %{unit_id: unit_id, items: items})}
@@ -2309,16 +2310,19 @@ defmodule MediaCentaurWeb.DownloadsLive do
   # recomputed on every board re-read so a forced re-search refreshes
   # the evidence's freshness and a late-arriving release window is read.
   defp plan_gap_verdict(plan, board, outage, release_window) do
-    if board.status == :ready and (board.gaps != [] or board.below_preference != nil) do
+    gaps = PlanBoard.gap_labels(board)
+    below_preference = PlanBoard.below_preference(board)
+
+    if board.status == :ready and (gaps != [] or below_preference != nil) do
       below =
-        case board.below_preference do
+        case below_preference do
           nil -> nil
           summary -> %{units: summary.units, releases: summary.releases}
         end
 
       GapVerdict.build(
         Plans.Alternatives.gap_evidence(plan),
-        gaps: board.gaps,
+        gaps: gaps,
         movie?: board.movie?,
         blind_reason: outage,
         now: DateTime.utc_now(),

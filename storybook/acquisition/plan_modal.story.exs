@@ -1,14 +1,17 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   @moduledoc """
-  The plan-flow modal (UIDR-014): targeting picker → live coverage
-  board → approval footer, one continuous URL-driven surface. The
-  board's cell vocabulary — searching (dashed/pulsing), assigned
-  (filled; consecutive same-release cells fuse into a capsule),
-  below-preference (info hollow — releases exist, all under the quality
-  preference, UIDR-029), unfound (amber hollow) — is the same language
-  the pursuit card's segmented progress and the UnitBoard drill-down
-  speak. A ready board leads with the adaptive verdict headline and
-  demotes the search-progress panel to a "How we searched" disclosure.
+  The plan-flow modal (UIDR-014): targeting picker → the board as a
+  manifest (UIDR-029 as amended 2026-11-06) → the acts in the frame's
+  foot, one continuous URL-driven surface. The board is one list of
+  lines — each release with the cells it covers, then the outcomes with
+  theirs — under the verdict in the pinned block, over the receipts
+  (*How we searched*, always shown). The cell vocabulary — searching
+  (dashed/pulsing), assigned (filled; a release line's cells fuse into
+  its capsule), below-preference (info hollow — releases exist, all
+  under the quality preference), unfound (amber hollow), dropped
+  (struck through) — is the same language the pursuit card's segmented
+  progress and the UnitBoard drill-down speak. Boards come from the
+  real projection, `Plans.Board.assemble/2`.
   """
 
   use PhoenixStorybook.Story, :component
@@ -219,10 +222,11 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_planning,
         description:
-          "Mid-flight — the expectation panel narrates the search (done/active/pending steps), " <>
-            "dashed searching cells, the activity ticker, no spinner-only state. The footer is a " <>
-            "one-press Stop searching (no confirmation — nothing is lost by stopping); Discard " <>
-            "with confirmation belongs to ready boards only (UIDR-029).",
+          "Mid-flight — the searching verdict in the pinned block, the pack's line, a searching " <>
+            "line with dashed cells, a dropped line; the receipts narrate the search beneath " <>
+            "(the latest term over the done/active/pending steps). The foot is a one-press Stop " <>
+            "searching (no confirmation — nothing is lost by stopping); Discard with confirmation " <>
+            "belongs to ready boards only (UIDR-029).",
         attributes: %{
           open: true,
           stage: :board,
@@ -253,7 +257,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
               }
             ]
           },
-          last_activity: "Sample Show S01E03 — 2 known (corpus)"
+          last_activity: "Sample Show S01E03 — 2 known from an earlier search"
         }
       },
       %Variation{
@@ -299,8 +303,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         id: :board_ready,
         description:
           "Ready — the shell keeps the title's backdrop through the board (no themed → plain " <>
-            "regression mid-flow); the season pack fused into one capsule, a single covering " <>
-            "the stray episode, an explicit gap row, the approval footer.",
+            "regression mid-flow); the season pack's line with its capsule, the single's line, " <>
+            "a not-found line carrying Search again, the acts in the foot.",
         attributes: %{
           open: true,
           stage: :board,
@@ -700,244 +704,169 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     }
   end
 
+  # Boards go through the real projection, `Board.assemble/2`, over plan
+  # units — the stories can never drift from the lines the app builds.
   defp board(:planning) do
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :planning,
-      wanted: 4,
-      covered: 2,
-      seasons: [
-        %PlanBoard.SeasonRow{
-          season_number: 1,
-          cells: [
-            cell(1, 1, :assigned, "pack"),
-            cell(1, 2, :assigned, "pack"),
-            cell(1, 3, :searching, nil),
-            # Struck through: the user dropped this one from the plan. Clicking
-            # a cell toggles it, so every cell here is an active control.
-            cell(1, 4, :excluded, nil)
-          ]
-        },
-        %PlanBoard.SeasonRow{season_number: 2, cells: [cell(2, 1, :searching, nil)]}
-      ],
-      releases: [release("pack", "Season 1 pack", 2)],
-      gaps: [],
-      total_size_bytes: 6_200_000_000
-    }
+    assemble(story_plan(status: "planning"), [
+      found(1, 1, "pack"),
+      found(1, 2, "pack"),
+      unit(1, 3),
+      # The user dropped this one from the plan. Pressing a cell toggles
+      # it, so every cell here is an active control.
+      unit(1, 4, status: "excluded"),
+      unit(2, 1)
+    ])
   end
 
   defp board(:ready) do
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :ready,
-      wanted: 4,
-      covered: 3,
-      seasons: [
-        %PlanBoard.SeasonRow{
-          season_number: 1,
-          cells: [
-            cell(1, 1, :assigned, "pack"),
-            cell(1, 2, :assigned, "pack"),
-            cell(1, 3, :assigned, "pack")
-          ]
-        },
-        %PlanBoard.SeasonRow{
-          season_number: 2,
-          cells: [cell(2, 1, :assigned, "single"), cell(2, 2, :unfound, nil)]
-        }
-      ],
-      releases: [
-        release("pack", "Season 1 pack", 3),
-        release("single", "S02E01", 1)
-      ],
-      gaps: ["S02E02 · Finale"],
-      total_size_bytes: 12_400_000_000
-    }
+    assemble(story_plan(), [
+      found(1, 1, "pack"),
+      found(1, 2, "pack"),
+      found(1, 3, "pack"),
+      found(2, 1, "single"),
+      unit(2, 2, status: "unfound", label: "S02E02 · Finale")
+    ])
   end
 
   defp board(:blind_gap) do
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Movie",
-      status: :ready,
-      wanted: 1,
-      covered: 0,
-      movie?: true,
-      seasons: [
-        %PlanBoard.SeasonRow{
-          season_number: nil,
-          cells: [
-            %PlanBoard.Cell{
-              plan_unit_id: "story-unit-movie-gap",
-              season_number: nil,
-              episode_number: nil,
-              label: "Sample Movie",
-              state: :unfound
-            }
-          ]
-        }
-      ],
-      releases: [],
-      gaps: ["Sample Movie"],
-      total_size_bytes: nil
-    }
+    assemble(story_plan(title: "Sample Movie", tmdb_type: "movie"), [
+      movie_unit("story-unit-movie-gap", status: "unfound")
+    ])
   end
 
   defp board(:offer) do
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :ready,
-      wanted: 1,
-      covered: 0,
-      seasons: [
-        %PlanBoard.SeasonRow{season_number: 1, cells: [cell(1, 3, :unfound, nil)]}
-      ],
-      releases: [],
-      gaps: ["S01E03 · The Signal"],
-      total_size_bytes: nil,
-      offers: [
-        %PlanBoard.Offer{
-          unit_id: "story-unit-s01e03",
-          unit_label: "S01E03 · The Signal",
-          guid: "s1-pack",
-          scope_label: "Season 1 pack",
-          title: "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
-          size_bytes: 9_400_000_000
-        }
-      ]
-    }
+    assemble(story_plan(), [
+      unit(1, 3,
+        status: "unfound",
+        label: "S01E03 · The Signal",
+        offered_guid: "s1-pack",
+        offered_title: "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+        offered_scope: "Season 1 pack",
+        offered_size_bytes: 9_400_000_000
+      )
+    ])
   end
 
   defp board(:below_floor) do
-    %PlanBoard{
-      plan_id: "story-plan-movie",
-      title: "Sample Movie",
-      status: :ready,
-      wanted: 1,
-      covered: 0,
-      movie?: true,
-      seasons: [
-        %PlanBoard.SeasonRow{
-          season_number: nil,
-          cells: [
-            %PlanBoard.Cell{
-              plan_unit_id: "story-unit-movie",
-              season_number: nil,
-              episode_number: nil,
-              label: "Sample Movie",
-              state: :unfound,
-              release_guid: nil,
-              release_title: nil
-            }
-          ]
-        }
-      ],
-      releases: [],
-      gaps: [],
-      total_size_bytes: nil,
-      below_preference: %PlanBoard.BelowPreference{
-        units: 1,
-        releases: 3,
-        unit_id: "story-unit-movie",
-        unit_label: "Sample Movie"
-      }
-    }
+    assemble(story_plan(id: "story-plan-movie", title: "Sample Movie", tmdb_type: "movie"), [
+      movie_unit("story-unit-movie", status: "unfound", below_floor_count: 3)
+    ])
   end
 
   defp board(:long_season) do
-    long_cells = for episode <- 1..26, do: cell(2, episode, :assigned, "pack")
-
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :ready,
-      wanted: 35,
-      covered: 35,
-      seasons: [
-        %PlanBoard.SeasonRow{
-          season_number: 1,
-          cells: for(episode <- 1..9, do: cell(1, episode, :assigned, "pack-s1"))
-        },
-        %PlanBoard.SeasonRow{season_number: 2, cells: long_cells}
-      ],
-      releases: [
-        release("pack-s1", "Season 1 pack", 9),
-        release("pack", "Season 2 pack", 26)
-      ],
-      gaps: [],
-      total_size_bytes: 32_400_000_000
-    }
+    assemble(
+      story_plan(),
+      Enum.map(1..9, &found(1, &1, "pack-s1")) ++ Enum.map(1..26, &found(2, &1, "pack"))
+    )
   end
 
+  # A swap-picker choice put S01E02 on its own 4K single while the season
+  # pack still physically contains it — the pack's line carries the warning.
   defp board(:overlap) do
-    %{
-      board(:ready)
-      | overlaps: [
-          %PlanBoard.Overlap{
-            description:
-              "The Season 1 pack also contains 1 episode assigned to other releases — they'd download twice",
-            action_label: "Remove it & re-solve",
-            exclude_guid: "pack",
-            exclude_unit_id: "story-unit-1-1"
-          }
-        ]
-    }
+    assemble(story_plan(), [
+      found(1, 1, "pack"),
+      found(1, 2, "single-s1e2"),
+      found(1, 3, "pack"),
+      found(2, 1, "single")
+    ])
   end
+
+  defp board(:below_preference_tv) do
+    assemble(
+      story_plan(),
+      Enum.map(1..8, fn episode ->
+        if episode == 4,
+          do: found(1, 4, "good-single"),
+          else: unit(1, episode, status: "unfound", below_floor_count: 4 + rem(episode, 2))
+      end)
+    )
+  end
+
+  defp board(:lower_quality_accepted) do
+    assemble(
+      story_plan(criteria: %{"min_quality" => "any"}),
+      Enum.map(1..8, &found(1, &1, "sd-singles"))
+    )
+  end
+
+  defp assemble(plan, units), do: MediaCentaur.Acquisition.Plans.Board.assemble(plan, units)
+
+  defp story_plan(attrs \\ []) do
+    struct!(
+      %MediaCentaur.Acquisition.Plans.Plan{
+        id: "story-plan",
+        title: "Sample Show",
+        status: "ready",
+        tmdb_type: "tv",
+        criteria: %{}
+      },
+      attrs
+    )
+  end
+
+  defp unit(season, episode, attrs \\ []) do
+    struct!(
+      %MediaCentaur.Acquisition.Plans.PlanUnit{
+        id: "story-unit-#{season}-#{episode}",
+        plan_id: "story-plan",
+        season_number: season,
+        episode_number: episode,
+        label: "S0#{season}E#{String.pad_leading(to_string(episode), 2, "0")}",
+        position: season * 100 + episode,
+        status: "pending"
+      },
+      attrs
+    )
+  end
+
+  defp movie_unit(id, attrs) do
+    struct!(
+      %MediaCentaur.Acquisition.Plans.PlanUnit{
+        id: id,
+        plan_id: "story-plan",
+        label: "Sample Movie",
+        position: 0,
+        status: "pending"
+      },
+      attrs
+    )
+  end
+
+  # A unit the planner assigned. The release names classify as their
+  # scope (`Search.ReleaseCoverage`), so the overlap story's pack really
+  # contains the single it shadows.
+  defp found(season, episode, guid) do
+    unit(season, episode,
+      status: "found",
+      assigned_guid: guid,
+      assigned_title: release_title(guid, season, episode),
+      assigned_scope: release_scope(guid, season, episode),
+      assigned_quality: if(guid == "single-s1e2", do: "2160p", else: "1080p"),
+      assigned_seeders: 34,
+      assigned_size_bytes: 3_100_000_000
+    )
+  end
+
+  defp release_title("pack", season, _episode), do: "Sample.Show.S0#{season}.1080p.WEB-DL.x264-GRP"
+  defp release_title("pack-s1", _season, _episode), do: "Sample.Show.S01.1080p.WEB-DL.x264-GRP"
+  defp release_title("single-s1e2", _season, _episode), do: "Sample.Show.S01E02.2160p.WEB-DL.x265-GRP"
+
+  defp release_title("sd-singles", season, episode),
+    do: "Sample.Show.S0#{season}E0#{episode}.480p.WEB-DL.x264-GRP"
+
+  defp release_title(_single, season, episode),
+    do: "Sample.Show.S0#{season}E#{String.pad_leading(to_string(episode), 2, "0")}.1080p.WEB-DL.x264-GRP"
+
+  defp release_scope("pack", season, _episode), do: "Season #{season} pack"
+  defp release_scope("pack-s1", _season, _episode), do: "Season 1 pack"
+  defp release_scope("sd-singles", _season, _episode), do: "8 singles"
+
+  defp release_scope(_single, season, episode),
+    do: "S0#{season}E#{String.pad_leading(to_string(episode), 2, "0")}"
 
   # Verdicts go through the real `GapVerdict.build/2` so story copy can
   # never drift from the shipped diagnosis vocabulary (UIDR-022).
   @story_now ~U[2026-08-11 12:00:00Z]
-
-  defp board(:below_preference_tv) do
-    cells =
-      for episode <- 1..8 do
-        state = if episode == 4, do: :assigned, else: :below_preference
-        guid = if episode == 4, do: "good-single"
-
-        %PlanBoard.Cell{
-          plan_unit_id: "story-unit-1-#{episode}",
-          season_number: 1,
-          episode_number: episode,
-          label: "S01E0#{episode}",
-          state: state,
-          release_guid: guid,
-          release_title: guid && "Sample.Show.S01E04.1080p.WEB-DL"
-        }
-      end
-
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :ready,
-      wanted: 8,
-      covered: 1,
-      seasons: [%PlanBoard.SeasonRow{season_number: 1, cells: cells}],
-      releases: [release("good-single", "S01E04", 1)],
-      gaps: [],
-      total_size_bytes: 2_100_000_000,
-      below_preference: %PlanBoard.BelowPreference{units: 7, releases: 31}
-    }
-  end
-
-  defp board(:lower_quality_accepted) do
-    cells = for episode <- 1..8, do: cell(1, episode, :assigned, "sd-singles")
-
-    %PlanBoard{
-      plan_id: "story-plan",
-      title: "Sample Show",
-      status: :ready,
-      wanted: 8,
-      covered: 8,
-      lower_quality_accepted?: true,
-      seasons: [%PlanBoard.SeasonRow{season_number: 1, cells: cells}],
-      releases: [release("sd-singles", "8 singles", 8)],
-      gaps: [],
-      total_size_bytes: 4_800_000_000
-    }
-  end
 
   defp search_progress(:finished_below) do
     %SearchProgressPanel.View{
@@ -1148,30 +1077,5 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
 
   defp rejected_items do
     MediaCentaurWeb.DownloadsLive.PlanLogic.rejected_items(movie_evidence(-45, 3, rejected_evidence()))
-  end
-
-  defp cell(season, episode, state, guid) do
-    %PlanBoard.Cell{
-      plan_unit_id: "story-unit-#{season}-#{episode}",
-      season_number: season,
-      episode_number: episode,
-      label: "S0#{season}E#{String.pad_leading(to_string(episode), 2, "0")}",
-      state: state,
-      release_guid: guid,
-      release_title: guid && "Sample.Show.S0#{season}.1080p.WEB-DL"
-    }
-  end
-
-  defp release(guid, scope, units_count) do
-    %PlanBoard.Release{
-      guid: guid,
-      title: "Sample.Show.#{guid}.1080p.WEB-DL.x264",
-      scope_label: scope,
-      quality: "1080p",
-      seeders: 34,
-      size_bytes: 3_100_000_000 * units_count,
-      units_count: units_count,
-      swap_unit_id: "story-unit-1-1"
-    }
   end
 end

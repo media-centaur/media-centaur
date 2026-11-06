@@ -11,6 +11,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     })
   end
 
+  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
@@ -1112,19 +1113,19 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.below_floor_count == 2
 
       board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
-      assert board.gaps == []
+      assert PlanBoard.gap_labels(board) == []
       refute board.lower_quality_accepted?
 
-      assert %MediaCentaur.Acquisition.ViewModels.PlanBoard.BelowPreference{
+      assert %PlanBoard.BelowPreference{
                units: 1,
                releases: 2,
                unit_id: unit_id,
                unit_label: "S02E01 · Return"
-             } = board.below_preference
+             } = PlanBoard.below_preference(board)
 
       assert unit_id == unit.id
 
-      assert [%{cells: [%{state: :below_preference}]}] = board.seasons
+      assert [%{kind: :below_preference, rows: [%{cells: [%{state: :below_preference}]}]}] = board.lines
     end
 
     test "a below-preference pack counts for uncovered episodes while acceptable singles still assign" do
@@ -1244,7 +1245,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
       assert board.lower_quality_accepted?
-      assert board.below_preference == nil
+      assert PlanBoard.below_preference(board) == nil
 
       {:ok, accepted} = Plans.fetch(plan.id)
       {:ok, _plan} = Plans.undo_lower_quality(accepted)

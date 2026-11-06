@@ -458,10 +458,10 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     test "switching to a different plan clears the previous plan's stale activity line", %{
       conn: conn
     } do
+      # Both plans stay planning (no jobs run): the latest search line is
+      # the receipts' first line only while a plan is still searching.
       {:ok, plan_a} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
-      MediaCentaur.JobRuns.run_enqueued_jobs()
       {:ok, plan_b} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Other Movie"})
-      MediaCentaur.JobRuns.run_enqueued_jobs()
 
       {:ok, view, _html} = live_async!(conn, ~p"/downloads?plan=#{plan_a.id}")
 
@@ -835,10 +835,10 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert_patch(view, "/downloads?plan=#{draft.id}")
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      # The board: ready, both cells assigned to the pack (a capsule),
-      # the release row beneath, approve enabled.
+      # The board: ready and clean — the verdict says so (no status line),
+      # both cells in the pack's line (a capsule), approve enabled.
       html = render(view)
-      assert html =~ "Plan ready · 2 of 2 covered"
+      assert html =~ "Everything you asked for was found."
       assert html =~ "Sample.Show.S01.COMPLETE.1080p.WEB-DL"
       assert html =~ "Season 1 pack"
       assert html =~ "Approve plan"
@@ -939,7 +939,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       # The search never reached episode terms — the picker starts empty.
       # The current assignment anchors the list, marked as such.
       html = render(view)
-      assert html =~ "Nothing else in the corpus yet"
+      assert html =~ "Nothing else known yet"
       refute html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
       assert html =~ "Choose a release"
       assert has_element?(view, "#plan-alternatives-current")
@@ -947,7 +947,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       # The header ✕ closes the picker; Options reopens it.
       view |> element("#plan-alternatives-close") |> render_click()
-      refute render(view) =~ "Nothing else in the corpus yet"
+      refute render(view) =~ "Nothing else known yet"
 
       view
       |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
@@ -1147,14 +1147,9 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         ]
       })
 
-      # On a ready board the step rows live in the collapsed
-      # How-we-searched disclosure; the headline duty moved to the
-      # adaptive verdict (UIDR-029). The body renders once opened, and the
-      # page keeps it open through the reloads below.
-      assert has_element?(view, "#plan-how-we-searched")
-      refute has_element?(view, "#plan-how-we-searched-body")
-      view |> element("#plan-how-we-searched-head") |> render_click()
-
+      # On a ready board the step rows are the receipts under *How we
+      # searched*, always shown (UIDR-029 as amended 2026-11-06); the
+      # headline duty is the verdict's.
       html = render(view)
       assert html =~ "How we searched"
       assert html =~ "not needed — already covered"
@@ -1415,7 +1410,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       refute has_element?(view, "button", "Search for something to watch")
     end
 
-    test "the board navigates as head / grid / body / foot regions and its cells caption themselves",
+    test "the board navigates as head / lines / foot regions and its cells are a line's sub-items",
          %{conn: conn} do
       stub_plan_tmdb()
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -1427,20 +1422,22 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       [unit | _] = Plans.units_for(plan.id)
 
       assert has_element?(view, "[data-plan-modal][data-nav-overlay='plan']")
-      assert has_element?(view, "[data-nav-zone='plan_head'] [data-nav-item]")
-      # Nothing was found, so the body has no release row to focus; the acts
-      # (Discard, the watchlist slot) are in the frame's foot.
-      assert has_element?(view, "[data-nav-zone='plan_foot'] [data-nav-item]")
-
-      # Cells are focusable and carry their caption for the grid's caption
-      # line (UIDR-029) — no per-cell tooltip, which a cursor never sees.
+      # Nothing was found: the one line is the not-found line, an item of
+      # the lines region; the acts (Discard, the watchlist slot) are in the
+      # frame's foot.
       assert has_element?(
                view,
-               "[data-nav-zone='plan_grid'] #plan-cell-#{unit.id}[data-nav-item][tabindex='0'][data-caption]"
+               "[data-nav-zone='plan_lines'] [data-plan-line='not_found'][data-nav-item]"
              )
 
-      refute has_element?(view, "#plan-cell-#{unit.id}[title]")
-      assert has_element?(view, "#plan-grid[phx-hook='PlanGridCaption'] [data-plan-caption]")
+      assert has_element?(view, "[data-nav-zone='plan_foot'] [data-nav-item]")
+
+      # A cell is its line's sub-item, named by its episode through the app
+      # tooltip (UIDR-029 as amended 2026-11-06).
+      assert has_element?(
+               view,
+               "[data-plan-line='not_found'] #plan-cell-#{unit.id}[data-nav-sub-item][data-tip]"
+             )
     end
 
     test "a board cell drops its unit from the plan and puts it back", %{conn: conn} do
