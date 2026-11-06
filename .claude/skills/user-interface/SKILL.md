@@ -489,7 +489,8 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `sidebar_link/1` | `sidebar_link.ex` | One entry of the main navigation rail: where you are (`active`), what waits (`count`, `condition`), in one accent (UIDR-030, UIDR-053) | ✅ |
 | `follow_up_pill/1` | `follow_up_pill.ex` | The rail's count of items waiting on a decision, primary (UIDR-030) | ✅ |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
-| `coming_up_marquee/1` | `coming_up_marquee.ex` | Home's Coming up shelf, over `ReleaseTracking.Views.ComingUp`; the only surface the words name (UIDR-050 §5) |
+| `marquee/1` | `marquee.ex` | The marquee: a lead tile, then columns of up to three tiles on a scroll row sized from its width, ending in See all — Home's Coming Up (up to 10 shows, `HomeLive.Logic.coming_up_items/2`) | ✅ |
+| `see_all_tile/1` | `see_all_tile.ex` | The last slot of a shelf with a page of its own — the keyboard and gamepad way to that page (Continue Watching, Recently Added, the marquee) | ✅ |
 | `identity_tile/1`, `crop_previews/1` | `social/identity_tile.ex` | The app's one drawing of a person from three facts — name, picture, hue — filled (`own?`) or tinted, at 32, 40, 48 or 96 (UIDR-047, UIDR-053); `person_attrs/1` turns a `Social.Person` into them; the crop stage's two preview frames | ✅ |
 | `profile_tile/1`, `add_tile/1` | `profile_tile.ex` | A place in the picker's row: a profile as the 96 tile over the truncated name, `current?` on a switch; the add tile, a dashed plus that opens the name field in its place (UIDR-053) | ✅ |
 | `feed_row/1` | `social/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
@@ -531,6 +532,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dow
 ## Anti-Patterns
 
 - A hand-written `.row-scroll` track for a row of cards — render it through `scroll_row/1`, which owns the track and the mouse user's edge arrows. The hero's single full-bleed item is the one plain track.
+- A hand-drawn See all link at the end of a shelf — compose `SeeAllTile.see_all_tile/1`, which every shelf with a page of its own ends in.
 - A second disc over a picture — `.picture-button` is the one; the play overlay and the scroll row arrows both carry it.
 - Hand-rolled markup for something a component draws — a label over a control, a form's button row, a field — instead of composing from the kit (`settings_field`, `settings_input`, the form footer idiom in the acquisition section) or adding a component with a story. Two surfaces drawing one idea drift (CLAUDE.md § Compose from the kit).
 - Solid-fill semantic buttons (`btn-error` without `btn-soft`)
