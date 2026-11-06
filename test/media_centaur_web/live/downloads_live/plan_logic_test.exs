@@ -298,7 +298,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogicTest do
     end
 
     test "board keeps the identity painted, borrowing the logo from earlier stages" do
-      board = %MediaCentaur.Acquisition.ViewModels.PlanBoard{
+      board = %PlanBoard{
         title: "Sample Show",
         plan_id: "plan-1",
         status: :ready,
