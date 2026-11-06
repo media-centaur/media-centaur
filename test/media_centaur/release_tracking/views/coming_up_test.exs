@@ -146,6 +146,20 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
       assert length(Views.coming_up(today, Date.add(today, 90), limit: 3)) == 3
       assert length(Views.coming_up(today, Date.add(today, 90), limit: 100)) == 5
     end
+
+    test "without a limit, a read returns every release in the window" do
+      # Home groups the window by show; a 30-release default cut the shows
+      # after the first few weekly series before it could.
+      today = Date.utc_today()
+
+      Enum.each(1..35, fn day ->
+        seed_release("Show #{day}", Date.add(today, day))
+      end)
+
+      assert :ok = ComingUp.refresh_cache()
+
+      assert length(Views.coming_up(today, Date.add(today, 90))) == 35
+    end
   end
 
   describe "equivalence with ReleaseTracking.list_releases_between/3" do

@@ -24,8 +24,8 @@ defmodule MediaCentaur.ReleaseTracking.Views do
   end
 
   @doc """
-  Returns up to `:limit` Coming Up items in the requested date window,
-  ordered by air date ascending. Defaults to 30.
+  Returns the Coming Up items in the requested date window, ordered by air
+  date ascending — up to `:limit` when given, else the whole window.
   """
   @spec coming_up(Date.t(), Date.t(), keyword()) :: [ComingUpItem.t()]
   def coming_up(from_date, to_date, opts \\ []), do: ComingUp.read(from_date, to_date, opts)

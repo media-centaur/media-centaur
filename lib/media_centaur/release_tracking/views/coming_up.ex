@@ -97,10 +97,13 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
   back to the underlying DB query when the ETS table is absent —
   covers test mode (Cache.Worker not started) and the brief window
   between boot and first refresh.
+
+  `limit:` caps the releases returned; without it, every release in the
+  window (the projection holds at most #{@max_items}).
   """
   @spec read(Date.t(), Date.t(), keyword()) :: [ComingUpItem.t()]
   def read(from_date, to_date, opts \\ []) do
-    limit = Keyword.get(opts, :limit, 30)
+    limit = Keyword.get(opts, :limit)
 
     case :ets.whereis(@table) do
       :undefined -> read_from_db(from_date, to_date, limit)
@@ -117,14 +120,17 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
       Date.compare(item.air_date, from_date) != :lt and
         Date.compare(item.air_date, to_date) != :gt
     end)
-    |> Enum.take(limit)
+    |> take(limit)
   end
 
   defp read_from_db(from_date, to_date, limit) do
     from_date
-    |> ReleaseTracking.list_releases_between(to_date, limit: limit)
+    |> ReleaseTracking.list_releases_between(to_date, limit: limit || @max_items)
     |> Enum.map(&to_view_model/1)
   end
+
+  defp take(items, nil), do: items
+  defp take(items, limit), do: Enum.take(items, limit)
 
   defp to_view_model(row) do
     %ComingUpItem{
