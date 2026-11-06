@@ -116,7 +116,7 @@ defmodule MediaCentaur.ReleaseTracking.ReplaceReleasesTest do
     test "tracks it, keeping the earliest date for the repeated type" do
       film = Title.new!(%{tmdb_id: @tmdb_id, media_type: :movie, name: "Sample Movie"})
 
-      assert {:ok, _intent} = ReleaseTracking.set_rung(film, :follow)
+      assert {:ok, _intent} = ReleaseTracking.set_rung(film, :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       item = ReleaseTracking.get_item_by_tmdb(@tmdb_id, :movie)

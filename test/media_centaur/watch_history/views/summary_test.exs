@@ -13,7 +13,7 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
 
   describe "Cache behaviour — relevant?/1" do
     test "accepts watch-event creation" do
-      assert Summary.relevant?({:watch_event_created, %{}})
+      assert Summary.relevant?({:watch_event_created, %{}, nil})
     end
 
     test "accepts watch-event deletion" do

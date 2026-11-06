@@ -39,7 +39,7 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
   @watchlist {"lib/media_centaur/watchlist.ex",
               "defmodule MediaCentaur.Watchlist do\n  def rungs, do: Repo.all(from(i in TitleIntent, select: {i.tmdb_id, i.rung}))\n  def note(%TitleIntent{note: note}), do: note\nend\n"}
   @activities {"lib/media_centaur/activities.ex",
-               "defmodule MediaCentaur.Activities do\n  alias MediaCentaur.Watchlist.TitleIntent\n  def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})\n  def own(%Activity{note: note}), do: note\nend\n"}
+               "defmodule MediaCentaur.Activities do\n  alias MediaCentaur.Watchlist.TitleIntent\n  def link(title, id), do: Watchlist.put_rung(title, :list, nil, %{activity_id: id})\n  def own(%Activity{note: note}), do: note\nend\n"}
 
   defp parse(files), do: Enum.map(files, fn {path, code} -> Sources.parse(path, code) end)
   defp run(files), do: ForeignField.findings(@schemas, ForeignField.usage(@schemas, parse(files)))
@@ -61,7 +61,8 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
              consumer_context: MediaCentaur.Activities,
              consumer: MediaCentaur.Activities,
              line: 3,
-             excerpt: "def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})"
+             excerpt:
+               "def link(title, id), do: Watchlist.put_rung(title, :list, nil, %{activity_id: id})"
            } = Enum.find(findings, &match?(%{detail: %{kind: :foreign_write}}, &1))
 
     assert %Finding{
@@ -115,10 +116,10 @@ defmodule MediaCentaur.ContextMap.Rules.ForeignFieldTest do
 
   test "a keyword argument is not a write; a map literal argument is" do
     keyword =
-      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, activity_id: id)\nend\n"
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, nil, activity_id: id)\nend\n"
 
     map =
-      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, %{activity_id: id})\nend\n"
+      "defmodule MediaCentaur.Activities do\n  def link(title, id), do: Watchlist.put_rung(title, :list, nil, %{activity_id: id})\nend\n"
 
     writes = fn code ->
       usage = ForeignField.usage(@schemas, parse([{"lib/media_centaur/activities.ex", code}]))

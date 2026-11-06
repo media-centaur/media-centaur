@@ -118,7 +118,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
     test "rejects unrelated messages" do
       refute Browse.relevant?(:something_else)
-      refute Browse.relevant?({:watch_event_created, %{}})
+      refute Browse.relevant?({:watch_event_created, %{}, nil})
       refute Browse.relevant?({:entity_progress_updated, %{}})
       refute Browse.relevant?({:other, "payload"})
     end

@@ -5,7 +5,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   plan for one missing episode of an owned series.
 
   `apply_rung/4` is the one write behind the bookmark and the tracking
-  switches (`ReleaseTracking.set_rung/3`): the rung lands before the
+  switches (`ReleaseTracking.set_rung/4`), made as the session's profile
+  (`ProfileAware.actor/1`): the rung lands before the
   reply, and the tracking it implies — the calendar, a TMDB fetch — is
   derived in a job the write owes, which the modal catches up with on the
   `:releases_updated` broadcast. `attrs` is the provenance a feed-born
@@ -42,6 +43,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
+  alias MediaCentaurWeb.Live.ProfileAware
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
 
   require MediaCentaur.Log, as: Log
@@ -52,7 +54,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
 
   @spec apply_rung(socket(), Title.t(), TitleIntent.rung() | :off, map()) :: socket()
   def apply_rung(socket, %Title{} = title, :off, _attrs) do
-    {:ok, nil} = ReleaseTracking.set_rung(title, :off)
+    {:ok, nil} = ReleaseTracking.set_rung(title, :off, ProfileAware.actor(socket))
     socket
   end
 
@@ -61,17 +63,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
       TitleIntent.follows_releases?(rung) and
         is_nil(ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type))
 
-    # The acting profile's viewing is the evidence a followed series'
-    # caught-up point starts from (`ReleaseTracking.set_rung/3`).
-    {:ok, _intent} = ReleaseTracking.set_rung(title, rung, Map.merge(attrs, profile_attrs(socket)))
+    {:ok, _intent} = ReleaseTracking.set_rung(title, rung, ProfileAware.actor(socket), attrs)
 
     if needs_calendar?,
       do: put_flash(socket, :info, "Tracking #{title.name} — its next release shows on your watchlist."),
       else: socket
   end
-
-  defp profile_attrs(%{assigns: %{profile: %{id: profile_id}}}), do: %{profile_id: profile_id}
-  defp profile_attrs(_socket), do: %{}
 
   # --- Download ---
 

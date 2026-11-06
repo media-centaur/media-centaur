@@ -25,9 +25,11 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(recorder, {:entity_watch_completed, progress})
+      actor = build_actor()
+      send(recorder, {:entity_watch_completed, progress, actor})
 
-      assert_receive {:watch_event_created, event}, 2000
+      # The actor is not stored; it rides on the message (ADR-082).
+      assert_receive {:watch_event_created, event, ^actor}, 2000
       assert event.title == "Sample Movie"
       assert event.entity_type == :movie
       assert event.movie_id == movie.id
@@ -49,9 +51,9 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(recorder, {:entity_watch_completed, progress})
+      send(recorder, {:entity_watch_completed, progress, nil})
 
-      assert_receive {:watch_event_created, event}, 2000
+      assert_receive {:watch_event_created, event, nil}, 2000
       assert event.title == "Sample Show S01E04"
       assert event.entity_type == :episode
       assert event.episode_id == episode.id
@@ -69,9 +71,9 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(recorder, {:entity_watch_completed, progress})
+      send(recorder, {:entity_watch_completed, progress, nil})
 
-      assert_receive {:watch_event_created, event}, 2000
+      assert_receive {:watch_event_created, event, nil}, 2000
       assert event.title == "Extra Feature Reel"
       assert event.entity_type == :video_object
       assert event.video_object_id == video_object.id
@@ -108,7 +110,7 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
          }}
       )
 
-      refute_receive {:watch_event_created, _}, 500
+      refute_receive {:watch_event_created, _event, _actor}, 500
       assert WatchHistory.list_events(progress.profile_id) == []
     end
   end

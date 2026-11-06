@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           duration_seconds: 1000.0
         })
 
-      Library.ProgressRecords.mark_completed!(progress)
+      Library.ProgressRecords.mark_completed!(progress, nil)
       backdate(progress, :last_watched_at, ~U[2026-08-03 20:00:00Z])
 
       :ok
@@ -520,7 +520,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _mine} = Activities.review(title, :like, "First words")
+      {:ok, _mine} = Activities.review(title, :like, "First words", build_actor())
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       view |> element("#detail-review") |> render_click()
@@ -564,7 +564,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#detail-review[aria-label='Review']")
       refute has_element?(view, "#detail-note")
 
-      {:ok, _mine} = Activities.review(title, :like, "Practical effects hold up.")
+      {:ok, _mine} = Activities.review(title, :like, "Practical effects hold up.", build_actor())
       await_supervised_tasks()
 
       assert has_element?(view, "#detail-note[data-role='own-review']", "You")
@@ -583,8 +583,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       # Watchlist's own write: the note applies on creation (`put_rung/3`).
-      {:ok, _intent} = Watchlist.put_rung(title, :list, %{note: "Saved for Sunday"})
-      {:ok, _mine} = Activities.review(title, nil, "My words")
+      {:ok, _intent} = Watchlist.put_rung(title, :list, nil, %{note: "Saved for Sunday"})
+      {:ok, _mine} = Activities.review(title, nil, "My words", build_actor())
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       assert has_element?(view, "#detail-note[data-role='own-review']", "My words")

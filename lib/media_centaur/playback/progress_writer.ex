@@ -20,6 +20,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Progress, as: LibraryProgress
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Playback.{Completion, Entry, MpvProperties, ProgressBroadcaster, WatchingTracker}
 
   @doc """
@@ -186,7 +187,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
 
       _ ->
         Log.info(:playback, "marked completed — #{reason}")
-        :ok = LibraryProgress.complete(profile_id, playable_item_id)
+        :ok = LibraryProgress.complete(Actor.new(profile_id), playable_item_id)
     end
   end
 
@@ -196,7 +197,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
   defp maybe_mark_extra_completed(record, reason) do
     Log.info(:playback, "extra marked completed — #{reason}")
 
-    case Library.ProgressRecords.mark_completed(record) do
+    case Library.ProgressRecords.mark_completed(record, Actor.new(record.profile_id)) do
       {:ok, _} -> :ok
       {:error, error} -> Log.warning(:playback, "failed to mark extra completed — #{inspect(error)}")
     end

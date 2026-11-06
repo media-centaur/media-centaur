@@ -102,7 +102,8 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
           media_type: :tv_series,
           name: "Tracked Fixture Show"
         }),
-        :off
+        :off,
+        nil
       )
 
     {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")

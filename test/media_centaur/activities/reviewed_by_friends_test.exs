@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Activities.ReviewedByFriendsTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory, only: [build_actor: 0]
+
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Nostr.Event
@@ -73,7 +75,7 @@ defmodule MediaCentaur.Activities.ReviewedByFriendsTest do
     )
 
     ingest(:watched, movie_c, [], @friend_pubkey, @friend_secret, 1_700_000_400)
-    {:ok, _own} = Activities.review(movie_d, :like, "mine")
+    {:ok, _own} = Activities.review(movie_d, :like, "mine", build_actor())
     await_supervised_tasks()
 
     assert [

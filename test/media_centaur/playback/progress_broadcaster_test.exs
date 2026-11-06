@@ -41,7 +41,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       :ok = Progress.record(owner_profile_id(), record.playable_item_id, 1659.0, 1851.0)
 
       # Manual "mark watched": writes DB completed:true, leaves the hot row.
-      {:ok, _completed} = ProgressRecords.mark_completed(record)
+      {:ok, _completed} = ProgressRecords.mark_completed(record, nil)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
       ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, record)
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
           duration_seconds: 0.0
         })
 
-      {:ok, record} = ProgressRecords.mark_completed(record)
+      {:ok, record} = ProgressRecords.mark_completed(record, nil)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
@@ -174,7 +174,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       {:ok, raw_progress} =
         ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
 
-      {:ok, raw_progress} = ProgressRecords.mark_completed(raw_progress)
+      {:ok, raw_progress} = ProgressRecords.mark_completed(raw_progress, nil)
 
       assert match?(%Ecto.Association.NotLoaded{}, raw_progress.playable_item)
 

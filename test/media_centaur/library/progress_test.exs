@@ -17,6 +17,7 @@ defmodule MediaCentaur.Library.ProgressTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Library.Progress
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaur.Repo
@@ -299,7 +300,7 @@ defmodule MediaCentaur.Library.ProgressTest do
       assert %WatchProgress{position_seconds: 100.0} = Progress.get(me, pi_id)
       assert %WatchProgress{position_seconds: 500.0} = Progress.get(ana, pi_id)
 
-      :ok = Progress.complete(ana, pi_id)
+      :ok = Progress.complete(Actor.new(ana), pi_id)
       assert %WatchProgress{completed: true} = Progress.get(ana, pi_id)
       assert %WatchProgress{completed: false} = Progress.get(me, pi_id)
     end
@@ -314,7 +315,7 @@ defmodule MediaCentaur.Library.ProgressTest do
     test "writes completed: true progress row" do
       playable_item = seed_movie_playable_item()
       :ok = Progress.record(owner_profile_id(), playable_item.id, 90.0, 100.0)
-      :ok = Progress.complete(owner_profile_id(), playable_item.id)
+      :ok = Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
 
       assert %WatchProgress{completed: true} =
                Repo.get_by(WatchProgress, playable_item_id: playable_item.id)
@@ -325,7 +326,7 @@ defmodule MediaCentaur.Library.ProgressTest do
       :ok = Progress.record(owner_profile_id(), playable_item.id, 90.0, 100.0)
       pi_id = playable_item.id
 
-      :ok = Progress.complete(owner_profile_id(), playable_item.id)
+      :ok = Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
 
       assert_receive {:watch_completed, ^pi_id}, 500
     end
@@ -333,7 +334,7 @@ defmodule MediaCentaur.Library.ProgressTest do
     test "subsequent get/2 returns the completed row" do
       playable_item = seed_movie_playable_item()
       :ok = Progress.record(owner_profile_id(), playable_item.id, 90.0, 100.0)
-      :ok = Progress.complete(owner_profile_id(), playable_item.id)
+      :ok = Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
 
       assert %WatchProgress{completed: true, playable_item_id: pi_id} =
                Progress.get(owner_profile_id(), playable_item.id)
@@ -353,7 +354,7 @@ defmodule MediaCentaur.Library.ProgressTest do
       # completion; un-completing is an explicit action on another path.
       playable_item = seed_movie_playable_item()
       :ok = Progress.record(owner_profile_id(), playable_item.id, 90.0, 100.0)
-      :ok = Progress.complete(owner_profile_id(), playable_item.id)
+      :ok = Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
       assert %WatchProgress{completed: true} = Progress.get(owner_profile_id(), playable_item.id)
 
       :ok = Progress.record(owner_profile_id(), playable_item.id, 95.0, 100.0)
@@ -446,7 +447,7 @@ defmodule MediaCentaur.Library.ProgressTest do
           duration_seconds: 100.0
         })
 
-      {:ok, _completed} = MediaCentaur.Library.ProgressRecords.mark_completed(progress)
+      {:ok, _completed} = MediaCentaur.Library.ProgressRecords.mark_completed(progress, nil)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_progress())
 

@@ -5,6 +5,7 @@ defmodule MediaCentaur.Activities do
       MediaCentaur.Watchlist,
       MediaCentaur.Library,
       MediaCentaur.Nostr,
+      MediaCentaur.Profiles,
       MediaCentaur.Settings.Preferences,
       MediaCentaur.Social,
       MediaCentaur.TMDB,
@@ -44,9 +45,17 @@ defmodule MediaCentaur.Activities do
   rows (tombstones, see `Activity`) are excluded everywhere except
   `own_events/0`, which republishes their deletions.
 
+  Every activity this identity sends is a person's act: `review/4`,
+  `watched/3` and `listing/2` take the `Profiles.Actor` that acted and
+  refuse anything else (ADR-082), so a write the system made — a sweep,
+  a job, a seed, a repair — can never be said to friends. The actor is
+  the proof, not the author: every activity is signed by this install's
+  identity whichever profile acted. Withdrawing needs no actor; a
+  statement that is no longer true comes down whoever made it untrue.
+
   Reviewing is an explicit act of sharing and always publishes.
   Watching and listing are published by `Activities.Publisher` only
-  while their sharing toggle is on; `watched/2`, `listing/1` and
+  while their sharing toggle is on; `watched/3`, `listing/2` and
   `withdraw/3` are the primitives it calls and do not consult the toggle
   themselves.
 
@@ -60,6 +69,7 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Activities.Activity.Episode
@@ -92,13 +102,14 @@ defmodule MediaCentaur.Activities do
   `text` is trimmed first; blank becomes `nil`; text over
   #{@max_text_length} characters is rejected with `{:error,
   :text_too_long}` and nothing is stored. Stamped after whatever the
-  row already holds (see `stamp/3`).
+  row already holds (see `stamp/3`). `actor` is the profile that wrote it.
   """
-  @spec review(Title.t(), Activity.sentiment() | nil, String.t() | nil) ::
+  @spec review(Title.t(), Activity.sentiment() | nil, String.t() | nil, Actor.t()) ::
           {:ok, Activity.t()} | {:error, :text_too_long | term()}
-  def review(%Title{} = title, sentiment, text) when sentiment in [nil, :dislike, :like, :love] do
+  def review(%Title{} = title, sentiment, text, %Actor{} = actor)
+      when sentiment in [nil, :dislike, :like, :love] do
     with {:ok, text} <- validate_text(text) do
-      publish_own(:review, title, sentiment: sentiment, text: text)
+      publish_own(:review, title, [sentiment: sentiment, text: text], actor)
     end
   end
 
@@ -107,15 +118,23 @@ defmodule MediaCentaur.Activities do
   identity: `title` finished, at `episode` for a TV series (`nil` for a
   movie). Watching the next episode replaces the row and the relay's
   record — the feed shows the latest episode finished, not every one.
+  `actor` is the profile that finished it.
   """
-  @spec watched(Title.t(), Episode.t() | nil) :: {:ok, Activity.t()} | {:error, term()}
-  def watched(%Title{} = title, episode), do: publish_own(:watched, title, episode: episode)
+  @spec watched(Title.t(), Episode.t() | nil, Actor.t()) :: {:ok, Activity.t()} | {:error, term()}
+  def watched(%Title{} = title, episode, %Actor{} = actor),
+    do: publish_own(:watched, title, [episode: episode], actor)
 
-  @doc "Builds, signs, stores and publishes a listing from this identity: `title` is on the watchlist (\"wants to watch\")."
-  @spec listing(Title.t()) :: {:ok, Activity.t()} | {:error, term()}
-  def listing(%Title{} = title), do: publish_own(:listing, title, [])
+  @doc """
+  Builds, signs, stores and publishes a listing from this identity:
+  `title` is on the watchlist ("wants to watch"). `actor` is the profile
+  that listed it.
+  """
+  @spec listing(Title.t(), Actor.t()) :: {:ok, Activity.t()} | {:error, term()}
+  def listing(%Title{} = title, %Actor{} = actor), do: publish_own(:listing, title, [], actor)
 
-  defp publish_own(kind, %Title{} = title, payload) do
+  # The one door every activity of this identity's leaves through. It
+  # takes an actor and nothing else: a person acted (ADR-082).
+  defp publish_own(kind, %Title{} = title, payload, %Actor{}) do
     secret = Identity.ensure()
     me = Identity.pubkey()
     now = System.os_time(:second)

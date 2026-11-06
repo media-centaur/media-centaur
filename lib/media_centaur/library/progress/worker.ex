@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
       cleared and `{:progress_flushed, %ProgressFlushed{profile_id:, playable_item_id:}}`
       is broadcast on `library:progress` per row. On failure the
       dirty set is left populated so the next flush retries.
-    * `handle_call({:complete, key}, _from, state)` writes a
+    * `handle_call({:complete, key, actor}, _from, state)` writes a
       `completed: true` row directly (no debounce — completion is a
       watershed event) and broadcasts
       `{:watch_completed, playable_item_id}` on `watch_history:events`.
@@ -159,7 +159,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
     {:reply, :ok, %{state | dirty: MapSet.new()}}
   end
 
-  def handle_call({:complete, {profile_id, playable_item_id} = key}, _from, state) do
+  def handle_call({:complete, {profile_id, playable_item_id} = key, actor}, _from, state) do
     now = DateTime.utc_now(:second)
 
     case Library.ProgressRecords.find_or_create_by_playable_item(profile_id, playable_item_id) do
@@ -184,7 +184,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
               updated
           end
 
-        {:ok, _completed} = Library.ProgressRecords.mark_completed(record)
+        {:ok, _completed} = Library.ProgressRecords.mark_completed(record, actor)
 
         upsert_in_memory(state.table, key, record.position_seconds, record.duration_seconds, now, true)
 

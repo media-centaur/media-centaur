@@ -51,7 +51,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
 
     test "rejects unrelated messages" do
       refute HeroCandidates.relevant?(:something_else)
-      refute HeroCandidates.relevant?({:watch_event_created, %{}})
+      refute HeroCandidates.relevant?({:watch_event_created, %{}, nil})
       refute HeroCandidates.relevant?({:entity_progress_updated, %{}})
       refute HeroCandidates.relevant?({:other, "payload"})
     end

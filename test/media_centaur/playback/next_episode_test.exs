@@ -84,7 +84,7 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
           duration_seconds: 1800.0
         })
 
-      MediaCentaur.Library.ProgressRecords.mark_completed!(progress)
+      MediaCentaur.Library.ProgressRecords.mark_completed!(progress, nil)
 
       assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
       assert item.start_position == 0.0

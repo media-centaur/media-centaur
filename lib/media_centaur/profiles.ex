@@ -2,6 +2,7 @@ defmodule MediaCentaur.Profiles do
   use Boundary,
     deps: [],
     exports: [
+      Actor,
       Events,
       Events.ProfileAdded,
       Events.ProfileChanged,

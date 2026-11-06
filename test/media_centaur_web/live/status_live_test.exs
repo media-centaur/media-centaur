@@ -373,7 +373,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
           completed_at: ~U[2026-06-09 12:00:00.000000Z]
         })
 
-      send(view.pid, {:watch_event_created, event})
+      send(view.pid, {:watch_event_created, event, nil})
       assert render(view) =~ "Movie A"
     end
   end

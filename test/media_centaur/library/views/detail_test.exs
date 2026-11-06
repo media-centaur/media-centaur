@@ -120,7 +120,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     test "rejects unrelated messages" do
       refute Detail.relevant?(:something_else)
       refute Detail.relevant?({:other, "payload"})
-      refute Detail.relevant?({:watch_event_created, %{}})
+      refute Detail.relevant?({:watch_event_created, %{}, nil})
     end
   end
 

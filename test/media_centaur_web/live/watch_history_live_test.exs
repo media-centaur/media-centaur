@@ -264,7 +264,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       refute render(view) =~ "Mine Later"
 
-      send(view.pid, {:watch_event_created, mine})
+      send(view.pid, {:watch_event_created, mine, nil})
 
       eventually(fn -> render(view) =~ "Mine Later" end,
         message: "the owner's completion must reload the list"
@@ -274,7 +274,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     test "another profile's completion is ignored", %{view: view, movie: movie, ana: ana} do
       hers = create_watch_event(%{profile_id: ana.id, movie_id: movie.id, title: "Hers Later"})
 
-      send(view.pid, {:watch_event_created, hers})
+      send(view.pid, {:watch_event_created, hers, nil})
       # A reload, were one scheduled, would still list only the owner's rows —
       # so the second assertion is what the ignore clause buys: the page is
       # not re-fetched at all, and the empty state stays put.
@@ -340,7 +340,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       movie = create_movie(%{name: "Sample Movie"})
       event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie"})
 
-      send(view.pid, {:watch_event_created, event})
+      send(view.pid, {:watch_event_created, event, nil})
 
       # The new event appears only after the 500ms debounce fires — poll for it.
       assert render_until(view, "Sample Movie") =~ "Sample Movie"
@@ -358,7 +358,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       for _ <- 1..5 do
         event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Other Movie"})
-        send(view.pid, {:watch_event_created, event})
+        send(view.pid, {:watch_event_created, event, nil})
       end
 
       # Coalescing is pinned by `LiveHelpers.debounce/4`'s tests; `render/1`

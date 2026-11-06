@@ -35,6 +35,7 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
   import Phoenix.LiveView, only: [attach_hook: 4, redirect: 2]
 
   alias MediaCentaur.Profiles
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaurWeb.Live.ProfileAware.Logic
   alias MediaCentaurWeb.Live.Subscriptions
 
@@ -54,6 +55,16 @@ defmodule MediaCentaurWeb.Live.ProfileAware do
         {:cont, attach_hook(socket, :profile_aware_pick, :handle_params, &redirect_to_picker/3)}
     end
   end
+
+  @doc """
+  The session's profile as the actor of what the person does on this
+  page (`Profiles.Actor`, ADR-082): every write a person makes here that
+  could be shared is made with it. `nil` on the picker at the door,
+  where no profile is active and nothing is acted on.
+  """
+  @spec actor(Phoenix.LiveView.Socket.t()) :: Actor.t() | nil
+  def actor(%{assigns: %{profile: %Profiles.Profile{id: profile_id}}}), do: Actor.new(profile_id)
+  def actor(_socket), do: nil
 
   defp aware(socket, profile, profiles) do
     socket

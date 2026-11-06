@@ -1,6 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking do
   use Boundary,
     deps: [
+      MediaCentaur.Profiles,
       MediaCentaur.TMDB,
       MediaCentaur.Watchlist,
       MediaCentaur.IntegrationAvailability,
@@ -36,7 +37,7 @@ defmodule MediaCentaur.ReleaseTracking do
   `MediaCentaur.Library.*` public functions, never its schemas — a
   tracked item points at a library container by id and type.
   A tracked title is derived from a person's rung, never authored:
-  `set_rung/3` is the one write path, and `ReleaseTracking.Onboarding`
+  `set_rung/4` is the one write path, and `ReleaseTracking.Onboarding`
   builds the machinery a followed title needs.
   """
 
@@ -49,6 +50,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Containers
   alias MediaCentaur.Library.ExternalIds
+  alias MediaCentaur.Profiles.Actor
 
   alias MediaCentaur.ReleaseTracking.DeriveJob
   alias MediaCentaur.ReleaseTracking.LibraryLinks
@@ -86,7 +88,7 @@ defmodule MediaCentaur.ReleaseTracking do
   Creates a tracking item.
 
   Silent by design: a tracked title is derived machinery, not a person's
-  act. The act is a person raising a rung, and `set_rung/3` announces
+  act. The act is a person raising a rung, and `set_rung/4` announces
   that — the announcement belongs to the record the person authored, not
   to the machine it started.
   """
@@ -308,7 +310,7 @@ defmodule MediaCentaur.ReleaseTracking do
   Re-derives one title's machinery from the rung it sits at, dropping the
   tracked title when the rung no longer calls for one.
 
-  `set_rung/3` derives on the way in, so this exists for the *other*
+  `set_rung/4` derives on the way in, so this exists for the *other*
   direction — the library moving underneath a rung that has not changed:
   a film arriving (which completes it) or a container being deleted. It
   only ever drops, never creates, so it can be called freely from the
@@ -393,7 +395,7 @@ defmodule MediaCentaur.ReleaseTracking do
   The one place the library writes a title intent (ADR-066's 2026-09-28
   amendment), and only on the person's standing instruction. It reacts to
   the arrival, never to the state: a movie already in the library that a
-  person lists afterwards stays listed. Removal is `set_rung(title, :off)`,
+  person lists afterwards stays listed. Removal is `set_rung(title, :off, nil)`,
   the bookmark's own act, so a shared listing is withdrawn with it. An
   ignored movie is not on the watchlist and keeps its record.
   """
@@ -409,7 +411,7 @@ defmodule MediaCentaur.ReleaseTracking do
   defp remove_arrived_from_watchlist(tmdb_id) do
     with true <- Watchlist.listed?(tmdb_id, :movie),
          %{title: title} <- Watchlist.get_intent(tmdb_id, :movie),
-         {:ok, nil} <- set_rung(title, :off) do
+         {:ok, nil} <- set_rung(title, :off, nil) do
       Log.info(
         :acquisition,
         "removed #{title.name || tmdb_id} from the watchlist — it arrived in the library"
@@ -529,24 +531,28 @@ defmodule MediaCentaur.ReleaseTracking do
   see both sides and the dependency runs this way — `Watchlist` must stay
   free of tracking (ADR-066).
 
-  `attrs` may carry `:source`, `:note` and `:activity_id` (applied on
-  creation), and `:profile_id`, the profile acting: raising a series
-  with no caught-up point to Follow or above starts the point at the
-  last episode that profile finished (`Library.last_watched_episode/2`).
+  `actor` is the profile that acted (`Profiles.Actor`), or `nil` when no
+  person did — a seed, a sweep, a repair. Every caller states it. The
+  move is shared with friends only for an actor (ADR-082), and raising a
+  series with no caught-up point to Follow or above starts the point at
+  the last episode the actor finished (`Library.last_watched_episode/2`).
   With no viewing to go on, onboarding sets it to the latest aired
   episode; a point already set is the person's and is kept.
-  """
-  @spec set_rung(Title.t(), TitleIntent.rung() | :off, map()) ::
-          {:ok, TitleIntent.t() | nil} | {:error, term()}
-  def set_rung(title, rung, attrs \\ %{})
 
-  def set_rung(%Title{} = title, :off, _attrs) do
-    :ok = Watchlist.forget(title.tmdb_id, title.media_type)
+  `attrs` may carry `:source`, `:note` and `:activity_id`, applied on
+  creation.
+  """
+  @spec set_rung(Title.t(), TitleIntent.rung() | :off, Actor.t() | nil, map()) ::
+          {:ok, TitleIntent.t() | nil} | {:error, term()}
+  def set_rung(title, rung, actor, attrs \\ %{})
+
+  def set_rung(%Title{} = title, :off, actor, _attrs) do
+    :ok = Watchlist.forget(title.tmdb_id, title.media_type, actor)
     :ok = drop_machinery(title.tmdb_id, title.media_type)
     {:ok, nil}
   end
 
-  def set_rung(%Title{} = title, rung, attrs) do
+  def set_rung(%Title{} = title, rung, actor, attrs) do
     derivation =
       DeriveJob.new(%{
         "tmdb_id" => title.tmdb_id,
@@ -554,8 +560,8 @@ defmodule MediaCentaur.ReleaseTracking do
       })
 
     Repo.transaction(fn ->
-      with {:ok, intent} <- Watchlist.put_rung(title, rung, attrs),
-           :ok <- start_point(intent, title, attrs),
+      with {:ok, intent} <- Watchlist.put_rung(title, rung, actor, attrs),
+           :ok <- start_point(intent, title, actor),
            {:ok, _job} <- Oban.insert(derivation) do
         intent
       else
@@ -564,13 +570,10 @@ defmodule MediaCentaur.ReleaseTracking do
     end)
   end
 
-  defp start_point(%TitleIntent{} = intent, %Title{media_type: :tv_series} = title, %{
-         profile_id: profile_id
-       })
-       when is_binary(profile_id) do
+  defp start_point(%TitleIntent{} = intent, %Title{media_type: :tv_series} = title, %Actor{} = actor) do
     with true <- TitleIntent.follows_releases?(intent.rung),
          nil <- TitleIntent.caught_up(intent),
-         {_season, _episode} = point <- Library.last_watched_episode(profile_id, title.tmdb_id),
+         {_season, _episode} = point <- Library.last_watched_episode(actor.profile_id, title.tmdb_id),
          {:ok, _intent} <- Watchlist.catch_up(title.tmdb_id, :tv_series, point) do
       :ok
     else
@@ -579,7 +582,7 @@ defmodule MediaCentaur.ReleaseTracking do
     end
   end
 
-  defp start_point(_intent, _title, _attrs), do: :ok
+  defp start_point(_intent, _title, _no_actor), do: :ok
 
   @doc """
   Derives the machinery for a title from the rung it stands at now —

@@ -85,7 +85,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
     test "rejects unrelated messages" do
       refute Search.relevant?(:something_else)
-      refute Search.relevant?({:watch_event_created, %{}})
+      refute Search.relevant?({:watch_event_created, %{}, nil})
       refute Search.relevant?({:entity_progress_updated, %{}})
       refute Search.relevant?({:other, "payload"})
     end

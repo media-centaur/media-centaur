@@ -30,16 +30,24 @@ defmodule MediaCentaur.Watchlist.Events do
     with: the title the person acted on, or — on a move to Off — the
     store's snapshot of the title, a bare identity when the store never
     held it (ADR-071). Subscribers refresh whatever they derived from it.
+
+    `actor` is the profile whose act moved it, or `nil` when no person
+    did — a sweep, a seed, a repair. Only a person's act is shared with
+    friends (ADR-082); everything derived from the rung follows it
+    whoever moved it.
     """
-    @enforce_keys [:tmdb_id, :media_type, :title, :previous_rung, :rung]
-    defstruct [:tmdb_id, :media_type, :title, :previous_rung, :rung]
+    alias MediaCentaur.Profiles.Actor
+
+    @enforce_keys [:tmdb_id, :media_type, :title, :previous_rung, :rung, :actor]
+    defstruct [:tmdb_id, :media_type, :title, :previous_rung, :rung, :actor]
 
     @type t :: %__MODULE__{
             tmdb_id: integer(),
             media_type: :movie | :tv_series,
             title: Title.t(),
             previous_rung: TitleIntent.rung() | nil,
-            rung: TitleIntent.rung() | nil
+            rung: TitleIntent.rung() | nil,
+            actor: Actor.t() | nil
           }
   end
 

@@ -179,11 +179,11 @@ and a nil sentiment is left off the wire. Content carries `"v": 1`; `from_event/
 absent `v` as 1 and drops an unknown one.
 
 **Producers.** Reviewing is an explicit act and always publishes
-(`Activities.review/3`, from the Review modal, with the sentiment and text
+(`Activities.review/4`, from the Review modal, with the sentiment and text
 the sender gave, neither required). Watched and listing
 activities come from `Activities.Publisher`, a pubsub listener over
 `watch_history:events` and `watchlist:updates` that calls
-`Activities.watched/2` / `listing/1` only while the `share_watched` /
+`Activities.watched/3` / `listing/2` only while the `share_watched` /
 `share_watchlist` preference is on (Settings → Social → Sharing, both default
 off). A completion resolves its TMDB identity through `Library.ExternalIds`;
 an entity without one, and every extra, is skipped. A listing follows the
@@ -192,6 +192,15 @@ and `rung`, and only the crossing onto List publishes — moving up the
 ladder afterwards does not. Dropping below List (Off or Ignored) calls
 `Activities.withdraw/3` on the listing whether or not the toggle is still
 on: the statement is no longer true (ADR-067).
+
+**Only a person's act is shared** (ADR-082). Every producer hands
+`Activities` a `Profiles.Actor` — the profile that acted — and the sending
+door takes nothing else. The web layer makes one from the session's profile
+(`ProfileAware.actor/1`), playback from the profile playing; Credo MC0044
+refuses one anywhere else. `RungChanged.actor` and the third element of
+`{:watch_event_created, event, actor}` carry it to the publisher; a write
+made by a sweep, job, seed or repair carries `nil` and shares nothing. A
+withdrawal needs no actor.
 
 **Deletion.** `Activities.delete/1` withdraws an own row of any kind:
 `Translation.to_deletion/5` builds the kind 5 (`a` =

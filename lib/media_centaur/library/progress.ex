@@ -54,6 +54,7 @@ defmodule MediaCentaur.Library.Progress do
   ADR-041 projections rely on.
   """
   alias MediaCentaur.Library.Progress.Worker
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaur.Repo
 
@@ -115,14 +116,15 @@ defmodule MediaCentaur.Library.Progress do
   defp hot_completed?(key), do: match?(%{completed: true}, lookup_in_memory_row(key))
 
   @doc """
-  Marks a playable item as completed for `profile_id`. Persisted to disk synchronously
+  Marks a playable item as completed for the `actor`'s profile — a person
+  finished it (playback reaching the end). Persisted to disk synchronously
   (no debounce — completion is a watershed event) and broadcast on
   `watch_history:events`. Uses `GenServer.call/2` so callers get
   read-after-write semantics against the DB.
   """
-  @spec complete(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
-  def complete(profile_id, playable_item_id) when is_binary(profile_id) and is_binary(playable_item_id),
-    do: call({:complete, {profile_id, playable_item_id}})
+  @spec complete(Actor.t(), Ecto.UUID.t()) :: :ok
+  def complete(%Actor{} = actor, playable_item_id) when is_binary(playable_item_id),
+    do: call({:complete, {actor.profile_id, playable_item_id}, actor})
 
   @doc """
   Reads `profile_id`'s watch progress on a `playable_item_id`. Returns

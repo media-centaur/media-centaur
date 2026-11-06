@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Deletion
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Playback
   alias MediaCentaur.Playback.ProgressBroadcaster
   alias MediaCentaurWeb.Components.Detail.CastSelection
@@ -230,7 +231,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
   defp apply_progress_transition(
          %{completed: false} = progress,
-         _profile_id,
+         profile_id,
          _container_type,
          _container_id
        ) do
@@ -238,7 +239,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
       "toggled completed — was #{LibraryProgress.completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
     end)
 
-    Library.ProgressRecords.mark_completed!(progress)
+    Library.ProgressRecords.mark_completed!(progress, Actor.new(profile_id))
   end
 
   defp apply_progress_transition(nil, profile_id, container_type, container_id)
@@ -251,7 +252,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
         duration_seconds: 0.0
       })
 
-    Library.ProgressRecords.mark_completed!(record)
+    Library.ProgressRecords.mark_completed!(record, Actor.new(profile_id))
   end
 
   defp apply_progress_transition(nil, _profile_id, _container_type, nil), do: nil
@@ -264,7 +265,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
       {:ok, progress} ->
         Log.info(:library, "extra toggled completed")
-        Library.ProgressRecords.mark_completed!(progress)
+        Library.ProgressRecords.mark_completed!(progress, Actor.new(profile_id))
 
       {:error, :not_found} ->
         Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
@@ -278,7 +279,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
             duration_seconds: 0.0
           })
 
-        Library.ProgressRecords.mark_completed!(record)
+        Library.ProgressRecords.mark_completed!(record, Actor.new(profile_id))
     end
 
     ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)

@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   artwork tier the subject lives in; the own review is the host's too
   (`Title.Logic.own_review/1` over the detail's rows).
 
-  Send goes through `Activities.review/3`, which replaces the reader's
+  Send goes through `Activities.review/4`, which replaces the reader's
   row for the title; the flash says shared, updated, or saved for a
   relay to come. Text over 500 characters is rejected without closing,
   so the words are not lost. Remove takes the arm gesture
@@ -61,6 +61,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.Live.ProfileAware
 
   defmodule State do
     @moduledoc "The Review modal's state — see `MediaCentaurWeb.Live.ReviewFlow`."
@@ -142,7 +143,7 @@ defmodule MediaCentaurWeb.Live.ReviewFlow do
   """
   @spec submit(socket(), String.t() | nil) :: socket()
   def submit(%{assigns: %{review: %State{subject: %Title{} = title} = state}} = socket, text) do
-    case Activities.review(title, state.sentiment, text) do
+    case Activities.review(title, state.sentiment, text, ProfileAware.actor(socket)) do
       {:ok, _review} ->
         message = sent_message(State.editing?(state), relay_counts(Connections.status()))
         socket |> close() |> put_flash(:info, message)

@@ -5,9 +5,15 @@ defmodule MediaCentaur.Activities.Publisher do
 
   | Act | Source | Toggle | Activity |
   |---|---|---|---|
-  | Finished a movie or an episode | `watch_history:events`, `{:watch_event_created, event}` | `share_watched` | `Activities.watched/2` |
-  | Listed a title — its rung crossed onto List from below | `watchlist:updates`, `{:title_intent_changed, %RungChanged{}}` | `share_watchlist` | `Activities.listing/1` |
-  | Dropped a listed title below List | the same message, the other way | none | `Activities.withdraw/3` |
+  | Finished a movie or an episode | `watch_history:events`, `{:watch_event_created, event, %Actor{}}` | `share_watched` | `Activities.watched/3` |
+  | Listed a title — its rung crossed onto List from below | `watchlist:updates`, `{:title_intent_changed, %RungChanged{actor: %Actor{}}}` | `share_watchlist` | `Activities.listing/2` |
+  | Dropped a listed title below List | the same message, the other way, any actor or none | none | `Activities.withdraw/3` |
+
+  Only a person's act is said (ADR-082): a message whose actor is `nil`
+  — the write was a sweep's, a job's, a seed's or a repair's — shares
+  nothing, and the actor is handed on to `Activities`, which takes no
+  other proof. Withdrawing follows the rung, not the act: a listing that
+  is no longer true comes down whoever made it untrue.
 
   A listing follows the rung transition (ADR-067): `RungChanged` carries
   both ends, so crossing onto List is read off the message, and only the
@@ -42,6 +48,7 @@ defmodule MediaCentaur.Activities.Publisher do
   alias MediaCentaur.Watchlist.Events.RungChanged
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaur.Library.{Containers, Episodes, ExternalIds, Seasons}
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist}
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.WatchHistory
@@ -56,8 +63,8 @@ defmodule MediaCentaur.Activities.Publisher do
   end
 
   @impl true
-  def handle_info({:watch_event_created, %WatchHistory.Event{} = event}, state) do
-    if ShareWatched.enabled?(), do: run(fn -> share_watched(event) end)
+  def handle_info({:watch_event_created, %WatchHistory.Event{} = event, %Actor{} = actor}, state) do
+    if ShareWatched.enabled?(), do: run(fn -> share_watched(event, actor) end)
     {:noreply, state}
   end
 
@@ -66,8 +73,8 @@ defmodule MediaCentaur.Activities.Publisher do
     listed_now? = TitleIntent.rung_at_least?(change.rung, :list)
 
     cond do
-      not listed_before? and listed_now? and ShareWatchlist.enabled?() ->
-        run(fn -> share_listing(change.title) end)
+      not listed_before? and listed_now? and match?(%Actor{}, change.actor) and ShareWatchlist.enabled?() ->
+        run(fn -> share_listing(change.title, change.actor) end)
 
       listed_before? and not listed_now? ->
         run(fn -> withdraw_listing(change) end)
@@ -94,19 +101,19 @@ defmodule MediaCentaur.Activities.Publisher do
     :ok
   end
 
-  defp share_watched(%WatchHistory.Event{} = event) do
+  defp share_watched(%WatchHistory.Event{} = event, actor) do
     case watched_title(event) do
-      {:ok, title, episode} -> share(:watched, Activities.watched(title, episode))
+      {:ok, title, episode} -> share(:watched, Activities.watched(title, episode, actor))
       :skip -> :ok
     end
   end
 
   # A listing is a statement about a named title; a bare identity — a
   # title the store has not first-contacted — has nothing to say yet.
-  defp share_listing(%Title{name: name} = title) when is_binary(name),
-    do: share(:listing, Activities.listing(title))
+  defp share_listing(%Title{name: name} = title, actor) when is_binary(name),
+    do: share(:listing, Activities.listing(title, actor))
 
-  defp share_listing(%Title{}), do: :ok
+  defp share_listing(%Title{}, _actor), do: :ok
 
   defp share(kind, {:ok, activity}), do: Log.info(:social, "shared #{kind}: #{activity.title.name}")
 

@@ -64,7 +64,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       {:ok, record} =
         Library.ProgressRecords.fetch_for_container(owner_profile_id(), :episode, episode.id)
 
-      {:ok, _} = Library.ProgressRecords.mark_completed(record)
+      {:ok, _} = Library.ProgressRecords.mark_completed(record, nil)
 
       # Now upsert with a lower position (re-watching from earlier)
       create_watch_progress(%{
@@ -203,7 +203,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
 
       assert progress.completed == false
 
-      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress, nil)
       assert updated.completed == true
     end
 
@@ -217,7 +217,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress, nil)
       assert DateTime.compare(updated.last_watched_at, progress.last_watched_at) in [:gt, :eq]
     end
   end
@@ -237,7 +237,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 2400.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
       assert completed.completed == true
 
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
@@ -255,7 +255,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
 
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]
@@ -279,7 +279,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 2400.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
 
       assert incomplete.position_seconds == 0.0
@@ -298,7 +298,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
 
       assert incomplete.duration_seconds == 7200.0

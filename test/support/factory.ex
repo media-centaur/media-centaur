@@ -42,6 +42,13 @@ defmodule MediaCentaur.TestFactory do
   # build_* — plain structs, no database
   # ---------------------------------------------------------------------------
 
+  @doc """
+  An actor — a person acting (`Profiles.Actor`), for a write that may be
+  shared. Its profile need not exist: sending an activity reads only that
+  a person acted.
+  """
+  def build_actor, do: MediaCentaur.Profiles.Actor.new(Ecto.UUID.generate())
+
   def build_entity(overrides \\ %{}) do
     defaults = %{
       id: Ecto.UUID.generate(),

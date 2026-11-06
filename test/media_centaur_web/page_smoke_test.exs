@@ -228,7 +228,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         Activities.review(
           Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"}),
           :like,
-          "mine"
+          "mine",
+          build_actor()
         )
 
       :ok
@@ -265,7 +266,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
             name: "Sample Movie",
             release_date: ~D[2010-01-01]
           }),
-          :list
+          :list,
+          nil
         )
 
       :ok

@@ -3,10 +3,13 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   GenServer that subscribes to `"library:watch_completed"` and records a
   `WatchEvent` for each transition-to-completed.
 
-  `Library.ProgressRecords.mark_completed/1` broadcasts `{:entity_watch_completed, record}`
-  exactly once per transition (pre-update record had `completed: false`), so no
-  dedup is needed here. The event takes the profile from the progress row
-  that completed (ADR-078).
+  `Library.ProgressRecords.mark_completed/2` broadcasts
+  `{:entity_watch_completed, record, actor}` exactly once per transition
+  (pre-update record had `completed: false`), so no dedup is needed here.
+  The event takes the profile from the progress row that completed
+  (ADR-078). The actor is not stored — the row records whose viewing it
+  is — but rides on `{:watch_event_created, event, actor}`, so the
+  completion is shared only when a person finished it (ADR-082).
   """
   use GenServer
 
@@ -28,13 +31,13 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   end
 
   @impl true
-  def handle_info({:entity_watch_completed, record}, state) do
+  def handle_info({:entity_watch_completed, record, actor}, state) do
     # `record_completion/1` does two DB lookups to resolve the title before
     # inserting. Running them inline blocks the mailbox — a binge restoration
     # that fires several `:entity_watch_completed` events at once would
     # serialize on this single GenServer. Offload to the task supervisor.
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      record_completion(record)
+      record_completion(record, actor)
     end)
 
     {:noreply, state}
@@ -44,14 +47,14 @@ defmodule MediaCentaur.WatchHistory.Recorder do
 
   # --- Private ---
 
-  defp record_completion(record) do
+  defp record_completion(record, actor) do
     case build_event_attrs(record) do
       {:ok, attrs} ->
         case WatchHistory.create_event(attrs) do
           {:ok, event} ->
             Topics.publish(
               Topics.watch_history_events(),
-              {:watch_event_created, event}
+              {:watch_event_created, event, actor}
             )
 
             Log.info(:playback, "watch history: recorded — #{attrs.title}")
@@ -68,7 +71,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   # WatchProgress names its leaf only by `playable_item_id` (its key is
   # `(profile_id, playable_item_id)`, ADR-078). The owning leaf is reached via the linked
   # `PlayableItem`'s `(container_type, container_id)` discriminator.
-  # `Library.ProgressRecords.mark_completed/1` doesn't preload `:playable_item` —
+  # `Library.ProgressRecords.mark_completed/2` doesn't preload `:playable_item` —
   # we do it here so each clause can dispatch on container type.
   defp build_event_attrs(record) do
     record = Repo.preload(record, :playable_item)

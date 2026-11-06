@@ -39,6 +39,11 @@ defmodule MediaCentaur.DataMigrations do
     Fix forward with a new file. Comment-only edits to a shipped
     migration are acceptable when they preserve the SQL and Elixir
     body byte-for-byte.
+  - **Never speak for the person.** A migration's writes must not reach
+    friends. Raw SQL broadcasts nothing; a fix that must go through a
+    context passes `nil` as the actor to every write that takes one
+    (`ReleaseTracking.set_rung/4`, `ProgressRecords.mark_completed/2`),
+    so nothing it does is shared (ADR-082).
   - **Sync only.** The runner runs everything inline. For long or
     external-API-driven backfills, the migration should INSERT directly
     into `oban_jobs` (raw SQL, snapshot-style) — the running app picks

@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Watchlist do
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
+    deps: [MediaCentaur.Library, MediaCentaur.Profiles, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
     exports: [TitleIntent, Events, Events.RungChanged, Events.CaughtUp]
 
   @moduledoc """
@@ -12,7 +12,7 @@ defmodule MediaCentaur.Watchlist do
 
   A record here is the only authored thing in the whole tracking story.
   Watchlist stores the rung and knows nothing about what it causes: no
-  calendars, no wants, no grabs. `ReleaseTracking.set_rung/3` is the one
+  calendars, no wants, no grabs. `ReleaseTracking.set_rung/4` is the one
   write path, because deriving the machinery needs to see both sides, and
   the dependency runs that way (ADR-066).
 
@@ -32,6 +32,7 @@ defmodule MediaCentaur.Watchlist do
 
   alias MediaCentaur.Watchlist.{Events, TitleIntent, Titles}
   alias MediaCentaur.Library.ExternalIds
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Title
@@ -48,15 +49,17 @@ defmodule MediaCentaur.Watchlist do
   Puts `title` at `rung`, creating the record or moving the existing one.
   `attrs` may carry `:source`, `:note` and — for a `:friend`-sourced
   record — `:activity_id`; they apply on creation only, since provenance
-  is about where a title first came from.
+  is about where a title first came from. `actor` is the profile that
+  acted, or `nil` when no person did; it rides on the `RungChanged` event
+  so a listing is shared only for a person's act (ADR-082).
 
   This is Watchlist's write, not the app's: raising a rung has
   consequences Watchlist must not know about, so callers go through
-  `ReleaseTracking.set_rung/3`.
+  `ReleaseTracking.set_rung/4`.
   """
-  @spec put_rung(Title.t(), TitleIntent.rung(), map()) ::
+  @spec put_rung(Title.t(), TitleIntent.rung(), Actor.t() | nil, map()) ::
           {:ok, TitleIntent.t()} | {:error, Ecto.Changeset.t()}
-  def put_rung(%Title{} = title, rung, attrs \\ %{}) do
+  def put_rung(%Title{} = title, rung, actor, attrs \\ %{}) do
     case fetch_intent(title.tmdb_id, title.media_type) do
       %TitleIntent{} = existing ->
         existing
@@ -67,10 +70,10 @@ defmodule MediaCentaur.Watchlist do
           # first listing: the artwork was not promoted when it was dismissed.
           {:ok, intent} when existing.rung == :ignored ->
             ensure_artwork_async(intent)
-            announce({:ok, intent}, existing.rung, title)
+            announce({:ok, intent}, existing.rung, title, actor)
 
           result ->
-            announce(result, existing.rung, title)
+            announce(result, existing.rung, title, actor)
         end
 
       nil ->
@@ -80,7 +83,7 @@ defmodule MediaCentaur.Watchlist do
         |> case do
           {:ok, intent} ->
             ensure_artwork_async(intent)
-            announce({:ok, intent}, nil, title)
+            announce({:ok, intent}, nil, title, actor)
 
           {:error, %Ecto.Changeset{errors: errors} = changeset} ->
             # A concurrent write won the race exactly when a unique
@@ -88,7 +91,7 @@ defmodule MediaCentaur.Watchlist do
             # future validation on :tmdb_id must not be mistaken for the
             # race); move the winner to the rung this call asked for.
             if unique_violation?(errors),
-              do: put_rung(title, rung, attrs),
+              do: put_rung(title, rung, actor, attrs),
               else: {:error, changeset}
         end
     end
@@ -97,10 +100,10 @@ defmodule MediaCentaur.Watchlist do
   @doc """
   Forgets a title entirely — the Off rung. Absent refs are a no-op. The
   event carries the store's snapshot of the title, a bare identity when
-  the store never held it.
+  the store never held it, and `actor`, the profile that acted or `nil`.
   """
-  @spec forget(integer(), media_type()) :: :ok
-  def forget(tmdb_id, media_type) do
+  @spec forget(integer(), media_type(), Actor.t() | nil) :: :ok
+  def forget(tmdb_id, media_type, actor) do
     case get_intent(tmdb_id, media_type) do
       nil ->
         :ok
@@ -113,7 +116,8 @@ defmodule MediaCentaur.Watchlist do
           media_type: media_type,
           title: intent.title,
           previous_rung: intent.rung,
-          rung: nil
+          rung: nil,
+          actor: actor
         })
 
         :ok
@@ -241,19 +245,20 @@ defmodule MediaCentaur.Watchlist do
   # The event carries the title the person acted on — always named, so a
   # listing can be shared from it — and the record is returned as every
   # read returns it, with the store's snapshot attached.
-  defp announce({:ok, %TitleIntent{} = intent}, previous_rung, %Title{} = title) do
+  defp announce({:ok, %TitleIntent{} = intent}, previous_rung, %Title{} = title, actor) do
     Events.broadcast(%Events.RungChanged{
       tmdb_id: intent.tmdb_id,
       media_type: intent.media_type,
       title: title,
       previous_rung: previous_rung,
-      rung: intent.rung
+      rung: intent.rung,
+      actor: actor
     })
 
     {:ok, Titles.attach_one(intent)}
   end
 
-  defp announce(result, _previous_rung, _title), do: result
+  defp announce(result, _previous_rung, _title, _actor), do: result
 
   defp unique_violation?(errors) do
     Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)

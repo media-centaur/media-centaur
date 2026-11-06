@@ -23,9 +23,11 @@ defmodule MediaCentaur.Activities.PublisherTest do
     :ok
   end
 
-  defp completed(attrs) do
+  # A completion as playback or the watched toggle reports it: a person
+  # finished it, unless `actor` says no person did.
+  defp completed(attrs, actor \\ build_actor()) do
     event = create_watch_event(attrs)
-    Topics.publish(Topics.watch_history_events(), {:watch_event_created, event})
+    Topics.publish(Topics.watch_history_events(), {:watch_event_created, event, actor})
     settle()
     Activities.list_sent()
   end
@@ -86,6 +88,12 @@ defmodule MediaCentaur.Activities.PublisherTest do
       assert %Episode{season_number: 2, episode_number: 5, name: "The Fifth"} = activity.episode
     end
 
+    test "a completion no person made shares nothing" do
+      ShareWatched.set(true)
+      movie = movie_with_tmdb(603)
+      assert completed(%{entity_type: :movie, movie_id: movie.id}, nil) == []
+    end
+
     test "an entity without a TMDB identity, and an extra, are not shared" do
       ShareWatched.set(true)
       movie = create_movie(%{name: "Untitled"})
@@ -101,14 +109,14 @@ defmodule MediaCentaur.Activities.PublisherTest do
     defp listings, do: Enum.filter(Activities.list_sent(), &(&1.kind == :listing))
 
     test "off by default: listing a title publishes nothing" do
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
       settle()
       assert Activities.list_sent() == []
     end
 
     test "a title reaching List becomes a listing with the snapshot the person acted on" do
       ShareWatchlist.set(true)
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
       settle()
 
       assert [%Activity{kind: :listing, tmdb_id: 1399, media_type: :tv_series} = activity] = listings()
@@ -118,18 +126,18 @@ defmodule MediaCentaur.Activities.PublisherTest do
 
     test "leaving Ignored for the list is a listing; moving up the ladder is not another" do
       ShareWatchlist.set(true)
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored, build_actor())
       settle()
       assert listings() == []
 
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
       settle()
       assert [%Activity{kind: :listing} = first] = listings()
 
       # Raising within the list publishes nothing new. Grab onboards the
       # title, which first-contacts its TMDB detail.
       TmdbStubs.stub_get_tv(1399, TmdbStubs.tv_detail(%{"id" => 1399, "name" => "Sample Show"}))
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :grab)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :grab, build_actor())
       settle()
       assert [%Activity{id: id}] = listings()
       assert id == first.id
@@ -138,38 +146,54 @@ defmodule MediaCentaur.Activities.PublisherTest do
 
     test "dropping below List withdraws the listing — with the toggle on or off" do
       ShareWatchlist.set(true)
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
       settle()
       assert [%Activity{kind: :listing}] = listings()
 
       # The statement is no longer true; a switched-off toggle does not
       # keep it standing on friends' shelves.
       ShareWatchlist.set(false)
-      {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       settle()
       assert listings() == []
       assert [%MediaCentaur.Nostr.Event{kind: 5}] = Activities.own_events()
 
       ShareWatchlist.set(true)
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
       settle()
       assert [%Activity{kind: :listing}] = listings()
 
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored, build_actor())
+      settle()
+      assert listings() == []
+    end
+
+    test "a rung change no person made shares nothing; a drop no person made withdraws" do
+      ShareWatchlist.set(true)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, nil)
+      settle()
+      assert listings() == []
+
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored, build_actor())
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list, build_actor())
+      settle()
+      assert [%Activity{kind: :listing}] = listings()
+
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       settle()
       assert listings() == []
     end
 
     test "a title never listed dropping to Off publishes nothing" do
       ShareWatchlist.set(true)
-      {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       settle()
       assert Activities.own_events() == []
     end
   end
 
   test "the recorder's own message shape is what the publisher reads" do
-    # `WatchHistory.Recorder` publishes `{:watch_event_created, event}`;
+    # `WatchHistory.Recorder` publishes `{:watch_event_created, event, actor}`;
     # this pins the coupling so a rename there fails here.
     assert Topics.watch_history_events() == "watch_history:events"
     assert function_exported?(WatchHistory, :subscribe, 0)

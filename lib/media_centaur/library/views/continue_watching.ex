@@ -18,7 +18,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
       (already coalesced upstream by `Library.BroadcastCoalescer`).
     * `watch_history:events` — completion events that promote/remove
       entries. Two completion signals arrive here: the async,
-      best-effort `{:watch_event_created, _}` (emitted by the Recorder
+      best-effort `{:watch_event_created, _, _}` (emitted by the Recorder
       after resolving a title) and the synchronous, deterministic
       `{:watch_completed, playable_item_id}` (emitted by
       `Library.Progress.Worker` immediately after it persists
@@ -88,7 +88,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   @impl MediaCentaur.Cache
   def relevant?({:entities_changed, _}), do: true
-  def relevant?({:watch_event_created, _}), do: true
+  def relevant?({:watch_event_created, _event, _actor}), do: true
   def relevant?({:entity_progress_updated, _}), do: true
   def relevant?({:watch_completed, _playable_item_id}), do: true
   def relevant?({:availability_changed, _dir, _state}), do: true

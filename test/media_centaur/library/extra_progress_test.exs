@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
           duration_seconds: 300.0
         })
 
-      {:ok, _} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, _} = Library.ProgressRecords.mark_completed(progress, nil)
 
       create_extra_progress(%{
         extra_id: extra.id,
@@ -115,7 +115,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
 
       assert progress.completed == false
 
-      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress, nil)
       assert updated.completed == true
     end
   end
@@ -132,7 +132,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
           duration_seconds: 300.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
       assert completed.completed == true
 
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
@@ -152,7 +152,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
           duration_seconds: 300.0
         })
 
-      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress, nil)
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
 
       assert incomplete.position_seconds == 0.0

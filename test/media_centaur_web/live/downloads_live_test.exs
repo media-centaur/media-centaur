@@ -1708,7 +1708,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       enable_tmdb!()
       TmdbStubs.setup_tmdb_client()
       title = Title.new!(%{tmdb_id: 246_813, media_type: :movie, name: "Sample Movie"})
-      {:ok, _intent} = ReleaseTracking.set_rung(title, :list)
+      {:ok, _intent} = ReleaseTracking.set_rung(title, :list, nil)
       await_supervised_tasks()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})

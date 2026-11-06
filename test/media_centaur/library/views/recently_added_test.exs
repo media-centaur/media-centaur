@@ -48,7 +48,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
 
     test "rejects unrelated messages" do
       refute RecentlyAdded.relevant?(:something_else)
-      refute RecentlyAdded.relevant?({:watch_event_created, %{}})
+      refute RecentlyAdded.relevant?({:watch_event_created, %{}, nil})
       refute RecentlyAdded.relevant?({:entity_progress_updated, %{}})
       refute RecentlyAdded.relevant?({:other, "payload"})
     end

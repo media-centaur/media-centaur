@@ -20,7 +20,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
 
   Subscribes to `watch_history:events`:
 
-    * `{:watch_event_created, _}` — a new completion landed.
+    * `{:watch_event_created, _event, _actor}` — a new completion landed.
     * `{:watch_event_deleted, _}` — the user removed a row from
       `/history`.
 
@@ -47,7 +47,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   end
 
   @impl MediaCentaur.Cache
-  def relevant?({:watch_event_created, _}), do: true
+  def relevant?({:watch_event_created, _event, _actor}), do: true
   def relevant?({:watch_event_deleted, _}), do: true
   def relevant?(_), do: false
 

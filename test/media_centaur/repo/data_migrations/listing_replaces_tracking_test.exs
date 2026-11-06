@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Repo.DataMigrations.ListingReplacesTrackingTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory, only: [build_actor: 0]
+
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Repo
@@ -30,10 +32,10 @@ defmodule MediaCentaur.Repo.DataMigrations.ListingReplacesTrackingTest do
 
   describe "sweep/1" do
     test "removes stored tracking rows and the share_tracking setting, leaving the rest" do
-      {:ok, legacy} = Activities.listing(title(1))
+      {:ok, legacy} = Activities.listing(title(1), build_actor())
       make_tracking!(legacy)
-      {:ok, _listing} = Activities.listing(title(2))
-      {:ok, _review} = Activities.review(title(3), :like, nil)
+      {:ok, _listing} = Activities.listing(title(2), build_actor())
+      {:ok, _review} = Activities.review(title(3), :like, nil, build_actor())
       {:ok, _} = Settings.find_or_create_entry(%{key: "share_tracking", value: %{"enabled" => true}})
       {:ok, _} = Settings.find_or_create_entry(%{key: "share_watched", value: %{"enabled" => true}})
 

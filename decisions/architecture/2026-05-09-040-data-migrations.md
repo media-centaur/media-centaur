@@ -22,3 +22,7 @@ A second `Ecto.Migrator` stream, rooted at `priv/repo/data_migrations/` and trac
 
 * Raw SQL bypasses changeset validation; a backfill can write what live code would reject. Each migration is reviewed as its own gated change.
 * A long synchronous backfill blocks the deploy for its duration; the Oban escape hatch covers the cases that matter.
+
+## Amendment 2026-11-06 — a data fix never speaks for the person
+
+A data fix must not reach friends. Raw SQL broadcasts nothing, which is the reason rule 3 keeps context modules out of a migration; the same holds for a repair run any other way. A fix that has to go through a context passes `nil` as the actor to every write that takes one, so nothing it does is shared (ADR-082). On 2026-11-05 a repair through the Watchlist context, made before that rule existed, published seven listings in one second.

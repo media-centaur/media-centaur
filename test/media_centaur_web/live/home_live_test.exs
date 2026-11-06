@@ -701,7 +701,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
           duration_seconds: 100.0
         })
 
-      Library.ProgressRecords.mark_completed!(progress)
+      Library.ProgressRecords.mark_completed!(progress, nil)
       ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
       assert render(view) =~ "Watch again"
@@ -727,7 +727,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
           duration_seconds: 100.0
         })
 
-      Library.ProgressRecords.mark_completed!(progress)
+      Library.ProgressRecords.mark_completed!(progress, nil)
       ProgressBroadcaster.broadcast(ana.id, movie.id, nil)
 
       refute render(view) =~ "Watch again"

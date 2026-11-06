@@ -6,8 +6,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
   alias MediaCentaur.Library
   alias MediaCentaur.Playback.Resolver
 
-  defp mark_completed(progress) do
-    Library.ProgressRecords.mark_completed!(progress)
+  defp mark_completed(progress, nil) do
+    Library.ProgressRecords.mark_completed!(progress, nil)
   end
 
   describe "resolve/2 with Entity UUID" do
@@ -62,7 +62,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
           episode_id: ep1.id,
           position_seconds: 3000.0,
           duration_seconds: 3100.0
-        })
+        }),
+        nil
       )
 
       assert {:ok, params} = Resolver.resolve(owner_profile_id(), tv_series.id)

@@ -1,6 +1,8 @@
 defmodule MediaCentaur.RelaySyncTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory, only: [build_actor: 0]
+
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
   alias MediaCentaur.Console
@@ -59,7 +61,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "own reviews the relay lacks are published after its EOSE" do
-    {:ok, _rec} = Activities.review(title(7), :like, "mine")
+    {:ok, _rec} = Activities.review(title(7), :like, "mine", build_actor())
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -68,7 +70,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "own reviews the relay already has are not republished" do
-    {:ok, _rec} = Activities.review(title(7), :like, "mine")
+    {:ok, _rec} = Activities.review(title(7), :like, "mine", build_actor())
     [own] = Activities.own_events()
     relay = FakeRelay.start(events: [own])
     {:ok, _row} = Social.add_relay(relay.url)
@@ -239,7 +241,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "own deletions the relay lacks are published after its EOSE" do
-    {:ok, rec} = Activities.review(title(7), :like, "mine")
+    {:ok, rec} = Activities.review(title(7), :like, "mine", build_actor())
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
@@ -251,7 +253,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "a relay refusing an own event is logged by what was refused" do
-    {:ok, rec} = Activities.review(title(7), :like, "mine")
+    {:ok, rec} = Activities.review(title(7), :like, "mine", build_actor())
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
     {:ok, _row} = Social.add_relay(relay.url)
@@ -263,7 +265,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "a relay refusing an own review is logged as such" do
-    {:ok, _rec} = Activities.review(title(7), :like, "mine")
+    {:ok, _rec} = Activities.review(title(7), :like, "mine", build_actor())
 
     relay =
       FakeRelay.start(

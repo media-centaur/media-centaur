@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Repo.DataMigrations.ReviewReplacesRecommendationTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TestFactory, only: [build_actor: 0]
+
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Repo
@@ -29,10 +31,10 @@ defmodule MediaCentaur.Repo.DataMigrations.ReviewReplacesRecommendationTest do
 
   describe "sweep/1" do
     test "removes stored recommendation rows and leaves every other kind" do
-      {:ok, legacy} = Activities.review(title(1), :like, "old words")
+      {:ok, legacy} = Activities.review(title(1), :like, "old words", build_actor())
       make_recommendation!(legacy)
-      {:ok, _review} = Activities.review(title(2), :love, nil)
-      {:ok, _listing} = Activities.listing(title(3))
+      {:ok, _review} = Activities.review(title(2), :love, nil, build_actor())
+      {:ok, _listing} = Activities.listing(title(3), build_actor())
 
       assert :ok = ReviewReplacesRecommendation.sweep(Repo)
 

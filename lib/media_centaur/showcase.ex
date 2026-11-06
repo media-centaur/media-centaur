@@ -582,7 +582,7 @@ defmodule MediaCentaur.Showcase do
   defp track_upcoming(%{tmdb_id: tmdb_id, name: name}, media_type) do
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
 
-    case ReleaseTracking.set_rung(title, :grab) do
+    case ReleaseTracking.set_rung(title, :grab, nil) do
       {:ok, _intent} -> :ok
       _ -> :error
     end

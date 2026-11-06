@@ -363,7 +363,13 @@
           # title without the policy deciding whether it was due (ADR-071,
           # campaign tmdb-fetch-policy). `get_collection/2` is the one
           # exception, held to its three callers until `collection-identity`.
-          {MediaCentaur.Credo.Checks.TmdbDetailSeam, []}
+          {MediaCentaur.Credo.Checks.TmdbDetailSeam, []},
+          # MC0044 keeps `Profiles.Actor` — the proof a person acted, the one
+          # thing that lets an activity be sent to friends — at the edges
+          # where a person is present: the web layer and playback. A repair
+          # once moved seven series through the Watchlist and the publisher
+          # said each was the owner's act (ADR-082).
+          {MediaCentaur.Credo.Checks.ActorAtTheEdge, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

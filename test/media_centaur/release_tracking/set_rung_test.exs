@@ -10,6 +10,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TmdbStubs
 
+  alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Watchlist
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TMDB.Title
@@ -34,7 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       Req.Test.stub(:tmdb, fn _conn -> flunk("setting the rung must not ask TMDB") end)
 
       {{:ok, intent}, inserts} =
-        MediaCentaur.JobRuns.capture_inserts(fn -> ReleaseTracking.set_rung(show(), :follow) end)
+        MediaCentaur.JobRuns.capture_inserts(fn -> ReleaseTracking.set_rung(show(), :follow, nil) end)
 
       assert intent.rung == :follow
       refute tracked?()
@@ -44,8 +45,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "the derivation reads the rung when it runs: a later change wins" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
-      {:ok, _} = ReleaseTracking.set_rung(show(), :list)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, nil)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :list, nil)
 
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
@@ -55,7 +56,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
   describe "raising onto the ladder" do
     test "List puts the title on the list and follows nothing" do
-      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :list)
+      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :list, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert intent.rung == :list
@@ -67,7 +68,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
     test "Follow and above derive a tracked title, and list it as part of the act" do
       for rung <- [:follow, :grab] do
-        assert {:ok, intent} = ReleaseTracking.set_rung(show(), rung)
+        assert {:ok, intent} = ReleaseTracking.set_rung(show(), rung, nil)
         MediaCentaur.JobRuns.run_enqueued_jobs()
         assert intent.rung == rung
         assert Watchlist.listed?(@tmdb_id, :tv_series)
@@ -78,11 +79,11 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "the calendar is fetched once, not on every raise" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       item = ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series)
 
-      {:ok, _} = ReleaseTracking.set_rung(show(), :grab)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series).id == item.id
@@ -94,7 +95,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       activity_id = Ecto.UUID.generate()
 
       {:ok, intent} =
-        ReleaseTracking.set_rung(show(), :list, %{
+        ReleaseTracking.set_rung(show(), :list, nil, %{
           source: :friend,
           activity_id: activity_id,
           note: "you'll like this"
@@ -150,7 +151,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     test "following links the tracked title to its library series, to the last episode held" do
       {tv, _episodes} = owned_show()
 
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       item = ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series)
@@ -164,7 +165,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       {_tv, [first, _second]} = owned_show()
       create_watch_progress(%{episode_id: first.id, completed: true})
 
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, Actor.new(owner_profile_id()))
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Watchlist.caught_up(@tmdb_id, :tv_series) == {1, 1}
@@ -178,8 +179,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       {_tv, [first, _second]} = owned_show()
       create_watch_progress(%{episode_id: first.id, completed: true})
 
-      {:ok, _} = ReleaseTracking.set_rung(show(), :list)
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      {:ok, _} = ReleaseTracking.set_rung(show(), :list, nil)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, Actor.new(owner_profile_id()))
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Watchlist.caught_up(@tmdb_id, :tv_series) == {1, 1}
@@ -189,7 +190,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     test "with no viewing to go on, the point is TMDB's latest aired episode" do
       owned_show()
 
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, %{profile_id: owner_profile_id()})
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, Actor.new(owner_profile_id()))
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
@@ -199,12 +200,12 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
     test "a point already set is kept when the rung rises" do
       {_tv, [first, _second]} = owned_show()
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
 
       create_watch_progress(%{episode_id: first.id, completed: true})
-      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, %{profile_id: owner_profile_id()})
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, Actor.new(owner_profile_id()))
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert Watchlist.caught_up(@tmdb_id, :tv_series) == {2, 1}
@@ -212,7 +213,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "the sweep links a followed series that the library already held but was never linked" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :follow)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       {tv, _episodes} = owned_show()
       assert ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series).library_container_id == nil
@@ -226,11 +227,11 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
   describe "lowering the ladder" do
     test "dropping below Follow destroys the tracked title but keeps the listing" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :grab)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       assert tracked?()
 
-      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :list)
+      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :list, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert intent.rung == :list
@@ -241,10 +242,10 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "Off deletes the record and everything derived from it" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :grab)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       refute Watchlist.listed?(@tmdb_id, :tv_series)
@@ -255,7 +256,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "Off on a title that was never on the ladder is a no-op" do
-      assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       refute tracked?()
 
@@ -263,12 +264,12 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "re-raising after Off starts fresh — there is no disarmed row to remember" do
-      {:ok, _} = ReleaseTracking.set_rung(show(), :grab)
+      {:ok, _} = ReleaseTracking.set_rung(show(), :grab, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
-      {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
-      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :follow)
+      assert {:ok, intent} = ReleaseTracking.set_rung(show(), :follow, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
       assert intent.rung == :follow
       assert tracked?()
@@ -297,7 +298,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Owned Film"})
 
-      assert {:ok, intent} = ReleaseTracking.set_rung(title, :grab)
+      assert {:ok, intent} = ReleaseTracking.set_rung(title, :grab, nil)
       MediaCentaur.JobRuns.run_enqueued_jobs()
 
       assert intent.rung == :grab

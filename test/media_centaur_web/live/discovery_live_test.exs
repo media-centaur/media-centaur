@@ -482,7 +482,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _intent} =
         Watchlist.put_rung(
           Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie"}),
-          :list
+          :list,
+          nil
         )
 
       # A presentable movie (container + linked file) owning TMDB id 777.
@@ -772,7 +773,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} =
         Watchlist.put_rung(
           Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"}),
-          :list
+          :list,
+          nil
         )
 
       render_until(view, fn _html ->

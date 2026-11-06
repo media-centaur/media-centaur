@@ -381,7 +381,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def handle_info(
-        {:watch_event_created, %{profile_id: profile_id}},
+        {:watch_event_created, %{profile_id: profile_id}, _actor},
         %{assigns: %{profile: %{id: profile_id}}} = socket
       ) do
     # Source event — the projection observes this too and will emit
@@ -391,7 +391,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
   end
 
-  def handle_info({:watch_event_created, _another_profile}, socket), do: {:noreply, socket}
+  def handle_info({:watch_event_created, _another_profile, _actor}, socket), do: {:noreply, socket}
 
   def handle_info({:watch_event_deleted, _event}, socket) do
     # Local list was already pruned in `handle_event("remove_event", …)`;

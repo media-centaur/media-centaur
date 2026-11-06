@@ -70,6 +70,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 079 | 2026-10-22 | [A device is admitted by pairing, and the browser session holds the player](architecture/2026-10-22-079-a-device-is-admitted-by-pairing-and-the-session-holds-the-player.md) | accepted |
 | 080 | 2026-10-22 | [One playback session type over two transports](architecture/2026-10-22-080-one-playback-session-type-over-two-transports.md) | accepted |
 | 081 | 2026-10-31 | [Features are flagged](architecture/2026-10-31-081-features-are-flagged.md) | accepted |
+| 082 | 2026-11-06 | [Only a person's act is shared](architecture/2026-11-06-082-only-a-persons-act-is-shared.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

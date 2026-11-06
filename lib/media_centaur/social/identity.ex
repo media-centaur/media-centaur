@@ -10,7 +10,7 @@ defmodule MediaCentaur.Social.Identity do
 
   Generated on first use (`ensure/0`) — called by `Social.save_profile/3`
   when the reader saves their profile (the Settings path; opening the
-  section mints nothing, UIDR-047) and by `Activities.review/3` when a
+  section mints nothing, UIDR-047) and by `Activities.review/4` when a
   user reviews a title before ever saving one. Replaced only by
   `import_nsec/1`, through `Social.import_identity/1`.
   Both broadcast `Social.Events.IdentityChanged` so relay connections

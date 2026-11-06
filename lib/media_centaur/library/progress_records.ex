@@ -17,10 +17,10 @@ defmodule MediaCentaur.Library.ProgressRecords do
   `PlayableItem`, not before. Keeping them in one module makes the
   parallel visible rather than filing it 200 lines apart.
 
-  `mark_completed/1` and `mark_incomplete/1` already dispatch on the
+  `mark_completed/2` and `mark_incomplete/1` already dispatch on the
   struct, so callers holding either kind of record use one name. Note
   the asymmetry in the adjacent clauses: completing a `WatchProgress`
-  broadcasts `{:entity_watch_completed, record}`, completing an
+  broadcasts `{:entity_watch_completed, record, actor}`, completing an
   `ExtraProgress` does not — extras do not participate in Continue
   Watching.
 
@@ -97,6 +97,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
   }
 
   alias MediaCentaur.{Repo, Topics}
+  alias MediaCentaur.Profiles.Actor
 
   @type container_type :: :tv_series | :movie_series | :movie | :video_object
 
@@ -112,23 +113,26 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # ---- shared lifecycle (struct-dispatched) --------------------------------
 
   @doc """
-  Flips a progress record to completed.
+  Flips a progress record to completed. `actor` is the profile that
+  finished it — playback reaching the end, or the watched toggle — or
+  `nil` when no person did; a completion is shared with friends only
+  for an actor (ADR-082).
 
   A `WatchProgress` transitioning to completed broadcasts
-  `{:entity_watch_completed, record}` so Continue Watching and the watch
-  history react; re-completing an already-complete record does not
+  `{:entity_watch_completed, record, actor}` so Continue Watching and the
+  watch history react; re-completing an already-complete record does not
   re-broadcast. `ExtraProgress` never broadcasts.
   """
-  @spec mark_completed(WatchProgress.t() | ExtraProgress.t()) ::
+  @spec mark_completed(WatchProgress.t() | ExtraProgress.t(), Actor.t() | nil) ::
           {:ok, struct()} | {:error, Ecto.Changeset.t()}
-  def mark_completed(%WatchProgress{} = progress) do
+  def mark_completed(%WatchProgress{} = progress, actor) do
     transitioning? = not progress.completed
 
     with {:ok, updated} <- Repo.update(WatchProgress.mark_completed_changeset(progress)) do
       if transitioning? do
         Topics.publish(
           Topics.library_watch_completed(),
-          {:entity_watch_completed, updated}
+          {:entity_watch_completed, updated, actor}
         )
       end
 
@@ -136,13 +140,13 @@ defmodule MediaCentaur.Library.ProgressRecords do
     end
   end
 
-  def mark_completed(%ExtraProgress{} = progress) do
+  def mark_completed(%ExtraProgress{} = progress, _actor) do
     Repo.update(ExtraProgress.mark_completed_changeset(progress))
   end
 
-  @doc "As `mark_completed/1`, raising on a rejected changeset."
-  @spec mark_completed!(WatchProgress.t() | ExtraProgress.t()) :: struct()
-  def mark_completed!(progress), do: Repo.bang!(mark_completed(progress))
+  @doc "As `mark_completed/2`, raising on a rejected changeset."
+  @spec mark_completed!(WatchProgress.t() | ExtraProgress.t(), Actor.t() | nil) :: struct()
+  def mark_completed!(progress, actor), do: Repo.bang!(mark_completed(progress, actor))
 
   @doc "Flips a progress record back to incomplete."
   @spec mark_incomplete(WatchProgress.t() | ExtraProgress.t()) ::
@@ -411,7 +415,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
   The latest regular episode (season 1 or later) `profile_id` has
   finished of the library series carrying TMDB id `tmdb_id`, as
   `{season, episode}`, or nil when the profile has finished none — the
-  evidence `ReleaseTracking.set_rung/3` starts a followed series' point
+  evidence `ReleaseTracking.set_rung/4` starts a followed series' point
   from.
   """
   @spec last_watched_episode(String.t(), integer()) :: {pos_integer(), pos_integer()} | nil

@@ -361,7 +361,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       refute has_element?(view, "#watchlist-group-grab")
 
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _intent} = Watchlist.put_rung(title, :grab)
+      {:ok, _intent} = Watchlist.put_rung(title, :grab, nil)
 
       render_until(view, fn html -> html =~ ~s(id="watchlist-group-grab") end, 2_000)
       await_supervised_tasks()

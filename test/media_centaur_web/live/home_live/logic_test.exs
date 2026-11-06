@@ -598,7 +598,7 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
 
       assert Logic.section_reloaders({:releases_updated, ["item-1"]}) == []
       assert Logic.section_reloaders({:item_removed, "12345", "movie"}) == []
-      assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) == []
+      assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}, nil}) == []
 
       msg =
         {:entity_progress_updated,

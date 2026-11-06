@@ -5,7 +5,7 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   tracked-title row, seeds its calendar from the stored payloads, catches
   the person up, syncs the wants, and queues its artwork.
 
-  Called from exactly one place — `ReleaseTracking.set_rung/3`, when a
+  Called from exactly one place — `ReleaseTracking.set_rung/4`, when a
   rung of `:follow` or above finds no tracked title. It is a derivation
   step, not an act: a person raising a rung is the act, and the context
   announces that. Nothing here decides *whether* a title is followed.
@@ -14,7 +14,7 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   (campaign `discovery.md`, decision 6, amended by
   `series-latest-season.md` 2026-11-05). The act that raised the rung has
   already set the point from the acting profile's viewing when there was
-  any (`ReleaseTracking.set_rung/3`). A record still without one is caught
+  any (`ReleaseTracking.set_rung/4`). A record still without one is caught
   up as of now: the point is set to TMDB's latest aired episode
   (`Calendar.latest_aired/1`, written through `Watchlist.catch_up/3`), so
   the aired episodes are *had* and open no want; what aired before is the

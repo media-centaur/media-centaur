@@ -1,7 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.DeriveJob do
   @moduledoc """
   Derives a title's release-tracking machinery from its rung
-  (`ReleaseTracking.derive_from_rung/2`). `ReleaseTracking.set_rung/3`
+  (`ReleaseTracking.derive_from_rung/2`). `ReleaseTracking.set_rung/4`
   inserts it in the transaction that writes the rung, so a stored rung
   always has its derivation owed (ADR-077); it used to run on a
   fire-and-forget task, which a crash lost — leaving Follow with no tracked

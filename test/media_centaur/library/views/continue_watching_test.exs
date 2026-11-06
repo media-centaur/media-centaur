@@ -59,7 +59,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     end
 
     test "accepts watch-history completion events" do
-      assert ContinueWatching.relevant?({:watch_event_created, %{}})
+      assert ContinueWatching.relevant?({:watch_event_created, %{}, nil})
     end
 
     test "accepts entity-progress updates so the bar stays live mid-playback" do

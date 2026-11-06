@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       payload: payload || TmdbStubs.detail_for(title)
     })
 
-    Watchlist.put_rung(title, rung, attrs)
+    Watchlist.put_rung(title, rung, nil, attrs)
   end
 
   # The ids of every element matching `selector`, in document order.
@@ -308,11 +308,12 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         Activities.review(
           Title.new!(%{tmdb_id: 99, media_type: :movie, name: "Sample Movie 99"}),
           :like,
-          "mine"
+          "mine",
+          build_actor()
         )
 
       title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Activities.listing(title)
+      {:ok, mine} = Activities.listing(title, build_actor())
 
       {:ok, view, _html} = live(conn, "/social/friends")
       # The own tile is the card's one mark: no subtitle, no foot.
@@ -373,7 +374,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _watched} =
         Activities.watched(
           Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie 424242"}),
-          nil
+          nil,
+          build_actor()
         )
 
       {:ok, view, _html} = live(conn, "/social/friends")
@@ -582,7 +584,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         Activities.review(
           Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"}),
           :like,
-          "mine"
+          "mine",
+          build_actor()
         )
 
       {:ok, view, _html} = live(conn, "/social/friends/you")
@@ -975,9 +978,9 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         )
 
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, mine} = Activities.review(title, :like, "mine")
-      {:ok, own_listing} = Activities.listing(title)
-      {:ok, _own_watched} = Activities.watched(title, nil)
+      {:ok, mine} = Activities.review(title, :like, "mine", build_actor())
+      {:ok, own_listing} = Activities.listing(title, build_actor())
+      {:ok, _own_watched} = Activities.watched(title, nil, build_actor())
 
       {:ok, _former} = Activities.ingest(other_event(778, :love))
       :ok = Social.remove_friend(@other_pubkey)
@@ -1062,7 +1065,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         TmdbStubs.movie_detail(%{"id" => 777, "title" => "Sample Movie", "release_date" => "2005-01-01"})
       )
 
-      {:ok, _intent} = ReleaseTracking.set_rung(released_movie(), :grab)
+      {:ok, _intent} = ReleaseTracking.set_rung(released_movie(), :grab, nil)
 
       render_until(view, fn _html -> has_element?(view, entry(rec) <> "[data-list-slot='following']") end)
 
@@ -1458,7 +1461,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
         Activities.ingest(friend_event(777, "Watch it.", :like, System.os_time(:second) - 60))
 
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, mine} = Activities.review(title, :love, "Saw it twice.")
+      {:ok, mine} = Activities.review(title, :love, "Saw it twice.", build_actor())
 
       {:ok, view, _html} = live(conn, "/social")
       assert entries(view) == ["feed-row-#{mine.id}", "feed-row-#{theirs.id}"]
@@ -1499,8 +1502,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_listing_event(777))
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, mine} = Activities.listing(title)
-      {:ok, review} = Activities.review(title, :dislike, nil)
+      {:ok, mine} = Activities.listing(title, build_actor())
+      {:ok, review} = Activities.review(title, :dislike, nil, build_actor())
 
       {:ok, view, _html} = live(conn, "/social")
 
@@ -1536,7 +1539,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       start_supervised!(Publisher)
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
       {:ok, _} = list(title, :list)
-      {:ok, mine} = Activities.listing(title)
+      {:ok, mine} = Activities.listing(title, build_actor())
 
       {:ok, view, _html} = live(conn, "/social")
       assert has_element?(view, entry(mine) <> "[data-list-slot='listed']")
@@ -1565,7 +1568,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       {:ok, _relay} = Social.add_relay("wss://relay.example")
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, _mine} = Activities.review(title, :like, nil)
+      {:ok, _mine} = Activities.review(title, :like, nil, build_actor())
 
       {:ok, view, _html} = live(conn, "/social?scope=friends")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/social?scope=friends']", "Feed")
@@ -2222,7 +2225,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     test "your own listing broadcast is not narrated back in the modal", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       {:ok, _} = list(title, :follow)
-      {:ok, _} = Activities.listing(title)
+      {:ok, _} = Activities.listing(title, build_actor())
 
       {:ok, view, html} = live(conn, "/social?title=movie-777")
       refute has_element?(view, "#detail-social")
