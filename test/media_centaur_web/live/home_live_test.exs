@@ -368,7 +368,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up'][data-nav-reveal]")
     end
 
-    test "a show after three weekly series still makes the shelf", %{conn: conn} do
+    test "a show airing after three weekly series reaches the shelf", %{conn: conn} do
       # Three weekly series fill 39 releases in the 90-day window. Coming Up
       # used to cut the window at 30 releases before grouping by show, so a
       # fourth show airing later never reached Home.
