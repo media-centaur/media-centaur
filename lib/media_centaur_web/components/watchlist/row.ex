@@ -195,8 +195,12 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
             {marker}
           </span>
         </:markers>
+        <%!-- Inline runs with a break between notes, not blocks: the summary
+              clamps its secondary to two lines, and -webkit-line-clamp counts
+              only inline content. --%>
         <:secondary :if={@item.notes != []}>
-          <span :for={note <- @item.notes} class="block">
+          <span :for={{note, index} <- Enum.with_index(@item.notes)}>
+            <br :if={index > 0} />
             <span :if={note.name} class="font-medium text-base-content/70">{note.name}</span>
             {note.text}
           </span>

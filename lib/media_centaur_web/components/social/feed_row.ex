@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
     <div
       id={@entry.id}
       role="button"
-      class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5"
+      class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5 max-compact:flex-wrap"
       data-component="feed-row"
       data-kind={@entry.kind}
       data-own={@entry.subject == :you}
@@ -90,20 +90,25 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
         :if={@entry.poster_url}
         src={row_poster_src(@entry.poster_url)}
         alt=""
-        class="h-[120px] w-20 shrink-0 rounded-md object-cover shadow-[0_3px_12px_oklch(0%_0_0/0.45)]"
+        class="h-[120px] w-20 shrink-0 rounded-md object-cover shadow-[0_3px_12px_oklch(0%_0_0/0.45)] max-compact:h-[84px] max-compact:w-14"
         data-role="poster"
         loading="eager"
         decoding="sync"
       />
       <div
         :if={!@entry.poster_url}
-        class="h-[120px] w-20 shrink-0 rounded-md bg-base-content/6 ring-1 ring-inset ring-base-content/10"
+        class="h-[120px] w-20 shrink-0 rounded-md bg-base-content/6 ring-1 ring-inset ring-base-content/10 max-compact:h-[84px] max-compact:w-14"
         data-role="poster-empty"
       >
       </div>
 
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-base leading-6 text-base-content/80" data-role="who">
+      <%!-- In a compact window the words take a line of their own under the
+            tile, the poster and the time: beside them they had 76 px. --%>
+      <div class="min-w-0 flex-1 max-compact:order-last max-compact:basis-full">
+        <p
+          class="truncate text-base leading-6 text-base-content/80 max-compact:whitespace-normal"
+          data-role="who"
+        >
           <span :if={@entry.author} class="font-medium text-base-content/95">
             {Format.person_name(@entry.author)}
           </span>
@@ -115,8 +120,11 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
             class="ml-1 size-4 align-middle"
           />
         </p>
-        <p class="flex items-baseline gap-2 text-lg font-semibold leading-7" data-role="title">
-          <span class="truncate">{@entry.title.name}</span>
+        <p
+          class="flex items-baseline gap-2 text-lg font-semibold leading-7 max-compact:block"
+          data-role="title"
+        >
+          <span class="truncate max-compact:whitespace-normal">{@entry.title.name}</span>
           <span :if={@entry.title.year} class="shrink-0 text-sm font-normal text-base-content/60">
             {@entry.title.year}
           </span>
@@ -137,7 +145,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
         </p>
 
         <div
-          class="-mx-1.5 mt-1 flex h-8 items-center gap-0.5 text-sm text-base-content/80 opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100"
+          class="-mx-1.5 mt-1 flex h-8 items-center gap-0.5 text-sm text-base-content/80 opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 max-compact:h-auto max-compact:flex-wrap"
           data-role="toolbar"
         >
           <button
@@ -202,7 +210,10 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
         </div>
       </div>
 
-      <span class="shrink-0 pt-0.5 text-sm tabular-nums text-base-content/60" data-role="time">
+      <span
+        class="shrink-0 pt-0.5 text-sm tabular-nums text-base-content/60 max-compact:ml-auto"
+        data-role="time"
+      >
         {@entry.ago}
       </span>
     </div>

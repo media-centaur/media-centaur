@@ -35,7 +35,10 @@ defmodule MediaCentaurWeb.Components.Detail.MetadataRow do
     assigns = assign(assigns, :indexed_items, items)
 
     ~H"""
-    <div class="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-base-content/60">
+    <div
+      class="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-base-content/60"
+      data-component="metadata-row"
+    >
       <.badge variant="type">{@badge_text}</.badge>
       <%= for {item, idx} <- @indexed_items do %>
         <span :if={idx > 0} class="text-base-content/30 select-none">·</span>

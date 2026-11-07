@@ -4581,3 +4581,74 @@ body:has(.viewing) .gamepad-hint-bar {
     padding-bottom: 0;
   }
 }
+
+/* ── Compact pages ──
+   The pages' own compact layouts that CSS alone decides (the templates'
+   `max-compact:` utilities carry the rest). The review on the phone with
+   real data, 2026-11-07. */
+@media (width < theme(--breakpoint-compact)) {
+  /* The bar's icons at 24 px over their 12 px labels (Material's bar). */
+  .sidebar-link > span:first-child > .size-5 {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* Coming Up drops the mosaic: one row of 2:3 tiles at the poster width,
+     every column's tiles laid into the track (a 95 px column at 312 px was
+     a thumbnail nobody could read). */
+  .row-scroll-marquee {
+    --marquee-ratio: 1;
+    --marquee-h: 225px;
+    --card-w: 150px;
+  }
+
+  .row-scroll-marquee > .marquee-column {
+    display: contents;
+  }
+
+  .row-scroll-marquee > .marquee-column > * {
+    flex: 0 0 var(--card-w);
+    height: var(--marquee-h);
+  }
+
+  /* The sheet's meta line sits on the backdrop itself in compact (on the
+     desktop the backdrop is beside it): lifted to body opacity with the
+     text-on-image shadow so it reads over a bright frame. */
+  [data-component="metadata-row"] {
+    color: oklch(from var(--color-base-content) l c h / 0.85);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.7);
+  }
+
+  /* The picker's tiles two to a row: the 128 picture at 96 (the tile's
+     `data-size` is the identity tile's contract hook). */
+  .profile-tile [data-size="128"] {
+    width: 6rem;
+    height: 6rem;
+    font-size: 2.25rem;
+  }
+
+  /* A menu's trigger names a value; it never breaks the value across lines. */
+  .glass-menu-trigger {
+    white-space: nowrap;
+  }
+
+  /* Library's filter: a visible field across its own line. */
+  .library-filter-wrap,
+  .library-filter,
+  .library-filter:placeholder-shown:not(:focus) {
+    width: 100%;
+  }
+
+  /* The detail's primary act takes the line at thumb width; the secondary
+     cluster follows beneath. A split control (Download) keeps its two
+     joined segments and only takes the line. */
+  [data-nav-zone="detail_actions"] > :first-child {
+    flex-basis: 100%;
+  }
+
+  [data-nav-zone="detail_actions"] > :first-child > .btn:only-child,
+  [data-nav-zone="detail_actions"] > .btn:first-child {
+    width: 100%;
+  }
+}
+

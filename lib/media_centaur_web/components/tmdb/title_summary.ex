@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
       </span>
 
       <span class="min-w-0 flex-1 space-y-0.5 self-center">
-        <span class="flex items-baseline gap-2">
+        <span class="flex items-baseline gap-2 max-compact:flex-wrap">
           <span class="truncate text-sm font-semibold">{@title.name}</span>
           <%!-- Quiet text, not colored chips — type is metadata; color
                 stays reserved for interaction and state. --%>
@@ -65,13 +65,13 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
         </span>
         <span
           :if={@secondary != []}
-          class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
+          class="line-clamp-2 text-xs leading-relaxed text-base-content/55"
         >
           {render_slot(@secondary)}
         </span>
         <span
           :if={@secondary == [] && @overview && @title.overview}
-          class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
+          class="line-clamp-2 text-xs leading-relaxed text-base-content/55"
         >
           {@title.overview}
         </span>

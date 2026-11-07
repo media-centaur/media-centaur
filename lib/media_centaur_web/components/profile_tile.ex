@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.ProfileTile do
   def profile_tile(assigns) do
     ~H"""
     <span class={[
-      "profile-tile flex w-40 flex-col items-center gap-3",
+      "profile-tile flex w-40 flex-col items-center gap-3 max-compact:w-24",
       @current? && "profile-tile-current"
     ]}>
       <IdentityTile.identity_tile name={@name} picture_url={@picture_url} hue={@hue} own? size={128} />
@@ -39,8 +39,11 @@ defmodule MediaCentaurWeb.Components.ProfileTile do
 
   def add_tile(assigns) do
     ~H"""
-    <span class="profile-tile flex w-40 flex-col items-center gap-3">
-      <span class="profile-add-mark grid size-32 place-items-center rounded-full" aria-hidden="true">
+    <span class="profile-tile flex w-40 flex-col items-center gap-3 max-compact:w-24">
+      <span
+        class="profile-add-mark grid size-32 place-items-center rounded-full max-compact:size-24"
+        aria-hidden="true"
+      >
         <.icon name="hero-plus" class="size-14" />
       </span>
       <span class="text-base leading-tight text-base-content/60">Add profile</span>

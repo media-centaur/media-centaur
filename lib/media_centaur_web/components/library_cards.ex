@@ -207,7 +207,13 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         </GlassMenu.menu_select>
       </div>
 
-      <form id="library-filter-form" phx-change="filter" class="ml-auto">
+      <%!-- In a compact window the filter is a visible field across its own line:
+            the collapse-to-icon idiom is a hover/focus trick a finger lacks. --%>
+      <form
+        id="library-filter-form"
+        phx-change="filter"
+        class="ml-auto max-compact:ml-0 max-compact:w-full"
+      >
         <FilterField.filter_field
           id="library-filter"
           name="filter_text"

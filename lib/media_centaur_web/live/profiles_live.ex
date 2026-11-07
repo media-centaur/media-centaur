@@ -119,7 +119,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
       <h1 class="text-3xl font-semibold">Who's watching?</h1>
       <div
         id="profile-picker"
-        class="flex flex-wrap items-start justify-center gap-10"
+        class="flex flex-wrap items-start justify-center gap-10 max-compact:gap-4"
         data-nav-zone="profile_picker"
       >
         <.form

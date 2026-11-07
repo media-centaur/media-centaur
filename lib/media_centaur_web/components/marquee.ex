@@ -192,7 +192,7 @@ defmodule MediaCentaurWeb.Components.Marquee do
       decoding="sync"
     />
     <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent"></div>
-    <div class="relative z-10 p-8 max-w-[60%]">
+    <div class="relative z-10 p-8 max-w-[60%] max-compact:p-3 max-compact:max-w-full">
       <div class="text-[11px] tracking-[0.22em] uppercase font-bold text-primary mb-2">
         {@item.eyebrow}
       </div>
@@ -200,13 +200,13 @@ defmodule MediaCentaurWeb.Components.Marquee do
         :if={@item.logo_url}
         src={sized_image_url(@item.logo_url, 960)}
         alt={@item.name}
-        class="max-h-24 max-w-full object-contain object-left mb-3 text-on-image-lg"
+        class="max-h-24 max-w-full object-contain object-left mb-3 text-on-image-lg max-compact:max-h-12"
         loading="eager"
         decoding="sync"
       />
       <div
         :if={!@item.logo_url}
-        class="text-5xl font-extrabold tracking-tight text-white mb-3 text-on-image-lg"
+        class="text-5xl font-extrabold tracking-tight text-white mb-3 text-on-image-lg max-compact:text-xl"
       >
         {@item.name}
       </div>
@@ -219,7 +219,10 @@ defmodule MediaCentaurWeb.Components.Marquee do
       >
         {@item.badge.label}
       </span>
-      <div :if={@item.line} class={[@item.badge && "mt-3", "text-sm text-white/70 tracking-wide"]}>
+      <div
+        :if={@item.line}
+        class={[@item.badge && "mt-3", "text-sm text-white/70 tracking-wide max-compact:hidden"]}
+      >
         {@item.line}
       </div>
     </div>
