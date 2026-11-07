@@ -27,7 +27,11 @@ Sony BRAVIA 4K VH21: MediaTek MT5895, four cores at up to 1.8 GHz, 3 GB of
 RAM with 100 MB of swap that fills, Android TV 12, the Android System
 WebView (Chromium 155 on 2026-10-25). The panel is 4K at 60 Hz, but apps
 draw a 1920×1080 window that the TV scales up; the WebView runs at a device
-pixel ratio of 2, so pages see a 960 CSS px screen. The root layout marks a
+pixel ratio of 2, so pages see a 960 CSS px screen. Because that window is
+upscaled 2× onto the panel and the WebView's grayscale anti-aliasing is
+coarse, the head script shows the 1920 composition on a TV at
+`screen.width / 1600` (0.6, not 0.5): a fifth larger, so every glyph has
+more frame pixels (`campaigns/adaptive-layout.md` M6, 2026-11-07). The root layout marks a
 page served to a paired player with `data-player="remote"` on `<html>`;
 TV-only styles key off it.
 

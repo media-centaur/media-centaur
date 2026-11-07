@@ -54,8 +54,12 @@
         //     is the density, and the composition reflows by width (the
         //     compact shell in app.css) instead of shrinking into a phone;
         //   * a remote player (the TV app, `data-player`) — screen.width /
-        //     1920 with no floor: its WebView runs at dPR 2, so a 1080p TV
-        //     reports 960 CSS px, and a TV is never small;
+        //     1600 with no floor: its WebView runs at dPR 2, so a 1080p TV
+        //     reports 960 CSS px (a TV is never small), and the frame it
+        //     draws is 1080p that the panel upscales 2×, so the composition
+        //     is shown a fifth larger than on a desktop to give every glyph
+        //     more frame pixels (measured 2026-11-07, `campaigns/
+        //     adaptive-layout.md` M6);
         //   * a desktop — the same, floored at 0.7 so a small laptop renders
         //     a readable miniature rather than a broken one. screen.width is
         //     CSS px, so OS display scaling is already accounted for.
@@ -68,7 +72,7 @@
         const applyAutoScale = () => {
           const touch = matchMedia("(pointer: coarse)").matches;
           const remote = document.documentElement.dataset.player === "remote";
-          const auto = touch ? 1 : Math.max(remote ? 0 : 0.7, screen.width / 1920);
+          const auto = touch ? 1 : Math.max(remote ? 0 : 0.7, screen.width / (remote ? 1600 : 1920));
           document.documentElement.style.setProperty(
             "--auto-scale",
             String(Math.round(auto * 10000) / 10000)

@@ -8,9 +8,11 @@ defmodule MediaCentaur.Settings.Preferences.UIScale do
   owners:
 
     * `--auto-scale` — owned by the design: screen width over the 1920 CSS px
-      reference width the app is composed at, computed pre-paint by the inline
-      head script in `root.html.heex`. Density correction is automatic; no
-      user setup.
+      reference width the app is composed at (1600 on a remote player, whose
+      1080p frame the TV upscales — `docs/tv-performance.md`; 1 on a touch
+      screen, where the composition reflows instead), computed pre-paint by
+      the inline head script in `root.html.heex`. Density correction is
+      automatic; no user setup.
     * `--ui-scale-pref` — owned by the user: this setting, an accessibility /
       taste multiplier on top of the intended size.
 
