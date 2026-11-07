@@ -585,8 +585,13 @@ html.psb .psb-variation-block .media-centaur {
   /* The gutter stays the page's (px-6): Home's hero bleeds by -mx-6 against
      it, and a narrower shell gutter would widen the page past the screen,
      which a mobile viewport answers by zooming the whole page out. */
+  /* The page starts below the camera cutout (`env(safe-area-inset-top)`,
+     36 px on the owner's phone): headings and the hero's text keep out of
+     the hole, while the page backdrop, anchored above main's top, still
+     paints behind the strip. */
   #input-system > main {
     margin-left: 0;
+    padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);
   }
 
@@ -4564,6 +4569,8 @@ body:has(.viewing) .gamepad-hint-bar {
     height: var(--modal-panel-h);
     max-height: var(--modal-panel-h);
     border-radius: 0;
+    /* The sheet's title keeps out of the camera cutout too. */
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .modal-backdrop:has(.modal-panel--full) {
