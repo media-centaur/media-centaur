@@ -9,7 +9,11 @@ defmodule MediaCentaurWeb.Endpoint do
     store: :cookie,
     key: "_media_centaur_key",
     signing_salt: "skK1Dh/W",
-    same_site: "Lax"
+    same_site: "Lax",
+    # 400 days, the most a browser keeps a cookie; without it the cookie
+    # dies with the browser and a reboot asks who is watching again.
+    # `Plugs.KeepSession` renews it on every page load.
+    max_age: 400 * 24 * 60 * 60
   ]
 
   # `:peer_data` so `Live.PlayerAware` can judge the socket's address the
