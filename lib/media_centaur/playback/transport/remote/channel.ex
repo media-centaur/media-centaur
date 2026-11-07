@@ -152,8 +152,10 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   end
 
   # A deliberate close is a shutdown, not a crash: the handler's exit must
-  # not land in the error log as one.
-  def handle_message(state, {:channel, :replaced}), do: {:stop, {:shutdown, :replaced}, state}
+  # not land in the error log as one, and the device must read a normal
+  # close that names the reason, as on `removed/1`, not a server error (1011).
+  def handle_message(state, {:channel, :replaced}),
+    do: {:stop, {:shutdown, :replaced}, {1000, "replaced"}, [], state}
 
   def handle_message(%{session_ref: ref} = state, {:DOWN, ref, :process, _pid, _reason}),
     do: {:ok, %{state | session: nil, session_ref: nil}}

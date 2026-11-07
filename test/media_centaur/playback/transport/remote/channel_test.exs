@@ -47,8 +47,9 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
     assert pid == self()
   end
 
-  test "replace closes the older channel and waits for it to go" do
+  test "replace closes the older channel as a deliberate close and waits for it to go" do
     player_id = player_id()
+    test_process = self()
 
     older =
       spawn(fn ->
@@ -56,7 +57,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
 
         receive do
           {:channel, :replaced} = message ->
-            assert {:stop, {:shutdown, :replaced}, _state} = Channel.handle_message(state, message)
+            send(test_process, {:replaced_outcome, Channel.handle_message(state, message)})
         end
       end)
 
@@ -65,6 +66,9 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
 
     assert :ok = Channel.replace(older)
     refute Process.alive?(older)
+
+    # The device reads a normal close that names the reason, not a server error.
+    assert_received {:replaced_outcome, {:stop, {:shutdown, :replaced}, {1000, "replaced"}, [], _state}}
     # The recovery the older channel's connect started finds its channel gone.
     await_supervised_tasks()
   end
