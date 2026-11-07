@@ -19,7 +19,11 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       place.
     * **The track menu**: a centred glass modal of three `GlassMenu.menu_list`
       columns, Audio, Subtitles and Picture (Fit, or Fill width for a file
-      with black bars in its frame: `Command` `{:fill_width, _}`), the active entries marked, *None* first
+      with black bars in its frame: `Command` `{:fill_width, _}`). Each
+      column opens on **Default** — marked while the setting follows the
+      title's default, with what that plays now — which puts the setting
+      back on its default (`{:default, _}`); a choice is marked only while
+      it overrides the default. the active entries marked, *None* first
       in Subtitles, bitmap tracks disabled with "Not on this TV" and a note
       when a file has nothing else (`viewing_track`, `viewing_menu_close`).
 
@@ -247,11 +251,22 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
               class="viewing-menu-list"
             >
               <:item
+                id="viewing-audio-default"
+                event="viewing_track"
+                values={%{"kind" => "audio", "id" => "default"}}
+                active={@viewing.follows_default.audio}
+              >
+                <span class="viewing-menu-label">Default</span>
+                <span :if={@viewing.follows_default.audio} class="viewing-menu-meta">
+                  {playing_label(@viewing.audio_tracks, @viewing.aid)}
+                </span>
+              </:item>
+              <:item
                 :for={track <- @viewing.audio_tracks}
                 id={"viewing-audio-#{track.index}"}
                 event="viewing_track"
                 values={%{"kind" => "audio", "id" => to_string(track.index)}}
-                active={track.index == @viewing.aid}
+                active={not @viewing.follows_default.audio and track.index == @viewing.aid}
               >
                 <span class="viewing-menu-label">{track_label(track)}</span>
                 <span class="viewing-menu-meta">{codec_label(track)}</span>
@@ -267,10 +282,23 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
               class="viewing-menu-list"
             >
               <:item
+                id="viewing-subtitles-default"
+                event="viewing_track"
+                values={%{"kind" => "subtitle", "id" => "default"}}
+                active={@viewing.follows_default.subtitles}
+              >
+                <span class="viewing-menu-label">Default</span>
+                <span :if={@viewing.follows_default.subtitles} class="viewing-menu-meta">
+                  {if subtitles_off?(@viewing.sid),
+                    do: "None",
+                    else: playing_label(@viewing.subtitle_tracks, @viewing.sid)}
+                </span>
+              </:item>
+              <:item
                 id="viewing-subtitles-none"
                 event="viewing_track"
                 values={%{"kind" => "subtitle", "id" => "none"}}
-                active={subtitles_off?(@viewing.sid)}
+                active={not @viewing.follows_default.subtitles and subtitles_off?(@viewing.sid)}
               >
                 <span class="viewing-menu-label">None</span>
               </:item>
@@ -279,7 +307,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
                 id={"viewing-subtitles-#{track.index}"}
                 event="viewing_track"
                 values={%{"kind" => "subtitle", "id" => to_string(track.index)}}
-                active={track.index == @viewing.sid}
+                active={not @viewing.follows_default.subtitles and track.index == @viewing.sid}
                 disabled={Viewing.bitmap_track?(track)}
               >
                 <span class="viewing-menu-label">{track_label(track)}</span>
@@ -298,10 +326,19 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
               class="viewing-menu-list"
             >
               <:item
+                id="viewing-picture-default"
+                event="viewing_picture"
+                values={%{"fill" => "default"}}
+                active={@viewing.follows_default.picture}
+              >
+                <span class="viewing-menu-label">Default</span>
+                <span :if={@viewing.follows_default.picture} class="viewing-menu-meta">Fit</span>
+              </:item>
+              <:item
                 id="viewing-picture-fit"
                 event="viewing_picture"
                 values={%{"fill" => "fit"}}
-                active={not @viewing.fill_width}
+                active={not @viewing.follows_default.picture and not @viewing.fill_width}
               >
                 <span class="viewing-menu-label">Fit</span>
               </:item>
@@ -309,7 +346,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
                 id="viewing-picture-width"
                 event="viewing_picture"
                 values={%{"fill" => "width"}}
-                active={@viewing.fill_width}
+                active={not @viewing.follows_default.picture and @viewing.fill_width}
               >
                 <span class="viewing-menu-label">Fill width</span>
               </:item>
@@ -370,6 +407,14 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
     do: Map.get(@codec_labels, codec, codec && String.upcase(codec))
 
   defp subtitles_off?(sid), do: sid in [nil, false, "no"]
+
+  # What a column's Default plays now: the selected track's label.
+  defp playing_label(tracks, id) do
+    case Enum.find(tracks, &(&1.index == id)) do
+      nil -> nil
+      track -> track_label(track)
+    end
+  end
 
   defp bitmap_only?([]), do: false
   defp bitmap_only?(tracks), do: Enum.all?(tracks, &Viewing.bitmap_track?/1)

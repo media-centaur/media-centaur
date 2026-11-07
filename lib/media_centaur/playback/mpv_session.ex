@@ -234,6 +234,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # A reader's command, bounded to the file, rendered against the viewing's
   # current prompt and sent through the transport; a command with nothing
   # to send is dropped.
+  def handle_cast({:command, {:default, setting}}, state), do: {:noreply, use_default(state, setting)}
+
   def handle_cast({:command, command}, state) do
     with bounded when bounded != nil <-
            Command.within(command, state.properties.position, state.properties.duration),
@@ -246,9 +248,9 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   @impl true
   # Debounced capture — fires after the viewer has settled on their
-  # settings. Each part compares against its own default (tracks: the
-  # resolver's choice; picture: Fit, or what is remembered) and the
-  # divergence is saved for the title (`Remembered`).
+  # settings. Each setting the viewer changed (compared with what was in
+  # effect) is saved for the title, and only those (`Remembered`); what
+  # plays now becomes what is in effect.
   def handle_info(:capture_settled, state) do
     attrs =
       Map.merge(
@@ -256,8 +258,21 @@ defmodule MediaCentaur.Playback.MpvSession do
         Remembered.picture_change(state.remembered, state.properties.fill_width)
       )
 
-    remembered = Remembered.save(state.remembered, state.profile_id, attrs)
-    {:noreply, %{state | capture_timer: nil, remembered: remembered}}
+    state = %{state | capture_timer: nil}
+
+    if attrs == %{} do
+      {:noreply, state}
+    else
+      remembered = Remembered.save(state.remembered, state.profile_id, attrs)
+
+      {:noreply,
+       %{
+         state
+         | remembered: remembered,
+           language_context:
+             LanguageContext.remember(state.language_context, remembered, state.properties)
+       }}
+    end
   end
 
   # The transport did not come back within its window: the viewing is over.
@@ -689,6 +704,31 @@ defmodule MediaCentaur.Playback.MpvSession do
         state.transport,
         Command.ipc({:fill_width, Remembered.fill_width?(state.remembered)}, nil)
       )
+
+  # The menu's Default for one setting: the title's override for it is
+  # cleared, and the player is put on the default — the policy's track, or
+  # Fit — which is then in effect, so it is not captured back.
+  defp use_default(state, setting) do
+    remembered = Remembered.use_default(state.remembered, state.profile_id, setting)
+
+    {language_context, commands} =
+      case setting do
+        :picture ->
+          {state.language_context, [Command.ipc({:fill_width, false}, nil)]}
+
+        tracks ->
+          LanguageContext.use_default(
+            state.language_context,
+            remembered,
+            state.properties,
+            Transport.draws_subtitles?(state.transport),
+            tracks
+          )
+      end
+
+    Enum.each(commands, &Transport.send(state.transport, &1))
+    stream_viewing(%{state | remembered: remembered, language_context: language_context})
+  end
 
   defp observe_properties(transport) do
     for {name, id} <- Enum.with_index(MpvProperties.observed(), 1) do

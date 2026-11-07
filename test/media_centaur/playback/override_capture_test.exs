@@ -3,93 +3,49 @@ defmodule MediaCentaur.Playback.OverrideCaptureTest do
 
   alias MediaCentaur.Playback.OverrideCapture
 
-  defp state(audio, sub_lang \\ nil, sub_forced \\ false) do
-    %{audio_lang: audio, sub_lang: sub_lang, sub_forced: sub_forced}
-  end
+  defp state(audio, sub_lang, sub_forced \\ false),
+    do: %{audio_lang: audio, sub_lang: sub_lang, sub_forced: sub_forced}
 
-  describe "compute/2 — no divergence" do
-    test "both audio and subs match resolver — :no_change" do
-      assert OverrideCapture.compute(state("jpn", "eng"), state("jpn", "eng")) == :no_change
-    end
-
-    test "no subs in either — :no_change" do
-      assert OverrideCapture.compute(state("eng"), state("eng")) == :no_change
-    end
-
-    test "forced flag matches on both sides — :no_change" do
-      assert OverrideCapture.compute(state("eng", "eng", true), state("eng", "eng", true)) ==
-               :no_change
+  describe "changes/2 — nothing changed" do
+    test "the selection is what was in effect — nothing to save" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state("jpn", "eng")) == %{}
+      assert OverrideCapture.changes(state("eng", nil), state("eng", nil)) == %{}
+      assert OverrideCapture.changes(state("eng", "eng", true), state("eng", "eng", true)) == %{}
     end
   end
 
-  describe "compute/2 — audio divergence only" do
-    test "user changed audio language" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("jpn", "eng"), state("eng", "eng"))
-
-      assert attrs.audio_lang == "eng"
-      assert attrs.subtitle_lang == nil
-      assert attrs.subtitles_off == false
+  describe "changes/2 — each setting on its own" do
+    test "an audio switch saves the audio alone; the subtitles are not touched" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state("eng", "eng")) == %{audio_lang: "eng"}
     end
 
-    test "user changed audio but kept sub track choice — subs stay 'follow policy'" do
-      assert {:override, attrs} = OverrideCapture.compute(state("jpn"), state("eng"))
-
-      assert attrs.audio_lang == "eng"
-      assert attrs.subtitle_lang == nil
-      assert attrs.subtitles_off == false
-    end
-  end
-
-  describe "compute/2 — subtitle divergence only" do
-    test "user changed subtitle language" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("jpn", "eng"), state("jpn", "spa"))
-
-      assert attrs.audio_lang == nil
-      assert attrs.subtitle_lang == "spa"
+    test "a subtitle switch saves the subtitles alone; the audio is not touched" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state("jpn", "spa")) ==
+               %{subtitle_lang: "spa", subtitle_forced: false, subtitles_off: false}
     end
 
-    test "user enabled subs that resolver chose to hide" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("eng"), state("eng", "eng"))
-
-      assert attrs.subtitle_lang == "eng"
-      assert attrs.subtitles_off == false
+    test "turning subtitles on saves the language" do
+      assert OverrideCapture.changes(state("eng", nil), state("eng", "eng")) ==
+               %{subtitle_lang: "eng", subtitle_forced: false, subtitles_off: false}
     end
 
-    test "user disabled subs that resolver wanted shown — subtitles_off=true" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("jpn", "eng"), state("jpn"))
-
-      assert attrs.subtitle_lang == nil
-      assert attrs.subtitles_off == true
+    test "turning subtitles off saves them off" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state("jpn", nil)) ==
+               %{subtitle_lang: nil, subtitle_forced: false, subtitles_off: true}
     end
 
-    test "user changed forced flag on the sub track" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("eng", "eng", false), state("eng", "eng", true))
-
-      assert attrs.subtitle_lang == "eng"
-      assert attrs.subtitle_forced == true
+    test "the forced variant of the same language is a subtitle change" do
+      assert OverrideCapture.changes(state("eng", "eng"), state("eng", "eng", true)) ==
+               %{subtitle_lang: "eng", subtitle_forced: true, subtitles_off: false}
     end
-  end
 
-  describe "compute/2 — both audio and subs diverge" do
-    test "captures both" do
-      assert {:override, attrs} =
-               OverrideCapture.compute(state("jpn", "eng"), state("fra", "spa"))
-
-      assert attrs.audio_lang == "fra"
-      assert attrs.subtitle_lang == "spa"
+    test "both switched save both" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state("eng", nil)) ==
+               %{audio_lang: "eng", subtitle_lang: nil, subtitle_forced: false, subtitles_off: true}
     end
-  end
 
-  describe "compute/2 — toggle-back behaviour" do
-    test "user changed then changed back to match resolver — :no_change" do
-      # Simulates the user pressing #-#-# (cycle audio away and back) ending
-      # on the same state the resolver originally chose.
-      assert OverrideCapture.compute(state("jpn", "eng"), state("jpn", "eng")) == :no_change
+    test "an audio track with no language cannot be remembered, and is not" do
+      assert OverrideCapture.changes(state("jpn", "eng"), state(nil, "eng")) == %{}
     end
   end
 end

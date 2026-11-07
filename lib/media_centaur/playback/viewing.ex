@@ -15,7 +15,7 @@ defmodule MediaCentaur.Playback.Viewing do
   page shows the pill and the session acts on it with one source of truth.
   """
 
-  alias MediaCentaur.Playback.{Completion, IntroChapter, TrackResolver}
+  alias MediaCentaur.Playback.{Completion, IntroChapter, Remembered, TrackResolver}
 
   @countdown_window_seconds 20
 
@@ -45,6 +45,7 @@ defmodule MediaCentaur.Playback.Viewing do
     audio_tracks: [],
     subtitle_tracks: [],
     fill_width: false,
+    follows_default: %{audio: true, subtitles: true, picture: true},
     successor_queued?: false
   ]
 
@@ -70,6 +71,7 @@ defmodule MediaCentaur.Playback.Viewing do
           aid: term(),
           sid: term(),
           fill_width: boolean(),
+          follows_default: %{audio: boolean(), subtitles: boolean(), picture: boolean()},
           successor_queued?: boolean(),
           subtitle_text: String.t() | nil,
           prompt: prompt()
@@ -100,12 +102,21 @@ defmodule MediaCentaur.Playback.Viewing do
       aid: properties.aid,
       sid: properties.sid,
       fill_width: properties.fill_width == true,
+      follows_default: follows_default(session.remembered),
       successor_queued?: not is_nil(session.pending_next),
       subtitle_text: properties.subtitle_text
     }
 
     %{viewing | prompt: prompt(viewing)}
   end
+
+  # Which of the title's settings follow their default (the menu marks
+  # Default for those); a session started without remembered settings has
+  # none overridden.
+  defp follows_default(%Remembered{} = remembered),
+    do: Map.new([:audio, :subtitles, :picture], &{&1, Remembered.follows_default?(remembered, &1)})
+
+  defp follows_default(_none), do: %{audio: true, subtitles: true, picture: true}
 
   @doc """
   The prompt a viewing offers, the desktop package's rules

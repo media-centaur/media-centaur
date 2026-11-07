@@ -37,6 +37,12 @@ defmodule MediaCentaurWeb.Live.ViewingAware.LogicTest do
       assert Logic.track_from_params(%{"kind" => "subtitle", "id" => "none"}) ==
                {:ok, {:select_track, :subtitle, :none}}
 
+      assert Logic.track_from_params(%{"kind" => "audio", "id" => "default"}) ==
+               {:ok, {:default, :audio}}
+
+      assert Logic.track_from_params(%{"kind" => "subtitle", "id" => "default"}) ==
+               {:ok, {:default, :subtitles}}
+
       assert Logic.track_from_params(%{"kind" => "video", "id" => "1"}) == :error
     end
   end
@@ -45,6 +51,7 @@ defmodule MediaCentaurWeb.Live.ViewingAware.LogicTest do
     test "fill the width, or fit" do
       assert Logic.picture_from_params(%{"fill" => "width"}) == {:ok, {:fill_width, true}}
       assert Logic.picture_from_params(%{"fill" => "fit"}) == {:ok, {:fill_width, false}}
+      assert Logic.picture_from_params(%{"fill" => "default"}) == {:ok, {:default, :picture}}
       assert Logic.picture_from_params(%{"fill" => "height"}) == :error
     end
   end

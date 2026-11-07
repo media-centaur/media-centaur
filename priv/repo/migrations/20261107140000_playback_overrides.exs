@@ -2,8 +2,8 @@ defmodule MediaCentaur.Repo.Migrations.PlaybackOverrides do
   @moduledoc """
   Track memory becomes playback memory: the remembered audio and subtitle
   choice per title is joined by the picture's Fill width, so the table is
-  renamed for what it now holds and gains `fill_width` (false = Fit, the
-  default). The indexes are renamed with it.
+  renamed for what it now holds and gains `fill_width` (null = the
+  default, Fit; false = Fit, chosen; true = Fill width). The indexes are renamed with it.
   """
   use Ecto.Migration
 
@@ -19,7 +19,7 @@ defmodule MediaCentaur.Repo.Migrations.PlaybackOverrides do
     rename table(:library_media_track_overrides), to: table(:library_playback_overrides)
 
     alter table(:library_playback_overrides) do
-      add :fill_width, :boolean, null: false, default: false
+      add :fill_width, :boolean
     end
 
     create unique_index(:library_playback_overrides, [:profile_id, :owner_type, :owner_id],

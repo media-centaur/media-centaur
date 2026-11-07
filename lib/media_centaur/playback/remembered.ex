@@ -10,13 +10,16 @@ defmodule MediaCentaur.Playback.Remembered do
   whole show. An extra or an unattributed file has no owner; nothing is
   remembered for it (`remembers?/1`).
 
-  Each setting compares against its own default and contributes only its
-  own fields to a save, so one never disturbs another:
+  Audio, subtitles and the picture are three settings, each saved on its
+  own: a save carries only the fields of the settings the viewer changed,
+  compared with what was in effect, so one never disturbs another.
 
-    * **Tracks** — against the language policy's choice
-      (`LanguageContext.capture/2`, `OverrideCapture`).
-    * **Picture** — against Fit (`picture_change/2`): Fill width is the
-      only divergence.
+    * **Tracks** — `LanguageContext.capture/2` (`OverrideCapture`).
+    * **Picture** — `picture_change/2`: Fit or Fill width.
+
+  A setting goes back to its default only when the viewer asks for it
+  (`use_default/3`, the menu's **Default**), which clears that setting and
+  nothing else.
 
   Every save broadcasts `Events.PlaybackOverrideChanged`, so an open detail
   page's *Remembered settings* badge follows.
@@ -61,15 +64,21 @@ defmodule MediaCentaur.Playback.Remembered do
   @spec remembers?(t()) :: boolean()
   def remembers?(%__MODULE__{owner_type: owner_type}), do: not is_nil(owner_type)
 
-  @doc "Whether the picture is remembered as filling the screen's width (else Fit, the default)."
+  @doc "Whether `setting` follows its default for this title."
+  @spec follows_default?(t(), PlaybackOverride.setting()) :: boolean()
+  def follows_default?(%__MODULE__{override: override}, setting),
+    do: PlaybackOverride.follows_default?(override, setting)
+
+  @doc "Whether the picture fills the screen's width for this title (else Fit, chosen or by default)."
   @spec fill_width?(t()) :: boolean()
   def fill_width?(%__MODULE__{override: %PlaybackOverride{fill_width: true}}), do: true
   def fill_width?(%__MODULE__{}), do: false
 
   @doc """
   The picture fields to save for the viewer's current picture setting
-  (`fill_width`, as the player reports it): none when it matches what is
-  remembered, or while the player has not reported it yet (`nil`).
+  (`fill_width`, as the player reports it): the choice when it differs
+  from what is in effect, none when it matches or while the player has not
+  reported it yet (`nil`).
   """
   @spec picture_change(t(), boolean() | nil) :: map()
   def picture_change(%__MODULE__{}, nil), do: %{}
@@ -108,6 +117,18 @@ defmodule MediaCentaur.Playback.Remembered do
         Log.warning(:playback, "failed to save playback override — #{inspect(changeset.errors)}")
         remembered
     end
+  end
+
+  @doc """
+  Puts `setting` back on its default for `profile_id`'s title, leaving the
+  other settings as they are. Nothing is written when it already follows
+  its default.
+  """
+  @spec use_default(t(), String.t(), PlaybackOverride.setting()) :: t()
+  def use_default(%__MODULE__{} = remembered, profile_id, setting) do
+    if remembers?(remembered) and not follows_default?(remembered, setting),
+      do: save(remembered, profile_id, PlaybackOverride.default_attrs(setting)),
+      else: remembered
   end
 
   defp owner(%Entry{extra_id: extra_id}) when is_binary(extra_id), do: nil

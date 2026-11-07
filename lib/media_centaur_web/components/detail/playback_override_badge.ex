@@ -56,8 +56,8 @@ defmodule MediaCentaurWeb.Components.Detail.PlaybackOverrideBadge do
   @doc """
   Human-readable segments describing a captured per-entity playback
   override, for the *Remembered settings* badge. Audio first, then
-  subtitles, then the picture (`"Fill width"`; Fit is the default and is
-  not said). Aspects left to policy (`nil`) are omitted; `subtitles_off`
+  subtitles, then the picture (`"Fill width"`, or `"Fit"` when chosen;
+  a picture on its default is not said). Aspects left to policy (`nil`) are omitted; `subtitles_off`
   yields `"Subtitles off"`; a forced subtitle gets a `" (forced)"`
   suffix. Returns `[]` when no aspect diverges — the badge then renders
   nothing.
@@ -74,6 +74,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlaybackOverrideBadge do
   end
 
   defp picture_segment(%PlaybackOverride{fill_width: true}), do: "Fill width"
+  defp picture_segment(%PlaybackOverride{fill_width: false}), do: "Fit"
   defp picture_segment(_override), do: nil
 
   defp audio_segment(%PlaybackOverride{audio_lang: lang}) when is_binary(lang),

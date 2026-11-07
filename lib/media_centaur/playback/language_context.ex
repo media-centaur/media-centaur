@@ -85,10 +85,7 @@ defmodule MediaCentaur.Playback.LanguageContext do
     if audio_tracks == [] and subtitle_tracks == [] do
       {context, []}
     else
-      drawable =
-        if draws_subtitles?,
-          do: subtitle_tracks,
-          else: Enum.reject(subtitle_tracks, &Viewing.bitmap_track?/1)
+      drawable = drawable_tracks(subtitle_tracks, draws_subtitles?)
 
       result =
         TrackResolver.resolve(
@@ -128,8 +125,8 @@ defmodule MediaCentaur.Playback.LanguageContext do
 
   @doc """
   The track fields to save for the viewer's settled selection: the
-  divergence from the resolver's choice, or none when it matches — or
-  before the resolver has chosen, when there is no baseline to compare.
+  settings that differ from what was in effect (`OverrideCapture.changes/2`),
+  none before the resolver has chosen — there is nothing to compare with.
 
   The selection is derived now, from the complete track lists — not from
   a snapshot taken when the `aid`/`sid` event fired: mpv auto-selects a
@@ -141,17 +138,82 @@ defmodule MediaCentaur.Playback.LanguageContext do
   @spec capture(t(), MpvProperties.t()) :: map()
   def capture(%__MODULE__{resolver_choice: nil}, %MpvProperties{}), do: %{}
 
-  def capture(%__MODULE__{} = context, %MpvProperties{} = properties) do
-    %MpvProperties{aid: aid, sid: sid, audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} =
-      properties
+  def capture(%__MODULE__{} = context, %MpvProperties{} = properties),
+    do: OverrideCapture.changes(context.resolver_choice, selection(properties))
 
-    selection = current_selection(aid, sid, audio_tracks, subtitle_tracks)
+  @doc """
+  The context after a save: the policy over the title's new remembered
+  settings, and what plays now as what is in effect, so the next capture
+  compares with it (switching back is a change too).
+  """
+  @spec remember(t(), Remembered.t(), MpvProperties.t()) :: t()
+  def remember(%__MODULE__{} = context, %Remembered{} = remembered, %MpvProperties{} = properties) do
+    %{refresh(context, remembered) | resolver_choice: selection(properties)}
+  end
 
-    case OverrideCapture.compute(context.resolver_choice, selection) do
-      :no_change -> %{}
-      {:override, attrs} -> attrs
+  @doc """
+  `setting` (audio or subtitles) back on its default: the policy over the
+  title's remembered settings, which no longer hold that setting, resolved
+  against the file's tracks — the IPC that selects the policy's track, and
+  the context with that choice in effect. The other setting keeps what
+  plays now.
+  """
+  @spec use_default(t(), Remembered.t(), MpvProperties.t(), boolean(), :audio | :subtitles) ::
+          {t(), [list()]}
+  def use_default(
+        %__MODULE__{} = context,
+        %Remembered{} = remembered,
+        %MpvProperties{} = properties,
+        draws_subtitles?,
+        setting
+      ) do
+    context = refresh(context, remembered)
+    drawable = drawable_tracks(properties.subtitle_tracks, draws_subtitles?)
+
+    result =
+      TrackResolver.resolve(
+        context.policy,
+        context.override,
+        properties.audio_tracks,
+        drawable,
+        context.original_language
+      )
+
+    current = selection(properties)
+
+    case setting do
+      :audio ->
+        commands = if result.audio_index, do: [["set_property", "aid", result.audio_index]], else: []
+        {%{context | resolver_choice: %{current | audio_lang: result.audio_lang}}, commands}
+
+      :subtitles ->
+        in_effect = %{current | sub_lang: result.sub_lang, sub_forced: result.sub_forced}
+
+        case sid_target(result, drawable, properties.subtitle_tracks) do
+          :skip ->
+            {%{context | resolver_choice: in_effect}, []}
+
+          {:set, sid} ->
+            {%{context | resolver_choice: in_effect, enforced_sid: sid}, [["set_property", "sid", sid]]}
+        end
     end
   end
+
+  defp refresh(context, %Remembered{override: override}) do
+    %{
+      context
+      | override: override,
+        priority_args: TrackResolver.priority_args(context.policy, override, context.original_language)
+    }
+  end
+
+  defp selection(%MpvProperties{aid: aid, sid: sid, audio_tracks: audio, subtitle_tracks: subtitles}),
+    do: current_selection(aid, sid, audio, subtitles)
+
+  defp drawable_tracks(subtitle_tracks, true), do: subtitle_tracks
+
+  defp drawable_tracks(subtitle_tracks, false),
+    do: Enum.reject(subtitle_tracks, &Viewing.bitmap_track?/1)
 
   @doc "The policy for the next file of a playlist: the choice and the enforcement start over."
   @spec reset_for_file(t()) :: t()

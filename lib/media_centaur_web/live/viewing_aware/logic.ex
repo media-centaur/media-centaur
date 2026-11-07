@@ -71,8 +71,11 @@ defmodule MediaCentaurWeb.Live.ViewingAware.Logic do
 
   def command_from_params(_params), do: :error
 
-  @doc "`viewing_track`'s payload as a track command: a kind and an id, or `none`."
+  @doc "`viewing_track`'s payload as a track command: a kind and an id, `none`, or `default` (the title's default for that kind)."
   @spec track_from_params(map()) :: {:ok, MediaCentaur.Playback.Command.t()} | :error
+  def track_from_params(%{"kind" => "audio", "id" => "default"}), do: {:ok, {:default, :audio}}
+  def track_from_params(%{"kind" => "subtitle", "id" => "default"}), do: {:ok, {:default, :subtitles}}
+
   def track_from_params(%{"kind" => kind, "id" => id}) when kind in ["audio", "subtitle"] do
     case {id, integer(id)} do
       {"none", _} -> {:ok, {:select_track, String.to_existing_atom(kind), :none}}
@@ -83,8 +86,9 @@ defmodule MediaCentaurWeb.Live.ViewingAware.Logic do
 
   def track_from_params(_params), do: :error
 
-  @doc "`viewing_picture`'s payload as a picture command: fill the screen's width, or fit."
+  @doc "`viewing_picture`'s payload as a picture command: the title's default, fill the screen's width, or fit."
   @spec picture_from_params(map()) :: {:ok, MediaCentaur.Playback.Command.t()} | :error
+  def picture_from_params(%{"fill" => "default"}), do: {:ok, {:default, :picture}}
   def picture_from_params(%{"fill" => "width"}), do: {:ok, {:fill_width, true}}
   def picture_from_params(%{"fill" => "fit"}), do: {:ok, {:fill_width, false}}
   def picture_from_params(_params), do: :error

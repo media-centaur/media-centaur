@@ -2,14 +2,14 @@ defmodule MediaCentaur.Playback.PlaybackOverrideRoundTripTest do
   @moduledoc """
   End-to-end (data-layer) round-trip for per-entity track overrides:
 
-      mid-playback selection  →  OverrideCapture.compute/2
+      mid-playback selection  →  OverrideCapture.changes/2
                               →  Library.PlaybackOverrides.upsert/4
                               →  reload
                               →  TrackResolver.priority_args/3 (next play)
 
   Each step has its own focused unit test; this chains the public
   functions to prove they compose. The one seam this *cannot* exercise
-  is `MpvSession` (the thin mpv wrapper that drives `compute` from real
+  is `MpvSession` (the thin mpv wrapper that drives `changes` from real
   property-change events and reads the override at launch) — that is
   validated by the manual real-playback procedure recorded in the
   language-track-preferences campaign (git history).
@@ -49,8 +49,8 @@ defmodule MediaCentaur.Playback.PlaybackOverrideRoundTripTest do
 
     # Resolver opened the foreign film with original (jpn) audio + eng
     # subs; the user switched the audio track to the eng dub mid-playback.
-    {:override, attrs} =
-      OverrideCapture.compute(state("jpn", "eng"), state("eng", "eng"))
+    attrs =
+      OverrideCapture.changes(state("jpn", "eng"), state("eng", "eng"))
 
     {:ok, _} = Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, attrs)
 
@@ -68,8 +68,8 @@ defmodule MediaCentaur.Playback.PlaybackOverrideRoundTripTest do
 
     # Understood-audio film: resolver chose eng audio, no subs. The user
     # turned on spa subs (e.g. a language learner).
-    {:override, attrs} =
-      OverrideCapture.compute(state("eng", nil), state("eng", "spa"))
+    attrs =
+      OverrideCapture.changes(state("eng", nil), state("eng", "spa"))
 
     {:ok, _} = Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, attrs)
 
@@ -88,8 +88,8 @@ defmodule MediaCentaur.Playback.PlaybackOverrideRoundTripTest do
 
     # Foreign-audio film: resolver showed eng subs; the user turned them
     # off (understands enough, or prefers raw audio).
-    {:override, attrs} =
-      OverrideCapture.compute(state("jpn", "eng"), state("jpn", nil))
+    attrs =
+      OverrideCapture.changes(state("jpn", "eng"), state("jpn", nil))
 
     {:ok, _} = Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, attrs)
 
@@ -119,13 +119,13 @@ defmodule MediaCentaur.Playback.PlaybackOverrideRoundTripTest do
 
     current = LanguageContext.current_selection(1, 1, audio_tracks, subtitle_tracks)
 
-    assert OverrideCapture.compute(resolver_choice, current) == :no_change
+    assert OverrideCapture.changes(resolver_choice, current) == %{}
   end
 
   test "no divergence captures nothing — the entity keeps following policy" do
     movie = create_movie(%{name: "Round Trip Movie 4"})
 
-    assert OverrideCapture.compute(state("jpn", "eng"), state("jpn", "eng")) == :no_change
+    assert OverrideCapture.changes(state("jpn", "eng"), state("jpn", "eng")) == %{}
     assert Library.PlaybackOverrides.get(owner_profile_id(), :movie, movie.id) == nil
   end
 

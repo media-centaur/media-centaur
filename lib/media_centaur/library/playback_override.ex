@@ -17,16 +17,20 @@ defmodule MediaCentaur.Library.PlaybackOverride do
   owner_id)` — one override row per profile and entity, updated in place
   via upsert.
 
-  Overrides are **partial**: any field may be unset, in which case that
-  setting falls back to its default.
+  Three settings, each overridden on its own and **unset** when it follows
+  its default — overriding one never overrides another:
 
     * `audio_lang = nil`     → audio follows policy
     * `subtitle_lang = nil` and `subtitles_off = false` → subs follow policy
     * `subtitle_lang = nil` and `subtitles_off = true`  → subs explicitly disabled for this entity
     * `subtitle_forced` is meaningful only when `subtitle_lang` is set
-    * `fill_width = false`   → the picture fits the screen (the default);
-      `true` → it fills the screen's width, for a title whose frame carries
-      black bars (a remote player's `user-data/fill-width`)
+    * `fill_width = nil`     → the picture follows its default, Fit;
+      `false` → Fit, chosen; `true` → it fills the screen's width, for a
+      title whose frame carries black bars (a remote player's
+      `user-data/fill-width`)
+
+  `follows_default?/2` reads one setting; `default_attrs/1` is what puts
+  one setting back on its default and leaves the others alone.
 
   Stored as **language descriptors** (`"jpn"`, `"eng"`), not raw track
   indices — so an override survives re-rips and release-group changes
@@ -52,8 +56,11 @@ defmodule MediaCentaur.Library.PlaybackOverride do
           subtitle_lang: String.t() | nil,
           subtitle_forced: boolean(),
           subtitles_off: boolean(),
-          fill_width: boolean()
+          fill_width: boolean() | nil
         }
+
+  @typedoc "One of the overridable settings."
+  @type setting :: :audio | :subtitles | :picture
 
   schema "library_playback_overrides" do
     field :profile_id, Ecto.UUID
@@ -64,12 +71,28 @@ defmodule MediaCentaur.Library.PlaybackOverride do
     field :subtitle_lang, :string
     field :subtitle_forced, :boolean, default: false
     field :subtitles_off, :boolean, default: false
-    field :fill_width, :boolean, default: false
+    field :fill_width, :boolean
 
     timestamps()
   end
 
   def owner_types, do: @owner_types
+
+  @doc "Whether `setting` follows its default — no override, or none for that setting."
+  @spec follows_default?(t() | nil, setting()) :: boolean()
+  def follows_default?(nil, _setting), do: true
+  def follows_default?(%__MODULE__{audio_lang: lang}, :audio), do: is_nil(lang)
+
+  def follows_default?(%__MODULE__{subtitle_lang: lang, subtitles_off: off}, :subtitles),
+    do: is_nil(lang) and not off
+
+  def follows_default?(%__MODULE__{fill_width: fill}, :picture), do: is_nil(fill)
+
+  @doc "The fields that put `setting` back on its default, leaving the other settings as they are."
+  @spec default_attrs(setting()) :: map()
+  def default_attrs(:audio), do: %{audio_lang: nil}
+  def default_attrs(:subtitles), do: %{subtitle_lang: nil, subtitle_forced: false, subtitles_off: false}
+  def default_attrs(:picture), do: %{fill_width: nil}
 
   @doc """
   Changeset for insert or full update. The profile and the owner identity

@@ -44,14 +44,18 @@ defmodule MediaCentaurWeb.Components.Detail.PlaybackOverrideBadgeTest do
              ]
     end
 
-    test "a remembered Fill width follows the tracks; Fit, the default, is not said" do
+    test "a remembered picture follows the tracks; a picture on its default is not said" do
       assert PlaybackOverrideBadge.playback_override_summary(%PlaybackOverride{
                audio_lang: "eng",
                fill_width: true
              }) ==
                ["English audio", "Fill width"]
 
-      assert PlaybackOverrideBadge.playback_override_summary(%PlaybackOverride{fill_width: false}) == []
+      assert PlaybackOverrideBadge.playback_override_summary(%PlaybackOverride{fill_width: false}) == [
+               "Fit"
+             ]
+
+      assert PlaybackOverrideBadge.playback_override_summary(%PlaybackOverride{fill_width: nil}) == []
     end
 
     test "unknown language code falls back to the raw code" do

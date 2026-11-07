@@ -153,6 +153,63 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     end)
   end
 
+  describe "remembered settings — each saved and defaulted on its own" do
+    @tracks [
+      %{"id" => 1, "type" => "audio", "lang" => "jpn", "codec" => "aac"},
+      %{"id" => 2, "type" => "audio", "lang" => "eng", "codec" => "aac"},
+      %{"id" => 1, "type" => "sub", "lang" => "eng", "codec" => "subrip"},
+      %{"id" => 2, "type" => "sub", "lang" => "spa", "codec" => "subrip"}
+    ]
+
+    defp property(pid, name, data),
+      do:
+        FakeTransport.emit(
+          pid,
+          {:message, %{"event" => "property-change", "name" => name, "data" => data}}
+        )
+
+    defp remembered(entity_id), do: Library.PlaybackOverrides.get(Profiles.owner().id, :movie, entity_id)
+
+    setup %{entity_id: entity_id} do
+      {:ok, _} =
+        Library.PlaybackOverrides.upsert(Profiles.owner().id, :movie, entity_id, %{
+          audio_lang: "jpn",
+          subtitle_lang: "eng"
+        })
+
+      :ok
+    end
+
+    test "a subtitle switch saves the subtitles and leaves the remembered audio alone",
+         %{params: params, entity_id: entity_id} do
+      pid = start!(Map.put(params, :capture_debounce_ms, 10))
+      attach!(pid)
+      property(pid, "track-list", @tracks)
+      property(pid, "aid", 1)
+      property(pid, "sid", 1)
+      property(pid, "sid", 2)
+
+      eventually(fn -> match?(%{subtitle_lang: "spa"}, remembered(entity_id)) end)
+      assert remembered(entity_id).audio_lang == "jpn"
+    end
+
+    test "Default for the subtitles clears them alone and selects the policy's track",
+         %{params: params, entity_id: entity_id} do
+      pid = start!(Map.put(params, :capture_debounce_ms, 10))
+      attach!(pid)
+      property(pid, "track-list", @tracks)
+      property(pid, "aid", 1)
+      property(pid, "sid", 1)
+      assert_receive {:mpv_command, ["set_property", "sid", 1]}
+
+      Playback.command(:host, entity_id, {:default, :subtitles})
+
+      assert_receive {:mpv_command, ["set_property", "sid", _policy_choice]}
+      eventually(fn -> remembered(entity_id).subtitle_lang == nil end)
+      assert remembered(entity_id).audio_lang == "jpn"
+    end
+  end
+
   test "a detached transport that comes back is re-observed; nothing ends", %{params: params} do
     pid = start!(params)
     attach!(pid)

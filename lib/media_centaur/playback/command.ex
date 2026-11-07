@@ -17,6 +17,9 @@ defmodule MediaCentaur.Playback.Command do
     * `{:fill_width, boolean}` — a remote player's picture fills the
       screen's width (a file with black bars in its frame) or fits it; the
       device sizes its video to `user-data/fill-width`
+    * `{:default, :audio | :subtitles | :picture}` — the setting back on the
+      title's default: the session clears its override and selects the
+      default itself (`MpvSession`), so it has no single IPC
 
   A command is bounded to the file before it is rendered (`within/3`): a
   seek that would cross the end becomes an exact seek to one second short
@@ -36,6 +39,7 @@ defmodule MediaCentaur.Playback.Command do
           | :activate_prompt
           | {:select_track, :audio | :subtitle, integer() | :none}
           | {:fill_width, boolean()}
+          | {:default, :audio | :subtitles | :picture}
 
   @doc "Whether a term is one of the vocabulary."
   @spec valid?(term()) :: boolean()
@@ -46,6 +50,7 @@ defmodule MediaCentaur.Playback.Command do
   def valid?({:select_track, kind, :none}) when kind in [:audio, :subtitle], do: true
   def valid?({:select_track, kind, id}) when kind in [:audio, :subtitle] and is_integer(id), do: true
   def valid?({:fill_width, fill}) when is_boolean(fill), do: true
+  def valid?({:default, setting}) when setting in [:audio, :subtitles, :picture], do: true
   def valid?(_other), do: false
 
   @end_margin_seconds 1

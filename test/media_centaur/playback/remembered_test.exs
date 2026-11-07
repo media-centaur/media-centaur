@@ -87,6 +87,36 @@ defmodule MediaCentaur.Playback.RememberedTest do
     end
   end
 
+  describe "use_default/3" do
+    test "clears the one setting and keeps the others" do
+      movie = create_movie(%{name: "Sample Movie"})
+      profile_id = owner_profile_id()
+
+      {:ok, _} =
+        Library.PlaybackOverrides.upsert(profile_id, :movie, movie.id, %{
+          audio_lang: "jpn",
+          fill_width: true
+        })
+
+      remembered =
+        profile_id |> Remembered.load(movie_entry(movie)) |> Remembered.use_default(profile_id, :picture)
+
+      assert Remembered.follows_default?(remembered, :picture)
+      refute Remembered.follows_default?(remembered, :audio)
+      saved = Library.PlaybackOverrides.get(profile_id, :movie, movie.id)
+      assert saved.fill_width == nil
+      assert saved.audio_lang == "jpn"
+    end
+
+    test "a setting already on its default writes nothing" do
+      movie = create_movie(%{name: "Sample Movie"})
+      remembered = Remembered.load(owner_profile_id(), movie_entry(movie))
+
+      assert Remembered.use_default(remembered, owner_profile_id(), :audio) == remembered
+      assert Library.PlaybackOverrides.get(owner_profile_id(), :movie, movie.id) == nil
+    end
+  end
+
   describe "save/3" do
     test "saves only the fields given, keeps the rest, and broadcasts" do
       movie = create_movie(%{name: "Sample Movie"})

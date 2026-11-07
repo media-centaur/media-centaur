@@ -44,6 +44,42 @@ defmodule MediaCentaur.Library.PlaybackOverrideTest do
     end
   end
 
+  describe "settings — each follows its default on its own" do
+    test "a setting is overridden only by its own fields" do
+      subtitles_only = %PlaybackOverride{subtitle_lang: "spa"}
+
+      refute PlaybackOverride.follows_default?(subtitles_only, :subtitles)
+      assert PlaybackOverride.follows_default?(subtitles_only, :audio)
+      assert PlaybackOverride.follows_default?(subtitles_only, :picture)
+      refute PlaybackOverride.follows_default?(%PlaybackOverride{subtitles_off: true}, :subtitles)
+      refute PlaybackOverride.follows_default?(%PlaybackOverride{fill_width: false}, :picture)
+      assert PlaybackOverride.follows_default?(nil, :audio)
+    end
+
+    test "putting one setting on its default keeps the others" do
+      movie_id = create_movie(%{name: "Test Movie"}).id
+
+      {:ok, _} =
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie_id, %{
+          audio_lang: "jpn",
+          subtitle_lang: "eng",
+          fill_width: true
+        })
+
+      {:ok, override} =
+        Library.PlaybackOverrides.upsert(
+          owner_profile_id(),
+          :movie,
+          movie_id,
+          PlaybackOverride.default_attrs(:subtitles)
+        )
+
+      assert override.audio_lang == "jpn"
+      assert override.fill_width == true
+      assert PlaybackOverride.follows_default?(override, :subtitles)
+    end
+  end
+
   describe "upsert/4" do
     test "creates a new override row for a tv_series" do
       tv_series = create_tv_series()
