@@ -5,7 +5,9 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
   request already carries its verdict: only a paired `Players.Player` may
   open a channel — the host has no channel, its mpv is local — and an
   `Origin` header, when a browser sends one, must be this install's own.
-  A player reconnecting evicts its earlier channel first.
+  A player reconnecting evicts its earlier channel first. The channel
+  carries the device's address and its declaration of itself
+  (`declaration/1`), which the socket records on the player's row.
 
   The media URLs handed to the channel close over the address the device
   used to reach us (the request's `Host`), so every media URL the host
@@ -35,7 +37,12 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
       conn
       |> WebSockAdapter.upgrade(
         PlayerSocket,
-        %{player_id: player_id, media_urls: media_urls(conn, player_id)},
+        %{
+          player_id: player_id,
+          media_urls: media_urls(conn, player_id),
+          address: conn.remote_ip |> :inet.ntoa() |> to_string(),
+          device: declaration(conn)
+        },
         timeout: 60_000,
         max_frame_size: @max_frame_size,
         compress: false
@@ -51,6 +58,29 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannel do
     do: conn |> send_resp(405, "") |> halt()
 
   def call(conn, _opts), do: conn
+
+  @declaration_headers [
+    {"x-media-centaur-device-model", "model"},
+    {"x-media-centaur-device-os", "os"},
+    {"x-media-centaur-app-version", "app_version"},
+    {"x-media-centaur-form-factor", "form_factor"}
+  ]
+
+  @doc """
+  The device's declaration of itself, from the upgrade's headers (the
+  app sends them; `Players.Player.Device` judges each value), or nil when
+  it sent none.
+  """
+  @spec declaration(Plug.Conn.t()) :: %{String.t() => String.t()} | nil
+  def declaration(conn) do
+    declaration =
+      for {header, key} <- @declaration_headers,
+          [value | _rest] <- [get_req_header(conn, header)],
+          into: %{},
+          do: {key, value}
+
+    if declaration != %{}, do: declaration
+  end
 
   @doc "The media URLs a channel from `conn` gets: URLs at the address the device reached us by."
   @spec media_urls(Plug.Conn.t(), String.t()) :: PlayerRegistry.media_urls()

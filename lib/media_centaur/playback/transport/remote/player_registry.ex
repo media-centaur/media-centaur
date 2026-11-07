@@ -45,6 +45,17 @@ defmodule MediaCentaur.Playback.Transport.Remote.PlayerRegistry do
     ArgumentError -> nil
   end
 
+  @doc """
+  Drops the calling process's entry for `player_id`, ahead of its exit.
+  True when it held one: a channel refused at connect never did.
+  """
+  @spec unregister(String.t()) :: boolean()
+  def unregister(player_id) do
+    held? = player_id in Registry.keys(__MODULE__, self())
+    if held?, do: Registry.unregister(__MODULE__, player_id)
+    held?
+  end
+
   @doc "Every connected player's id."
   @spec connected() :: [String.t()]
   def connected do

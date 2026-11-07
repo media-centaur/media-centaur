@@ -54,4 +54,17 @@ defmodule MediaCentaurWeb.Live.PlayerAwareTest do
 
     assert render(view) =~ "Settings"
   end
+
+  test "a paired player's socket records the user agent of the browser showing its pages", %{conn: conn} do
+    player = create_player(name: "Living room TV")
+
+    {:ok, _view, _html} =
+      conn
+      |> from_lan()
+      |> as_player(player)
+      |> Plug.Conn.put_req_header("user-agent", "Sample/1.0")
+      |> live(~p"/settings")
+
+    assert Players.get(player.id).user_agent == "Sample/1.0"
+  end
 end

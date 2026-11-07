@@ -20,10 +20,11 @@ defmodule MediaCentaurWeb.PlayerSocket do
   alias MediaCentaur.Players.Events.PlayerRemoved
 
   @impl true
-  def init(%{player_id: player_id, media_urls: media_urls}) do
+  def init(%{player_id: player_id, media_urls: media_urls, address: address, device: device}) do
     case Channel.connect(player_id, media_urls) do
       {:ok, state} ->
         :ok = Players.subscribe()
+        :ok = Players.record_connect(player_id, %{address: address, device: device})
         {:ok, state}
 
       {:error, {:already_registered, _pid}} ->
@@ -54,7 +55,10 @@ defmodule MediaCentaurWeb.PlayerSocket do
   end
 
   @impl true
-  def terminate(reason, state), do: Channel.closed(state, reason)
+  def terminate(reason, state) do
+    :ok = Channel.closed(state, reason)
+    Players.record_disconnect(state.player_id)
+  end
 
   defp reply({:ok, state}), do: {:ok, state}
   defp reply({:push, frame, state}), do: {:push, frame, state}

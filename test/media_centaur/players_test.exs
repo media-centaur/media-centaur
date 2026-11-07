@@ -102,4 +102,108 @@ defmodule MediaCentaur.PlayersTest do
       refute_receive {:player_removed, _event}
     end
   end
+
+  describe "rename/2" do
+    test "renames under the display-name rules and broadcasts the changed player" do
+      player = create_player(name: "Living room TV")
+      Players.subscribe()
+
+      assert {:ok, %Player{name: "Den TV"}} = Players.rename(player, "  Den TV ")
+      assert_receive {:player_changed, %Events.PlayerChanged{player: %Player{name: "Den TV"}}}
+      assert Players.get(player.id).name == "Den TV"
+
+      assert {:error, :name_required} = Players.rename(player, "  ")
+      assert {:error, :name_too_long} = Players.rename(player, String.duplicate("x", 51))
+      assert Players.get(player.id).name == "Den TV"
+    end
+  end
+
+  describe "what the host learns of a player" do
+    @device %{
+      "model" => "Sample TV 4K",
+      "os" => "Android 12",
+      "app_version" => "0.3.0",
+      "form_factor" => "tv"
+    }
+
+    test "a connection records the address, the device's declaration and when" do
+      player = create_player()
+      Players.subscribe()
+
+      assert :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: @device})
+      assert_receive {:player_changed, %Events.PlayerChanged{player: %Player{} = changed}}
+
+      assert %Player.Device{
+               model: "Sample TV 4K",
+               os: "Android 12",
+               app_version: "0.3.0",
+               form_factor: :tv
+             } =
+               changed.device
+
+      assert changed.last_address == "192.168.1.40"
+      assert %DateTime{} = changed.last_seen_at
+      assert Players.get(player.id).device == changed.device
+    end
+
+    test "a connection with no declaration keeps the device it last declared" do
+      player = create_player()
+      :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: @device})
+      :ok = Players.record_connect(player.id, %{address: "192.168.1.41", device: nil})
+
+      reread = Players.get(player.id)
+      assert reread.device.model == "Sample TV 4K"
+      assert reread.last_address == "192.168.1.41"
+    end
+
+    test "a declaration's unknown form factor and overlong values are dropped, not stored" do
+      player = create_player()
+
+      device = %{"model" => String.duplicate("m", 200), "os" => "Android 12", "form_factor" => "toaster"}
+      :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: device})
+
+      reread = Players.get(player.id)
+      assert reread.device.os == "Android 12"
+      assert reread.device.model == nil
+      assert reread.device.form_factor == nil
+    end
+
+    test "a disconnection moves last seen on and leaves the rest" do
+      player = create_player()
+      :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: @device})
+      connected = Players.get(player.id)
+      Players.subscribe()
+
+      assert :ok = Players.record_disconnect(player.id)
+      assert_receive {:player_changed, %Events.PlayerChanged{player: %Player{} = changed}}
+      assert DateTime.after?(changed.last_seen_at, connected.last_seen_at)
+      assert changed.last_address == "192.168.1.40"
+      assert changed.device == connected.device
+    end
+
+    test "a removed player's connection records nothing and broadcasts nothing" do
+      player = create_player()
+      :ok = Players.remove(player)
+      Players.subscribe()
+
+      assert :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: @device})
+      assert :ok = Players.record_disconnect(player.id)
+      assert :ok = Players.record_user_agent(player.id, "Sample/1.0")
+      refute_receive {:player_changed, _event}
+    end
+
+    test "the browser's user agent is recorded when it changes, and only then broadcast" do
+      player = create_player()
+      Players.subscribe()
+
+      assert :ok = Players.record_user_agent(player.id, "Sample/1.0")
+      assert_receive {:player_changed, %Events.PlayerChanged{player: %Player{user_agent: "Sample/1.0"}}}
+
+      assert :ok = Players.record_user_agent(player.id, "Sample/1.0")
+      refute_receive {:player_changed, _event}
+
+      assert :ok = Players.record_user_agent(player.id, "Sample/2.0")
+      assert_receive {:player_changed, %Events.PlayerChanged{player: %Player{user_agent: "Sample/2.0"}}}
+    end
+  end
 end

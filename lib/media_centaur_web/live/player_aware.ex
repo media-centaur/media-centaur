@@ -11,14 +11,16 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   (`Playback.player/0`: `:host`, or the paired player's id), the value
   `Playback.play/3` takes — and subscribes to `players:updates` through
   the subscribe door; when the player this socket holds is removed, the
-  page drops to the pairing page. Unpaired, it halts the mount with a
+  page drops to the pairing page. A paired player's connected socket
+  records the browser's user agent on its row
+  (`Players.record_user_agent/2`, a write only when it changed). Unpaired, it halts the mount with a
   redirect there.
   """
 
   use MediaCentaurWeb, :verified_routes
 
   import Phoenix.Component, only: [assign: 2]
-  import Phoenix.LiveView, only: [attach_hook: 4, get_connect_info: 2, redirect: 2]
+  import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
@@ -30,6 +32,8 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
 
     case RemoteAccess.admit(address, session["player_id"]) do
       {:ok, player} ->
+        record_user_agent(socket, player)
+
         {:cont,
          socket
          |> assign(player: player)
@@ -40,6 +44,16 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
         {:halt, redirect(socket, to: ~p"/pair")}
     end
   end
+
+  # The connected mount only: the dead render is the same browser.
+  defp record_user_agent(socket, player_id) when is_binary(player_id) do
+    with true <- connected?(socket),
+         user_agent when is_binary(user_agent) <- get_connect_info(socket, :user_agent) do
+      Players.record_user_agent(player_id, user_agent)
+    end
+  end
+
+  defp record_user_agent(_socket, :host), do: :ok
 
   defp on_players_event({:player_removed, %PlayerRemoved{id: id}}, %{assigns: %{player: id}} = socket),
     do: {:halt, redirect(socket, to: ~p"/pair")}

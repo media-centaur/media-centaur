@@ -70,4 +70,24 @@ defmodule MediaCentaurWeb.Plugs.PlayerChannelTest do
     assert {:ok, {^player_id, ^presence_id}} = MediaToken.verify(URI.decode_query(sidecar_query)["t"])
     assert identify.(sidecar_url) == nil
   end
+
+  test "the device's declaration is read from the upgrade's headers; none sent reads as none", %{
+    conn: conn
+  } do
+    assert PlayerChannel.declaration(conn) == nil
+
+    conn =
+      conn
+      |> put_req_header("x-media-centaur-device-model", "Sample TV 4K")
+      |> put_req_header("x-media-centaur-device-os", "Android 12")
+      |> put_req_header("x-media-centaur-app-version", "0.3.0")
+      |> put_req_header("x-media-centaur-form-factor", "tv")
+
+    assert PlayerChannel.declaration(conn) == %{
+             "model" => "Sample TV 4K",
+             "os" => "Android 12",
+             "app_version" => "0.3.0",
+             "form_factor" => "tv"
+           }
+  end
 end

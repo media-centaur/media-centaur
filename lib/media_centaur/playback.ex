@@ -30,7 +30,7 @@ defmodule MediaCentaur.Playback do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Playback.{Command, Resolver, Sessions}
+  alias MediaCentaur.Playback.{Command, Resolver, Sessions, Transport}
   alias MediaCentaur.Topics
 
   @doc "Subscribe the caller to playback state and progress events."
@@ -38,6 +38,17 @@ defmodule MediaCentaur.Playback do
   def subscribe do
     Topics.subscribe(Topics.playback_events())
   end
+
+  @doc """
+  Subscribe the caller to paired players' channels opening and closing:
+  `{:player_connection_changed, %Playback.Events.PlayerConnectionChanged{}}`.
+  """
+  @spec subscribe_connections() :: :ok | {:error, term()}
+  def subscribe_connections, do: Topics.subscribe(Topics.playback_connections())
+
+  @doc "The paired players whose channel is open now: the ones that can play."
+  @spec connected_players() :: [Ecto.UUID.t()]
+  def connected_players, do: Transport.Remote.PlayerRegistry.connected()
 
   @doc """
   Subscribe the caller to one player's viewing stream: `{:viewing, %Playback.Viewing{}}`

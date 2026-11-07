@@ -136,6 +136,18 @@ defmodule MediaCentaur.Playback.Events do
     @type t :: %__MODULE__{player: MediaCentaur.Playback.player(), entity_id: String.t()}
   end
 
+  defmodule PlayerConnectionChanged do
+    @moduledoc """
+    A paired player's channel opened (`connected: true`) or closed
+    (`false`). On its own topic (`Playback.subscribe_connections/0`): a
+    surface that shows players needs this and nothing else of playback.
+    """
+    @enforce_keys [:player, :connected]
+    defstruct [:player, :connected]
+
+    @type t :: %__MODULE__{player: Ecto.UUID.t(), connected: boolean()}
+  end
+
   defmodule PlaybackOverrideChanged do
     @moduledoc """
     The user changed audio/subtitle tracks during playback and the
@@ -181,6 +193,11 @@ defmodule MediaCentaur.Playback.Events do
   defp do_broadcast(message) do
     Topics.publish(Topics.playback_events(), message)
   end
+
+  @doc "Announces a paired player's channel opening or closing on `playback:connections`."
+  @spec broadcast_connection(PlayerConnectionChanged.t()) :: :ok | {:error, term()}
+  def broadcast_connection(%PlayerConnectionChanged{} = event),
+    do: Topics.publish(Topics.playback_connections(), {:player_connection_changed, event})
 
   @doc "Streams a viewing on its player's topic (`Playback.subscribe_viewing/1`) as `{:viewing, viewing}`."
   @spec broadcast_viewing(MediaCentaur.Playback.Viewing.t()) :: :ok | {:error, term()}

@@ -22,6 +22,10 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   outlived its session (a host restart), so `connect/2` asks it through
   `Sessions.recover/1`, off this process.
 
+  Connection: the channel is the player's connection. `connect/2` and
+  `closed/2` announce it on `playback:connections`
+  (`Playback.subscribe_connections/0`).
+
   Liveness: the handler pings every `ping_interval_ms/0`; a client whose
   last pong is older than `pong_grace_ms/0` at the next ping is closed.
 
@@ -34,6 +38,8 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   Players: Playback takes a player as a value.
   """
 
+  alias MediaCentaur.Playback.Events
+  alias MediaCentaur.Playback.Events.PlayerConnectionChanged
   alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
   alias MediaCentaur.Playback.{SessionRegistry, Sessions}
 
@@ -90,6 +96,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
       end
 
       Process.send_after(self(), {:channel, :ping}, @ping_interval_ms)
+      Events.broadcast_connection(%PlayerConnectionChanged{player: player_id, connected: true})
       {:ok, %__MODULE__{player_id: player_id, media_urls: media_urls, last_pong_at: now()}}
     end
   end
@@ -176,10 +183,19 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
      state}
   end
 
-  @doc "The channel is closing: its session, if any, is told."
+  @doc """
+  The channel is closing: its session, if any, is told, and the player's
+  connection ends — unregistered here rather than at the process's exit,
+  so a reader that hears the broadcast already reads it disconnected.
+  """
   @spec closed(t(), term()) :: :ok
   def closed(state, reason) do
     _state = tell_session(state, reason)
+
+    if PlayerRegistry.unregister(state.player_id),
+      do:
+        Events.broadcast_connection(%PlayerConnectionChanged{player: state.player_id, connected: false})
+
     :ok
   end
 

@@ -17,9 +17,10 @@ defmodule MediaCentaurWeb.Endpoint do
   ]
 
   # `:peer_data` so `Live.PlayerAware` can judge the socket's address the
-  # way `Plugs.RemoteAccess` judges a request's.
+  # way `Plugs.RemoteAccess` judges a request's; `:user_agent` so it can
+  # record the browser a paired player shows its pages in.
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [:peer_data, session: @session_options]]
+    websocket: [connect_info: [:peer_data, :user_agent, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #

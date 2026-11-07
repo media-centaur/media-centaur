@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
   answers the recovery question the open asks.
   """
 
-  use MediaCentaur.Case, async: false
+  use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
@@ -22,9 +22,26 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
     await_supervised_tasks()
   end
 
+  defp opening(player_id, device \\ nil),
+    do: %{player_id: player_id, media_urls: @media_urls, address: "192.168.1.40", device: device}
+
+  test "the channel's opening and closing are when the host last saw the player, from where, as what" do
+    player = create_player()
+    {:ok, state} = PlayerSocket.init(opening(player.id, %{"model" => "Sample TV 4K"}))
+    answer_recovery()
+
+    opened = Players.get(player.id)
+    assert opened.last_address == "192.168.1.40"
+    assert opened.device.model == "Sample TV 4K"
+    assert %DateTime{} = opened.last_seen_at
+
+    PlayerSocket.terminate(:remote, state)
+    assert DateTime.after?(Players.get(player.id).last_seen_at, opened.last_seen_at)
+  end
+
   test "its own player's removal stops the device's mpv and closes the channel; another player's removal is nobody's" do
     player_id = Ecto.UUID.generate()
-    {:ok, state} = PlayerSocket.init(%{player_id: player_id, media_urls: @media_urls})
+    {:ok, state} = PlayerSocket.init(opening(player_id))
     answer_recovery()
 
     Players.Events.broadcast(%PlayerRemoved{id: Ecto.UUID.generate()})

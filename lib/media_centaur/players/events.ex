@@ -17,6 +17,14 @@ defmodule MediaCentaur.Players.Events do
     @type t :: %__MODULE__{player: Player.t()}
   end
 
+  defmodule PlayerChanged do
+    @moduledoc "A player's row changed: renamed, or what the host learns of the device (`Player`)."
+    @enforce_keys [:player]
+    defstruct [:player]
+
+    @type t :: %__MODULE__{player: Player.t()}
+  end
+
   defmodule PlayerRemoved do
     @moduledoc "A player was removed; a session holding it is unpaired on its next request."
     @enforce_keys [:id]
@@ -33,10 +41,11 @@ defmodule MediaCentaur.Players.Events do
     @type t :: %__MODULE__{code: Pairing.Code.t() | nil}
   end
 
-  @type t :: PlayerPaired.t() | PlayerRemoved.t() | PairingChanged.t()
+  @type t :: PlayerPaired.t() | PlayerChanged.t() | PlayerRemoved.t() | PairingChanged.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
   def broadcast(%PlayerPaired{} = event), do: publish({:player_paired, event})
+  def broadcast(%PlayerChanged{} = event), do: publish({:player_changed, event})
   def broadcast(%PlayerRemoved{} = event), do: publish({:player_removed, event})
   def broadcast(%PairingChanged{} = event), do: publish({:pairing_changed, event})
 

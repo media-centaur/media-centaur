@@ -9,6 +9,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
+  alias MediaCentaur.Playback.Events
   alias MediaCentaur.Playback.Transport.Remote.Channel
   alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
 
@@ -151,6 +152,25 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
     {:ok, state} = Channel.handle_message(state, {:channel, {:attach, self()}})
     assert :ok = Channel.closed(state, :remote)
     assert_received {:transport, {:remote, {:channel_down, :remote}}}
+  end
+
+  test "a channel's opening and closing are the player's connection, broadcast and readable" do
+    player_id = player_id()
+    :ok = MediaCentaur.Playback.subscribe_connections()
+
+    state = connected(player_id)
+
+    assert_received {:player_connection_changed,
+                     %Events.PlayerConnectionChanged{player: ^player_id, connected: true}}
+
+    assert player_id in MediaCentaur.Playback.connected_players()
+
+    assert :ok = Channel.closed(state, :remote)
+
+    assert_received {:player_connection_changed,
+                     %Events.PlayerConnectionChanged{player: ^player_id, connected: false}}
+
+    refute player_id in MediaCentaur.Playback.connected_players()
   end
 
   defp assert_eventually(predicate, attempts \\ 50) do

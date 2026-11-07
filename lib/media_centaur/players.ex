@@ -4,6 +4,7 @@ defmodule MediaCentaur.Players do
     exports: [
       Events,
       Events.PairingChanged,
+      Events.PlayerChanged,
       Events.PlayerPaired,
       Events.PlayerRemoved,
       Pairing,
@@ -103,6 +104,65 @@ defmodule MediaCentaur.Players do
 
       {:error, :invalid_code, :open} ->
         {:error, :invalid_code}
+    end
+  end
+
+  @doc "Renames under `DisplayName.check/1`. Broadcasts `PlayerChanged`."
+  @spec rename(Player.t(), String.t()) :: {:ok, Player.t()} | {:error, :name_required | :name_too_long}
+  def rename(%Player{} = player, name) when is_binary(name) do
+    with {:ok, name} <- DisplayName.check(name) do
+      player |> Player.changeset(%{name: name}) |> update_and_broadcast()
+    end
+  end
+
+  @doc """
+  The player's channel opened from `address`, carrying the device's
+  declaration (`Player.Device.from_declaration/1`'s input, or nil for
+  none: the device held stays). Stamps `last_seen_at`. A removed player
+  records nothing. Broadcasts `PlayerChanged`.
+  """
+  @spec record_connect(Ecto.UUID.t(), %{address: String.t(), device: map() | nil}) :: :ok
+  def record_connect(player_id, %{address: address, device: declaration}) do
+    device = if declaration, do: Player.Device.from_declaration(declaration)
+    record_seen(player_id, %{last_address: address, device: device})
+  end
+
+  @doc "The player's channel closed: stamps `last_seen_at`. A removed player records nothing. Broadcasts `PlayerChanged`."
+  @spec record_disconnect(Ecto.UUID.t()) :: :ok
+  def record_disconnect(player_id), do: record_seen(player_id, %{})
+
+  defp record_seen(player_id, attrs) do
+    with %Player{} = player <- get(player_id) do
+      {:ok, _player} = player |> Player.seen_changeset(attrs) |> update_and_broadcast()
+    end
+
+    :ok
+  end
+
+  @doc """
+  The user agent of the browser showing the player's pages. Written, and
+  `PlayerChanged` broadcast, only when it differs from the one held; a
+  removed player records nothing.
+  """
+  @spec record_user_agent(Ecto.UUID.t(), String.t()) :: :ok
+  def record_user_agent(player_id, user_agent) when is_binary(user_agent) do
+    {changed, _rows} =
+      Repo.update_all(
+        from(player in Player,
+          where: player.id == ^player_id,
+          where: is_nil(player.user_agent) or player.user_agent != ^user_agent
+        ),
+        set: [user_agent: user_agent, updated_at: DateTime.utc_now()]
+      )
+
+    if changed == 1, do: Events.broadcast(%Events.PlayerChanged{player: get(player_id)})
+    :ok
+  end
+
+  defp update_and_broadcast(changeset) do
+    with {:ok, player} <- Repo.update(changeset) do
+      Events.broadcast(%Events.PlayerChanged{player: player})
+      {:ok, player}
     end
   end
 
