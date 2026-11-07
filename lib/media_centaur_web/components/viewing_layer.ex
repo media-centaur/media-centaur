@@ -29,9 +29,14 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
 
   The touch contract (a phone running the TV app): `Hooks.ViewingTouch`
   on the OSD turns a tap on the picture into `viewing_tap` (show the bar,
-  or hide it while playing) and a tap on the seek bar into an absolute
-  seek; with the bar up, a coarse pointer gets a centre play/pause button;
-  a tap outside the open track menu closes it.
+  or hide it while playing) and makes the seek bar a touch slider — press,
+  drag with the thumb and the time following, release for one absolute
+  seek (a press and release with no move is the tap). While a finger holds
+  the bar the hook's scrub (`#viewing-scrub`, an ignored container in the
+  bar) is the thumb: CSS hides the server's fill and handle and keeps the
+  bar up, so the 1 Hz tick never moves the thumb under the finger. With
+  the bar up, a coarse pointer gets the touch deck; a tap outside the open
+  track menu closes it.
 
   The input contract: the layer root carries `data-viewing` (the page's
   behaviour wraps itself while it is present); the OSD is the active
@@ -212,6 +217,15 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
           aria-valuemin="0"
           aria-valuemax="100"
         >
+          <%!-- The scrub: the hook's thumb while a finger holds the bar
+                (`Hooks.ViewingTouch`). Rendered once and never patched, so
+                the hook's state on its children outlives the 1 Hz tick. --%>
+          <b id="viewing-scrub" class="viewing-scrub" phx-update="ignore" aria-hidden="true">
+            <span class="viewing-scrub-state">
+              <i class="viewing-scrub-fill"></i>
+              <b class="viewing-scrub-thumb"><span class="viewing-scrub-time"></span></b>
+            </span>
+          </b>
           <span :for={tick <- @ticks} class="viewing-tick" style={"left: #{tick}%"}></span>
           <i
             class={["viewing-fill", @viewing.state == :paused && "viewing-fill--paused"]}
