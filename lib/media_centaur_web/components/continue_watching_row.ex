@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
   # which `960` covers. The logo is height-capped (`max-h-20`) and bounded to
   # 80% of the card — 362 of the 1920 px composition, so `sizes="19vw"`
-  # (a `sizes` in px is read before the UI zoom; vw follows it) — with
+  # (a `sizes` in px is read before the UI zoom; vw follows it); in a
+  # compact window the card is the screen's width, so 70vw there — with
   # 320–960 as `srcset` candidates: a 2× zoom gets a sharp PNG, the TV keeps
   # the small one.
 
@@ -107,7 +108,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
             :if={item.available? && item.logo_url}
             src={sized_image_url(item.logo_url, 320)}
             srcset={sized_image_srcset(item.logo_url, [320, 480, 640, 960])}
-            sizes="19vw"
+            sizes="(width < 37.5rem) 70vw, 19vw"
             alt={item.name}
             class="max-h-20 max-w-[80%] object-contain object-left text-on-image-lg"
           />

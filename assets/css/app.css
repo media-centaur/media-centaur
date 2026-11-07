@@ -4587,6 +4587,12 @@ body:has(.viewing) .gamepad-hint-bar {
    `max-compact:` utilities carry the rest). The review on the phone with
    real data, 2026-11-07. */
 @media (width < theme(--breakpoint-compact)) {
+  /* A backdrop card is never wider than the content: the screen minus the
+     page gutters (a 400 px card overran a 360 px screen). */
+  :root {
+    --card-backdrop-w: calc(100vw - 3rem);
+  }
+
   /* The bar's icons at 24 px over their 12 px labels (Material's bar). */
   .sidebar-link > span:first-child > .size-5 {
     width: 1.5rem;
