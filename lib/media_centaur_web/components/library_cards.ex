@@ -173,10 +173,13 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
           behavior instead: an instant jump fights the glide in flight (see
           library_behavior.js). --%>
     <div class="flex items-center gap-3 flex-wrap" data-nav-zone="toolbar">
-      <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls --%>
-      <div class="flex items-center gap-2">
+      <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls.
+            In a compact window the cluster takes the whole line (the filter
+            drops beneath) and the pill never wraps its tabs. --%>
+      <div class="flex items-center gap-2 max-compact:w-full max-compact:justify-between">
         <.segmented_control
           label="Type"
+          class="shrink-0"
           options={[{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
           selected={@active_tab}
           event="switch_tab"
