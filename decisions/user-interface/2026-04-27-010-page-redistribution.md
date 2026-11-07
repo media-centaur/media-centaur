@@ -20,7 +20,7 @@ The original `/` did three jobs behind a `?zone=` param: a Continue Watching str
 ## Decision Outcome
 
 1. **Each mental mode is its own page.** `/` is Home, the one assembled cinematic page (hero, Continue Watching, shelves). `/library` is the catalog browser alone. `/history` is Watch History. Upcoming became its own page and was later merged with Downloads into Incoming ([UIDR-015](2026-07-11-015-incoming-page.md)).
-2. **The sidebar has two groups.** **Watch** carries the viewing pages at full weight (Home, Library, Discovery, Incoming, Apps today); **System** (Status, Review, Settings) is demoted with `.sidebar-link-system`, smaller and dimmer.
+2. **The sidebar has two groups.** **Watch** carries the viewing pages at full weight (Home, Library, Discovery, Incoming, Apps today); **System** (Status, Review, Settings) is demoted with `.sidebar-link-system`, smaller and dimmer. *(Amended 2026-11-07: Review moves to the Watch group, at full weight, just above Downloads, on the owner's request: it appears only while imported files wait on a decision, and among the dimmed System entries at the bottom of the rail it went unnoticed. System is now the profile switcher, Status and Settings.)*
 3. **Old zone URLs redirect.** `HomeLive.handle_params/3` sends `?zone=library` to `/library` and `?zone=upcoming` to `/incoming`, forwarding any other params; other zone values stay on Home.
 
 ### Consequences

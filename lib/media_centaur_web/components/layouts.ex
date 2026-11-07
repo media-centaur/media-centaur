@@ -162,6 +162,19 @@ defmodule MediaCentaurWeb.Layouts do
             icon="hero-bookmark"
             active={current?(@current_path, "/watchlist")}
           />
+          <%!-- Review: imported files waiting on the user, present only
+                while some are (UIDR-010, amended 2026-11-07). In the Watch
+                group just above Downloads, at full weight, so waiting work
+                is not tucked among the operator entries. --%>
+          <SidebarLink.sidebar_link
+            :if={@badges.review_pending + @badges.mapping_pending > 0}
+            id="sidebar-review"
+            navigate={if @badges.review_pending > 0, do: "/review", else: "/episode-mapping"}
+            label="Review"
+            icon="hero-document-text"
+            active={current?(@current_path, ["/review", "/episode-mapping"])}
+            count={@badges.review_pending + @badges.mapping_pending}
+          />
           <%!-- Downloads, the get stage (UIDR-015 amended, UIDR-057) —
                 unconditional: without acquisition the page says what it
                 needs instead of disappearing. --%>
@@ -228,16 +241,6 @@ defmodule MediaCentaurWeb.Layouts do
             system
             count={@badges.diagnostics_unseen}
             condition={@badges.status_errors > 0}
-          />
-          <SidebarLink.sidebar_link
-            :if={@badges.review_pending + @badges.mapping_pending > 0}
-            id="sidebar-review"
-            navigate={if @badges.review_pending > 0, do: "/review", else: "/episode-mapping"}
-            label="Review"
-            icon="hero-document-text"
-            active={current?(@current_path, ["/review", "/episode-mapping"])}
-            system
-            count={@badges.review_pending + @badges.mapping_pending}
           />
           <SidebarLink.sidebar_link
             id="sidebar-settings"

@@ -22,4 +22,17 @@ defmodule MediaCentaurWeb.Live.SidebarTest do
     assert has_element?(view, "#sidebar-settings.sidebar-link-active[aria-current='page']")
     refute has_element?(view, "#sidebar-home[aria-current]")
   end
+
+  test "with files waiting, Review stands in the Watch group just above Downloads", %{conn: conn} do
+    MediaCentaur.TestFactory.create_pending_file()
+
+    {:ok, view, _html} = live_async!(conn, @page)
+
+    assert has_element?(
+             view,
+             "#sidebar nav[aria-label='Watch'] > [aria-label='Watchlist'] + #sidebar-review + [aria-label='Downloads']"
+           )
+
+    refute has_element?(view, "#sidebar-system #sidebar-review")
+  end
 end
