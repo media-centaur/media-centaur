@@ -102,7 +102,7 @@ defmodule MediaCentaurWeb.Components.Settings do
     ~H"""
     <div
       id={@id}
-      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg"
+      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg pointer-coarse:min-h-12"
     >
       <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.Components.Settings do
   """
   def settings_choice(assigns) do
     ~H"""
-    <div class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg">
+    <div class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg pointer-coarse:min-h-12">
       <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>
         <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
@@ -415,7 +415,7 @@ defmodule MediaCentaurWeb.Components.Settings do
     <form
       id={@id}
       phx-change={@event}
-      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg"
+      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg pointer-coarse:min-h-12"
     >
       <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>

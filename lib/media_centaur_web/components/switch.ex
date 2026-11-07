@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.Components.Switch do
       aria-checked={to_string(@checked)}
       aria-disabled={is_nil(@event) && "true"}
       class={[
-        "flex gap-3 rounded-lg transition-colors duration-150",
+        "flex gap-3 rounded-lg transition-colors duration-150 pointer-coarse:min-h-12",
         if(@layout == :leading and @description, do: "items-start", else: "items-center"),
         @layout == :trailing && "justify-between",
         if(@event, do: "cursor-pointer hover:bg-base-content/[0.04]", else: "opacity-60"),

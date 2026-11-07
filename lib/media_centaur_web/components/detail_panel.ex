@@ -288,7 +288,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               deleting={@state.deleting}
             />
             <div
-              class="flex items-center gap-2 pt-1"
+              class="flex items-center gap-2 pt-1 max-compact:flex-wrap"
               data-nav-zone="detail_actions"
               data-nav-enter-scroll-top
             >

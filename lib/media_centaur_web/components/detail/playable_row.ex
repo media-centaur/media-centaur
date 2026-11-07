@@ -205,8 +205,8 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   # (button convention) without affecting layout or reaching the text.
   defp watched_toggle_button_class do
     [
-      "group/toggle flex items-center flex-shrink-0 cursor-pointer",
-      "p-1.5 -m-1.5 rounded-md transition-colors",
+      "group/toggle flex items-center justify-center flex-shrink-0 cursor-pointer",
+      "p-1.5 -m-1.5 pointer-coarse:size-12 pointer-coarse:p-0 pointer-coarse:-m-3.5 rounded-md transition-colors",
       "hover:bg-base-content/10"
     ]
   end

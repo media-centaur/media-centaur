@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.HeroCard do
     <section
       :if={@item}
       data-component="hero"
-      class="hero-fluid relative flex flex-col justify-center px-12 lg:px-16 py-12"
+      class="hero-fluid relative flex flex-col justify-center px-12 lg:px-16 py-12 max-compact:px-6 max-compact:py-8"
     >
       <%!-- No own scrims: page-level atmosphere (`.page-side-dim` in
             HomeLive) provides both the vertical fade-to-constant-dim and
@@ -88,11 +88,11 @@ defmodule MediaCentaurWeb.Components.HeroCard do
           :if={@item.logo_url}
           src={sized_image_url(@item.logo_url, 960)}
           alt={@item.name}
-          class="max-h-44 max-w-md object-contain object-left text-on-image-lg"
+          class="max-h-44 max-w-md object-contain object-left text-on-image-lg max-compact:max-h-28 max-compact:max-w-full"
         />
         <h1
           :if={!@item.logo_url}
-          class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white text-on-image-lg leading-[1.05] tracking-tight"
+          class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white text-on-image-lg leading-[1.05] tracking-tight max-compact:text-4xl"
         >
           {@item.name}
         </h1>
@@ -110,7 +110,7 @@ defmodule MediaCentaurWeb.Components.HeroCard do
         </div>
         <p
           :if={@item.overview}
-          class="text-white/85 max-w-2xl text-lg lg:text-xl leading-relaxed line-clamp-5 text-on-image"
+          class="text-white/85 max-w-2xl text-lg lg:text-xl leading-relaxed line-clamp-5 text-on-image max-compact:text-base max-compact:line-clamp-3"
         >
           {@item.overview}
         </p>

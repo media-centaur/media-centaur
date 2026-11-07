@@ -7,6 +7,16 @@
 @source "../../lib/media_centaur_web";
 @source "../../storybook";
 
+/* The compact window class (`campaigns/adaptive-layout.md`): a window
+   narrower than 600 CSS px — a phone held upright. One token for both the
+   shell's media queries below (`theme(--breakpoint-compact)`) and the
+   templates' `max-compact:` utilities, so "compact" has one width. In
+   real CSS px: the root `zoom` does not move a media query, and the TV's
+   960 is never compact. */
+@theme {
+  --breakpoint-compact: 37.5rem;
+}
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
@@ -495,9 +505,8 @@ html.psb .psb-variation-block .media-centaur {
 }
 
 /* ── The compact shell ──
-   A phone-width window (`width < 600px`, Material's compact class, in real
-   CSS px — the root `zoom` does not move a media query; the TV is 960 and
-   never compact). The shell is composed for this window class
+   A phone-width window (`--breakpoint-compact`, Material's compact class).
+   The shell is composed for this window class
    (`campaigns/adaptive-layout.md`): the same rail becomes a bottom bar of
    the entries that carry a `compact` name (`data-compact`,
    `SidebarLink`), a row of equal cells 64px tall over the safe-area inset,
@@ -512,7 +521,7 @@ html.psb .psb-variation-block .media-centaur {
   display: none;
 }
 
-@media (width < 600px) {
+@media (width < theme(--breakpoint-compact)) {
   .sidebar {
     width: auto;
     top: auto;
@@ -590,6 +599,7 @@ html.psb .psb-variation-block .media-centaur {
     display: none;
   }
 }
+
 
 /* The System group is pinned to the rail's bottom; the space between the
    groups is the rail's group marker, since it carries no text. When the
@@ -2237,6 +2247,13 @@ body:has(.modal-backdrop[data-state="open"]) {
    max(400px, min(16:9-of-width, 65vh)). */
 :root {
   --side-rail: 52px;
+}
+
+/* The compact shell has no rail: the bar is at the bottom. */
+@media (width < theme(--breakpoint-compact)) {
+  :root {
+    --side-rail: 0px;
+  }
 }
 
 /* ZOOM CAVEAT: the cap means 65% of the *physical* viewport, so it uses
@@ -4167,6 +4184,13 @@ body:has(.viewing) .gamepad-hint-bar {
     position: absolute;
     left: 50%;
     top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .viewing-touch-pause {
     width: 5rem;
     height: 5rem;
   }
@@ -4195,14 +4219,19 @@ body:has(.viewing) .gamepad-hint-bar {
     position: absolute;
     inset: -1.25rem 0;
   }
-}
-    transform: translate(-50%, -50%);
-    display: flex;
-    align-items: center;
-    gap: 2rem;
+
+  /* The bar and the prompt keep out of a turned phone's cutout. */
+  .viewing-bar {
+    left: max(5%, env(safe-area-inset-left, 0px));
+    right: max(5%, env(safe-area-inset-right, 0px));
+    bottom: max(6.5%, env(safe-area-inset-bottom, 0px));
   }
 
-  .viewing-touch-pause {
+  .viewing-prompt {
+    right: max(4%, env(safe-area-inset-right, 0px));
+    top: max(7.5%, env(safe-area-inset-top, 0px));
+  }
+}
 
 .viewing-scrim {
   position: absolute;
@@ -4218,18 +4247,6 @@ body:has(.viewing) .gamepad-hint-bar {
   left: 5%;
   right: 5%;
   bottom: 6.5%;
-
-  /* The bar and the prompt keep out of a turned phone's cutout. */
-  .viewing-bar {
-    left: max(5%, env(safe-area-inset-left, 0px));
-    right: max(5%, env(safe-area-inset-right, 0px));
-    bottom: max(6.5%, env(safe-area-inset-bottom, 0px));
-  }
-
-  .viewing-prompt {
-    right: max(4%, env(safe-area-inset-right, 0px));
-    top: max(7.5%, env(safe-area-inset-top, 0px));
-  }
 }
 
 .viewing-state {

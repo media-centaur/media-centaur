@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           tabindex="0"
           aria-pressed={to_string(@all_episode_details_open)}
           class={[
-            "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",
+            "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 pointer-coarse:min-h-12 pointer-coarse:my-0 pointer-coarse:px-3 transition-colors hover:bg-base-content/10",
             if(@all_episode_details_open,
               do: "text-base-content/70",
               else: "text-base-content/55 hover:text-base-content/70"
@@ -188,7 +188,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       event="toggle_season"
       phx-value-season={@season.season_number}
       variant={:bare}
-      head_class="flex items-baseline gap-2 w-full text-left text-sm font-medium text-base-content/70 hover:text-base-content px-2 py-1.5 -my-1.5 rounded hover:bg-base-content/5"
+      head_class="flex items-baseline gap-2 w-full text-left text-sm font-medium text-base-content/70 hover:text-base-content px-2 py-1.5 -my-1.5 pointer-coarse:py-3.5 pointer-coarse:my-0 rounded hover:bg-base-content/5"
       caret_class="size-4 self-center"
       body_class="mt-1"
     >
@@ -318,7 +318,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     <div
       id={@id}
       class={[
-        "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
+        "px-2 py-1.5 pointer-coarse:py-3 rounded cursor-pointer hover:bg-base-content/5",
         row_class(@state, @is_resume_target)
       ]}
       data-role="episode-row"
@@ -347,7 +347,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           phx-click="toggle_item_details"
           phx-value-item-id={@episode.id}
           data-nav-sub-item
-          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/55 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
+          class="flex-shrink-0 p-1.5 -m-1 pointer-coarse:size-12 pointer-coarse:p-0 pointer-coarse:-m-3 pointer-coarse:inline-grid pointer-coarse:place-items-center rounded-md cursor-pointer text-base-content/55 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
           aria-expanded={to_string(@details_open)}
           aria-label={if @details_open, do: "Hide episode details", else: "Show episode details"}
         >
