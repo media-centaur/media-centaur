@@ -240,6 +240,16 @@ export class Orchestrator {
       return
     }
 
+    // Focus already rests on a nav item the cursor did not put there — a
+    // click into Discovery's search box while the cursor sat on the hero,
+    // which the results then replace. The cursor joins that item instead of
+    // taking focus from it for the cursor start.
+    const holding = this._contextHoldingFocus()
+    if (holding) {
+      this.focusMachine.forceContext(holding)
+      return
+    }
+
     const target = resolveCursorStart(this.reader.getZone(), this._counts, {
       cursorStartPriority: this._config.cursorStartPriority,
       alwaysPopulated: this._config.alwaysPopulated,
@@ -497,6 +507,14 @@ export class Orchestrator {
       return true
     }
     return false
+  }
+
+  /** The populated context whose items include the focused nav item, or null. */
+  _contextHoldingFocus() {
+    if (!this.reader.getCurrentFocusedItem()) return null
+    return Object.keys(this._counts ?? {}).find(context =>
+      this._counts[context] > 0 && this.reader.getFocusedIndex(context) >= 0
+    ) ?? null
   }
 
   /** The page's cursor start, as on page entry. */

@@ -749,6 +749,32 @@ describe("Orchestrator", () => {
 
       expect(system.focusMachine.context).toBe(Context.TOOLBAR)
     })
+
+    test("a newly empty context yields to the nav item the pointer focused", () => {
+      // Discovery: a click puts focus in the search box while the cursor
+      // sits on the hero; the results replace the hero. The cursor joins the
+      // box instead of seizing focus for the cursor start (the results' clear
+      // button), where the next Backspace would be CLEAR.
+      const itemCounts = { grid: 8, toolbar: 3, zone_tabs: 2, sidebar: 4, sections: 0, drawer: 0, modal: 0 }
+      const tab = { id: "clicked-tab" }
+      let focused = null
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => itemCounts[ctx] ?? 0,
+        getCurrentFocusedItem: () => focused,
+        getFocusedIndex: (ctx) => (focused && ctx === "zone_tabs" ? 1 : -1),
+      })
+      system.start({})
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      focused = tab
+      itemCounts.grid = 0
+      calls.length = 0
+      system.onViewChanged()
+
+      expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
+      expect(calls.filter(c => c.method.startsWith("focus"))).toEqual([])
+    })
   })
 
   describe("BACK enters the sidebar; left walls stay walls", () => {
