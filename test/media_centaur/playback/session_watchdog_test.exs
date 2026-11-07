@@ -10,6 +10,12 @@ defmodule MediaCentaur.Playback.SessionWatchdogTest do
 
   alias MediaCentaur.Playback.SessionWatchdog
 
+  # Each injected call arrives through a supervised task the watchdog starts;
+  # with the async suite saturating the schedulers that can take longer than
+  # `assert_receive`'s default 100 ms. A positive assert returns as soon as
+  # the message lands, so the deadline costs nothing when it passes.
+  @deadline 1_000
+
   setup do
     test = self()
     tasks = start_supervised!({Task.Supervisor, name: nil}, id: :watchdog_tasks)
@@ -47,7 +53,7 @@ defmodule MediaCentaur.Playback.SessionWatchdogTest do
     watchdog = start.(60_000)
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
 
-    assert_receive {:recovered, "player-a"}
+    assert_receive {:recovered, "player-a"}, @deadline
     refute_receive {:abandoned, _}, 50
   end
 
@@ -66,10 +72,10 @@ defmodule MediaCentaur.Playback.SessionWatchdogTest do
     watchdog = start.(60_000)
 
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
-    assert_receive {:recovered, "player-a"}
+    assert_receive {:recovered, "player-a"}, @deadline
 
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
-    assert_receive {:abandoned, "player-a"}
+    assert_receive {:abandoned, "player-a"}, @deadline
     refute_receive {:recovered, _}, 50
   end
 
@@ -79,17 +85,17 @@ defmodule MediaCentaur.Playback.SessionWatchdogTest do
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
     send(watched_session(watchdog, "player-b"), {:exit, :boom})
 
-    assert_receive {:recovered, "player-a"}
-    assert_receive {:recovered, "player-b"}
+    assert_receive {:recovered, "player-a"}, @deadline
+    assert_receive {:recovered, "player-b"}, @deadline
   end
 
   test "a crash after the window has passed is recovered again", %{start: start} do
     watchdog = start.(0)
 
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
-    assert_receive {:recovered, "player-a"}
+    assert_receive {:recovered, "player-a"}, @deadline
 
     send(watched_session(watchdog, "player-a"), {:exit, :boom})
-    assert_receive {:recovered, "player-a"}
+    assert_receive {:recovered, "player-a"}, @deadline
   end
 end
