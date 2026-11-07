@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   library does not own the title, or owns it without a present file.
 
   The playback broadcasts carry what changed, so `merge_progress/2`,
-  `merge_extra_progress/2` and `put_track_override/2` update the half
+  `merge_extra_progress/2` and `put_playback_override/2` update the half
   in memory (`SeriesDetail.with_progress/4` and its collection twin
   keep their typed lists) rather than re-reading on every tick.
 
@@ -180,9 +180,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   def merge_extra_progress(_half, _payload), do: nil
 
   @doc "Replaces the container's remembered-tracks override in place."
-  @spec put_track_override(Half.t(), term()) :: Half.t()
-  def put_track_override(%Half{entry: %{entity: entity} = entry} = half, override),
-    do: rebuild(half, %{entry | entity: Map.put(entity, :track_override, override)})
+  @spec put_playback_override(Half.t(), term()) :: Half.t()
+  def put_playback_override(%Half{entry: %{entity: entity} = entry} = half, override),
+    do: rebuild(half, %{entry | entity: Map.put(entity, :playback_override, override)})
 
   # The subject and member follow the entry; the files stay.
   defp rebuild(%Half{member: member, files: files, available: available}, entry) do

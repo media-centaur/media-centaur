@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   alias MediaCentaurWeb.Components.Detail.SubtitlesRow
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.RefreshFromTmdb
-  alias MediaCentaurWeb.Components.Detail.TrackOverrideBadge
+  alias MediaCentaurWeb.Components.Detail.PlaybackOverrideBadge
 
   # Above this many files the ledger rests collapsed; at or below it,
   # every group opens. Six covers a movie + subtitles + a couple of
@@ -269,7 +269,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           understood={@understood_languages}
           expanded={@subtitles_expanded}
         />
-        <TrackOverrideBadge.track_override_badge entity={@entity} />
+        <PlaybackOverrideBadge.playback_override_badge entity={@entity} />
       </div>
     </div>
     """

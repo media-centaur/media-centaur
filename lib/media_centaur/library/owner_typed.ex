@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.OwnerTyped do
 
   Each implementor keeps its own list rather than deriving one from
   `Library.Containers.types/0`: the sets genuinely differ. `Image` also hangs
-  off an `:episode`, `Extra` off a `:season`, and `MediaTrackOverride` only
+  off an `:episode`, `Extra` off a `:season`, and `PlaybackOverride` only
   off the playable types. A shared list would have to be the union, which
   would let a record attach to an owner its table has no meaning for.
 

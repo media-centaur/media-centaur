@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
 
   @events ~w(play toggle_watched toggle_extra_watched toggle_season toggle_item_details
              toggle_all_episode_details toggle_file_group filter_cast show_more_cast rematch
-             refresh_artwork reset_track_override delete_file_prompt delete_folder_prompt
+             refresh_artwork reset_playback_override delete_file_prompt delete_folder_prompt
              delete_all_prompt download_missing_episode show_all_subtitles)
 
   @doc "The event names this module handles."
@@ -152,13 +152,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     put_flash(socket, level, message)
   end
 
-  # Clears this profile's track override for the entity and drops the
-  # *Remembered tracks* badge in place. Only a movie or a series owns one.
-  def handle("reset_track_override", _params, socket) do
+  # Clears this profile's playback override for the entity and drops the
+  # *Remembered settings* badge in place. Only a movie or a series owns one.
+  def handle("reset_playback_override", _params, socket) do
     case socket.assigns.title_detail.library.entry.entity do
       %{id: id, type: type} when type in [:movie, :tv_series] and is_binary(id) ->
-        Library.MediaTrackOverrides.clear(socket.assigns.profile.id, type, id)
-        update_half(socket, &LibraryHalf.put_track_override(&1, nil))
+        Library.PlaybackOverrides.clear(socket.assigns.profile.id, type, id)
+        update_half(socket, &LibraryHalf.put_playback_override(&1, nil))
 
       _other ->
         socket

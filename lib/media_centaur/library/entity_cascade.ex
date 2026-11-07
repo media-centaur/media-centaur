@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     ExternalId,
     FilePresence,
     Image,
-    MediaTrackOverride,
+    PlaybackOverride,
     Movie,
     MovieSeries,
     PlayableItem,
@@ -78,7 +78,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   @tables_in_delete_order [
     ExtraProgress,
     WatchProgress,
-    MediaTrackOverride,
+    PlaybackOverride,
     ExtraFile,
     Extra,
     Image,
@@ -215,7 +215,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     delete_images(loaded_assoc(record, :images))
     delete_polymorphic(Extra, owner_type, record.id)
     delete_polymorphic(ExternalId, owner_type, record.id)
-    delete_polymorphic(MediaTrackOverride, owner_type, record.id)
+    delete_polymorphic(PlaybackOverride, owner_type, record.id)
   end
 
   defp loaded_assoc(record, key) do

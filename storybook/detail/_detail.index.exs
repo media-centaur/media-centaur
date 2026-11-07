@@ -15,7 +15,9 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("delete_all_button"), do: [icon: {:fa, "trash", :thin}, name: "Delete all button"]
   def entry("finish_prompt"), do: [icon: {:fa, "flag-checkered", :thin}, name: "Finish prompt"]
 
-  def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]
+  def entry("playback_override_badge"),
+    do: [icon: {:fa, "language", :thin}, name: "Playback override badge"]
+
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
   def entry("preview_body"), do: [icon: {:fa, "file-lines", :thin}, name: "Preview body"]
 

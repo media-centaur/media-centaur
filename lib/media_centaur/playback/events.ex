@@ -136,7 +136,7 @@ defmodule MediaCentaur.Playback.Events do
     @type t :: %__MODULE__{player: MediaCentaur.Playback.player(), entity_id: String.t()}
   end
 
-  defmodule TrackOverrideChanged do
+  defmodule PlaybackOverrideChanged do
     @moduledoc """
     The user changed audio/subtitle tracks during playback and the
     selection differs from the language policy's choice — captured as
@@ -163,7 +163,7 @@ defmodule MediaCentaur.Playback.Events do
           | PlaybackStateChanged.t()
           | PlaybackFailed.t()
           | SessionEnded.t()
-          | TrackOverrideChanged.t()
+          | PlaybackOverrideChanged.t()
         ) :: :ok | {:error, term()}
   def broadcast(%EntityProgressUpdated{} = event), do: do_broadcast({:entity_progress_updated, event})
 
@@ -175,7 +175,8 @@ defmodule MediaCentaur.Playback.Events do
 
   def broadcast(%SessionEnded{} = event), do: do_broadcast({:session_ended, event})
 
-  def broadcast(%TrackOverrideChanged{} = event), do: do_broadcast({:track_override_changed, event})
+  def broadcast(%PlaybackOverrideChanged{} = event),
+    do: do_broadcast({:playback_override_changed, event})
 
   defp do_broadcast(message) do
     Topics.publish(Topics.playback_events(), message)

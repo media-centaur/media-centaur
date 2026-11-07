@@ -8,7 +8,9 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TestFactory
+  import MediaCentaur.Eventually
 
+  alias MediaCentaur.Library
   alias MediaCentaur.Playback
   alias MediaCentaur.Playback.Entry
   alias MediaCentaur.Playback.Events
@@ -110,16 +112,45 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     assert Sessions.get(:host, entity_id) == nil
   end
 
-  test "a fresh player starts at Fit; a player that comes back keeps its picture setting",
-       %{params: params} do
+  test "a fresh player starts at the title's remembered picture, Fit by default; one that comes back keeps its own",
+       %{params: params, entity_id: entity_id} do
     pid = start!(params)
-    attach!(pid)
+    FakeTransport.emit(pid, {:attached, :fresh})
     assert_receive {:mpv_command, ["set_property", "user-data/fill-width", false]}
+    assert_receive {:mpv_command, ["observe_property", 1, "time-pos"]}
 
     FakeTransport.emit(pid, {:detached, :channel_lost})
     FakeTransport.emit(pid, {:attached, :reconnected})
     assert_receive {:mpv_command, ["observe_property", 1, "time-pos"]}
     refute_receive {:mpv_command, ["set_property", "user-data/fill-width", _]}, 50
+
+    Sessions.stop(:host, entity_id)
+
+    {:ok, _} =
+      Library.PlaybackOverrides.upsert(Profiles.owner().id, :movie, entity_id, %{fill_width: true})
+
+    eventually(fn -> Sessions.get(:host, entity_id) == nil end)
+
+    pid = start!(params)
+    FakeTransport.emit(pid, {:attached, :fresh})
+    assert_receive {:mpv_command, ["set_property", "user-data/fill-width", true]}
+  end
+
+  test "a picture the viewer settles on is remembered for the title", %{
+    params: params,
+    entity_id: entity_id
+  } do
+    pid = start!(Map.put(params, :capture_debounce_ms, 10))
+    attach!(pid)
+
+    FakeTransport.emit(
+      pid,
+      {:message, %{"event" => "property-change", "name" => "user-data/fill-width", "data" => true}}
+    )
+
+    eventually(fn ->
+      match?(%{fill_width: true}, Library.PlaybackOverrides.get(Profiles.owner().id, :movie, entity_id))
+    end)
   end
 
   test "a detached transport that comes back is re-observed; nothing ends", %{params: params} do

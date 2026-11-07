@@ -34,8 +34,8 @@ defmodule MediaCentaur.Library do
       Images,
       MediaFileAvailability,
       MediaInfo,
-      MediaTrackOverride,
-      MediaTrackOverrides,
+      PlaybackOverride,
+      PlaybackOverrides,
       ModalEntry,
       Movie,
       MovieOrder,
@@ -97,7 +97,7 @@ defmodule MediaCentaur.Library do
   | Watch state (in-memory projection) | `Library.Progress` |
   | Artwork | `Library.Images`, `Library.Artwork`, `Library.ImageHealth` |
   | External identifiers | `Library.ExternalIds` |
-  | Remembered audio/subtitle tracks | `Library.MediaTrackOverrides` |
+  | Remembered audio/subtitle tracks | `Library.PlaybackOverrides` |
   | Movie-vs-collection hoist rule | `Library.Presentable`, `Library.PresentableQueries` |
   | Detail-modal view-model | `Library.ModalEntry` |
   | Search catalogue | `Library.SearchIndex` |

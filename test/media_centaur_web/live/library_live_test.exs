@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
-  alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, TrackOverrideChanged}
+  alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, PlaybackOverrideChanged}
 
   describe "catalog grid" do
     test "library page renders the catalog grid section", %{conn: conn} do
@@ -1156,7 +1156,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
-  describe "track override badge + reset" do
+  describe "playback override badge + reset" do
     setup do
       movie = create_standalone_movie(%{name: "Track Override Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
@@ -1168,7 +1168,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie: movie
     } do
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{
           audio_lang: "jpn",
           subtitle_lang: "eng"
         })
@@ -1176,7 +1176,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       html = render(view)
-      assert html =~ "Remembered tracks"
+      assert html =~ "Remembered settings"
       assert html =~ "Japanese audio"
       assert html =~ "English subtitles"
       assert html =~ "Reset to default"
@@ -1185,47 +1185,47 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "no badge when the entity has no override", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
-      refute render(view) =~ "Remembered tracks"
+      refute render(view) =~ "Remembered settings"
     end
 
     test "Reset to default clears the override and drops the badge", %{conn: conn, movie: movie} do
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "jpn"})
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "jpn"})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
-      assert render(view) =~ "Remembered tracks"
+      assert render(view) =~ "Remembered settings"
 
-      view |> element("button[phx-click='reset_track_override']") |> render_click()
+      view |> element("button[phx-click='reset_playback_override']") |> render_click()
 
-      assert Library.MediaTrackOverrides.get(owner_profile_id(), :movie, movie.id) == nil
-      refute render(view) =~ "Remembered tracks"
+      assert Library.PlaybackOverrides.get(owner_profile_id(), :movie, movie.id) == nil
+      refute render(view) =~ "Remembered settings"
     end
 
-    test "TrackOverrideChanged broadcast surfaces the badge live without remount", %{
+    test "PlaybackOverrideChanged broadcast surfaces the badge live without remount", %{
       conn: conn,
       movie: movie
     } do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
-      refute render(view) =~ "Remembered tracks"
+      refute render(view) =~ "Remembered settings"
 
       # Simulate a mid-playback capture: the override lands in the DB and
-      # the MpvSession broadcasts TrackOverrideChanged. The open modal
+      # the MpvSession broadcasts PlaybackOverrideChanged. The open modal
       # must reflect it without the user reopening.
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "fra"})
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "fra"})
 
-      Events.broadcast(%TrackOverrideChanged{
+      Events.broadcast(%PlaybackOverrideChanged{
         profile_id: owner_profile_id(),
         owner_type: :movie,
         owner_id: movie.id
       })
 
       html = render(view)
-      assert html =~ "Remembered tracks"
+      assert html =~ "Remembered settings"
       assert html =~ "French audio"
     end
 
-    test "TrackOverrideChanged from another profile leaves the open detail alone", %{
+    test "PlaybackOverrideChanged from another profile leaves the open detail alone", %{
       conn: conn,
       movie: movie
     } do
@@ -1237,26 +1237,30 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         |> with_profile(MediaCentaur.Profiles.get(owner_profile_id()))
         |> live_async!(~p"/library?entity=#{movie.id}&view=info")
 
-      refute render(view) =~ "Remembered tracks"
+      refute render(view) =~ "Remembered settings"
 
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "fra"})
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "fra"})
 
-      Events.broadcast(%TrackOverrideChanged{profile_id: ana.id, owner_type: :movie, owner_id: movie.id})
+      Events.broadcast(%PlaybackOverrideChanged{
+        profile_id: ana.id,
+        owner_type: :movie,
+        owner_id: movie.id
+      })
 
-      refute render(view) =~ "Remembered tracks"
+      refute render(view) =~ "Remembered settings"
     end
 
-    test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
+    test "PlaybackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
-      Events.broadcast(%TrackOverrideChanged{
+      Events.broadcast(%PlaybackOverrideChanged{
         profile_id: owner_profile_id(),
         owner_type: :movie,
         owner_id: Ecto.UUID.generate()
       })
 
-      refute render(view) =~ "Remembered tracks"
+      refute render(view) =~ "Remembered settings"
     end
   end
 

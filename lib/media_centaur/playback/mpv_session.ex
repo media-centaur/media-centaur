@@ -63,6 +63,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     LaunchFlags,
     MpvProperties,
     ProgressWriter,
+    Remembered,
     SessionRegistry,
     Transport,
     Viewing,
@@ -72,7 +73,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   @db_write_interval_ms 10_000
   @reattach_window_ms 60_000
 
-  @track_capture_debounce_ms 3_000
+  @capture_debounce_ms 3_000
 
   defstruct [
     # What plays now (`Playback.Entry`); replaced whole by an advance.
@@ -87,7 +88,11 @@ defmodule MediaCentaur.Playback.MpvSession do
     reattach_window_ms: @reattach_window_ms,
     state: :starting,
     # The track policy (`Playback.LanguageContext`).
+    # The title's remembered playback settings (`Playback.Remembered`):
+    # loaded at start, saved as the viewer changes them.
+    remembered: nil,
     language_context: nil,
+    capture_debounce_ms: @capture_debounce_ms,
     # What mpv last reported (`Playback.MpvProperties`).
     properties: %MpvProperties{},
     capture_timer: nil,
@@ -160,8 +165,11 @@ defmodule MediaCentaur.Playback.MpvSession do
       last_db_write_at: System.monotonic_time(:millisecond),
       tracker: WatchingTracker.new(),
       started_at: System.monotonic_time(:millisecond),
-      language_context: LanguageContext.init(params.profile_id, entry)
+      capture_debounce_ms: params[:capture_debounce_ms] || @capture_debounce_ms
     }
+
+    remembered = Remembered.load(params.profile_id, entry)
+    state = %{state | remembered: remembered, language_context: LanguageContext.init(remembered)}
 
     {events, state} =
       case Transport.locator(state.transport, entry.content_url) do
@@ -237,15 +245,19 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   @impl true
-  # Debounced capture — fires after the user has settled on a track
-  # selection. Compares current state against what the resolver chose
-  # at episode start; persists an override only if they differ.
+  # Debounced capture — fires after the viewer has settled on their
+  # settings. Each part compares against its own default (tracks: the
+  # resolver's choice; picture: Fit, or what is remembered) and the
+  # divergence is saved for the title (`Remembered`).
   def handle_info(:capture_settled, state) do
-    if LanguageContext.captures?(state.language_context) do
-      LanguageContext.capture(state.language_context, state.profile_id, state.properties)
-    end
+    attrs =
+      Map.merge(
+        LanguageContext.capture(state.language_context, state.properties),
+        Remembered.picture_change(state.remembered, state.properties.fill_width)
+      )
 
-    {:noreply, %{state | capture_timer: nil}}
+    remembered = Remembered.save(state.remembered, state.profile_id, attrs)
+    {:noreply, %{state | capture_timer: nil, remembered: remembered}}
   end
 
   # The transport did not come back within its window: the viewing is over.
@@ -295,8 +307,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp apply_event({:attached, kind}, state) do
+    if kind == :fresh, do: apply_picture(state)
     observe_properties(state.transport)
-    if kind == :fresh, do: reset_picture(state.transport)
     Log.info(:playback, "player attached (#{kind})")
     state = cancel_reattach_timer(state)
     broadcast_state_changed(:playing, state)
@@ -444,7 +456,8 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  defp react(track, _id, state) when track in ["aid", "sid"], do: schedule_capture(state)
+  defp react(setting, _value, state) when setting in ["aid", "sid", "user-data/fill-width"],
+    do: schedule_capture(state)
 
   defp react(_name, _data, state), do: state
 
@@ -539,7 +552,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     }
   end
 
-  # --- Track override capture (`LanguageContext`) ---
+  # --- Playback override capture (`Remembered`, `LanguageContext`) ---
 
   # No capture for an entry without an override owner (extras, video
   # objects) or before the resolver has chosen — skip scheduling rather
@@ -547,9 +560,9 @@ defmodule MediaCentaur.Playback.MpvSession do
   # debounce coalesces rapid keyboard mashing (#-#-# to cycle audio) into
   # a single capture.
   defp schedule_capture(state) do
-    if LanguageContext.captures?(state.language_context) do
+    if Remembered.remembers?(state.remembered) do
       if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
-      timer = Process.send_after(self(), :capture_settled, @track_capture_debounce_ms)
+      timer = Process.send_after(self(), :capture_settled, state.capture_debounce_ms)
       %{state | capture_timer: timer}
     else
       state
@@ -666,10 +679,16 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- Observation ---
 
   # A remote player's mpv outlives a viewing, and with it the picture
-  # setting (`user-data/fill-width`): each fresh viewing starts at Fit. A
-  # player that comes back mid-viewing keeps what the reader chose.
-  defp reset_picture(transport),
-    do: Transport.send(transport, Command.ipc({:fill_width, false}, nil))
+  # setting (`user-data/fill-width`): each fresh viewing starts at the
+  # title's remembered picture, Fit by default. Sent before the properties
+  # are observed, so the first value the mirror sees is this one. A player
+  # that comes back mid-viewing keeps what the viewer chose.
+  defp apply_picture(state),
+    do:
+      Transport.send(
+        state.transport,
+        Command.ipc({:fill_width, Remembered.fill_width?(state.remembered)}, nil)
+      )
 
   defp observe_properties(transport) do
     for {name, id} <- Enum.with_index(MpvProperties.observed(), 1) do

@@ -201,7 +201,7 @@ defmodule MediaCentaur.Showcase do
 
       seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
-      maybe_seed_track_override!(owner_id, movie.id, entry)
+      maybe_seed_playback_override!(owner_id, movie.id, entry)
 
       Map.put(movie, :tmdb_id, tmdb_id)
     else
@@ -219,11 +219,12 @@ defmodule MediaCentaur.Showcase do
   # Apply a catalog-declared audio/subtitle override, as the owner
   # profile's, so the detail modal's "remembered tracks" badge has real
   # state to render. No-op for entries without one.
-  defp maybe_seed_track_override!(owner_id, movie_id, %{track_override: attrs}) when is_map(attrs) do
-    {:ok, _} = Library.MediaTrackOverrides.upsert(owner_id, :movie, movie_id, attrs)
+  defp maybe_seed_playback_override!(owner_id, movie_id, %{playback_override: attrs})
+       when is_map(attrs) do
+    {:ok, _} = Library.PlaybackOverrides.upsert(owner_id, :movie, movie_id, attrs)
   end
 
-  defp maybe_seed_track_override!(_owner_id, _movie_id, _entry), do: :ok
+  defp maybe_seed_playback_override!(_owner_id, _movie_id, _entry), do: :ok
 
   # ---------------------------------------------------------------------------
   # TV Series

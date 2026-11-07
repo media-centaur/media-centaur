@@ -145,7 +145,7 @@ defmodule MediaCentaur.ProfilesTest do
     create_extra_progress(%{profile_id: ana.id, extra_id: extra.id, position_seconds: 5.0})
 
     {:ok, _} =
-      MediaCentaur.Library.MediaTrackOverrides.upsert(ana.id, :movie, movie.id, %{audio_lang: "fra"})
+      MediaCentaur.Library.PlaybackOverrides.upsert(ana.id, :movie, movie.id, %{audio_lang: "fra"})
 
     assert :ok = Profiles.remove(ana)
 
@@ -159,7 +159,7 @@ defmodule MediaCentaur.ProfilesTest do
              ProgressRecords.fetch_for_container(me.id, :movie, movie.id)
 
     assert MediaCentaur.WatchHistory.list_events(ana.id) == []
-    assert MediaCentaur.Library.MediaTrackOverrides.get(ana.id, :movie, movie.id) == nil
+    assert MediaCentaur.Library.PlaybackOverrides.get(ana.id, :movie, movie.id) == nil
   end
 
   test "the social profile schema reads social_profiles and the table carries its unique key" do

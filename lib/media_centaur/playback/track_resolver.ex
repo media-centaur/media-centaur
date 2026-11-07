@@ -18,10 +18,10 @@ defmodule MediaCentaur.Playback.TrackResolver do
       policy expect?" when comparing user overrides during capture.
 
   See `MediaCentaur.Playback.LanguagePolicy` for the policy shape and
-  `MediaCentaur.Library.MediaTrackOverride` for the override shape.
+  `MediaCentaur.Library.PlaybackOverride` for the override shape.
   """
 
-  alias MediaCentaur.Library.MediaTrackOverride
+  alias MediaCentaur.Library.PlaybackOverride
   alias MediaCentaur.Iso639
   alias MediaCentaur.Playback.LanguagePolicy
 
@@ -63,7 +63,7 @@ defmodule MediaCentaur.Playback.TrackResolver do
   # priority_args/3 — pre-launch
   # ---------------------------------------------------------------------------
 
-  @spec priority_args(LanguagePolicy.t(), MediaTrackOverride.t() | nil, String.t() | nil) ::
+  @spec priority_args(LanguagePolicy.t(), PlaybackOverride.t() | nil, String.t() | nil) ::
           priority_args()
   def priority_args(%LanguagePolicy{} = policy, override, original_language) do
     %{
@@ -149,7 +149,7 @@ defmodule MediaCentaur.Playback.TrackResolver do
 
   @spec resolve(
           LanguagePolicy.t(),
-          MediaTrackOverride.t() | nil,
+          PlaybackOverride.t() | nil,
           [Track.t()],
           [Track.t()],
           String.t() | nil

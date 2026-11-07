@@ -1,12 +1,12 @@
 defmodule MediaCentaur.Playback.LanguageContext do
   @moduledoc """
   The track policy of one playback session: the language preferences
-  loaded for its entry (`init/2`), the resolver's choice on each
-  `track-list` and the subtitle enforcement it implies (`on_track_list/3`),
-  and the capture of a viewer's own track switch as an override
-  (`capture/3`). Owns the impure work — the DB reads for policy, override
-  and entity metadata, the override write — and answers `MpvSession` with
-  the IPC to send; the session keeps the capture timer and sends. mpv's
+  loaded for its entry (`init/1`, over the viewing's `Playback.Remembered`
+  settings), the resolver's choice on each `track-list` and the subtitle
+  enforcement it implies (`on_track_list/3`), and the track part of a
+  viewer's settled settings (`capture/2`), which `Remembered` saves. Owns
+  the policy read and answers `MpvSession` with the IPC to send; the
+  session keeps the capture timer and sends. mpv's
   `track-list` is parsed into `TrackResolver.Track` structs by
   `MpvProperties`.
 
@@ -18,16 +18,14 @@ defmodule MediaCentaur.Playback.LanguageContext do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.{Format, Iso639, Library}
-  alias MediaCentaur.Playback.{Entry, Events, LanguagePolicy, MpvProperties, OverrideCapture}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Playback.{LanguagePolicy, MpvProperties, OverrideCapture, Remembered}
   alias MediaCentaur.Playback.{TrackResolver, Viewing}
   alias MediaCentaur.Playback.TrackResolver.Track
 
   defstruct [
     :policy,
     :override,
-    :owner_type,
-    :owner_id,
     :original_language,
     :priority_args,
     # The lang-based slice of the last resolution (lang/forced, not indices
@@ -41,9 +39,7 @@ defmodule MediaCentaur.Playback.LanguageContext do
 
   @type t :: %__MODULE__{
           policy: LanguagePolicy.t(),
-          override: Library.MediaTrackOverride.t() | nil,
-          owner_type: :tv_series | :movie | nil,
-          owner_id: String.t() | nil,
+          override: Library.PlaybackOverride.t() | nil,
           original_language: String.t() | nil,
           priority_args: TrackResolver.priority_args(),
           resolver_choice: OverrideCapture.state() | nil,
@@ -51,31 +47,20 @@ defmodule MediaCentaur.Playback.LanguageContext do
         }
 
   @doc """
-  Build the language context for a playback session of `entry`. Returns a
-  context map even when the entry's playable is unsupported (extras,
-  video objects, an unattributed file) — in that case `owner_type` is
-  `nil` and the override flow is skipped, but the global policy still
-  applies via `priority_args`. The override read is the session's
-  profile's own (`profile_id`, ADR-078).
+  Build the language context for a playback session from its remembered
+  settings: the global policy, with the profile's override and the
+  title's original language when the viewing has an owner (ADR-078). An
+  extra or an unattributed file has neither, and the policy alone applies.
   """
-  @spec init(String.t(), Entry.t()) :: t()
-  def init(profile_id, %Entry{} = entry) do
-    {owner_type, owner_id, original_language} = resolve_owner(entry)
-
+  @spec init(Remembered.t()) :: t()
+  def init(%Remembered{override: override, original_language: original_language}) do
     policy = LanguagePolicy.load()
-
-    override =
-      if owner_type, do: Library.MediaTrackOverrides.get(profile_id, owner_type, owner_id)
-
-    priority_args = TrackResolver.priority_args(policy, override, original_language)
 
     %__MODULE__{
       policy: policy,
       override: override,
-      owner_type: owner_type,
-      owner_id: owner_id,
       original_language: original_language,
-      priority_args: priority_args
+      priority_args: TrackResolver.priority_args(policy, override, original_language)
     }
   end
 
@@ -142,17 +127,9 @@ defmodule MediaCentaur.Playback.LanguageContext do
   defp sid_target(result, drawable, _all), do: TrackResolver.sid_enforcement(result, drawable)
 
   @doc """
-  Whether a viewer's track switch is worth capturing: the entry has an
-  override owner (a movie or a series — not an extra or a video object)
-  and the resolver has chosen, so there is a baseline to compare against.
-  """
-  @spec captures?(t()) :: boolean()
-  def captures?(%__MODULE__{owner_type: owner_type, resolver_choice: choice}),
-    do: not is_nil(owner_type) and not is_nil(choice)
-
-  @doc """
-  Captures the viewer's settled track selection as the profile's override
-  for the entry's owner, when it differs from the resolver's choice.
+  The track fields to save for the viewer's settled selection: the
+  divergence from the resolver's choice, or none when it matches — or
+  before the resolver has chosen, when there is no baseline to compare.
 
   The selection is derived now, from the complete track lists — not from
   a snapshot taken when the `aid`/`sid` event fired: mpv auto-selects a
@@ -161,38 +138,19 @@ defmodule MediaCentaur.Playback.LanguageContext do
   is what stops the per-series `subtitles_off` poison — see
   `current_selection/4`.
   """
-  @spec capture(t(), String.t(), MpvProperties.t()) :: :ok
-  def capture(%__MODULE__{} = context, profile_id, %MpvProperties{} = properties) do
+  @spec capture(t(), MpvProperties.t()) :: map()
+  def capture(%__MODULE__{resolver_choice: nil}, %MpvProperties{}), do: %{}
+
+  def capture(%__MODULE__{} = context, %MpvProperties{} = properties) do
     %MpvProperties{aid: aid, sid: sid, audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks} =
       properties
 
     selection = current_selection(aid, sid, audio_tracks, subtitle_tracks)
 
     case OverrideCapture.compute(context.resolver_choice, selection) do
-      :no_change -> :ok
-      {:override, attrs} -> persist_override(context, profile_id, attrs)
+      :no_change -> %{}
+      {:override, attrs} -> attrs
     end
-  end
-
-  defp persist_override(%__MODULE__{owner_type: owner_type, owner_id: owner_id}, profile_id, attrs) do
-    case Library.MediaTrackOverrides.upsert(profile_id, owner_type, owner_id, attrs) do
-      {:ok, _override} ->
-        Log.info(
-          :playback,
-          "captured track override (#{owner_type}=#{Format.short_id(owner_id)}) — #{inspect(attrs)}"
-        )
-
-        Events.broadcast(%Events.TrackOverrideChanged{
-          profile_id: profile_id,
-          owner_type: owner_type,
-          owner_id: owner_id
-        })
-
-      {:error, changeset} ->
-        Log.warning(:playback, "failed to persist track override — #{inspect(changeset.errors)}")
-    end
-
-    :ok
   end
 
   @doc "The policy for the next file of a playlist: the choice and the enforcement start over."
@@ -276,29 +234,4 @@ defmodule MediaCentaur.Playback.LanguageContext do
       sub_forced: forced_at(sid, subtitle_tracks)
     }
   end
-
-  # ---------------------------------------------------------------------------
-  # Owner / metadata resolution
-  # ---------------------------------------------------------------------------
-
-  defp resolve_owner(%Entry{extra_id: extra_id}) when is_binary(extra_id), do: {nil, nil, nil}
-
-  defp resolve_owner(%Entry{movie_id: movie_id}) when is_binary(movie_id) do
-    case Library.Containers.fetch(:movie, movie_id) do
-      {:ok, movie} -> {:movie, movie.id, Iso639.normalize(movie.original_language)}
-      _ -> {nil, nil, nil}
-    end
-  end
-
-  defp resolve_owner(%Entry{episode_id: episode_id, entity_id: entity_id})
-       when is_binary(episode_id) and is_binary(entity_id) do
-    # Episode's owner is the TV series root (entity_id). We don't need to
-    # walk Episode → Season → TVSeries — entity_id is already the series.
-    case Library.Containers.fetch(:tv_series, entity_id) do
-      {:ok, series} -> {:tv_series, series.id, Iso639.normalize(series.original_language)}
-      _ -> {nil, nil, nil}
-    end
-  end
-
-  defp resolve_owner(%Entry{}), do: {nil, nil, nil}
 end

@@ -86,10 +86,10 @@ defmodule MediaCentaur.ContextMap.Rules.CrossContextKeyTest do
     associations: []
   }
   @override %Schema{
-    module: MediaCentaur.Library.MediaTrackOverride,
-    file: "lib/media_centaur/library/media_track_override.ex",
+    module: MediaCentaur.Library.PlaybackOverride,
+    file: "lib/media_centaur/library/playback_override.ex",
     context: MediaCentaur.Library,
-    table: "media_track_overrides",
+    table: "playback_overrides",
     fields: [
       %{name: :owner_type, type: "Ecto.Enum", values: [:movie, :episode], line: 1, declaration: ""},
       %{name: :owner_id, type: "Ecto.UUID", values: nil, line: 1, declaration: ""}

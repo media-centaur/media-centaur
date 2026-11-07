@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.TrackResolverTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Library.MediaTrackOverride
+  alias MediaCentaur.Library.PlaybackOverride
   alias MediaCentaur.Playback.LanguagePolicy
   alias MediaCentaur.Playback.TrackResolver
   alias MediaCentaur.Playback.TrackResolver.Track
@@ -565,7 +565,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
   describe "override precedence" do
     test "override pinning audio_lang wins over policy" do
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{audio_lang: "eng"}
+      override = %PlaybackOverride{audio_lang: "eng"}
 
       result =
         TrackResolver.resolve(
@@ -583,7 +583,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
       # Policy would say no subs (eng audio is understood), but the user
       # has explicitly opted to see them for this entity.
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{subtitle_lang: "eng"}
+      override = %PlaybackOverride{subtitle_lang: "eng"}
 
       result =
         TrackResolver.resolve(
@@ -600,7 +600,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
     test "override subtitles_off=true wins over policy's want-subs decision" do
       # Policy would show eng subs over jpn audio; user said off for this entity.
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{subtitles_off: true}
+      override = %PlaybackOverride{subtitles_off: true}
 
       result =
         TrackResolver.resolve(
@@ -616,7 +616,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
     test "partial override: audio_lang set but subtitle_lang nil — subs still follow policy" do
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{audio_lang: "eng"}
+      override = %PlaybackOverride{audio_lang: "eng"}
 
       result =
         TrackResolver.resolve(
@@ -637,7 +637,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
       # has no French audio. Don't crash and don't pick nothing — apply
       # policy resolution as if there were no override on that field.
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{audio_lang: "fra"}
+      override = %PlaybackOverride{audio_lang: "fra"}
 
       result =
         TrackResolver.resolve(
@@ -653,7 +653,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
     test "override forced flag is honoured when picking subtitle track" do
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{subtitle_lang: "eng", subtitle_forced: true}
+      override = %PlaybackOverride{subtitle_lang: "eng", subtitle_forced: true}
 
       result =
         TrackResolver.resolve(
@@ -693,7 +693,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
     test "logs override application" do
       policy = LanguagePolicy.defaults()
-      override = %MediaTrackOverride{audio_lang: "eng"}
+      override = %PlaybackOverride{audio_lang: "eng"}
 
       result =
         TrackResolver.resolve(
@@ -775,21 +775,21 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
     end
 
     test "audio override prepends to alang priority" do
-      override = %MediaTrackOverride{audio_lang: "fra"}
+      override = %PlaybackOverride{audio_lang: "fra"}
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), override, "jpn")
 
       assert hd(args.alang) == "fra"
     end
 
     test "subtitle override prepends to slang priority" do
-      override = %MediaTrackOverride{subtitle_lang: "spa"}
+      override = %PlaybackOverride{subtitle_lang: "spa"}
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), override, "jpn")
 
       assert hd(args.slang) == "spa"
     end
 
     test "subtitles_off override forces disable_subs and empty slang" do
-      override = %MediaTrackOverride{subtitles_off: true}
+      override = %PlaybackOverride{subtitles_off: true}
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), override, "jpn")
 
       assert args.disable_subs == true

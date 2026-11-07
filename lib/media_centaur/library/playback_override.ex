@@ -1,11 +1,11 @@
-defmodule MediaCentaur.Library.MediaTrackOverride do
+defmodule MediaCentaur.Library.PlaybackOverride do
   @moduledoc """
-  One profile's remembered audio + subtitle track selection for one
-  entity (ADR-078). When the viewer manually changes tracks during mpv
-  playback and the new selection differs from what the language policy
-  chose, the selection is captured here so the next play of the same
+  One profile's remembered playback settings for one entity (ADR-078):
+  where the viewer, during playback, moved away from the default — the
+  audio and subtitle tracks the language policy chose, and the picture's
+  Fit. The settings are captured here so the next play of the same
   entity (next episode of a series, rewatch of a movie) by the same
-  profile honours it. The profile is a plain id, not an association —
+  profile honours them. The profile is a plain id, not an association —
   `Profiles` is another context.
 
   The owner is identified by the discriminator pair `(owner_type,
@@ -17,13 +17,16 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   owner_id)` — one override row per profile and entity, updated in place
   via upsert.
 
-  Overrides are **partial**: any of the four override fields may be
-  unset, in which case that aspect falls back to the policy.
+  Overrides are **partial**: any field may be unset, in which case that
+  setting falls back to its default.
 
     * `audio_lang = nil`     → audio follows policy
     * `subtitle_lang = nil` and `subtitles_off = false` → subs follow policy
     * `subtitle_lang = nil` and `subtitles_off = true`  → subs explicitly disabled for this entity
     * `subtitle_forced` is meaningful only when `subtitle_lang` is set
+    * `fill_width = false`   → the picture fits the screen (the default);
+      `true` → it fills the screen's width, for a title whose frame carries
+      black bars (a remote player's `user-data/fill-width`)
 
   Stored as **language descriptors** (`"jpn"`, `"eng"`), not raw track
   indices — so an override survives re-rips and release-group changes
@@ -48,10 +51,11 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
           audio_lang: String.t() | nil,
           subtitle_lang: String.t() | nil,
           subtitle_forced: boolean(),
-          subtitles_off: boolean()
+          subtitles_off: boolean(),
+          fill_width: boolean()
         }
 
-  schema "library_media_track_overrides" do
+  schema "library_playback_overrides" do
     field :profile_id, Ecto.UUID
     field :owner_type, Ecto.Enum, values: @owner_types
     field :owner_id, Ecto.UUID
@@ -60,6 +64,7 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
     field :subtitle_lang, :string
     field :subtitle_forced, :boolean, default: false
     field :subtitles_off, :boolean, default: false
+    field :fill_width, :boolean, default: false
 
     timestamps()
   end
@@ -80,12 +85,13 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
       :audio_lang,
       :subtitle_lang,
       :subtitle_forced,
-      :subtitles_off
+      :subtitles_off,
+      :fill_width
     ])
     |> validate_required([:profile_id, :owner_type, :owner_id])
     |> validate_subtitle_consistency()
     |> unique_constraint([:profile_id, :owner_type, :owner_id],
-      name: :library_media_track_overrides_profile_id_owner_type_owner_id_index
+      name: :library_playback_overrides_profile_id_owner_type_owner_id_index
     )
   end
 

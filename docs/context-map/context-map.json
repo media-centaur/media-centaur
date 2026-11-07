@@ -2400,8 +2400,8 @@
         "MediaCentaur.Library.Images",
         "MediaCentaur.Library.MediaFileAvailability",
         "MediaCentaur.Library.MediaInfo",
-        "MediaCentaur.Library.MediaTrackOverride",
-        "MediaCentaur.Library.MediaTrackOverrides",
+        "MediaCentaur.Library.PlaybackOverride",
+        "MediaCentaur.Library.PlaybackOverrides",
         "MediaCentaur.Library.ModalEntry",
         "MediaCentaur.Library.Movie",
         "MediaCentaur.Library.MovieOrder",
@@ -3227,9 +3227,9 @@
               }
             }
           ],
-          "file": "lib/media_centaur/library/media_track_override.ex",
-          "module": "MediaCentaur.Library.MediaTrackOverride",
-          "table": "library_media_track_overrides"
+          "file": "lib/media_centaur/library/playback_override.ex",
+          "module": "MediaCentaur.Library.PlaybackOverride",
+          "table": "library_playback_overrides"
         },
         {
           "associations": [
@@ -7558,7 +7558,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|audio_lang||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|audio_lang||*",
       "consumer": "MediaCentaur.Playback.LanguageContext",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7567,12 +7567,12 @@
       "excerpt": ") :: %{audio_lang: String.t() | nil, sub_lang: String.t() | nil, sub_forced: boolean()}",
       "field": "audio_lang",
       "file": "lib/media_centaur/playback/language_context.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|audio_lang||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|audio_lang||foreign_write:MediaCentaur.Playback",
       "line": 191,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -7580,7 +7580,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|owner_id||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|owner_id||*",
       "consumer": "MediaCentaur.Playback.LanguageContext",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7589,12 +7589,12 @@
       "excerpt": "owner_id: String.t() | nil,",
       "field": "owner_id",
       "file": "lib/media_centaur/playback/language_context.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|owner_id||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|owner_id||foreign_write:MediaCentaur.Playback",
       "line": 23,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -7602,7 +7602,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|owner_type||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|owner_type||*",
       "consumer": "MediaCentaur.Playback.LanguageContext",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7611,12 +7611,12 @@
       "excerpt": "owner_type: :tv_series | :movie | nil,",
       "field": "owner_type",
       "file": "lib/media_centaur/playback/language_context.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|owner_type||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|owner_type||foreign_write:MediaCentaur.Playback",
       "line": 22,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -7624,7 +7624,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitle_forced||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|subtitle_forced||*",
       "consumer": "MediaCentaur.Playback.OverrideCapture",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7633,12 +7633,12 @@
       "excerpt": "subtitle_forced: boolean(),",
       "field": "subtitle_forced",
       "file": "lib/media_centaur/playback/override_capture.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitle_forced||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|subtitle_forced||foreign_write:MediaCentaur.Playback",
       "line": 39,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -7646,7 +7646,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitle_lang||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|subtitle_lang||*",
       "consumer": "MediaCentaur.Playback.OverrideCapture",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7655,12 +7655,12 @@
       "excerpt": "subtitle_lang: String.t() | nil,",
       "field": "subtitle_lang",
       "file": "lib/media_centaur/playback/override_capture.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitle_lang||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|subtitle_lang||foreign_write:MediaCentaur.Playback",
       "line": 38,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -7668,7 +7668,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitles_off||*",
+      "concept_key": "R1|MediaCentaur.Library.PlaybackOverride|subtitles_off||*",
       "consumer": "MediaCentaur.Playback.OverrideCapture",
       "consumer_context": "MediaCentaur.Playback",
       "detail": {
@@ -7677,12 +7677,12 @@
       "excerpt": "subtitles_off: boolean()",
       "field": "subtitles_off",
       "file": "lib/media_centaur/playback/override_capture.ex",
-      "key": "R1|MediaCentaur.Library.MediaTrackOverride|subtitles_off||foreign_write:MediaCentaur.Playback",
+      "key": "R1|MediaCentaur.Library.PlaybackOverride|subtitles_off||foreign_write:MediaCentaur.Playback",
       "line": 40,
       "owner": "MediaCentaur.Library",
       "reason": null,
       "rule": "R1",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": null,
@@ -16213,7 +16213,7 @@
     },
     {
       "anchored": true,
-      "concept_key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||*",
+      "concept_key": "R4|MediaCentaur.Library.PlaybackOverride|profile_id||*",
       "consumer": null,
       "consumer_context": null,
       "detail": {
@@ -16221,17 +16221,17 @@
       },
       "excerpt": "field :profile_id, Ecto.UUID",
       "field": "profile_id",
-      "file": "lib/media_centaur/library/media_track_override.ex",
-      "key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||unresolved",
+      "file": "lib/media_centaur/library/playback_override.ex",
+      "key": "R4|MediaCentaur.Library.PlaybackOverride|profile_id||unresolved",
       "line": 55,
       "owner": "MediaCentaur.Library",
       "reason": "the profile id is the parameter of every read and write of watching state (ADR-078); the id is opaque to the receiving context and the FK cascade is the database's. Declared as a plain field, not belongs_to, so Library takes no Boundary dependency on Profiles.",
       "rule": "R4",
-      "schema": "MediaCentaur.Library.MediaTrackOverride",
+      "schema": "MediaCentaur.Library.PlaybackOverride",
       "surfaces": [],
       "value": null,
       "verdict": "allowed",
-      "verdict_key": "R4|MediaCentaur.Library.MediaTrackOverride|profile_id||unresolved"
+      "verdict_key": "R4|MediaCentaur.Library.PlaybackOverride|profile_id||unresolved"
     },
     {
       "anchored": true,

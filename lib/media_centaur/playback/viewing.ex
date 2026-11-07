@@ -99,7 +99,7 @@ defmodule MediaCentaur.Playback.Viewing do
       subtitle_tracks: properties.subtitle_tracks,
       aid: properties.aid,
       sid: properties.sid,
-      fill_width: properties.fill_width,
+      fill_width: properties.fill_width == true,
       successor_queued?: not is_nil(session.pending_next),
       subtitle_text: properties.subtitle_text
     }

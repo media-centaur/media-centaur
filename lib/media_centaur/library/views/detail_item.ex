@@ -469,7 +469,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       watch_progress: [],
       inserted_at: nil,
       updated_at: nil,
-      track_override: nil
+      playback_override: nil
     )
   end
 
@@ -512,7 +512,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       watch_progress: [],
       inserted_at: nil,
       updated_at: nil,
-      track_override: nil
+      playback_override: nil
     )
   end
 
@@ -555,7 +555,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       watch_progress: [],
       inserted_at: nil,
       updated_at: nil,
-      track_override: nil
+      playback_override: nil
     )
   end
 
@@ -598,7 +598,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       watch_progress: [],
       inserted_at: nil,
       updated_at: nil,
-      track_override: nil
+      playback_override: nil
     )
   end
 

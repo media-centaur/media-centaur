@@ -92,7 +92,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   defp compose_from_detail(profile_id, detail_item, entity_id) do
     entity =
-      Library.MediaTrackOverrides.put_on_entity(profile_id, DetailItem.to_entity_view(detail_item))
+      Library.PlaybackOverrides.put_on_entity(profile_id, DetailItem.to_entity_view(detail_item))
 
     progress_records = Library.ProgressRecords.list_for_container(profile_id, :tv_series, entity_id)
     progress_summary = ProgressSummary.compute(entity, progress_records)

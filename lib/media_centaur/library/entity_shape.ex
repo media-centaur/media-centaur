@@ -64,7 +64,7 @@ defmodule MediaCentaur.Library.EntityShape do
       extra_progress: [],
       inserted_at: record.inserted_at,
       updated_at: record.updated_at,
-      track_override: nil
+      playback_override: nil
     )
   end
 

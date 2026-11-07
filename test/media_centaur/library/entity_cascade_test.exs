@@ -19,7 +19,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       })
 
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "jpn"})
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "jpn"})
 
       assert Repo.aggregate(PlayableItem, :count) > 0
 
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
             Library.ExternalId,
             Library.WatchedFile,
             Library.FilePresence,
-            Library.MediaTrackOverride,
+            Library.PlaybackOverride,
             PlayableItem
           ] do
         assert Repo.aggregate(schema, :count) == 0, "#{inspect(schema)} not emptied"
@@ -104,17 +104,17 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       assert Library.ProgressRecords.fetch_for_extra(ana, extra.id) == {:error, :not_found}
     end
 
-    test "cascade deletes the entity's media track override" do
+    test "cascade deletes the entity's playback override" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :tv_series, tv_series.id, %{
+        Library.PlaybackOverrides.upsert(owner_profile_id(), :tv_series, tv_series.id, %{
           audio_lang: "jpn"
         })
 
       EntityCascade.destroy!(tv_series.id)
 
-      assert Library.MediaTrackOverrides.get(owner_profile_id(), :tv_series, tv_series.id) == nil
+      assert Library.PlaybackOverrides.get(owner_profile_id(), :tv_series, tv_series.id) == nil
     end
 
     test "cascade deletes a movie with images and external IDs" do

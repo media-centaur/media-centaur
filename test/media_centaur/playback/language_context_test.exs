@@ -1,10 +1,8 @@
 defmodule MediaCentaur.Playback.LanguageContextTest do
   use MediaCentaur.DataCase, async: false
 
-  import MediaCentaur.TestFactory
-
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.{Entry, LanguageContext, MpvProperties}
+  alias MediaCentaur.Playback.{LanguageContext, MpvProperties, Remembered}
   alias MediaCentaur.Playback.LanguagePolicy
 
   describe "to_mpv_options/1" do
@@ -141,93 +139,42 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
     end
   end
 
-  describe "init/2" do
-    test "movie session — owner_type = :movie, original_language from movie" do
-      movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
+  describe "init/1" do
+    defp remembered(attrs \\ %{}), do: struct(Remembered, attrs)
 
+    test "the policy, with the title's original language" do
       context =
-        LanguageContext.init(owner_profile_id(), %Entry{
-          entity_id: movie.id,
-          movie_id: movie.id,
-          content_url: "/a.mkv"
-        })
+        LanguageContext.init(remembered(%{owner_type: :movie, owner_id: "m", original_language: "jpn"}))
 
-      assert context.owner_type == :movie
-      assert context.owner_id == movie.id
       assert context.original_language == "jpn"
       assert %LanguagePolicy{} = context.policy
       assert context.override == nil
       assert context.priority_args.alang == ["jpn", "eng"]
     end
 
-    test "episode session — owner_type = :tv_series, owner_id = series root" do
-      tv_series = create_tv_series(%{original_language: "kor"})
+    test "a remembered audio language leads the priority list" do
+      override = %Library.PlaybackOverride{audio_lang: "eng"}
 
       context =
-        LanguageContext.init(owner_profile_id(), %Entry{
-          entity_id: tv_series.id,
-          episode_id: "fake-episode-uuid",
-          content_url: "/a.mkv"
-        })
-
-      assert context.owner_type == :tv_series
-      assert context.owner_id == tv_series.id
-      assert context.original_language == "kor"
-    end
-
-    test "normalizes original_language from TMDB's 2-letter form" do
-      # TMDB stores ISO 639-1 ("ja"); the context canonicalizes to 3-letter
-      # so it matches mpv-reported track languages downstream.
-      movie = create_movie(%{name: "Sample Movie", original_language: "ja"})
-
-      context =
-        LanguageContext.init(owner_profile_id(), %Entry{
-          entity_id: movie.id,
-          movie_id: movie.id,
-          content_url: "/a.mkv"
-        })
-
-      assert context.original_language == "jpn"
-    end
-
-    test "loads existing override into context" do
-      movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
-
-      {:ok, _} =
-        Library.MediaTrackOverrides.upsert(owner_profile_id(), :movie, movie.id, %{audio_lang: "eng"})
-
-      context =
-        LanguageContext.init(owner_profile_id(), %Entry{
-          entity_id: movie.id,
-          movie_id: movie.id,
-          content_url: "/a.mkv"
-        })
+        LanguageContext.init(
+          remembered(%{owner_type: :movie, owner_id: "m", original_language: "jpn", override: override})
+        )
 
       assert context.override.audio_lang == "eng"
-      # Override prepends to priority list.
       assert hd(context.priority_args.alang) == "eng"
-
-      # Another profile's session does not see this profile's memory.
-      ana = create_profile(%{name: "Ana"}).id
-
-      context =
-        LanguageContext.init(ana, %Entry{entity_id: movie.id, movie_id: movie.id, content_url: "/a.mkv"})
-
-      assert context.override == nil
-      assert hd(context.priority_args.alang) == "jpn"
     end
 
-    test "unsupported entity type (extra) — owner_type = nil, policy still applies" do
-      context =
-        LanguageContext.init(owner_profile_id(), %Entry{
-          entity_id: "any",
-          extra_id: "some-extra",
-          content_url: "/a.mkv"
-        })
+    test "nothing remembered (an extra) — the policy alone applies" do
+      context = LanguageContext.init(remembered())
 
-      assert context.owner_type == nil
-      assert context.owner_id == nil
       assert %LanguagePolicy{} = context.policy
+      assert context.override == nil
+    end
+  end
+
+  describe "capture/2" do
+    test "nothing before the resolver has chosen" do
+      assert LanguageContext.capture(LanguageContext.init(struct(Remembered)), %MpvProperties{}) == %{}
     end
   end
 end

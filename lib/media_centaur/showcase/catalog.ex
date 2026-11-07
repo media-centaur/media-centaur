@@ -31,7 +31,7 @@ defmodule MediaCentaur.Showcase.Catalog do
           optional(:tmdb_id) => integer(),
           # Optional per-entity audio/subtitle override, seeded so the
           # detail modal's "remembered tracks" badge has something to show.
-          optional(:track_override) => %{optional(atom()) => term()}
+          optional(:playback_override) => %{optional(atom()) => term()}
         }
 
   @type tv_entry :: %{
@@ -147,7 +147,7 @@ defmodule MediaCentaur.Showcase.Catalog do
         # A Spanish-language film watched with English subtitles — a real
         # per-entity override that lights up the detail "remembered tracks"
         # badge (Spanish audio · English subtitles).
-        track_override: %{audio_lang: "spa", subtitle_lang: "eng"}
+        playback_override: %{audio_lang: "spa", subtitle_lang: "eng"}
       }
     ]
   end

@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       assert rendered =~ "Zones"
       assert rendered =~ "Playback"
       assert rendered =~ "During playback on a TV"
-      assert rendered =~ "Audio &amp; subtitles"
+      assert rendered =~ "Audio, subtitles &amp; picture"
       assert rendered =~ "Move up"
       assert rendered =~ "Play"
     end

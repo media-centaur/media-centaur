@@ -841,7 +841,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # The open detail holds one profile's progress and track memory; a
   # broadcast about another profile's is not merged into it.
   defp react({tag, %{profile_id: other}}, %{assigns: %{profile: %{id: mine}}} = socket)
-       when tag in [:entity_progress_updated, :extra_progress_updated, :track_override_changed] and
+       when tag in [:entity_progress_updated, :extra_progress_updated, :playback_override_changed] and
               other != mine, do: socket
 
   defp react({:entity_progress_updated, %{entity_id: id} = payload}, socket),
@@ -850,9 +850,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp react({:extra_progress_updated, %{entity_id: id} = payload}, socket),
     do: merge_into_half(socket, id, &LibraryHalf.merge_extra_progress(&1, payload))
 
-  defp react({:track_override_changed, %{owner_type: type, owner_id: id}}, socket) do
-    override = Library.MediaTrackOverrides.get(socket.assigns.profile.id, type, id)
-    merge_into_half(socket, id, &LibraryHalf.put_track_override(&1, override))
+  defp react({:playback_override_changed, %{owner_type: type, owner_id: id}}, socket) do
+    override = Library.PlaybackOverrides.get(socket.assigns.profile.id, type, id)
+    merge_into_half(socket, id, &LibraryHalf.put_playback_override(&1, override))
   end
 
   # An import can make an open unowned title owned; a change to the owner
