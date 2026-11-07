@@ -71,4 +71,46 @@ defmodule MediaCentaurWeb.SettingsLivePlayersTest do
     {:ok, view, _html} = live_async!(conn, @section)
     assert render(view) =~ "127.0.0.1"
   end
+
+  test "renaming a player in its card saves on Enter or blur and retitles the card", %{conn: conn} do
+    player = create_player(name: "Living room TV")
+    {:ok, view, _html} = live_async!(conn, @section)
+
+    view
+    |> element("#player-name-#{player.id}")
+    |> render_keydown(%{"key" => "Enter", "value" => "Den TV"})
+
+    assert Players.get(player.id).name == "Den TV"
+    render_until(view, fn _html -> has_element?(view, "#{card(player.id)} h3", "Den TV") end)
+
+    view |> element("#player-name-#{player.id}") |> render_blur(%{"value" => "  "})
+    assert Players.get(player.id).name == "Den TV"
+    assert render(view) =~ "a name"
+  end
+
+  test "the card tells the device and follows its connection as the channel opens and closes", %{
+    conn: conn
+  } do
+    player = create_player(name: "Living room TV")
+
+    :ok =
+      Players.record_connect(player.id, %{
+        address: "192.168.1.40",
+        device: %{"model" => "Sample TV 4K", "os" => "Android 12", "app_version" => "0.3.0"}
+      })
+
+    {:ok, view, _html} = live_async!(conn, @section)
+    facts = "#player-facts-#{player.id}"
+    assert has_element?(view, facts, "Sample TV 4K · Android 12 · App 0.3.0")
+    assert has_element?(view, facts, "Last seen")
+
+    MediaCentaur.Playback.Events.broadcast_connection(
+      %MediaCentaur.Playback.Events.PlayerConnectionChanged{
+        player: player.id,
+        connected: true
+      }
+    )
+
+    render_until(view, fn _html -> has_element?(view, facts, "Connected from 192.168.1.40") end)
+  end
 end

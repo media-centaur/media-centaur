@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Activities
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
+  alias MediaCentaur.{ErrorReports, Playback, Players, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
@@ -62,6 +62,8 @@ defmodule MediaCentaurWeb.StatusLive do
         [
           Watcher.Supervisor,
           Playback,
+          {Playback, :subscribe_connections},
+          Players,
           ErrorReports,
           SelfUpdate,
           {SelfUpdate, :subscribe_progress},
@@ -189,7 +191,9 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(config: load_config())
     |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
     |> assign(retry_status: fetch_retry_status())
-    |> assign(playback: build_playback_state())
+    |> assign(playback_sessions: build_playback_sessions())
+    |> assign(players: Players.list())
+    |> assign(connected_players: MapSet.new(Playback.connected_players()))
     |> assign(playback_activity: PlaybackActivity.snapshot())
     |> assign(system_vitals: Vitals.snapshot())
     |> assign(acquisition_activity: build_acquisition_activity())
@@ -387,7 +391,15 @@ defmodule MediaCentaurWeb.StatusLive do
       traffic_recent: Traffic.recent(),
       disclosures: assigns.disclosures,
       # playback
-      playback: assigns.playback,
+      player_rows:
+        player_rows(%{
+          players: assigns.players,
+          connected: assigns.connected_players,
+          sessions: assigns.playback_sessions,
+          profile_names: Map.new(assigns.profiles, &{&1.id, &1.name}),
+          paired_players?: :players in assigns.features,
+          now: DateTime.utc_now()
+        }),
       playback_activity: assigns.playback_activity,
       # system runtime vitals
       system_vitals: assigns.system_vitals,
@@ -568,8 +580,18 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # The board over every player: a session is one player's viewing of one title.
   def handle_info({:playback_state_changed, event}, socket) do
-    sessions = apply_session_change(socket.assigns.playback.sessions, event)
-    {:noreply, assign(socket, playback: derive_playback(sessions))}
+    {:noreply, update(socket, :playback_sessions, &apply_session_change(&1, event))}
+  end
+
+  # The players on the board: their rows, and whether each can be reached.
+  def handle_info({tag, _event}, socket)
+      when tag in [:player_paired, :player_changed, :player_removed] do
+    {:noreply, assign(socket, players: Players.list())}
+  end
+
+  def handle_info({:player_connection_changed, %{player: id, connected: connected?}}, socket) do
+    update = if connected?, do: &MapSet.put(&1, id), else: &MapSet.delete(&1, id)
+    {:noreply, update(socket, :connected_players, update)}
   end
 
   def handle_info(
@@ -579,7 +601,7 @@ defmodule MediaCentaurWeb.StatusLive do
     # Every player's session on that title moves its bar: progress is per
     # profile and title, not per player.
     sessions =
-      Map.new(socket.assigns.playback.sessions, fn
+      Map.new(socket.assigns.playback_sessions, fn
         {{_player, ^entity_id} = key, %{now_playing: %{} = now_playing} = session} ->
           if is_map(changed_record) and progress_matches_session?(changed_record, now_playing) do
             updated =
@@ -597,7 +619,7 @@ defmodule MediaCentaurWeb.StatusLive do
           entry
       end)
 
-    {:noreply, assign(socket, playback: derive_playback(sessions))}
+    {:noreply, assign(socket, playback_sessions: sessions)}
   end
 
   # --- Self-update subsystem (Updates widget) ---
@@ -833,22 +855,17 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # --- Playback State ---
 
-  defp build_playback_state do
-    sessions =
-      Map.new(MediaCentaur.Playback.Sessions.list(), fn session ->
-        {{session.player, session.entity_id},
-         %{
-           state: session.state,
-           now_playing: session.now_playing,
-           started_at: session.started_at
-         }}
-      end)
-
-    derive_playback(sessions)
+  defp build_playback_sessions do
+    Map.new(MediaCentaur.Playback.Sessions.list(), fn session ->
+      {{session.player, session.entity_id},
+       %{
+         state: session.state,
+         profile_id: session.profile_id,
+         now_playing: session.now_playing,
+         started_at: session.started_at
+       }}
+    end)
   end
-
-  # Derives the status page's single-card playback view from the sessions map.
-  # Shows the most recently active session (playing > paused).
 
   defp fetch_retry_status do
     %{retrying_count: MediaCentaur.Pipeline.ImageQueue.retrying_count()}

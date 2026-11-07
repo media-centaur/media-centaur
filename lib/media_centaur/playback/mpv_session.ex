@@ -223,6 +223,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   def handle_call(:get_state, _from, state) do
     reply = %{
       state: state.state,
+      profile_id: state.profile_id,
       now_playing: Viewing.from_session(state),
       started_at: state.started_at
     }

@@ -181,7 +181,7 @@ defmodule MediaCentaur.PlayersTest do
       assert changed.device == connected.device
     end
 
-    test "a removed player's connection records nothing and broadcasts nothing" do
+    test "a player that is not paired records nothing and broadcasts nothing" do
       player = create_player()
       :ok = Players.remove(player)
       Players.subscribe()

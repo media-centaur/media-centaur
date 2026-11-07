@@ -315,6 +315,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
   describe "the board over every player" do
     test "two players on one title are two sessions; stopping one keeps the other", %{conn: conn} do
+      MediaCentaur.Features.set(:players, true)
+      tv = create_player(name: "Living room TV")
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
       movie_id = Ecto.UUID.generate()
 
@@ -334,8 +336,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         }
       end
 
+      send(
+        view.pid,
+        {:player_connection_changed,
+         %MediaCentaur.Playback.Events.PlayerConnectionChanged{player: tv.id, connected: true}}
+      )
+
       send(view.pid, {:playback_state_changed, changed.(:host, :playing)})
-      send(view.pid, {:playback_state_changed, changed.("living-room-tv", :playing)})
+      send(view.pid, {:playback_state_changed, changed.(tv.id, :playing)})
       assert render(view) =~ "2 active"
 
       send(view.pid, {:playback_state_changed, changed.(:host, :stopped)})

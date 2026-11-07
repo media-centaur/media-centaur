@@ -4,6 +4,8 @@ defmodule MediaCentaurWeb.StatusHelpers do
   and display mapping for the operational status page.
   """
 
+  alias MediaCentaurWeb.PlayerWords
+
   # --- Playback ---
 
   @doc """
@@ -19,20 +21,122 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def apply_session_change(sessions, %{player: player, entity_id: entity_id} = event) do
     key = {player, entity_id}
     started_at = (sessions[key] && sessions[key].started_at) || event.started_at
-    Map.put(sessions, key, %{state: event.state, now_playing: event.now_playing, started_at: started_at})
+
+    Map.put(sessions, key, %{
+      state: event.state,
+      profile_id: event.profile_id,
+      now_playing: event.now_playing,
+      started_at: started_at
+    })
   end
 
-  def derive_playback(sessions) when sessions == %{} do
-    %{state: :idle, now_playing: nil, sessions: sessions}
+  @typedoc "One player on Status → Playback: who it is, whether it is reachable, what it plays."
+  @type player_row :: %{
+          id: String.t(),
+          name: String.t(),
+          icon: String.t(),
+          device_line: String.t() | nil,
+          connection: :host | :connected | :offline,
+          seen_line: String.t() | nil,
+          viewings: [map()]
+        }
+
+  @doc """
+  One row per player, this computer first, then each paired player while
+  the players feature is on (`paired_players?`). A row's viewings are its
+  sessions, oldest first, each with the profile it plays for (nil for one
+  since removed) and `waiting?`: a paired player's viewing whose channel
+  is gone — the session waits for the player to come back.
+  """
+  @spec player_rows(%{
+          players: [MediaCentaur.Players.Player.t()],
+          connected: MapSet.t(),
+          sessions: map(),
+          profile_names: %{String.t() => String.t()},
+          paired_players?: boolean(),
+          now: DateTime.t()
+        }) :: [player_row()]
+  def player_rows(%{sessions: sessions, profile_names: profile_names} = input) do
+    host = %{
+      id: "host",
+      name: PlayerWords.host_name(),
+      icon: PlayerWords.icon(:host),
+      device_line: nil,
+      connection: :host,
+      seen_line: nil,
+      viewings: viewings(sessions, :host, true, profile_names)
+    }
+
+    paired =
+      if input.paired_players? do
+        for player <- input.players do
+          connected? = MapSet.member?(input.connected, player.id)
+
+          %{
+            id: player.id,
+            name: player.name,
+            icon: PlayerWords.icon(player),
+            device_line: PlayerWords.device_line(player),
+            connection: if(connected?, do: :connected, else: :offline),
+            seen_line: last_seen_line(player, connected?, input.now),
+            viewings: viewings(sessions, player.id, connected?, profile_names)
+          }
+        end
+      else
+        []
+      end
+
+    [host | paired]
   end
 
-  def derive_playback(sessions) do
-    {_key, primary} =
-      sessions
-      |> Enum.sort_by(fn {_key, session} -> if session.state == :playing, do: 0, else: 1 end)
-      |> hd()
+  # Beside the row's connection word, only what it does not already say:
+  # when and where a player not connected now was last seen.
+  defp last_seen_line(%{last_seen_at: %DateTime{}} = player, false, now),
+    do: PlayerWords.seen_line(player, false, now)
 
-    %{state: primary.state, now_playing: primary.now_playing, sessions: sessions}
+  defp last_seen_line(_player, _connected?, _now), do: nil
+
+  defp viewings(sessions, player, reachable?, profile_names) do
+    Enum.sort_by(
+      for {{^player, entity_id}, session} <- sessions do
+        %{
+          key: "#{player}-#{entity_id}",
+          state: session.state,
+          now_playing: session.now_playing,
+          started_at: session.started_at,
+          profile_name: Map.get(profile_names, session.profile_id),
+          waiting?: not reachable?
+        }
+      end,
+      & &1.started_at
+    )
+  end
+
+  @doc """
+  The one health signal over every player's viewings: a viewing waiting
+  for its player first, then one still starting, then the count of what
+  plays; idle when nothing does.
+  """
+  @spec playback_health([%{name: String.t(), viewings: [map()]}]) :: %{
+          label: String.t(),
+          tone: :success | :warning | :idle
+        }
+  def playback_health(rows) do
+    viewings = Enum.flat_map(rows, & &1.viewings)
+
+    cond do
+      row = Enum.find(rows, fn row -> Enum.any?(row.viewings, & &1.waiting?) end) ->
+        %{label: "Waiting for #{row.name}", tone: :warning}
+
+      Enum.any?(viewings, &(&1.state == :starting)) ->
+        %{label: "Connecting…", tone: :warning}
+
+      viewings != [] ->
+        %{label: "#{length(viewings)} active", tone: :success}
+
+      true ->
+        %{label: "Idle", tone: :idle}
+    end
   end
 
   @doc """

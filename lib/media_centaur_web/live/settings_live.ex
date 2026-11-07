@@ -75,6 +75,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaurWeb.SettingsLive.ProfilesSection
+  alias MediaCentaurWeb.PlayerWords
   alias MediaCentaurWeb.SettingsLive.PlayersSection
   alias MediaCentaur.Players
   alias MediaCentaur.Platform.LanAddresses
@@ -200,7 +201,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     # The Players section's assigns, read by `load_players/2` when it opens;
     # the shell passes them to `section_content/1` on every section.
-    socket = assign(socket, players: [], pairing: nil, reach: :loopback)
+    socket = assign(socket, players: [], connected: MapSet.new(), pairing: nil, reach: :loopback)
 
     # `Settings.subscribe()` is auto-wired by SpoilerFreeAware. The single
     # subscription delivers every `:setting_changed` message — the trait
@@ -217,7 +218,8 @@ defmodule MediaCentaurWeb.SettingsLive do
           Social,
           {Social, :subscribe_connections},
           IntegrationHealth,
-          Players
+          Players,
+          {MediaCentaur.Playback, :subscribe_connections}
         ],
         socket,
         &Subscriptions.subscribe(&2, &1)
@@ -406,6 +408,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp load_players(socket, "players") do
     assign(socket,
       players: Players.list(),
+      connected: MapSet.new(MediaCentaur.Playback.connected_players()),
       pairing: Players.pairing(),
       reach: PlayersSection.reach(MediaCentaurWeb.Endpoint.config(:http), LanAddresses.ipv4())
     )
@@ -1186,6 +1189,16 @@ defmodule MediaCentaurWeb.SettingsLive do
   # --- Players: pairing and removal ------------------------------------------
   # The list and the open code are re-read on the context's events below.
 
+  def handle_event("rename_player", %{"id" => id, "value" => name}, socket) do
+    with %Players.Player{} = player <- Players.get(id),
+         {:ok, _renamed} <- Players.rename(player, name) do
+      {:noreply, socket}
+    else
+      nil -> {:noreply, socket}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, PlayerWords.error(reason))}
+    end
+  end
+
   def handle_event("start_pairing", _params, socket) do
     _code = Players.start_pairing()
     {:noreply, socket}
@@ -1910,8 +1923,14 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, socket |> assign(players: Players.list()) |> put_flash(:info, "#{player.name} paired")}
   end
 
-  def handle_info({:player_removed, _event}, socket) do
+  def handle_info({tag, _event}, socket) when tag in [:player_removed, :player_changed] do
     {:noreply, assign(socket, players: Players.list())}
+  end
+
+  # A paired player's channel opened or closed (`Playback.subscribe_connections/0`).
+  def handle_info({:player_connection_changed, %{player: id, connected: connected?}}, socket) do
+    update = if connected?, do: &MapSet.put(&1, id), else: &MapSet.delete(&1, id)
+    {:noreply, update(socket, :connected, update)}
   end
 
   def handle_info({:pairing_changed, %Players.Events.PairingChanged{code: code}}, socket) do
@@ -2188,6 +2207,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 import_draft={@import_draft}
                 relays={@relays}
                 players={@players}
+                connected={@connected}
                 pairing={@pairing}
                 reach={@reach}
                 relay_status={@relay_status}
@@ -2403,6 +2423,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     ~H"""
     <PlayersSection.render
       players={@players}
+      connected={@connected}
       pairing={@pairing}
       reach={@reach}
       armed_gesture={@armed_gesture}

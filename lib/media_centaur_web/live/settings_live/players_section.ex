@@ -1,12 +1,14 @@
 defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
   @moduledoc """
-  The Players section of the Settings page (`campaigns/remote-players.md`,
-  M1): one card per paired player — its name, when it paired, Remove as
-  an arm gesture in the card's action slot — and the Pair card, which
+  The Players section of the Settings page: one card per paired player —
+  its name, edited in place; what device it is, whether it is connected
+  or when and from where it was last seen (`MediaCentaurWeb.PlayerWords`);
+  when it paired; Remove as an arm gesture in the card's action slot —
+  and the Pair card, which
   starts pairing and then shows the open code beside the addresses a
   device can reach this install at, or says why none can. `SettingsLive`
-  delegates to `render/1` and hosts the handlers: `start_pairing`,
-  `cancel_pairing`, `remove_player`.
+  delegates to `render/1` and hosts the handlers: `rename_player`,
+  `start_pairing`, `cancel_pairing`, `remove_player`.
 
   `reach/2` is the pure judgement of how a device reaches the install,
   from the endpoint's bound address and port and the host's LAN
@@ -17,10 +19,12 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
 
   import MediaCentaurWeb.Components.Settings
 
+  alias MediaCentaur.DisplayName
   alias MediaCentaur.Format
   alias MediaCentaur.Players.Pairing.Code
   alias MediaCentaur.Settings.Config.BindAddress
   alias MediaCentaurWeb.Live.ArmGesture
+  alias MediaCentaurWeb.PlayerWords
 
   @typedoc "How a device reaches the install: not at all while bound to loopback, or at these URLs."
   @type reach :: :loopback | {:addresses, [String.t()]}
@@ -50,6 +54,7 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
   defp reach_url(ip, port), do: "http://#{:inet.ntoa(ip)}:#{port}"
 
   attr :players, :list, required: true, doc: "every `Players.Player`, oldest first"
+  attr :connected, :any, required: true, doc: "the ids of the players connected now, a `MapSet`"
   attr :pairing, :any, required: true, doc: "the open `Players.Pairing.Code`, or nil"
   attr :reach, :any, required: true, doc: "`reach/2`'s answer"
   attr :armed_gesture, :any, required: true, doc: "the page's `ArmGesture` slot"
@@ -69,7 +74,43 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
             Remove player
           </.armed_button>
         </:action>
-        <p class="text-base-content/70">Paired {Format.relative_ago(player.inserted_at)}.</p>
+        <div class="flex flex-wrap items-start gap-x-10 gap-y-4">
+          <.settings_field label="Name" layout={:stacked} class="min-w-0 basis-64">
+            <%!-- In no form, so Enter pushes at once and submits nothing. --%>
+            <.settings_input
+              id={"player-name-#{player.id}"}
+              name="name"
+              value={player.name}
+              maxlength={DisplayName.max_length()}
+              autocomplete="off"
+              phx-blur="rename_player"
+              phx-keydown="rename_player"
+              phx-key="Enter"
+              phx-value-id={player.id}
+              class="max-w-64"
+            />
+          </.settings_field>
+          <div
+            id={"player-facts-#{player.id}"}
+            class="min-w-0 basis-64 grow space-y-1 text-base-content/70"
+          >
+            <div
+              :if={line = PlayerWords.device_line(player)}
+              class="flex items-center gap-2 text-base-content/80"
+            >
+              <.icon name={PlayerWords.icon(player)} class="size-4 shrink-0 text-base-content/55" />
+              <span class="truncate">{line}</span>
+            </div>
+            <div>
+              {PlayerWords.seen_line(
+                player,
+                MapSet.member?(@connected, player.id),
+                DateTime.utc_now()
+              )}
+            </div>
+            <div>Paired {Format.relative_ago(player.inserted_at)}</div>
+          </div>
+        </div>
       </.settings_card>
 
       <.settings_card

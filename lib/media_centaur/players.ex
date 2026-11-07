@@ -9,7 +9,8 @@ defmodule MediaCentaur.Players do
       Events.PlayerRemoved,
       Pairing,
       Pairing.Code,
-      Player
+      Player,
+      Player.Device
     ]
 
   @moduledoc """
@@ -20,6 +21,14 @@ defmodule MediaCentaur.Players do
   open `Pairing.Code`; the device offers the digits with its name on the
   pairing page, and `pair/2` turns a match into a row. The host itself is
   not a row — it is admitted by address.
+
+  A player's row also holds what the host learns of the device: its name
+  is the owner's to change (`rename/2`); the device's declaration and
+  when and from where its channel last opened or closed are recorded by
+  the channel (`record_connect/2`, `record_disconnect/1`), the browser's
+  user agent by the LiveView socket (`record_user_agent/2`). Each change
+  broadcasts `PlayerChanged`. Whether a player is connected now is
+  Playback's (`Playback.connected_players/0`).
 
   Knows nothing about which player a request is from; that is the web
   layer's (`MediaCentaurWeb.RemoteAccess`, `Live.PlayerAware`), the same

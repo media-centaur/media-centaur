@@ -72,6 +72,11 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
       }
     end
 
+    test "a session carries the profile it plays for" do
+      sessions = StatusHelpers.apply_session_change(%{}, changed(:host, "movie-1", :playing))
+      assert sessions[{:host, "movie-1"}].profile_id == "profile-1"
+    end
+
     test "two players on one title are two sessions; stopping one keeps the other" do
       sessions =
         %{}
@@ -98,35 +103,95 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
   end
 
-  # --- derive_playback/1 ---
+  # --- player_rows/2 ---
 
-  describe "derive_playback/1" do
-    test "returns idle for empty sessions" do
-      assert StatusHelpers.derive_playback(%{}) == %{
-               state: :idle,
-               now_playing: nil,
-               sessions: %{}
-             }
+  describe "player_rows/2 — one row per player, this computer first" do
+    alias MediaCentaur.Players.Player
+
+    @now ~U[2026-11-07 12:00:00.000000Z]
+
+    defp tv,
+      do: %Player{id: "tv-1", name: "Living room TV", last_address: "192.168.1.40", last_seen_at: @now}
+
+    defp session(state, profile_id \\ "profile-1"),
+      do: %{state: state, profile_id: profile_id, now_playing: %{entity_id: "movie-1"}, started_at: 1}
+
+    defp rows(overrides) do
+      StatusHelpers.player_rows(
+        Map.merge(
+          %{
+            players: [tv()],
+            connected: MapSet.new(["tv-1"]),
+            sessions: %{},
+            profile_names: %{"profile-1" => "Sample Profile"},
+            paired_players?: true,
+            now: @now
+          },
+          Map.new(overrides)
+        )
+      )
     end
 
-    test "picks playing session over paused" do
-      sessions = %{
-        "a" => %{state: :paused, now_playing: %{title: "Paused"}},
-        "b" => %{state: :playing, now_playing: %{title: "Playing"}}
-      }
+    test "this computer, then each paired player, with what it is doing" do
+      [host, paired] = rows(sessions: %{{"tv-1", "movie-1"} => session(:playing)})
 
-      result = StatusHelpers.derive_playback(sessions)
-      assert result.state == :playing
-      assert result.now_playing == %{title: "Playing"}
+      assert %{id: "host", name: "This computer", connection: :host, viewings: []} = host
+
+      assert %{
+               id: "tv-1",
+               name: "Living room TV",
+               connection: :connected,
+               seen_line: nil
+             } =
+               paired
+
+      assert [%{state: :playing, profile_name: "Sample Profile", waiting?: false}] = paired.viewings
     end
 
-    test "returns single session when only one exists" do
-      sessions = %{
-        "a" => %{state: :paused, now_playing: %{title: "Solo"}}
-      }
+    test "a viewing on a player whose channel is gone is waiting for the player" do
+      [_host, paired] =
+        rows(connected: MapSet.new(), sessions: %{{"tv-1", "movie-1"} => session(:playing)})
 
-      result = StatusHelpers.derive_playback(sessions)
-      assert result.state == :paused
+      assert paired.connection == :offline
+      assert paired.seen_line == "Last seen just now from 192.168.1.40"
+      assert [%{waiting?: true}] = paired.viewings
+    end
+
+    test "with the players feature off, this computer alone" do
+      assert [%{id: "host"}] = rows(paired_players?: false)
+    end
+
+    test "a viewing for a profile that does not exist names no profile" do
+      [host, _paired] = rows(sessions: %{{:host, "movie-1"} => session(:paused, "gone")})
+      assert [%{profile_name: nil}] = host.viewings
+    end
+  end
+
+  describe "playback_health/1 — the one signal over every player" do
+    defp row(name, viewings), do: %{name: name, viewings: viewings}
+    defp viewing(state, waiting? \\ false), do: %{state: state, waiting?: waiting?}
+
+    test "idle with nothing playing" do
+      assert %{label: "Idle"} = StatusHelpers.playback_health([row("This computer", [])])
+    end
+
+    test "counts what plays across players" do
+      rows = [row("This computer", [viewing(:playing)]), row("Living room TV", [viewing(:paused)])]
+      assert %{label: "2 active", tone: :success} = StatusHelpers.playback_health(rows)
+    end
+
+    test "a viewing waiting for its player outranks the rest" do
+      rows = [
+        row("This computer", [viewing(:playing)]),
+        row("Living room TV", [viewing(:playing, true)])
+      ]
+
+      assert %{label: "Waiting for Living room TV", tone: :warning} = StatusHelpers.playback_health(rows)
+    end
+
+    test "a viewing that is starting says so" do
+      assert %{label: "Connecting…", tone: :warning} =
+               StatusHelpers.playback_health([row("This computer", [viewing(:starting)])])
     end
   end
 

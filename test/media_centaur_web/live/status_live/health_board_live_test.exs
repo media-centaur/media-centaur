@@ -36,6 +36,36 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     assert has_element?(view, "#health-drill-in [data-testid=playback-widget]")
   end
 
+  test "the playback drill-in has a row per player that follows its connection", %{conn: conn} do
+    MediaCentaur.Features.set(:players, true)
+    player = MediaCentaur.TestFactory.create_player(name: "Living room TV")
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=playback")
+
+    assert has_element?(view, "#playback-player-host", "This computer")
+    assert has_element?(view, "#playback-player-#{player.id}", "Not connected")
+
+    MediaCentaur.Playback.Events.broadcast_connection(
+      %MediaCentaur.Playback.Events.PlayerConnectionChanged{
+        player: player.id,
+        connected: true
+      }
+    )
+
+    render_until(view, fn _html -> has_element?(view, "#playback-player-#{player.id}", "Connected") end)
+
+    {:ok, _player} = MediaCentaur.Players.rename(player, "Den TV")
+    render_until(view, fn _html -> has_element?(view, "#playback-player-#{player.id}", "Den TV") end)
+  end
+
+  test "with the players feature off, the playback drill-in shows this computer alone", %{conn: conn} do
+    MediaCentaur.Features.set(:players, false)
+    player = MediaCentaur.TestFactory.create_player(name: "Living room TV")
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=playback")
+
+    assert has_element?(view, "#playback-player-host")
+    refute has_element?(view, "#playback-player-#{player.id}")
+  end
+
   test "clicking a tile patches to that subsystem", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
     view |> element("#subsystem-tile-tmdb") |> render_click()

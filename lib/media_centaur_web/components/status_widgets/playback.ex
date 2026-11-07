@@ -1,11 +1,14 @@
 defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   @moduledoc """
-  Playback subsystem Activity widget: active sessions + now-playing + progress.
+  Playback subsystem Activity widget: one row per player — this computer,
+  then each paired player — with whether it is reachable and what it
+  plays, for whom; then what was recently watched.
 
   Rendered into the health-board drill-in's :activity slot via
   MediaCentaurWeb.StatusLive.ActivityWidgets, invoked with a plain data
   bundle (no change-tracking) from StatusLive.activity_bundle/1 — derive
-  with Map.put/3, never assign/3.
+  with Map.put/3, never assign/3. The rows come from
+  `StatusHelpers.player_rows/1`.
   """
   use MediaCentaurWeb, :html
 
@@ -15,10 +18,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   # A `w-10` thumbnail — 40 CSS px, doubled on a 4K panel. It was serving the
   # 1120px poster master.
 
-  @doc "Playback subsystem Activity widget: active sessions with now-playing + progress."
-  attr :playback, :map,
+  @doc "Playback subsystem Activity widget: every player's connection and viewings, then recent history."
+  attr :player_rows, :list,
     required: true,
-    doc: "playback view (%{state, now_playing, sessions}) derived by StatusHelpers.derive_playback/1"
+    doc: "one row per player, `StatusHelpers.player_rows/1`"
 
   attr :playback_activity, :map,
     required: true,
@@ -26,15 +29,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
       "watch-activity snapshot from WatchHistory.Views.PlaybackActivity (%{recent, last_write_at, lifetime})"
 
   def playback_widget(assigns) do
-    sessions =
-      assigns.playback.sessions
-      |> Enum.map(fn {_id, session} -> session end)
-      |> Enum.sort_by(fn session -> session[:started_at] || 0 end)
-
-    assigns = Map.put(assigns, :sessions, sessions)
-
-    health = playback_health(assigns.playback.state, length(sessions))
-    assigns = Map.put(assigns, :health, health)
+    assigns = Map.put(assigns, :health, assigns.player_rows |> playback_health() |> health_classes())
 
     ~H"""
     <div data-testid="playback-widget">
@@ -77,9 +72,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
 
       <%!-- List head: section title left, the single health signal right. --%>
       <div class="flex items-baseline justify-between">
-        <h4 class="text-[17px] font-semibold tracking-tight">
-          {if @sessions == [], do: "Recently watched", else: "Now playing"}
-        </h4>
+        <h4 class="text-[17px] font-semibold tracking-tight">Players</h4>
         <span
           class={["flex items-center gap-1.5 text-xs", @health.text_class]}
           data-component="playback-health"
@@ -89,46 +82,71 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
         </span>
       </div>
 
-      <%!-- Now playing: one block per active session --%>
-      <div :if={@sessions != []} data-component="playback-narrative" class="mt-3 space-y-3">
-        <div :for={session <- @sessions}>
-          <div class="flex items-center gap-2">
-            <span class={["text-xs", playback_text_class(session.state)]}>{session.state}</span>
-            <span class="text-base font-medium truncate">
-              {now_playing_title(session.now_playing)}
+      <ul data-component="playback-players" class="mt-2">
+        <li
+          :for={row <- @player_rows}
+          id={"playback-player-#{row.id}"}
+          class="border-t border-base-content/5 py-3 first:border-t-0"
+        >
+          <div class="flex items-center gap-3">
+            <.icon name={row.icon} class="size-5 shrink-0 text-base-content/55" />
+            <span class="min-w-0 truncate text-base font-medium">{row.name}</span>
+            <span
+              :if={row.connection != :host}
+              class="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-base-content/60"
+            >
+              <span class={["size-2 rounded-full", connection_dot(row.connection)]}></span>
+              {connection_word(row.connection)}
             </span>
           </div>
           <div
-            :if={now_playing_detail(session.now_playing)}
-            class="text-sm text-base-content/60 truncate"
+            :if={row.device_line || row.seen_line}
+            class="mt-0.5 space-y-0.5 pl-8 text-xs text-base-content/55"
           >
-            {now_playing_detail(session.now_playing)}
+            <div :if={row.device_line} class="truncate">{row.device_line}</div>
+            <div :if={row.seen_line}>{row.seen_line}</div>
           </div>
-          <div
-            :if={
-              Map.get(session.now_playing, :duration_seconds) != nil &&
-                Map.get(session.now_playing, :duration_seconds) > 0
-            }
-            class="flex items-center gap-2 mt-1"
-          >
-            <progress
-              class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
-              value={Map.get(session.now_playing, :position_seconds) || 0}
-              max={session.now_playing.duration_seconds}
-            ></progress>
-            <span class="text-xs text-base-content/55 whitespace-nowrap tabular-nums">
-              {format_remaining(
-                session.now_playing.duration_seconds -
-                  (Map.get(session.now_playing, :position_seconds) || 0)
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      <%!-- Recently watched (idle): poster thumb + two-tier title + age. --%>
+          <div :if={row.viewings != []} class="mt-2 space-y-3 pl-8">
+            <div :for={viewing <- row.viewings} id={"playback-viewing-#{viewing.key}"}>
+              <div class="flex items-center gap-2">
+                <span class={["text-xs", viewing_class(viewing)]}>{viewing_word(viewing)}</span>
+                <span class="text-base font-medium truncate">
+                  {now_playing_title(viewing.now_playing)}
+                </span>
+              </div>
+              <div
+                :if={detail = viewing_detail(viewing)}
+                class="text-sm text-base-content/60 truncate"
+              >
+                {detail}
+              </div>
+              <div
+                :if={(Map.get(viewing.now_playing, :duration_seconds) || 0) > 0}
+                class="flex items-center gap-2 mt-1"
+              >
+                <progress
+                  class={["progress h-1.5 flex-1", playback_progress_class(viewing.state)]}
+                  value={Map.get(viewing.now_playing, :position_seconds) || 0}
+                  max={viewing.now_playing.duration_seconds}
+                ></progress>
+                <span class="text-xs text-base-content/55 whitespace-nowrap tabular-nums">
+                  {format_remaining(
+                    viewing.now_playing.duration_seconds -
+                      (Map.get(viewing.now_playing, :position_seconds) || 0)
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+
+      <h4 class="mt-6 text-[17px] font-semibold tracking-tight">Recently watched</h4>
+
+      <%!-- Recently watched: poster thumb + two-tier title + age. --%>
       <ul
-        :if={@sessions == [] and @playback_activity.recent != []}
+        :if={@playback_activity.recent != []}
         data-component="playback-narrative"
         class="mt-2"
       >
@@ -162,7 +180,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
       </ul>
 
       <p
-        :if={@sessions == [] and @playback_activity.recent == []}
+        :if={@playback_activity.recent == []}
         data-component="playback-narrative"
         class="mt-3 text-sm text-base-content/55"
       >
@@ -196,7 +214,17 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   defp now_playing_title(%{entity_name: name}) when is_binary(name), do: name
   defp now_playing_title(now_playing), do: now_playing.entity_id
 
-  defp now_playing_detail(%{episode_name: name} = now_playing) when is_binary(name) do
+  # The episode line, then whom it plays for.
+  defp viewing_detail(%{now_playing: now_playing, profile_name: profile_name}) do
+    [episode_line(now_playing), profile_name && "for #{profile_name}"]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
+  defp episode_line(%{episode_name: name} = now_playing) when is_binary(name) do
     if Map.get(now_playing, :season_number) do
       "S#{Map.get(now_playing, :season_number)}E#{Map.get(now_playing, :episode_number) || "?"} · #{name}"
     else
@@ -204,22 +232,31 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
     end
   end
 
-  defp now_playing_detail(_), do: nil
+  defp episode_line(_now_playing), do: nil
+
+  defp viewing_word(%{waiting?: true}), do: "waiting for the player"
+  defp viewing_word(%{state: state}), do: state
+
+  defp viewing_class(%{waiting?: true}), do: "text-warning"
+  defp viewing_class(%{state: state}), do: playback_text_class(state)
+
+  defp connection_word(:connected), do: "Connected"
+  defp connection_word(:offline), do: "Not connected"
+
+  # A dot, not coloured words: an unreachable player is quiet, not an alarm —
+  # a TV switched off is its normal state. A viewing waiting on one is the alarm.
+  defp connection_dot(:connected), do: "bg-success"
+  defp connection_dot(:offline), do: "bg-base-content/30"
 
   # Header status: the widget's single health signal (color reserved for it).
-  # The mpv link is per-session, so "active" reflects live sessions and idle is
-  # the calm, healthy resting state — the recent feed is the recorder's proof-of-life.
-  defp playback_health(state, count) when state in [:playing, :paused] and count > 0 do
-    %{label: "#{count} active", dot_class: "bg-success", text_class: "text-success"}
-  end
+  defp health_classes(%{label: label, tone: :success}),
+    do: %{label: label, dot_class: "bg-success", text_class: "text-success"}
 
-  defp playback_health(:starting, _count) do
-    %{label: "Connecting…", dot_class: "bg-warning", text_class: "text-warning"}
-  end
+  defp health_classes(%{label: label, tone: :warning}),
+    do: %{label: label, dot_class: "bg-warning", text_class: "text-warning"}
 
-  defp playback_health(_idle, _count) do
-    %{label: "Idle", dot_class: "bg-base-content/30", text_class: "text-base-content/55"}
-  end
+  defp health_classes(%{label: label, tone: :idle}),
+    do: %{label: label, dot_class: "bg-base-content/30", text_class: "text-base-content/55"}
 
   # Stable iterator id (UIDR-012): completion timestamps are seconds apart.
   defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
