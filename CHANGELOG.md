@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.11.0 — 2026-11-07
+
+### New
+
+- **Watch on your phone.** The Media Centaur TV app now installs and runs on an Android phone as well, and plays your library over Wi-Fi. Tap the picture to show or hide the controls, tap the progress bar to jump to that point, and tap the button in the middle to pause or play. Tap outside the menu to close it. A TV shows none of these touch controls. The phone needs version 0.2.0 of the TV app.
+- **Fill width for films with black bars.** Some films have black bars inside the picture itself, so they play as a small box in the middle of the screen. The player's menu (**Audio, subtitles & picture**) now has a picture setting, **Fill width**, that enlarges the picture to the screen's width. It is remembered for that title. On a TV or phone, it needs version 0.2.0 of the TV app.
+
+### Improved
+
+- **Each playback choice is remembered on its own.** Audio, subtitles and the picture are now three separate choices per title. Changing the subtitles no longer forgets the audio language you picked for that show, and switching back to the original choice is remembered too.
+- **Default in every column of the player's menu.** Each column starts with **Default**, marked while that setting follows your language preferences, with what it plays now. Choosing it clears your choice for that title, so the setting follows your preferences again. Your existing audio and subtitle choices carry over.
+- **Playback keeps going after an error.** If the app's control of a film fails partway through, it reconnects to the player and the film carries on, with its progress saved and its controls back on screen. If it fails again within a minute, the player is stopped instead of being left playing without controls.
+
+### Fixed
+
+- **Left and Right in the player's menu switch columns again.** On a TV, pressing Left or Right in the audio and subtitles menu closed the whole menu instead of moving to the next column.
+- **No Next Episode at the start of a file.** Some episodes offered **Next Episode** at 0:00, as if the credits were already playing.
+
 ## v2.10.2 — 2026-11-07
 
 ### Improved
