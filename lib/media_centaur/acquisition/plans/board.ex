@@ -36,7 +36,7 @@ defmodule MediaCentaur.Acquisition.Plans.Board do
     %PlanBoard{
       plan_id: plan.id,
       title: plan.title,
-      status: String.to_existing_atom(plan.status),
+      status: status(plan.status),
       error: plan.error,
       wanted: Enum.count(units, &(&1.status != "excluded")),
       covered: length(found),
@@ -45,6 +45,14 @@ defmodule MediaCentaur.Acquisition.Plans.Board do
       lower_quality_accepted?: lower_quality_accepted?(plan)
     }
   end
+
+  # The closed set, mapped by clause: `String.to_existing_atom/1` here raised
+  # when a story assembled a board at compile time before any module
+  # naming the atom had loaded.
+  defp status("planning"), do: :planning
+  defp status("ready"), do: :ready
+  defp status("committed"), do: :committed
+  defp status("discarded"), do: :discarded
 
   # -- release lines -----------------------------------------------------------
 

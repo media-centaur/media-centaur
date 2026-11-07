@@ -338,8 +338,17 @@ defmodule MediaCentaurWeb.Components.Settings do
     required: true,
     doc: ~s(pushed with `%{"name" => name, "value" => typed}` on Enter and on blur.)
 
+  attr :event_value, :map,
+    default: %{},
+    doc: "extra `phx-value-*` params (string keys) — the record's id when the row is one of several."
+
   attr :mono, :boolean, default: false
   attr :id, :string, default: nil
+
+  attr :rest, :global,
+    include: ~w(maxlength autocomplete),
+    doc: "a length cap or `autocomplete` for the input."
+
   slot :label_suffix, doc: "a glyph beside the label, e.g. `path_status`."
 
   @doc "A free-text setting that commits on Enter or blur (UIDR-041 §2, §30). One payload shape, no form."
@@ -360,6 +369,8 @@ defmodule MediaCentaurWeb.Components.Settings do
         phx-keydown={@event}
         phx-key="Enter"
         phx-value-name={@name}
+        {phx_values(@event_value)}
+        {@rest}
       />
     </div>
     """

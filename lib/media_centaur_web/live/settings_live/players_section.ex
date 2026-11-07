@@ -74,43 +74,34 @@ defmodule MediaCentaurWeb.SettingsLive.PlayersSection do
             Remove player
           </.armed_button>
         </:action>
-        <div class="flex flex-wrap items-start gap-x-10 gap-y-4">
-          <.settings_field label="Name" layout={:stacked} class="min-w-0 basis-64">
-            <%!-- In no form, so Enter pushes at once and submits nothing. --%>
-            <.settings_input
-              id={"player-name-#{player.id}"}
-              name="name"
-              value={player.name}
-              maxlength={DisplayName.max_length()}
-              autocomplete="off"
-              phx-blur="rename_player"
-              phx-keydown="rename_player"
-              phx-key="Enter"
-              phx-value-id={player.id}
-              class="max-w-64"
-            />
-          </.settings_field>
+        <div id={"player-facts-#{player.id}"} class="px-3.5 space-y-1 text-base-content/70">
           <div
-            id={"player-facts-#{player.id}"}
-            class="min-w-0 basis-64 grow space-y-1 text-base-content/70"
+            :if={line = PlayerWords.device_line(player)}
+            class="flex items-center gap-2 text-base-content/80"
           >
-            <div
-              :if={line = PlayerWords.device_line(player)}
-              class="flex items-center gap-2 text-base-content/80"
-            >
-              <.icon name={PlayerWords.icon(player)} class="size-4 shrink-0 text-base-content/55" />
-              <span class="truncate">{line}</span>
-            </div>
-            <div>
-              {PlayerWords.seen_line(
-                player,
-                MapSet.member?(@connected, player.id),
-                DateTime.utc_now()
-              )}
-            </div>
-            <div>Paired {Format.relative_ago(player.inserted_at)}</div>
+            <.icon name={PlayerWords.icon(player)} class="size-4 shrink-0 text-base-content/55" />
+            <span class="truncate">{line}</span>
           </div>
+          <div>
+            {PlayerWords.seen_line(
+              player,
+              MapSet.member?(@connected, player.id),
+              DateTime.utc_now()
+            )}
+          </div>
+          <div>Paired {Format.relative_ago(player.inserted_at)}</div>
         </div>
+        <.settings_text_row
+          id={"player-name-#{player.id}"}
+          label="Name"
+          description="What this player is called here and on Status."
+          name="name"
+          value={player.name}
+          event="rename_player"
+          event_value={%{"id" => player.id}}
+          maxlength={DisplayName.max_length()}
+          autocomplete="off"
+        />
       </.settings_card>
 
       <.settings_card

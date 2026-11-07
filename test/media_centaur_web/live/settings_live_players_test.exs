@@ -77,13 +77,13 @@ defmodule MediaCentaurWeb.SettingsLivePlayersTest do
     {:ok, view, _html} = live_async!(conn, @section)
 
     view
-    |> element("#player-name-#{player.id}")
+    |> element("#player-name-#{player.id} input[name=name]")
     |> render_keydown(%{"key" => "Enter", "value" => "Den TV"})
 
     assert Players.get(player.id).name == "Den TV"
     render_until(view, fn _html -> has_element?(view, "#{card(player.id)} h3", "Den TV") end)
 
-    view |> element("#player-name-#{player.id}") |> render_blur(%{"value" => "  "})
+    view |> element("#player-name-#{player.id} input[name=name]") |> render_blur(%{"value" => "  "})
     assert Players.get(player.id).name == "Den TV"
     assert render(view) =~ "a name"
   end
