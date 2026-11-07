@@ -41,8 +41,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.ModalState
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
+  alias MediaCentaurWeb.Live.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
+  alias MediaCentaurWeb.Live.PlanHost
   alias MediaCentaurWeb.Live.ProfileAware
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
 
@@ -92,7 +93,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   # the click's mode and plans nothing here (spec 2026-09-23 §3).
   def start_download(socket, %Title{} = title, mode, :choose_episodes, _ending) do
     query = PlanQuery.picker(title.tmdb_id, ReleaseTracking.tmdb_type_for(title.media_type), mode)
-    socket.view.open_plan(socket, query)
+    PlanHost.open_plan(socket, query)
   end
 
   def start_download(socket, %Title{} = title, :auto_select_best_release, scope, ending) do

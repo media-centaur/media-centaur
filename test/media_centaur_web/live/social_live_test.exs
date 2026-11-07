@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
   alias MediaCentaur.Secret
   alias MediaCentaur.Features
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
+  alias MediaCentaurWeb.Live.PlanQuery
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
 
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
     assert has_element?(
              view,
-             "[data-page-behavior='social'][data-nav-transient-params='title,entity,view,activity']"
+             "[data-page-behavior='social'][data-nav-transient-params='title,entity,view,activity,plan']"
            )
   end
 
@@ -77,6 +77,9 @@ defmodule MediaCentaurWeb.SocialLiveTest do
     {:ok, view, _html} = live(conn, "/social")
     assert has_element?(view, "#sidebar a.sidebar-link-active[href='/social']")
   end
+
+  # The patched address is this page's with the plan query applied.
+  defp plan_query("/social?" <> query), do: URI.decode_query(query)
 
   describe "friends tab" do
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
@@ -1085,8 +1088,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       # The plan is made under the view's own task; its board opens once
       # the plan exists, so the redirect is the one thing to wait on.
-      {path, _flash} = assert_redirect(view, 2_000)
-      "/downloads?plan=" <> plan_id = path
+      # The board opens on this page (`Live.PlanHost`), not on Downloads.
+      %{"plan" => plan_id} = plan_query(assert_patch(view, 2_000))
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.approval_policy == "review"
     end
@@ -1822,7 +1825,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert has_element?(view, "#detail-watchlist-toggle")
     end
 
-    test "Download under the default mode plans for manual selection and opens its board on Downloads",
+    test "Download under the default mode plans for manual selection and opens its board on this page",
          %{conn: conn} do
       {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/social?title=movie-777")
@@ -1836,8 +1839,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       # The plan is made under the view's own task; its board opens once
       # the plan exists, so the redirect is the one thing to wait on.
-      {path, _flash} = assert_redirect(view, 2_000)
-      "/downloads?plan=" <> plan_id = path
+      # The board opens on this page (`Live.PlanHost`), not on Downloads.
+      %{"plan" => plan_id} = plan_query(assert_patch(view, 2_000))
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.approval_policy == "review"
       assert plan.tmdb_type == "movie"
@@ -1920,8 +1923,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-download") |> render_click()
 
-      {path, _flash} = assert_redirect(view, 2_000)
-      "/downloads?plan=" <> plan_id = path
+      # The board opens on this page (`Live.PlanHost`), not on Downloads.
+      %{"plan" => plan_id} = plan_query(assert_patch(view, 2_000))
       {:ok, plan} = Plans.fetch(plan_id)
       assert plan.tmdb_type == "tv"
       assert plan.approval_policy == "review"
@@ -1952,8 +1955,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-download") |> render_click()
 
-      {path, _flash} = assert_redirect(view, 2_000)
-      "/downloads?plan=" <> plan_id = path
+      # The board opens on this page (`Live.PlanHost`), not on Downloads.
+      %{"plan" => plan_id} = plan_query(assert_patch(view, 2_000))
       assert Enum.map(Plans.units_for(plan_id), &{&1.season_number, &1.episode_number}) == [{2, 1}]
       assert Watchlist.rung(246_810, :tv_series) == :grab
     end
@@ -1971,7 +1974,7 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-download") |> render_click()
 
-      assert {"/downloads?plan=" <> _plan_id, _flash} = assert_redirect(view, 2_000)
+      assert %{"plan" => _plan_id} = plan_query(assert_patch(view, 2_000))
       assert Watchlist.rung(246_810, :tv_series) == nil
     end
 
@@ -1991,8 +1994,9 @@ defmodule MediaCentaurWeb.SocialLiveTest do
 
       view |> element("#detail-download") |> render_click()
 
-      {path, _flash} = assert_redirect(view)
-      assert path == PlanQuery.path(PlanQuery.picker(246_810, "tv", :manually_select_release))
+      # The picker opens on this page (`Live.PlanHost`), not on Downloads.
+      path = assert_patch(view)
+      assert plan_query(path) == PlanQuery.picker(246_810, "tv", :manually_select_release)
       assert Plans.list_drafts() == []
     end
 
@@ -2006,8 +2010,8 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       view |> element("#detail-download-toggle") |> render_click()
       view |> element("#detail-download-other") |> render_click()
 
-      {path, _flash} = assert_redirect(view)
-      assert path == PlanQuery.path(PlanQuery.picker(246_810, "tv", :auto_select_best_release))
+      path = assert_patch(view)
+      assert plan_query(path) == PlanQuery.picker(246_810, "tv", :auto_select_best_release)
       assert Plans.list_drafts() == []
     end
 

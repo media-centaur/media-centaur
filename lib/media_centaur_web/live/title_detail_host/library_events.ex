@@ -404,7 +404,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
     case result do
       {:ok, _entity_ids} ->
         if Library.Files.list_by_entity_id(container_id) == [] do
-          push_patch(socket, to: socket.view.title_detail_path(socket, []))
+          push_patch(socket, to: socket.view.overlay_path(socket, []))
         else
           socket
           |> update_half(&%{&1 | files: :loading})

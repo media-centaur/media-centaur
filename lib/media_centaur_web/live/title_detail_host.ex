@@ -23,21 +23,20 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   A host that `use`s this module must not also `use` `EntityModal`: both
   inject `ReviewFlow`. Beyond the `use`, the host implements three
-  callbacks:
+  callbacks (the third is shared with `Live.PlanHost`):
 
   * `page_facts/3` — what this page alone holds about a ref: an
     in-memory snapshot when it has one (an omnibox result, a plan's
     subject, a feed activity's title). `{nil, %{}}` when it knows
     nothing, which is never a reason not to open. Every other fact —
     the activity the modal speaks for included — is read by identity.
-  * `title_detail_path/2` — the page's own path with the modal query
-    applied (`[]` closes), so leaving the modal never changes tab.
-  * `open_plan/2` — opens the plan modal on Downloads with a
-    `PlanQuery` query: the board of a plan, or the picker for a series
-    (`push_navigate` from another page, `push_patch` on Downloads itself,
-    which swaps this modal for it).
+  * `overlay_path/2` — the page's own path with an overlay's query
+    applied (`[]` closes every overlay), so leaving a modal never changes
+    tab. The plan modal (`Live.PlanHost`, which every host of this trait
+    also `use`s) addresses itself through the same builder; opening the
+    picker swaps this modal for it.
   * `download_started/1` — where the page leaves the person once a
-    download has started under auto-select (`PlanFlow.land_started/3`):
+    download has started (`PlanFlow.land_started/3`, a plan approved):
     Downloads patches to its Activity tab, where the download shows up,
     dropping whichever modal was open; every other page closes this
     modal (`close_title/1`) — the sidebar's Downloads entry has already
@@ -124,7 +123,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.SocialLive.ActivityWords
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.LiveHelpers
@@ -146,11 +144,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback page_facts(socket :: Phoenix.LiveView.Socket.t(), TitleRef.ref(), params :: map()) ::
               {snapshot :: Title.t() | nil, facts :: map()}
 
-  @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
+  @callback overlay_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
-
-  @callback open_plan(socket :: Phoenix.LiveView.Socket.t(), query :: PlanQuery.query()) ::
-              Phoenix.LiveView.Socket.t()
 
   @callback download_started(socket :: Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
 
@@ -1328,7 +1323,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def modal_query(_socket), do: []
 
-  defp path(socket, query), do: socket.view.title_detail_path(socket, query)
+  defp path(socket, query), do: socket.view.overlay_path(socket, query)
 
   @doc "Closes the title detail — the page's own path with no modal query."
   @spec close_title(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()

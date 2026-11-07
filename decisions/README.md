@@ -125,3 +125,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 056 | 2026-10-25 | [The TV app is the performance floor](user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md) | accepted |
 | 057 | 2026-11-02 | [Pages are stages: choose, get, watch](user-interface/2026-11-02-057-pages-are-stages-choose-get-watch.md) | accepted, amended 2026-11-03 |
 | 058 | 2026-11-05 | [Review → Identity is a bulk list matched by selection](user-interface/2026-11-05-058-review-identity-is-a-bulk-list.md) | accepted |
+| 059 | 2026-11-08 | [Behaviour never keys on the device](user-interface/2026-11-08-059-behaviour-never-keys-on-the-device.md) | accepted |

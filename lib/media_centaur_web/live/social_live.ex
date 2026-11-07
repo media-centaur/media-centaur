@@ -81,6 +81,7 @@ defmodule MediaCentaurWeb.SocialLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
@@ -106,7 +107,6 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.Components.Social.HiddenPersonRow
   alias MediaCentaurWeb.Components.Social.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Components.Title.Grade
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.SocialLive.ActivityArtwork
@@ -118,6 +118,7 @@ defmodule MediaCentaurWeb.SocialLive do
   alias MediaCentaurWeb.SocialLive.PersonPage
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
+  alias MediaCentaurWeb.Live.PlanHost
 
   require MediaCentaur.Log, as: Log
   require PursuitEvents
@@ -220,10 +221,7 @@ defmodule MediaCentaurWeb.SocialLive do
   end
 
   @impl TitleDetailHost
-  def title_detail_path(socket, query), do: social_path(socket, query)
-
-  @impl TitleDetailHost
-  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
+  def overlay_path(socket, query), do: social_path(socket, query)
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)
@@ -591,7 +589,7 @@ defmodule MediaCentaurWeb.SocialLive do
   # Path back to the current tab; every modal open/close patch routes
   # through this so leaving the modal never dumps the user on another
   # tab, and the Feed's scope rides along so closing the modal lands on
-  # the same scope. The host hands a keyword list (`title_detail_path/2`'s
+  # the same scope. The host hands a keyword list (`overlay_path/2`'s
   # contract) and the scope is appended, so the modal's own params keep
   # their order.
   defp social_path(%{assigns: %{live_action: :feed, feed_scope: scope}}, params),
@@ -631,6 +629,7 @@ defmodule MediaCentaurWeb.SocialLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
+        <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </:overlays>
       <%!-- The modal's params are modal state: stripped from the
             remembered URL so leaving the section closes the modal rather
@@ -645,7 +644,7 @@ defmodule MediaCentaurWeb.SocialLive do
         class="relative"
         data-page-behavior="social"
         data-nav-default-zone="social"
-        data-nav-transient-params="title,entity,view,activity"
+        data-nav-transient-params="title,entity,view,activity,plan"
       >
         <%!-- The same fixed scrim every page but Home carries (UIDR-033),
               behind the columns so it darkens the ground, never the posters. --%>

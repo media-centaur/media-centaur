@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.DownloadsLive.PlanQueryTest do
+defmodule MediaCentaurWeb.Live.PlanQueryTest do
   @moduledoc """
   The plan modal's address: two shapes (the board, the picker), built and
   parsed by one module so every link, patch and navigate agrees on them.
   """
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
+  alias MediaCentaurWeb.Live.PlanQuery
 
   @plan_id "9f4f5e0e-0d1a-4b5c-8e2f-3a1b2c3d4e5f"
 
@@ -33,23 +33,6 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanQueryTest do
 
     test "the picker refuses a type Downloads cannot target" do
       assert_raise FunctionClauseError, fn -> PlanQuery.picker("1", "book") end
-    end
-  end
-
-  describe "path/1 — a query as a path to Downloads" do
-    test "renders the board" do
-      assert PlanQuery.path(PlanQuery.board("abc")) == "/downloads?plan=abc"
-    end
-
-    test "renders the picker with every param" do
-      "/downloads?" <> query = PlanQuery.path(PlanQuery.picker("246810", "tv", :manually_select_release))
-
-      assert URI.decode_query(query) == %{
-               "plan" => "new",
-               "tmdb_id" => "246810",
-               "tmdb_type" => "tv",
-               "mode" => "manually_select_release"
-             }
     end
   end
 

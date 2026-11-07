@@ -29,7 +29,6 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.ViewModel.EpisodeRow
 
   attr :seasons, :list,
@@ -124,15 +123,21 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         }
         class="pt-1"
       >
-        <.link
-          navigate={PlanQuery.path(PlanQuery.picker(@series_tmdb_id, "tv"))}
-          class="inline-flex items-center gap-1.5 text-xs text-base-content/55 hover:text-base-content transition-colors"
+        <%!-- The picker opens on this page (`Live.PlanHost`'s `plan_open`),
+              never on Downloads: the page the detail is on is the plan's
+              host too. --%>
+        <button
+          type="button"
+          phx-click="plan_open"
+          phx-value-tmdb_id={@series_tmdb_id}
+          phx-value-tmdb_type="tv"
+          class="inline-flex cursor-pointer items-center gap-1.5 text-xs text-base-content/55 hover:text-base-content transition-colors"
           data-role="download-more-link"
           data-nav-item
           tabindex="0"
         >
           <.icon name="hero-arrow-down-tray-mini" class="size-3.5" /> Download more of this show
-        </.link>
+        </button>
       </div>
       <ExtrasSection.extras_section
         extras={@extras}

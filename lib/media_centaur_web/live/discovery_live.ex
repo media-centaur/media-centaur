@@ -52,6 +52,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.MediaSearch
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
@@ -73,7 +74,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.DiscoveryLive.Shelves
   alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.Live.{MediaSearch, ReviewModal, Subscriptions, TitleDetailHost}
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
+  alias MediaCentaurWeb.Live.PlanHost
 
   @reload_debounce_ms 500
   @friends_limit 40
@@ -213,11 +214,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: {Enum.find(MediaSearch.results(socket), &(Title.ref(&1) == ref)), %{}}
 
   @impl TitleDetailHost
-  def title_detail_path(_socket, []), do: ~p"/discovery"
-  def title_detail_path(_socket, query), do: ~p"/discovery?#{query}"
-
-  @impl TitleDetailHost
-  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
+  def overlay_path(_socket, []), do: ~p"/discovery"
+  def overlay_path(_socket, query), do: ~p"/discovery?#{query}"
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)
@@ -253,6 +251,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
+        <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </:overlays>
       <FeatureOff.feature_off
         :if={:discovery not in @features}
@@ -267,7 +266,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         class="relative"
         data-page-behavior="discovery"
         data-nav-default-zone="discovery"
-        data-nav-transient-params="title,entity,view,activity"
+        data-nav-transient-params="title,entity,view,activity,plan"
       >
         <%!-- Page atmosphere, as Home's: the backdrop painted by the hero
               canvas fades into base-100; the side dim continues down the

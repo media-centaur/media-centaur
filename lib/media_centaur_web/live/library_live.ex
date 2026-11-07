@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
@@ -49,7 +50,6 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Pipeline.Stats
 
   alias MediaCentaurWeb.Components.LibraryCards
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
 
   import MediaCentaurWeb.LibraryHelpers
@@ -58,6 +58,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
+  alias MediaCentaurWeb.Live.PlanHost
 
   @impl true
   def mount(_params, _session, socket) do
@@ -306,7 +307,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         class="relative"
         data-page-behavior="library"
         data-nav-default-zone="library"
-        data-nav-transient-params="title,entity,view,activity"
+        data-nav-transient-params="title,entity,view,activity,plan"
       >
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a
@@ -458,6 +459,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
+        <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </div>
     </Layouts.app>
     """
@@ -581,10 +583,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   # The modal's query over the page's own params, so opening or closing
   # a title never loses the tab, sort or filter.
   @impl TitleDetailHost
-  def title_detail_path(socket, query), do: build_path(socket, %{}, query)
-
-  @impl TitleDetailHost
-  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
+  def overlay_path(socket, query), do: build_path(socket, %{}, query)
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)

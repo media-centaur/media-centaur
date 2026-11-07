@@ -2566,7 +2566,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ ~s(phx-value-episode="2")
     end
 
-    test "the modal offers the link to the picker for a season the library lacks", %{conn: conn} do
+    test "the modal opens the picker on this page for a season the library lacks", %{conn: conn} do
       series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810", number_of_seasons: 2})
 
       season =
@@ -2583,11 +2583,42 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         content_url: "/tv/sample-show/s01e01.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
-      html = render(view)
+      # The picker loads its targeting from TMDB once it opens.
+      TmdbStubs.setup_tmdb_client()
 
-      assert html =~ "Download more of this show"
-      assert html =~ "tmdb_id=246810"
+      TmdbStubs.stub_routes([
+        {"/tv/246810/season/1",
+         TmdbStubs.season_detail(%{
+           "season_number" => 1,
+           "episodes" => [%{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"}]
+         })},
+        {"/tv/246810/season/2",
+         TmdbStubs.season_detail(%{
+           "season_number" => 2,
+           "episodes" => [%{"episode_number" => 1, "name" => "Return", "air_date" => "2021-01-01"}]
+         })},
+        {"/tv/246810",
+         TmdbStubs.tv_detail(%{
+           "id" => 246_810,
+           "name" => "Sample Show",
+           "seasons" => [
+             %{"season_number" => 1, "episode_count" => 1},
+             %{"season_number" => 2, "episode_count" => 1}
+           ]
+         })}
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
+
+      assert render(view) =~ "Download more of this show"
+
+      # The picker is this page's (`Live.PlanHost`): the control patches the
+      # page's own address, no trip to Downloads.
+      view |> element("[data-role='download-more-link']") |> render_click()
+
+      "/library?" <> query = assert_patch(view)
+      assert URI.decode_query(query) == %{"plan" => "new", "tmdb_id" => "246810", "tmdb_type" => "tv"}
+      assert render_async(view, 2_000) =~ "Download 1 episode"
     end
 
     test "the link is gone once the library holds the whole series", %{conn: conn} do

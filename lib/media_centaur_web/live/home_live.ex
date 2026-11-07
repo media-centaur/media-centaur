@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.HomeLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
@@ -32,10 +33,10 @@ defmodule MediaCentaurWeb.HomeLive do
     ShelfHead
   }
 
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
+  alias MediaCentaurWeb.Live.PlanHost
   alias MediaCentaurWeb.HomeLive.Logic
 
   @impl true
@@ -109,7 +110,7 @@ defmodule MediaCentaurWeb.HomeLive do
       <div
         class="relative"
         data-nav-default-zone="home"
-        data-nav-transient-params="title,entity,view,activity"
+        data-nav-transient-params="title,entity,view,activity,plan"
       >
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The
@@ -261,6 +262,7 @@ defmodule MediaCentaurWeb.HomeLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
+        <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </div>
     </Layouts.app>
     """
@@ -311,11 +313,8 @@ defmodule MediaCentaurWeb.HomeLive do
   def page_facts(_socket, _ref, _params), do: {nil, %{}}
 
   @impl TitleDetailHost
-  def title_detail_path(_socket, []), do: ~p"/"
-  def title_detail_path(_socket, query), do: ~p"/?#{query}"
-
-  @impl TitleDetailHost
-  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
+  def overlay_path(_socket, []), do: ~p"/"
+  def overlay_path(_socket, query), do: ~p"/?#{query}"
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)

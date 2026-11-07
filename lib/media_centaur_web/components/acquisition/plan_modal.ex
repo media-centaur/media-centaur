@@ -10,7 +10,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   through targeting, confirm, and the board. The host picks the
   per-stage source via `PlanLogic.shell_backdrop_url/2`.
 
-  Stages, driven by the host LiveView's `?plan=` param:
+  Stages, driven by the host's `?plan=` param (`Live.PlanHost`, on every
+  page that opens a title — the modal is a tenant of the page that opened
+  it, never a trip to Downloads):
 
   * `:loading` — the targeting universe is being fetched.
   * `:targeting` — the series picker: quick-action presets, tri-state

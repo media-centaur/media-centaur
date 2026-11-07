@@ -64,11 +64,14 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
   end
 
   describe "Download more of this show" do
-    test "links to the plan picker for the series" do
+    test "opens the plan picker for the series on the page it is on" do
       html = render_component(&SeasonList.season_list/1, assigns(%{}))
 
       assert html =~ "Download more of this show"
-      assert html =~ "/downloads?plan=new&amp;tmdb_id=4556&amp;tmdb_type=tv"
+      # The host (`Live.PlanHost`) answers `plan_open`; no trip to Downloads.
+      assert html =~ ~s(phx-click="plan_open")
+      assert html =~ ~s(phx-value-tmdb_id="4556")
+      assert html =~ ~s(phx-value-tmdb_type="tv")
     end
 
     test "absent without a TMDB id" do

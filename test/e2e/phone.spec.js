@@ -79,12 +79,18 @@ test.describe("the compact shell", () => {
     })
   }
 
-  test("the plan modal and its host are never wider than the screen", async ({ page }) => {
-    // Downloads is a desktop page, but a title's Download opens the plan
-    // modal over it on a phone too; the seed's first movie serves as the
-    // subject (the picker renders the same frame for an owned title).
-    await open(page, "/downloads?plan=new&tmdb_id=10513&tmdb_type=movie")
-    await expect(page.locator("#plan-modal .modal-panel--cinematic")).toBeVisible()
-    expect(await documentWidth(page)).toBeLessThanOrEqual(PHONE_WIDTH)
-  })
+  // The plan modal is a tenant of the page that opened it (Live.PlanHost):
+  // Library is where a phone opens it; Downloads, a desktop page, hosts it
+  // too and once widened the viewport beneath it. The seed's first movie
+  // serves as the subject (the picker renders the same frame for an owned
+  // title).
+  for (const host of ["/library", "/downloads"]) {
+    test(`the plan modal on ${host} and its host are never wider than the screen`, async ({ page }) => {
+      await open(page, `${host}?plan=new&tmdb_id=10513&tmdb_type=movie`)
+      const panel = page.locator("#plan-modal .modal-panel--cinematic")
+      await expect(panel).toBeVisible()
+      await expect.poll(async () => (await panel.boundingBox()).width).toBe(PHONE_WIDTH)
+      expect(await documentWidth(page)).toBeLessThanOrEqual(PHONE_WIDTH)
+    })
+  }
 })

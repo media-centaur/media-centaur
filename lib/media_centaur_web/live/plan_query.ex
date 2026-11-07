@@ -1,24 +1,22 @@
-defmodule MediaCentaurWeb.DownloadsLive.PlanQuery do
+defmodule MediaCentaurWeb.Live.PlanQuery do
   @moduledoc """
-  The plan modal's address — the `?plan=…` query Downloads reads to open
-  the board or the picker (UIDR-014) — built and parsed in one place, so
-  every link, patch and navigate to it agrees on the params (spec
-  2026-09-23, coherence pass 2).
+  The plan modal's address — the `?plan=…` query a host page
+  (`Live.PlanHost`) reads to open the board or the picker (UIDR-014) —
+  built and parsed in one place, so every patch to it agrees on the
+  params (spec 2026-09-23, coherence pass 2).
 
   Two shapes. The board of an existing plan: `plan=<id>`. The picker for
   a series, or the confirm card for a movie:
   `plan=new&tmdb_id=<id>&tmdb_type=tv|movie`, optionally `&mode=<mode>`
   — a planning mode's wire form (`PlanningMode.parse_mode/1`) naming
   which mode the picker's Download performs. Absent means the person's
-  default; Downloads resolves that, this module only carries it. A `mode`
+  default; the host resolves that, this module only carries it. A `mode`
   or `tmdb_type` the app cannot mean, or a plan id that is not a UUID,
-  parses as `{:error, :malformed}` — Downloads closes the modal and says so.
+  parses as `{:error, :malformed}` — the host closes the modal and says so.
 
-  Builders return query maps: a host on Downloads patches with one
-  (`downloads_path/2`), any other page navigates to `path/1`.
+  Builders return query maps; `PlanHost.open_plan/2` patches the host's
+  own path with one.
   """
-
-  use MediaCentaurWeb, :verified_routes
 
   alias MediaCentaur.Settings.Preferences.PlanningMode
 
@@ -46,11 +44,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanQuery do
     if mode, do: Map.put(query, "mode", Atom.to_string(mode)), else: query
   end
 
-  @doc "A query as a path to Downloads, for a navigate from another page."
-  @spec path(query()) :: String.t()
-  def path(query) when is_map(query), do: ~p"/downloads?#{query}"
-
-  @doc "What Downloads' params say the plan modal should show."
+  @doc "What a host's params say the plan modal should show."
   @spec parse(map()) :: parsed()
   def parse(%{"plan" => "new"} = params), do: parse_picker(params)
 

@@ -57,6 +57,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
@@ -71,8 +72,8 @@ defmodule MediaCentaurWeb.WatchlistLive do
   alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, Disclosure}
   alias MediaCentaurWeb.Components.Watchlist.Row
   alias MediaCentaurWeb.Live.DisclosureState
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
+  alias MediaCentaurWeb.Live.PlanHost
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.WatchlistLive.Logic
 
@@ -235,11 +236,8 @@ defmodule MediaCentaurWeb.WatchlistLive do
   end
 
   @impl TitleDetailHost
-  def title_detail_path(_socket, []), do: ~p"/watchlist"
-  def title_detail_path(_socket, query), do: ~p"/watchlist?#{query}"
-
-  @impl TitleDetailHost
-  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
+  def overlay_path(_socket, []), do: ~p"/watchlist"
+  def overlay_path(_socket, query), do: ~p"/watchlist?#{query}"
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)
@@ -272,6 +270,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
           tmdb_ready={@tmdb_ready}
           finished_id={@finished_id}
         />
+        <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </:overlays>
       <%!-- The modal's params are modal state: stripped from the remembered
             URL so leaving the page closes the modal rather than reopening
@@ -280,7 +279,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
         class="mx-auto max-w-5xl space-y-6 py-6"
         data-page-behavior="watchlist"
         data-nav-default-zone="watchlist"
-        data-nav-transient-params="title,entity,view,activity"
+        data-nav-transient-params="title,entity,view,activity,plan"
       >
         <ActionToast.action_toast
           :if={@ignore_undo}

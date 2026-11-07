@@ -7,10 +7,11 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
 
   Three surfaces start downloads and none hosts another. The title detail
   modal (`MediaCentaurWeb.Live.TitleDetailHost`, on Home, Library,
-  Discovery, Social and Downloads) downloads a whole title by scope, and one
-  missing episode of an owned series from its gap row. The picker on
-  Downloads (`MediaCentaurWeb.DownloadsLive`, the plan modal's targeting
-  stage and movie confirm) downloads what the person chose there. A plan
+  Discovery, Social, Watchlist and Downloads) downloads a whole title by
+  scope, and one missing episode of an owned series from its gap row. The
+  picker (`MediaCentaurWeb.Live.PlanHost`, the plan modal's targeting stage
+  and movie confirm, on the same pages) downloads what the person chose
+  there. A plan
   any of them has just created ends through `land_plan/5`; a download
   that has just started under auto-select — a plan in hand or not (the
   scoped title download hands the title to the supervised door,
@@ -22,8 +23,8 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   (`remember_activity/1`, the `phx:nav-remember` listener in the root
   layout — the store the sidebar-remember script already reads) and then
   either leaves the surface through the host's `download_started/1`
-  (Downloads patches to Activity itself; the others close the title
-  detail) or stays put, as the surface says.
+  (Downloads patches to Activity itself; the others close their overlays
+  and stay) or stays put, as the surface says.
 
   Deliberately not a `use` macro: it holds no state and attaches no hooks.
   The title detail keeps what it has in flight in `Title.ModalState.pending`;
@@ -35,7 +36,8 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.DownloadsLive.Logic, as: IncomingLogic
-  alias MediaCentaurWeb.DownloadsLive.PlanQuery
+  alias MediaCentaurWeb.Live.PlanHost
+  alias MediaCentaurWeb.Live.PlanQuery
 
   @type socket :: Phoenix.LiveView.Socket.t()
 
@@ -62,7 +64,7 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   """
   @spec land_plan(socket(), PlanningMode.mode(), Plans.Plan.t(), String.t(), ending()) :: socket()
   def land_plan(socket, :manually_select_release, plan, _label, _ending),
-    do: socket.view.open_plan(socket, PlanQuery.board(plan.id))
+    do: PlanHost.open_plan(socket, PlanQuery.board(plan.id))
 
   def land_plan(socket, :auto_select_best_release, _plan, label, ending),
     do: land_started(socket, label, ending)
