@@ -535,6 +535,10 @@ html.psb .psb-variation-block .media-centaur {
     overflow: hidden;
     border-right: 0;
     border-top: 1px solid oklch(0% 0 0 / 0.5);
+    /* Near-opaque: a remote player draws no blur, and the rail's 0.8 glass
+       let the rows scrolling beneath show through the bar (the owner's
+       eye, on the phone, 2026-11-07). */
+    background: oklch(from var(--glass-nav-bg) l c h / 0.97);
   }
 
   .sidebar > nav {
