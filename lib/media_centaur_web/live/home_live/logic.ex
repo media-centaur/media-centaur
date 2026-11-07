@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.HomeLive.Logic do
   @moduledoc """
-  Pure helpers for HomeLive — date math, row assembly (the hero pick is
-  `MediaCentaurWeb.HeroRotation`).
+  Pure helpers for HomeLive — date math, row assembly, the hero pick
+  (`select_hero/3`, over `MediaCentaurWeb.HeroRotation`).
   No DB, no PubSub. Tested with `async: true` per ADR-030.
 
   HomeLive composes data from Library, ReleaseTracking, and WatchHistory
@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   """
 
   alias MediaCentaurWeb.Components.{ContinueWatchingRow, HeroCard, Marquee, PosterRow}
+  alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.LibraryFormatters
 
   @doc """
@@ -129,6 +130,25 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
         available?: Map.get(entity, :available?, true)
       }
     end)
+  end
+
+  @hero_distinct_from 4
+
+  @doc """
+  The hero candidate to show: the rotation's pick
+  (`MediaCentaurWeb.HeroRotation`), passing over any title among the first
+  #{@hero_distinct_from} of Continue Watching — the row sits directly under
+  the hero, and the same title twice in one view reads as a mistake. A
+  passed-over pick yields to the next candidate in rotation order. When
+  every candidate is passed over, the rotation's pick stands: a duplicate
+  beats an empty hero.
+  """
+  @spec select_hero([map()], [ContinueWatchingRow.Item.t()], DateTime.t()) :: map() | nil
+  def select_hero(candidates, continue_items, now \\ DateTime.utc_now()) do
+    in_view = continue_items |> Enum.take(@hero_distinct_from) |> MapSet.new(& &1.entity_id)
+    rotation = HeroRotation.rotate(candidates, now)
+
+    Enum.find(rotation, List.first(rotation), &(not MapSet.member?(in_view, &1.id)))
   end
 
   @doc """

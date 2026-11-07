@@ -534,6 +534,70 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
     end
   end
 
+  describe "select_hero/3" do
+    @now ~U[2026-04-27 12:00:00Z]
+
+    defp continue_item(entity_id),
+      do: %MediaCentaurWeb.Components.ContinueWatchingRow.Item{
+        id: entity_id,
+        entity_id: entity_id,
+        progress_pct: 0,
+        backdrop_url: nil,
+        name: "Title"
+      }
+
+    test "with nothing in Continue Watching, picks the rotation's candidate" do
+      candidates = for id <- 1..10, do: %{id: id}
+
+      assert Logic.select_hero(candidates, [], @now) ==
+               MediaCentaurWeb.HeroRotation.select(candidates, @now)
+    end
+
+    test "never picks a title among the first four of Continue Watching" do
+      candidates = for id <- 1..10, do: %{id: id}
+
+      for block <- 0..9 do
+        now = DateTime.add(@now, block * 7 * 3600, :second)
+        pick = MediaCentaurWeb.HeroRotation.select(candidates, now)
+        # The rotation's pick and the three candidates after it lead Continue Watching.
+        front = for offset <- 0..3, do: rem(pick.id - 1 + offset, 10) + 1
+
+        hero = Logic.select_hero(candidates, Enum.map(front, &continue_item/1), now)
+        refute hero.id in front
+      end
+    end
+
+    test "keeps the rotation's pick when it is fifth or later in Continue Watching" do
+      candidates = for id <- 1..10, do: %{id: id}
+      pick = MediaCentaurWeb.HeroRotation.select(candidates, @now)
+      others = candidates |> Enum.map(& &1.id) |> Enum.reject(&(&1 == pick.id)) |> Enum.take(4)
+      continue = Enum.map(others ++ [pick.id], &continue_item/1)
+
+      assert Logic.select_hero(candidates, continue, @now) == pick
+    end
+
+    test "an excluded pick steps to the next candidate, so other titles keep their slot" do
+      candidates = for id <- 1..10, do: %{id: id}
+      pick = MediaCentaurWeb.HeroRotation.select(candidates, @now)
+      next_index = rem(Enum.find_index(candidates, &(&1 == pick)) + 1, 10)
+
+      assert Logic.select_hero(candidates, [continue_item(pick.id)], @now) ==
+               Enum.at(candidates, next_index)
+    end
+
+    test "when every candidate is in the first four, shows the rotation's pick" do
+      candidates = [%{id: 1}, %{id: 2}]
+      continue = [continue_item(1), continue_item(2)]
+
+      assert Logic.select_hero(candidates, continue, @now) ==
+               MediaCentaurWeb.HeroRotation.select(candidates, @now)
+    end
+
+    test "returns nil without candidates" do
+      assert Logic.select_hero([], [continue_item(1)], @now) == nil
+    end
+  end
+
   describe "hero_card_item/1" do
     test "shapes a Library entity into the hero item map" do
       entity = %{

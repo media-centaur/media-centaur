@@ -25,8 +25,21 @@ defmodule MediaCentaurWeb.HeroRotation do
   def select(candidates, now \\ DateTime.utc_now())
   def select([], _now), do: nil
 
-  def select(candidates, %DateTime{} = now) do
+  def select(candidates, %DateTime{} = now), do: candidates |> rotate(now) |> List.first()
+
+  @doc """
+  `candidates` in rotation order for `now`: the current pick first, then
+  the candidates after it, wrapping around. A page that must pass over
+  some candidates takes the first one it accepts, so a skipped pick hands
+  its block to the next candidate and every other block keeps its pick.
+  """
+  @spec rotate([term()], DateTime.t()) :: [term()]
+  def rotate(candidates, now \\ DateTime.utc_now())
+  def rotate([], _now), do: []
+
+  def rotate(candidates, %DateTime{} = now) do
     blocks = div(DateTime.to_unix(now), @rotation_hours * 3600)
-    Enum.at(candidates, rem(blocks, length(candidates)))
+    {before, from_pick} = Enum.split(candidates, rem(blocks, length(candidates)))
+    from_pick ++ before
   end
 end

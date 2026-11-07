@@ -32,7 +32,6 @@ defmodule MediaCentaurWeb.HomeLive do
     ShelfHead
   }
 
-  alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.DownloadsLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.Live.Subscriptions
@@ -327,7 +326,7 @@ defmodule MediaCentaurWeb.HomeLive do
   end
 
   def handle_info(:reload_continue_watching, socket) do
-    {:noreply, assign_continue_watching(socket)}
+    {:noreply, socket |> assign_continue_watching() |> assign_hero()}
   end
 
   def handle_info(:reload_coming_up, socket) do
@@ -417,20 +416,16 @@ defmodule MediaCentaurWeb.HomeLive do
     today = Date.utc_today()
 
     socket
-    |> assign_hero()
     |> assign_continue_watching()
+    |> assign_hero()
     |> assign_coming_up(today)
     |> assign_recently_added()
   end
 
   defp assign_hero(socket) do
-    hero_candidates = load_hero_candidates()
-
-    assign(
-      socket,
-      :hero,
-      Logic.hero_card_item(HeroRotation.select(hero_candidates))
-    )
+    # Reads `continue_items`: the hero is never one of the row's first titles.
+    hero = Logic.select_hero(load_hero_candidates(), socket.assigns.continue_items)
+    assign(socket, :hero, Logic.hero_card_item(hero))
   end
 
   defp assign_continue_watching(socket) do
