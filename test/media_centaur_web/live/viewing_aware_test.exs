@@ -117,6 +117,24 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
 
     render_click(view, "viewing_track", %{"kind" => "subtitle", "id" => "none"})
     assert_receive {:mpv_command, ["set_property", "sid", "no"]}
+
+    render_click(view, "viewing_command", %{"command" => "seek_to", "seconds" => 600})
+    assert_receive {:mpv_command, ["seek", 600, "absolute+exact"]}
+  end
+
+  test "a tap on the picture shows the bar, and a second tap hides it while playing", %{
+    conn: conn,
+    player: player,
+    params: params
+  } do
+    start_viewing!(params, player)
+    {:ok, view, _html} = conn |> from_lan() |> as_player(player) |> live(~p"/settings")
+
+    assert has_element?(view, "#viewing-osd[data-bar='hidden']")
+    render_click(view, "viewing_tap", %{})
+    assert has_element?(view, "#viewing-osd[data-bar='shown']")
+    render_click(view, "viewing_tap", %{})
+    assert has_element?(view, "#viewing-osd[data-bar='hidden']")
   end
 
   test "the track menu opens on request; Back closes it first, then stops the viewing", %{

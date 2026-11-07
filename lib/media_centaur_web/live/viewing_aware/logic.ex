@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Live.ViewingAware.Logic do
   def bar_shown?(%Viewing{state: :paused}, _timer_running?), do: true
   def bar_shown?(_viewing, timer_running?), do: timer_running?
 
-  @doc "`viewing_command`'s payload as a command: pause, a relative seek, or the prompt."
+  @doc "`viewing_command`'s payload as a command: pause, a relative seek, a seek bar tap's absolute seek, or the prompt."
   @spec command_from_params(map()) :: {:ok, MediaCentaur.Playback.Command.t()} | :error
   def command_from_params(%{"command" => "toggle_pause"}), do: {:ok, :toggle_pause}
   def command_from_params(%{"command" => "prompt"}), do: {:ok, :activate_prompt}
@@ -59,6 +59,13 @@ defmodule MediaCentaurWeb.Live.ViewingAware.Logic do
     case integer(seconds) do
       {:ok, n} -> {:ok, {:seek, n}}
       :error -> :error
+    end
+  end
+
+  def command_from_params(%{"command" => "seek_to", "seconds" => seconds}) do
+    case integer(seconds) do
+      {:ok, n} when n >= 0 -> {:ok, {:seek_to, n}}
+      _other -> :error
     end
   end
 

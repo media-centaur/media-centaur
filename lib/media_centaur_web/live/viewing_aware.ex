@@ -17,7 +17,8 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
   Settings has its OSD too.
 
   Events the layer sends: `viewing_command` (`command`, `seconds`),
-  `viewing_prompt`, `viewing_track` (`kind`, `id`), `viewing_menu_open`,
+  `viewing_tap` (a tap on the picture: shows the bar, or hides it while
+  playing), `viewing_prompt`, `viewing_track` (`kind`, `id`), `viewing_menu_open`,
   `viewing_menu_close`, `viewing_back` (closes the menu if open, else
   stops the viewing). The bar shows for #{4} s after any command and
   while paused (`Logic.bar_shown?/2`); nothing animates continuously.
@@ -91,6 +92,14 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
     {:halt, show_bar(socket)}
   end
 
+  # A tap on the picture (a touch screen's only way to reach the bar):
+  # shows the bar, or hides it while playing — paused, it stays.
+  defp on_event("viewing_tap", _params, %{assigns: %{viewing_layer: layer}} = socket) do
+    if layer.bar_shown? and layer.viewing.state != :paused,
+      do: {:halt, hide_bar(socket)},
+      else: {:halt, show_bar(socket)}
+  end
+
   defp on_event("viewing_prompt", _params, socket) do
     send_command(socket, :activate_prompt)
     {:halt, socket}
@@ -131,6 +140,11 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
     layer = socket.assigns.viewing_layer
     timer = Process.send_after(self(), :viewing_bar_hide, @bar_shown_ms)
     assign(socket, viewing_layer: Logic.bar_held(layer, timer))
+  end
+
+  defp hide_bar(socket) do
+    socket = cancel_bar_timer(socket)
+    assign(socket, viewing_layer: Logic.bar_released(socket.assigns.viewing_layer))
   end
 
   defp cancel_bar_timer(%{assigns: %{viewing_layer: %{bar_timer: timer}}} = socket)

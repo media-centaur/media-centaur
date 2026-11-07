@@ -12,6 +12,13 @@ defmodule MediaCentaurWeb.Live.ViewingAware.LogicTest do
       assert Logic.command_from_params(%{"command" => "prompt"}) == {:ok, :activate_prompt}
     end
 
+    test "a seek bar tap is an absolute seek" do
+      assert Logic.command_from_params(%{"command" => "seek_to", "seconds" => 600}) ==
+               {:ok, {:seek_to, 600}}
+
+      assert Logic.command_from_params(%{"command" => "seek_to", "seconds" => "-5"}) == :error
+    end
+
     test "anything else is refused" do
       assert Logic.command_from_params(%{"command" => "quit"}) == :error
       assert Logic.command_from_params(%{"command" => "seek", "seconds" => "ten"}) == :error

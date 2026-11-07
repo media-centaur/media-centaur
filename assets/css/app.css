@@ -4038,6 +4038,41 @@ body:has(.viewing) .gamepad-hint-bar {
   opacity: 0;
 }
 
+/* A hidden bar takes no taps: a tap there is a tap on the picture. */
+.viewing-osd[data-bar="hidden"] .viewing-bar {
+  pointer-events: none;
+}
+
+/* Touch (a phone): the play/pause button replaces the paused glyph, the
+   track menu drops its remote-key hint, and the seek bar's tap target
+   reaches a finger's width above and below it. */
+.viewing-touch-pause {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .viewing-touch-pause {
+    display: inline-flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 5rem;
+    height: 5rem;
+    transform: translate(-50%, -50%);
+  }
+
+  .viewing-centre,
+  .viewing-menu-hint {
+    display: none;
+  }
+
+  .viewing-seek::before {
+    content: "";
+    position: absolute;
+    inset: -1.25rem 0;
+  }
+}
+
 .viewing-scrim {
   position: absolute;
   left: 0;
@@ -4196,8 +4231,9 @@ body:has(.viewing) .gamepad-hint-bar {
 .viewing-menu-backdrop {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: oklch(0% 0 0 / 0.35);
   z-index: 1;
 }
@@ -4206,10 +4242,20 @@ body:has(.viewing) .gamepad-hint-bar {
   visibility: hidden;
 }
 
+/* At most the screen's height: a file with dozens of subtitle tracks
+   scrolls its columns instead of running off the bottom. */
 .viewing-menu {
   width: min(40rem, 90%);
+  max-height: 92%;
+  display: flex;
+  flex-direction: column;
   padding: 1.375rem 1.625rem 1.125rem;
   border-radius: 1rem;
+}
+
+.viewing-menu-columns {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .viewing-menu-title {

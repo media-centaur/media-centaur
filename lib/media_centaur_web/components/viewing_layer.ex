@@ -22,6 +22,12 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       in Subtitles, bitmap tracks disabled with "Not on this TV" and a note
       when a file has nothing else (`viewing_track`, `viewing_menu_close`).
 
+  The touch contract (a phone running the TV app): `Hooks.ViewingTouch`
+  on the OSD turns a tap on the picture into `viewing_tap` (show the bar,
+  or hide it while playing) and a tap on the seek bar into an absolute
+  seek; with the bar up, a coarse pointer gets a centre play/pause button;
+  a tap outside the open track menu closes it.
+
   The input contract: the layer root carries `data-viewing` (the page's
   behaviour wraps itself while it is present); the OSD is the active
   overlay (`data-detail-mode="modal"`, BACK pushes `viewing_back`); the
@@ -83,10 +89,29 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
         data-detail-mode="modal"
         data-dismiss-event="viewing_back"
         data-bar={if @bar_shown?, do: "shown", else: "hidden"}
+        phx-hook="ViewingTouch"
       >
         <div :if={@viewing.state == :paused} class="viewing-centre" aria-hidden="true">
           <.icon name="hero-pause-solid" class="size-10" />
         </div>
+        <%!-- A touch screen's pause and resume, with the bar (shown by CSS on
+              a coarse pointer only; a remote's OK already does this). --%>
+        <.button
+          :if={@bar_shown?}
+          id="viewing-touch-pause"
+          variant="neutral"
+          shape="circle"
+          size="lg"
+          class="viewing-touch-pause"
+          phx-click="viewing_command"
+          phx-value-command="toggle_pause"
+          aria-label={if @viewing.state == :paused, do: "Play", else: "Pause"}
+        >
+          <.icon
+            name={if @viewing.state == :paused, do: "hero-play-solid", else: "hero-pause-solid"}
+            class="size-8"
+          />
+        </.button>
         <.viewing_prompt :if={@viewing.prompt} prompt={@viewing.prompt} />
         <.viewing_subtitle
           :if={@viewing.subtitle_text}
@@ -120,6 +145,8 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
         <span class="viewing-clock">{Format.format_seconds(@viewing.position_seconds)}</span>
         <div
           class="viewing-seek"
+          data-viewing-seek
+          data-duration={@viewing.duration_seconds}
           role="progressbar"
           aria-valuenow={@percent}
           aria-valuemin="0"
@@ -207,7 +234,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       data-dismiss-event="viewing_menu_close"
       data-nav-overlay="viewing_menu"
     >
-      <div class="viewing-menu glass-surface">
+      <div class="viewing-menu glass-surface" phx-click-away={@open? && "viewing_menu_close"}>
         <h2 class="viewing-menu-title">Audio &amp; subtitles</h2>
         <div class="viewing-menu-columns">
           <div class="viewing-menu-column">
