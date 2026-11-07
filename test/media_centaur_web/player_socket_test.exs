@@ -58,4 +58,20 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
     assert Jason.decode!(frame) == %{"command" => ["stop"]}
     assert_received {:transport, {:remote, {:channel_down, {:shutdown, :removed}}}}
   end
+
+  test "a second channel for a player that already has one is refused as a deliberate close, not a crash" do
+    player_id = Ecto.UUID.generate()
+    test_process = self()
+
+    holder =
+      spawn(fn ->
+        :ok = MediaCentaur.Playback.Transport.Remote.PlayerRegistry.register(player_id, @media_urls)
+        send(test_process, :registered)
+        Process.sleep(:infinity)
+      end)
+
+    assert_receive :registered
+    assert {:stop, {:shutdown, :already_connected}, _state} = PlayerSocket.init(opening(player_id))
+    Process.exit(holder, :kill)
+  end
 end

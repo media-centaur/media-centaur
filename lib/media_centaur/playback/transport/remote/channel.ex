@@ -151,7 +151,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
 
   def handle_message(state, {:channel, :ping}) do
     if now() - state.last_pong_at > @pong_grace_ms do
-      {:stop, :pong_overdue, state}
+      {:stop, {:shutdown, :pong_overdue}, state}
     else
       Process.send_after(self(), {:channel, :ping}, @ping_interval_ms)
       {:push, {:ping, ""}, state}

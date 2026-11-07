@@ -123,12 +123,12 @@ defmodule MediaCentaur.Playback.Transport.Remote.ChannelTest do
     assert {:stop, :malformed_frame, _state} = Channel.frame_in(state, "[1, 2]")
   end
 
-  test "ping while pongs are fresh; close once a pong is overdue" do
+  test "ping while pongs are fresh; close once a pong is overdue, as a deliberate close and not a crash" do
     state = connected()
     assert {:push, {:ping, ""}, state} = Channel.handle_message(state, {:channel, :ping})
 
     stale = %{state | last_pong_at: state.last_pong_at - Channel.pong_grace_ms() - 1}
-    assert {:stop, :pong_overdue, _state} = Channel.handle_message(stale, {:channel, :ping})
+    assert {:stop, {:shutdown, :pong_overdue}, _state} = Channel.handle_message(stale, {:channel, :ping})
 
     assert {:push, {:ping, ""}, _state} = Channel.handle_message(Channel.pong(stale), {:channel, :ping})
   end

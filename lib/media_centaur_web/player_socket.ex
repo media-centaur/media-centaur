@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.PlayerSocket do
         {:ok, state}
 
       {:error, {:already_registered, _pid}} ->
-        {:stop, :already_connected, %Channel{player_id: player_id}}
+        {:stop, {:shutdown, :already_connected}, %Channel{player_id: player_id}}
     end
   end
 
