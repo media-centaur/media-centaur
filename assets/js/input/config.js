@@ -95,6 +95,7 @@ export const inputConfig = {
     // each a GlassMenu list, walked as MENUs with left/right between them.
     viewing_audio: "[data-nav-zone='viewing_audio'] [data-nav-item]",
     viewing_subtitles: "[data-nav-zone='viewing_subtitles'] [data-nav-item]",
+    viewing_picture: "[data-nav-zone='viewing_picture'] [data-nav-item]",
     // Review → Identity's bulk list (/review): the status pill and filter,
     // the rows (header tick, dividers, items), the action bar's controls and
     // its search results.
@@ -142,6 +143,7 @@ export const inputConfig = {
     sections: Context.MENU,
     viewing_audio: Context.MENU,
     viewing_subtitles: Context.MENU,
+    viewing_picture: Context.MENU,
     bindings: Context.TREE,
     "review-toolbar": Context.TOOLBAR,
     "review-rows": Context.TREE,
@@ -397,7 +399,8 @@ export const inputConfig = {
       entry: ["viewing_subtitles", "viewing_audio"],
       layout: {
         viewing_audio: { right: ["viewing_subtitles"] },
-        viewing_subtitles: { left: ["viewing_audio"] },
+        viewing_subtitles: { left: ["viewing_audio"], right: ["viewing_picture"] },
+        viewing_picture: { left: ["viewing_subtitles"] },
       },
     },
   },

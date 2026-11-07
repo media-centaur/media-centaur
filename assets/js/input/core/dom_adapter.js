@@ -557,7 +557,7 @@ export function createDomReader(config = {}) {
       return document.querySelector("[data-viewing-prompt]") !== null
     },
 
-    /** Whether the paused bar shows its "Audio & subtitles" button. */
+    /** Whether the paused bar shows its "Audio, subtitles & picture" button. */
     hasViewingTracks() {
       return document.querySelector("[data-viewing-tracks]") !== null
     },
@@ -698,7 +698,7 @@ export function createDomWriter(config) {
       document.documentElement.dataset.input = method
     },
 
-    /** Put the cursor on the paused bar's "Audio & subtitles" button. */
+    /** Put the cursor on the paused bar's "Audio, subtitles & picture" button. */
     focusViewingTracks() {
       document.querySelector("[data-viewing-tracks]")?.focus({ preventScroll: true })
     },

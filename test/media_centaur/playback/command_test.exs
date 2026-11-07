@@ -14,6 +14,11 @@ defmodule MediaCentaur.Playback.CommandTest do
       assert Command.ipc({:select_track, :subtitle, :none}, nil) == ["set_property", "sid", "no"]
     end
 
+    test "the picture fills the screen's width, or fits it" do
+      assert Command.ipc({:fill_width, true}, nil) == ["set_property", "user-data/fill-width", true]
+      assert Command.ipc({:fill_width, false}, nil) == ["set_property", "user-data/fill-width", false]
+    end
+
     test "activating the prompt does what the prompt says, and nothing without one" do
       assert Command.ipc(:activate_prompt, {:skip_intro, 92.5}) == ["seek", 92.5, "absolute"]
       assert Command.ipc(:activate_prompt, :next_episode) == ["playlist-next"]
@@ -53,7 +58,8 @@ defmodule MediaCentaur.Playback.CommandTest do
             {:seek_to, 42.5},
             :activate_prompt,
             {:select_track, :audio, 1},
-            {:select_track, :subtitle, :none}
+            {:select_track, :subtitle, :none},
+            {:fill_width, true}
           ] do
         assert Command.valid?(command), inspect(command)
       end

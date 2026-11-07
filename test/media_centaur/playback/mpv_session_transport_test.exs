@@ -110,6 +110,18 @@ defmodule MediaCentaur.Playback.MpvSessionTransportTest do
     assert Sessions.get(:host, entity_id) == nil
   end
 
+  test "a fresh player starts at Fit; a player that comes back keeps its picture setting",
+       %{params: params} do
+    pid = start!(params)
+    attach!(pid)
+    assert_receive {:mpv_command, ["set_property", "user-data/fill-width", false]}
+
+    FakeTransport.emit(pid, {:detached, :channel_lost})
+    FakeTransport.emit(pid, {:attached, :reconnected})
+    assert_receive {:mpv_command, ["observe_property", 1, "time-pos"]}
+    refute_receive {:mpv_command, ["set_property", "user-data/fill-width", _]}, 50
+  end
+
   test "a detached transport that comes back is re-observed; nothing ends", %{params: params} do
     pid = start!(params)
     attach!(pid)

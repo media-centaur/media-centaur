@@ -44,6 +44,7 @@ defmodule MediaCentaur.Playback.Viewing do
     chapters: [],
     audio_tracks: [],
     subtitle_tracks: [],
+    fill_width: false,
     successor_queued?: false
   ]
 
@@ -68,6 +69,7 @@ defmodule MediaCentaur.Playback.Viewing do
           subtitle_tracks: [TrackResolver.Track.t()],
           aid: term(),
           sid: term(),
+          fill_width: boolean(),
           successor_queued?: boolean(),
           subtitle_text: String.t() | nil,
           prompt: prompt()
@@ -97,6 +99,7 @@ defmodule MediaCentaur.Playback.Viewing do
       subtitle_tracks: properties.subtitle_tracks,
       aid: properties.aid,
       sid: properties.sid,
+      fill_width: properties.fill_width,
       successor_queued?: not is_nil(session.pending_next),
       subtitle_text: properties.subtitle_text
     }

@@ -44,7 +44,12 @@ defmodule MediaCentaur.Playback.MpvProperties do
             playlist_count: 1,
             playlist_pos: 0,
             # The current `sub-text` line; nil with no track or between lines.
-            subtitle_text: nil
+            subtitle_text: nil,
+            # A remote player's picture setting (`user-data/fill-width`, set
+            # by `Command`): the picture fills the screen's width instead of
+            # fitting it, for a file with black bars in its frame. Not the
+            # file's: the next file of a playlist keeps it.
+            fill_width: false
 
   @type t :: %__MODULE__{
           position: number(),
@@ -58,10 +63,11 @@ defmodule MediaCentaur.Playback.MpvProperties do
           sid: term(),
           playlist_count: integer(),
           playlist_pos: integer(),
-          subtitle_text: String.t() | nil
+          subtitle_text: String.t() | nil,
+          fill_width: boolean()
         }
 
-  @observed ~w(time-pos duration pause eof-reached track-list aid sid chapter-list playlist-count playlist-pos path sub-text chapter)
+  @observed ~w(time-pos duration pause eof-reached track-list aid sid chapter-list playlist-count playlist-pos path sub-text chapter user-data/fill-width)
 
   @doc "The mpv property names the session observes, in the order it registers them."
   @spec observed() :: [String.t()]
@@ -102,6 +108,9 @@ defmodule MediaCentaur.Playback.MpvProperties do
     do: %{mirror | subtitle_text: text}
 
   def apply(%__MODULE__{} = mirror, "sub-text", _absent), do: %{mirror | subtitle_text: nil}
+
+  def apply(%__MODULE__{} = mirror, "user-data/fill-width", fill),
+    do: %{mirror | fill_width: fill == true}
   def apply(%__MODULE__{} = mirror, _name, _data), do: mirror
 
   @doc """

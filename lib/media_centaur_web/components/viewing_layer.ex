@@ -10,15 +10,16 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       both ends of a full-width seek bar with chapter ticks and a handle.
       On screen while paused and for a few seconds after a key
       (`bar_shown?`), with a pause glyph in the centre while paused, and
-      while paused an "Audio & subtitles" button under the seek bar — the
+      while paused an "Audio, subtitles & picture" button under the seek bar — the
       track menu on a remote without a Menu key.
     * **The prompt**: Skip Intro or Next Episode (`viewing.prompt`) as the
       primary button at the top right with its key hint — the layer's one
       nav item, so SELECT activates it (`viewing_prompt`).
     * **The subtitle line**: `viewing.subtitle_text`, centred above the bar's
       place.
-    * **The track menu**: a centred glass modal of two `GlassMenu.menu_list`
-      columns, Audio and Subtitles, the active entries marked, *None* first
+    * **The track menu**: a centred glass modal of three `GlassMenu.menu_list`
+      columns, Audio, Subtitles and Picture (Fit, or Fill width for a file
+      with black bars in its frame: `Command` `{:fill_width, _}`), the active entries marked, *None* first
       in Subtitles, bitmap tracks disabled with "Not on this TV" and a note
       when a file has nothing else (`viewing_track`, `viewing_menu_close`).
 
@@ -174,7 +175,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
           data-viewing-tracks
           tabindex="0"
         >
-          <.icon name="hero-language" class="size-4" /> Audio &amp; subtitles
+          <.icon name="hero-language" class="size-4" /> Audio, subtitles &amp; picture
         </.button>
       </div>
     </div>
@@ -220,7 +221,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
   attr :viewing, Viewing, required: true
   attr :open?, :boolean, default: false
 
-  @doc "The track menu: Audio and Subtitles as two menu lists in a centred glass modal; bitmap tracks disabled."
+  @doc "The track menu: Audio, Subtitles and Picture as three menu lists in a centred glass modal; bitmap tracks disabled."
   def viewing_track_menu(assigns) do
     assigns = assign(assigns, bitmap_only?: bitmap_only?(assigns.viewing.subtitle_tracks))
 
@@ -235,7 +236,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
       data-nav-overlay="viewing_menu"
     >
       <div class="viewing-menu glass-surface" phx-click-away={@open? && "viewing_menu_close"}>
-        <h2 class="viewing-menu-title">Audio &amp; subtitles</h2>
+        <h2 class="viewing-menu-title">Audio, subtitles &amp; picture</h2>
         <div class="viewing-menu-columns">
           <div class="viewing-menu-column">
             <h3 class="viewing-menu-heading">Audio</h3>
@@ -285,6 +286,32 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
                 <span class="viewing-menu-meta">
                   {if Viewing.bitmap_track?(track), do: "Not on this TV", else: codec_label(track)}
                 </span>
+              </:item>
+            </GlassMenu.menu_list>
+          </div>
+          <div class="viewing-menu-column">
+            <h3 class="viewing-menu-heading">Picture</h3>
+            <GlassMenu.menu_list
+              id="viewing-picture"
+              zone="viewing_picture"
+              on_close="viewing_menu_close"
+              class="viewing-menu-list"
+            >
+              <:item
+                id="viewing-picture-fit"
+                event="viewing_picture"
+                values={%{"fill" => "fit"}}
+                active={not @viewing.fill_width}
+              >
+                <span class="viewing-menu-label">Fit</span>
+              </:item>
+              <:item
+                id="viewing-picture-width"
+                event="viewing_picture"
+                values={%{"fill" => "width"}}
+                active={@viewing.fill_width}
+              >
+                <span class="viewing-menu-label">Fill width</span>
               </:item>
             </GlassMenu.menu_list>
           </div>

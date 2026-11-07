@@ -128,7 +128,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
     %Binding{
       id: :track_menu,
       category: :viewing,
-      name: "Audio & subtitles",
+      name: "Audio, subtitles & picture",
       description: "Open the track menu; press again to close it",
       default_key: "ContextMenu",
       default_button: nil

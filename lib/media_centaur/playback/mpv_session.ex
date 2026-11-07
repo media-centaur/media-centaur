@@ -296,6 +296,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp apply_event({:attached, kind}, state) do
     observe_properties(state.transport)
+    if kind == :fresh, do: reset_picture(state.transport)
     Log.info(:playback, "player attached (#{kind})")
     state = cancel_reattach_timer(state)
     broadcast_state_changed(:playing, state)
@@ -663,6 +664,12 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # --- Observation ---
+
+  # A remote player's mpv outlives a viewing, and with it the picture
+  # setting (`user-data/fill-width`): each fresh viewing starts at Fit. A
+  # player that comes back mid-viewing keeps what the reader chose.
+  defp reset_picture(transport),
+    do: Transport.send(transport, Command.ipc({:fill_width, false}, nil))
 
   defp observe_properties(transport) do
     for {name, id} <- Enum.with_index(MpvProperties.observed(), 1) do

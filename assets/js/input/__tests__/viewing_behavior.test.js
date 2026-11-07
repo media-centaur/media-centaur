@@ -106,7 +106,7 @@ describe("withViewing — the wrapped behaviour", () => {
   })
 })
 
-// Paused, the bar shows an "Audio & subtitles" button: the track menu without
+// Paused, the bar shows an "Audio, subtitles & picture" button: the track menu without
 // a Menu key, which most Google TV remotes lack (Play's TV-DM criterion).
 describe("withViewing — the paused bar's tracks button", () => {
   test("down focuses the button instead of seeking back", () => {

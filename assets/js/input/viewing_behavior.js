@@ -10,7 +10,7 @@
  * the prompt while one shows (the desktop rule: ENTER is the pill's while
  * the pill is up) and toggles pause otherwise, the remote's media keys
  * play/pause and seek 30 s, and MENU opens the track menu. Paused, the bar
- * shows an "Audio & subtitles" button — the track menu on a remote without a
+ * shows an "Audio, subtitles & picture" button — the track menu on a remote without a
  * Menu key: DOWN focuses it, SELECT on it opens the menu, UP leaves it, and
  * LEFT and RIGHT still seek. BACK passes through: containment dismisses the
  * overlay, whose dismiss event stops the viewing. With the menu open the

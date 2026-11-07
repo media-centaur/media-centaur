@@ -118,6 +118,9 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     render_click(view, "viewing_track", %{"kind" => "subtitle", "id" => "none"})
     assert_receive {:mpv_command, ["set_property", "sid", "no"]}
 
+    render_click(view, "viewing_picture", %{"fill" => "width"})
+    assert_receive {:mpv_command, ["set_property", "user-data/fill-width", true]}
+
     render_click(view, "viewing_command", %{"command" => "seek_to", "seconds" => 600})
     assert_receive {:mpv_command, ["seek", 600, "absolute+exact"]}
   end

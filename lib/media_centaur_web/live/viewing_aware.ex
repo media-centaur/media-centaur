@@ -18,7 +18,8 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
 
   Events the layer sends: `viewing_command` (`command`, `seconds`),
   `viewing_tap` (a tap on the picture: shows the bar, or hides it while
-  playing), `viewing_prompt`, `viewing_track` (`kind`, `id`), `viewing_menu_open`,
+  playing), `viewing_prompt`, `viewing_track` (`kind`, `id`), `viewing_picture`
+  (`fill`: `width` or `fit`), `viewing_menu_open`,
   `viewing_menu_close`, `viewing_back` (closes the menu if open, else
   stops the viewing). The bar shows for #{4} s after any command and
   while paused (`Logic.bar_shown?/2`); nothing animates continuously.
@@ -107,6 +108,15 @@ defmodule MediaCentaurWeb.Live.ViewingAware do
 
   defp on_event("viewing_track", params, socket) do
     case Logic.track_from_params(params) do
+      {:ok, command} -> send_command(socket, command)
+      :error -> :ok
+    end
+
+    {:halt, socket}
+  end
+
+  defp on_event("viewing_picture", params, socket) do
+    case Logic.picture_from_params(params) do
       {:ok, command} -> send_command(socket, command)
       :error -> :ok
     end

@@ -41,6 +41,14 @@ defmodule MediaCentaurWeb.Live.ViewingAware.LogicTest do
     end
   end
 
+  describe "picture_from_params/1" do
+    test "fill the width, or fit" do
+      assert Logic.picture_from_params(%{"fill" => "width"}) == {:ok, {:fill_width, true}}
+      assert Logic.picture_from_params(%{"fill" => "fit"}) == {:ok, {:fill_width, false}}
+      assert Logic.picture_from_params(%{"fill" => "height"}) == :error
+    end
+  end
+
   describe "bar_shown?/2 — when the bar is on screen" do
     test "while paused, and while the show timer runs; hidden otherwise" do
       playing = %Viewing{

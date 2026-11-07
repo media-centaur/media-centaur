@@ -83,6 +83,12 @@ defmodule MediaCentaurWeb.Live.ViewingAware.Logic do
 
   def track_from_params(_params), do: :error
 
+  @doc "`viewing_picture`'s payload as a picture command: fill the screen's width, or fit."
+  @spec picture_from_params(map()) :: {:ok, MediaCentaur.Playback.Command.t()} | :error
+  def picture_from_params(%{"fill" => "width"}), do: {:ok, {:fill_width, true}}
+  def picture_from_params(%{"fill" => "fit"}), do: {:ok, {:fill_width, false}}
+  def picture_from_params(_params), do: :error
+
   defp integer(value) when is_integer(value), do: {:ok, value}
 
   defp integer(value) when is_binary(value) do

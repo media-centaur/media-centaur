@@ -3,7 +3,7 @@
 // taps, so on `#viewing-osd` a tap on the picture pushes `viewing_tap`
 // (show the bar, or hide it while playing) and a tap on the seek bar pushes
 // an absolute seek to the tapped point. A tap on a control (the prompt, the
-// play/pause button, Audio & subtitles) is left to the control's own
+// play/pause button, Audio, subtitles & picture) is left to the control's own
 // `phx-click`.
 
 export function seekSeconds(clientX, rect, duration) {

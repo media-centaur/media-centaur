@@ -4245,7 +4245,7 @@ body:has(.viewing) .gamepad-hint-bar {
 /* At most the screen's height: a file with dozens of subtitle tracks
    scrolls its columns instead of running off the bottom. */
 .viewing-menu {
-  width: min(40rem, 90%);
+  width: min(48rem, 92%);
   max-height: 92%;
   display: flex;
   flex-direction: column;
@@ -4266,7 +4266,7 @@ body:has(.viewing) .gamepad-hint-bar {
 
 .viewing-menu-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr auto;
   gap: 0 1.75rem;
 }
 

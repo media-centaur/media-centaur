@@ -14,6 +14,9 @@ defmodule MediaCentaur.Playback.Command do
     * `:activate_prompt` — what the viewing's prompt offers (`Viewing.prompt/1`):
       a seek past the intro, or the next episode now
     * `{:select_track, :audio | :subtitle, id | :none}`
+    * `{:fill_width, boolean}` — a remote player's picture fills the
+      screen's width (a file with black bars in its frame) or fits it; the
+      device sizes its video to `user-data/fill-width`
 
   A command is bounded to the file before it is rendered (`within/3`): a
   seek that would cross the end becomes an exact seek to one second short
@@ -32,6 +35,7 @@ defmodule MediaCentaur.Playback.Command do
           | {:seek_to, number()}
           | :activate_prompt
           | {:select_track, :audio | :subtitle, integer() | :none}
+          | {:fill_width, boolean()}
 
   @doc "Whether a term is one of the vocabulary."
   @spec valid?(term()) :: boolean()
@@ -41,6 +45,7 @@ defmodule MediaCentaur.Playback.Command do
   def valid?(:activate_prompt), do: true
   def valid?({:select_track, kind, :none}) when kind in [:audio, :subtitle], do: true
   def valid?({:select_track, kind, id}) when kind in [:audio, :subtitle] and is_integer(id), do: true
+  def valid?({:fill_width, fill}) when is_boolean(fill), do: true
   def valid?(_other), do: false
 
   @end_margin_seconds 1
@@ -75,6 +80,7 @@ defmodule MediaCentaur.Playback.Command do
   def ipc(:activate_prompt, nil), do: nil
   def ipc({:select_track, :audio, id}, _prompt), do: ["set_property", "aid", track_value(id)]
   def ipc({:select_track, :subtitle, id}, _prompt), do: ["set_property", "sid", track_value(id)]
+  def ipc({:fill_width, fill}, _prompt), do: ["set_property", "user-data/fill-width", fill]
 
   defp track_value(:none), do: "no"
   defp track_value(id), do: id

@@ -65,6 +65,22 @@ defmodule MediaCentaur.Playback.MpvPropertiesTest do
     end
   end
 
+  describe "fill width — the device's picture setting" do
+    test "fits until set, then follows the device's mpv" do
+      refute %MpvProperties{}.fill_width
+      assert MpvProperties.apply(%MpvProperties{}, "user-data/fill-width", true).fill_width
+
+      refute %MpvProperties{fill_width: true}
+             |> MpvProperties.apply("user-data/fill-width", false)
+             |> Map.fetch!(:fill_width)
+    end
+
+    test "an unset property reads as fit, and the next file of a playlist keeps it" do
+      refute MpvProperties.apply(%MpvProperties{fill_width: true}, "user-data/fill-width", nil).fill_width
+      assert MpvProperties.reset_for_file(%MpvProperties{fill_width: true}).fill_width
+    end
+  end
+
   describe "reset_for_file/1 — the next file of a playlist" do
     test "clears what the file owns and keeps the selected tracks and the playlist shape" do
       mirror = %MpvProperties{
