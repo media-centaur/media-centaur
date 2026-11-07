@@ -26,7 +26,10 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   the cursor to the trigger and asks the LiveView to close the list in
   one press. The tenant's layout in `config.js` declares the zone: a
   TREE reached by DOWN from the trigger's zone, with `up` and `back`
-  edges to it.
+  edges to it. A list that is a region of an overlay rather than a
+  dropdown (the viewing layer's track menu columns) takes no `on_close`:
+  the overlay owns closing, and moving to a sibling region must not
+  dismiss it.
 
   ## Open state
 
@@ -43,7 +46,12 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
 
   attr :id, :string, required: true
   attr :zone, :string, required: true, doc: "the list's `data-nav-zone` — a TREE declared in `config.js`"
-  attr :on_close, :string, required: true, doc: "the event BACK pushes when it leaves the list"
+
+  attr :on_close, :string,
+    default: nil,
+    doc:
+      "the event BACK pushes when it leaves the list; nil for a region of an overlay, which closes the overlay itself"
+
   attr :placement, :string, default: "below", values: ~w(below above), doc: "which side of the trigger"
 
   attr :align, :string,

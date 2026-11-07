@@ -159,8 +159,10 @@ defmodule MediaCentaur.Playback.Viewing do
   @spec bitmap_track?(TrackResolver.Track.t()) :: boolean()
   def bitmap_track?(%TrackResolver.Track{codec: codec}), do: codec in @bitmap_codecs
 
+  # mpv reports chapter -1 before the first chapter; Enum.at/2 would read
+  # that as the last chapter — the credits — so only an index counts.
   defp credits_chapter_playing?(%{chapter: index, chapters: chapters, duration_seconds: duration})
-       when is_integer(index) do
+       when is_integer(index) and index >= 0 do
     case Enum.at(chapters, index) do
       %{} = chapter -> Completion.credits_chapter?(chapter, duration)
       nil -> false

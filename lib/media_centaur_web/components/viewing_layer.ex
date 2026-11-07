@@ -247,7 +247,6 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
             <GlassMenu.menu_list
               id="viewing-audio"
               zone="viewing_audio"
-              on_close="viewing_menu_close"
               class="viewing-menu-list"
             >
               <:item
@@ -278,7 +277,6 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
             <GlassMenu.menu_list
               id="viewing-subtitles"
               zone="viewing_subtitles"
-              on_close="viewing_menu_close"
               class="viewing-menu-list"
             >
               <:item
@@ -322,7 +320,6 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
             <GlassMenu.menu_list
               id="viewing-picture"
               zone="viewing_picture"
-              on_close="viewing_menu_close"
               class="viewing-menu-list"
             >
               <:item

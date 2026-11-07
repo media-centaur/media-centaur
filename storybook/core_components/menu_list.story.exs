@@ -43,6 +43,22 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuList do
         ]
       },
       %Variation{
+        id: :overlay_region,
+        description:
+          "No `on_close`: a region of an overlay (the track menu's columns) declares no dismiss event, " <>
+            "so moving to a sibling region keeps the overlay open; the overlay closes itself.",
+        attributes: %{
+          id: "list-region",
+          zone: "sample_region",
+          placement: "below",
+          align: "start"
+        },
+        slots: [
+          ~s|<:item id="list-region-a" event="pick" active>Default</:item>|,
+          ~s|<:item id="list-region-b" event="pick">English</:item>|
+        ]
+      },
+      %Variation{
         id: :above_end,
         description:
           ~s(`placement="above"` and `align="end"`: the list opens upward from the anchor's end ) <>

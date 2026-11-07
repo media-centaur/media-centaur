@@ -169,6 +169,14 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     assert has_element?(view, "#viewing-menu[data-detail-nested='true']")
     assert render(view) =~ "Not on this TV"
 
+    # The columns are regions of one overlay, not dropdowns: moving between
+    # them must not close the menu, so none declares a dismiss event of its
+    # own — BACK closes the overlay.
+    for zone <- ~w(viewing_audio viewing_subtitles viewing_picture) do
+      assert has_element?(view, "[data-nav-zone='#{zone}']")
+      refute has_element?(view, "[data-nav-zone='#{zone}'][data-nav-dismiss-event]")
+    end
+
     render_click(view, "viewing_back", %{})
     refute has_element?(view, "[data-nav-overlay='viewing_menu'][data-state='open']")
     assert Sessions.get(player.id, movie.id)

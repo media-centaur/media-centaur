@@ -157,6 +157,10 @@ defmodule MediaCentaur.Playback.ViewingTest do
       assert Viewing.prompt(viewing(position_seconds: 2590.0, chapter: 2)) == nil
     end
 
+    test "no Next Episode before the first chapter (mpv's chapter -1 after a seek to the start)" do
+      assert Viewing.prompt(viewing(chapter: -1, position_seconds: 0.0, successor_queued?: true)) == nil
+    end
+
     test "nothing without a duration" do
       assert Viewing.prompt(viewing(duration_seconds: 0.0, successor_queued?: true)) == nil
     end
