@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.12.0 — 2026-11-07
+
+### New
+
+- **Rename a player.** Each paired TV or phone under **Settings → Players** has its name in an editable field; the new name is saved when you press Enter or leave the field.
+- **See which device each player is.** Each player's card in **Settings → Players** shows the device's model, its Android version and the TV app version, with an icon for a TV, phone or tablet. It also shows whether the player is connected now, or when and from which network address it was last seen. The device details need version 0.3.0 of the TV app. A device paired from a web browser shows that browser and its platform instead.
+- **Every player on Status → Playback.** The Playback page now lists this computer and each paired player, with whether it is connected and what it is playing, for which profile. If a TV or phone loses its connection partway through a film, its row says *waiting for the player* while this computer waits up to a minute for it to come back.
+
+### Fixed
+
+- **The Home hero no longer repeats Continue Watching.** The large title at the top of Home is no longer one of the first four titles in Continue Watching, so the top of the page doesn't show the same title twice.
+- **Fewer false error reports from players.** A TV or phone whose connection timed out, or that opened a second connection by mistake, no longer shows up on the Status page as an error.
+
 ## v2.11.0 — 2026-11-07
 
 ### New
