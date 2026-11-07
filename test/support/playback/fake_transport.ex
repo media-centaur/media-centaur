@@ -50,6 +50,9 @@ defmodule MediaCentaur.Playback.FakeTransport do
   def recover(_player), do: []
 
   @impl true
+  def abandon(_player, _entity_id), do: :ok
+
+  @impl true
   def open(transport, launch) do
     Kernel.send(transport.owner, {:transport_opened, launch})
     {[], transport}

@@ -15,7 +15,14 @@ defmodule MediaCentaur.Playback.Sessions do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Playback
-  alias MediaCentaur.Playback.{MpvSession, SessionRegistry, SessionSupervisor, Transport}
+
+  alias MediaCentaur.Playback.{
+    MpvSession,
+    SessionRegistry,
+    SessionSupervisor,
+    SessionWatchdog,
+    Transport
+  }
 
   @doc """
   Starts playback of `params` on `player`: `params.entry` is the
@@ -73,8 +80,8 @@ defmodule MediaCentaur.Playback.Sessions do
     Log.info(:playback, "starting session — #{describe(params.entry)} on #{inspect(player)}")
 
     case SessionSupervisor.start_session(Map.merge(params, %{player: player, transport: transport})) do
-      {:ok, _pid} ->
-        :ok
+      {:ok, pid} ->
+        SessionWatchdog.watch(pid, player)
 
       {:error, reason} ->
         Log.info(:playback, "session start failed — #{inspect(reason)}")
@@ -94,14 +101,17 @@ defmodule MediaCentaur.Playback.Sessions do
   @doc """
   Reattaches sessions to the mpvs on `player` that outlived their last
   session (ADR-023): the host's orphaned processes at boot, a remote
-  player's mpv when its channel connects and no session holds it. The
+  player's mpv when its channel connects and no session holds it, and
+  either after a session crashed (`SessionWatchdog`). An mpv a live
+  session holds is left to it; one that cannot be reattached is stopped,
+  so nothing plays without a session. The
   player's transport finds them and reads what they play
   (`Transport.recover/1`), `SessionRecovery` turns the readings into
   reattach params, and each starts through `resume/2`.
   """
   @spec recover(Playback.player()) :: :ok
   def recover(player) do
-    for params <- transport_module(player).recover(player) do
+    for params <- orphans(player) do
       case resume(params, player) do
         :ok ->
           Log.info(:playback, "recovered session — #{describe(params.entry)} on #{inspect(player)}")
@@ -109,12 +119,39 @@ defmodule MediaCentaur.Playback.Sessions do
         {:error, reason} ->
           Log.warning(
             :playback,
-            "failed to recover session — #{describe(params.entry)} on #{inspect(player)}: #{inspect(reason)}"
+            "failed to recover session — #{describe(params.entry)} on #{inspect(player)}: #{inspect(reason)}; stopping its mpv"
           )
+
+          transport_module(player).abandon(player, params.entry.entity_id)
       end
     end
 
     :ok
+  end
+
+  @doc """
+  Stops the mpvs on `player` that no session holds — what
+  `SessionWatchdog` does when a player's sessions keep crashing, so a
+  crash loop ends with nothing playing rather than with an mpv no session
+  saves or controls.
+  """
+  @spec abandon(Playback.player()) :: :ok
+  def abandon(player) do
+    for params <- orphans(player) do
+      Log.info(:playback, "stopping an orphaned mpv — #{describe(params.entry)} on #{inspect(player)}")
+      transport_module(player).abandon(player, params.entry.entity_id)
+    end
+
+    :ok
+  end
+
+  # The mpvs on `player` that outlived their session and that no live
+  # session holds again (a recovery while other sessions play finds theirs too).
+  defp orphans(player) do
+    Enum.reject(
+      transport_module(player).recover(player),
+      &SessionRegistry.active?({player, &1.entry.entity_id})
+    )
   end
 
   defp describe(entry), do: entry.entity_name || entry.entity_id

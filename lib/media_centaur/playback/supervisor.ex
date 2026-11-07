@@ -1,7 +1,9 @@
 defmodule MediaCentaur.Playback.Supervisor do
   @moduledoc """
-  Groups playback infrastructure: SessionRegistry, SessionSupervisor, and
-  a one-shot recovery task.
+  Groups playback infrastructure: SessionRegistry, SessionSupervisor, and,
+  where background work runs, the SessionWatchdog (recovers the mpv a
+  crashed session leaves) and a one-shot recovery task. The watchdog
+  starts first, so the sessions boot recovery starts are watched.
 
   Uses `:one_for_one` — children are independent. Registry auto-deregisters
   dead processes. SessionSupervisor crash kills all sessions (they're temporary
@@ -32,7 +34,7 @@ defmodule MediaCentaur.Playback.Supervisor do
   # a LiveView with `Playback.subscribe()`.
   defp recovery_children do
     if MediaCentaur.Settings.Config.get(:background_services) do
-      [{Task, &recover_sessions/0}]
+      [MediaCentaur.Playback.SessionWatchdog, {Task, &recover_sessions/0}]
     else
       []
     end

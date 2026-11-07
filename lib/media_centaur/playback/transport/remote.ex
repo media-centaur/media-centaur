@@ -91,6 +91,16 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   @impl true
   def for_player(player_id, _params), do: new(player_id)
 
+  # A device plays one viewing: stopping its mpv ends the orphan, whatever
+  # it plays. A device with no channel has nothing to reach.
+  @impl true
+  def abandon(player_id, _entity_id) do
+    case PlayerRegistry.lookup(player_id) do
+      {channel, _media_urls} -> Channel.push(channel, ["stop"])
+      nil -> :ok
+    end
+  end
+
   @impl true
   # Runs off the channel's process: the reader waits on the channel's replies.
   def recover(player_id) do

@@ -99,6 +99,29 @@ defmodule MediaCentaur.Playback.Transport.Local do
     end)
   end
 
+  # The orphan's own socket takes one `quit`; an mpv already gone leaves
+  # nothing to do.
+  @impl true
+  def abandon(:host, entity_id) do
+    socket_path = new(entity_id).socket_path
+
+    case :gen_tcp.connect(
+           {:local, to_charlist(socket_path)},
+           0,
+           [:binary, active: false],
+           @probe_timeout_ms
+         ) do
+      {:ok, socket} ->
+        :gen_tcp.send(socket, Jason.encode!(%{"command" => ["quit"]}) <> "\n")
+        :gen_tcp.close(socket)
+
+      {:error, _reason} ->
+        :ok
+    end
+
+    :ok
+  end
+
   defp entity_id_of(socket_path) do
     socket_path
     |> Path.basename()

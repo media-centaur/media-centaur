@@ -26,6 +26,8 @@ Requirements:
 
 **Amendment 2026-09-12.** This record originally claimed that a restart orphaned a still-playing mpv, which `MediaCentaur.Playback.SessionRecovery` would reconnect to. That premise was never true on the development machine: the dev unit shipped `KillMode=mixed`, so every restart killed the whole cgroup, mpv included, and the recovery path never fired. Measured 2026-09-12, mpv survives a restart under `KillMode=process`, which both units now ship. The resumable design of `MediaCentaur.Playback.MpvSession` stands; only the factual claim was wrong.
 
+**Amendment 2026-11-07.** Recovery has a third trigger. A session that crashes leaves its mpv playing exactly as a restart does — on a remote player with no on-screen controls, on the host with no progress saved — so `MediaCentaur.Playback.SessionWatchdog` watches every session and, when one crashes, recovers its player through the same `Sessions.recover/1`. A second crash on the same player within a minute stops that player's orphaned mpv instead (`Sessions.abandon/1`), so a crash loop ends with nothing playing. Recovery now also leaves alone an mpv a live session holds, and stops an orphan it cannot reattach: nothing plays without a session.
+
 ### Consequences
 
 * Startup reconciliation adds latency to process init; running it in `handle_continue/2` keeps `init/1` non-blocking.

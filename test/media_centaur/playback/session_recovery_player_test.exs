@@ -10,7 +10,7 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.FilePresence
-  alias MediaCentaur.Playback.LaunchFlags
+  alias MediaCentaur.Playback.{Entry, FakeTransport, LaunchFlags, Sessions}
   alias MediaCentaur.Playback.Transport.Remote.PlayerRegistry
   alias MediaCentaur.Playback.Transport.Remote
 
@@ -101,5 +101,54 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
   @tag :tmp_dir
   test "a player with no channel is skipped" do
     assert Remote.recover(Ecto.UUID.generate()) == []
+  end
+
+  describe "orphans — the mpvs no session holds" do
+    defp playing_answers(presence) do
+      %{
+        "path" => success("#{@base}/media/#{presence.id}?t=token"),
+        "time-pos" => success(60.0),
+        "script-opts" => success(%{LaunchFlags.profile_script_opt() => MediaCentaur.Profiles.owner().id})
+      }
+    end
+
+    defp hold_with_session(player_id, movie, path) do
+      on_exit(fn -> Sessions.stop(player_id, movie.id) end)
+
+      :ok =
+        Sessions.play(
+          %{
+            profile_id: MediaCentaur.Profiles.owner().id,
+            entry: %Entry{entity_id: movie.id, movie_id: movie.id, content_url: path},
+            transport: FakeTransport.new(self())
+          },
+          player_id
+        )
+    end
+
+    @tag :tmp_dir
+    test "abandoning a player stops the mpv no session holds",
+         %{player_id: player_id, presence: presence} do
+      task = Task.async(fn -> Sessions.abandon(player_id) end)
+      answer_properties(playing_answers(presence))
+
+      assert Task.await(task) == :ok
+      assert_received {:channel, {:push, ["stop"]}}
+    end
+
+    @tag :tmp_dir
+    test "abandoning or recovering leaves an mpv a live session holds",
+         %{player_id: player_id, presence: presence, movie: movie, path: path} do
+      hold_with_session(player_id, movie, path)
+
+      for action <- [&Sessions.abandon/1, &Sessions.recover/1] do
+        task = Task.async(fn -> action.(player_id) end)
+        answer_properties(playing_answers(presence))
+        assert Task.await(task) == :ok
+      end
+
+      refute_received {:channel, {:push, ["stop"]}}
+      assert [_one] = Enum.filter(Sessions.list(), &(&1.player == player_id))
+    end
   end
 end

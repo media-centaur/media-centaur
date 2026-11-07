@@ -115,6 +115,13 @@ defmodule MediaCentaur.Playback.Transport do
   """
   @callback recover(MediaCentaur.Playback.player()) :: [map()]
 
+  @doc """
+  Stops the mpv on `player` that plays `entity_id` with no session — an
+  orphan `recover/1` found that cannot be reattached, or one left by a
+  session that keeps crashing (`SessionWatchdog`).
+  """
+  @callback abandon(MediaCentaur.Playback.player(), entity_id :: String.t()) :: :ok
+
   def open(%module{} = transport, launch), do: module.open(transport, launch)
   def send(%module{} = transport, command), do: module.send(transport, command)
   def attached?(%module{} = transport), do: module.attached?(transport)
