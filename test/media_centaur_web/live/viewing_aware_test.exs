@@ -140,6 +140,35 @@ defmodule MediaCentaurWeb.Live.ViewingAwareTest do
     assert has_element?(view, "#viewing-osd[data-bar='hidden']")
   end
 
+  # A finger's controls (`campaigns/adaptive-layout.md`, M3): with the bar
+  # up, the deck's skips are relative seeks and its Back is the same door a
+  # remote's BACK takes — the viewing stops. With the bar hidden there is
+  # no deck to tap.
+  test "the touch deck shows with the bar: skips seek ten seconds, Back stops the viewing", %{
+    conn: conn,
+    player: player,
+    params: params
+  } do
+    start_viewing!(params, player)
+    {:ok, view, _html} = conn |> from_lan() |> as_player(player) |> live(~p"/settings")
+
+    refute has_element?(view, "#viewing-touch-back")
+    render_click(view, "viewing_tap", %{})
+
+    view |> element("#viewing-touch-skip-back", "10") |> render_click()
+    assert_receive {:mpv_command, ["seek", -10, "relative"]}
+    view |> element("#viewing-touch-skip-forward", "10") |> render_click()
+    assert_receive {:mpv_command, ["seek", 10, "relative"]}
+    view |> element("#viewing-touch-pause") |> render_click()
+    assert_receive {:mpv_command, ["cycle", "pause"]}
+
+    MediaCentaur.Playback.subscribe_viewing(player.id)
+    view |> element("#viewing-touch-back") |> render_click()
+    assert_receive {:mpv_command, ["quit"]}
+    assert_receive {:viewing_ended, %Events.ViewingEnded{}}, 500
+    eventually(fn -> not has_element?(view, "[data-viewing]") end)
+  end
+
   test "the track menu opens on request; Back closes it first, then stops the viewing", %{
     conn: conn,
     player: player,

@@ -99,24 +99,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
         <div :if={@viewing.state == :paused} class="viewing-centre" aria-hidden="true">
           <.icon name="hero-pause-solid" class="size-10" />
         </div>
-        <%!-- A touch screen's pause and resume, with the bar (shown by CSS on
-              a coarse pointer only; a remote's OK already does this). --%>
-        <.button
-          :if={@bar_shown?}
-          id="viewing-touch-pause"
-          variant="neutral"
-          shape="circle"
-          size="lg"
-          class="viewing-touch-pause"
-          phx-click="viewing_command"
-          phx-value-command="toggle_pause"
-          aria-label={if @viewing.state == :paused, do: "Play", else: "Pause"}
-        >
-          <.icon
-            name={if @viewing.state == :paused, do: "hero-play-solid", else: "hero-pause-solid"}
-            class="size-8"
-          />
-        </.button>
+        <.viewing_touch_deck :if={@bar_shown?} state={@viewing.state} />
         <.viewing_prompt :if={@viewing.prompt} prompt={@viewing.prompt} />
         <.viewing_subtitle
           :if={@viewing.subtitle_text}
@@ -124,6 +107,78 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
           lifted={@bar_shown?}
         />
         <.viewing_bar viewing={@viewing} />
+      </div>
+    </div>
+    """
+  end
+
+  attr :state, :atom, required: true, doc: "the viewing's state: `:playing` or `:paused`"
+
+  @doc """
+  The touch deck: a finger's controls, with the bar, drawn by CSS on a coarse
+  pointer only (a remote's keys already do all of this). Back at the top
+  left pushes `viewing_back` — the door a remote's BACK takes — and, in the
+  centre, ten seconds back, play/pause and ten seconds forward push the
+  commands a remote's keys push (`campaigns/adaptive-layout.md`, M3).
+  """
+  def viewing_touch_deck(assigns) do
+    ~H"""
+    <div class="viewing-touch">
+      <.button
+        id="viewing-touch-back"
+        variant="neutral"
+        shape="circle"
+        size="lg"
+        class="viewing-touch-back"
+        phx-click="viewing_back"
+        aria-label="Back"
+      >
+        <.icon name="hero-arrow-left" class="size-6" />
+      </.button>
+      <div class="viewing-touch-centre">
+        <.button
+          id="viewing-touch-skip-back"
+          variant="neutral"
+          shape="circle"
+          size="lg"
+          class="viewing-touch-skip"
+          phx-click="viewing_command"
+          phx-value-command="seek"
+          phx-value-seconds="-10"
+          aria-label="Back 10 seconds"
+        >
+          <.icon name="hero-arrow-uturn-left" class="size-5" />
+          <span class="viewing-touch-skip-seconds">10</span>
+        </.button>
+        <.button
+          id="viewing-touch-pause"
+          variant="neutral"
+          shape="circle"
+          size="lg"
+          class="viewing-touch-pause"
+          phx-click="viewing_command"
+          phx-value-command="toggle_pause"
+          aria-label={if @state == :paused, do: "Play", else: "Pause"}
+        >
+          <.icon
+            name={if @state == :paused, do: "hero-play-solid", else: "hero-pause-solid"}
+            class="size-8"
+          />
+        </.button>
+        <.button
+          id="viewing-touch-skip-forward"
+          variant="neutral"
+          shape="circle"
+          size="lg"
+          class="viewing-touch-skip"
+          phx-click="viewing_command"
+          phx-value-command="seek"
+          phx-value-seconds="10"
+          aria-label="Forward 10 seconds"
+        >
+          <.icon name="hero-arrow-uturn-right" class="size-5" />
+          <span class="viewing-touch-skip-seconds">10</span>
+        </.button>
       </div>
     </div>
     """
@@ -174,7 +229,7 @@ defmodule MediaCentaurWeb.Components.ViewingLayer do
         <.button
           id="viewing-tracks"
           variant="secondary"
-          size="sm"
+          size="lg"
           phx-click="viewing_menu_open"
           data-viewing-tracks
           tabindex="0"

@@ -4140,22 +4140,49 @@ body:has(.viewing) .gamepad-hint-bar {
   pointer-events: none;
 }
 
-/* Touch (a phone): the play/pause button replaces the paused glyph, the
-   track menu drops its remote-key hint, and the seek bar's tap target
-   reaches a finger's width above and below it. */
-.viewing-touch-pause {
+/* Touch (a phone): the touch deck — Back at the safe top left, and in the
+   centre ten seconds back, play/pause (in place of the paused glyph) and
+   ten seconds forward; the track menu drops its remote-key hint, and the
+   seek bar's tap target reaches a finger's width above and below it. The
+   deck is in the markup with the bar on every device and drawn here only:
+   a remote's keys already do all of it. Every control is 48px or larger. */
+.viewing-touch {
   display: none;
 }
 
 @media (pointer: coarse) {
-  .viewing-touch-pause {
-    display: inline-flex;
+  .viewing-touch {
+    display: contents;
+  }
+
+  .viewing-touch-back {
+    position: absolute;
+    left: max(4%, env(safe-area-inset-left, 0px));
+    top: max(7.5%, env(safe-area-inset-top, 0px));
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .viewing-touch-centre {
     position: absolute;
     left: 50%;
     top: 50%;
     width: 5rem;
     height: 5rem;
-    transform: translate(-50%, -50%);
+  }
+
+  /* A skip: the arrow over its count, both inside the disc. */
+  .viewing-touch-skip {
+    width: 3.5rem;
+    height: 3.5rem;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .viewing-touch-skip-seconds {
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .viewing-centre,
@@ -4169,6 +4196,13 @@ body:has(.viewing) .gamepad-hint-bar {
     inset: -1.25rem 0;
   }
 }
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .viewing-touch-pause {
 
 .viewing-scrim {
   position: absolute;
@@ -4184,6 +4218,18 @@ body:has(.viewing) .gamepad-hint-bar {
   left: 5%;
   right: 5%;
   bottom: 6.5%;
+
+  /* The bar and the prompt keep out of a turned phone's cutout. */
+  .viewing-bar {
+    left: max(5%, env(safe-area-inset-left, 0px));
+    right: max(5%, env(safe-area-inset-right, 0px));
+    bottom: max(6.5%, env(safe-area-inset-bottom, 0px));
+  }
+
+  .viewing-prompt {
+    right: max(4%, env(safe-area-inset-right, 0px));
+    top: max(7.5%, env(safe-area-inset-top, 0px));
+  }
 }
 
 .viewing-state {

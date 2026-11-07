@@ -76,7 +76,8 @@ defmodule MediaCentaurWeb.Storybook.ViewingLayer.ViewingLayer do
       },
       %Variation{
         id: :paused,
-        description: "Paused — the bar stays, the fill turns amber, a pause glyph in the centre",
+        description:
+          "Paused — the bar stays, the fill turns amber, a pause glyph in the centre. On a coarse pointer the touch deck draws instead: Back at the top left, ten seconds back, play, ten seconds forward (`page-shot --device phone`).",
         attributes: %{viewing: viewing(state: :paused), bar_shown?: true}
       },
       %Variation{
