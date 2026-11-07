@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
   alias MediaCentaurWeb.SocialLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
 
-  @verb_class "inline-flex h-8 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 hover:bg-base-content/10 hover:text-base-content/90"
+  @verb_class "inline-flex h-8 pointer-coarse:h-12 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 hover:bg-base-content/10 hover:text-base-content/90"
   @state_class "inline-flex h-8 items-center whitespace-nowrap px-1.5 text-base-content/65"
 
   attr :entry, FeedEntry, required: true

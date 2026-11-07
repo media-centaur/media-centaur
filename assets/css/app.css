@@ -4540,6 +4540,11 @@ body:has(.viewing) .gamepad-hint-bar {
     height: 3rem;
   }
 
+  /* A disclosure's head is the row a finger opens it by. */
+  .disclosure-head {
+    min-height: 3rem;
+  }
+
   /* A two-letter tab is as narrow as its word; a finger needs the square. */
   .segmented-control .tab {
     min-width: 3rem;
