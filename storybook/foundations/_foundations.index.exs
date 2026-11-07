@@ -9,4 +9,5 @@ defmodule MediaCentaurWeb.Storybook.Foundations do
   def entry("typography"), do: [icon: {:fa, "text-size", :thin}, name: "Typography"]
   def entry("spacing"), do: [icon: {:fa, "ruler-combined", :thin}, name: "Spacing & surfaces"]
   def entry("uidr_index"), do: [icon: {:fa, "list-tree", :thin}, name: "UIDR index"]
+  def entry("brand"), do: [icon: {:fa, "horse-head", :thin}, name: "Brand"]
 end

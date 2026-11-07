@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.PairingHTML do
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Features
-  alias MediaCentaurWeb.Components.FeatureOff
+  alias MediaCentaurWeb.Components.{Brand, FeatureOff}
 
   attr :name, :string, required: true, doc: "the device name the form carries, kept across a miss"
 
@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.PairingHTML do
         </FeatureOff.feature_off>
       </div>
       <div :if={@players_on?} class="glass-surface w-full max-w-md space-y-5 rounded-xl p-6">
+        <Brand.brand class="hidden max-compact:flex" />
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Pair this device</h1>
           <p class="text-base-content/70">

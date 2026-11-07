@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
 
   alias MediaCentaur.DisplayName
   alias MediaCentaur.Profiles
-  alias MediaCentaurWeb.Components.ProfileTile
+  alias MediaCentaurWeb.Components.{Brand, ProfileTile}
   alias MediaCentaurWeb.ProfileController.ReturnTo
   alias MediaCentaurWeb.ProfileWords
 
@@ -116,6 +116,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
       data-page-behavior="profiles"
       data-nav-default-zone="profiles"
     >
+      <Brand.brand class="hidden max-compact:flex -mb-6" />
       <h1 class="text-3xl font-semibold">Who's watching?</h1>
       <div
         id="profile-picker"
