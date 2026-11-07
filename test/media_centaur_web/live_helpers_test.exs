@@ -19,6 +19,27 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     end
   end
 
+  # A surface shown at more than one density (the PC's 2× zoom, the TV's
+  # effective 1×) lists its candidates in `srcset` and lets the browser
+  # pick; `src` stays the smallest, so the Credo width rule and the TV's
+  # decode budget hold (`campaigns/adaptive-layout.md`, M5).
+  describe "sized_image_srcset/2" do
+    test "lists each width as a candidate, smallest first" do
+      assert sized_image_srcset("/media-images/abc/logo.png", [640, 320]) ==
+               "/media-images/abc/logo.png?w=320 320w, /media-images/abc/logo.png?w=640 640w"
+    end
+
+    test "keeps an existing query on every candidate" do
+      assert sized_image_srcset("/media-images/abc/backdrop.jpg?v=9", [1280, 1920]) ==
+               "/media-images/abc/backdrop.jpg?v=9&w=1280 1280w, /media-images/abc/backdrop.jpg?v=9&w=1920 1920w"
+    end
+
+    test "is nil for a remote URL or nil, so the attribute is left off" do
+      assert sized_image_srcset("https://image.tmdb.org/t/p/w92/abc.jpg", [320, 640]) == nil
+      assert sized_image_srcset(nil, [320, 640]) == nil
+    end
+  end
+
   describe "sized_image_url/2" do
     test "appends a ?w= width hint to a bare URL" do
       assert sized_image_url("/media-images/abc/backdrop.jpg", 480) ==

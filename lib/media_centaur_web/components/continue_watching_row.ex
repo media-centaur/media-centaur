@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   @storybook_reason "Depends on watch-history feed — covered by page smoke tests"
 
   use Phoenix.Component
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_srcset: 2, sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.PlayOverlay
   alias MediaCentaurWeb.Components.ScrollRow
@@ -26,7 +26,10 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   # Cards sit in a `.row-scroll-backdrop-lg` track, so each is
   # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
   # which `960` covers. The logo is height-capped (`max-h-20`) and bounded to
-  # 80% of the card.
+  # 80% of the card — 362 of the 1920 px composition, so `sizes="19vw"`
+  # (a `sizes` in px is read before the UI zoom; vw follows it) — with
+  # 320–960 as `srcset` candidates: a 2× zoom gets a sharp PNG, the TV keeps
+  # the small one.
 
   defmodule Item do
     @moduledoc """
@@ -103,6 +106,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
           <img
             :if={item.available? && item.logo_url}
             src={sized_image_url(item.logo_url, 320)}
+            srcset={sized_image_srcset(item.logo_url, [320, 480, 640, 960])}
+            sizes="19vw"
             alt={item.name}
             class="max-h-20 max-w-[80%] object-contain object-left text-on-image-lg"
           />

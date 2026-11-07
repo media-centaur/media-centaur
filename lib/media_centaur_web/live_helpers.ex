@@ -250,6 +250,31 @@ defmodule MediaCentaurWeb.LiveHelpers do
       when (is_nil(url) or is_binary(url)) and
              ((is_integer(width) and width > 0) or width == :full_bleed), do: url
 
+  @doc """
+  The `srcset` of a surface painted at more than one density: each width
+  as a `w` candidate, smallest first, for the browser to pick from by the
+  box's `sizes` and the effective pixel ratio — the PC's 2× UI zoom picks
+  the large one, the TV's effective 1× the small one, so the PC gets its
+  pixels without the TV decoding more than it shows
+  (`docs/tv-performance.md`, rule 5). Write `sizes` in `vw`, never px: the
+  browser reads a px `sizes` before the root UI zoom (a 362px box under a
+  2× zoom reads as 362, not 724), while a vw share of the viewport is the
+  box's share of the 1920 px composition on every screen (measured
+  2026-11-07: the marquee lead picks 2560 at 2×, 1920 on the TV).
+  `src` stays `sized_image_url/2` at
+  the smallest width, which is also what the width rule (MC0028) reads.
+  Nil for anything `ImageServer` cannot resize (a remote URL, nil), so the
+  attribute is left off.
+  """
+  @spec sized_image_srcset(String.t() | nil, [pos_integer(), ...]) :: String.t() | nil
+  def sized_image_srcset("/media-images/" <> _ = url, widths) when is_list(widths) do
+    widths
+    |> Enum.sort()
+    |> Enum.map_join(", ", fn width -> "#{sized_image_url(url, width)} #{width}w" end)
+  end
+
+  def sized_image_srcset(url, widths) when (is_nil(url) or is_binary(url)) and is_list(widths), do: nil
+
   # A 2:3 poster paints at `--card-poster-w` (170 CSS px, app.css), which is
   # 340 device px on a 4K panel — the app composes at 1920 CSS px and scales
   # 2×. 640 clears that with room for the grid's `1fr` growth, which can

@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Components.Marquee do
   """
 
   use Phoenix.Component
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_srcset: 2, sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.ScrollRow
   alias MediaCentaurWeb.Components.SeeAllTile
@@ -184,6 +184,8 @@ defmodule MediaCentaurWeb.Components.Marquee do
     <img
       :if={@item.backdrop_url}
       src={sized_image_url(@item.backdrop_url, 1920)}
+      srcset={sized_image_srcset(@item.backdrop_url, [1920, 2560])}
+      sizes="55vw"
       alt=""
       class="absolute inset-0 w-full h-full object-cover object-top"
       loading="eager"
@@ -231,6 +233,8 @@ defmodule MediaCentaurWeb.Components.Marquee do
     <img
       :if={@item.backdrop_url}
       src={sized_image_url(@item.backdrop_url, 1280)}
+      srcset={sized_image_srcset(@item.backdrop_url, [1280, 1920])}
+      sizes="33vw"
       alt=""
       class="absolute inset-0 w-full h-full object-cover object-top"
       loading="eager"
