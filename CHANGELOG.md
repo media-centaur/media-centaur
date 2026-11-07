@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.13.0 — 2026-11-07
+
+### New
+
+- **Media Centaur on your phone.** With the TV app (0.4.0) installed on an Android phone, the app now lays itself out for the phone's screen: you browse holding it upright, the main navigation is a bar along the bottom (Home, Library, Discovery, Social and, with more than one profile, the profile switcher), and every button and row is sized for a finger. The watchlist is reached through *See all* on Discovery and Home. Review, Downloads, Apps, Status and Settings stay on the computer and the TV.
+- **Touch controls while watching.** On a phone, starting a title turns the screen to landscape and a tap on the picture shows the controls: Back at the top left, ten seconds back and forward around play/pause, and *Audio, subtitles & picture* while paused. The progress bar is a slider too: press and drag with the time shown over the thumb, and the film seeks when you let go. A tap on the bar still jumps to that point.
+- **A plan opens where you asked for it.** Pressing *Download* on a title in your Library, on Discovery, in Social or on your Watchlist opens the download plan right there, instead of taking you to the Downloads page. Cancel leaves you where you were. The Downloads page still lists every draft and opens them as before.
+
+### Improved
+
+- **Sharper text on the TV.** The TV app draws the page a step larger, so every letter gets more pixels on a 4K panel fed a 1080p picture and the jagged edges are gone.
+- **Crisper artwork on high-resolution screens.** The Continue Watching logos and the Coming Up backdrops now pick a larger image when your screen can show it.
+- **Messages keep out of the camera cutout.** On a phone, a confirmation message at the top of the screen starts below the camera hole, and its *Undo* is big enough for a finger.
+
 ## v2.12.0 — 2026-11-07
 
 ### New
