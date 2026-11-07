@@ -9,7 +9,10 @@
 >
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <%!-- viewport-fit=cover: on a phone the page extends under the camera
+          cutout and the gesture strip, and the shell's fixed chrome pads by
+          env(safe-area-inset-*) (the "compact shell" block in app.css). --%>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="MediaCentaur" suffix=" · Media Centaur">
       {assigns[:page_title]}
@@ -44,21 +47,28 @@
     />
     <script>
       (() => {
-        // Auto UI scale — the design is composed at 1920 CSS px wide. Scale
-        // the shell so every screen shows that composition regardless of
-        // resolution: screen.width is CSS px, so OS display scaling is
-        // already accounted for. Floored at 0.7 so small laptops render a
-        // readable miniature rather than a broken one — but not on a remote
-        // player (the TV app, `data-player`): its WebView runs at dPR 2, so
-        // a 1080p TV reports 960 CSS px, and a TV is never small. The Settings stepper
-        // multiplies on top (--ui-scale-pref, server-rendered on <html>);
-        // browser zoom composes on top of both. Runs synchronously in <head>
-        // so the first paint is already scaled; recomputed when the window
-        // lands on a different screen (resize fires on maximize/fullscreen
-        // there, and Screen's own change event covers the rest).
+        // Auto UI scale — the design is composed at 1920 CSS px wide, and
+        // the factor fits that composition to the screen by input class
+        // (`campaigns/adaptive-layout.md`):
+        //   * a touch screen (pointer: coarse) — 1: the device's pixel ratio
+        //     is the density, and the composition reflows by width (the
+        //     compact shell in app.css) instead of shrinking into a phone;
+        //   * a remote player (the TV app, `data-player`) — screen.width /
+        //     1920 with no floor: its WebView runs at dPR 2, so a 1080p TV
+        //     reports 960 CSS px, and a TV is never small;
+        //   * a desktop — the same, floored at 0.7 so a small laptop renders
+        //     a readable miniature rather than a broken one. screen.width is
+        //     CSS px, so OS display scaling is already accounted for.
+        // The Settings stepper multiplies on top (--ui-scale-pref,
+        // server-rendered on <html>); browser zoom composes on top of both.
+        // Runs synchronously in <head> so the first paint is already scaled;
+        // recomputed when the window lands on a different screen or the
+        // device turns (resize fires for both; Screen's own change event
+        // covers the rest).
         const applyAutoScale = () => {
-          const floor = document.documentElement.dataset.player === "remote" ? 0 : 0.7;
-          const auto = Math.max(floor, screen.width / 1920);
+          const touch = matchMedia("(pointer: coarse)").matches;
+          const remote = document.documentElement.dataset.player === "remote";
+          const auto = touch ? 1 : Math.max(remote ? 0 : 0.7, screen.width / 1920);
           document.documentElement.style.setProperty(
             "--auto-scale",
             String(Math.round(auto * 10000) / 10000)

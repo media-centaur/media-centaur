@@ -494,6 +494,103 @@ html.psb .psb-variation-block .media-centaur {
   margin-left: 52px;
 }
 
+/* ── The compact shell ──
+   A phone-width window (`width < 600px`, Material's compact class, in real
+   CSS px — the root `zoom` does not move a media query; the TV is 960 and
+   never compact). The shell is composed for this window class
+   (`campaigns/adaptive-layout.md`): the same rail becomes a bottom bar of
+   the entries that carry a `compact` name (`data-compact`,
+   `SidebarLink`), a row of equal cells 64px tall over the safe-area inset,
+   the name under the icon; the rest are not drawn. The two <nav> groups
+   dissolve into the row (`display: contents`), the System group's pin is
+   released, and `main` gives the bar its height at the bottom instead of
+   the rail its width at the left. The active wash becomes a pill around
+   the icon, same accent. Every cell is a 48px-or-larger touch target. */
+/* The compact shell's labels exist only there; the rail tips instead.
+   Declared before the compact block so that block's `display: block` wins. */
+.sidebar-label {
+  display: none;
+}
+
+@media (width < 600px) {
+  .sidebar {
+    width: auto;
+    top: auto;
+    right: 0;
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0;
+    overflow: hidden;
+    border-right: 0;
+    border-top: 1px solid oklch(0% 0 0 / 0.5);
+  }
+
+  .sidebar > nav {
+    display: contents;
+  }
+
+  .sidebar-group-system {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .sidebar-link:not([data-compact]) {
+    display: none;
+  }
+
+  .sidebar-link {
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.375rem 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .sidebar-link > span:first-child {
+    padding: 0.25rem 1rem;
+    border-radius: 9999px;
+  }
+
+  .sidebar-link-active {
+    background: none;
+  }
+
+  .sidebar-link-active > span:first-child {
+    background: oklch(from var(--rail-accent) l c h / 0.14);
+  }
+
+  .sidebar-label {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+  }
+
+  /* The gutter stays the page's (px-6): Home's hero bleeds by -mx-6 against
+     it, and a narrower shell gutter would widen the page past the screen,
+     which a mobile viewport answers by zooming the whole page out. */
+  #input-system > main {
+    margin-left: 0;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  /* No pad drives a phone: the legend has nothing to say there. */
+  .gamepad-hint-bar {
+    display: none;
+  }
+}
+
+/* A finger never hovers: on a coarse pointer the hover label has no moment
+   to appear in, and a tap's focus must not leave it hanging. */
+@media (pointer: coarse) {
+  .app-tooltip {
+    display: none;
+  }
+}
+
 /* The System group is pinned to the rail's bottom; the space between the
    groups is the rail's group marker, since it carries no text. When the
    rail scrolls (a scaled column taller than the viewport) the auto margin

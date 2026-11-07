@@ -43,6 +43,23 @@ defmodule MediaCentaurWeb.Storybook.Navigation.SidebarLink do
         ]
       },
       %VariationGroup{
+        id: :compact,
+        description:
+          "An entry with a compact name belongs to the compact shell — the bottom bar of a phone-width window, where the name sits under the icon. At this width it draws as the rail does; the bar is the shell's composition (`page-shot --device phone`).",
+        variations: [
+          %Variation{
+            id: :named,
+            attributes: %{
+              id: "rail-discovery",
+              navigate: "/discovery",
+              label: "Discovery",
+              icon: "hero-sparkles",
+              compact: "Discovery"
+            }
+          }
+        ]
+      },
+      %VariationGroup{
         id: :system,
         description:
           "System entries sit dimmer at rest. A count is the follow-up pill at the box's corner; a condition is the dot at the icon.",

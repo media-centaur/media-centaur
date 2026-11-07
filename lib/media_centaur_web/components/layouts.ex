@@ -129,6 +129,7 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/"
             label="Home"
             icon="hero-home"
+            compact="Home"
             active={current?(@current_path, "/")}
             remember
           />
@@ -137,6 +138,7 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/library"
             label="Library"
             icon="hero-book-open"
+            compact="Library"
             active={current?(@current_path, "/library")}
             remember
           />
@@ -148,6 +150,7 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/discovery"
             label="Discovery"
             icon="hero-sparkles"
+            compact="Discovery"
             active={current?(@current_path, "/discovery")}
             remember
           />
@@ -193,6 +196,7 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/social"
             label="Social"
             icon="hero-users"
+            compact="Social"
             active={current?(@current_path, ["/social", "/social/friends"])}
             remember
           />
@@ -228,6 +232,7 @@ defmodule MediaCentaurWeb.Layouts do
             navigate={~p"/profiles"}
             label={profile_switch_label(@profile)}
             icon="hero-user-circle"
+            compact={@profile.name}
             active={current?(@current_path, "/profiles")}
             system
             hue={@profile.hue}

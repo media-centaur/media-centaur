@@ -20,6 +20,13 @@ defmodule MediaCentaurWeb.Components.SidebarLink do
   and the ring of one entry always tell one colour story. `system` marks
   an entry of the System group, drawn dimmer at rest. `remember` keeps the
   target page's last URL across navigation (`data-nav-remember`).
+
+  The same entries are the **compact shell**'s bottom bar in a phone-width
+  window (`width < 600px`, the "compact shell" block in `app.css`): the
+  entries with a `compact` name are laid out as a row of equal cells, the
+  name under the icon (`.sidebar-label`), and the rest are not drawn there.
+  Which entries carry a name is the product's call — a device carries what
+  makes sense in the hand that holds it (`campaigns/adaptive-layout.md`).
   """
 
   use Phoenix.Component
@@ -39,6 +46,12 @@ defmodule MediaCentaurWeb.Components.SidebarLink do
   attr :condition, :boolean, default: false, doc: "something is wrong right now"
   attr :remember, :boolean, default: false, doc: "keep the page's URL across navigation"
   attr :hue, :integer, default: nil, doc: "a person's hue as the accent — the profile switcher"
+
+  attr :compact, :string,
+    default: nil,
+    doc:
+      "the entry's name under its icon in the compact shell (the bottom bar of a phone-width window); nil keeps the entry out of that shell"
+
   attr :rest, :global, doc: "the shell's per-entry nav attributes, passed through to the link"
 
   def sidebar_link(assigns) do
@@ -56,6 +69,7 @@ defmodule MediaCentaurWeb.Components.SidebarLink do
       aria-current={@active && "page"}
       data-tip={@label}
       data-hue={@hue}
+      data-compact={@compact && ""}
       data-nav-item
       data-nav-remember={@remember}
       tabindex="0"
@@ -71,6 +85,7 @@ defmodule MediaCentaurWeb.Components.SidebarLink do
           aria-hidden="true"
         />
       </span>
+      <span :if={@compact} class="sidebar-label">{@compact}</span>
       <FollowUpPill.follow_up_pill id={"#{@id}-follow-up"} count={@count} />
     </.link>
     """

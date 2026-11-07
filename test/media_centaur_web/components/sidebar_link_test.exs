@@ -59,4 +59,16 @@ defmodule MediaCentaurWeb.Components.SidebarLinkTest do
     assert count(html, "a#sidebar-sample.sidebar-link-profile[data-hue='150'][style='--hue: 150']") == 1
     assert count(render([]), "a#sidebar-sample.sidebar-link-profile") == 0
   end
+
+  test "a compact name puts the entry in the compact shell, named under its icon; none keeps it out" do
+    html = render(compact: "Sample")
+
+    assert html
+           |> LazyHTML.query("a#sidebar-sample[data-compact] .sidebar-label")
+           |> LazyHTML.text()
+           |> String.trim() == "Sample"
+
+    assert count(render([]), "a#sidebar-sample[data-compact]") == 0
+    assert count(render([]), ".sidebar-label") == 0
+  end
 end
