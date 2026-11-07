@@ -24,12 +24,16 @@ defmodule MediaCentaurWeb.SocialLive.AddFriendBlock do
         </p>
       </div>
 
-      <form id="add-friend-form" phx-submit="add_friend" class="flex items-center gap-2">
+      <form
+        id="add-friend-form"
+        phx-submit="add_friend"
+        class="flex items-center gap-2 max-compact:flex-wrap"
+      >
         <input
           type="text"
           name="key"
           placeholder="npub1…"
-          class="library-filter min-w-0 flex-1"
+          class="library-filter min-w-0 flex-1 max-compact:basis-full"
           autocomplete="off"
           data-nav-item
           tabindex="0"
@@ -41,7 +45,7 @@ defmodule MediaCentaurWeb.SocialLive.AddFriendBlock do
           type="text"
           name="name"
           placeholder="Name (optional)"
-          class="library-filter basis-48 grow-0 shrink-0"
+          class="library-filter basis-48 grow-0 shrink-0 max-compact:basis-full"
           autocomplete="off"
           data-nav-item
           tabindex="0"

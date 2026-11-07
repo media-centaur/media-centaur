@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     <div
       id={@item.id}
       role="button"
-      class="group watchlist-row flex cursor-pointer items-center gap-4 rounded-lg px-4 py-3 text-left hover:bg-base-content/5"
+      class="group watchlist-row flex cursor-pointer items-center gap-4 rounded-lg px-4 py-3 text-left hover:bg-base-content/5 max-compact:flex-wrap"
       data-component="watchlist-row"
       data-rung={@item.rung}
       data-state={@item.state && @item.state.kind}
@@ -203,7 +203,9 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
         </:secondary>
       </.title_summary>
 
-      <div class="ml-auto flex shrink-0 items-center gap-6">
+      <%!-- In a compact window the state and the rung drop under the title
+            as a line of their own, left to right. --%>
+      <div class="ml-auto flex shrink-0 items-center gap-6 max-compact:ml-0 max-compact:w-full max-compact:flex-wrap max-compact:justify-between max-compact:gap-3">
         <SocialGlyph.social_glyphs
           :if={@flags != []}
           flags={@flags}
@@ -213,7 +215,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
         />
 
         <div :if={@line} class="flex items-center justify-end gap-3" data-role="state">
-          <div class="w-44 text-right">
+          <div class="w-44 text-right max-compact:w-auto max-compact:text-left">
             <p class="text-sm text-base-content/80">{@line}</p>
             <p :if={@detail} class="text-xs text-base-content/55">{@detail}</p>
           </div>

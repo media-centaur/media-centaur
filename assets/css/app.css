@@ -4505,3 +4505,68 @@ body:has(.viewing) .gamepad-hint-bar {
 .viewing-story .viewing {
   position: absolute;
 }
+
+/* The two blocks below override component rules by equal specificity, so
+   they come last in the file. */
+/* ── Touch sizing ──
+   The kit sized for an input class (`campaigns/adaptive-layout.md`): on a
+   coarse pointer every control of the kit takes the touch floor, 48 CSS
+   px (Android's 48 dp), in one place — a button of any size below lg
+   (daisyUI's `--size` is its height, and a square or circle's width), the
+   segmented control's tabs, the glass menu's trigger and the filter pill
+   (the three share one rail line, so they grow together), the house
+   inputs and selects. A surface's own small controls (an episode row's
+   chevron) grow with `pointer-coarse:` utilities at the markup; the audit
+   (`mc-touch-audit`) is the check. */
+@media (pointer: coarse) {
+  .btn:not(.btn-lg):not(.btn-xl),
+  .input,
+  .select {
+    --size: calc(var(--size-field, 0.25rem) * 12);
+  }
+
+  .segmented-control .tab,
+  .glass-menu-trigger,
+  .library-filter {
+    height: 3rem;
+  }
+
+  /* A two-letter tab is as narrow as its word; a finger needs the square. */
+  .segmented-control .tab {
+    min-width: 3rem;
+    justify-content: center;
+  }
+
+  /* A page's zone tabs: the underline stays on the text; the box grows. */
+  .zone-tab {
+    min-height: 3rem;
+    min-width: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ── The compact cinematic panel ──
+   In a compact window the title detail is the screen: the panel takes the
+   whole viewport (one physical viewport tall, `--pvh`), no gutter, no
+   radius; the backdrop box and the pinned orientation block still derive
+   from `--modal-panel-h`, so the cinematic frame holds. Small dialogs
+   (confirmations, `.modal-panel-sm`) stay centred as they are. */
+@media (width < theme(--breakpoint-compact)) {
+  .modal-panel--cinematic {
+    width: 100vw;
+    --modal-panel-h: calc(100 * var(--pvh, 1vh));
+    height: var(--modal-panel-h);
+    max-height: var(--modal-panel-h);
+    border-radius: 0;
+  }
+
+  .modal-backdrop:has(.modal-panel--full) {
+    padding-top: 0;
+  }
+
+  .modal-backdrop:has(.modal-panel--cinematic:not(.modal-panel--full)) {
+    padding-bottom: 0;
+  }
+}

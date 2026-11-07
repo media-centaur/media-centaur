@@ -322,6 +322,17 @@ Fixed left, a 52px icon rail. It never expands and has no toggle.
 - What waits: `count` draws the follow-up pill (primary, a 14px chip at the box's corner) and `condition` the red dot at the icon (UIDR-030)
 - Labels: the tip, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
 - Groups: two named `<nav>`s. Watch at the top; System (`.sidebar-group-system`) pinned to the bottom, the space between them the group marker
+- The compact shell (below): the entries with a `compact` name are the bottom bar of a phone-width window; the rest are not drawn there. Which entries carry one is the product's call (watch + choose: Home, Library, Discovery, Social, the profile switcher).
+
+### The compact shell and touch sizing (`campaigns/adaptive-layout.md`)
+
+A page is **composed for a window class and sized for an input class**, and the browser's media features are the one representation of both — the server knows nothing about the device for layout.
+
+- **Window class.** `--breakpoint-compact` (37.5rem, `@theme` in `app.css`) is the one width: a window narrower than it is *compact* — a phone held upright. CSS says `@media (width < theme(--breakpoint-compact))`, templates say `max-compact:`. In real CSS px: the root `zoom` does not move a media query; the TV (960) is never compact. In compact the rail is a 64 px bottom bar over the safe-area inset, `main` has no left margin and reserves the bar's height, `--side-rail` is 0, the hint bar is off, and the cinematic panel is the screen (`.modal-panel--cinematic` at full viewport, no radius).
+- **Input class.** On `(pointer: coarse)` the kit takes the 48 px touch floor in one block at the end of `app.css` ("Touch sizing"): `.btn` below lg, `.input`, `.select` through daisyUI's `--size`; the segmented tabs, glass menu trigger and filter pill at 3rem together; the zone tabs; the `switch` and the settings rows carry `pointer-coarse:min-h-12`. A surface's own small control grows at its markup with `pointer-coarse:` utilities (padding in, the same margin out — never a negative margin at 48 px beside other rows). The hover tooltip is off on a coarse pointer. The playback overlay's touch deck (`ViewingLayer.viewing_touch_deck/1`) is drawn there only.
+- **Scale.** The head script's auto factor by input class: coarse → 1 (the composition reflows), remote player → `screen.width / 1920` unfloored, desktop → the same floored at 0.7.
+- **Check.** `page-shot --device phone|tv|desktop` sees the page as the device; `mc-touch-audit <url>` lists every target under 48×48 or overlapping — a page is done on the phone when it prints nothing; `mc-device-matrix <path>` puts the three side by side. Images painted at more than one density list `srcset` candidates through `sized_image_srcset/2` with `sizes` in **vw** (a px `sizes` is read before the zoom).
+- **Not for the phone.** Keyboard and pad navigation: the markup is shared, but nothing is built or verified for them there.
 
 ### Zone Tabs
 
