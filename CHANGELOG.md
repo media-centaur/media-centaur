@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.14.0 — 2026-11-07
+
+### Improved
+
+- **A player's card reads like the rest of Settings.** Under **Settings → Players**, each paired TV or phone now shows what it is, its connection and when it paired first, with the **Name** field beneath them in the same full-width row every other text setting uses. Renaming works as before: the name is saved when you press Enter or leave the field.
+
 ## v2.13.0 — 2026-11-07
 
 ### New
