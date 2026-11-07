@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.10.2 — 2026-11-07
+
+### Improved
+
+- **The app remembers who's watching.** With more than one profile, the browser you pick a profile in keeps that choice through browser and computer restarts, until you switch from the sidebar. Before, every restart opened on **Who's watching?** again. After this update you pick once more; from then on the choice is remembered. A paired player also stays paired through restarts.
+- **Review is easier to spot.** When imported files are waiting for you, the **Review** entry now appears in the main group at the top of the sidebar, just above **Downloads**, instead of among the dimmer entries at the bottom.
+
+### Fixed
+
+- **Discovery's search box keeps its focus.** After clicking into the search box and typing, the box could quietly lose focus when results arrived, so Ctrl+Backspace emptied the whole search and jumped back to the banner. The box now keeps focus, and Ctrl+Backspace deletes a word as usual.
+
 ## v2.10.1 — 2026-11-06
 
 ### Improved
