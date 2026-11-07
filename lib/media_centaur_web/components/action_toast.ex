@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.ActionToast do
         <button
           id={"#{@id}-action"}
           type="button"
-          class="shrink-0 cursor-pointer text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          class="shrink-0 cursor-pointer text-sm font-medium text-primary transition-colors hover:text-primary/80 pointer-coarse:-my-3.5 pointer-coarse:-mx-3 pointer-coarse:min-h-12 pointer-coarse:px-3"
           phx-click={@on_action}
           data-nav-item
           tabindex="0"

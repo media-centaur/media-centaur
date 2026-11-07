@@ -8,7 +8,19 @@ import { defineConfig } from "@playwright/test"
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:49001"
 
 const CROSS_BROWSER = "cross-browser.spec.js"
+const PHONE = "phone.spec.js"
 const CLICK_VIEWPORT = { width: 1600, height: 1000 }
+
+// The owner's phone as the shell sees it (`campaigns/adaptive-layout.md`,
+// the same profile as `page-shot --device phone`): a compact window, a
+// coarse pointer, touch — the shell answers with the bottom bar and scale 1.
+const PHONE_DEVICE = {
+  viewport: { width: 360, height: 800 },
+  screen: { width: 360, height: 800 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+}
 
 export default defineConfig({
   testDir: ".",
@@ -46,8 +58,11 @@ export default defineConfig({
 
   projects: [
     // The navigation suite: Chromium, once per input method.
-    { name: "keyboard", testIgnore: CROSS_BROWSER, use: { inputMethod: "keyboard" } },
-    { name: "gamepad", testIgnore: CROSS_BROWSER, use: { inputMethod: "gamepad" } },
+    { name: "keyboard", testIgnore: [CROSS_BROWSER, PHONE], use: { inputMethod: "keyboard" } },
+    { name: "gamepad", testIgnore: [CROSS_BROWSER, PHONE], use: { inputMethod: "gamepad" } },
+
+    // The phone: touch only, its own spec (no key or pad is pressed there).
+    { name: "phone", testMatch: PHONE, use: PHONE_DEVICE },
 
     // Equal support, not equal verification — see cross-browser.spec.js. It
     // runs in Chromium too, as the control: an assertion that only ever runs

@@ -69,7 +69,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStrip do
 
     ~H"""
     <div class={[@bare && "space-y-1.5", !@bare && "border-t border-base-content/5 pt-2 space-y-1.5"]}>
-      <div class="flex items-center gap-3">
+      <%!-- One line on the desktop; in a compact window the figures wrap
+            under the title (the fixed-width figures alone outran a phone's
+            width and widened the page). --%>
+      <div class="flex items-center gap-3 max-compact:flex-wrap max-compact:gap-y-1">
         <.ladder :if={@phase} phase={@phase} />
         <span
           :if={@phase}

@@ -100,7 +100,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
             blur must stay composited (always-in-DOM rule). Shown on
             hover, on focus-within (keyboard/gamepad — hover-only would
             hide this from the couch), and while pinned. --%>
-      <div class="pointer-events-none absolute left-1/2 top-full z-40 mt-2 w-96 max-w-[85vw] -translate-x-1/2 opacity-0 transition-opacity duration-150 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 group-data-[pinned]:pointer-events-auto group-data-[pinned]:opacity-100">
+      <%!-- Centred under the glyph on the desktop; in a compact window the
+            glyph sits near the right edge, so the card hangs from its right
+            corner instead — centred, it reached past the screen and widened
+            the page (the plan modal's host on a phone). --%>
+      <div class="pointer-events-none absolute left-1/2 top-full z-40 mt-2 w-96 max-w-[85vw] -translate-x-1/2 opacity-0 transition-opacity duration-150 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 group-data-[pinned]:pointer-events-auto group-data-[pinned]:opacity-100 max-compact:left-auto max-compact:right-0 max-compact:translate-x-0">
         <div class="glass-surface space-y-3 rounded-xl p-4 text-left">
           <div :if={@client_card} id="needs-attention-client" class="space-y-1">
             <div class="flex items-center gap-1.5 text-sm">

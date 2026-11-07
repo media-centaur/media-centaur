@@ -54,10 +54,17 @@ defmodule MediaCentaurWeb.Components.Checkbox do
   @doc "A checkbox that is its own control: a button and a nav item, disabled when `:disabled`."
   def checkbox(assigns) do
     ~H"""
+    <%!-- On a coarse pointer the button pads out to the 48 px touch floor
+          around the square — the same margin back above, below and to the
+          left, so the square stays put; to the right the row's gap grows
+          by the padding rather than the hit box running under the next
+          control. --%>
     <button
       type="button"
       class={[
         "flex-shrink-0 cursor-pointer rounded",
+        @small && "pointer-coarse:p-4 pointer-coarse:-my-4 pointer-coarse:-ml-4",
+        !@small && "pointer-coarse:p-[15px] pointer-coarse:-my-[15px] pointer-coarse:-ml-[15px]",
         @state == :unchecked && "[&:hover>span]:border-base-content/60"
       ]}
       disabled={@state == :disabled}

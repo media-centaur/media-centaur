@@ -497,7 +497,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :for={episode <- @season.episodes}
           id={"plan-episode-#{episode.season_number}-#{episode.episode_number}"}
           class={[
-            "flex items-baseline gap-3 pl-10 pr-4 py-2",
+            "flex items-baseline gap-3 pl-10 pr-4 py-2 pointer-coarse:py-3.5",
             (!episode.aired? || episode.in_library?) && "opacity-40"
           ]}
         >
