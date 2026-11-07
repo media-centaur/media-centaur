@@ -127,8 +127,22 @@ defmodule MediaCentaurWeb.Storybook.ViewingLayer.ViewingLayer do
       %Variation{
         id: :track_menu,
         description:
-          "The track menu on MENU: Audio and Subtitles; a bitmap (PGS) track cannot be chosen",
+          "The track menu on MENU: Audio, Subtitles and Picture, every setting on the title's default " <>
+            "(Default marked, with what it plays); a bitmap (PGS) track cannot be chosen",
         attributes: %{viewing: viewing([]), menu_open?: true}
+      },
+      %Variation{
+        id: :track_menu_overridden,
+        description:
+          "The title overrides its audio and its picture (Fill width); the subtitles follow the default",
+        attributes: %{
+          viewing:
+            viewing(
+              fill_width: true,
+              follows_default: %{audio: false, subtitles: true, picture: false}
+            ),
+          menu_open?: true
+        }
       },
       %Variation{
         id: :track_menu_bitmap_only,
