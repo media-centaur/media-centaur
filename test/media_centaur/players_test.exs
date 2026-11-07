@@ -156,6 +156,19 @@ defmodule MediaCentaur.PlayersTest do
       assert reread.last_address == "192.168.1.41"
     end
 
+    test "a connection with a new declaration replaces the one held" do
+      player = create_player()
+      :ok = Players.record_connect(player.id, %{address: "192.168.1.40", device: @device})
+
+      :ok =
+        Players.record_connect(player.id, %{
+          address: "192.168.1.40",
+          device: %{@device | "app_version" => "0.4.0"}
+        })
+
+      assert Players.get(player.id).device.app_version == "0.4.0"
+    end
+
     test "a declaration's unknown form factor and overlong values are dropped, not stored" do
       player = create_player()
 

@@ -89,7 +89,7 @@ defmodule MediaCentaur.Players.Player do
 
   schema "players" do
     field :name, :string
-    embeds_one :device, Device, on_replace: :update
+    embeds_one :device, Device, on_replace: :delete
     field :user_agent, :string
     field :last_seen_at, :utc_datetime_usec
     field :last_address, :string
