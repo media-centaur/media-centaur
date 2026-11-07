@@ -14,16 +14,16 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     (`Settings.Preferences.PlanningMode.approval_policy/1`), the same
     answer the Download button gives — the host maps it once and passes
     the policy. Auto-grab implies the calendar, so while it is on the
-    Track switch stays on and takes no click. A movie the library
-    already owns is complete (`complete?`, `ReleaseTracking.complete?/2`)
-    and gets no switches at all.
+    Track switch stays on and takes no click.
 
-  The bookmark in the action strip (`WatchlistToggle`) is the first act:
-  a title with no record shows nothing here (UIDR-039), and an ignored
-  title shows the line saying the Feed hides it beside **Stop ignoring**,
-  which sets the title Off — no record — through the same `set_rung`
-  (`choice="off"`); listing it from the bookmark is the other way off the
-  rung. `control_form/1` is that rule; `rows/1` decides which switches a
+  The block is drawn for a title the library does not hold — the title
+  detail's tracking card (UIDR-042, amended 2026-11-08); an owned
+  title's switches are the Watchlist page's. A title with no record
+  shows Ignore (UIDR-039 as amended), and an ignored title shows the
+  line saying the Feed hides it beside **Stop ignoring**, which sets the
+  title Off — no record — through the same `set_rung` (`choice="off"`);
+  listing it from the bookmark is the other way off the rung.
+  `control_form/1` is that rule; `rows/1` decides which switches a
   listed title gets.
 
   Each switch is `Components.Switch` in its leading layout, narrow enough
@@ -61,14 +61,6 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     doc:
       "a release is still to come (`Title.Logic.release_ahead?/2`); the Track switch renders only then. For a series, until its TMDB record is settled."
 
-  attr :complete?, :boolean,
-    required: true,
-    doc: "nothing left to release — a movie the library owns. No switches."
-
-  attr :owned?, :boolean,
-    default: false,
-    doc: "whether the library holds the title at all — an owned title is never offered Ignore"
-
   attr :approval_policy, :string,
     values: ["automatic", "review"],
     required: true,
@@ -83,7 +75,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   def tracking_controls(assigns) do
     rows = rows(assigns)
-    assigns = assign(assigns, form: control_form(assigns.rung, assigns.owned?), rows: rows)
+    assigns = assign(assigns, form: control_form(assigns.rung), rows: rows)
 
     ~H"""
     <div
@@ -195,31 +187,27 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   end
 
   @doc """
-  Which form the block takes (UIDR-039): `:none` for a title with no
-  record — the bookmark in the action strip is its verb; `:ignored` — the
-  one line saying the Feed hides it; `:controls` — the switches — for a
-  title on the list.
+  Which form the block takes (UIDR-039): `:ignore` for a title with no
+  record — the bookmark in the action strip is its verb, and Ignore is
+  offered here; `:ignored` — the one line saying the Feed hides it;
+  `:controls` — the switches — for a title on the list.
   """
-  @spec control_form(TitleIntent.rung() | nil, boolean()) :: :none | :ignore | :ignored | :controls
-  def control_form(rung, owned? \\ false)
-  def control_form(nil, true), do: :none
-  def control_form(nil, false), do: :ignore
-  def control_form(:ignored, _owned?), do: :ignored
-  def control_form(_listed, _owned?), do: :controls
+  @spec control_form(TitleIntent.rung() | nil) :: :ignore | :ignored | :controls
+  def control_form(nil), do: :ignore
+  def control_form(:ignored), do: :ignored
+  def control_form(_listed), do: :controls
 
   @doc """
-  Which switches a listed title gets. A movie the library owns is
-  complete: none. A movie that is out has nothing left to be told about:
-  Auto-grab only — which keeps searching until a release exists, unlike
-  the Download button. A movie with a release ahead, and any series: both.
+  Which switches a listed title gets. A movie that is out has nothing
+  left to be told about: Auto-grab only — which keeps searching until a
+  release exists, unlike the Download button. A movie with a release
+  ahead, and any series: both.
   """
   @spec rows(%{
           required(:media_type) => Title.media_type(),
           required(:release_ahead?) => boolean(),
-          required(:complete?) => boolean(),
           optional(atom()) => term()
         }) :: [:track | :grab]
-  def rows(%{complete?: true}), do: []
   def rows(%{media_type: :movie, release_ahead?: false}), do: [:grab]
   def rows(_movie_ahead_or_series), do: [:track, :grab]
 

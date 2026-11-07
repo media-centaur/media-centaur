@@ -519,7 +519,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
           approval_policy: PlanningMode.approval_policy(planning_mode)
         }),
       acquisition?: acquisition?,
-      complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
       release_window: nil,
       planning_mode: planning_mode,
       social_activity: Map.get(Activities.activity_for([ref]), ref, []),

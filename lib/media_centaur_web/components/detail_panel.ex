@@ -11,9 +11,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   the hero's corner (`Title.Social`); the pinned block — the identity lockup, the
   progress hairline for an owned title (UIDR-024), the metadata row, the
   action row and the prose; the collection rail (UIDR-023); and the
-  scrolling body — the content list, Cast or Manage for an owned title,
-  with the tracking card under it for any title that has something to
-  say (UIDR-042).
+  scrolling body — the content list, Cast or Manage for an owned title;
+  for a title the library does not hold, the tracking card when it has
+  something to say (UIDR-042). An owned title carries no card: its
+  modal is for watching, and its tracking is the Watchlist page's.
 
   ## The section header is not pinned anywhere
 
@@ -689,10 +690,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :ref, :string, required: true
   attr :today, Date, required: true
 
-  # One card, one rule (`Detail.Logic.tracking_card?/1`): the switches on
-  # the left once the title is listed, what the calendar or TMDB knows of
-  # its dates on the right. The card sits under the list so choosing a
-  # rung adds content below it and never moves it.
+  # One card, one rule (`Detail.Logic.tracking_card?/1`), for a title the
+  # library does not hold: the switches on the left once the title is
+  # listed, what the calendar or TMDB knows of its dates on the right.
+  # The card sits under the prose so choosing a rung adds content below
+  # it and never moves it.
   attr :tmdb_ready, :boolean, default: true
   attr :checking?, :boolean, default: false, doc: "a Refresh from TMDB check in flight (UIDR-044)."
 
@@ -701,15 +703,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc: "the modal's open menu; the Caught up row's selects share the slot."
 
   defp tracking_card(assigns) do
-    assigns =
-      assigns
-      |> assign(
-        :controls?,
-        TrackingControls.control_form(assigns.detail.rung, assigns.detail.library != nil) != :none or
-          Logic.lower_quality_note?(assigns.detail)
-      )
-      |> assign(:lower_quality_note?, Logic.lower_quality_note?(assigns.detail))
-
     ~H"""
     <div
       id="detail-tracking"
@@ -717,24 +710,22 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-nav-zone="detail_tracking"
     >
       <div class="glass-inset flex flex-wrap gap-x-8 gap-y-4 rounded-lg p-4">
-        <div :if={@controls?} class="w-64 shrink-0 space-y-3">
+        <div class="w-64 shrink-0 space-y-3">
           <TrackingControls.tracking_controls
             id="detail-tracking-controls"
             ref={@ref}
             rung={@detail.rung}
             media_type={@detail.title.media_type}
             release_ahead?={TitleLogic.release_ahead?(@detail, @today)}
-            complete?={@detail.complete?}
-            owned?={@detail.library != nil}
             approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
             acquisition?={@detail.acquisition?}
           />
-          <%!-- Only for a title with no Manage sheet: an owned one carries
-                the acceptance behind the cog and nowhere else. --%>
+          <%!-- An owned title carries the acceptance behind the cog and
+                nowhere else; this card is the unowned title's. --%>
           <LowerQualityNote.lower_quality_note
             id="detail-lower-quality"
             ref={@ref}
-            accepted?={@lower_quality_note?}
+            accepted?={@detail.lower_quality_accepted?}
           />
           <%!-- Where the person is in a followed series, shown and movable
                 (M16, decision 6): everything at or before it is had. --%>
@@ -750,7 +741,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <%!-- The same rule for asking TMDB again (UIDR-044): an owned
                 title has it on the Manage toolbar; a tracked one here. --%>
           <RefreshFromTmdb.refresh_from_tmdb
-            :if={@tmdb_ready and is_nil(@detail.library) and @detail.rung in [:follow, :grab]}
+            :if={@tmdb_ready and @detail.rung in [:follow, :grab]}
             id="detail-refresh-from-tmdb"
             ref={@ref}
             surface={:tracking}
@@ -841,8 +832,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   @doc """
   Whether the detail document scrolls — an owned title's seasons,
-  entity-level extras, Manage or Cast sub-views, or any title's tracking
-  card (`Detail.Logic.tracking_card?/1`).
+  entity-level extras, Manage or Cast sub-views, or an unowned title's
+  tracking card (`Detail.Logic.tracking_card?/1`).
 
   Drives the frame's `full` attr, which tags scrollable documents with
   `.modal-panel--full`: those panels get a constant backdrop box and a
@@ -854,9 +845,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @spec body?(TitleDetail.t(), ModalState.view()) :: boolean()
   def body?(%TitleDetail{library: nil} = detail, _view), do: Logic.tracking_card?(detail)
 
-  def body?(%TitleDetail{library: %{entry: entry}} = detail, view) do
+  def body?(%TitleDetail{library: %{entry: entry}}, view) do
     view in [:info, :cast] or match?(%SeriesDetail{}, entry) or
-      Logic.entity_extras(entry.entity) != [] or Logic.tracking_card?(detail)
+      Logic.entity_extras(entry.entity) != []
   end
 
   # Whether the detail document opens scrolled to its resume target —

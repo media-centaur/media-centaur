@@ -831,7 +831,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute has_element?(view, "input[name='cast_filter'][value='someone']")
     end
 
-    test "an owned series' tracking switches follow its calendar; an owned film is complete",
+    # The tracking card is the unowned title's (UIDR-042, amended
+    # 2026-11-08): a listed title the library holds shows Play and its
+    # content, and its switches live on the Watchlist page.
+    test "a listed series or film the library holds carries no tracking card",
          %{conn: conn} do
       series = create_tv_series(%{name: "Switch Show", tmdb_id: "246810"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
@@ -851,12 +854,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       create_title_intent(%{tmdb_id: 777, media_type: :movie, name: "Complete Movie", rung: :list})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?title=tv_series-246810")
-      assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='follow']")
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+      refute has_element?(view, "#detail-tracking")
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?title=movie-777")
-      # The library owns the film: nothing left to release, no Track row.
-      assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
-      refute has_element?(view, "#detail-tracking-controls-track")
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+      refute has_element?(view, "#detail-tracking")
       await_supervised_tasks()
     end
   end

@@ -4,9 +4,10 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
   alias MediaCentaurWeb.Components.Title.TrackingControls
 
   describe "control_form/1 — which form the block takes (UIDR-039)" do
-    test "no record: Ignore for a title the library does not hold, nothing for one it does — listing is the bookmark's act" do
+    # The block is drawn for a title the library does not hold only
+    # (UIDR-042, amended 2026-11-08); an owned title has no block.
+    test "no record: Ignore — listing is the bookmark's act" do
       assert TrackingControls.control_form(nil) == :ignore
-      assert TrackingControls.control_form(nil, true) == :none
     end
 
     test "ignored: the one line" do
@@ -19,21 +20,13 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
   end
 
   describe "rows/1 — which rows a listed title gets" do
-    test "a movie the library owns is complete: no rows" do
-      assert TrackingControls.rows(%{media_type: :movie, release_ahead?: true, complete?: true}) == []
-    end
-
     test "a movie that is out offers only Auto-grab — nothing left to track" do
-      assert TrackingControls.rows(%{media_type: :movie, release_ahead?: false, complete?: false}) ==
-               [:grab]
+      assert TrackingControls.rows(%{media_type: :movie, release_ahead?: false}) == [:grab]
     end
 
     test "a movie with a release ahead, and any series, offer both" do
-      assert TrackingControls.rows(%{media_type: :movie, release_ahead?: true, complete?: false}) ==
-               [:track, :grab]
-
-      assert TrackingControls.rows(%{media_type: :tv_series, release_ahead?: true, complete?: false}) ==
-               [:track, :grab]
+      assert TrackingControls.rows(%{media_type: :movie, release_ahead?: true}) == [:track, :grab]
+      assert TrackingControls.rows(%{media_type: :tv_series, release_ahead?: true}) == [:track, :grab]
     end
   end
 

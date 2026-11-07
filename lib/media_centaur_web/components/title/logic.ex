@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   identity: `rung`, `acquisition_state` and `release_mode_available`
   always; `library` (the `Detail.Library` half, nil when unowned),
   `activity`, `intent_note`, `poster_url`, `backdrop_url`, `logo_url`,
-  `tracking`, `acquisition?`, `lower_quality_accepted?`, `complete?`,
+  `tracking`, `acquisition?`, `lower_quality_accepted?`,
   `release_window`, `planning_mode`, `social_activity` and `preview`
   when the host has them. Nothing here decides: the action row and the
   tracking card derive their rules from these facts where they mount
@@ -50,7 +50,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
-      complete?: Map.get(facts, :complete?, false),
       settled?: Map.get(facts, :settled?, false),
       number_of_seasons: Map.get(facts, :number_of_seasons),
       release_window: Map.get(facts, :release_window),

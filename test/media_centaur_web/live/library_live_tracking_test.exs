@@ -1,9 +1,11 @@
 defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
   @moduledoc """
-  The title detail's tracking card on Library (UIDR-042, UIDR-043): the
-  switches once the series is listed, and the release dates while it is
-  followed. Moving the rung is the one act; dropping below Follow
-  deletes the tracked title, which is why the dates go with it.
+  A title the library holds opens to be watched (UIDR-042, amended
+  2026-11-08): its modal carries the bookmark in the action row and no
+  tracking card under the content, whatever rung the title sits at. The
+  switches, the caught-up point and the dates for an owned series are
+  the Watchlist page's. The one per-title acquisition setting an owned
+  title keeps, the lower-quality acceptance, sits behind the cog.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
@@ -57,76 +59,40 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
     {:ok, series: series, item: item}
   end
 
-  test "a tracked series carries the timeline and the rows under its seasons",
+  test "a series at Auto-grab opens with Play and the filled bookmark, and no tracking card",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
-    assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
-    assert has_element?(view, "#detail-release-dates", "S02E01")
-    assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
-    assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
+    assert has_element?(view, "#detail-modal button[phx-click='play']")
     # Listed at any rung: the bookmark is filled and a click removes the
     # title — one act (spec 2026-09-14).
     assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
+    refute has_element?(view, "#detail-tracking")
+    refute has_element?(view, "#detail-tracking-controls")
+    refute has_element?(view, "#detail-caught-up")
+    refute has_element?(view, "#detail-release-dates")
   end
 
-  test "the rows move the rung; the bookmark deletes the tracked title and its timeline", %{
+  test "the bookmark deletes the tracked title and its calendar; listing it again shows no card", %{
     conn: conn,
     item: item
   } do
     {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
-
-    view |> element("#detail-tracking-controls-grab") |> render_click()
-    await_supervised_tasks()
-    assert Watchlist.rung(424_242, :tv_series) == :follow
-    assert has_element?(view, "#detail-tracking-controls[data-rung='follow']")
-    assert has_element?(view, "#detail-release-dates")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     await_supervised_tasks()
 
     assert Watchlist.rung(424_242, :tv_series) == nil
     refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
-    # Off leaves nothing to show: no switches, no dates, no card.
-    refute has_element?(view, "#detail-tracking")
-    refute has_element?(view, "#detail-release-dates")
-  end
-
-  test "an owned series not on the list offers Add to watchlist; the rows follow, and raise it", %{
-    conn: conn
-  } do
-    {:ok, nil} =
-      ReleaseTracking.set_rung(
-        MediaCentaur.TMDB.Title.new!(%{
-          tmdb_id: 424_242,
-          media_type: :tv_series,
-          name: "Tracked Fixture Show"
-        }),
-        :off,
-        nil
-      )
-
-    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
-
-    # Owning a series is not listing it (UIDR-039): the action row's
-    # bookmark is the one verb until the title is on the list, and there
-    # is no tracking card at all until then.
     assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
-    refute has_element?(view, "#detail-tracking")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     # Listing fetches artwork on a supervised task; drive it home (ADR-049).
     await_supervised_tasks()
+
     assert Watchlist.rung(424_242, :tv_series) == :list
-    assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
-    assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='follow']")
-
-    view |> element("#detail-tracking-controls-grab") |> render_click()
-    await_supervised_tasks()
-
-    assert Watchlist.rung(424_242, :tv_series) == :grab
-    assert Watchlist.listed?(424_242, :tv_series)
-    assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
+    assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+    refute has_element?(view, "#detail-tracking")
   end
 
   # Moved behind the cog on 2026-09-13: it is a setting you reset once,
@@ -156,20 +122,5 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
              nil
 
     refute has_element?(view, "#manage-lower-quality")
-  end
-
-  test "an untracked series shows no tracking block", %{conn: conn} do
-    plain = create_tv_series(%{name: "Plain Fixture Show"})
-    season = create_season(%{tv_series_id: plain.id, season_number: 1})
-
-    create_episode(%{
-      season_id: season.id,
-      episode_number: 1,
-      name: "Episode S1E1",
-      content_url: "/tv/plain-fixture/s01e01.mkv"
-    })
-
-    {:ok, view, _html} = live(conn, "/library?selected=#{plain.id}")
-    refute has_element?(view, "#detail-tracking")
   end
 end

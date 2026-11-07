@@ -19,7 +19,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Detail.Library
   alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
-  alias MediaCentaurWeb.Components.Title.TrackingControls
 
   @doc """
   Playback props for a selected collection member (UIDR-023) — the
@@ -532,30 +531,24 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   def controls_entity(%Library{subject: subject}), do: subject
 
   @doc """
-  Whether the tracking card under the body has anything to show — one
-  rule for an owned and an unowned title alike: the switches once the
-  title is listed (or the Ignored word), the dates once there is a
-  calendar or a movie's live release window, the lower-quality note once
-  the card is the place for it (`lower_quality_note?/1`).
+  Whether the tracking card renders under the body: for a title the
+  library does not hold, and never for one it does.
+
+  An unowned title always has something there — Ignore for a title with
+  no record, the Ignored line, or the switches once listed
+  (`TrackingControls.control_form/1`) — and the dates and the
+  lower-quality note join it when they have something to say
+  (`release_dates?/1`, `lower_quality_accepted?`).
+
+  An owned title carries no card (UIDR-042, amended 2026-11-08): its
+  modal is for watching, and its tracking — the switches, the caught-up
+  point, the dates — is managed on the Watchlist page; the one per-title
+  acquisition setting it keeps, the lower-quality acceptance, sits
+  behind the cog (`Title.LowerQualityNote`).
   """
   @spec tracking_card?(TitleDetail.t()) :: boolean()
-  def tracking_card?(%TitleDetail{} = detail) do
-    release_dates?(detail) or TrackingControls.control_form(detail.rung, detail.library != nil) != :none or
-      lower_quality_note?(detail)
-  end
-
-  @doc """
-  Whether the lower-quality acceptance belongs on the tracking card: only
-  for a title with no files, because only an owned title has the Manage
-  sheet the acceptance otherwise lives in (`Title.LowerQualityNote`).
-
-  One acceptance, one place. Counting it here for an owned title too put
-  it under the episode list *and* behind the cog.
-  """
-  @spec lower_quality_note?(TitleDetail.t()) :: boolean()
-  def lower_quality_note?(%TitleDetail{library: nil, lower_quality_accepted?: accepted?}), do: accepted?
-
-  def lower_quality_note?(%TitleDetail{}), do: false
+  def tracking_card?(%TitleDetail{library: %Library{}}), do: false
+  def tracking_card?(%TitleDetail{}), do: true
 
   @doc """
   Whether the release dates readout has something to say: a calendar

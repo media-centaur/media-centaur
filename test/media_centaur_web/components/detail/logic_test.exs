@@ -751,7 +751,6 @@ end
 defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -871,30 +870,15 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
     end
   end
 
-  describe "tracking_card?/1 — one rule for the card under the body" do
-    test "an unlisted title the library does not hold offers Ignore: a card; an owned one with nothing else has none" do
+  describe "tracking_card?/1 — the card under the body is the unowned title's" do
+    test "a title the library does not hold always has one: Ignore unlisted, the line ignored, the switches listed" do
       assert Logic.tracking_card?(detail())
-      refute Logic.tracking_card?(detail(%{library: struct(TitleDetail.Library, [])}))
-    end
-
-    test "a listed title shows its switches" do
+      assert Logic.tracking_card?(detail(%{rung: :ignored}))
       assert Logic.tracking_card?(detail(%{rung: :list}))
     end
 
-    test "an ignored title says so" do
-      assert Logic.tracking_card?(detail(%{rung: :ignored}))
-    end
-
-    test "a tracked title shows its dates" do
-      assert Logic.tracking_card?(detail(%{tracking: %TrackingDetail{}}))
-    end
-
-    test "a movie with a live release window shows its dates" do
-      assert Logic.tracking_card?(detail(%{release_window: %ReleaseWindow{stage: :theatrical}}))
-    end
-
-    test "an accepted lower quality shows the note on an unowned title" do
-      assert Logic.tracking_card?(detail(%{lower_quality_accepted?: true}))
+    test "an owned title with nothing to say has none" do
+      refute Logic.tracking_card?(detail(%{library: struct(TitleDetail.Library, [])}))
     end
 
     # An owned title has the Manage sheet, which is where the acceptance
@@ -907,11 +891,15 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
       refute Logic.tracking_card?(detail)
     end
 
-    test "an owned title still shows the card for its own reasons" do
+    # The modal of a title the library holds is for watching it. Tracking
+    # an owned series is the Watchlist page's business (UIDR-042, amended
+    # 2026-11-08): no switches, no caught-up point, no dates under it.
+    test "an owned title never shows the card, whatever its rung or calendar" do
       library = owned(%{type: :tv_series, id: "tv-uuid"})
 
-      assert Logic.tracking_card?(detail(%{library: library, rung: :list}))
-      assert Logic.tracking_card?(detail(%{library: library, tracking: %TrackingDetail{}}))
+      refute Logic.tracking_card?(detail(%{library: library, rung: :list}))
+      refute Logic.tracking_card?(detail(%{library: library, rung: :grab}))
+      refute Logic.tracking_card?(detail(%{library: library, tracking: %TrackingDetail{}}))
     end
   end
 

@@ -60,9 +60,9 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       refute DetailPanel.body?(owned(%{type: :movie_series, extras: []}), :main)
     end
 
-    test "true for a tracked movie series — the tracking card sits under the list" do
+    test "false for a tracked movie series — an owned title carries no tracking card" do
       tracking = %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{}
-      assert DetailPanel.body?(owned(%{type: :movie_series, extras: []}, %{tracking: tracking}), :main)
+      refute DetailPanel.body?(owned(%{type: :movie_series, extras: []}, %{tracking: tracking}), :main)
     end
 
     test "true for a movie series carrying entity-level extras" do

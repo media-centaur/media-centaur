@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   (identity lockup, hairline, metadata row, action row, prose), and the
   body the facts call for — TV seasons + episodes, the collection poster
   rail (UIDR-023), extras for leaves, Cast and Manage for an owned title,
-  and the tracking card (UIDR-042) for any title with something to say.
+  and the tracking card (UIDR-042) for a title the library does not hold.
   Delete confirmations are *inline* — there is no secondary modal.
 
   ## Variations covered
@@ -25,8 +25,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       `:tv_series_episode_details_open`, `:tv_series_all_episode_details_open`,
       `:tv_series_spoiler_free`, `:tv_series_with_upcoming_inline`,
       `:tv_series_aired_not_in_library`, `:tv_series_only_future`,
-      `:tv_series_untracked`, `:tv_series_off` — the season accordion and
-      its row states, the tracking card at Grab, and its absence.
+      `:tv_series_off` — the season accordion and its row states; no
+      tracking card at any rung (an owned title's switches are the
+      Watchlist page's).
     * `:movie_series`, `:movie_series_with_upcoming` — the movie-first
       collection modal over the poster rail.
     * `:info_view_with_files`, `:info_view_files_loading`,
@@ -179,8 +180,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "A series with two seasons, season 1 expanded into dense one-line episode " <>
             "rows + a missing-episode placeholder for the gap at episode 4. Season 2 " <>
-            "stays collapsed. The CTA reads **Resume Episode 2**. The tracking card " <>
-            "under the list at Grab, with the calendar's dates.",
+            "stays collapsed. The CTA reads **Resume Episode 2**. Followed at Grab, " <>
+            "and still no tracking card: an owned title's switches are the " <>
+            "Watchlist page's.",
         attributes: %{detail: series_detail(), state: series_state()}
       },
       %Variation{
@@ -262,17 +264,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         attributes: %{detail: only_future_detail(), state: series_state()}
       },
       %Variation{
-        id: :tv_series_untracked,
-        description:
-          "Same library shape but `tracking: nil` at Grab: the switches without a " <>
-            "calendar readout beside them.",
-        attributes: %{detail: series_detail(detail: %{tracking: nil}), state: series_state()}
-      },
-      %Variation{
         id: :tv_series_off,
         description:
-          "An owned series nobody follows: no tracking card at all under the " <>
-            "seasons — listing comes first (UIDR-039).",
+          "An owned series nobody follows: the bookmark outline, and the same " <>
+            "body as the followed one — the modal does not change with the rung.",
         attributes: %{detail: series_detail(detail: %{tracking: nil, rung: nil}), state: series_state()}
       },
       %Variation{
@@ -772,7 +767,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         library: library,
         rung: nil,
         acquisition?: true,
-        complete?: match?(%Title{media_type: :movie}, title),
         planning_mode: :auto_select_best_release
       },
       Keyword.get(opts, :detail, %{})

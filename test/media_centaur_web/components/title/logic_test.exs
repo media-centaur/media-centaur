@@ -34,18 +34,13 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
   end
 
   describe "title_detail/2 tracking facts" do
-    test "carries the release window (nil until the preview lands) and whether the title is complete" do
+    test "carries the release window (nil until the preview lands)" do
       detail = Logic.title_detail(movie(), facts())
       assert detail.release_window == nil
-      refute detail.complete?
 
       window = %ReleaseWindow{stage: :theatrical}
-
-      detail =
-        Logic.title_detail(movie(), facts(%{release_window: window, complete?: true}))
-
+      detail = Logic.title_detail(movie(), facts(%{release_window: window}))
       assert detail.release_window == window
-      assert detail.complete?
     end
   end
 

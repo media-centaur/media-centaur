@@ -1,12 +1,12 @@
 defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
   @moduledoc """
-  The rows a listed title shows beneath its details (UIDR-042): Track
-  release dates and Auto-grab, over the one record. A title not on the
-  list shows nothing — the bookmark in the action strip lists it; an
-  ignored one shows the line saying the Feed hides it beside Stop
-  ignoring. Auto-grab holds
-  the Track row on; a movie that is out has only Auto-grab; a movie the
-  library owns has no rows.
+  The rows a listed title the library does not hold shows beneath its
+  details (UIDR-042): Track release dates and Auto-grab, over the one
+  record. A title not on the list offers Ignore — the bookmark in the
+  action strip lists it; an ignored one shows the line saying the Feed
+  hides it beside Stop ignoring. Auto-grab holds the Track row on; a
+  movie that is out has only Auto-grab. An owned title draws no block:
+  its switches are the Watchlist page's.
   """
   use PhoenixStorybook.Story, :component
 
@@ -20,7 +20,6 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
         rung: :list,
         media_type: :tv_series,
         release_ahead?: true,
-        complete?: false,
         approval_policy: "review",
         acquisition?: true
       },
@@ -73,11 +72,6 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
           "A movie that is out: nothing left to track, so Auto-grab alone — it keeps " <>
             "searching until a release exists.",
         attributes: base(%{media_type: :movie, ref: "movie-550", release_ahead?: false})
-      },
-      %Variation{
-        id: :movie_in_library,
-        description: "A movie the library owns is complete: no rows.",
-        attributes: base(%{media_type: :movie, ref: "movie-550", complete?: true})
       },
       %Variation{
         id: :automatic,
