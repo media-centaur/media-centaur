@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.15.0 — 2026-11-08
+
+### New
+
+- **Move your place in a series from the Watchlist.** On a series you follow, the line under its title that reads *Caught up through S02E05* (or *2 episodes out*) now opens a panel. Pick a season from the list, newest first, and the season's episodes appear as dated chips: blue for the ones you have seen or have, amber for the ones out that you don't have yet, grey for the ones not aired. Press a chip to choose it, or *Latest aired* to jump to the newest episode, or *Nothing yet* to start the series over; the chips recolour at once so you can see what the move means, and nothing changes until you press *Set point*. Cancel, a click outside or Back leave your place as it was. The row's one-press *Caught up* button works as before. Auto-grab wants everything after the point you set.
+
+### Improved
+
+- **A title you own opens to the film, not its downloads.** The details of a series in your Library no longer end with the tracking card (Track release dates, Auto-grab, Caught up through, release dates). Those controls live on the Watchlist, where you choose and follow a series; the modal keeps *Download more of this show* and the missing-episode shortcut.
+
+### Fixed
+
+- **The first arrow press inside a panel opened from a row lands where you expect.** With a keyboard or remote, opening a panel from a control on a Watchlist row then pressing an arrow moved to the wrong item on the first press.
+
 ## v2.14.0 — 2026-11-07
 
 ### Improved
