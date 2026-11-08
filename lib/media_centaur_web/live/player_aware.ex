@@ -10,8 +10,9 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   `:player` — the player this socket is on, as the id every viewing names
   (`Playback.player/0`: `:host`, or the paired player's id), the value
   `Playback.play/3` takes — and subscribes to `players:updates` through
-  the subscribe door; when the player this socket holds is removed, the
-  page drops to the pairing page. A paired player's connected socket
+  the subscribe door; when the player this socket holds is removed, or
+  the remote players feature turns off (ADR-081), the page drops to the
+  pairing page. A paired player's connected socket
   records the browser's user agent on its row
   (`Players.record_user_agent/2`, a write only when it changed). Unpaired, it halts the mount with a
   redirect there.
@@ -22,8 +23,10 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
+  alias MediaCentaur.Features
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
+  alias MediaCentaur.Settings
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.RemoteAccess
 
@@ -38,6 +41,7 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
          socket
          |> assign(player: player)
          |> Subscriptions.subscribe(Players)
+         |> Subscriptions.subscribe(Settings)
          |> attach_hook(:player_aware, :handle_info, &on_players_event/2)}
 
       :unpaired ->
@@ -57,6 +61,13 @@ defmodule MediaCentaurWeb.Live.PlayerAware do
 
   defp on_players_event({:player_removed, %PlayerRemoved{id: id}}, %{assigns: %{player: id}} = socket),
     do: {:halt, redirect(socket, to: ~p"/pair")}
+
+  defp on_players_event({:setting_changed, key, _value}, %{assigns: %{player: player}} = socket)
+       when is_binary(player) do
+    if key == Features.key(:players) and not Features.enabled?(:players),
+      do: {:halt, redirect(socket, to: ~p"/pair")},
+      else: {:cont, socket}
+  end
 
   defp on_players_event(_message, socket), do: {:cont, socket}
 end

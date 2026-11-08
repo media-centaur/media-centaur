@@ -175,7 +175,7 @@ defmodule MediaCentaur.Players do
     end
   end
 
-  @doc "Removes a player; its sessions are unpaired on their next request. Already removed answers `:ok` and broadcasts nothing. Broadcasts `PlayerRemoved`."
+  @doc "Removes a player: its open page and channel close now, its next HTTP request is unpaired. Already removed answers `:ok` and broadcasts nothing. Broadcasts `PlayerRemoved`."
   @spec remove(Player.t()) :: :ok
   def remove(%Player{} = player) do
     case Repo.delete(player, stale_error_field: :id) do

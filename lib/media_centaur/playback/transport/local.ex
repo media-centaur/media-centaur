@@ -93,7 +93,7 @@ defmodule MediaCentaur.Playback.Transport.Local do
 
           [params]
 
-        :skip ->
+        nothing when nothing in [:skip, :unreadable] ->
           []
       end
     end)

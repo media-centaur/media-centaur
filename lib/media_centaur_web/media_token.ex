@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.MediaToken do
   `Phoenix.Token` signed by this endpoint over `{player_id, presence_id}`,
   good for `max_age/0`. The host mints one into each media URL it composes
   for a player's viewing (`Playback.Transport.Remote`, through the
-  locator the player channel captured at connect); `Plugs.MediaServer`
+  media URLs the player channel captured at connect); `Plugs.MediaServer`
   admits a `/media/*` request by it alone (ADR-079, the owner's decision
   of 2026-10-22 in `campaigns/remote-players.md`).
 

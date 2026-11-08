@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.DiagnosticsBadgeTest do
 
   describe "Status nav badge render" do
     setup do
-      conn = Phoenix.ConnTest.build_conn()
+      conn = MediaCentaurWeb.ConnCase.local_conn()
       {:ok, conn: conn}
     end
 

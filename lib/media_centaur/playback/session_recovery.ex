@@ -9,15 +9,18 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   the channel connects and no session holds the player. Each hands one
   mpv here as a **property reader**; `reattach_params/4` asks it for the
   position and the profile, resolves the host path to its entity, and
-  answers with the params `Sessions.resume/2` reattaches with.
+  answers with the params `Sessions.resume/2` reattaches with, `:skip`
+  for an mpv no profile can be named for, or `:unreadable` when a read
+  failed and the question is still open.
   `Sessions.recover/1` is the one door, keyed by player.
 
   The profile the session records under (ADR-078) is read back from mpv's
   `script-opts`, where `LaunchFlags` pinned it at launch under
   `LaunchFlags.profile_script_opt/0`. A session mpv reports without that
-  option was started by the outgoing release: it is skipped rather than
-  recovered under a guessed profile — mpv keeps playing, and its socket
-  goes when mpv exits or on the next boot's dead-socket sweep.
+  option is skipped rather than recovered under a guessed profile. What
+  becomes of it is its transport's: a spawned mpv keeps its window and
+  its own controls, so it plays on; a remote mpv has no controls of its
+  own and is stopped.
   """
   require MediaCentaur.Log, as: Log
 
@@ -34,10 +37,11 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   the host path the mpv plays) at the position read the same way — with
   the entity's name and identity when the library knows the file, an
   unattributed entry when it does not. `:skip` when the mpv carries no
-  profile or the reads fail; `who` names the mpv in the log line.
+  profile, `:unreadable` when a read fails; `who` names the mpv in the
+  log line.
   """
   @spec reattach_params(property_reader(), String.t(), String.t(), String.t()) ::
-          {:ok, %{profile_id: String.t(), entry: Entry.t(), reattach?: true}} | :skip
+          {:ok, %{profile_id: String.t(), entry: Entry.t(), reattach?: true}} | :skip | :unreadable
   def reattach_params(reader, entity_id, content_url, who) when is_binary(content_url) do
     with {:ok, position} <- reader.("time-pos"),
          {:ok, script_opts} <- reader.("script-opts"),
@@ -48,14 +52,14 @@ defmodule MediaCentaur.Playback.SessionRecovery do
       :no_profile ->
         Log.info(
           :playback,
-          "recovery: skipping session without a profile — mpv was started by the outgoing release (#{who})"
+          "recovery: skipping an mpv that carries no profile (#{who})"
         )
 
         :skip
 
       {:error, reason} ->
         Log.info(:playback, "recovery: could not read the mpv for #{who} (#{inspect(reason)})")
-        :skip
+        :unreadable
     end
   end
 
@@ -68,8 +72,6 @@ defmodule MediaCentaur.Playback.SessionRecovery do
     end
   end
 
-  # One-release edge: mpv launched by the outgoing release has no profile
-  # option, so the session is not recovered (see the moduledoc).
   defp session_profile(script_opts) when is_map(script_opts) do
     case Map.get(script_opts, LaunchFlags.profile_script_opt()) do
       nil -> :no_profile

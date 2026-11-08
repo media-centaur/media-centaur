@@ -8,9 +8,10 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
 
   Ahead of the gate in the endpoint, admitted by the `MediaToken` alone
   (the device's session never travels with media bytes) — and only while
-  the player the token names is still paired, so removing a player cuts
-  its media off on the next range request, as the gate cuts off its pages
-  (ADR-079). The id is the file's `Library.FilePresence` row; the token
+  the player the token names is still paired and the remote players
+  feature is on, so removing a player or turning the feature off cuts its
+  media off on the next range request, as the gate cuts off its pages
+  (ADR-079, ADR-081). The id is the file's `Library.FilePresence` row; the token
   must name that same file.
   The row's path is confined to the configured media directories, then
   served with `Plug.Conn.send_file/5`, which Bandit hands to the kernel
@@ -18,7 +19,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
 
   | Request | Answer |
   |---|---|
-  | no or bad token, a token for another file, or a token for a player since removed | `403` |
+  | no or bad token, a token for another file, a token for a player since removed, or the feature off | `403` |
   | unknown id, a path outside every media directory, or a file gone from disk | `404` |
   | a subtitle name that is not one of the file's detected sidecars | `404` |
   | the file's media directory is unavailable (drive unmounted) | `503`, retryable |
@@ -36,6 +37,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
 
   import Plug.Conn
 
+  alias MediaCentaur.Features
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Players
@@ -60,7 +62,7 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
       )
       when method in ["GET", "HEAD"] do
     # This plug runs ahead of the router, which is what decodes path
-    # segments: the basename arrives percent-encoded, as the locator sent it.
+    # segments: the basename arrives percent-encoded, as its media URL has it.
     admit(conn, presence_id, &sidecar_of(&1, URI.decode(basename)))
   end
 
@@ -72,15 +74,17 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
   defp admit(conn, presence_id, locate) do
     conn = fetch_query_params(conn)
 
-    with {:ok, {player_id, ^presence_id}} <- MediaToken.verify(conn.query_params["t"]),
+    with true <- Features.enabled?(:players),
+         {:ok, {player_id, ^presence_id}} <- MediaToken.verify(conn.query_params["t"]),
          %Player{} <- Players.get(player_id),
-         {:ok, presence} <- fetch_presence(presence_id),
+         {:ok, presence} <- FilePresence.fetch(presence_id),
          {:ok, path} <- locate.(presence),
          :ok <- confined?(path),
          :ok <- available?(presence.media_dir),
          {:ok, stat} <- File.stat(path, time: :posix) do
       serve(conn, path, stat)
     else
+      false -> refuse(conn, 403)
       {:ok, {_player_id, _other_file}} -> refuse(conn, 403)
       nil -> refuse(conn, 403)
       {:error, reason} when reason in [:invalid, :expired, :missing] -> refuse(conn, 403)
@@ -93,13 +97,6 @@ defmodule MediaCentaurWeb.Plugs.MediaServer do
     case Enum.find(Subtitles.sidecars_for_presence(presence.id), &(Path.basename(&1.source) == basename)) do
       nil -> {:error, :not_found}
       track -> {:ok, track.source}
-    end
-  end
-
-  defp fetch_presence(presence_id) do
-    case FilePresence.fetch(presence_id) do
-      {:ok, presence} -> {:ok, presence}
-      {:error, :not_found} -> {:error, :not_found}
     end
   end
 

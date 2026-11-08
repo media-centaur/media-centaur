@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+  import MediaCentaur.TestFactory
 
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
@@ -73,5 +74,30 @@ defmodule MediaCentaurWeb.PlayerSocketTest do
     assert_receive :registered
     assert {:stop, {:shutdown, :already_connected}, _state} = PlayerSocket.init(opening(player_id))
     Process.exit(holder, :kill)
+  end
+
+  test "turning remote players off stops the device's mpv and closes the channel; another setting does not" do
+    player = create_player()
+    {:ok, state} = PlayerSocket.init(opening(player.id))
+    answer_recovery()
+
+    MediaCentaur.Features.set(:players, false)
+    key = MediaCentaur.Features.key(:players)
+    assert_receive {:setting_changed, ^key, _value} = changed
+
+    assert {:stop, {:shutdown, :removed}, {1000, "removed"}, [{:text, _stop}], _state} =
+             PlayerSocket.handle_info(changed, state)
+  end
+
+  test "turning another feature off leaves the channel open" do
+    player = create_player()
+    {:ok, state} = PlayerSocket.init(opening(player.id))
+    answer_recovery()
+
+    MediaCentaur.Features.set(:social, false)
+    key = MediaCentaur.Features.key(:social)
+    assert_receive {:setting_changed, ^key, _value} = changed
+
+    assert {:ok, ^state} = PlayerSocket.handle_info(changed, state)
   end
 end

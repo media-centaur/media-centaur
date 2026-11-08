@@ -54,4 +54,9 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccessTest do
     conn = conn |> from_lan() |> get(~p"/pair")
     assert html_response(conn, 200)
   end
+
+  test "a loopback request under a foreign domain is refused, however it got here", %{conn: conn} do
+    conn = conn |> Map.put(:host, "attacker.example") |> get(~p"/settings")
+    assert response(conn, 403)
+  end
 end

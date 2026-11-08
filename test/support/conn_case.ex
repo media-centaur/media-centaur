@@ -36,8 +36,11 @@ defmodule MediaCentaurWeb.ConnCase do
 
   setup tags do
     MediaCentaur.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: local_conn()}
   end
+
+  @doc "A connection from this computer: loopback, under a name the gate takes for the host's own."
+  def local_conn, do: Map.put(Phoenix.ConnTest.build_conn(), :host, "localhost")
 
   @doc """
   Makes the TMDB capability read as ready: a key in config plus a passed

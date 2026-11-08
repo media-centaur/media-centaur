@@ -250,4 +250,17 @@ defmodule MediaCentaurWeb.Plugs.MediaServerTest do
     conn = conn |> from_lan() |> post(media_url(presence, MediaToken.sign(player.id, presence.id)), %{})
     assert response(conn, 405)
   end
+
+  @tag :tmp_dir
+  test "while remote players is off a live token admits nothing", %{
+    player: player,
+    conn: conn,
+    presence: presence
+  } do
+    MediaCentaur.Features.set(:players, false)
+
+    conn = conn |> from_lan() |> get(media_url(presence, MediaToken.sign(player.id, presence.id)))
+
+    assert response(conn, 403)
+  end
 end

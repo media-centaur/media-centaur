@@ -26,7 +26,7 @@ defmodule MediaCentaur.Players.Events do
   end
 
   defmodule PlayerRemoved do
-    @moduledoc "A player was removed; a session holding it is unpaired on its next request."
+    @moduledoc "A player was removed: its open page and channel close now, an HTTP request from it is unpaired."
     @enforce_keys [:id]
     defstruct [:id]
 

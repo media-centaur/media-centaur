@@ -75,6 +75,39 @@ defmodule MediaCentaur.PlayersTest do
     end
   end
 
+  describe "a pairing code's expiry" do
+    test "when its time is up the code closes and Settings hears" do
+      Players.subscribe()
+      Players.start_pairing()
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: %Pairing.Code{}}}
+
+      Pairing.__expire_for_test__()
+
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: nil}}
+      assert Players.pairing() == nil
+    end
+
+    test "a device offering an expired code closes it, and Settings hears" do
+      Players.subscribe()
+      %Pairing.Code{code: code} = Players.start_pairing()
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: %Pairing.Code{}}}
+      Pairing.__backdate_for_test__()
+
+      assert {:error, :invalid_code} = Players.pair(code, "Living room TV")
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: nil}}
+    end
+
+    test "cancelling an expired code closes it, and Settings hears" do
+      Players.subscribe()
+      Players.start_pairing()
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: %Pairing.Code{}}}
+      Pairing.__backdate_for_test__()
+
+      assert :ok = Players.cancel_pairing()
+      assert_receive {:pairing_changed, %Events.PairingChanged{code: nil}}
+    end
+  end
+
   describe "list/0, get/1, remove/1" do
     test "players list oldest first; get answers nil for unknown or malformed ids" do
       first = create_player(name: "Living room TV")

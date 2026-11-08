@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     test "shows the red dot on the Status entry while an error bucket is live" do
       ingest_global(:error, "watcher exploded #{uniq()}")
 
-      {:ok, view, _html} = live(build_conn(), ~p"/history")
+      {:ok, view, _html} = live(local_conn(), ~p"/history")
 
       assert has_element?(view, "#sidebar-status-condition-dot")
     end
@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     test "no dot without error-severity buckets" do
       ingest_global(:warning, "watcher grumbled #{uniq()}")
 
-      {:ok, view, _html} = live(build_conn(), ~p"/history")
+      {:ok, view, _html} = live(local_conn(), ~p"/history")
 
       refute has_element?(view, "#sidebar-status-condition-dot")
     end

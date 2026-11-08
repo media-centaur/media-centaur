@@ -22,7 +22,10 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   `recover/1` reads the same way back: when a channel connects and no
   session holds the player, the device's mpv is asked what it plays, the
   URL names the presence, the presence's path names the entity, and
-  `SessionRecovery` reads the position and the profile.
+  `SessionRecovery` reads the position and the profile. An mpv recovery
+  cannot take (a file that is not ours, no profile) is stopped, since a
+  device has no controls of its own; one that does not answer is left
+  playing after a second try, the question still open.
 
   The desktop's mpv autoloads the sidecar subtitles beside a local file;
   a remote mpv plays a URL and sees no directory, so the transport stands
@@ -48,6 +51,13 @@ defmodule MediaCentaur.Playback.Transport.Remote do
   reason. So an `end-file` that arrives before our file's `start-file` is
   the replaced file's and is dropped (`started?`); a reattaching session's
   file has started already.
+
+  Two ends the device cannot name. Its binding drops mpv's end reason, so
+  an `end-file` that is not a stop and arrives before `file-loaded` is
+  the file failing to load, a failed viewing rather than a finished one.
+  And an app that restarted inside the reattach window comes back with an
+  idle mpv: the first `path` report after `channel_up` carrying no file
+  says so, and the viewing ends, since no further event would.
   """
 
   @behaviour MediaCentaur.Playback.Transport
@@ -59,7 +69,7 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library.FilePresence
-  alias MediaCentaur.Playback.{LaunchFlags, SessionRecovery}
+  alias MediaCentaur.Playback.{LaunchFlags, SessionRecovery, SessionRegistry}
   alias MediaCentaur.Playback.Transport.Remote.{Channel, PlayerRegistry}
   alias MediaCentaur.Subtitles
 
@@ -71,8 +81,12 @@ defmodule MediaCentaur.Playback.Transport.Remote do
     :presence_id,
     started?: true,
     loaded?: false,
-    sidecars_added?: false
+    sidecars_added?: false,
+    awaiting_path?: false
   ]
+
+  @read_timeout_ms 5_000
+  @load_failed_message "The player couldn't load this file."
 
   @type t :: %__MODULE__{}
 
@@ -103,45 +117,84 @@ defmodule MediaCentaur.Playback.Transport.Remote do
 
   @impl true
   # Runs off the channel's process: the reader waits on the channel's replies.
-  def recover(player_id) do
+  def recover(player_id, timeout \\ @read_timeout_ms) do
     case PlayerRegistry.lookup(player_id) do
       nil ->
         []
 
       {channel, media_urls} ->
-        reader = fn name ->
-          case Channel.request(channel, ["get_property", name]) do
-            {:ok, %{"error" => "success", "data" => data}} -> {:ok, data}
-            {:ok, %{"error" => error}} -> {:error, error}
-            {:error, reason} -> {:error, reason}
-          end
-        end
+        reader = fn name -> read_property(channel, name, timeout) end
 
-        with {:ok, path} when is_binary(path) <- reader.("path"),
-             presence_id when is_binary(presence_id) <- media_urls.presence_id.(path),
-             {:ok, presence} <- FilePresence.fetch(presence_id),
-             entity_id when is_binary(entity_id) <-
-               SessionRecovery.entity_id_for_path(presence.file_path),
-             {:ok, params} <-
-               SessionRecovery.reattach_params(
-                 reader,
-                 entity_id,
-                 presence.file_path,
-                 "player #{player_id}"
-               ) do
-          [params]
-        else
-          _nothing_to_recover ->
+        case read_orphan(reader, media_urls, player_id) do
+          {:ok, params} ->
+            [params]
+
+          :nothing ->
             Log.info(:playback, "recovery: nothing to recover on player #{Format.short_id(player_id)}")
             []
+
+          :unrecoverable ->
+            stop_unheld(channel, player_id)
+            []
         end
+    end
+  end
+
+  # One more try on a slow answer; a channel that went answers at once.
+  defp read_property(channel, name, timeout) do
+    with {:error, :timeout} <- ask(channel, name, timeout), do: ask(channel, name, timeout)
+  end
+
+  defp ask(channel, name, timeout) do
+    case Channel.request(channel, ["get_property", name], timeout) do
+      {:ok, %{"error" => "success", "data" => data}} -> {:ok, data}
+      {:ok, %{"error" => "success"}} -> {:ok, nil}
+      {:ok, %{"error" => error}} -> {:error, error}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp read_orphan(reader, media_urls, player_id) do
+    case reader.("path") do
+      {:ok, path} when is_binary(path) -> attribute(reader, media_urls.presence_id.(path), player_id)
+      _idle_or_silent -> :nothing
+    end
+  end
+
+  defp attribute(reader, presence_id, player_id) when is_binary(presence_id) do
+    with {:ok, presence} <- FilePresence.fetch(presence_id),
+         entity_id when is_binary(entity_id) <- SessionRecovery.entity_id_for_path(presence.file_path) do
+      case SessionRecovery.reattach_params(reader, entity_id, presence.file_path, "player #{player_id}") do
+        {:ok, params} -> {:ok, params}
+        :skip -> :unrecoverable
+        :unreadable -> :nothing
+      end
+    else
+      _not_ours -> :unrecoverable
+    end
+  end
+
+  defp attribute(_reader, nil, _player_id), do: :unrecoverable
+
+  # Recovery also runs beside live sessions (`SessionWatchdog`); what one
+  # of them holds is not an orphan.
+  defp stop_unheld(channel, player_id) do
+    if SessionRegistry.on_player(player_id) == [] do
+      Log.info(
+        :playback,
+        "recovery: stopping an mpv no session can take on player #{Format.short_id(player_id)}"
+      )
+
+      Channel.push(channel, ["stop"])
     end
   end
 
   @impl true
   def open(transport, %{reattach?: true} = launch) do
     Channel.attach(transport.channel, self())
-    {[{:attached, :reconnected}], %{transport | launch: launch, started?: true}}
+
+    {[{:attached, :reconnected}],
+     %{transport | launch: launch, started?: true, loaded?: true, sidecars_added?: true}}
   end
 
   def open(transport, launch) do
@@ -201,13 +254,29 @@ defmodule MediaCentaur.Playback.Transport.Remote do
       ),
       do:
         {[{:message, object}],
-         %{transport | started?: true, presence_id: nil, loaded?: false, sidecars_added?: false}}
+         %{
+           transport
+           | started?: true,
+             presence_id: nil,
+             loaded?: false,
+             sidecars_added?: false,
+             awaiting_path?: false
+         }}
 
   # The file mpv held before ours ended; not our end.
   def handle_message(
         %{started?: false} = transport,
         {:transport, {:remote, {:message, %{"event" => "end-file"}}}}
       ), do: {[], transport}
+
+  # The file ended without ever loading: the load failed.
+  def handle_message(
+        %{loaded?: false} = transport,
+        {:transport, {:remote, {:message, %{"event" => "end-file", "reason" => reason}}}}
+      )
+      when reason not in ["stop", "quit"] do
+    {[{:closed, {:error, :load_failed, @load_failed_message}}], transport}
+  end
 
   # The player reports the file stopped or was quit: the viewing is over on
   # a remote player (its mpv lives on for the next one), so the message is
@@ -220,6 +289,16 @@ defmodule MediaCentaur.Playback.Transport.Remote do
     {[{:message, object}, {:closed, {:ok, :ended}}], transport}
   end
 
+  # Back on a channel and mpv holds no file: the app restarted underneath
+  # the viewing, and no later event would say so.
+  def handle_message(
+        %{awaiting_path?: true} = transport,
+        {:transport, {:remote, {:message, %{"event" => "property-change", "name" => "path"} = object}}}
+      )
+      when not is_map_key(object, "data") do
+    {[{:message, object}, {:closed, {:ok, :ended}}], %{transport | awaiting_path?: false}}
+  end
+
   # The file mpv holds now, as the presence its URL names.
   def handle_message(
         transport,
@@ -227,7 +306,13 @@ defmodule MediaCentaur.Playback.Transport.Remote do
          {:remote, {:message, %{"event" => "property-change", "name" => "path", "data" => url} = object}}}
       )
       when is_binary(url) do
-    transport = add_sidecars(%{transport | presence_id: transport.media_urls.presence_id.(url)})
+    transport =
+      add_sidecars(%{
+        transport
+        | presence_id: transport.media_urls.presence_id.(url),
+          awaiting_path?: false
+      })
+
     {[{:message, object}], transport}
   end
 
@@ -253,17 +338,20 @@ defmodule MediaCentaur.Playback.Transport.Remote do
     {[{:detached, reason}], %{transport | channel: nil}}
   end
 
-  def handle_message(transport, {:transport, {:remote, {:channel_up, channel}}}) do
+  # Whatever the gap hid has happened by now: the file has started, and
+  # has loaded unless the path report says otherwise.
+  def handle_message(transport, {:transport, {:remote, {:channel_up, channel, media_urls}}}) do
     Channel.attach(channel, self())
 
-    media_urls =
-      case PlayerRegistry.lookup(transport.player_id) do
-        {^channel, media_urls} -> media_urls
-        _other -> transport.media_urls
-      end
-
     {[{:attached, :reconnected}],
-     %{transport | channel: channel, media_urls: media_urls, started?: true}}
+     %{
+       transport
+       | channel: channel,
+         media_urls: media_urls,
+         started?: true,
+         loaded?: true,
+         awaiting_path?: true
+     }}
   end
 
   def handle_message(_transport, _message), do: :unhandled

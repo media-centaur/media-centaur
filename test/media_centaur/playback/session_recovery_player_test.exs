@@ -151,4 +151,71 @@ defmodule MediaCentaur.Playback.SessionRecoveryPlayerTest do
       assert [_one] = Enum.filter(Sessions.list(), &(&1.player == player_id))
     end
   end
+
+  describe "an mpv recovery cannot take" do
+    @tag :tmp_dir
+    test "a file that is not ours is stopped, so nothing plays without a session", %{
+      player_id: player_id
+    } do
+      task = Task.async(fn -> Remote.recover(player_id) end)
+      answer_properties(%{"path" => success("http://elsewhere.test/video.mkv")})
+
+      assert Task.await(task) == []
+      assert_received {:channel, {:push, ["stop"]}}
+    end
+
+    @tag :tmp_dir
+    test "an mpv with no profile is stopped", %{player_id: player_id, presence: presence} do
+      task = Task.async(fn -> Remote.recover(player_id) end)
+
+      answer_properties(%{
+        "path" => success("#{@base}/media/#{presence.id}?t=token"),
+        "time-pos" => success(10.0),
+        "script-opts" => success(%{})
+      })
+
+      assert Task.await(task) == []
+      assert_received {:channel, {:push, ["stop"]}}
+    end
+
+    @tag :tmp_dir
+    test "an idle mpv is left alone", %{player_id: player_id} do
+      task = Task.async(fn -> Remote.recover(player_id) end)
+      answer_properties(%{"path" => %{"error" => "property unavailable"}})
+
+      assert Task.await(task) == []
+      refute_received {:channel, {:push, ["stop"]}}
+    end
+
+    @tag :tmp_dir
+    test "a slow answer is asked for once more, and a device that stays silent keeps playing", %{
+      player_id: player_id
+    } do
+      assert Remote.recover(player_id, 10) == []
+
+      assert_received {:channel, {:request, _from, _ref, ["get_property", "path"]}}
+      assert_received {:channel, {:request, _from, _ref, ["get_property", "path"]}}
+      refute_received {:channel, {:push, ["stop"]}}
+    end
+
+    @tag :tmp_dir
+    test "a first question that goes unanswered is asked again and recovers the mpv", %{
+      player_id: player_id,
+      presence: presence
+    } do
+      profile_id = MediaCentaur.Profiles.owner().id
+      task = Task.async(fn -> Remote.recover(player_id, 50) end)
+
+      # The first question goes unanswered; recovery asks again.
+      assert_receive {:channel, {:request, _from, _ref, ["get_property", "path"]}}, 200
+
+      answer_properties(%{
+        "path" => success("#{@base}/media/#{presence.id}?t=token"),
+        "time-pos" => success(5.0),
+        "script-opts" => success(%{LaunchFlags.profile_script_opt() => profile_id})
+      })
+
+      assert [_params] = Task.await(task)
+    end
+  end
 end

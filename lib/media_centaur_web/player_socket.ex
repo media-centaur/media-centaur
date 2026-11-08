@@ -7,23 +7,27 @@ defmodule MediaCentaurWeb.PlayerSocket do
   URL (`MediaToken` inside) and read a presence id back out of one.
 
   The gate's enforcement point for the channel (ADR-079): it subscribes
-  to `players:updates`, and its own player's removal closes the channel
-  through `Channel.removed/1`, the way `Live.PlayerAware` drops a removed
-  player's page. Playback hears of the removal only as its channel
+  to `players:updates` and the settings topic, and its own player's
+  removal, or the remote players feature turning off (ADR-081), closes
+  the channel through `Channel.removed/1`, the way `Live.PlayerAware`
+  drops the player's page. Playback hears of either only as its channel
   closing for good.
   """
 
   @behaviour WebSock
 
+  alias MediaCentaur.Features
   alias MediaCentaur.Playback.Transport.Remote.Channel
   alias MediaCentaur.Players
   alias MediaCentaur.Players.Events.PlayerRemoved
+  alias MediaCentaur.Settings
 
   @impl true
   def init(%{player_id: player_id, media_urls: media_urls, address: address, device: device}) do
     case Channel.connect(player_id, media_urls) do
       {:ok, state} ->
         :ok = Players.subscribe()
+        :ok = Settings.subscribe()
         :ok = Players.record_connect(player_id, %{address: address, device: device})
         {:ok, state}
 
@@ -33,7 +37,7 @@ defmodule MediaCentaurWeb.PlayerSocket do
   end
 
   @impl true
-  def handle_in({text, opcode: :text}, state), do: reply(Channel.frame_in(state, text))
+  def handle_in({text, opcode: :text}, state), do: Channel.frame_in(state, text)
   def handle_in({_binary, opcode: :binary}, state), do: {:stop, :binary_frame, state}
 
   @impl true
@@ -45,12 +49,18 @@ defmodule MediaCentaurWeb.PlayerSocket do
   def handle_info(
         {:player_removed, %PlayerRemoved{id: player_id}},
         %Channel{player_id: player_id} = state
-      ), do: reply(Channel.removed(state))
+      ), do: Channel.removed(state)
+
+  def handle_info({:setting_changed, key, _value}, state) do
+    if key == Features.key(:players) and not Features.enabled?(:players),
+      do: Channel.removed(state),
+      else: {:ok, state}
+  end
 
   def handle_info(message, state) do
     case Channel.handle_message(state, message) do
       :unhandled -> {:ok, state}
-      outcome -> reply(outcome)
+      outcome -> outcome
     end
   end
 
@@ -59,9 +69,4 @@ defmodule MediaCentaurWeb.PlayerSocket do
     :ok = Channel.closed(state, reason)
     Players.record_disconnect(state.player_id)
   end
-
-  defp reply({:ok, state}), do: {:ok, state}
-  defp reply({:push, frame, state}), do: {:push, frame, state}
-  defp reply({:stop, reason, state}), do: {:stop, reason, state}
-  defp reply({:stop, reason, close, frames, state}), do: {:stop, reason, close, frames, state}
 end

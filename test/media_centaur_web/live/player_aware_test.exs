@@ -67,4 +67,21 @@ defmodule MediaCentaurWeb.Live.PlayerAwareTest do
 
     assert Players.get(player.id).user_agent == "Sample/1.0"
   end
+
+  test "turning remote players off drops a paired player's page to the pairing page", %{conn: conn} do
+    player = create_player(name: "Living room TV")
+    {:ok, view, _html} = conn |> from_lan() |> as_player(player) |> live(~p"/settings")
+
+    MediaCentaur.Features.set(:players, false)
+
+    assert_redirect(view, "/pair")
+  end
+
+  test "turning remote players off leaves the host's page where it is", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/settings")
+
+    MediaCentaur.Features.set(:players, false)
+
+    assert render(view) =~ "Settings"
+  end
 end

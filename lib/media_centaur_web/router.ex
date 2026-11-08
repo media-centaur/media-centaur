@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.Router do
         # "any other interaction disarms" rule must see every event.
         MediaCentaurWeb.Live.ArmGesture,
         # Where the socket is (the gate's second enforcement point): assigns
-        # :player — :host, or the paired Players.Player — or halts the mount
+        # :player — :host, or the paired player's id — or halts the mount
         # with a redirect to the pairing page. Ahead of ProfileAware, so an
         # unpaired device never reaches the picker.
         MediaCentaurWeb.Live.PlayerAware,

@@ -210,6 +210,9 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     assert {[{:message, ^stopped}, {:closed, {:ok, :ended}}], _transport} =
              Remote.handle_message(transport, {:transport, {:remote, {:message, stopped}}})
 
+    {_events, transport} =
+      Remote.handle_message(transport, {:transport, {:remote, {:message, %{"event" => "file-loaded"}}}})
+
     assert {[{:message, ^eof}], _transport} =
              Remote.handle_message(transport, {:transport, {:remote, {:message, eof}}})
   end
@@ -355,11 +358,114 @@ defmodule MediaCentaur.Playback.Transport.RemoteTest do
     me = self()
 
     assert {[{:attached, :reconnected}], transport} =
-             Remote.handle_message(transport, {:transport, {:remote, {:channel_up, me}}})
+             Remote.handle_message(
+               transport,
+               {:transport, {:remote, {:channel_up, me, transport.media_urls}}}
+             )
 
     assert Remote.attached?(transport)
     assert_received {:channel, {:attach, ^me}}
     assert :ok = Remote.send(transport, ["quit"])
     assert_received {:channel, {:push, ["quit"]}}
+  end
+
+  defp mpv_says(transport, object),
+    do: Remote.handle_message(transport, {:transport, {:remote, {:message, object}}})
+
+  @tag :tmp_dir
+  test "a channel coming back brings the media URLs the device now reaches us by", %{
+    player_id: player_id
+  } do
+    {:ok, transport} = Remote.new(player_id)
+    urls = %{for_file: fn id -> "http://new.test/media/#{id}" end, presence_id: fn _url -> nil end}
+
+    assert {[{:attached, :reconnected}], %Remote{media_urls: ^urls}} =
+             Remote.handle_message(transport, {:transport, {:remote, {:channel_up, self(), urls}}})
+  end
+
+  describe "a file that never loads" do
+    @tag :tmp_dir
+    test "ending before it loaded is a failed viewing", %{player_id: player_id} do
+      {:ok, transport} = Remote.new(player_id)
+      {_events, transport} = mpv_says(transport, %{"event" => "start-file"})
+
+      assert {[{:closed, {:error, :load_failed, message}}], _transport} =
+               mpv_says(transport, %{"event" => "end-file", "reason" => "eof"})
+
+      assert is_binary(message)
+    end
+
+    @tag :tmp_dir
+    test "a stop before it loaded is the viewer's stop, not a failure", %{player_id: player_id} do
+      {:ok, transport} = Remote.new(player_id)
+      {_events, transport} = mpv_says(transport, %{"event" => "start-file"})
+
+      assert {[{:message, _object}, {:closed, {:ok, :ended}}], _transport} =
+               mpv_says(transport, %{"event" => "end-file", "reason" => "stop"})
+    end
+
+    @tag :tmp_dir
+    test "ending after it loaded is the file's end", %{player_id: player_id} do
+      {:ok, transport} = Remote.new(player_id)
+      {_events, transport} = mpv_says(transport, %{"event" => "start-file"})
+      {_events, transport} = mpv_says(transport, %{"event" => "file-loaded"})
+
+      assert {[{:message, _object}], _transport} =
+               mpv_says(transport, %{"event" => "end-file", "reason" => "eof"})
+    end
+
+    @tag :tmp_dir
+    test "a recovered file loaded before this host saw it", %{player_id: player_id, path: path} do
+      {:ok, transport} = Remote.new(player_id)
+
+      launch = %{
+        session_options: [],
+        content_url: path,
+        start_position: 0,
+        profile_id: "p1",
+        reattach?: true
+      }
+
+      {_events, transport} = Remote.open(transport, launch)
+
+      assert {[{:message, _object}], _transport} =
+               mpv_says(transport, %{"event" => "end-file", "reason" => "eof"})
+    end
+  end
+
+  describe "a channel coming back to a restarted app" do
+    defp reconnected(player_id) do
+      {:ok, transport} = Remote.new(player_id)
+      urls = transport.media_urls
+
+      {_events, transport} =
+        Remote.handle_message(transport, {:transport, {:remote, {:channel_up, self(), urls}}})
+
+      transport
+    end
+
+    @tag :tmp_dir
+    test "an mpv reporting no file ends the viewing", %{player_id: player_id} do
+      assert {[{:message, _object}, {:closed, {:ok, :ended}}], _transport} =
+               player_id
+               |> reconnected()
+               |> mpv_says(%{"event" => "property-change", "name" => "path"})
+    end
+
+    @tag :tmp_dir
+    test "an mpv reporting its file carries on, and a later gap between files does not end it", %{
+      player_id: player_id,
+      presence: presence
+    } do
+      url = "#{@base}/media/#{presence.id}?t=token"
+
+      {[{:message, _object}], transport} =
+        player_id
+        |> reconnected()
+        |> mpv_says(%{"event" => "property-change", "name" => "path", "data" => url})
+
+      assert {[{:message, _object}], _transport} =
+               mpv_says(transport, %{"event" => "property-change", "name" => "path"})
+    end
   end
 end

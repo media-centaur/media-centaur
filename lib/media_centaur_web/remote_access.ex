@@ -15,6 +15,13 @@ defmodule MediaCentaurWeb.RemoteAccess do
   `Plugs.RemoteAccess` for HTTP requests (judged on every request),
   `Live.PlayerAware` for the LiveView socket, which bypasses plugs, and
   `PlayerSocket` for the player channel. None judges anything itself.
+
+  Loopback is trusted, so a loopback request must also name the host as
+  only the host would (`host_allowed?/2`). A web page that rebinds its own
+  domain to 127.0.0.1 reaches this address from the viewer's browser and
+  arrives under that domain, and is refused. A reverse proxy on this
+  computer must send a local `Host`, and it makes every client it serves
+  a loopback address: the host player. Authentication is the proxy's.
   """
 
   alias MediaCentaur.Features
@@ -37,5 +44,31 @@ defmodule MediaCentaurWeb.RemoteAccess do
       player = Players.get(player_id) -> {:ok, player.id}
       true -> :unpaired
     end
+  end
+
+  @doc """
+  Whether a request from `address` under the `Host` name `host` may be
+  judged at all: anything off the host may (its session admits it), and
+  from loopback an IP literal, `localhost` and its subdomains, or this
+  computer's own name.
+  """
+  @spec host_allowed?(:inet.ip_address(), String.t()) :: boolean()
+  def host_allowed?(address, host) do
+    not BindAddress.loopback?(address) or address_literal?(host) or local_name?(String.downcase(host))
+  end
+
+  defp address_literal?(host) do
+    match?(
+      {:ok, _address},
+      host |> String.trim("[") |> String.trim("]") |> to_charlist() |> :inet.parse_address()
+    )
+  end
+
+  defp local_name?("localhost"), do: true
+
+  defp local_name?(host) do
+    {:ok, hostname} = :inet.gethostname()
+    name = hostname |> to_string() |> String.downcase()
+    String.ends_with?(host, ".localhost") or host in [name, name <> ".local"]
   end
 end

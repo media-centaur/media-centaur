@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.ProfileControllerTest do
     assert redirected_to(conn) == "/profiles"
     assert get_session(conn, "profile_id") == nil
 
-    conn = post(build_conn(), "/profiles/not-a-uuid/activate", %{})
+    conn = post(local_conn(), "/profiles/not-a-uuid/activate", %{})
     assert redirected_to(conn) == "/profiles"
   end
 

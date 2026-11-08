@@ -35,4 +35,23 @@ defmodule MediaCentaurWeb.RemoteAccessTest do
     assert RemoteAccess.admit(@lan, player.id) == :unpaired
     assert RemoteAccess.admit({127, 0, 0, 1}, nil) == {:ok, :host}
   end
+
+  describe "a loopback request's Host" do
+    test "an address literal or a local name is the host's own" do
+      for host <- ["127.0.0.1", "[::1]", "localhost", "app.localhost", "192.168.1.5"] do
+        assert RemoteAccess.host_allowed?({127, 0, 0, 1}, host), host
+      end
+
+      {:ok, hostname} = :inet.gethostname()
+      assert RemoteAccess.host_allowed?({127, 0, 0, 1}, to_string(hostname))
+    end
+
+    test "a domain that resolved to loopback is not" do
+      refute RemoteAccess.host_allowed?({127, 0, 0, 1}, "attacker.example")
+    end
+
+    test "a LAN address may name the host however it reached it; its session is what admits it" do
+      assert RemoteAccess.host_allowed?(@lan, "media.example")
+    end
+  end
 end

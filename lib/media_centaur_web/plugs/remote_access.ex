@@ -8,8 +8,10 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccess do
   `MediaCentaurWeb.RemoteAccess.admit/2` judges; this plug only carries
   the verdict: admitted requests get `:player` assigned (the player id,
   `Playback.player/0`), an unpaired `GET` is sent to the pairing page, and
-  any other unpaired request is refused with 403. `/pair` itself is open,
-  or no device could ever pair.
+  any other unpaired request is refused with 403. A loopback request
+  under a name that is not the host's own is refused with 403 before any
+  of that (`RemoteAccess.host_allowed?/2`). `/pair` itself is open, or no
+  device could ever pair.
   """
 
   @behaviour Plug
@@ -25,8 +27,18 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccess do
   def call(%Plug.Conn{path_info: ["pair" | _rest]} = conn, _opts), do: conn
 
   def call(conn, _opts) do
-    conn = fetch_session(conn)
+    if RemoteAccess.host_allowed?(conn.remote_ip, conn.host),
+      do: judge(fetch_session(conn)),
+      else:
+        conn
+        |> send_resp(
+          403,
+          "Media Centaur does not answer to this name. A reverse proxy must send Host: localhost."
+        )
+        |> halt()
+  end
 
+  defp judge(conn) do
     case RemoteAccess.admit(conn.remote_ip, get_session(conn, "player_id")) do
       {:ok, player} -> assign(conn, :player, player)
       :unpaired -> refuse(conn)

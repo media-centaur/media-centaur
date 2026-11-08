@@ -17,7 +17,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   A session **attaches** to the channel (`attach/2`) to receive its events
   and is told when the channel goes (`{:channel_down, reason}`); a new
   channel for a player with a live session announces itself to that
-  session (`{:channel_up, pid}`) so the transport reattaches. A new
+  session (`{:channel_up, pid, media_urls}`) so the transport reattaches. A new
   channel for a player no session holds may belong to an mpv that
   outlived its session (a host restart), so `connect/2` asks it through
   `Sessions.recover/1`, off this process.
@@ -26,7 +26,7 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   `closed/2` announce it on `playback:connections`
   (`Playback.subscribe_connections/0`).
 
-  Liveness: the handler pings every `ping_interval_ms/0`; a client whose
+  Liveness: the handler pings on an interval; a client whose
   last pong is older than `pong_grace_ms/0` at the next ping is closed.
 
   The pairing is the channel's admission, so the channel ends when the
@@ -34,7 +34,8 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   (ADR-079), hears its player's removal and calls `removed/1`, which
   tells the device's mpv `stop` and closes the channel `{:shutdown, :removed}`
   — a final reason, which `Transport.Remote` turns into the viewing's end
-  rather than a reattach window. The channel itself knows nothing of
+  rather than a reattach window. The remote players feature turning off
+  ends the channel the same way. The channel itself knows nothing of
   Players: Playback takes a player as a value.
   """
 
@@ -48,7 +49,6 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
 
   defstruct [
     :player_id,
-    :media_urls,
     session: nil,
     session_ref: nil,
     pending: %{},
@@ -64,7 +64,6 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
           | {:stop, term(), t()}
           | {:stop, term(), {1000, String.t()}, [frame()], t()}
 
-  def ping_interval_ms, do: @ping_interval_ms
   def pong_grace_ms, do: @pong_grace_ms
 
   # --- The handler's side ---
@@ -91,13 +90,13 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
 
         sessions ->
           for {_key, session} <- sessions do
-            send(session, {:transport, {:remote, {:channel_up, self()}}})
+            send(session, {:transport, {:remote, {:channel_up, self(), media_urls}}})
           end
       end
 
       Process.send_after(self(), {:channel, :ping}, @ping_interval_ms)
       Events.broadcast_connection(%PlayerConnectionChanged{player: player_id, connected: true})
-      {:ok, %__MODULE__{player_id: player_id, media_urls: media_urls, last_pong_at: now()}}
+      {:ok, %__MODULE__{player_id: player_id, last_pong_at: now()}}
     end
   end
 
@@ -170,10 +169,11 @@ defmodule MediaCentaur.Playback.Transport.Remote.Channel do
   def handle_message(_state, _message), do: :unhandled
 
   @doc """
-  The pairing is gone: the device's mpv stops what it plays, the session is
+  The channel's admission is gone, by removal or by the feature turning
+  off: the device's mpv stops what it plays, the session is
   told why its channel goes (here, not in `closed/2`: the handler's
   terminate reason is the server's to wrap), and the channel closes for
-  good. The socket calls this on its own player's removal.
+  good. The socket calls this.
   """
   @spec removed(t()) :: outcome()
   def removed(state) do
