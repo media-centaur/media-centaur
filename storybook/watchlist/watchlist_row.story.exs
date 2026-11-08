@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Watchlist.Row.Item
   alias MediaCentaurWeb.Components.Watchlist.Row.State
+  alias MediaCentaurWeb.WatchlistLive.CaughtUpLogic.Panel
 
   def function, do: &MediaCentaurWeb.Components.Watchlist.Row.watchlist_row/1
   def render_source, do: :function
@@ -24,7 +25,7 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
 
   def template do
     """
-    <div class="divide-y divide-base-content/8 pb-40">
+    <div class="divide-y divide-base-content/8 pb-[30rem]">
       <.psb-variation/>
     </div>
     """
@@ -136,6 +137,49 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
           item:
             item("row-caught-up", show(), :grab,
               state: %State{kind: :next_episode, date: ~D[2026-11-11], caught_up: {1, 28}}
+            )
+        }
+      },
+      %Variation{
+        id: :point_trigger,
+        description:
+          "On a followed series the state line is the caught-up panel's trigger (`point_panel?`): a glass menu trigger, the detail beneath it.",
+        attributes: %{
+          today: @today,
+          point_panel?: true,
+          item:
+            item("row-point-trigger", show(), :grab,
+              state: %State{kind: :next_episode, date: ~D[2026-11-11], caught_up: {2, 5}}
+            )
+        }
+      },
+      %Variation{
+        id: :panel_open,
+        description:
+          "The same row with its caught-up panel open under the state block (`Item.panel`): the season select, the chips, Cancel and Set point.",
+        attributes: %{
+          today: @today,
+          point_panel?: true,
+          item:
+            item("row-panel-open", show(), :grab,
+              state: %State{kind: :next_episode, date: ~D[2026-11-11], caught_up: {2, 5}},
+              panel: %Panel{
+                ref: Title.ref(show()),
+                id: "row-panel-open-caught-up-panel",
+                point: {2, 5},
+                latest: {2, 5},
+                seasons: [%{number: 2, year: 2025, count: 8}, %{number: 1, year: 2024, count: 8}],
+                season: 2,
+                episodes:
+                  for number <- 1..8 do
+                    %{
+                      number: number,
+                      name: "Episode #{number}",
+                      air_date: Date.add(@today, (number - 5) * 7 - 1)
+                    }
+                  end,
+                selection: {2, 5}
+              }
             )
         }
       },

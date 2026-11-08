@@ -2,12 +2,16 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   @moduledoc """
   The house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a
   chevron and an anchored glass list beneath it, open state owned by the
-  LiveView. Three components: `menu_list/1` is the list; `split_button/1`
-  puts it under a two-segment trigger whose main segment performs an
-  action; `menu_select/1` under a trigger that shows the current value.
-  The tenants are the title detail modal's Download control and scope
-  select, the library sort control (spec 2026-09-12 §12–16), and the
-  picker's Download control on Downloads (spec 2026-09-23 follow-up).
+  LiveView. Four components: `menu_list/1` is the list; `menu_trigger/1`
+  the quiet trigger — the current value and a chevron — on its own, for a
+  surface that anchors something other than a list beneath it (the
+  Watchlist row's caught-up panel, `.glass-menu-panel`); `split_button/1`
+  puts the list under a two-segment trigger whose main segment performs
+  an action; `menu_select/1` under a `menu_trigger` that shows the current
+  value. The tenants are the title detail modal's Download control and
+  scope select, the library sort control (spec 2026-09-12 §12–16), the
+  picker's Download control on Downloads (spec 2026-09-23 follow-up), and
+  the Watchlist row's rung select and caught-up panel.
 
   ## Placement
 
@@ -237,24 +241,16 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
       phx-click-away={@open && @on_close}
       {@rest}
     >
-      <button
+      <.menu_trigger
         id={@id}
-        type="button"
-        class="glass-menu-trigger"
-        phx-click={@on_toggle}
-        aria-haspopup="menu"
-        aria-expanded={to_string(@open)}
-        aria-controls={@id <> "-menu"}
-        data-nav-item={!@sub_item}
-        data-nav-sub-item={@sub_item}
-        tabindex="0"
+        open={@open}
+        on_toggle={@on_toggle}
+        label={@label}
+        controls={@id <> "-menu"}
+        sub_item={@sub_item}
       >
-        <span class="sr-only">{@label}</span>
         {@value_label}
-        <span class={["glass-menu-chevron", @open && "rotate-180"]}>
-          <.icon name="hero-chevron-down-mini" class="size-4" />
-        </span>
-      </button>
+      </.menu_trigger>
       <.menu_list :if={@open} id={@id <> "-menu"} zone={@menu_zone} on_close={@on_close}>
         <:item
           :for={item <- @item}
@@ -267,6 +263,57 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         </:item>
       </.menu_list>
     </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :open, :boolean, required: true, doc: "whether what it anchors is showing — the chevron turns"
+  attr :on_toggle, :any, required: true, doc: "event name or `Phoenix.LiveView.JS` the trigger pushes"
+  attr :label, :string, required: true, doc: "the accessible name, read before the value"
+  attr :controls, :string, default: nil, doc: "the id of what it opens (`aria-controls`)"
+
+  attr :haspopup, :string,
+    default: "menu",
+    values: ~w(menu dialog),
+    doc: "what it opens: a glass list, or a panel of controls (the caught-up panel)"
+
+  attr :sub_item, :boolean,
+    default: false,
+    doc: "a `data-nav-sub-item` of the enclosing row instead of an item of the zone (see `menu_select`)"
+
+  attr :class, :any, default: nil, doc: "utilities on the button"
+  attr :rest, :global, doc: "data attributes on the button (`data-role`)"
+
+  slot :inner_block, required: true, doc: "the trigger's text — the current value"
+
+  @doc """
+  The quiet trigger on its own: the current value and a chevron, ghost
+  text that grows a faint background on hover and while open. `menu_select`
+  draws its trigger with it; a surface anchoring a panel rather than a
+  list — the Watchlist row's caught-up panel — composes it with its own
+  `.glass-menu-panel` inside a `.glass-menu` wrapper.
+  """
+  def menu_trigger(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      class={["glass-menu-trigger", @class]}
+      phx-click={@on_toggle}
+      aria-haspopup={@haspopup}
+      aria-expanded={to_string(@open)}
+      aria-controls={@controls}
+      data-nav-item={!@sub_item}
+      data-nav-sub-item={@sub_item}
+      tabindex="0"
+      {@rest}
+    >
+      <span class="sr-only">{@label}</span>
+      {render_slot(@inner_block)}
+      <span class={["glass-menu-chevron", @open && "rotate-180"]}>
+        <.icon name="hero-chevron-down-mini" class="size-4" />
+      </span>
+    </button>
     """
   end
 

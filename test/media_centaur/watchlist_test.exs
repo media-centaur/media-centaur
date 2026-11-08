@@ -173,6 +173,27 @@ defmodule MediaCentaur.WatchlistTest do
       await_supervised_tasks()
     end
 
+    test "catch_up/3 with nil clears the point — the person has seen nothing yet — and says so" do
+      show = Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show"})
+      {:ok, _} = Watchlist.put_rung(show, :follow, nil)
+      {:ok, _} = Watchlist.catch_up(42, :tv_series, {2, 5})
+      Watchlist.subscribe()
+
+      assert {:ok, %TitleIntent{caught_up_season: nil, caught_up_episode: nil}} =
+               Watchlist.catch_up(42, :tv_series, nil)
+
+      assert_receive {:title_intent_changed,
+                      %Watchlist.Events.CaughtUp{
+                        tmdb_id: 42,
+                        media_type: :tv_series,
+                        season: nil,
+                        episode: nil
+                      }}
+
+      assert Watchlist.caught_up(42, :tv_series) == nil
+      await_supervised_tasks()
+    end
+
     test "rungs/0 returns every listed title's rung" do
       {:ok, _} = Watchlist.put_rung(@title, :list, nil)
 

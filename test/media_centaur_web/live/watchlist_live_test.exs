@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   defp row(ref), do: "#watchlist-row-#{TitleRef.param(ref)}"
   defp rung_trigger(ref), do: "#watchlist-row-#{TitleRef.param(ref)}-rung"
   defp rung_item(ref, choice), do: "#watchlist-row-#{TitleRef.param(ref)}-rung-#{choice}"
+  defp panel(ref), do: "#watchlist-row-#{TitleRef.param(ref)}-caught-up-panel"
 
   # A followed series with two aired episodes outstanding and one dated ahead.
   defp follow_show(name \\ "Sample Show") do
@@ -72,6 +73,66 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
         air_date: Date.add(Date.utc_today(), days)
       })
     end
+
+    item
+  end
+
+  # A followed series of two seasons, two episodes each, caught up through
+  # S02E01 with S02E02 dated ahead; neither season stored yet.
+  defp follow_two_season_show do
+    season = fn number, days ->
+      %{
+        "season_number" => number,
+        "episodes" =>
+          for {episode, offset} <- Enum.with_index(days, 1) do
+            %{
+              "episode_number" => offset,
+              "name" => "Episode #{offset}",
+              "air_date" => Date.utc_today() |> Date.add(episode) |> Date.to_iso8601()
+            }
+          end
+      }
+    end
+
+    TmdbStubs.stub_routes([
+      {"/tv/246810/season/1", season.(1, [-400, -393])},
+      {"/tv/246810/season/2", season.(2, [-7, 7])}
+    ])
+
+    item =
+      create_tracking_item(%{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        name: "Sample Show",
+        rung: :follow,
+        payload:
+          TmdbStubs.tv_detail(%{
+            "id" => 246_810,
+            "name" => "Sample Show",
+            "number_of_seasons" => 2,
+            "seasons" => [
+              %{"season_number" => 1, "episode_count" => 2, "air_date" => "2025-10-03"},
+              %{"season_number" => 2, "episode_count" => 2, "air_date" => "2026-10-02"}
+            ],
+            "last_episode_to_air" => %{"season_number" => 2, "episode_number" => 1},
+            "next_episode_to_air" => %{
+              "season_number" => 2,
+              "episode_number" => 2,
+              "air_date" => Date.utc_today() |> Date.add(7) |> Date.to_iso8601()
+            },
+            "poster_path" => nil,
+            "backdrop_path" => nil
+          })
+      })
+
+    {:ok, _intent} = Watchlist.catch_up(246_810, :tv_series, {2, 1})
+
+    create_tracking_release(%{
+      item_id: item.id,
+      season_number: 2,
+      episode_number: 2,
+      air_date: Date.add(Date.utc_today(), 7)
+    })
 
     item
   end
@@ -326,6 +387,94 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
       assert has_element?(view, "#{row(@show)} [data-role='state']", "Next episode")
       refute has_element?(view, "#{row(@show)}-caught-up")
+      await_supervised_tasks()
+    end
+
+    test "the state block opens the caught-up panel: a chip is a selection, Set point writes it, Nothing yet clears it",
+         %{conn: conn} do
+      follow_show()
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      view |> element("#{row(@show)}-caught-up", "Caught up") |> render_click()
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 2}
+
+      refute has_element?(view, panel(@show))
+      view |> element("#{row(@show)}-point", "Caught up through S01E02") |> render_click()
+
+      assert has_element?(view, "#{panel(@show)} [data-role='selection']", "S01E02")
+      assert has_element?(view, "#{panel(@show)}-season", "Season 1 · 3 episodes")
+      assert has_element?(view, "#{panel(@show)}-chip-1-1[data-state='had']", "E01")
+      assert has_element?(view, "#{panel(@show)}-chip-1-2[data-state='point'][aria-pressed='true']")
+      assert has_element?(view, "#{panel(@show)}-chip-1-3[data-state='unaired'][disabled]")
+
+      # A chip only selects: the point stands until Set point.
+      view |> element("#{panel(@show)}-chip-1-1") |> render_click()
+      assert has_element?(view, "#{panel(@show)} [data-role='selection']", "S01E01")
+      assert has_element?(view, "#{panel(@show)}-chip-1-2[data-state='out']")
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 2}
+
+      view |> element("#{panel(@show)}-set", "Set point") |> render_click()
+
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 1}
+      refute has_element?(view, panel(@show))
+
+      assert has_element?(
+               view,
+               "#{row(@show)}[data-state='episodes_out'] [data-role='state']",
+               "1 episode out"
+             )
+
+      # Nothing yet: the point is cleared and every aired episode is out.
+      view |> element("#{row(@show)}-point", "1 episode out") |> render_click()
+      view |> element("#{panel(@show)}-nothing", "Nothing yet") |> render_click()
+      assert has_element?(view, "#{panel(@show)} [data-role='selection']", "Nothing yet")
+      view |> element("#{panel(@show)}-set") |> render_click()
+
+      assert Watchlist.caught_up(246_810, :tv_series) == nil
+      assert has_element?(view, "#{row(@show)} [data-role='state']", "2 episodes out")
+      await_supervised_tasks()
+    end
+
+    test "a season the store lacks is fetched when the panel opens; Cancel leaves the point; Latest aired selects TMDB's latest",
+         %{conn: conn} do
+      follow_show()
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      assert Watchlist.caught_up(246_810, :tv_series) == nil
+
+      view |> element("#{row(@show)}-point", "2 episodes out") |> render_click()
+      assert has_element?(view, "#{panel(@show)} [data-role='selection']", "Nothing yet")
+      render_async(view)
+      assert has_element?(view, "#{panel(@show)}-chip-1-2[data-state='out']")
+
+      view |> element("#{panel(@show)}-latest", "Latest aired") |> render_click()
+      assert has_element?(view, "#{panel(@show)} [data-role='selection']", "S01E02")
+      view |> element("#{panel(@show)}-cancel", "Cancel") |> render_click()
+
+      refute has_element?(view, panel(@show))
+      assert Watchlist.caught_up(246_810, :tv_series) == nil
+      await_supervised_tasks()
+    end
+
+    test "the season select swaps the chip grid; the point's season opens first", %{conn: conn} do
+      follow_two_season_show()
+      {:ok, view, _html} = live_async!(conn, "/watchlist")
+      view |> element("#{row(@show)}-point", "Caught up through S02E01") |> render_click()
+      render_async(view)
+
+      assert has_element?(view, "#{panel(@show)}-season", "Season 2 · 2026 · 2 episodes")
+      assert has_element?(view, "#{panel(@show)}-chip-2-1[data-state='point']")
+      refute has_element?(view, "#{panel(@show)}-chip-1-1")
+
+      view |> element("#{panel(@show)}-season") |> render_click()
+      view |> element("#{panel(@show)}-season-1", "Season 1 · 2025 · 2 episodes") |> render_click()
+      render_async(view)
+
+      assert has_element?(view, "#{panel(@show)}-chip-1-1[data-state='had']")
+      assert has_element?(view, "#{panel(@show)}-chip-1-2[data-state='had']")
+      refute has_element?(view, "#{panel(@show)}-chip-2-1")
+
+      view |> element("#{panel(@show)}-chip-1-2") |> render_click()
+      view |> element("#{panel(@show)}-set") |> render_click()
+      assert Watchlist.caught_up(246_810, :tv_series) == {1, 2}
       await_supervised_tasks()
     end
 

@@ -27,7 +27,13 @@ defmodule MediaCentaurWeb.WatchlistLive do
   carries **Caught up** in its state block — `row_caught_up`, the row's
   spelling of the detail's `caught_up`, through `ReleaseTracking.catch_up/2`
   (the latest aired episode) — and with nothing out says where the person
-  stands (M16). Rows are ordered by urgency within a group. Between
+  stands (M16). On a followed series the state line opens the
+  **caught-up panel** (`Components.Watchlist.CaughtUpPanel`, amended
+  2026-11-08): the one open panel is this page's (`caught_up_panel`, a
+  `CaughtUpLogic.Panel` handed to its row); its season is read from the
+  store, fetched on a `start_async` when the store lacks it; a chip
+  selects; *Set point* writes through the same `ReleaseTracking.catch_up/2`
+  — a pair, or `:none` for Nothing yet — and the rows re-read. Rows are ordered by urgency within a group. Between
   seasons, Ignored and Series you've watched are each a
   `Components.Disclosure`, closed on every visit, opened by the head or
   held open while a search is on. Ignored rows draw no poster. *Series
@@ -50,16 +56,21 @@ defmodule MediaCentaurWeb.WatchlistLive do
   (`Logic.reloads?/1`); the page's own rung change reloads at once.
 
   Input: `watchlist_rows` is a TREE — UP/DOWN walk the rows across the
-  groups, SELECT opens the title, RIGHT steps onto the row's rung select
-  (a `data-nav-sub-item`), whose open list is the `watchlist_rung_menu`
-  zone with BACK closing it; `toolbar` holds the filter and the search;
-  CLEAR wipes the search (`watchlist_behavior.js`).
+  groups, SELECT opens the title, RIGHT steps onto the row's controls
+  (`data-nav-sub-item`s: the state line's panel trigger, Caught up, the
+  rung select), the rung select's open list is the `watchlist_rung_menu`
+  zone with BACK closing it, and the open caught-up panel is the
+  `caught_up` overlay (its regions in `config.overlays`) with BACK
+  closing it and returning to the row; `toolbar` holds the filter and the
+  search; CLEAR wipes the search (`watchlist_behavior.js`).
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
   use MediaCentaurWeb.Live.PlanHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
+
+  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.TitleStates
@@ -75,6 +86,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
   alias MediaCentaurWeb.Live.{ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.Live.PlanHost
   alias MediaCentaurWeb.TitleRef
+  alias MediaCentaurWeb.WatchlistLive.CaughtUpLogic
   alias MediaCentaurWeb.WatchlistLive.Logic
 
   @reload_debounce_ms 500
@@ -99,6 +111,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
        filter: :all,
        query: "",
        open_menu: nil,
+       caught_up_panel: nil,
        empty_reason: :no_records
      )}
   end
@@ -131,7 +144,19 @@ defmodule MediaCentaurWeb.WatchlistLive do
         today
       )
 
-    socket |> assign(:items, items ++ watched_rows(socket, refs)) |> assign_groups()
+    items = items ++ watched_rows(socket, refs)
+
+    # A panel whose row is gone (the record removed elsewhere) closes.
+    panel =
+      case socket.assigns.caught_up_panel do
+        %CaughtUpLogic.Panel{ref: ref} = panel when is_list(items) ->
+          if Enum.any?(items, &(&1.ref == ref)), do: panel
+
+        nil ->
+          nil
+      end
+
+    socket |> assign(items: items, caught_up_panel: panel) |> assign_groups()
   end
 
   # The series this profile watched that have no record yet, read from
@@ -151,11 +176,13 @@ defmodule MediaCentaurWeb.WatchlistLive do
   end
 
   defp assign_groups(socket) do
-    %{items: items, filter: filter, query: query, open_menu: open_menu} = socket.assigns
+    %{items: items, filter: filter, query: query, open_menu: open_menu, caught_up_panel: panel} =
+      socket.assigns
+
     shown = Logic.narrow(items, filter, query)
 
     assign(socket,
-      groups: shown |> Logic.mark_open(open_menu) |> Logic.groups(),
+      groups: shown |> Logic.mark_open(open_menu) |> Logic.attach_panel(panel) |> Logic.groups(),
       empty_reason: Logic.empty_reason(items, shown)
     )
   end
@@ -171,10 +198,11 @@ defmodule MediaCentaurWeb.WatchlistLive do
     do: {:noreply, socket |> assign(filter: :all, query: "") |> assign_groups()}
 
   # One rung menu open at a time: the trigger toggles its own, a click
-  # outside or BACK closes whichever is open.
+  # outside or BACK closes whichever is open. Opening one closes the
+  # caught-up panel, and the other way round: one anchored surface at a time.
   def handle_event("rung_menu_toggle", %{"ref" => ref}, socket) do
     open = if socket.assigns.open_menu != ref, do: ref
-    {:noreply, socket |> assign(:open_menu, open) |> assign_groups()}
+    {:noreply, socket |> assign(open_menu: open, caught_up_panel: nil) |> assign_groups()}
   end
 
   def handle_event("rung_menu_close", _params, socket),
@@ -189,6 +217,80 @@ defmodule MediaCentaurWeb.WatchlistLive do
       {:noreply, load_rows(socket)}
     else
       _not_followed_or_refused -> {:noreply, socket}
+    end
+  end
+
+  # --- The caught-up panel ---
+
+  # The state line opens its row's panel (pressed again, closes it): the
+  # stored title gives the seasons and the latest aired pair, the tracking
+  # item its library marks, the record the point; then the chosen season
+  # is read from the store.
+  def handle_event("caught_up_panel_open", %{"ref" => param}, socket) do
+    with {:ok, {tmdb_id, :tv_series} = ref} <- TitleRef.parse(param),
+         false <- open_on?(socket.assigns.caught_up_panel, ref),
+         %Row.Item{id: row_id} <- Enum.find(socket.assigns.items, &(&1.ref == ref)),
+         %ReleaseTracking.Item{} = tracking <- ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series),
+         %{payload: payload} <- TMDB.Store.get(ref) do
+      tracking = %{tracking | releases: ReleaseTracking.list_releases_for_item(tracking.id)}
+      point = Watchlist.caught_up(tmdb_id, :tv_series)
+      panel = CaughtUpLogic.open(row_id, ref, payload, point, tracking)
+
+      {:noreply,
+       socket |> assign(open_menu: nil, caught_up_panel: panel) |> read_season() |> assign_groups()}
+    else
+      true -> {:noreply, close_panel(socket)}
+      _not_followed -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("caught_up_panel_close", _params, socket), do: {:noreply, close_panel(socket)}
+
+  def handle_event("caught_up_season_menu_toggle", _params, socket),
+    do: {:noreply, update_panel(socket, &%{&1 | menu_open?: not &1.menu_open?})}
+
+  def handle_event("caught_up_season_menu_close", _params, socket),
+    do: {:noreply, update_panel(socket, &%{&1 | menu_open?: false})}
+
+  def handle_event("caught_up_panel_season", %{"season" => season}, socket) do
+    case Integer.parse(to_string(season)) do
+      {season, ""} when season >= 1 ->
+        {:noreply,
+         socket
+         |> update_panel(&CaughtUpLogic.choose_season(&1, season))
+         |> read_season()
+         |> assign_groups()}
+
+      _other ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("caught_up_panel_pick", %{"season" => season, "episode" => episode}, socket) do
+    with {season, ""} when season >= 1 <- Integer.parse(to_string(season)),
+         {episode, ""} when episode >= 1 <- Integer.parse(to_string(episode)) do
+      {:noreply, update_panel(socket, &CaughtUpLogic.pick(&1, {season, episode}))}
+    else
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("caught_up_panel_latest", _params, socket),
+    do: {:noreply, update_panel(socket, &CaughtUpLogic.latest/1)}
+
+  def handle_event("caught_up_panel_nothing", _params, socket),
+    do: {:noreply, update_panel(socket, &CaughtUpLogic.nothing/1)}
+
+  # Set point: the selection through the one write path, then the rows
+  # re-read at once and the panel closes.
+  def handle_event("caught_up_panel_set", _params, socket) do
+    with %CaughtUpLogic.Panel{ref: {tmdb_id, :tv_series}} = panel <- socket.assigns.caught_up_panel,
+         target when target != :unchanged <- CaughtUpLogic.change(panel),
+         %ReleaseTracking.Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series),
+         :ok <- ReleaseTracking.catch_up(item, catch_up_target(target)) do
+      {:noreply, socket |> assign(:caught_up_panel, nil) |> load_rows()}
+    else
+      _unchanged_or_refused -> {:noreply, close_panel(socket)}
     end
   end
 
@@ -209,6 +311,56 @@ defmodule MediaCentaurWeb.WatchlistLive do
       _unknown -> {:noreply, assign_groups(socket)}
     end
   end
+
+  # The chosen season lands from TMDB — or does not.
+  @impl true
+  def handle_async(
+        {:caught_up_season, season},
+        {:ok, {:ok, %TMDB.Store.SeasonRecord{payload: payload}}},
+        socket
+      ),
+      do:
+        {:noreply,
+         socket |> update_panel(&CaughtUpLogic.season_loaded(&1, season, payload)) |> assign_groups()}
+
+  def handle_async({:caught_up_season, season}, result, socket) do
+    Log.warning(:acquisition, "caught-up panel: season #{season} not read — #{inspect(result)}")
+    {:noreply, socket |> update_panel(&CaughtUpLogic.season_failed(&1, season)) |> assign_groups()}
+  end
+
+  defp open_on?(%CaughtUpLogic.Panel{ref: ref}, ref), do: true
+  defp open_on?(_panel, _ref), do: false
+
+  defp catch_up_target({:set, pair}), do: pair
+  defp catch_up_target(:clear), do: :none
+
+  defp close_panel(socket), do: socket |> assign(:caught_up_panel, nil) |> assign_groups()
+
+  defp update_panel(%{assigns: %{caught_up_panel: nil}} = socket, _change), do: socket
+
+  defp update_panel(%{assigns: %{caught_up_panel: panel}} = socket, change),
+    do: socket |> assign(:caught_up_panel, change.(panel)) |> assign_groups()
+
+  # The chosen season's episodes: the store's when it holds the season,
+  # else fetched on a task the view owns (ADR-049) — first contact for a
+  # season of a title the app holds a reference to (ADR-071).
+  defp read_season(
+         %{assigns: %{caught_up_panel: %CaughtUpLogic.Panel{season: season, ref: {tmdb_id, _type}}}} =
+           socket
+       )
+       when is_integer(season) do
+    case TMDB.Store.get_season(tmdb_id, season) do
+      %TMDB.Store.SeasonRecord{payload: payload} ->
+        update_panel(socket, &CaughtUpLogic.season_loaded(&1, season, payload))
+
+      nil ->
+        start_async(socket, {:caught_up_season, season}, fn ->
+          TMDB.Store.ensure_season(tmdb_id, season)
+        end)
+    end
+  end
+
+  defp read_season(socket), do: socket
 
   @impl true
   def handle_info(:reload_rows, socket),
@@ -399,6 +551,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
                   item={item}
                   today={@today}
                   caught_up?={Logic.caught_up_offered?(item)}
+                  point_panel?={Logic.panel_offered?(item)}
                 />
               </div>
             </Disclosure.disclosure>
@@ -419,6 +572,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
                   item={item}
                   today={@today}
                   caught_up?={Logic.caught_up_offered?(item)}
+                  point_panel?={Logic.panel_offered?(item)}
                 />
               </div>
             </section>

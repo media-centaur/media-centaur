@@ -158,14 +158,21 @@ defmodule MediaCentaur.Watchlist.TitleIntent do
   @doc """
   Sets the caught-up point. A series only — a movie has no position to
   be at — and both numbers at least 1: season 0 is specials, and the
-  point names an episode the person has seen.
+  point names an episode the person has seen. `nil` clears it: the
+  person has seen nothing yet, and every aired episode counts as out.
   """
-  @spec caught_up_changeset(t(), caught_up()) :: Ecto.Changeset.t()
+  @spec caught_up_changeset(t(), caught_up() | nil) :: Ecto.Changeset.t()
   def caught_up_changeset(%__MODULE__{} = intent, {season, episode}) do
     intent
     |> change(caught_up_season: season, caught_up_episode: episode)
     |> validate_number(:caught_up_season, greater_than_or_equal_to: 1)
     |> validate_number(:caught_up_episode, greater_than_or_equal_to: 1)
+    |> validate_series()
+  end
+
+  def caught_up_changeset(%__MODULE__{} = intent, nil) do
+    intent
+    |> change(caught_up_season: nil, caught_up_episode: nil)
     |> validate_series()
   end
 

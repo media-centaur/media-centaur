@@ -3235,6 +3235,59 @@ describe("Orchestrator", () => {
   // An overlay's regions can populate after it opens: the plan modal opens on
   // a loading stage with no controls at all and grows its regions when the
   // targeting universe (or the board) lands. Entry is resolved against item
+  // An overlay opened from one of a row's controls — the Watchlist row's
+  // state line opening its caught-up panel — must not carry the row's
+  // sub-focus with it: `_executeNavigate` re-focuses the remembered parent
+  // index before moving, and inside the overlay that index names an
+  // unrelated chip (measured: LEFT from the fifth chip landed on the first).
+  describe("an overlay opened from a row's sub-item", () => {
+    const PANEL_CONFIG = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        panel_chips: "[data-nav-zone='panel_chips'] [data-nav-item]",
+      },
+      instanceTypes: { ...TEST_CONFIG.instanceTypes, panel_chips: "shelf" },
+      overlays: {
+        panel: { entry: ["panel_chips"], layout: { panel_chips: {} } },
+      },
+    }
+
+    test("drops the row's sub-focus so the first move starts from the entered chip", () => {
+      const state = { presentation: null, overlay: null, chips: 0 }
+      const rects = [0, 1, 2, 3, 4].map(i => ({ x: 50 * i, y: 0, width: 40, height: 20 }))
+      let focusedChip = 4
+      const { system, calls, globals } = setup({
+        getPresentation: () => state.presentation,
+        isModalOpen: () => state.presentation === "modal",
+        getOverlayName: () => state.overlay,
+        getItemCount: context => (context === "panel_chips" ? state.chips : 8),
+        getFocusedIndex: context => (context === "panel_chips" ? focusedChip : 1),
+        getItemRects: context => (context === "panel_chips" ? rects : []),
+        getMatchingIndex: () => 4,
+      }, PANEL_CONFIG)
+      system.start({})
+      globals._flushRAF()
+
+      // RIGHT on the second row stepped onto its control; SELECT opened the panel.
+      system._subFocusIndex = 1
+      system._subItemIndex = 0
+      system.focusMachine.beginSubFocus()
+
+      Object.assign(state, { presentation: "modal", overlay: "panel", chips: 5 })
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe("panel_chips")
+      expect(system._subFocusIndex).toBeNull()
+      expect(system._subItemIndex).toBeNull()
+
+      calls.length = 0
+      globals._dispatchKeyDown("ArrowLeft")
+      const moves = calls.filter(c => c.method === "focusByIndex").map(c => c.args.slice(0, 2))
+      expect(moves).toEqual([["panel_chips", 3]])
+    })
+  })
+
   // counts, so at open there is nothing to enter and the cursor is left in
   // the flat MODAL context — which would then walk every control in the
   // overlay, grid cells included, as one list. The orchestrator re-resolves

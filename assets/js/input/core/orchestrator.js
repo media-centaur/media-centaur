@@ -448,6 +448,13 @@ export class Orchestrator {
         this._originContext ??= this.focusMachine.context
       }
       this._overlayName = overlayName
+      // The trigger may have been one of a row's controls — the Watchlist
+      // row's state line opening its caught-up panel. The row's sub-focus
+      // stays behind with the row: carried into the overlay, the first move
+      // would re-focus the row's index among the region's items.
+      this.focusMachine.clearSubFocus()
+      this._subFocusIndex = null
+      this._subItemIndex = null
       const entry = this._overlayEntry(overlay)
       for (const region of Object.keys(overlay?.layout ?? {})) {
         delete this._contextMemory[region]

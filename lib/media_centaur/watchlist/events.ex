@@ -16,7 +16,8 @@ defmodule MediaCentaur.Watchlist.Events do
       was crossed; nothing pre-reads a rung in order to fire a second
       event later).
     * `CaughtUp` — its caught-up point was set: the season and episode
-      the person is now caught up through.
+      the person is now caught up through, both `nil` when the point was
+      cleared (they have seen nothing yet).
   """
 
   alias MediaCentaur.Watchlist.TitleIntent
@@ -52,15 +53,15 @@ defmodule MediaCentaur.Watchlist.Events do
   end
 
   defmodule CaughtUp do
-    @moduledoc "A title's caught-up point was set to `season` and `episode`."
+    @moduledoc "A title's caught-up point was set to `season` and `episode`, or cleared (both `nil`)."
     @enforce_keys [:tmdb_id, :media_type, :season, :episode]
     defstruct [:tmdb_id, :media_type, :season, :episode]
 
     @type t :: %__MODULE__{
             tmdb_id: integer(),
             media_type: :movie | :tv_series,
-            season: pos_integer(),
-            episode: pos_integer()
+            season: pos_integer() | nil,
+            episode: pos_integer() | nil
           }
   end
 

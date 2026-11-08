@@ -30,7 +30,7 @@ All app-specific knowledge lives in `config.js`. The framework core is parameter
 - **`alwaysPopulated`** — contexts that skip item count checks
 - **`activeMarkers`** — selectors marking a context's current selection (active page/tab/section classes, a segmented control's chosen option)
 - **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
-- **`overlays`** — region overlays (`detail`, `plan`, `pursuit`, `review`, `apps_modal`, `viewing_menu`): `entry` priority and internal `layout`
+- **`overlays`** — region overlays (`detail`, `plan`, `pursuit`, `review`, `apps_modal`, `viewing_menu`, `caught_up`): `entry` priority and internal `layout`
 - **`entryDefaults`** — selector a context opens on with no memory (`detail_list: [data-resume-target]`, `detail_rail: [data-selected]`, `profile_picker: [aria-current='true']`; `detail_actions` and `manage_tools` name a non-committing control so a stray SELECT never downloads or deletes)
 - **`entryAnchors`** — fixed entry index (`hero: 0`)
 - **`glider`** — the page's one scroll animator (`assets/js/scroll_glider.js`)
@@ -99,7 +99,7 @@ ZONE_NEXT/ZONE_PREV (`]` `[`, RB LB) are also answered before the type dispatch:
 
 ### Nested Menus
 
-A GlassMenu list nested in its trigger's zone is its own TREE zone with `up` and `back` edges to that zone and a `data-nav-dismiss-event`. It **takes the cursor when it opens** (`_enterOpenedMenu`: the zone went from empty to populated while the cursor was in its `back` target), on its chosen option; a trigger that was a row's sub-item leaves its sub-focus behind. **Leaving it in any direction pushes its dismiss event**, so the list closes; an arrow off its end returns to the trigger, as BACK does (the `enter_context` directive's `from`). Users: `library_sort_menu`, `watchlist_rung_menu`, `detail_menu`, `detail_tracking_menu`, `plan_menu`.
+A GlassMenu list nested in its trigger's zone is its own TREE zone with `up` and `back` edges to that zone and a `data-nav-dismiss-event`. It **takes the cursor when it opens** (`_enterOpenedMenu`: the zone went from empty to populated while the cursor was in its `back` target), on its chosen option; a trigger that was a row's sub-item leaves its sub-focus behind. **Leaving it in any direction pushes its dismiss event**, so the list closes; an arrow off its end returns to the trigger, as BACK does (the `enter_context` directive's `from`). Users: `library_sort_menu`, `watchlist_rung_menu`, `detail_menu`, `detail_tracking_menu`, `plan_menu`, `caught_up_season_menu`.
 
 ### Overlay Entry and Return
 
@@ -149,7 +149,7 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 | `data-detail-mode` | An open overlay (`modal`) |
 | `data-detail-nested` | The overlay is below its root view (or inside another — the track menu in the OSD): BACK pushes its dismiss event and keeps the cursor in the overlay. Server-owned |
 | `data-dismiss-event` | The event BACK's dismiss pushes (default `close_detail`) |
-| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `pursuit`, `review`, `apps_modal`, `viewing_menu`) |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `pursuit`, `review`, `apps_modal`, `viewing_menu`, `caught_up` — the Watchlist row's caught-up panel, an overlay to the input system though anchored under its row) |
 | `data-nav-dismiss-event` | On a zone container: pushed whenever the cursor leaves the zone — a nested menu closes itself |
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
 | `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |

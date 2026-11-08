@@ -581,6 +581,28 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       MediaCentaur.TaskAwaits.await_supervised_tasks()
     end
 
+    test ":none clears the point — nothing seen yet — so every aired episode is out and wanted; a second :none is a no-op" do
+      item = followed_show(7003)
+      :ok = ReleaseTracking.catch_up(item, {1, 3})
+      assert [%{episode_number: 4}] = ReleaseTracking.list_releases_for_item(item.id)
+
+      assert :ok = ReleaseTracking.catch_up(item, :none)
+
+      assert MediaCentaur.Watchlist.caught_up(7003, :tv_series) == nil
+
+      assert Enum.map(ReleaseTracking.list_releases_for_item(item.id), & &1.episode_number) == [
+               1,
+               2,
+               3,
+               4
+             ]
+
+      assert Enum.map(ReleaseTracking.open_wants_for_item(item.id), & &1.episode_number) == [1, 2, 3]
+
+      assert :ok = ReleaseTracking.catch_up(item, :none)
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
+    end
+
     test "a movie has no point to set" do
       item = create_tracking_item(%{media_type: :movie, name: "Movie A", rung: :grab})
       assert {:error, %Ecto.Changeset{}} = ReleaseTracking.catch_up(item, {1, 1})

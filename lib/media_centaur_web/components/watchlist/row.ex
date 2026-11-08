@@ -30,6 +30,13 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   `row_caught_up` with the ref: the row's spelling of the detail's
   `caught_up`, as `rung_choice` is of `set_rung`, through the one write
   path (`ReleaseTracking.catch_up/2`, the latest aired episode).
+
+  On a followed series the state line is also the trigger of the
+  **caught-up panel** (`point_panel?`): a `GlassMenu.menu_trigger` (a
+  `data-nav-sub-item`, id `<row>-point`) pushing `caught_up_panel_open`
+  with the ref, and under it, while the page hands the row its `panel`
+  (`Item.panel`), the `CaughtUpPanel` — where the point moves anywhere
+  but to the latest aired episode (amended 2026-11-08).
   """
 
   use Phoenix.Component
@@ -40,6 +47,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.Title.Grade
+  alias MediaCentaurWeb.Components.Watchlist.CaughtUpPanel
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.SocialWords
@@ -114,12 +122,14 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     View-model for one Watchlist row, built by `WatchlistLive.Logic`:
     the title intent's identity and rung, what the library and the
     acquisition say (`markers`, `owned?`), the friend's note, the
-    title's social activity rows for the glyphs, the `State`, and
-    whether this row's rung menu is the open one.
+    title's social activity rows for the glyphs, the `State`, whether
+    this row's rung menu is the open one, and the open caught-up
+    `panel` when it is this row's.
     """
 
     alias MediaCentaur.TMDB.Title
     alias MediaCentaurWeb.Components.Watchlist.Row.State
+    alias MediaCentaurWeb.WatchlistLive.CaughtUpLogic
 
     @enforce_keys [:id, :ref, :title, :rung]
     defstruct [
@@ -133,7 +143,8 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
       markers: [],
       notes: [],
       social_activity: [],
-      menu_open?: false
+      menu_open?: false,
+      panel: nil
     ]
 
     @type t :: %__MODULE__{
@@ -147,7 +158,8 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
             markers: [String.t()],
             notes: [%{name: String.t() | nil, text: String.t()}],
             social_activity: [map()],
-            menu_open?: boolean()
+            menu_open?: boolean(),
+            panel: CaughtUpLogic.Panel.t() | nil
           }
   end
 
@@ -157,6 +169,10 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   attr :caught_up?, :boolean,
     default: false,
     doc: "offer the Caught up button in the state block (`WatchlistLive.Logic.caught_up_offered?/1`)"
+
+  attr :point_panel?, :boolean,
+    default: false,
+    doc: "the state line opens the caught-up panel (`WatchlistLive.Logic.panel_offered?/1`)"
 
   def watchlist_row(assigns) do
     rows = assigns.item.social_activity
@@ -219,8 +235,32 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
         />
 
         <div :if={@line} class="flex items-center justify-end gap-3" data-role="state">
-          <div class="w-44 text-right max-compact:w-auto max-compact:text-left">
-            <p class="text-sm text-base-content/80">{@line}</p>
+          <%!-- A fixed width keeps the column aligned across rows; the panel's
+                trigger may outgrow it leftward into the row's free space. --%>
+          <div class="min-w-44 text-right max-compact:min-w-0 max-compact:text-left">
+            <p :if={!@point_panel?} class="text-sm text-base-content/80">{@line}</p>
+            <%!-- A followed series: the line is the caught-up panel's trigger,
+                  and the panel hangs under it while this row's is open. --%>
+            <div
+              :if={@point_panel?}
+              class="glass-menu inline-flex"
+              phx-click-away={@item.panel && "caught_up_panel_close"}
+            >
+              <GlassMenu.menu_trigger
+                id={"#{@item.id}-point"}
+                open={@item.panel != nil}
+                on_toggle={JS.push("caught_up_panel_open", value: %{ref: @ref})}
+                label="Caught up through"
+                haspopup="dialog"
+                controls={"#{@item.id}-caught-up-panel"}
+                sub_item
+                class="-mr-2 whitespace-nowrap text-base-content/80"
+                data-role="point"
+              >
+                {@line}
+              </GlassMenu.menu_trigger>
+              <CaughtUpPanel.caught_up_panel :if={@item.panel} panel={@item.panel} today={@today} />
+            </div>
             <p :if={@detail} class="text-xs text-base-content/55">{@detail}</p>
           </div>
           <.button

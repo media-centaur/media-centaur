@@ -269,11 +269,13 @@ defmodule MediaCentaur.ReleaseTracking do
   *Caught up* — the verb's one write path (campaign `discovery.md`, M16).
   Sets the person's caught-up point on the title intent to `target`:
   `:latest`, TMDB's latest aired episode from the stored title
-  (`Calendar.latest_aired/1`), or a `{season, episode}` the person named
-  on the tracking card. Then the ledger's half — open wants at or before
-  the point are dismissed (`Wants.dismiss_at_or_before/2`) — and the
-  calendar is rebuilt from the point (`rebuild_calendar/1`), which also
-  opens the wants a point moved *earlier* uncovers, and publishes
+  (`Calendar.latest_aired/1`); a `{season, episode}` the person named on
+  the Watchlist row's caught-up panel or the unowned title's tracking
+  card; or `:none`, no point at all — they have seen nothing yet. Then
+  the ledger's half — open wants at or before a named point are
+  dismissed (`Wants.dismiss_at_or_before/2`) — and the calendar is
+  rebuilt from the point (`rebuild_calendar/1`), which also opens the
+  wants a point moved *earlier* uncovers, and publishes
   `{:releases_updated, [item.id]}`.
 
   `:ok` when the point already stands there or TMDB has aired nothing;
@@ -281,7 +283,7 @@ defmodule MediaCentaur.ReleaseTracking do
   derived from one, so this is a race with Off); `{:error, changeset}` for
   a pair the record refuses (a movie, season or episode below 1).
   """
-  @spec catch_up(Item.t(), :latest | TitleIntent.caught_up()) :: :ok | {:error, term()}
+  @spec catch_up(Item.t(), :latest | :none | TitleIntent.caught_up()) :: :ok | {:error, term()}
   def catch_up(%Item{media_type: :tv_series} = item, :latest) do
     case Store.get({item.tmdb_id, :tv_series}) do
       %{payload: payload} ->
@@ -292,6 +294,16 @@ defmodule MediaCentaur.ReleaseTracking do
 
       nil ->
         :ok
+    end
+  end
+
+  def catch_up(%Item{} = item, :none) do
+    if Watchlist.caught_up(item.tmdb_id, item.media_type) == nil do
+      :ok
+    else
+      with {:ok, _intent} <- Watchlist.catch_up(item.tmdb_id, item.media_type, nil) do
+        rebuild_calendar(item)
+      end
     end
   end
 

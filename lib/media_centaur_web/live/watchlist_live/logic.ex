@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
   alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Watchlist.Row.{Item, State}
   alias MediaCentaurWeb.TitleRef
+  alias MediaCentaurWeb.WatchlistLive.CaughtUpLogic
 
   @type ref :: MediaCentaur.TMDB.Store.ref()
   @type filter :: :all | :movies | :series
@@ -179,6 +180,31 @@ defmodule MediaCentaurWeb.WatchlistLive.Logic do
     do: TitleIntent.follows_releases?(rung)
 
   def caught_up_offered?(_item), do: false
+
+  @doc """
+  Whether the row's state block is the trigger of the caught-up panel: a
+  followed series whose state is the calendar's (M16). The panel is where
+  the point moves anywhere but to the latest aired episode.
+  """
+  @spec panel_offered?(Item.t()) :: boolean()
+  def panel_offered?(%Item{rung: rung, ref: {_tmdb_id, :tv_series}, state: %State{kind: kind}})
+      when kind in [
+             :episodes_out,
+             :next_episode,
+             :between_seasons,
+             :ended,
+             :canceled,
+             :nothing_scheduled
+           ], do: TitleIntent.follows_releases?(rung)
+
+  def panel_offered?(_item), do: false
+
+  @doc "Hands the open caught-up panel to its row; `nil` closes it on every row."
+  @spec attach_panel([Item.t()], CaughtUpLogic.Panel.t() | nil) :: [Item.t()]
+  def attach_panel(items, nil), do: Enum.map(items, &%{&1 | panel: nil})
+
+  def attach_panel(items, %CaughtUpLogic.Panel{ref: ref} = panel),
+    do: Enum.map(items, &%{&1 | panel: if(&1.ref == ref, do: panel)})
 
   @doc """
   The page's title count — every record but the Ignored ones, which are

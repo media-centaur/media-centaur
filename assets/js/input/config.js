@@ -59,6 +59,12 @@ export const inputConfig = {
     // is its `[data-nav-sub-item]`, and the open list its own nested zone.
     watchlist_rows: "[data-nav-zone='watchlist_rows'] [data-nav-item]",
     watchlist_rung_menu: "[data-nav-zone='watchlist_rung_menu'] [data-nav-item]",
+    // The caught-up panel (an overlay under a row's state block): the season
+    // trigger and the two jumps, the open season list, the episode chips, the foot.
+    caught_up_head: "[data-nav-zone='caught_up_head'] [data-nav-item]",
+    caught_up_season_menu: "[data-nav-zone='caught_up_season_menu'] [data-nav-item]",
+    caught_up_chips: "[data-nav-zone='caught_up_chips'] [data-nav-item]",
+    caught_up_foot: "[data-nav-zone='caught_up_foot'] [data-nav-item]",
     // Watch history's rows, a row's Remove its `[data-nav-sub-item]`; the
     // pager and the empty states' buttons are items of the same tree.
     history_rows: "[data-nav-zone='history_rows'] [data-nav-item]",
@@ -237,6 +243,12 @@ export const inputConfig = {
     // Feed's shape), and the open rung menu nested in a row.
     watchlist_rows: Context.TREE,
     watchlist_rung_menu: Context.TREE,
+    // The caught-up panel: toolbars over a chip grid walked by geometry (a
+    // season's chips wrap into as many rows as they need).
+    caught_up_head: Context.TOOLBAR,
+    caught_up_season_menu: Context.TREE,
+    caught_up_chips: Context.SHELF,
+    caught_up_foot: Context.TOOLBAR,
     // Watch history: rows with their Remove as the sub-item.
     history_rows: Context.TREE,
     // The Apps modal: a vertical walk of its controls around the Steam
@@ -392,6 +404,23 @@ export const inputConfig = {
         apps_steam:    { up: ["apps_controls"] },
       },
     },
+    // The Watchlist row's caught-up panel (campaign discovery.md, M16,
+    // amended 2026-11-08): the head (the season trigger, Latest aired,
+    // Nothing yet) over the chips (a SHELF — the grid wraps, so geometry
+    // answers adjacency) over the foot (Cancel, Set point); entered on the
+    // selected chip (entryDefaults). No `back` edges: BACK closes the panel
+    // from any region and the cursor returns to the row — except the open
+    // season list, a glass list nested in the head with `up` and `back` to
+    // it, which BACK closes first through its `data-nav-dismiss-event`.
+    caught_up: {
+      entry: ["caught_up_chips", "caught_up_head", "caught_up_foot"],
+      layout: {
+        caught_up_head:        { down: ["caught_up_season_menu", "caught_up_chips", "caught_up_foot"] },
+        caught_up_season_menu: { up: ["caught_up_head"], back: ["caught_up_head"] },
+        caught_up_chips:       { up: ["caught_up_head"], down: ["caught_up_foot"] },
+        caught_up_foot:        { up: ["caught_up_chips", "caught_up_head"] },
+      },
+    },
     // The viewing layer's track menu: Audio beside Subtitles, LEFT/RIGHT
     // between them, no back edges so BACK closes the menu from either.
     // The cursor opens on Subtitles, the desktop menu's rule.
@@ -426,6 +455,9 @@ export const inputConfig = {
     // On a switch the picker opens on the profile you are (aria-current);
     // at the door no tile is current and it falls to the first.
     profile_picker: "[aria-current='true']",
+    // The caught-up panel opens on the selected chip; with none selected
+    // (Nothing yet) it falls to the first.
+    caught_up_chips: "[aria-pressed='true']",
   },
 
   // Zone layouts for nav graph. No content context carries a left edge to the

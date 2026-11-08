@@ -126,16 +126,17 @@ defmodule MediaCentaur.Watchlist do
 
   @doc """
   Sets the title's caught-up point — the latest aired episode the person
-  has seen (`TitleIntent.caught_up_changeset/2`) — and broadcasts
-  `Events.CaughtUp`. `{:error, :not_listed}` when the title has no record:
-  the point is a fact about a listed title. Who decides *which* episode —
-  the latest aired on Follow and on the *Caught up* press, a chosen one
-  from the tracking card — is `ReleaseTracking.catch_up/2`, the verb's one
-  write path; this is the record's half.
+  has seen (`TitleIntent.caught_up_changeset/2`), or `nil` for none: they
+  have seen nothing yet — and broadcasts `Events.CaughtUp`.
+  `{:error, :not_listed}` when the title has no record: the point is a
+  fact about a listed title. Who decides *which* episode — the latest
+  aired on Follow and on the *Caught up* press, a chosen one from the
+  caught-up panel — is `ReleaseTracking.catch_up/2`, the verb's one write
+  path; this is the record's half.
   """
-  @spec catch_up(integer(), media_type(), TitleIntent.caught_up()) ::
+  @spec catch_up(integer(), media_type(), TitleIntent.caught_up() | nil) ::
           {:ok, TitleIntent.t()} | {:error, :not_listed | Ecto.Changeset.t()}
-  def catch_up(tmdb_id, media_type, {_season, _episode} = point) do
+  def catch_up(tmdb_id, media_type, point) do
     case fetch_intent(tmdb_id, media_type) do
       nil ->
         {:error, :not_listed}
@@ -146,11 +147,13 @@ defmodule MediaCentaur.Watchlist do
         |> Repo.update()
         |> case do
           {:ok, updated} ->
+            {season, episode} = point || {nil, nil}
+
             Events.broadcast(%Events.CaughtUp{
               tmdb_id: tmdb_id,
               media_type: media_type,
-              season: elem(point, 0),
-              episode: elem(point, 1)
+              season: season,
+              episode: episode
             })
 
             {:ok, Titles.attach_one(updated)}
