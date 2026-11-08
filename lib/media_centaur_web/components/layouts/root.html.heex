@@ -35,15 +35,14 @@
       as="image"
       href={url}
     />
-    <%!-- Home's hero backdrop, marked so app.js pre-decodes it into the
-          HeroBackdrop bitmap cache at idle (assets/js/hooks/hero_backdrop.js):
-          bytes in the HTTP cache still cost a 4K decode on every visit. --%>
-    <link
+    <%!-- Home's hero backdrop key, marked so app.js pre-decodes it into the
+          HeroBackdrop bitmap cache at idle (assets/js/hooks/hero_backdrop.js).
+          Not a prefetch: the hook fetches a derivative sized to the display,
+          a URL only the browser can build. --%>
+    <meta
       :for={url <- List.wrap(MediaCentaurWeb.ArtworkWarmup.hero_backdrop_url())}
-      rel="prefetch"
-      as="image"
-      href={url}
-      data-hero-backdrop
+      name="hero-backdrop"
+      content={url}
     />
     <script>
       (() => {

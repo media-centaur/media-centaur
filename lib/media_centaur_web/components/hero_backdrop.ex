@@ -10,11 +10,14 @@ defmodule MediaCentaurWeb.Components.HeroBackdrop do
   again on every visit, and Chromium painted the page without it in the
   meantime.
 
-  `data-src` is the cache key. It is `LiveHelpers.hero_backdrop_src/1` of
-  the backdrop URL — the same function `ArtworkWarmup` uses for the root
-  layout's marked prefetch hints, which `app.js` pre-decodes at idle. Any
-  difference between the two is a cache miss, so neither side may derive
-  the URL on its own.
+  `data-src` is the cache key: the master's URL. It is
+  `LiveHelpers.hero_backdrop_src/1` of the backdrop URL — the same function
+  `ArtworkWarmup` uses for the root layout's `<meta name="hero-backdrop">`
+  marker, which `app.js` pre-decodes at idle. Any difference between the
+  two is a cache miss, so neither side may derive the URL on its own. The
+  bytes the hook fetches for the key are ImageServer's `?w=` derivative at
+  the width that covers the display; the server knows nothing about the
+  display, so the key never carries a width.
 
   The host wraps this in its own positioned container (`.page-backdrop`);
   the page CSS sizes the canvas exactly as it sized the image, since both

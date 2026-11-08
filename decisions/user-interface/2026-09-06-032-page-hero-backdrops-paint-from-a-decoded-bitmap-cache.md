@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-09-06
-amended: 2026-09-07
+amended: 2026-11-08
 ---
 # Page hero backdrops paint from a decoded-bitmap cache
 
@@ -23,3 +23,7 @@ After: painted at insert on every return, no decode task in the trace.
 ### Consequences
 
 * One decoded 4K bitmap (about 33 MB) is held for the session.
+
+## Amendment (2026-11-08)
+
+The key stays the master's URL, but the bytes fetched for it are ImageServer's `?w=` derivative at the width that covers the display at 16:9 (`fetchUrl` in `hooks/hero_backdrop.js`). The TV app's 1920 px page fetched and decoded the 3840×2160 master and then shrank it in JavaScript: four times the bytes and the decode of what it drew, paid at idle warm-up and on every hero rotation. Now it gets the 1920×1080 tier; a 4K desktop or a portrait phone asks beyond the ladder and still gets the master, since the server never upscales. Only the browser knows the display, so the root layout marks the key in `<meta name="hero-backdrop">` instead of prefetching it (point 3): a prefetch of the master would pull bytes the TV never decodes.

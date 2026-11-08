@@ -267,13 +267,14 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // Pre-decode the page hero backdrops into the HeroBackdrop bitmap cache once
-// the launch is quiet. The root layout marks their prefetch hints; the URLs
-// are the hook's cache keys (`hero_backdrop_src/1` on both sides), so the
+// the launch is quiet. The root layout marks their keys in
+// `<meta name="hero-backdrop">` (`hero_backdrop_src/1` on both sides), so the
 // first visit to Home paints its hero from cache (Discovery's hero is read
-// from the database, which the root layout's prefetch path never touches,
-// so it decodes on arrival and stays cached across returns).
+// from the database, which the root layout's render path never touches, so
+// it decodes on arrival and stays cached across returns). The bytes are not
+// prefetched: the hook fetches a derivative sized to this display.
 const heroHints = Array.from(
-  document.querySelectorAll('link[rel="prefetch"][data-hero-backdrop]'),
-  (link) => link.getAttribute("href")
+  document.querySelectorAll('meta[name="hero-backdrop"]'),
+  (meta) => meta.getAttribute("content")
 )
 whenIdle(() => warmHeroBackdrops(heroHints, heroBitmapCache))

@@ -55,8 +55,12 @@ TV-only styles key off it.
    with layout reads (2026-10-25, run 42). Nothing may add work to a
    scroll frame: scroll listeners are passive and constant-time, and no
    per-frame `querySelectorAll` or layout read runs during a glide.
-5. **Decode images no larger than the display.** The Home hero's bitmap is
-   scaled to the display (`fitToScreen` in `hooks/hero_backdrop.js`); a 4K
+5. **Decode images no larger than the display.** The Home hero fetches
+   ImageServer's `?w=` derivative at the width that covers the display
+   (`fetchUrl` in `hooks/hero_backdrop.js`): the TV's 1920 px page gets the
+   1920×1080 tier instead of the 3840×2160 master it used to fetch, decode
+   and shrink in JavaScript. The bitmap is still scaled to the display
+   afterwards (`fitToScreen`) for a master the ladder cannot size; a 4K
    master held at full size spent three quarters of its memory on pixels
    the TV never shows. A poster entering view costs about 25 ms of decode
    on the raster threads — avoid bringing many new images into view at

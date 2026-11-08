@@ -21,6 +21,11 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
       `LiveHelpers.hero_backdrop_src/1` — the cache key the
       `HeroBackdrop` hook paints from. **Never re-derive a URL here.** A new warmed surface exposes the function it renders with
       and this module calls it.
+    * **The hero is a marker, not a prefetch.** Its key goes out in
+      `<meta name="hero-backdrop">`; the hook fetches a derivative sized
+      to the display (`fetchUrl` in `hooks/hero_backdrop.js`), a URL only
+      the browser can build, so a prefetch of the master would pull bytes
+      the TV never decodes.
     * **Reads are projection-only** (`Library.Views` ETS) — the root
       layout renders on the initial HTTP request, and this must add
       nothing to that path.
@@ -72,7 +77,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   @doc """
   The backdrop Home's hero is showing right now, through
   `LiveHelpers.hero_backdrop_src/1` — the cache key `Components.HeroBackdrop`
-  hands its hook. The root layout marks the hint with `data-hero-backdrop`
+  hands its hook. The root layout marks it in `<meta name="hero-backdrop">`
   and `app.js` pre-decodes it at idle, so a byte of difference here means
   the hero decodes on its first visit after all.
 

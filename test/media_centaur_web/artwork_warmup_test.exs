@@ -137,19 +137,29 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       assert html =~ LiveHelpers.poster_src("/media-images/#{movie.id}/poster.jpg")
     end
 
-    test "marks the hero backdrop hints so app.js can pre-decode them at idle", %{conn: conn} do
+    # The hero is marked, not prefetched: the hook fetches a derivative sized
+    # to the display, a URL only the browser can build, so a prefetch of the
+    # master would pull bytes the TV never decodes.
+    test "marks the hero backdrop key so app.js can pre-decode it at idle", %{conn: conn} do
       for index <- 1..3, do: seed_hero_candidate("Warmup Marker #{index}")
 
       html = conn |> get("/history") |> html_response(200)
+      document = LazyHTML.from_document(html)
 
       marked =
-        html
-        |> LazyHTML.from_document()
-        |> LazyHTML.query(~s|link[rel="prefetch"][data-hero-backdrop]|)
-        |> LazyHTML.attribute("href")
+        document
+        |> LazyHTML.query(~s|meta[name="hero-backdrop"]|)
+        |> LazyHTML.attribute("content")
 
       assert marked == [ArtworkWarmup.hero_backdrop_url()]
       assert marked != []
+
+      prefetched =
+        document
+        |> LazyHTML.query(~s|link[rel="prefetch"]|)
+        |> LazyHTML.attribute("href")
+
+      refute ArtworkWarmup.hero_backdrop_url() in prefetched
     end
   end
 end

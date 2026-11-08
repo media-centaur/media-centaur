@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createBitmapCache, createHeroBackdropHook, displaySize, fitToScreen, warmHeroBackdrops } from "./hero_backdrop"
+import { createBitmapCache, createHeroBackdropHook, displaySize, fetchUrl, fitToScreen, warmHeroBackdrops } from "./hero_backdrop"
 
 // A decoded bitmap stand-in: the cache only needs width/height and close().
 function fakeBitmap(name, width = 3840, height = 2160) {
@@ -280,5 +280,22 @@ describe("displaySize", () => {
 
   test("a viewport larger than the reported screen wins: headless Chromium reports a small screen", () => {
     expect(displaySize({ width: 800, height: 600 }, { width: 1920, height: 1080 }, 1)).toEqual({ width: 1920, height: 1080 })
+  })
+})
+
+describe("fetchUrl", () => {
+  test("asks ImageServer for the width that covers the display at the backdrop's 16:9", () => {
+    expect(fetchUrl("/media-images/movie-1/backdrop.jpg", { width: 1920, height: 1080 }))
+      .toBe("/media-images/movie-1/backdrop.jpg?w=1920")
+  })
+
+  test("a portrait phone needs the master's full width: height binds under object-fit cover", () => {
+    expect(fetchUrl("/media-images/movie-1/backdrop.jpg", { width: 1080, height: 2400 }))
+      .toBe("/media-images/movie-1/backdrop.jpg?w=4267")
+  })
+
+  test("keeps the key's version query, so the derivative is cached as immutable too", () => {
+    expect(fetchUrl("/media-images/movie-1/backdrop.jpg?v=1700000000", { width: 3840, height: 2160 }))
+      .toBe("/media-images/movie-1/backdrop.jpg?v=1700000000&w=3840")
   })
 })

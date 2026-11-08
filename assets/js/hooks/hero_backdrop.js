@@ -15,17 +15,26 @@
 // Expected shape (rendered by `Components.HeroBackdrop.hero_backdrop/1`):
 //   <canvas id="hero-backdrop" phx-hook="HeroBackdrop" data-src="/media-images/…/backdrop.jpg">
 //
-// `data-src` is the cache key. The root layout marks the same URL on its
-// prefetch hint (`data-hero-backdrop`) and app.js pre-decodes it at idle, so
-// the first visit is warm too. Cache capacity is two: the two assembled
-// pages, Home and Discovery, each carry one backdrop (UIDR-033, amended
-// 2026-11-01), so moving between them keeps both bitmaps instead of
-// re-decoding on every return. A bitmap is kept no larger than the screen can
-// show (`fitToScreen`): ~33 MB for a 4K master on a 4K screen, ~8 MB on the
-// TV app's 1080p page — the cache holds two at most and a canvas sized from
-// its own. The hero rotates and a `?v=` bump changes the URL — either way the
-// outgoing bitmap is never asked for again, so evicting it is the right move,
-// and invalidation is the key itself.
+// `data-src` is the cache key: the master's URL. The root layout marks the
+// same URL in a `<meta name="hero-backdrop">` and app.js pre-decodes it at
+// idle, so the first visit is warm too. Cache capacity is two: the two
+// assembled pages, Home and Discovery, each carry one backdrop (UIDR-033,
+// amended 2026-11-01), so moving between them keeps both bitmaps instead of
+// re-decoding on every return.
+//
+// The bytes fetched for a key are a derivative sized to the display
+// (`fetchUrl`): the key plus `?w=`, the width that covers the display at the
+// backdrop's 16:9. Only the browser knows the display, so the server cannot
+// size the URL and the layout carries no prefetch for it. ImageServer snaps
+// the width up its ladder and never upscales: the TV app's 1920 px page gets
+// the 1920×1080 tier (a quarter of the master's bytes and decode), a 4K
+// desktop or a portrait phone — where the height binds under `object-fit:
+// cover` — asks beyond the ladder and gets the master. A decoded bitmap is
+// then kept no larger than the display can show (`fitToScreen`): ~33 MB for
+// a 4K master on a 4K screen, ~8 MB on the TV. The hero rotates and a `?v=`
+// bump changes the key — either way the outgoing bitmap is never asked for
+// again, so evicting it is the right move, and invalidation is the key
+// itself.
 //
 // `data-hero-state` reports the slot's state — `pending` (decoding),
 // `drawn`, or `failed` — for tests and runtime probes; nothing styles it.
@@ -68,10 +77,21 @@ export async function fitToScreen(bitmap, screenSize, resize = (source, options)
   return fitted
 }
 
-async function decodeUrl(url) {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`hero backdrop ${url}: HTTP ${response.status}`)
-  return fitToScreen(await createImageBitmap(await response.blob()), currentDisplaySize())
+// The URL fetched for a cache key: ImageServer's `?w=` derivative at the
+// width that covers the display at 16:9, the shape the pipeline fits every
+// backdrop master into. The server never upscales, so asking wide is safe.
+export function fetchUrl(key, display) {
+  const width = Math.max(display.width, Math.ceil((display.height * 16) / 9))
+  const url = new URL(key, "http://hero.invalid")
+  url.searchParams.set("w", String(width))
+  return url.pathname + url.search
+}
+
+async function decodeUrl(key) {
+  const display = currentDisplaySize()
+  const response = await fetch(fetchUrl(key, display))
+  if (!response.ok) throw new Error(`hero backdrop ${key}: HTTP ${response.status}`)
+  return fitToScreen(await createImageBitmap(await response.blob()), display)
 }
 
 // LRU keyed by URL. `get` promotes; `load` dedupes in-flight decodes and
