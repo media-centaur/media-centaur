@@ -27,7 +27,7 @@ import {createInputHook} from "./input/index"
 import {ConsolePage} from "./hooks/console_page"
 import {LogFollow} from "./hooks/log_follow"
 import {CopyButton} from "./hooks/copy_button"
-import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
+import {MouseAutofocus, autofocusAllowed} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {HeroBackdrop, heroBitmapCache, warmHeroBackdrops} from "./hooks/hero_backdrop"
 import {Tooltip} from "./hooks/tooltip"
@@ -189,10 +189,11 @@ window.addEventListener("omnibox:clear-input", (event) => {
 
 // Clearing a search, or closing the plan modal on Downloads, hands the page
 // back to searching, so focus returns to the page's search box — pointer
-// users only (same gate as MouseAutofocus): for keyboard/gamepad the input
-// system owns focus (ADR-053). One page renders one box.
+// users with a fine pointer only (same gate as MouseAutofocus): for
+// keyboard/gamepad the input system owns focus (ADR-053), and on touch the
+// keyboard would rise over the page. One page renders one box.
 window.addEventListener("phx:omnibox:refocus", () => {
-  if (shouldAutofocus(document.documentElement.dataset.input)) {
+  if (autofocusAllowed()) {
     document.querySelector("[data-nav-zone='omnibox'] input")?.focus()
   }
 })

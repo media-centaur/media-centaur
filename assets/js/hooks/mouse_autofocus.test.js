@@ -33,3 +33,21 @@ describe("shouldAutofocus", () => {
     expect(shouldAutofocus("touch")).toBe(false)
   })
 })
+
+// A coarse pointer (a phone's touch screen) reports as the mouse after a
+// tap, since a tap raises the mouse compatibility events — but focusing a box
+// on arrival raises the on-screen keyboard over the page. On touch, focus is
+// by tap only.
+describe("shouldAutofocus on a coarse pointer", () => {
+  test("mouse method on a coarse pointer → no autofocus", () => {
+    expect(shouldAutofocus("mouse", true)).toBe(false)
+  })
+
+  test("unset method on a coarse pointer → no autofocus", () => {
+    expect(shouldAutofocus(undefined, true)).toBe(false)
+  })
+
+  test("a fine pointer keeps the mouse affordance", () => {
+    expect(shouldAutofocus("mouse", false)).toBe(true)
+  })
+})
