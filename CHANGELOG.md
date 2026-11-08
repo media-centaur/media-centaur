@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.15.1 — 2026-11-08
+
+### Improved
+
+- **The Social feed fits more on a phone.** Each entry now puts the poster on the left with the words beside it: who did what on the first line, the title under it, then the actions and the time across the bottom. Entries are about a third shorter than before, so roughly twice as many fit on the screen, and the space that used to sit empty beside the poster is gone. Nothing changes on a desktop or a TV.
+- **Profile pictures on a phone are full size again.** *Who's watching?* shows two profiles to a row at the same picture size as the desktop, filling the width of the screen instead of leaving a gutter on each side. The **Add profile** name field sits in the row like any tile.
+
 ## v2.15.0 — 2026-11-08
 
 ### New
