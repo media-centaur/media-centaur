@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
     <div
       id={@entry.id}
       role="button"
-      class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5 max-compact:flex-wrap"
+      class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5"
       data-component="feed-row"
       data-kind={@entry.kind}
       data-own={@entry.subject == :you}
@@ -90,21 +90,23 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
         :if={@entry.poster_url}
         src={row_poster_src(@entry.poster_url)}
         alt=""
-        class="h-[120px] w-20 shrink-0 rounded-md object-cover shadow-[0_3px_12px_oklch(0%_0_0/0.45)] max-compact:h-[84px] max-compact:w-14"
+        class="h-[120px] w-20 shrink-0 rounded-md object-cover shadow-[0_3px_12px_oklch(0%_0_0/0.45)] max-compact:h-24 max-compact:w-16"
         data-role="poster"
         loading="eager"
         decoding="sync"
       />
       <div
         :if={!@entry.poster_url}
-        class="h-[120px] w-20 shrink-0 rounded-md bg-base-content/6 ring-1 ring-inset ring-base-content/10 max-compact:h-[84px] max-compact:w-14"
+        class="h-[120px] w-20 shrink-0 rounded-md bg-base-content/6 ring-1 ring-inset ring-base-content/10 max-compact:h-24 max-compact:w-16"
         data-role="poster-empty"
       >
       </div>
 
-      <%!-- In a compact window the words take a line of their own under the
-            tile, the poster and the time: beside them they had 76 px. --%>
-      <div class="min-w-0 flex-1 max-compact:order-last max-compact:basis-full">
+      <%!-- In a compact window the row is a grid (`.feed-row` in `app.css`):
+            the poster leads, the tile sits in the who line at 32, and the
+            toolbar and the time make a foot across the row; this column is
+            `display: contents` there, its lines placed by `data-role`. --%>
+      <div class="min-w-0 flex-1" data-role="words">
         <p
           class="truncate text-base leading-6 text-base-content/80 max-compact:whitespace-normal"
           data-role="who"
@@ -211,7 +213,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
       </div>
 
       <span
-        class="shrink-0 pt-0.5 text-sm tabular-nums text-base-content/60 max-compact:ml-auto"
+        class="shrink-0 pt-0.5 text-sm tabular-nums text-base-content/60"
         data-role="time"
       >
         {@entry.ago}

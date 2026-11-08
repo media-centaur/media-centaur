@@ -112,7 +112,10 @@ defmodule MediaCentaurWeb.ProfilesLive do
 
     ~H"""
     <div
-      class={["relative z-[1] flex flex-col items-center justify-center gap-12 px-4 py-16", @class]}
+      class={[
+        "relative z-[1] flex flex-col items-center justify-center gap-12 px-4 py-16 max-compact:px-0",
+        @class
+      ]}
       data-page-behavior="profiles"
       data-nav-default-zone="profiles"
     >
@@ -134,7 +137,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
           <input type="hidden" name="return_to" value={@return_to} />
           <button
             type="submit"
-            class="profile-pick cursor-pointer rounded-xl p-3"
+            class="profile-pick cursor-pointer rounded-xl p-3 max-compact:p-2"
             aria-current={if profile.id == @current_id, do: "true"}
             data-nav-item
             tabindex="0"
@@ -151,7 +154,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
           :if={@under_cap? and not @adding?}
           type="button"
           id="add-profile"
-          class="profile-pick cursor-pointer rounded-xl p-3"
+          class="profile-pick cursor-pointer rounded-xl p-3 max-compact:p-2"
           phx-click="open_add"
           data-nav-item
           tabindex="0"
@@ -162,7 +165,7 @@ defmodule MediaCentaurWeb.ProfilesLive do
           :if={@under_cap? and @adding?}
           id="add-profile-form"
           phx-submit="add_profile"
-          class="flex w-36 flex-col items-center gap-3 p-3"
+          class="flex w-36 flex-col items-center gap-3 p-3 max-compact:w-32 max-compact:p-2"
         >
           <%!-- The field opens in the add tile's place and takes the focus;
                 it and the button row share the tile's width, so geometry

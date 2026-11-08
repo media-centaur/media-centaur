@@ -4779,12 +4779,73 @@ body:has(.viewing) .gamepad-hint-bar {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.7);
   }
 
-  /* The picker's tiles two to a row: the 128 picture at 96 (the tile's
-     `data-size` is the identity tile's contract hook). */
-  .profile-tile [data-size="128"] {
-    width: 6rem;
-    height: 6rem;
-    font-size: 2.25rem;
+  /* A Feed row is a grid: the poster leads at 64×96 and the words sit
+     beside it — the tile at 32 ahead of the name, the title under both
+     — with the toolbar and the time a foot across the row. Beside the
+     tile and the poster the words had 76 px, and under them the row was
+     265 px tall with nothing beside the poster. The text row is the one
+     that flexes, so a short row's slack falls under its words and never
+     between them. */
+  .feed-row {
+    display: grid;
+    grid-template-columns: 4rem 2rem minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "poster tile who who"
+      "poster title title title"
+      "poster episode episode episode"
+      "poster text text text"
+      "toolbar toolbar toolbar time";
+    column-gap: 0.75rem;
+    row-gap: 0;
+  }
+
+  .feed-row > [data-role="words"] {
+    display: contents;
+  }
+
+  .feed-row > [data-component="identity-tile"] {
+    grid-area: tile;
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+  }
+
+  .feed-row > [data-component="identity-tile"] > .size-5 {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .feed-row > [data-role="poster"],
+  .feed-row > [data-role="poster-empty"] {
+    grid-area: poster;
+  }
+
+  .feed-row [data-role="who"] {
+    grid-area: who;
+    align-self: center;
+  }
+
+  .feed-row [data-role="title"] {
+    grid-area: title;
+  }
+
+  .feed-row [data-role="episode"] {
+    grid-area: episode;
+  }
+
+  .feed-row [data-role="text"] {
+    grid-area: text;
+  }
+
+  .feed-row [data-role="toolbar"] {
+    grid-area: toolbar;
+  }
+
+  .feed-row > [data-role="time"] {
+    grid-area: time;
+    align-self: center;
+    padding-top: 0;
   }
 
   /* A menu's trigger names a value; it never breaks the value across lines. */
