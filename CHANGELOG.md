@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.15.2 — 2026-11-08
+
+### Improved
+
+- **Turning off Remote players takes effect right away.** Under Settings → Feature Flags, switching it off now stops anything playing on a paired device, sends its open page to the pairing screen and cuts off its video files. Before, a device that was already connected carried on until it reloaded.
+
+### Fixed
+
+- **An expired pairing code no longer gets stuck in Settings → Players.** The code now disappears when its five minutes are up, and *Start pairing* comes back. Before, the old code stayed on screen, Cancel did nothing and you had to reload the page.
+- **A file that can't load on a paired device now says so.** The viewing is reported as failed instead of quietly ending as if the film had finished.
+- **A paired device whose app restarts during a film no longer shows as still playing.** The viewing ends with your place saved, so you can resume it.
+- **A device left playing something Media Centaur can't track is now stopped.** After a restart of the computer, a device playing a file the library no longer knows used to play on with no way to control it from the remote.
+- **Web pages can no longer reach Media Centaur by pointing their own domain at your computer.** If you run a reverse proxy on the same computer, it must now send a local `Host` name such as `localhost`, or requests are refused. The [reverse proxy section](https://github.com/media-centaur/media-centaur/wiki/Running-as-a-Service#reverse-proxy-optional) has the one-line change for Caddy; nginx's default already works.
+- **The Pair card mentions phones.** Settings → Players now tells you to install the app on an Android TV or a phone.
+
 ## v2.15.1 — 2026-11-08
 
 ### Improved
