@@ -31,10 +31,13 @@ defmodule MediaCentaurWeb.Router do
     get "/v1/plans/:id", PlanController, :show
     post "/v1/plans/:id/approve", PlanController, :approve
     post "/v1/plans/:id/discard", PlanController, :discard
+    post "/v1/plans/:id/accept-lower-quality", PlanController, :accept_lower_quality
     get "/v1/pursuits", PursuitController, :index
     get "/v1/pursuits/:id", PursuitController, :show
     post "/v1/pursuits/:id/search-again", PursuitController, :search_again
     post "/v1/pursuits/:id/cancel", PursuitController, :cancel
+    get "/v1/pursuits/:id/alternatives", PursuitController, :alternatives
+    post "/v1/pursuits/:id/alternatives", PursuitController, :choose_release
     get "/v1/queue", QueueController, :index
     delete "/v1/queue/:id", QueueController, :delete
     match :*, "/*path", NotFoundController, :show

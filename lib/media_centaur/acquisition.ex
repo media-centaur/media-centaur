@@ -507,6 +507,19 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
+  @doc """
+  Picks a release a search recorded, by guid, labelled with its title as
+  the decision card labels it. `pick_alternative/3`'s errors, except that
+  an unknown guid is named: `{:error, {:release_unavailable, guid}}`.
+  """
+  @spec pick_alternative(Ecto.UUID.t(), String.t()) :: {:ok, Pursuit.t()} | {:error, term()}
+  def pick_alternative(pursuit_id, guid) when is_binary(guid) do
+    case fetch_release(guid) do
+      {:ok, result} -> pick_alternative(pursuit_id, result, result.title)
+      {:error, :release_unavailable} -> {:error, {:release_unavailable, guid}}
+    end
+  end
+
   defp do_pick_alternative(%Pursuit{} = pursuit, %SearchResult{} = result, label) do
     with {:ok, updated} <-
            PickTarget.execute(%{

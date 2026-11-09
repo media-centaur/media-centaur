@@ -6,7 +6,8 @@ defmodule MediaCentaurWeb.Api.PursuitController do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaurWeb.Api.{Params, PlanJSON, PursuitJSON}
+  alias MediaCentaur.Capabilities
+  alias MediaCentaurWeb.Api.{Params, PlanJSON, PursuitJSON, ReleaseJSON}
 
   action_fallback MediaCentaurWeb.Api.FallbackController
 
@@ -41,8 +42,29 @@ defmodule MediaCentaurWeb.Api.PursuitController do
     end
   end
 
+  def alternatives(conn, %{"id" => id}) do
+    with :ok <- prowlarr_ready(),
+         {:ok, pursuit} <- Pursuits.fetch(id) do
+      json(conn, %{
+        releases: pursuit |> Acquisition.list_alternatives_for() |> Enum.map(&ReleaseJSON.release/1)
+      })
+    end
+  end
+
+  def choose_release(conn, %{"id" => id} = params) do
+    with {:ok, guid} <- Params.text(params, "guid"),
+         {:ok, _pursuit} <- Acquisition.pick_alternative(id, guid),
+         {:ok, pursuit} <- Pursuits.fetch(id) do
+      json(conn, pursuit |> Pursuits.status_from() |> PursuitJSON.detail())
+    end
+  end
+
   def cancel(conn, %{"id" => id}) do
     with {:ok, pursuit} <- Acquisition.cancel_pursuit(id), do: json(conn, PursuitJSON.summary(pursuit))
+  end
+
+  defp prowlarr_ready do
+    if Capabilities.prowlarr_ready?(), do: :ok, else: {:error, :not_configured}
   end
 
   defp filter(value) do

@@ -16,18 +16,18 @@ defmodule MediaCentaurWeb.Api.PlanJSON do
       year: plan.year,
       pursuit_id: plan.pursuit_id,
       error: plan.error,
-      clean: Plans.clean?(plan),
       awaiting_approval: Plans.awaiting_approval?(plan),
-      units: plan.id |> Plans.units_for() |> Enum.map(&unit/1)
+      units: plan.id |> Plans.units_for() |> Enum.map(&unit(&1, plan.status == "planning"))
     }
   end
 
-  defp unit(%PlanUnit{} = unit) do
+  defp unit(%PlanUnit{} = unit, planning?) do
     %{
       season_number: unit.season_number,
       episode_number: unit.episode_number,
       label: unit.label,
       status: unit.status,
+      gap: PlanUnit.gap(unit, planning?),
       release: release(unit)
     }
   end

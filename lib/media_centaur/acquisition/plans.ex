@@ -686,6 +686,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   tracked — which is what used to make this act start tracking a show.
   """
   @spec accept_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def accept_lower_quality(%Plan{status: status}) when status != "ready", do: {:error, :not_ready}
+
   def accept_lower_quality(%Plan{} = plan) do
     with {:ok, _params} <- put_download_params(plan, %{min_quality: "any"}),
          {:ok, snapshotted} <-

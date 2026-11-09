@@ -107,17 +107,10 @@ defmodule MediaCentaur.Acquisition.Plans.Board do
   # -- outcome lines -----------------------------------------------------------
 
   defp outcome_lines(units, cells, planning?) do
-    searching = if planning?, do: Enum.filter(units, &(&1.status == "pending")), else: []
-    below = Enum.filter(units, &(&1.status == "unfound" and &1.below_floor_count > 0))
-
-    not_found =
-      Enum.filter(
-        units,
-        &((&1.status == "unfound" and &1.below_floor_count == 0 and is_nil(&1.offered_guid)) or
-            (&1.status == "pending" and not planning?))
-      )
-
-    offered = Enum.filter(units, &(&1.status == "unfound" and not is_nil(&1.offered_guid)))
+    searching = Enum.filter(units, &PlanUnit.searching?(&1, planning?))
+    below = Enum.filter(units, &PlanUnit.below_quality?/1)
+    not_found = Enum.filter(units, &PlanUnit.not_found?(&1, planning?))
+    offered = Enum.filter(units, &PlanUnit.pack_offered?/1)
     excluded = Enum.filter(units, &(&1.status == "excluded"))
 
     Enum.reject(

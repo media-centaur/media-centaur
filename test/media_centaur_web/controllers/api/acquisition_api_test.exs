@@ -173,7 +173,8 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       body = conn |> get("/api/v1/plans/#{id}") |> json_response(200)
 
       assert_schema(body, "Plan")
-      assert %{"status" => "ready", "clean" => false, "awaiting_approval" => true} = body
+      assert %{"status" => "ready", "awaiting_approval" => true} = body
+      assert [%{"status" => "unfound", "gap" => "not_found"}] = body["units"]
     end
 
     test "asking twice for the same film is a conflict, not a second plan", %{conn: conn} do
@@ -211,9 +212,15 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       body = conn |> get("/api/v1/plans/#{id}") |> json_response(200)
 
       assert_schema(body, "Plan")
-      assert %{"status" => "committed", "awaiting_approval" => false, "clean" => true} = body
+      assert %{"status" => "committed", "awaiting_approval" => false} = body
 
-      assert [%{"status" => "found", "release" => %{"guid" => "film", "quality" => "hd_1080p"}}] =
+      assert [
+               %{
+                 "status" => "found",
+                 "gap" => nil,
+                 "release" => %{"guid" => "film", "quality" => "hd_1080p"}
+               }
+             ] =
                body["units"]
 
       assert conn
@@ -236,6 +243,32 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
     test "an unknown or malformed plan id is 404", %{conn: conn} do
       assert conn |> get("/api/v1/plans/not-a-uuid") |> json_response(404)
       assert conn |> get("/api/v1/plans/#{Ecto.UUID.generate()}") |> json_response(404)
+    end
+
+    test "a plan stopped on lower quality says so, and accepting it plans again", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{film_release() | "title" => "Sample.Movie.2005.720p.WEB-DL", "guid" => "film-720p"}
+        ])
+      end)
+
+      %{"id" => id} = create_plan(conn, %{approval_policy: "automatic"})
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      assert %{"awaiting_approval" => true, "units" => [%{"gap" => "below_quality"}]} =
+               conn |> get("/api/v1/plans/#{id}") |> json_response(200)
+
+      body = conn |> post("/api/v1/plans/#{id}/accept-lower-quality") |> json_response(202)
+      assert_schema(body, "Plan")
+      assert %{"status" => "planning"} = body
+    end
+
+    test "accepting lower quality on a plan that is not ready is a conflict", %{conn: conn} do
+      %{"id" => id} = create_plan(conn)
+      Plans.fetch(id) |> elem(1) |> force_attrs(%{status: "discarded"})
+
+      assert %{"error" => %{"code" => "plan_not_ready"}} =
+               conn |> post("/api/v1/plans/#{id}/accept-lower-quality") |> json_response(409)
     end
 
     test "approving a plan while it searches is a conflict", %{conn: conn} do
@@ -375,6 +408,41 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
 
       assert_schema(body, "PursuitDetail")
       assert %{"awaiting_decision" => true, "units_wanted" => 1, "units_satisfied" => 0} = body
+    end
+
+    test "another release can be listed and chosen for a pursuit", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "POST" -> Req.Test.json(conn, %{})
+          _search -> Req.Test.json(conn, [film_release()])
+        end
+      end)
+
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "246813",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          year: 2005,
+          awaiting_decision_at: DateTime.utc_now(:second)
+        })
+
+      body = conn |> get("/api/v1/pursuits/#{pursuit.id}/alternatives") |> json_response(200)
+      assert_schema(body, "ReleaseList")
+      assert %{"releases" => [%{"guid" => "film"}]} = body
+
+      chosen =
+        conn
+        |> json_post("/api/v1/pursuits/#{pursuit.id}/alternatives", %{guid: "film"})
+        |> json_response(200)
+
+      assert_schema(chosen, "PursuitDetail")
+      assert %{"awaiting_decision" => false} = chosen
+
+      assert %{"error" => %{"code" => "release_unavailable"}} =
+               conn
+               |> json_post("/api/v1/pursuits/#{pursuit.id}/alternatives", %{guid: "unknown"})
+               |> json_response(404)
     end
 
     test "an unknown or malformed pursuit id is 404", %{conn: conn} do

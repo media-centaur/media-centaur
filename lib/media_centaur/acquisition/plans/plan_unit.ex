@@ -97,6 +97,48 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     |> validate_required([:plan_id, :label])
   end
 
+  @type gap :: :searching | :below_quality | :pack_offered | :not_found | :excluded | nil
+
+  @doc """
+  Why a unit has no release to commit, `nil` for a found unit. A unit
+  can be both below quality and offered a pack; `below_quality` names it
+  then, since accepting lower quality is the move that can find it. The
+  predicates beneath are what the plan board's lines are drawn from.
+  """
+  @spec gap(t(), planning? :: boolean()) :: gap()
+  def gap(%__MODULE__{} = unit, planning?) do
+    cond do
+      searching?(unit, planning?) -> :searching
+      below_quality?(unit) -> :below_quality
+      pack_offered?(unit) -> :pack_offered
+      not_found?(unit, planning?) -> :not_found
+      unit.status == "excluded" -> :excluded
+      true -> nil
+    end
+  end
+
+  @doc "Still waiting on the search that is running."
+  @spec searching?(t(), boolean()) :: boolean()
+  def searching?(%__MODULE__{status: status}, planning?), do: planning? and status == "pending"
+
+  @doc "Not found, but releases below the quality floor exist."
+  @spec below_quality?(t()) :: boolean()
+  def below_quality?(%__MODULE__{status: "unfound", below_floor_count: count}), do: count > 0
+  def below_quality?(%__MODULE__{}), do: false
+
+  @doc "Not found alone, but a wider pack containing it was set aside for a person."
+  @spec pack_offered?(t()) :: boolean()
+  def pack_offered?(%__MODULE__{status: "unfound", offered_guid: guid}), do: is_binary(guid)
+  def pack_offered?(%__MODULE__{}), do: false
+
+  @doc "Nothing usable found: no lower-quality release, no pack, or a solve that ended without it."
+  @spec not_found?(t(), boolean()) :: boolean()
+  def not_found?(%__MODULE__{status: "unfound"} = unit, _planning?),
+    do: unit.below_floor_count == 0 and is_nil(unit.offered_guid)
+
+  def not_found?(%__MODULE__{status: "pending"}, planning?), do: not planning?
+  def not_found?(%__MODULE__{}, _planning?), do: false
+
   @doc "Records the planner's assignment and marks the unit found."
   def assign_changeset(%__MODULE__{} = unit, attrs) do
     unit

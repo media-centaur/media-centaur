@@ -3,7 +3,7 @@
   "info": {
     "title": "Media Centaur Local API",
     "version": "1",
-    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`. `GET /titles/{media_type}/{tmdb_id}` says whether you have it and what is already planned or downloading.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`; for a series, a `scope` or the `episodes` you want. The answer is the plan, in status `planning`; keep its `id`. A 409 `already_downloading` means it is already planned or downloading, and a 422 `nothing_to_plan` that you have it or nothing has aired.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: a person decides. Read `units` and `error`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here when a wanted unit was not found within your quality settings, or when it could not commit (it then reads `approval_policy: review`, with the reason in `error`). Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick another release in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` is not idempotent: a repeated request starts another download. A repeated `POST /plans` for what is already planned or downloading is refused with 409."
+    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`. `GET /titles/{media_type}/{tmdb_id}` says whether you have it and what is already planned or downloading.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`; for a series, a `scope` or the `episodes` you want. The answer is the plan, in status `planning`; keep its `id`. A 409 `already_downloading` means it is already planned or downloading, and a 422 `nothing_to_plan` that you have it or nothing has aired.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: a person decides. Read each unit's `gap` and the plan's `error`; a `below_quality` gap can be taken with `POST /plans/{id}/accept-lower-quality`. Otherwise `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here when a wanted unit was not found within your quality settings, or when it could not commit (it then reads `approval_policy: review`, with the reason in `error`). Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs another release: `GET /pursuits/{id}/alternatives`, then `POST` the chosen `guid` to the same path.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` is not idempotent: a repeated request starts another download. A repeated `POST /plans` for what is already planned or downloading is refused with 409."
   },
   "servers": [
     {
@@ -714,6 +714,68 @@
         ]
       }
     },
+    "/plans/{id}/accept-lower-quality": {
+      "post": {
+        "operationId": "acceptLowerQuality",
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Accept lower quality for this title, and plan again",
+        "description": "For a ready plan whose units have `gap: below_quality`. Lower-quality releases become acceptable for this title from now on, as the app's own Accept lower quality does, and the plan searches again; it answers in status `planning`. An automatic plan then commits by itself if everything is found.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The plan, searching again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The plan is not ready (`plan_not_ready`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pursuits": {
       "get": {
         "operationId": "listPursuits",
@@ -978,6 +1040,141 @@
             }
           }
         ]
+      }
+    },
+    "/pursuits/{id}/alternatives": {
+      "get": {
+        "operationId": "listAlternatives",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "Search for other releases for a pursuit",
+        "description": "Releases the pursuit has not tried yet, at most 8, for the unit it is working on. Use it when the pursuit has `awaiting_decision: true` or offers `choose_release`. Searches the indexers, reusing results from the last 30 minutes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The releases.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseList"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such pursuit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Prowlarr is not set up (`not_configured`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "chooseRelease",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "Choose another release for a pursuit",
+        "description": "Sends the release to the download client in place of the current one, as the app's decision card does.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseReleaseRequest"
+              },
+              "example": {
+                "guid": "..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The pursuit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`guid` is missing (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such pursuit (`not_found`), or no search recorded the guid (`release_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/queue": {
@@ -1530,6 +1727,7 @@
           "episode_number",
           "label",
           "status",
+          "gap",
           "release"
         ],
         "properties": {
@@ -1555,6 +1753,21 @@
             "type": "string",
             "description": "`found` units are what a commit downloads."
           },
+          "gap": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "searching",
+              "below_quality",
+              "pack_offered",
+              "not_found",
+              "excluded",
+              null
+            ],
+            "description": "Why the unit has no release; null when it was found. `below_quality`: only releases below your quality settings exist; `POST /plans/{id}/accept-lower-quality` can take them. `pack_offered`: only a larger pack contains it; a person can take it in the app. `not_found`: nothing suitable. `excluded`: left out of the plan. `searching`: the search is still running."
+          },
           "release": {
             "oneOf": [
               {
@@ -1579,7 +1792,6 @@
           "year",
           "pursuit_id",
           "error",
-          "clean",
           "awaiting_approval",
           "units"
         ],
@@ -1636,10 +1848,6 @@
               "null"
             ],
             "description": "Why the plan stopped: a failed search, or why an automatic plan was not committed."
-          },
-          "clean": {
-            "type": "boolean",
-            "description": "Every wanted unit was found within your quality settings."
           },
           "awaiting_approval": {
             "type": "boolean",
@@ -1936,10 +2144,11 @@
               "type": "string",
               "enum": [
                 "cancel",
-                "request_decision",
+                "choose_release",
                 "search_again"
               ]
-            }
+            },
+            "description": "What can be done now: `cancel` (`POST /pursuits/{id}/cancel`), `choose_release` (`GET` then `POST /pursuits/{id}/alternatives`), `search_again` (`POST /pursuits/{id}/search-again`)."
           },
           "awaiting_decision": {
             "type": "boolean",
@@ -2117,6 +2326,32 @@
               "type": "string"
             },
             "description": "Pursuits in flight, newest first. Read each with `GET /pursuits/{id}`."
+          }
+        }
+      },
+      "ReleaseList": {
+        "type": "object",
+        "required": [
+          "releases"
+        ],
+        "properties": {
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            }
+          }
+        }
+      },
+      "ChooseReleaseRequest": {
+        "type": "object",
+        "required": [
+          "guid"
+        ],
+        "properties": {
+          "guid": {
+            "type": "string",
+            "description": "A `guid` from `GET /pursuits/{id}/alternatives`."
           }
         }
       }

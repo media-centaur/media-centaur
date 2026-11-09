@@ -31,6 +31,13 @@ defmodule MediaCentaurWeb.Api.PlanController do
     end
   end
 
+  def accept_lower_quality(conn, %{"id" => id}) do
+    with {:ok, plan} <- Plans.fetch(id),
+         {:ok, replanning} <- Plans.accept_lower_quality(plan) do
+      conn |> put_status(:accepted) |> json(PlanJSON.plan(replanning))
+    end
+  end
+
   def discard(conn, %{"id" => id}) do
     with {:ok, plan} <- Plans.fetch(id),
          {:ok, discarded} <- Plans.discard(plan) do

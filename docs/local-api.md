@@ -69,8 +69,16 @@ Episodes that new-episode grabbing already covers are left out too. `approval_po
 | Plan state | What to do |
 |---|---|
 | `status: committed` | Follow `pursuit_id`. |
-| `status: ready`, `awaiting_approval: true` | A person decides. Read `units` and `error`, then `POST /plans/{id}/approve` (commits the units that were found) or `POST /plans/{id}/discard`. An automatic plan stops here when something was not found within your quality settings, or when it could not commit; it then reads `approval_policy: review` and `error` says why. |
+| `status: ready`, `awaiting_approval: true` | Someone decides. Each unit's `gap` says why it has no release, and `error` why an automatic plan did not commit (it then reads `approval_policy: review`). `POST /plans/{id}/approve` commits the units that were found; `POST /plans/{id}/discard` drops the plan. |
 | `status: ready`, `awaiting_approval: false` | The commit is in progress. Poll again. |
+
+| Unit `gap` | Meaning | Move |
+|---|---|---|
+| `below_quality` | Only releases below your quality settings exist. | `POST /plans/{id}/accept-lower-quality` accepts them for this title from now on and searches again. |
+| `pack_offered` | Only a larger pack contains it. | Take the pack in the app, or approve without it. |
+| `not_found` | Nothing suitable was found. | Approve without it, or try again later. |
+| `excluded` | Left out of the plan. | None. |
+| `searching` | The search is still running. | Poll again. |
 | `status: discarded` | Nothing will download. |
 
 `POST /plans` answers 409 `already_downloading` when the film, or every episode in the scope, is already being downloaded or has an open plan, so a script can retry it safely. `GET /titles/{media_type}/{tmdb_id}` (`movie` or `tv`) then names the open plans and pursuits to follow, and says whether the library has the title. It answers 422 `nothing_to_plan` when the library has the film or nothing in the scope has aired. Episodes already being downloaded are left out of a series plan.
@@ -95,11 +103,13 @@ A term with `status: "failed"` is an indexer failure, not an absence of releases
 | `GET /pursuits` | Downloads in flight. `?state=failed`, `cancelled`, `succeeded` or `terminal` lists finished ones; `?limit=` caps the list (default 50, at most 200). |
 | `GET /pursuits/{id}` | Progress. `state` of `satisfied`, `partial`, `exhausted` or `cancelled` is final. |
 | `POST /pursuits/{id}/cancel` | Stops the download and removes its partial data. |
+| `GET /pursuits/{id}/alternatives` | Searches for releases the pursuit has not tried, at most 8. |
+| `POST /pursuits/{id}/alternatives` | Downloads the release whose `guid` you send in place of the current one. |
 | `POST /pursuits/{id}/search-again` | Plans what did not land, for pursuits started from a title. Takes `approval_policy`. |
 | `GET /queue` | Everything in the download clients. |
 | `DELETE /queue/{id}` | Removes an item and its files from its client. |
 
-A pursuit with `awaiting_decision: true` needs a person to pick another release in the app. `units_satisfied` of `units_wanted` have landed in the library.
+A pursuit with `awaiting_decision: true` needs another release: list them with `GET /pursuits/{id}/alternatives` and send the chosen `guid` to the same path. `available_actions` names what can be done now: `cancel`, `choose_release` or `search_again`. `units_satisfied` of `units_wanted` have landed in the library.
 
 ## Errors
 

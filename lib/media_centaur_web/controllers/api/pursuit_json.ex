@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.Api.PursuitJSON do
       state: status.state,
       origin: status.origin,
       status: status(status.current_action),
-      available_actions: status.available_actions,
+      available_actions: Enum.map(status.available_actions, &action/1),
       awaiting_decision: Enum.any?(units, & &1.awaiting_decision),
       units_wanted: max(length(units), 1),
       units_satisfied: Enum.count(units, &(&1.state == "satisfied")),
@@ -40,6 +40,12 @@ defmodule MediaCentaurWeb.Api.PursuitJSON do
       downloads: Enum.map(status.downloads, &download/1)
     }
   end
+
+  # Each action as the API request that takes it: request_decision is the
+  # decision card, which the API reaches as /alternatives.
+  defp action(:cancel), do: :cancel
+  defp action(:search_again), do: :search_again
+  defp action(:request_decision), do: :choose_release
 
   defp status(%CurrentAction{} = action), do: Map.take(action, [:verb, :description, :severity])
 
