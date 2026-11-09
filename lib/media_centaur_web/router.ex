@@ -22,6 +22,20 @@ defmodule MediaCentaurWeb.Router do
     pipe_through :api
 
     get "/v1/status", StatusController, :show
+    get "/v1/openapi.json", OpenApiController, :show
+    get "/v1/releases", ReleaseController, :index
+    post "/v1/grabs", GrabController, :create
+    get "/v1/titles", TitleController, :index
+    post "/v1/plans", PlanController, :create
+    get "/v1/plans/:id", PlanController, :show
+    post "/v1/plans/:id/approve", PlanController, :approve
+    post "/v1/plans/:id/discard", PlanController, :discard
+    get "/v1/pursuits", PursuitController, :index
+    get "/v1/pursuits/:id", PursuitController, :show
+    post "/v1/pursuits/:id/search-again", PursuitController, :search_again
+    post "/v1/pursuits/:id/cancel", PursuitController, :cancel
+    get "/v1/queue", QueueController, :index
+    delete "/v1/queue/:id", QueueController, :delete
     match :*, "/*path", NotFoundController, :show
   end
 

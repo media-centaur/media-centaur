@@ -30,6 +30,12 @@ defmodule MediaCentaurWeb.SettingsLiveLocalApiTest do
       :ok
     end
 
+    test "says where to find the API's OpenAPI document", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, @section)
+
+      assert html =~ "/api/v1/openapi.json"
+    end
+
     test "generating shows a key that works, once", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
 

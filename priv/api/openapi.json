@@ -1,0 +1,1932 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Media Centaur Local API",
+    "version": "1",
+    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, skips episodes you own, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`. The answer is the plan, in status `planning`.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: read `units`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here unless every wanted unit was found within your quality settings. Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick an alternative in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` and `POST /plans` are not idempotent: a repeated request starts another download or plan."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Status"
+    },
+    {
+      "name": "Releases"
+    },
+    {
+      "name": "Titles"
+    },
+    {
+      "name": "Plans"
+    },
+    {
+      "name": "Pursuits"
+    },
+    {
+      "name": "Queue"
+    }
+  ],
+  "paths": {
+    "/status": {
+      "get": {
+        "operationId": "getStatus",
+        "tags": [
+          "Status"
+        ],
+        "summary": "Version and integration readiness",
+        "description": "Check this first: `acquisition` must be true before anything can be downloaded.",
+        "responses": {
+          "200": {
+            "description": "Readiness.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "tags": [
+          "Status"
+        ],
+        "summary": "This document",
+        "description": "The OpenAPI document for the running version.",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/releases": {
+      "get": {
+        "operationId": "searchReleases",
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Search the indexers",
+        "description": "Expands braces and searches each term. Each term reports its own outcome. Can take up to 15 seconds.",
+        "responses": {
+          "200": {
+            "description": "One entry per term, in term order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseSearch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed braces (`invalid_query`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search text. Braces expand: `Sample Show S01E{01-02}`."
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            },
+            "description": "`true` skips the 30-minute reuse of earlier results."
+          }
+        ]
+      }
+    },
+    "/grabs": {
+      "post": {
+        "operationId": "grabReleases",
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Download chosen releases",
+        "description": "Starts one pursuit covering every listed release. An unknown guid downloads nothing. Not idempotent.",
+        "responses": {
+          "202": {
+            "description": "The pursuit was recorded; downloading follows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grab"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A guid no search has recorded (`release_unavailable`); the message names it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrabRequest"
+              },
+              "example": {
+                "query": "Sample Show S01E{01-02}",
+                "releases": [
+                  {
+                    "guid": "guid-from-search",
+                    "term": "Sample Show S01E01"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/titles": {
+      "get": {
+        "operationId": "searchTitles",
+        "tags": [
+          "Titles"
+        ],
+        "summary": "Search TMDB for a film or series",
+        "description": "Use the answer's `tmdb_id` and `media_type` with `POST /plans`. A trailing year narrows the search: `Sample Movie 2010`.",
+        "responses": {
+          "200": {
+            "description": "Matches, most relevant first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleSearch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TMDB did not answer (`upstream_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/plans": {
+      "post": {
+        "operationId": "createPlan",
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Have Media Centaur choose releases for a title",
+        "description": "Answers at once in status `planning`; searching runs in the background. Not idempotent.",
+        "responses": {
+          "202": {
+            "description": "The plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TMDB has no such title.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Nothing left to download (`nothing_to_plan`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              },
+              "example": {
+                "tmdb_id": 12345,
+                "media_type": "tv",
+                "approval_policy": "automatic",
+                "scope": "latest_season"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plans/{id}": {
+      "get": {
+        "operationId": "getPlan",
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Read a plan",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "The plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/plans/{id}/approve": {
+      "post": {
+        "operationId": "approvePlan",
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Commit a ready plan",
+        "description": "Starts a pursuit for every unit the plan found. The plan's `pursuit_id` is then set.",
+        "responses": {
+          "200": {
+            "description": "The committed plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not `ready` (`plan_not_ready`), or part of it is already downloading (`already_downloading`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The plan found nothing (`nothing_to_grab`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/plans/{id}/discard": {
+      "post": {
+        "operationId": "discardPlan",
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Discard a plan",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "The discarded plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already committed or discarded (`plan_not_ready`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/pursuits": {
+      "get": {
+        "operationId": "listPursuits",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "List downloads Media Centaur is tracking",
+        "description": "Newest-updated first.",
+        "responses": {
+          "200": {
+            "description": "The pursuits.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "failed",
+                "cancelled",
+                "succeeded",
+                "terminal"
+              ],
+              "default": "active"
+            },
+            "description": "`terminal` is every pursuit that is over."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/pursuits/{id}": {
+      "get": {
+        "operationId": "getPursuit",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "Read one download's progress",
+        "description": "`state` values `satisfied`, `partial`, `exhausted` and `cancelled` are final.",
+        "responses": {
+          "200": {
+            "description": "The pursuit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/pursuits/{id}/search-again": {
+      "post": {
+        "operationId": "searchAgain",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "Plan what did not land",
+        "description": "Creates a new plan for the pursuit's units that gave up or were cancelled, skipping releases already tried. Only for pursuits started from a title.",
+        "responses": {
+          "202": {
+            "description": "The new plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Nothing left to retry (`nothing_to_plan`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchAgainRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pursuits/{id}/cancel": {
+      "post": {
+        "operationId": "cancelPursuit",
+        "tags": [
+          "Pursuits"
+        ],
+        "summary": "Stop a download",
+        "description": "Cancels every unfinished unit and removes its download and partial data from the client.",
+        "responses": {
+          "200": {
+            "description": "The pursuit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already over (`not_cancellable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/queue": {
+      "get": {
+        "operationId": "getQueue",
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Read the download clients' queue",
+        "description": "Everything in the clients, including items Media Centaur did not start.",
+        "responses": {
+          "200": {
+            "description": "The queue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue/{id}": {
+      "delete": {
+        "operationId": "cancelQueueItem",
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Remove an item from a download client",
+        "description": "Destructive: removes the download and its files from the client. Use the item's `id` from `GET /queue`.",
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "503": {
+            "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The key generated in Settings → Local API."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "version",
+          "capabilities"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "tmdb",
+              "prowlarr",
+              "download_client",
+              "acquisition"
+            ],
+            "properties": {
+              "tmdb": {
+                "type": "boolean"
+              },
+              "prowlarr": {
+                "type": "boolean"
+              },
+              "download_client": {
+                "type": "boolean"
+              },
+              "acquisition": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "Release": {
+        "type": "object",
+        "required": [
+          "guid",
+          "title",
+          "indexer_id",
+          "indexer_name",
+          "protocol",
+          "quality",
+          "size_bytes",
+          "seeders",
+          "leechers",
+          "grabs",
+          "publish_date",
+          "imdb_id",
+          "tmdb_id",
+          "tvdb_id"
+        ],
+        "properties": {
+          "guid": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "indexer_id": {
+            "type": "integer"
+          },
+          "indexer_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "torrent",
+              "usenet",
+              null
+            ]
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "uhd_4k",
+              "hd_1080p",
+              "pre_release",
+              null
+            ]
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seeders": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "leechers": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "grabs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "publish_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imdb_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tmdb_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tvdb_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TermResult": {
+        "type": "object",
+        "required": [
+          "term",
+          "status",
+          "releases"
+        ],
+        "properties": {
+          "term": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "failed"
+            ]
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            }
+          }
+        }
+      },
+      "ReleaseSearch": {
+        "type": "object",
+        "required": [
+          "query",
+          "terms"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TermResult"
+            }
+          }
+        }
+      },
+      "GrabRequest": {
+        "type": "object",
+        "required": [
+          "query",
+          "releases"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The `q` the releases were found with."
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "guid",
+                "term"
+              ],
+              "properties": {
+                "guid": {
+                  "type": "string"
+                },
+                "term": {
+                  "type": "string",
+                  "description": "The `term` the release was listed under."
+                }
+              }
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "Grab": {
+        "type": "object",
+        "required": [
+          "pursuit_id",
+          "grabs"
+        ],
+        "properties": {
+          "pursuit_id": {
+            "type": "string"
+          },
+          "grabs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "guid",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "guid": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Title": {
+        "type": "object",
+        "required": [
+          "tmdb_id",
+          "media_type",
+          "name",
+          "year",
+          "release_date",
+          "overview"
+        ],
+        "properties": {
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "tv"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "release_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TitleSearch": {
+        "type": "object",
+        "required": [
+          "titles"
+        ],
+        "properties": {
+          "titles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Title"
+            }
+          }
+        }
+      },
+      "PlanRequest": {
+        "type": "object",
+        "required": [
+          "tmdb_id",
+          "media_type"
+        ],
+        "properties": {
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "tv"
+            ]
+          },
+          "approval_policy": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "review"
+            ],
+            "default": "review",
+            "description": "`automatic` commits a clean plan without a person. `review` waits for `POST /plans/{id}/approve`."
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "first_missing_season",
+              "everything",
+              "latest_season"
+            ],
+            "default": "first_missing_season",
+            "description": "Series only. Covers aired episodes you do not own."
+          }
+        }
+      },
+      "SearchAgainRequest": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "approval_policy": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "review"
+            ],
+            "default": "review",
+            "description": "`automatic` commits a clean plan without a person. `review` waits for `POST /plans/{id}/approve`."
+          }
+        }
+      },
+      "PlanRelease": {
+        "type": "object",
+        "required": [
+          "guid",
+          "title",
+          "quality",
+          "size_bytes",
+          "seeders"
+        ],
+        "properties": {
+          "guid": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "uhd_4k",
+              "hd_1080p",
+              "pre_release",
+              null
+            ]
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seeders": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "PlanUnit": {
+        "type": "object",
+        "required": [
+          "season_number",
+          "episode_number",
+          "label",
+          "status",
+          "release"
+        ],
+        "properties": {
+          "season_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "episode_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "`found` units are what a commit downloads."
+          },
+          "release": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PlanRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Plan": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "approval_policy",
+          "tmdb_id",
+          "media_type",
+          "title",
+          "year",
+          "pursuit_id",
+          "error",
+          "clean",
+          "awaiting_approval",
+          "units"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "ready",
+              "committed",
+              "discarded"
+            ]
+          },
+          "approval_policy": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "review"
+            ]
+          },
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "tv"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "pursuit_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set once committed."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clean": {
+            "type": "boolean",
+            "description": "Every wanted unit was found within your quality settings."
+          },
+          "awaiting_approval": {
+            "type": "boolean",
+            "description": "Ready, and will not commit without `POST /plans/{id}/approve` or a discard."
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanUnit"
+            }
+          }
+        }
+      },
+      "PursuitState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "satisfied",
+          "partial",
+          "exhausted",
+          "cancelled"
+        ]
+      },
+      "PursuitStatus": {
+        "type": "object",
+        "required": [
+          "verb",
+          "description",
+          "severity"
+        ],
+        "properties": {
+          "verb": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "success",
+              "warning",
+              "error"
+            ]
+          }
+        }
+      },
+      "PursuitSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PursuitState"
+          }
+        }
+      },
+      "PursuitRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "state",
+          "updated_at",
+          "season_number",
+          "episode_number",
+          "release_title",
+          "status",
+          "awaiting_decision",
+          "units_wanted",
+          "units_satisfied"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PursuitState"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "season_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "episode_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "release_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/PursuitStatus"
+          },
+          "awaiting_decision": {
+            "type": "boolean",
+            "description": "A person must choose an alternative in the app."
+          },
+          "units_wanted": {
+            "type": "integer"
+          },
+          "units_satisfied": {
+            "type": "integer"
+          }
+        }
+      },
+      "PursuitList": {
+        "type": "object",
+        "required": [
+          "pursuits"
+        ],
+        "properties": {
+          "pursuits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PursuitRow"
+            }
+          }
+        }
+      },
+      "PursuitUnit": {
+        "type": "object",
+        "required": [
+          "label",
+          "state",
+          "season_number",
+          "episode_number",
+          "awaiting_decision",
+          "release_title"
+        ],
+        "properties": {
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "satisfied",
+              "exhausted",
+              "cancelled"
+            ]
+          },
+          "season_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "episode_number": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "awaiting_decision": {
+            "type": "boolean"
+          },
+          "release_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PursuitDownload": {
+        "type": "object",
+        "required": [
+          "release_title",
+          "state",
+          "progress_pct",
+          "size_bytes",
+          "size_left_bytes",
+          "eta",
+          "protocol"
+        ],
+        "properties": {
+          "release_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "progress_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "size_left_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "eta": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PursuitDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "state",
+          "origin",
+          "status",
+          "available_actions",
+          "last_activity_at",
+          "units",
+          "downloads"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PursuitState"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/PursuitStatus"
+          },
+          "available_actions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "cancel",
+                "request_decision",
+                "search_again"
+              ]
+            }
+          },
+          "last_activity_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PursuitUnit"
+            }
+          },
+          "downloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PursuitDownload"
+            }
+          }
+        }
+      },
+      "QueueItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "state",
+          "status",
+          "protocol",
+          "progress",
+          "size",
+          "size_left",
+          "timeleft",
+          "health",
+          "failure_message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "progress": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "size": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "size_left": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "timeleft": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "health": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Queue": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueItem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

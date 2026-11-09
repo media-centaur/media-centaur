@@ -944,7 +944,7 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
     end
 
     test "known reasons get plain words" do
-      assert Logic.failure_flash("pick that release", :alternative_unavailable) ==
+      assert Logic.failure_flash("pick that release", :release_unavailable) ==
                "Could not pick that release — it is no longer in the search results."
 
       assert Logic.failure_flash("pick that release", :missing_indexer_id) ==

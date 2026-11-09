@@ -39,13 +39,17 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   alias MediaCentaur.Downloads.QueueState
   alias MediaCentaur.Repo
 
-  @spec fetch(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
+  @spec fetch(String.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
   def fetch(id) do
-    case Repo.get(Pursuit, id) do
-      nil -> {:error, :not_found}
-      %Pursuit{} = pursuit -> {:ok, pursuit}
+    with {:ok, uuid} <- cast_id(id),
+         %Pursuit{} = pursuit <- Repo.get(Pursuit, uuid) do
+      {:ok, pursuit}
+    else
+      _absent_or_malformed -> {:error, :not_found}
     end
   end
+
+  defp cast_id(id), do: Ecto.UUID.cast(id)
 
   @doc "Lists every in-flight (`active`) pursuit, newest-updated first."
   @spec list_active() :: [Pursuit.t()]

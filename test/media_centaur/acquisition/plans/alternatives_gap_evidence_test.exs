@@ -244,7 +244,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
       stub_rejected_movie()
       {_plan, unit} = create_gap_movie()
 
-      assert {:error, :alternative_unavailable} =
+      assert {:error, :release_unavailable} =
                Plans.Alternatives.choose_rejected(unit.id, "no-such-guid")
     end
   end

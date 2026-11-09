@@ -69,6 +69,10 @@ defmodule MediaCentaurWeb.SettingsLive.LocalApiSection do
             in the config file and restart the service.
           </p>
           <p class="text-base-content/70">
+            The API's OpenAPI document is at <code class="font-mono">/api/v1/openapi.json</code>
+            and needs the key. Give it to your agent or API client.
+          </p>
+          <p class="text-base-content/70">
             Requests use plain HTTP, so the key is readable by anyone who can capture traffic on your network.
           </p>
         </div>

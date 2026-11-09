@@ -216,7 +216,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
          :ok <- rejected_choosable(plan) do
       case find_raw_candidate(plan, unit, guid) do
         nil ->
-          {:error, :alternative_unavailable}
+          {:error, :release_unavailable}
 
         {result, term} ->
           {:ok, _} =
@@ -326,7 +326,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
     plan
     |> unit_terms(unit)
-    |> Enum.find_value({:error, :alternative_unavailable}, fn term ->
+    |> Enum.find_value({:error, :release_unavailable}, fn term ->
       candidate =
         term
         |> Corpus.candidates_for(opts)

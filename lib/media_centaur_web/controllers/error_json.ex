@@ -12,11 +12,12 @@ defmodule MediaCentaurWeb.ErrorJSON do
   @doc "The body for an HTTP status."
   @spec body(Plug.Conn.status()) :: %{error: %{code: atom(), message: String.t()}}
   def body(status) when is_integer(status) do
-    %{
-      error: %{
-        code: Plug.Conn.Status.reason_atom(status),
-        message: Plug.Conn.Status.reason_phrase(status)
-      }
-    }
+    body(Plug.Conn.Status.reason_atom(status), Plug.Conn.Status.reason_phrase(status))
+  end
+
+  @doc "The body for a specific failure."
+  @spec body(atom(), String.t()) :: %{error: %{code: atom(), message: String.t()}}
+  def body(code, message) when is_atom(code) and is_binary(message) do
+    %{error: %{code: code, message: message}}
   end
 end

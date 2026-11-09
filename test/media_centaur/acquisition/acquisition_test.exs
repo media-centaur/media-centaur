@@ -917,7 +917,7 @@ defmodule MediaCentaur.AcquisitionTest do
     test "pick_alternative succeeds against a brace-expanded prowlarr_query pursuit" do
       # Regression: prior to consolidating onto `do_search_for_pursuit/1`,
       # `find_alternative/2` used literal `search/2` and would report
-      # `:alternative_unavailable` for a guid that the decision card had
+      # `:release_unavailable` for a guid that the decision card had
       # just surfaced via brace-expanded search. They now share one
       # private helper, so the round-trip validates the same way.
       pursuit =
@@ -967,7 +967,7 @@ defmodule MediaCentaur.AcquisitionTest do
     test "a guid the corpus does not know is no longer available" do
       pursuit = create_pursuit(%{tmdb_id: "9996", tmdb_type: "movie", title: "Sample Movie", year: 2010})
 
-      assert {:error, :alternative_unavailable} =
+      assert {:error, :release_unavailable} =
                Acquisition.pick_alternative(pursuit.id, "unknown-guid", "1080p WEB-DL")
     end
 

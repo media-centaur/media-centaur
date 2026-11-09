@@ -1187,6 +1187,64 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end
   end
 
+  describe "create_title_plan_by_id/3" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    test "plans a film from its TMDB id alone, as the caller's policy says" do
+      MediaCentaur.TmdbStubs.stub_get_movie("246813", %{
+        "title" => "Sample Movie",
+        "release_date" => "2005-01-01"
+      })
+
+      assert {:ok,
+              %MediaCentaur.Acquisition.Plans.Plan{
+                approval_policy: "automatic",
+                tmdb_id: "246813",
+                title: "Sample Movie"
+              }} =
+               Plans.create_title_plan_by_id(246_813, :movie, approval_policy: "automatic")
+    end
+
+    test "a TMDB id that does not exist is not found" do
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 404, "{}") end)
+
+      assert {:error, :not_found} = Plans.create_title_plan_by_id(999, :movie)
+    end
+
+    test "refuses while Prowlarr is not configured" do
+      :ok = MediaCentaur.ProwlarrStubs.mark_unconfigured!()
+
+      assert {:error, :not_configured} = Plans.create_title_plan_by_id(246_813, :movie)
+    end
+  end
+
+  describe "awaiting_approval?/1 and wrong-state discards" do
+    test "a ready plan on review waits for a person; a planning or committed one does not" do
+      {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+      refute Plans.awaiting_approval?(plan)
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      {:ok, ready} = Plans.fetch(plan.id)
+
+      assert ready.status == "ready"
+      assert Plans.awaiting_approval?(ready)
+    end
+
+    test "a plan already discarded cannot be discarded again" do
+      {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+      {:ok, discarded} = Plans.discard(plan)
+
+      assert {:error, :not_ready} = Plans.discard(discarded)
+    end
+
+    test "an id that is not a UUID is simply not found" do
+      assert {:error, :not_found} = Plans.fetch("not-a-uuid")
+    end
+  end
+
   describe "create_title_plan/2" do
     alias MediaCentaur.Acquisition.Plans.Plan
     alias MediaCentaur.TMDB.Title

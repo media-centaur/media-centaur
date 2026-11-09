@@ -24,6 +24,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit, UnitState}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.TitleDownloadParams
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Format
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.{Store, Title, TitleIdentity}
@@ -224,6 +225,32 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp title_year(_title), do: nil
+
+  @doc """
+  Creates the plan for a title known only by its TMDB id: the title is read
+  from the store (first contact when the app has never held it), then
+  planned as `create_title_plan/2`. `{:error, :not_found}` when TMDB has no
+  such title, `{:error, :not_configured}` when Prowlarr is not configured.
+  """
+  @spec create_title_plan_by_id(pos_integer(), Title.media_type(), keyword()) ::
+          {:ok, Plan.t()} | {:error, term()}
+  def create_title_plan_by_id(tmdb_id, media_type, opts \\ []) do
+    if Capabilities.configured?(:prowlarr) do
+      with {:ok, %{payload: payload}} <- ensure_title({tmdb_id, media_type}),
+           {:ok, %Title{} = title} <- Title.from_tmdb(payload, media_type) do
+        create_title_plan(title, opts)
+      end
+    else
+      {:error, :not_configured}
+    end
+  end
+
+  defp ensure_title(ref) do
+    case Store.ensure(ref) do
+      {:error, {:http_error, 404, _body}} -> {:error, :not_found}
+      other -> other
+    end
+  end
 
   @doc """
   Plans a given-up pursuit's episodes again — the Search again door on
@@ -445,11 +472,13 @@ defmodule MediaCentaur.Acquisition.Plans do
   # Reads
   # ---------------------------------------------------------------------------
 
-  @spec fetch(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, :not_found}
+  @spec fetch(String.t()) :: {:ok, Plan.t()} | {:error, :not_found}
   def fetch(id) do
-    case Repo.get(Plan, id) do
-      nil -> {:error, :not_found}
-      %Plan{} = plan -> {:ok, plan}
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %Plan{} = plan <- Repo.get(Plan, uuid) do
+      {:ok, plan}
+    else
+      _absent_or_malformed -> {:error, :not_found}
     end
   end
 
@@ -461,6 +490,16 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> order_by([u], asc: u.position, asc: u.inserted_at)
     |> Repo.all()
   end
+
+  @doc """
+  Whether a plan is waiting for a person: it has been solved and either its
+  policy is `review` or it is not clean, so the approval gate will not
+  commit it.
+  """
+  @spec awaiting_approval?(Plan.t()) :: boolean()
+  def awaiting_approval?(%Plan{status: "ready", approval_policy: "review"}), do: true
+  def awaiting_approval?(%Plan{status: "ready"} = plan), do: not clean?(plan)
+  def awaiting_approval?(%Plan{}), do: false
 
   @doc """
   Whether a solved plan is clean: every wanted unit (every unit not
@@ -649,15 +688,20 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec approve(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
   def approve(%Plan{} = plan), do: CommitPlan.execute(plan)
 
-  @doc "Discards a draft plan (terminal; rows are kept for the record)."
+  @doc """
+  Discards a draft plan (terminal; rows are kept for the record).
+  `{:error, :not_ready}` when the plan is already committed or discarded.
+  """
   @spec discard(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
-  def discard(%Plan{} = plan) do
+  def discard(%Plan{status: status} = plan) when status in ["planning", "ready"] do
     with {:ok, discarded} <-
            Repo.update(Plan.transition_changeset(plan, "discarded", ["planning", "ready"])) do
       broadcast_changed(discarded)
       {:ok, discarded}
     end
   end
+
+  def discard(%Plan{}), do: {:error, :not_ready}
 
   @doc """
   Deletes a tracking draft outright — used by the mode gate when a drop

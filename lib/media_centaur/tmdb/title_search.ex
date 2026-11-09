@@ -31,6 +31,15 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 
   @spec search(String.t()) :: [Title.t()]
   def search(query) do
+    case lookup(query) do
+      {:ok, titles} -> titles
+      {:error, :upstream_error} -> []
+    end
+  end
+
+  @doc "`search/1` for a caller that must tell a TMDB failure from no matches."
+  @spec lookup(String.t()) :: {:ok, [Title.t()]} | {:error, :upstream_error}
+  def lookup(query) do
     case Regex.run(@trailing_year_query, String.trim(query)) do
       [_full, title, year] -> year_search(title, String.to_integer(year))
       nil -> multi_search(query)
@@ -39,8 +48,8 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 
   defp multi_search(query) do
     case Client.search_multi(query) do
-      {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
-      {:error, _reason} -> []
+      {:ok, results} -> {:ok, Enum.flat_map(results, &normalize_multi_result/1)}
+      {:error, _reason} -> {:error, :upstream_error}
     end
   end
 
@@ -55,9 +64,10 @@ defmodule MediaCentaur.TMDB.TitleSearch do
         multi_search(title)
 
       combined ->
-        combined
-        |> Enum.sort_by(&(&1["popularity"] || 0.0), :desc)
-        |> Enum.flat_map(&normalize_multi_result/1)
+        {:ok,
+         combined
+         |> Enum.sort_by(&(&1["popularity"] || 0.0), :desc)
+         |> Enum.flat_map(&normalize_multi_result/1)}
     end
   end
 

@@ -69,6 +69,12 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
         identity_from: "a TMDB detail it fetches itself — the only door holding no payload already"
       },
       %{
+        module: MediaCentaur.Acquisition.Plans,
+        function: :create_title_plan_by_id,
+        opens: "a script or agent calling the Local API's POST /api/v1/plans",
+        identity_from: "the TMDB id in the request, read from the store and handed to create_title_plan"
+      },
+      %{
         module: MediaCentaurWeb.Live.PlanHost,
         function: :plan_event,
         opens:

@@ -166,7 +166,7 @@ defmodule MediaCentaur.Acquisition do
 
   alias MediaCentaur.Search.{Assessment, Criteria, Prowlarr, QueryBuilder, QueryExpander, SearchResult}
 
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{Cancel, PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
   alias MediaCentaur.Acquisition.Pursuits, as: PursuitsContext
 
@@ -325,31 +325,53 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec search_expanded(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
   def search_expanded(query, opts \\ []) when is_binary(query) do
+    with {:ok, outcomes} <- search_terms(query, opts) do
+      {:ok,
+       outcomes
+       |> Enum.flat_map(fn
+         %{outcome: {:ok, results}} -> results
+         %{outcome: {:error, _reason}} -> []
+       end)
+       |> Enum.uniq_by(& &1.guid)}
+    end
+  end
+
+  @doc """
+  Expands braces and searches each term in parallel, reporting every term's
+  own outcome in term order, so a caller can tell a term that failed from
+  one that found nothing. Per-term searches go through the corpus
+  (consult-first, ADR-055); `force: true` bypasses its freshness window.
+
+  `{:error, :invalid_syntax}` for malformed braces, `{:error,
+  :not_configured}` when Prowlarr isn't ready.
+  """
+  @spec search_terms(String.t(), keyword()) ::
+          {:ok, [%{term: String.t(), outcome: {:ok, [SearchResult.t()]} | {:error, term()}}]}
+          | {:error, term()}
+  def search_terms(query, opts \\ []) when is_binary(query) do
     if available?() do
-      with {:ok, queries} <- QueryExpander.expand(query) do
-        # Per-term searches go through the corpus (consult-first,
-        # ADR-055); pass `force: true` in opts for a user-initiated
-        # refresh that must bypass the freshness gate.
-        results =
-          queries
+      with {:ok, terms} <- QueryExpander.expand(query) do
+        outcomes =
+          terms
           |> Task.async_stream(
-            fn q -> Corpus.search(q, opts) end,
+            fn term -> Corpus.search(term, opts) end,
             max_concurrency: 5,
             timeout: 15_000,
             on_timeout: :kill_task
           )
-          |> Enum.flat_map(fn
-            {:ok, {:ok, list}} when is_list(list) -> list
-            _ -> []
-          end)
-          |> Enum.uniq_by(& &1.guid)
+          |> Enum.zip(terms)
+          |> Enum.map(fn {task_result, term} -> %{term: term, outcome: term_outcome(task_result)} end)
 
-        {:ok, results}
+        {:ok, outcomes}
       end
     else
       {:error, :not_configured}
     end
   end
+
+  defp term_outcome({:ok, {:ok, results}}) when is_list(results), do: {:ok, results}
+  defp term_outcome({:ok, {:error, reason}}), do: {:error, reason}
+  defp term_outcome({:exit, reason}), do: {:error, reason}
 
   @doc """
   Submits a manual pick: a pursuit with `recipe_type = "prowlarr_query"`
@@ -398,6 +420,30 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
+  @doc """
+  Grabs releases earlier searches found, by guid, as one composite pursuit
+  (`pick_targets/2`). A guid named twice is grabbed once. Every guid must be
+  known to the corpus: an unknown one grabs nothing and answers
+  `{:error, {:release_unavailable, guid}}`.
+  """
+  @spec grab_releases([%{guid: String.t(), term: String.t()}], String.t()) ::
+          {:ok, [Target.t()]} | {:error, term()}
+  def grab_releases(picks, query) when is_list(picks) and is_binary(query) do
+    with {:ok, resolved} <- resolve_picks(Enum.uniq_by(picks, & &1.guid)),
+         {:ok, pairs} <- pick_targets(resolved, query) do
+      {:ok, Enum.map(pairs, fn {_pick, {:ok, target}} -> target end)}
+    end
+  end
+
+  defp resolve_picks(picks) do
+    Enum.reduce_while(picks, {:ok, []}, fn %{guid: guid, term: term}, {:ok, resolved} ->
+      case fetch_release(guid) do
+        {:ok, result} -> {:cont, {:ok, resolved ++ [%{term: term, result: result}]}}
+        {:error, :release_unavailable} -> {:halt, {:error, {:release_unavailable, guid}}}
+      end
+    end)
+  end
+
   defp start_from_picks([], _query), do: {:ok, %{}}
 
   defp start_from_picks(successful, query) do
@@ -443,7 +489,7 @@ defmodule MediaCentaur.Acquisition do
   back from the corpus the card's search recorded it in (`Corpus.find/1`).
 
   Returns `{:error, :not_found}` when the pursuit is gone, or
-  `{:error, :alternative_unavailable}` when the corpus no longer knows the
+  `{:error, :release_unavailable}` when the corpus no longer knows the
   guid.
   """
   @spec pick_alternative(Ecto.UUID.t(), SearchResult.t() | String.t(), String.t()) ::
@@ -456,7 +502,7 @@ defmodule MediaCentaur.Acquisition do
 
   def pick_alternative(pursuit_id, guid, label) when is_binary(guid) and is_binary(label) do
     with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.fetch(pursuit_id),
-         {:ok, result} <- find_alternative(guid) do
+         {:ok, result} <- fetch_release(guid) do
       do_pick_alternative(pursuit, result, label)
     end
   end
@@ -580,12 +626,28 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
-  # Resolves a picked guid with the unit-aware search the card listed it
-  # from, so a pick can never miss what the card showed.
-  defp find_alternative(guid) do
+  @doc "A release an earlier search recorded, by guid, without searching again."
+  @spec fetch_release(String.t()) :: {:ok, SearchResult.t()} | {:error, :release_unavailable}
+  def fetch_release(guid) when is_binary(guid) do
     case Corpus.find(guid) do
-      nil -> {:error, :alternative_unavailable}
+      nil -> {:error, :release_unavailable}
       result -> {:ok, result}
+    end
+  end
+
+  @doc """
+  Closes a pursuit at the person's request (`Pursuits.Commands.Cancel`).
+  `{:error, :not_found}` when there is no such pursuit, `{:error,
+  :not_eligible}` when it is already over.
+  """
+  @spec cancel_pursuit(String.t()) :: {:ok, Pursuit.t()} | {:error, term()}
+  def cancel_pursuit(id) do
+    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.fetch(id) do
+      Cancel.execute(%{
+        pursuit_id: pursuit.id,
+        cancelled_by: :user,
+        reason: CancelReasons.user_request()
+      })
     end
   end
 

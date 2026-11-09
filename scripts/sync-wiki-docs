@@ -13,6 +13,7 @@ wiki="../media-centaur.wiki"
 
 pages='
 docs/social-protocol.md Social-Protocol.md
+docs/local-api.md Local-API.md
 '
 
 echo "$pages" | while read -r source page; do

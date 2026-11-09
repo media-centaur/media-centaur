@@ -197,7 +197,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
   def describe_failure(%Req.TransportError{}),
     do: "Prowlarr could not be reached. Check that it's running and its URL is right"
 
-  def describe_failure(:alternative_unavailable), do: "it is no longer in the search results"
+  def describe_failure(:release_unavailable), do: "it is no longer in the search results"
   def describe_failure(:missing_indexer_id), do: "the result carries no indexer id"
 
   def describe_failure({:overlap, units}) when is_list(units) do

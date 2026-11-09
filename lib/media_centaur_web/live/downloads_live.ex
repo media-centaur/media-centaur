@@ -81,14 +81,11 @@ defmodule MediaCentaurWeb.DownloadsLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
+  alias MediaCentaur.Acquisition.QueueMatcher
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
 
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{
-    Cancel,
-    RequestDecision
-  }
+  alias MediaCentaur.Acquisition.Pursuits.Commands.RequestDecision
 
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Acquisition.TargetEvents
@@ -1476,11 +1473,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
   end
 
   defp cancel_pursuit(socket) do
-    case Cancel.execute(%{
-           pursuit_id: socket.assigns.selected_pursuit_id,
-           cancelled_by: :user,
-           reason: CancelReasons.user_request()
-         }) do
+    case Acquisition.cancel_pursuit(socket.assigns.selected_pursuit_id) do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Download cancelled.") |> load_pursuit_detail()}
 
