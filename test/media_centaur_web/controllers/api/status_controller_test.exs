@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Api.StatusControllerTest do
       assert conn |> authorized(key) |> post("/api/v1/nothing") |> json_response(404) == @not_found
     end
 
-    test "the gate still covers everything outside /api", %{conn: conn} do
+    test "a path that only begins with api goes through the gate", %{conn: conn} do
       conn = %{conn | remote_ip: @lan}
 
       assert conn |> get("/apifoo") |> redirected_to() == "/pair"

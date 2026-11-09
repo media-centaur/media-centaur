@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Plugs.LocalApi do
+defmodule MediaCentaurWeb.Api.Admission do
   @moduledoc """
   Admission to the Local API (`/api`), the first plug of the router's
   `:api` pipeline. While the feature is off the API answers 404, as if it

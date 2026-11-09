@@ -370,7 +370,10 @@
           # where a person is present: the web layer and playback. A repair
           # once moved seven series through the Watchlist and the publisher
           # said each was the owner's act (ADR-082).
-          {MediaCentaur.Credo.Checks.ActorAtTheEdge, []}
+          {MediaCentaur.Credo.Checks.ActorAtTheEdge, []},
+          # MC0045 keeps the Local API a leaf: only the router references it,
+          # and it reaches the app through context functions alone (ADR-083).
+          {MediaCentaur.Credo.Checks.ApiOnlyConsumes, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

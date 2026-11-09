@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.ApiKey do
   @moduledoc """
-  The one secret a Local API caller presents (`Plugs.LocalApi`).
+  The one secret a Local API caller presents (`Api.Admission`).
 
   Only its SHA-256 digest is stored, in Settings: the key is shown once,
   when `generate/0` returns it, and generating again replaces it. A digest

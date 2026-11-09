@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
-    plug MediaCentaurWeb.Plugs.LocalApi
+    plug MediaCentaurWeb.Api.Admission
   end
 
   scope "/api", MediaCentaurWeb.Api do

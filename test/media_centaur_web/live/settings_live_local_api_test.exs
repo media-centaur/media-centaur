@@ -40,15 +40,15 @@ defmodule MediaCentaurWeb.SettingsLiveLocalApiTest do
       refute has_element?(reopened, "#local-api-key")
     end
 
-    test "replacing a key takes a second press, and the old key stops working", %{conn: conn} do
-      old = ApiKey.generate()
+    test "replacing a key takes a second press, and then only the new key works", %{conn: conn} do
+      first = ApiKey.generate()
       {:ok, view, _html} = live_async!(conn, @section)
 
       view |> element("#replace-api-key") |> render_click()
-      assert ApiKey.valid?(old)
+      assert ApiKey.valid?(first)
 
       view |> element("#replace-api-key") |> render_click()
-      refute ApiKey.valid?(old)
+      refute ApiKey.valid?(first)
       assert ApiKey.valid?(shown_key(view))
     end
   end

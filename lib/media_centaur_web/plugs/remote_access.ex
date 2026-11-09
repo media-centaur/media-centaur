@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccess do
   any other unpaired request is refused with 403. A loopback request
   under a name that is not the host's own is refused with 403 before any
   of that (`RemoteAccess.host_allowed?/2`). `/pair` itself is open, or no
-  device could ever pair; `/api` has its own admission, `Plugs.LocalApi`.
+  device could ever pair; `/api` has its own admission, `Api.Admission`.
   """
 
   @behaviour Plug
@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.Plugs.RemoteAccess do
   @impl true
   def call(%Plug.Conn{path_info: ["pair" | _rest]} = conn, _opts), do: conn
 
-  # A Local API caller is admitted by its key (`Plugs.LocalApi`).
+  # A Local API caller is admitted by its key (`Api.Admission`).
   def call(%Plug.Conn{path_info: ["api" | _rest]} = conn, _opts), do: conn
 
   def call(conn, _opts) do
