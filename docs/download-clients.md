@@ -32,9 +32,8 @@ torrent slot, `usenet_download_client_*` the usenet slot.
 
 ## The prowlarr-stack bootstrap contract (no API — deliberate gap)
 
-**Media Centaur exposes no local setup/bootstrap API.** The `/api` scope in
-`router.ex` is commented-out boilerplate; nothing in `prowlarr-stack` writes
-configuration into MC. Anyone extending the stack↔MC integration should know
+**Media Centaur exposes no local setup/bootstrap API.** Nothing in
+`prowlarr-stack` writes configuration into MC. Anyone extending the stack↔MC integration should know
 the handoff is manual, in three parts:
 
 1. **Stack side** — `prowlarr-stack/./setup` brings up Prowlarr + qBittorrent +

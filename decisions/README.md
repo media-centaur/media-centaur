@@ -73,6 +73,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 082 | 2026-11-06 | [Only a person's act is shared](architecture/2026-11-06-082-only-a-persons-act-is-shared.md) | accepted |
 | 083 | 2026-11-10 | [Settings shape the supervision tree at start](architecture/2026-11-10-083-settings-shape-the-supervision-tree.md) | accepted |
 | 084 | 2026-11-18 | [One instance per database](architecture/2026-11-18-084-one-instance-per-database.md) | accepted |
+| 085 | 2026-11-09 | [The Local API is admitted by its key](architecture/2026-11-09-085-the-local-api-is-admitted-by-its-key.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

@@ -44,7 +44,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "the Feature flags row lists it as optional, on", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/settings?section=features")
       assert html =~ "Discovery"
-      refute html =~ "In development."
+
+      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(MediaCentaur.Features.get(:discovery)) =~
+               "In development."
     end
   end
 

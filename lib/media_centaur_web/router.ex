@@ -13,6 +13,18 @@ defmodule MediaCentaurWeb.Router do
     plug MediaCentaurWeb.Plugs.SetupRedirect
   end
 
+  pipeline :api do
+    plug :accepts, ["json"]
+    plug MediaCentaurWeb.Plugs.LocalApi
+  end
+
+  scope "/api", MediaCentaurWeb.Api do
+    pipe_through :api
+
+    get "/v1/status", StatusController, :show
+    match :*, "/*path", NotFoundController, :show
+  end
+
   scope "/", MediaCentaurWeb do
     pipe_through :browser
 

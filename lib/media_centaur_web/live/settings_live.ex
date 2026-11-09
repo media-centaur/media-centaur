@@ -76,7 +76,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.SocialSection
   alias MediaCentaurWeb.SettingsLive.ProfilesSection
   alias MediaCentaurWeb.PlayerWords
+  alias MediaCentaurWeb.SettingsLive.LocalApiSection
   alias MediaCentaurWeb.SettingsLive.PlayersSection
+  alias MediaCentaurWeb.SettingsLive.Reach
+  alias MediaCentaurWeb.ApiKey
   alias MediaCentaur.Players
   alias MediaCentaur.Platform.LanAddresses
   alias MediaCentaur.Profiles
@@ -141,6 +144,13 @@ defmodule MediaCentaurWeb.SettingsLive do
       feature: :players,
       description: "The TVs and other devices on your network that are paired with this install."
     },
+    %{
+      id: "local-api",
+      label: "Local API",
+      group: :general,
+      feature: :local_api,
+      description: "Search and start downloads from scripts and agents on your network."
+    },
     # Media workflow — the arr stack. (Release tracking's refresh interval
     # lives on the Acquisition section — it feeds auto-grab.)
     %{
@@ -202,6 +212,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     # The Players section's assigns, read by `load_players/2` when it opens;
     # the shell passes them to `section_content/1` on every section.
     socket = assign(socket, players: [], connected: MapSet.new(), pairing: nil, reach: :loopback)
+
+    # The Local API section's: `api_key` holds a just-generated key, its only
+    # moment of being readable, and leaving the section clears it.
+    socket = assign(socket, api_key: nil, api_key_exists?: false)
 
     # `Settings.subscribe()` is auto-wired by SpoilerFreeAware. The single
     # subscription delivers every `:setting_changed` message — the trait
@@ -398,7 +412,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     if SectionsLogic.hidden_feature(@sections, section, socket.assigns.features) do
       socket
     else
-      socket |> load_social(section) |> load_players(section)
+      socket |> load_social(section) |> load_players(section) |> load_local_api(section)
     end
   end
 
@@ -410,11 +424,23 @@ defmodule MediaCentaurWeb.SettingsLive do
       players: Players.list(),
       connected: MapSet.new(MediaCentaur.Playback.connected_players()),
       pairing: Players.pairing(),
-      reach: PlayersSection.reach(MediaCentaurWeb.Endpoint.config(:http), LanAddresses.ipv4())
+      reach: current_reach()
     )
   end
 
   defp load_players(socket, _section), do: socket
+
+  defp load_local_api(socket, "local-api") do
+    assign(socket, api_key: nil, api_key_exists?: ApiKey.exists?(), reach: current_reach())
+  end
+
+  defp load_local_api(socket, _section), do: assign(socket, api_key: nil)
+
+  defp assign_generated_api_key(socket) do
+    assign(socket, api_key: ApiKey.generate(), api_key_exists?: true)
+  end
+
+  defp current_reach, do: Reach.reach(MediaCentaurWeb.Endpoint.config(:http), LanAddresses.ipv4())
 
   defp import_identity(socket, nsec) do
     case Social.import_identity(nsec) do
@@ -1219,6 +1245,19 @@ defmodule MediaCentaurWeb.SettingsLive do
             :ok = Players.remove(player)
             {:noreply, put_flash(socket, :info, "#{player.name} removed")}
         end
+    end
+  end
+
+  # --- Local API: the key ------------------------------------------------------
+
+  def handle_event("generate_api_key", _params, socket) do
+    if socket.assigns.api_key_exists? do
+      case ArmGesture.press(socket, "generate_api_key", "key") do
+        {:armed, socket} -> {:noreply, socket}
+        {:fire, socket} -> {:noreply, assign_generated_api_key(socket)}
+      end
+    else
+      {:noreply, assign_generated_api_key(socket)}
     end
   end
 
@@ -2206,6 +2245,8 @@ defmodule MediaCentaurWeb.SettingsLive do
                 connected={@connected}
                 pairing={@pairing}
                 reach={@reach}
+                api_key={@api_key}
+                api_key_exists?={@api_key_exists?}
                 relay_status={@relay_status}
                 share_watched?={@share_watched?}
                 share_watchlist?={@share_watchlist?}
@@ -2410,6 +2451,17 @@ defmodule MediaCentaurWeb.SettingsLive do
       uploads={@uploads}
       picture_editing={@picture_editing}
       picture_removed={@picture_removed}
+      armed_gesture={@armed_gesture}
+    />
+    """
+  end
+
+  defp section_content(%{active_section: "local-api"} = assigns) do
+    ~H"""
+    <LocalApiSection.render
+      api_key={@api_key}
+      api_key_exists?={@api_key_exists?}
+      reach={@reach}
       armed_gesture={@armed_gesture}
     />
     """

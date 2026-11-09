@@ -69,6 +69,13 @@ defmodule MediaCentaur.Features do
       description: "A launcher for Steam games and other programs outside your library.",
       default: false,
       stage: :optional
+    },
+    %Feature{
+      id: :local_api,
+      name: "Local API",
+      description: "A JSON API for scripts and agents on your network to search and start downloads.",
+      default: false,
+      stage: :development
     }
   ]
 

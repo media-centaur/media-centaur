@@ -1,21 +1,22 @@
 defmodule MediaCentaurWeb.ErrorJSON do
   @moduledoc """
-  This module is invoked by your endpoint in case of errors on JSON requests.
-
-  See config/config.exs.
+  The one error body of a JSON response:
+  `{"error": {"code": "not_found", "message": "Not Found"}}`. The endpoint
+  renders it for errors it raises; the Local API sends it directly.
   """
 
-  # If you want to customize a particular status code,
-  # you may add your own clauses, such as:
-  #
-  # def render("500.json", _assigns) do
-  #   %{errors: %{detail: "Internal Server Error"}}
-  # end
-
-  # By default, Phoenix returns the status message from
-  # the template name. For example, "404.json" becomes
-  # "Not Found".
   def render(template, _assigns) do
-    %{errors: %{detail: Phoenix.Controller.status_message_from_template(template)}}
+    template |> Path.rootname() |> String.to_integer() |> body()
+  end
+
+  @doc "The body for an HTTP status."
+  @spec body(Plug.Conn.status()) :: %{error: %{code: atom(), message: String.t()}}
+  def body(status) when is_integer(status) do
+    %{
+      error: %{
+        code: Plug.Conn.Status.reason_atom(status),
+        message: Plug.Conn.Status.reason_phrase(status)
+      }
+    }
   end
 end
