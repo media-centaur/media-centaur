@@ -143,6 +143,19 @@ defmodule MediaCentaur.Acquisition.Plans.GateTest do
       assert {:ok, %{status: "ready"}} = solve_and_gate(plan)
       assert length(Repo.all(Pursuit)) == 1
     end
+
+    test "automatic + an approval rejection is parked for a person, saying why" do
+      stub_search(acceptable_movie())
+      create_pursuit(%{tmdb_id: "246813", tmdb_type: "movie", title: "Sample Movie", origin: "manual"})
+      {:ok, plan} = Plans.create_movie_plan(@movie, approval_policy: "automatic")
+
+      ExUnit.CaptureLog.capture_log(fn -> solve_and_gate(plan) end)
+      parked = elem(Plans.fetch(plan.id), 1)
+
+      assert parked.approval_policy == "review"
+      assert parked.error =~ "already being downloaded"
+      assert Plans.awaiting_approval?(parked)
+    end
   end
 
   describe "tracking plans that found nothing" do

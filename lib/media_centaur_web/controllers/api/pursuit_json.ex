@@ -23,6 +23,8 @@ defmodule MediaCentaurWeb.Api.PursuitJSON do
   end
 
   def detail(%PursuitStatus{} = status) do
+    units = Enum.map(status.units, &unit(&1, status.targets))
+
     %{
       id: status.pursuit_id,
       title: status.pursuit.title,
@@ -30,8 +32,11 @@ defmodule MediaCentaurWeb.Api.PursuitJSON do
       origin: status.origin,
       status: status(status.current_action),
       available_actions: status.available_actions,
+      awaiting_decision: Enum.any?(units, & &1.awaiting_decision),
+      units_wanted: max(length(units), 1),
+      units_satisfied: Enum.count(units, &(&1.state == "satisfied")),
       last_activity_at: status.last_activity_at,
-      units: Enum.map(status.units, &unit(&1, status.targets)),
+      units: units,
       downloads: Enum.map(status.downloads, &download/1)
     }
   end

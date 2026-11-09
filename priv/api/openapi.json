@@ -3,7 +3,7 @@
   "info": {
     "title": "Media Centaur Local API",
     "version": "1",
-    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, skips episodes you own, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`. The answer is the plan, in status `planning`.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: read `units`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here unless every wanted unit was found within your quality settings. Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick an alternative in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` and `POST /plans` are not idempotent: a repeated request starts another download or plan."
+    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`. The answer is the plan, in status `planning`; keep its `id`. A 409 `already_downloading` means it is already planned or downloading, and a 422 `nothing_to_plan` that you have it or nothing has aired.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: a person decides. Read `units` and `error`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here when a wanted unit was not found within your quality settings, or when it could not commit (it then reads `approval_policy: review`, with the reason in `error`). Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick another release in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` is not idempotent: a repeated request starts another download. A repeated `POST /plans` for what is already planned or downloading is refused with 409."
   },
   "servers": [
     {
@@ -346,7 +346,7 @@
           "Plans"
         ],
         "summary": "Have Media Centaur choose releases for a title",
-        "description": "Answers at once in status `planning`; searching runs in the background. Not idempotent.",
+        "description": "Answers at once in status `planning`; searching runs in the background. Episodes already being downloaded or in another open plan are left out. Not idempotent, but asking again for what is already planned is refused with 409.",
         "responses": {
           "202": {
             "description": "The plan.",
@@ -378,8 +378,18 @@
               }
             }
           },
+          "409": {
+            "description": "The film, or every episode in the scope, is already being downloaded or has an open plan (`already_downloading`). Read the title's open plan or pursuit instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
-            "description": "Nothing left to download (`nothing_to_plan`).",
+            "description": "Nothing left to download (`nothing_to_plan`): the library has the film, or no episode in the scope has aired and is missing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1327,7 +1337,7 @@
               "review"
             ],
             "default": "review",
-            "description": "`automatic` commits a clean plan without a person. `review` waits for `POST /plans/{id}/approve`."
+            "description": "`automatic` commits without a person when every wanted unit was found within your quality settings. `review` waits for `POST /plans/{id}/approve`."
           },
           "scope": {
             "type": "string",
@@ -1479,7 +1489,8 @@
             "enum": [
               "automatic",
               "review"
-            ]
+            ],
+            "description": "An automatic plan that could not commit becomes `review`, with the reason in `error`."
           },
           "tmdb_id": {
             "type": "integer"
@@ -1511,7 +1522,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Why the plan stopped: a failed search, or why an automatic plan was not committed."
           },
           "clean": {
             "type": "boolean",
@@ -1779,6 +1791,9 @@
           "origin",
           "status",
           "available_actions",
+          "awaiting_decision",
+          "units_wanted",
+          "units_satisfied",
           "last_activity_at",
           "units",
           "downloads"
@@ -1813,6 +1828,18 @@
                 "search_again"
               ]
             }
+          },
+          "awaiting_decision": {
+            "type": "boolean",
+            "description": "A unit waits for a person to choose another release."
+          },
+          "units_wanted": {
+            "type": "integer",
+            "description": "Episodes, or 1 for a film."
+          },
+          "units_satisfied": {
+            "type": "integer",
+            "description": "Units that have landed in the library."
           },
           "last_activity_at": {
             "type": [

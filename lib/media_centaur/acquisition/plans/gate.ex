@@ -38,7 +38,8 @@ defmodule MediaCentaur.Acquisition.Plans.Gate do
   * `automatic`, manual origin → approve only a clean plan
     (`Plans.clean?/1`); anything else stays `ready` for a person,
     because nothing retries a manual plan's remainder. An approval
-    rejection (overlap, nothing to grab) also stays `ready`, logged.
+    rejection (overlap, nothing to grab) parks it (`Plans.park/2`): it
+    stays `ready`, becomes a `review` plan, and records why.
 
   A plan that is no longer `ready` — discarded or committed while the
   gate waited — is left alone.
@@ -118,8 +119,15 @@ defmodule MediaCentaur.Acquisition.Plans.Gate do
           :acquisition,
           "plan auto-approve rejected, parked for review — #{plan.title} — #{inspect(reason)}"
         )
+
+        Plans.park(plan, park_reason(reason))
     end
   end
+
+  defp park_reason({:overlap, _units}),
+    do: "Not downloaded automatically: part of it is already being downloaded."
+
+  defp park_reason(_other), do: "Not downloaded automatically: it could not be committed."
 
   defp discard(plan) do
     case Plans.discard(plan) do

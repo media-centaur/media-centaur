@@ -73,6 +73,10 @@ defmodule MediaCentaurWeb.SettingsLive.LocalApiSection do
             and needs the key. Give it to your agent or API client.
           </p>
           <p class="text-base-content/70">
+            A plan created with <code class="font-mono">"approval_policy": "automatic"</code>
+            downloads without anyone pressing Approve. Without it, plans wait on Downloads.
+          </p>
+          <p class="text-base-content/70">
             Requests use plain HTTP, so the key is readable by anyone who can capture traffic on your network.
           </p>
         </div>

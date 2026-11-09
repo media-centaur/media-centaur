@@ -1219,6 +1219,71 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       assert {:error, :not_configured} = Plans.create_title_plan_by_id(246_813, :movie)
     end
+
+    test "a film the library already has is nothing to plan" do
+      MediaCentaur.TmdbStubs.stub_get_movie("246813", %{"title" => "Sample Movie"})
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "246813"})
+      create_linked_file(%{movie_id: movie.id})
+
+      assert {:error, :nothing_to_plan} = Plans.create_title_plan_by_id(246_813, :movie)
+      assert Plans.list_drafts() == []
+    end
+
+    test "a film already being downloaded or planned is refused as an overlap" do
+      MediaCentaur.TmdbStubs.stub_get_movie("246813", %{"title" => "Sample Movie"})
+      create_pursuit(%{tmdb_id: "246813", tmdb_type: "movie", title: "Sample Movie", origin: "manual"})
+
+      assert {:error, {:overlap, _units}} = Plans.create_title_plan_by_id(246_813, :movie)
+      assert Plans.list_drafts() == []
+    end
+
+    test "a repeated request for a film with an open plan does not create another" do
+      MediaCentaur.TmdbStubs.stub_get_movie("246813", %{"title" => "Sample Movie"})
+      assert {:ok, _plan} = Plans.create_title_plan_by_id(246_813, :movie)
+
+      assert {:error, {:overlap, _units}} = Plans.create_title_plan_by_id(246_813, :movie)
+      assert length(Plans.list_drafts()) == 1
+    end
+
+    test "a series leaves out the episodes already being downloaded" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      create_pursuit(%{
+        tmdb_id: "246810",
+        tmdb_type: "tv",
+        title: "Sample Show",
+        origin: "manual",
+        season_number: 1,
+        episode_number: 1
+      })
+
+      assert {:ok, plan} =
+               Plans.create_title_plan_by_id(246_810, :tv_series, scope: :first_missing_season)
+
+      assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) == [{1, 2}]
+    end
+
+    test "a series whose scope is entirely claimed is refused, not moved on to the next season" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert {:ok, _plan} =
+               Plans.create_title_plan_by_id(246_810, :tv_series, scope: :first_missing_season)
+
+      assert {:error, {:overlap, [{1, 1}, {1, 2}]}} =
+               Plans.create_title_plan_by_id(246_810, :tv_series, scope: :first_missing_season)
+
+      assert length(Plans.list_drafts()) == 1
+    end
+  end
+
+  describe "replan/2" do
+    test "clears the error the previous run recorded" do
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie"})
+      plan = force_attrs(plan, %{status: "ready", error: "search failed: Sample Movie"})
+
+      assert {:ok, %{status: "planning", error: nil}} = Plans.replan(plan)
+    end
   end
 
   describe "awaiting_approval?/1 and wrong-state discards" do

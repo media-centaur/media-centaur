@@ -29,28 +29,42 @@ Requests use plain HTTP, so anyone who can capture traffic on your network can r
 
 ## Let Media Centaur choose the releases
 
-Media Centaur matches releases to the exact title, skips what you own and applies your quality settings.
+Media Centaur matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings. With `"approval_policy": "automatic"` it downloads without a person when every wanted film or episode was found within your quality settings.
 
-```sh
-# 1. Find the title
-curl -H "Authorization: Bearer $MC_KEY" -G "$MC/titles" --data-urlencode "q=Sample Show"
+This script downloads a film from start to finish. It needs bash and `jq`.
 
-# 2. Plan it. "automatic" commits without a person when the plan is clean.
-curl -H "Authorization: Bearer $MC_KEY" -H "Content-Type: application/json" "$MC/plans" \
-  -d '{"tmdb_id": 12345, "media_type": "tv", "approval_policy": "automatic", "scope": "latest_season"}'
+```bash
+# 1. Find the title; take its tmdb_id and media_type
+curl -s -H "Authorization: Bearer $MC_KEY" -G "$MC/titles" --data-urlencode "q=Sample Movie 2010" | jq '.titles[0]'
 
-# 3. Poll the plan until its status is no longer "planning"
-curl -H "Authorization: Bearer $MC_KEY" "$MC/plans/$PLAN_ID"
+# 2. Plan it, with automatic approval; keep the plan's id
+PLAN_ID=$(curl -s -H "Authorization: Bearer $MC_KEY" -H "Content-Type: application/json" "$MC/plans" \
+  -d '{"tmdb_id": 12345, "media_type": "movie", "approval_policy": "automatic"}' | jq -r .id)
+
+# 3. Wait for the plan to commit, or to stop for a person
+while :; do
+  PLAN=$(curl -s -H "Authorization: Bearer $MC_KEY" "$MC/plans/$PLAN_ID")
+  case "$(jq -r '"\(.status) \(.awaiting_approval)"' <<<"$PLAN")" in
+    "committed "* | "discarded "* | "ready true") break ;;
+  esac
+  sleep 10
+done
+
+# 4. If it committed, follow the download until it is in the library or has given up
+PURSUIT_ID=$(jq -r .pursuit_id <<<"$PLAN")
+until [ "$(curl -s -H "Authorization: Bearer $MC_KEY" "$MC/pursuits/$PURSUIT_ID" | jq -r .state)" != active ]; do sleep 60; done
 ```
+
+For a series, send `"media_type": "tv"` and a `scope`: `first_missing_season` (default), `latest_season` or `everything`. `approval_policy` defaults to `review`, which always waits for an approve.
 
 | Plan state | What to do |
 |---|---|
 | `status: committed` | Follow `pursuit_id`. |
-| `status: ready`, `awaiting_approval: true` | Read `units`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here unless every wanted unit was found within your quality settings. |
+| `status: ready`, `awaiting_approval: true` | A person decides. Read `units` and `error`, then `POST /plans/{id}/approve` (commits the units that were found) or `POST /plans/{id}/discard`. An automatic plan stops here when something was not found within your quality settings, or when it could not commit; it then reads `approval_policy: review` and `error` says why. |
 | `status: ready`, `awaiting_approval: false` | The commit is in progress. Poll again. |
 | `status: discarded` | Nothing will download. |
 
-`approval_policy` defaults to `review`, which always waits for an approve. `scope` applies to series: `first_missing_season` (default), `latest_season` or `everything`.
+`POST /plans` answers 409 `already_downloading` when the film, or every episode in the scope, is already being downloaded or has an open plan, so a script can retry it safely. It answers 422 `nothing_to_plan` when the library has the film or nothing in the scope has aired. Episodes already being downloaded are left out of a series plan.
 
 ## Choose the release yourself
 
@@ -76,7 +90,7 @@ A term with `status: "failed"` is an indexer failure, not an absence of releases
 | `GET /queue` | Everything in the download clients. |
 | `DELETE /queue/{id}` | Removes an item and its files from its client. |
 
-A pursuit with `awaiting_decision: true` needs a person to pick an alternative in the app.
+A pursuit with `awaiting_decision: true` needs a person to pick another release in the app. `units_satisfied` of `units_wanted` have landed in the library.
 
 ## Errors
 
@@ -93,12 +107,13 @@ Every failure has the same body. Branch on `code`:
 | 404 | `not_found` | No such resource, or the feature is off. |
 | 404 | `release_unavailable` | No search recorded that guid. Search again. |
 | 409 | `plan_not_ready` | The plan's status does not allow this. |
-| 409 | `already_downloading` | Part of the plan is already being downloaded. |
+| 409 | `already_downloading` | It is already being downloaded or planned. |
 | 409 | `not_cancellable` | The pursuit is already over. |
 | 422 | `invalid_query` | The query's braces are malformed. |
-| 422 | `nothing_to_plan` | Nothing is left to download for this. |
+| 422 | `nothing_to_plan` | You have it, or nothing in the scope has aired. |
 | 422 | `nothing_to_grab` | The plan found no release. |
 | 502 | `upstream_error` | TMDB did not answer. |
+| 500 | `internal_server_error` | An unexpected failure, such as a download client refusing a removal. The app's console has the detail. |
 | 503 | `not_configured` | Prowlarr or TMDB is not set up. See `GET /status`. |
 
-`POST /grabs` and `POST /plans` are not idempotent: repeating one starts another download or plan.
+`POST /grabs` is not idempotent: repeating it starts another download.

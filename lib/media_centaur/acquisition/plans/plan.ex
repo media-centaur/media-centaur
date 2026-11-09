@@ -28,7 +28,9 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   mode, the picker and Plan now as `review`; the Download button as its
   planning mode says — auto-select `automatic`, manual selection `review`
   (`TitleDetailHost.start_download/4`)) and never derived from `origin`
-  at read time.
+  at read time. The one change after creation is parking: an automatic
+  plan the gate could not commit becomes `review`, with the reason in
+  `error` (`park_changeset/2`).
   """
 
   use Ecto.Schema
@@ -169,6 +171,14 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       |> change()
       |> add_error(:status, "cannot transition from #{current} to #{new_status}")
     end
+  end
+
+  @doc """
+  Parks a plan the approval gate could not commit: a person decides it
+  now, so its policy becomes `review`, and `error` says why.
+  """
+  def park_changeset(%__MODULE__{} = plan, reason) when is_binary(reason) do
+    change(plan, approval_policy: "review", error: reason)
   end
 
   @doc "Records a planning failure without leaving `planning` silently stuck."

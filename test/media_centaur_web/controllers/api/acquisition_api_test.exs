@@ -176,6 +176,27 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       assert %{"status" => "ready", "clean" => false, "awaiting_approval" => true} = body
     end
 
+    test "asking twice for the same film is a conflict, not a second plan", %{conn: conn} do
+      create_plan(conn, %{approval_policy: "automatic"})
+
+      assert %{"error" => %{"code" => "already_downloading"}} =
+               conn
+               |> json_post("/api/v1/plans", %{tmdb_id: 246_813, media_type: "movie"})
+               |> json_response(409)
+    end
+
+    test "an automatic plan the gate cannot commit waits for a person and says why", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, [film_release()]) end)
+      %{"id" => id} = create_plan(conn, %{approval_policy: "automatic"})
+      create_pursuit(%{tmdb_id: "246813", tmdb_type: "movie", title: "Sample Movie", origin: "manual"})
+
+      ExUnit.CaptureLog.capture_log(fn -> MediaCentaur.JobRuns.run_enqueued_jobs() end)
+      body = conn |> get("/api/v1/plans/#{id}") |> json_response(200)
+
+      assert %{"status" => "ready", "approval_policy" => "review", "awaiting_approval" => true} = body
+      assert body["error"] =~ "already being downloaded"
+    end
+
     test "an automatic plan that finds its release commits without a person", %{conn: conn} do
       Req.Test.stub(:prowlarr, fn conn ->
         case conn.method do
@@ -217,7 +238,7 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       assert conn |> get("/api/v1/plans/#{Ecto.UUID.generate()}") |> json_response(404)
     end
 
-    test "approving a plan still planning is a conflict", %{conn: conn} do
+    test "approving a plan while it searches is a conflict", %{conn: conn} do
       %{"id" => id} = create_plan(conn)
 
       assert %{"error" => %{"code" => "plan_not_ready"}} =
@@ -292,6 +313,15 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       assert_schema(body, "PursuitDetail")
       assert %{"id" => id, "units" => [%{"state" => "active"}]} = body
       assert id == pursuit.id
+    end
+
+    test "a pursuit's detail says whether it waits for a person, and its progress", %{conn: conn} do
+      pursuit = create_pursuit(%{title: "Sample Movie", awaiting_decision_at: DateTime.utc_now(:second)})
+
+      body = conn |> get("/api/v1/pursuits/#{pursuit.id}") |> json_response(200)
+
+      assert_schema(body, "PursuitDetail")
+      assert %{"awaiting_decision" => true, "units_wanted" => 1, "units_satisfied" => 0} = body
     end
 
     test "an unknown or malformed pursuit id is 404", %{conn: conn} do

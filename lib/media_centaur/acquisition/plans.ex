@@ -26,6 +26,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Format
+  alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.{Store, Title, TitleIdentity}
   alias MediaCentaur.Topics
@@ -180,14 +181,16 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   def create_title_plan(%Title{media_type: :tv_series} = title, opts) do
-    scope = Keyword.get(opts, :scope, :first_missing_season)
-
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
-         units when units != [] <- DownloadScope.units(selection, scope) do
+         {:ok, units} <- series_units(selection, opts) do
       create_series_plan(selection, units, approval_policy: title_policy(opts))
-    else
+    end
+  end
+
+  defp series_units(selection, opts) do
+    case DownloadScope.units(selection, Keyword.get(opts, :scope, :first_missing_season)) do
       [] -> {:error, :nothing_to_plan}
-      {:error, reason} -> {:error, reason}
+      units -> {:ok, units}
     end
   end
 
@@ -227,10 +230,22 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp title_year(_title), do: nil
 
   @doc """
-  Creates the plan for a title known only by its TMDB id: the title is read
-  from the store (first contact when the app has never held it), then
-  planned as `create_title_plan/2`. `{:error, :not_found}` when TMDB has no
-  such title, `{:error, :not_configured}` when Prowlarr is not configured.
+  Creates the plan for a title known only by its TMDB id — the Local
+  API's door. The title is read from the store (first contact when the
+  app has never held it), then planned as `create_title_plan/2` would,
+  with what is already had or claimed left out, because a caller (a
+  script retrying, an agent asking twice) cannot see the board:
+
+    * a film the library has is `{:error, :nothing_to_plan}`
+    * a film an active pursuit or an open plan claims is
+      `{:error, {:overlap, [{nil, nil}]}}`
+    * a series' scope is resolved first and its claimed episodes then
+      removed (`Claims.claimed_units/2`); a scope claimed entirely is
+      `{:error, {:overlap, units}}`. Removing them before resolving the
+      scope would move a repeated request on to the next season.
+
+  `{:error, :not_found}` when TMDB has no such title,
+  `{:error, :not_configured}` when Prowlarr is not configured.
   """
   @spec create_title_plan_by_id(pos_integer(), Title.media_type(), keyword()) ::
           {:ok, Plan.t()} | {:error, term()}
@@ -238,10 +253,30 @@ defmodule MediaCentaur.Acquisition.Plans do
     if Capabilities.configured?(:prowlarr) do
       with {:ok, %{payload: payload}} <- ensure_title({tmdb_id, media_type}),
            {:ok, %Title{} = title} <- Title.from_tmdb(payload, media_type) do
-        create_title_plan(title, opts)
+        create_unclaimed_plan(title, opts)
       end
     else
       {:error, :not_configured}
+    end
+  end
+
+  defp create_unclaimed_plan(%Title{media_type: :movie} = title, opts) do
+    cond do
+      Library.ExternalIds.tmdb_owners([{title.tmdb_id, :movie}]) != %{} -> {:error, :nothing_to_plan}
+      Plans.Claims.claimed_units(to_string(title.tmdb_id), "movie") -> {:error, {:overlap, [{nil, nil}]}}
+      true -> create_title_plan(title, opts)
+    end
+  end
+
+  defp create_unclaimed_plan(%Title{media_type: :tv_series} = title, opts) do
+    with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
+         {:ok, units} <- series_units(selection, opts) do
+      claimed = Plans.Claims.claimed_units(to_string(title.tmdb_id), "tv")
+
+      case Enum.reject(units, &MapSet.member?(claimed, &1)) do
+        [] -> {:error, {:overlap, Enum.sort(units)}}
+        unclaimed -> create_series_plan(selection, unclaimed, approval_policy: title_policy(opts))
+      end
     end
   end
 
@@ -681,6 +716,19 @@ defmodule MediaCentaur.Acquisition.Plans do
       TitleDownloadParams.put(numeric_id, media_type, attrs)
     else
       _no_identity -> {:error, :no_tmdb_identity}
+    end
+  end
+
+  @doc """
+  Parks a ready plan the approval gate could not commit: it becomes a
+  `review` plan with `reason` as its error, so it waits for a person and
+  says why (`Plan.park_changeset/2`).
+  """
+  @spec park(Plan.t(), String.t()) :: {:ok, Plan.t()} | {:error, Ecto.Changeset.t()}
+  def park(%Plan{status: "ready"} = plan, reason) when is_binary(reason) do
+    with {:ok, parked} <- Repo.update(Plan.park_changeset(plan, reason)) do
+      broadcast_changed(parked)
+      {:ok, parked}
     end
   end
 
