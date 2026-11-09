@@ -561,6 +561,23 @@ defmodule MediaCentaur.TMDB.StoreTest do
     end
   end
 
+  describe "ensure_snapshot/1" do
+    test "fetches a title the store lacks and answers its snapshot; an id TMDB lacks is not found" do
+      Req.Test.stub(:tmdb, fn conn ->
+        if String.contains?(conn.request_path, "/movie/650") do
+          Req.Test.json(conn, TmdbStubs.movie_detail(%{"id" => 650, "title" => "Sample Movie"}))
+        else
+          Plug.Conn.send_resp(conn, 404, "{}")
+        end
+      end)
+
+      assert {:ok, %MediaCentaur.TMDB.Title{tmdb_id: 650, name: "Sample Movie"}} =
+               Store.ensure_snapshot({650, :movie})
+
+      assert {:error, :not_found} = Store.ensure_snapshot({651, :movie})
+    end
+  end
+
   describe "first contact announces the title" do
     test "ensure/2 publishes {:tmdb_title_changed, ref} when it creates the record, not when it finds it" do
       Store.subscribe()

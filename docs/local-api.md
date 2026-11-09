@@ -83,6 +83,12 @@ Episodes that new-episode grabbing already covers are left out too. `approval_po
 
 `POST /plans` answers 409 `already_downloading` when the film, or every episode in the scope, is already being downloaded or has an open plan, so a script can retry it safely. `GET /titles/{media_type}/{tmdb_id}` (`movie` or `tv`) then names the open plans and pursuits to follow, and says whether the library has the title. It answers 422 `nothing_to_plan` when the library has the film or nothing in the scope has aired. Episodes already being downloaded are left out of a series plan.
 
+## Grab new releases as they come out
+
+`PUT /titles/{media_type}/{tmdb_id}/auto-grab` turns on Auto-grab: Media Centaur plans the title's releases from now on, a series' new episodes as they air and a film when it is released. The title goes on the Watchlist at Grab. A series starts caught up on its latest aired episode, so nothing already aired is downloaded; plan those with `POST /plans`. `DELETE` on the same path turns it off and leaves the title on the Watchlist at Follow.
+
+Whether those plans download at once or wait for an approve follows Settings → Acquisition → Download button: *Auto-select best release* downloads at once. Changes made through the API are not shared with friends.
+
 ## Choose the release yourself
 
 ```sh

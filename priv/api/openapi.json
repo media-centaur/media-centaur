@@ -403,6 +403,172 @@
         }
       }
     },
+    "/titles/{media_type}/{tmdb_id}/auto-grab": {
+      "put": {
+        "operationId": "startAutoGrab",
+        "tags": [
+          "Titles"
+        ],
+        "summary": "Turn Auto-grab on",
+        "description": "Media Centaur plans the title's releases from now on as they come out: a series' new episodes as they air, a film when it is released. The title goes on the Watchlist at Grab. A series starts caught up on its latest aired episode, so nothing already aired is downloaded; plan those with `POST /plans`. Whether those plans download at once or wait for an approve follows Settings → Acquisition → Download button: *Auto-select best release* downloads at once. Nothing is shared with friends.",
+        "parameters": [
+          {
+            "name": "media_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "movie",
+                "tv"
+              ]
+            }
+          },
+          {
+            "name": "tmdb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The title's state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media type or id is invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TMDB has no such title.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TMDB did not answer (`upstream_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "stopAutoGrab",
+        "tags": [
+          "Titles"
+        ],
+        "summary": "Turn Auto-grab off",
+        "description": "The title stays on the Watchlist at Follow, with its calendar, and nothing more is planned for it.",
+        "parameters": [
+          {
+            "name": "media_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "movie",
+                "tv"
+              ]
+            }
+          },
+          {
+            "name": "tmdb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The title's state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media type or id is invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TMDB has no such title.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TMDB did not answer (`upstream_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/plans": {
       "post": {
         "operationId": "createPlan",
@@ -2281,6 +2447,7 @@
           "tmdb_id",
           "media_type",
           "in_library",
+          "auto_grab",
           "state",
           "plan_ids",
           "pursuit_ids"
@@ -2299,6 +2466,10 @@
           "in_library": {
             "type": "boolean",
             "description": "The library has the film, or at least one episode of the series."
+          },
+          "auto_grab": {
+            "type": "boolean",
+            "description": "New releases are planned as they come out. `PUT` or `DELETE /titles/{media_type}/{tmdb_id}/auto-grab`."
           },
           "state": {
             "type": [

@@ -27,6 +27,8 @@ defmodule MediaCentaurWeb.Router do
     post "/v1/grabs", GrabController, :create
     get "/v1/titles", TitleController, :index
     get "/v1/titles/:media_type/:tmdb_id", TitleController, :show
+    put "/v1/titles/:media_type/:tmdb_id/auto-grab", TitleController, :start_auto_grab
+    delete "/v1/titles/:media_type/:tmdb_id/auto-grab", TitleController, :stop_auto_grab
     post "/v1/plans", PlanController, :create
     get "/v1/plans/:id", PlanController, :show
     post "/v1/plans/:id/approve", PlanController, :approve

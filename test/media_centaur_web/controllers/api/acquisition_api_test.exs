@@ -339,6 +339,7 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
                "tmdb_id" => 246_813,
                "media_type" => "movie",
                "in_library" => false,
+               "auto_grab" => false,
                "state" => "planning",
                "plan_ids" => [^plan_id],
                "pursuit_ids" => []
@@ -346,6 +347,30 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
 
       assert %{"error" => %{"code" => "invalid_request"}} =
                conn |> get("/api/v1/titles/film/246813") |> json_response(400)
+    end
+
+    test "auto-grab grabs a series' new episodes from now on, and turns off again", %{conn: conn} do
+      TmdbStubs.stub_series_universe_for_targeting()
+
+      body = conn |> put("/api/v1/titles/tv/246810/auto-grab") |> json_response(200)
+      assert_schema(body, "TitleState")
+      assert %{"auto_grab" => true} = body
+
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+      assert MediaCentaur.Watchlist.caught_up(246_810, :tv_series) == {2, 1}
+      assert Plans.list_drafts() == []
+
+      assert %{"auto_grab" => false} =
+               conn |> delete("/api/v1/titles/tv/246810/auto-grab") |> json_response(200)
+
+      assert MediaCentaur.Watchlist.rung(246_810, :tv_series) == :follow
+    end
+
+    test "auto-grab for a title TMDB does not have is not found", %{conn: conn} do
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 404, "{}") end)
+
+      assert %{"error" => %{"code" => "not_found"}} =
+               conn |> put("/api/v1/titles/movie/999/auto-grab") |> json_response(404)
     end
 
     test "unknown values are refused", %{conn: conn} do

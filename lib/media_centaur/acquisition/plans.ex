@@ -251,8 +251,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           {:ok, Plan.t()} | {:error, term()}
   def create_title_plan_by_id(tmdb_id, media_type, opts \\ []) do
     if Capabilities.configured?(:prowlarr) do
-      with {:ok, %{payload: payload}} <- ensure_title({tmdb_id, media_type}),
-           {:ok, %Title{} = title} <- Title.from_tmdb(payload, media_type) do
+      with {:ok, %Title{} = title} <- Store.ensure_snapshot({tmdb_id, media_type}) do
         create_unclaimed_plan(title, opts)
       end
     else
@@ -277,13 +276,6 @@ defmodule MediaCentaur.Acquisition.Plans do
         [] -> {:error, {:overlap, Enum.sort(units)}}
         unclaimed -> create_series_plan(selection, unclaimed, approval_policy: title_policy(opts))
       end
-    end
-  end
-
-  defp ensure_title(ref) do
-    case Store.ensure(ref) do
-      {:error, {:http_error, 404, _body}} -> {:error, :not_found}
-      other -> other
     end
   end
 
