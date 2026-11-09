@@ -628,6 +628,16 @@
               }
             }
           },
+          "502": {
+            "description": "TMDB did not answer (`upstream_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Prowlarr or TMDB is not set up (`not_configured`). See `GET /status`.",
             "content": {

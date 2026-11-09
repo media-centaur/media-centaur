@@ -73,9 +73,10 @@ defmodule MediaCentaur.Features do
     %Feature{
       id: :local_api,
       name: "Local API",
-      description: "A JSON API for scripts and agents on your network to search and start downloads.",
+      description:
+        "A JSON API for scripts and agents on your network to find, download and follow films and series.",
       default: false,
-      stage: :development
+      stage: :optional
     }
   ]
 

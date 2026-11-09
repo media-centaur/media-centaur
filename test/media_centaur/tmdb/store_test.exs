@@ -576,6 +576,12 @@ defmodule MediaCentaur.TMDB.StoreTest do
 
       assert {:error, :not_found} = Store.ensure_snapshot({651, :movie})
     end
+
+    test "a TMDB failure other than not found is an upstream error" do
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "{}") end)
+
+      assert {:error, :upstream_error} = Store.ensure_snapshot({652, :movie})
+    end
   end
 
   describe "first contact announces the title" do

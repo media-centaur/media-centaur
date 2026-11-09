@@ -9,6 +9,7 @@ const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:49001"
 
 const CROSS_BROWSER = "cross-browser.spec.js"
 const PHONE = "phone.spec.js"
+const LOCAL_API = "local-api.spec.js"
 const CLICK_VIEWPORT = { width: 1600, height: 1000 }
 
 // The owner's phone as the shell sees it (`campaigns/adaptive-layout.md`,
@@ -58,8 +59,11 @@ export default defineConfig({
 
   projects: [
     // The navigation suite: Chromium, once per input method.
-    { name: "keyboard", testIgnore: [CROSS_BROWSER, PHONE], use: { inputMethod: "keyboard" } },
-    { name: "gamepad", testIgnore: [CROSS_BROWSER, PHONE], use: { inputMethod: "gamepad" } },
+    { name: "keyboard", testIgnore: [CROSS_BROWSER, PHONE, LOCAL_API], use: { inputMethod: "keyboard" } },
+    { name: "gamepad", testIgnore: [CROSS_BROWSER, PHONE, LOCAL_API], use: { inputMethod: "gamepad" } },
+
+    // The Local API's use cases: HTTP requests, once, with a key Settings makes.
+    { name: "local-api", testMatch: LOCAL_API },
 
     // The phone: touch only, its own spec (no key or pad is pressed there).
     { name: "phone", testMatch: PHONE, use: PHONE_DEVICE },

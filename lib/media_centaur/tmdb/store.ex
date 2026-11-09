@@ -114,10 +114,10 @@ defmodule MediaCentaur.TMDB.Store do
   @doc """
   The snapshot of a title, fetched on first contact when the store lacks
   it (`ensure/2`). `{:error, :not_found}` when TMDB has no such title or
-  its payload names none; TMDB's other failures as `ensure/2` reports
-  them.
+  its payload names none, `{:error, :upstream_error}` when TMDB failed
+  otherwise.
   """
-  @spec ensure_snapshot(ref()) :: {:ok, Title.t()} | {:error, any()}
+  @spec ensure_snapshot(ref()) :: {:ok, Title.t()} | {:error, :not_found | :upstream_error}
   def ensure_snapshot(ref) do
     case ensure(ref) do
       {:ok, %TitleRecord{} = record} ->
@@ -126,8 +126,8 @@ defmodule MediaCentaur.TMDB.Store do
       {:error, {:http_error, 404, _body}} ->
         {:error, :not_found}
 
-      {:error, reason} ->
-        {:error, reason}
+      {:error, _reason} ->
+        {:error, :upstream_error}
     end
   end
 

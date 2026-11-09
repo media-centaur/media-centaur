@@ -245,6 +245,7 @@ defmodule MediaCentaur.Acquisition.Plans do
       scope would move a repeated request on to the next season.
 
   `{:error, :not_found}` when TMDB has no such title,
+  `{:error, :upstream_error}` when TMDB fails otherwise, and
   `{:error, :not_configured}` when Prowlarr is not configured.
   """
   @spec create_title_plan_by_id(pos_integer(), Title.media_type(), keyword()) ::
@@ -268,7 +269,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp create_unclaimed_plan(%Title{media_type: :tv_series} = title, opts) do
-    with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
+    with {:ok, selection} <- series_selection(title.tmdb_id),
          {:ok, units} <- series_units(selection, opts) do
       claimed = Plans.Claims.claimed_units(to_string(title.tmdb_id), "tv")
 
@@ -276,6 +277,13 @@ defmodule MediaCentaur.Acquisition.Plans do
         [] -> {:error, {:overlap, Enum.sort(units)}}
         unclaimed -> create_series_plan(selection, unclaimed, approval_policy: title_policy(opts))
       end
+    end
+  end
+
+  defp series_selection(tmdb_id) do
+    case Targeting.series_selection(tmdb_id) do
+      {:ok, selection} -> {:ok, selection}
+      {:error, _tmdb_failure} -> {:error, :upstream_error}
     end
   end
 

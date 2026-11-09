@@ -1264,6 +1264,15 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) == [{1, 2}]
     end
 
+    test "a series whose seasons TMDB cannot answer is an upstream error" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/246810/season/1", {:error, 500}},
+        {"/tv/246810", MediaCentaur.TmdbStubs.series_universe_tv()}
+      ])
+
+      assert {:error, :upstream_error} = Plans.create_title_plan_by_id(246_810, :tv_series)
+    end
+
     test "a series can be asked for chosen episodes" do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
