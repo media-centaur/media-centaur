@@ -47,4 +47,19 @@ defmodule MediaCentaur.Acquisition.TitleStatesTest do
 
     assert TitleStates.for_refs([{777, :movie}]) == %{{777, :movie} => :planning}
   end
+
+  test "one title's state names the open plans and active pursuits a caller can follow" do
+    {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+    MediaCentaur.JobRuns.run_enqueued_jobs()
+    pursuit = create_pursuit(%{tmdb_id: "777", tmdb_type: "movie", title: "Sample Movie"})
+    create_pursuit(%{tmdb_id: "777", tmdb_type: "tv", title: "Other Show"})
+
+    assert TitleStates.for_title({777, :movie}) == %{
+             state: :downloading,
+             plan_ids: [plan.id],
+             pursuit_ids: [pursuit.id]
+           }
+
+    assert TitleStates.for_title({779, :movie}) == %{state: nil, plan_ids: [], pursuit_ids: []}
+  end
 end

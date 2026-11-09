@@ -97,4 +97,18 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScopeTest do
     assert DownloadScope.parse("first_season") == :error
     assert DownloadScope.parse(nil) == :error
   end
+
+  test "chosen episodes keep the pickable ones asked for; a season alone asks for its every episode" do
+    selection =
+      selection([
+        %Targeting.Season{season_number: 1, episodes: [episode(1, 1), episode(1, 2, in_library?: true)]},
+        %Targeting.Season{
+          season_number: 2,
+          episodes: [episode(2, 1), episode(2, 2), episode(2, 3, aired?: false)]
+        }
+      ])
+
+    assert DownloadScope.units(selection, {:episodes, [{1, 2}, {1, 1}, {2, nil}, {3, 1}]}) ==
+             [{1, 1}, {2, 1}, {2, 2}]
+  end
 end

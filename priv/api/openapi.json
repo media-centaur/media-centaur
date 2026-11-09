@@ -3,7 +3,7 @@
   "info": {
     "title": "Media Centaur Local API",
     "version": "1",
-    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`. The answer is the plan, in status `planning`; keep its `id`. A 409 `already_downloading` means it is already planned or downloading, and a 422 `nothing_to_plan` that you have it or nothing has aired.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: a person decides. Read `units` and `error`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here when a wanted unit was not found within your quality settings, or when it could not commit (it then reads `approval_policy: review`, with the reason in `error`). Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick another release in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` is not idempotent: a repeated request starts another download. A repeated `POST /plans` for what is already planned or downloading is refused with 409."
+    "description": "JSON API for scripts and agents on this computer or the local network: find media, start downloads, and follow them through to import. Downloads started here are tracked and imported like any started in the app.\n\n**Enable it:** Settings → Feature Flags → Local API, then Settings → Local API → Generate key. While the flag is off every path answers 404.\n\n**Authenticate:** send `Authorization: Bearer <key>` on every request, loopback included.\n\n**Security:** the API uses plain HTTP. Anyone who can capture traffic on your network can read the key.\n\n**Errors:** every failure has the body `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Branch on `code`.\n\n## Choosing a workflow\n\n**Let Media Centaur choose the releases (recommended).** It matches releases to the exact title, leaves out what you have and what is already downloading, and applies your quality settings.\n\n1. `GET /titles?q=Sample Show` and take a `tmdb_id` and `media_type`. `GET /titles/{media_type}/{tmdb_id}` says whether you have it and what is already planned or downloading.\n2. `POST /plans` with those and `\"approval_policy\": \"automatic\"`; for a series, a `scope` or the `episodes` you want. The answer is the plan, in status `planning`; keep its `id`. A 409 `already_downloading` means it is already planned or downloading, and a 422 `nothing_to_plan` that you have it or nothing has aired.\n3. Poll `GET /plans/{id}` until `status` is no longer `planning`.\n   - `committed`: `pursuit_id` is set. Go to step 4.\n   - `ready` with `awaiting_approval: true`: a person decides. Read `units` and `error`, then `POST /plans/{id}/approve` or `POST /plans/{id}/discard`. An automatic plan stops here when a wanted unit was not found within your quality settings, or when it could not commit (it then reads `approval_policy: review`, with the reason in `error`). Approving commits the units that were found.\n   - `ready` with `awaiting_approval: false`: the commit is in progress. Poll again.\n4. Poll `GET /pursuits/{id}` until `state` is `satisfied`, `partial`, `exhausted` or `cancelled`.\n\n**Choose the release yourself.**\n\n1. `GET /releases?q=Sample Show S01E{01-02}`. Braces expand to one search per term: `{01-02}` is a range and `{a,b}` a list. A term with `status: \"failed\"` is an indexer failure, not an absence of releases.\n2. `POST /grabs` with the `q` you searched as `query`, and the `guid` and `term` of each chosen release. The answer has a `pursuit_id`.\n3. Poll `GET /pursuits/{id}` as above. A pursuit with `awaiting_decision: true` needs a person to pick another release in the app.\n\nSearch results are reused for 30 minutes; pass `refresh=true` to search the indexers again. `POST /grabs` is not idempotent: a repeated request starts another download. A repeated `POST /plans` for what is already planned or downloading is refused with 409."
   },
   "servers": [
     {
@@ -339,6 +339,70 @@
         ]
       }
     },
+    "/titles/{media_type}/{tmdb_id}": {
+      "get": {
+        "operationId": "getTitleState",
+        "tags": [
+          "Titles"
+        ],
+        "summary": "Read a title's state in the app",
+        "description": "Whether the library has it, and the plans and pursuits open for it. Read it before planning, or after a 409 `already_downloading`, to find what to follow.",
+        "parameters": [
+          {
+            "name": "media_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "movie",
+                "tv"
+              ]
+            }
+          },
+          {
+            "name": "tmdb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The title's state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media type or id is invalid (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/plans": {
       "post": {
         "operationId": "createPlan",
@@ -426,11 +490,38 @@
               "schema": {
                 "$ref": "#/components/schemas/PlanRequest"
               },
-              "example": {
-                "tmdb_id": 12345,
-                "media_type": "tv",
-                "approval_policy": "automatic",
-                "scope": "latest_season"
+              "examples": {
+                "film": {
+                  "value": {
+                    "tmdb_id": 12345,
+                    "media_type": "movie",
+                    "approval_policy": "automatic"
+                  }
+                },
+                "latest_season": {
+                  "value": {
+                    "tmdb_id": 12345,
+                    "media_type": "tv",
+                    "approval_policy": "automatic",
+                    "scope": "latest_season"
+                  }
+                },
+                "chosen_episodes": {
+                  "value": {
+                    "tmdb_id": 12345,
+                    "media_type": "tv",
+                    "approval_policy": "automatic",
+                    "episodes": [
+                      {
+                        "season": 2
+                      },
+                      {
+                        "season": 3,
+                        "episode": 5
+                      }
+                    ]
+                  }
+                }
               }
             }
           }
@@ -1347,7 +1438,28 @@
               "latest_season"
             ],
             "default": "first_missing_season",
-            "description": "Series only. Covers aired episodes you do not own."
+            "description": "Series only. Covers aired episodes you do not own. Leave it out when sending `episodes`."
+          },
+          "episodes": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Series only, instead of `scope`: the seasons and episodes to plan. `{\"season\": 2}` asks for every episode of season 2. Episodes that have not aired, that you have, or that new-episode grabbing already covers are left out.",
+            "items": {
+              "type": "object",
+              "required": [
+                "season"
+              ],
+              "properties": {
+                "season": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "episode": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
           }
         }
       },
@@ -1951,6 +2063,60 @@
             "items": {
               "$ref": "#/components/schemas/QueueItem"
             }
+          }
+        }
+      },
+      "TitleState": {
+        "type": "object",
+        "required": [
+          "tmdb_id",
+          "media_type",
+          "in_library",
+          "state",
+          "plan_ids",
+          "pursuit_ids"
+        ],
+        "properties": {
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "tv"
+            ]
+          },
+          "in_library": {
+            "type": "boolean",
+            "description": "The library has the film, or at least one episode of the series."
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "downloading",
+              "needs_review",
+              "planning",
+              null
+            ],
+            "description": "`downloading` when a pursuit is in flight, `needs_review` when a plan waits for a person, `planning` while a plan searches; null when nothing is."
+          },
+          "plan_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Plans still planning or ready, newest first. Read each with `GET /plans/{id}`."
+          },
+          "pursuit_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Pursuits in flight, newest first. Read each with `GET /pursuits/{id}`."
           }
         }
       }

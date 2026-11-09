@@ -1264,6 +1264,18 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) == [{1, 2}]
     end
 
+    test "a series can be asked for chosen episodes" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert {:ok, plan} =
+               Plans.create_title_plan_by_id(246_810, :tv_series, scope: {:episodes, [{2, nil}, {1, 2}]})
+
+      assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) == [
+               {1, 2},
+               {2, 1}
+             ]
+    end
+
     test "a series whose scope is entirely claimed is refused, not moved on to the next season" do
       MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 

@@ -10,10 +10,10 @@ defmodule MediaCentaurWeb.Api.PlanController do
   action_fallback MediaCentaurWeb.Api.FallbackController
 
   def create(conn, params) do
-    with {:ok, tmdb_id} <- tmdb_id(params["tmdb_id"]),
-         {:ok, media_type} <- media_type(params["media_type"]),
+    with {:ok, tmdb_id} <- Params.tmdb_id(params["tmdb_id"]),
+         {:ok, media_type} <- Params.media_type(params["media_type"]),
          {:ok, policy} <- Params.approval_policy(params),
-         {:ok, scope_opts} <- scope(params["scope"]),
+         {:ok, scope_opts} <- scope(media_type, params["scope"], params["episodes"]),
          {:ok, plan} <-
            Plans.create_title_plan_by_id(tmdb_id, media_type, [approval_policy: policy] ++ scope_opts) do
       conn |> put_status(:accepted) |> json(PlanJSON.plan(plan))
@@ -38,19 +38,39 @@ defmodule MediaCentaurWeb.Api.PlanController do
     end
   end
 
-  defp tmdb_id(id) when is_integer(id) and id > 0, do: {:ok, id}
-  defp tmdb_id(_other), do: Params.refuse("tmdb_id must be a positive integer")
+  defp scope(_media_type, nil, nil), do: {:ok, []}
 
-  defp media_type("movie"), do: {:ok, :movie}
-  defp media_type("tv"), do: {:ok, :tv_series}
-  defp media_type(_other), do: Params.refuse("media_type must be movie or tv")
+  defp scope(:movie, _scope, episodes) when not is_nil(episodes),
+    do: Params.refuse("episodes applies to a series")
 
-  defp scope(nil), do: {:ok, []}
+  defp scope(_media_type, scope, episodes) when not is_nil(scope) and not is_nil(episodes),
+    do: Params.refuse("send scope or episodes, not both")
 
-  defp scope(value) do
+  defp scope(_media_type, nil, episodes), do: episodes(episodes)
+
+  defp scope(_media_type, value, nil) do
     case DownloadScope.parse(value) do
       {:ok, scope} -> {:ok, [scope: scope]}
       :error -> Params.refuse("scope must be first_missing_season, everything or latest_season")
     end
   end
+
+  defp episodes([_first | _others] = episodes) do
+    if Enum.all?(episodes, &episode?/1) do
+      {:ok, [scope: {:episodes, Enum.map(episodes, &{&1["season"], &1["episode"]})}]}
+    else
+      Params.refuse("each of episodes needs a season, and may name an episode")
+    end
+  end
+
+  defp episodes(_other), do: Params.refuse("episodes must list at least one season or episode")
+
+  defp episode?(%{"season" => season} = episode) when is_integer(season) and season >= 0 do
+    case episode["episode"] do
+      nil -> true
+      number -> is_integer(number) and number > 0
+    end
+  end
+
+  defp episode?(_other), do: false
 end

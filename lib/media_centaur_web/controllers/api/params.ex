@@ -25,6 +25,25 @@ defmodule MediaCentaurWeb.Api.Params do
     end
   end
 
+  @doc "A TMDB id: a positive integer, given as one or as its digits in a path."
+  @spec tmdb_id(term()) :: {:ok, pos_integer()} | refusal()
+  def tmdb_id(id) when is_integer(id) and id > 0, do: {:ok, id}
+  def tmdb_id(_other), do: refuse("tmdb_id must be a positive integer")
+
+  @spec path_tmdb_id(String.t()) :: {:ok, pos_integer()} | refusal()
+  def path_tmdb_id(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> tmdb_id(parsed)
+      _other -> tmdb_id(nil)
+    end
+  end
+
+  @doc "The API's media type, `movie` or `tv`, as the app's."
+  @spec media_type(term()) :: {:ok, :movie | :tv_series} | refusal()
+  def media_type("movie"), do: {:ok, :movie}
+  def media_type("tv"), do: {:ok, :tv_series}
+  def media_type(_other), do: refuse("media_type must be movie or tv")
+
   @spec refuse(String.t()) :: refusal()
   def refuse(message), do: {:error, {:invalid_request, message}}
 end

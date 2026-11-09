@@ -55,7 +55,16 @@ PURSUIT_ID=$(jq -r .pursuit_id <<<"$PLAN")
 until [ "$(curl -s -H "Authorization: Bearer $MC_KEY" "$MC/pursuits/$PURSUIT_ID" | jq -r .state)" != active ]; do sleep 60; done
 ```
 
-For a series, send `"media_type": "tv"` and a `scope`: `first_missing_season` (default), `latest_season` or `everything`. `approval_policy` defaults to `review`, which always waits for an approve.
+For a series, send `"media_type": "tv"` and either a `scope` or `episodes`:
+
+| Field | Plans |
+|---|---|
+| `"scope": "first_missing_season"` (default) | The lowest season with an aired episode you do not have. |
+| `"scope": "latest_season"` | The newest season's aired episodes you do not have. |
+| `"scope": "everything"` | Every aired episode you do not have. |
+| `"episodes": [{"season": 2}, {"season": 3, "episode": 5}]` | Those seasons and episodes, where aired and missing. |
+
+Episodes that new-episode grabbing already covers are left out too. `approval_policy` defaults to `review`, which always waits for an approve.
 
 | Plan state | What to do |
 |---|---|
@@ -64,7 +73,7 @@ For a series, send `"media_type": "tv"` and a `scope`: `first_missing_season` (d
 | `status: ready`, `awaiting_approval: false` | The commit is in progress. Poll again. |
 | `status: discarded` | Nothing will download. |
 
-`POST /plans` answers 409 `already_downloading` when the film, or every episode in the scope, is already being downloaded or has an open plan, so a script can retry it safely. It answers 422 `nothing_to_plan` when the library has the film or nothing in the scope has aired. Episodes already being downloaded are left out of a series plan.
+`POST /plans` answers 409 `already_downloading` when the film, or every episode in the scope, is already being downloaded or has an open plan, so a script can retry it safely. `GET /titles/{media_type}/{tmdb_id}` (`movie` or `tv`) then names the open plans and pursuits to follow, and says whether the library has the title. It answers 422 `nothing_to_plan` when the library has the film or nothing in the scope has aired. Episodes already being downloaded are left out of a series plan.
 
 ## Choose the release yourself
 

@@ -262,6 +262,59 @@ defmodule MediaCentaurWeb.Api.AcquisitionApiTest do
       assert conn |> post("/api/v1/plans/#{id}/discard") |> json_response(409)
     end
 
+    test "a series plan can name its seasons and episodes", %{conn: conn} do
+      TmdbStubs.stub_series_universe_for_targeting()
+
+      body =
+        conn
+        |> json_post("/api/v1/plans", %{
+          tmdb_id: 246_810,
+          media_type: "tv",
+          episodes: [%{season: 1, episode: 2}, %{season: 2}]
+        })
+        |> json_response(202)
+
+      assert_schema(body, "Plan")
+
+      assert [
+               %{"season_number" => 1, "episode_number" => 2},
+               %{"season_number" => 2, "episode_number" => 1}
+             ] =
+               body["units"]
+    end
+
+    test "episodes are refused beside a scope, for a film, or malformed", %{conn: conn} do
+      for attrs <- [
+            %{tmdb_id: 246_810, media_type: "tv", scope: "everything", episodes: [%{season: 1}]},
+            %{tmdb_id: 246_813, media_type: "movie", episodes: [%{season: 1}]},
+            %{tmdb_id: 246_810, media_type: "tv", episodes: []},
+            %{tmdb_id: 246_810, media_type: "tv", episodes: [%{episode: 2}]}
+          ] do
+        assert %{"error" => %{"code" => "invalid_request"}} =
+                 conn |> json_post("/api/v1/plans", attrs) |> json_response(400)
+      end
+    end
+
+    test "a title's state says what the library has and what is planned or downloading", %{conn: conn} do
+      %{"id" => plan_id} = create_plan(conn)
+
+      body = conn |> get("/api/v1/titles/movie/246813") |> json_response(200)
+
+      assert_schema(body, "TitleState")
+
+      assert %{
+               "tmdb_id" => 246_813,
+               "media_type" => "movie",
+               "in_library" => false,
+               "state" => "planning",
+               "plan_ids" => [^plan_id],
+               "pursuit_ids" => []
+             } = body
+
+      assert %{"error" => %{"code" => "invalid_request"}} =
+               conn |> get("/api/v1/titles/film/246813") |> json_response(400)
+    end
+
     test "unknown values are refused", %{conn: conn} do
       for attrs <- [
             %{approval_policy: "sometimes"},

@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.Router do
     get "/v1/releases", ReleaseController, :index
     post "/v1/grabs", GrabController, :create
     get "/v1/titles", TitleController, :index
+    get "/v1/titles/:media_type/:tmdb_id", TitleController, :show
     post "/v1/plans", PlanController, :create
     get "/v1/plans/:id", PlanController, :show
     post "/v1/plans/:id/approve", PlanController, :approve

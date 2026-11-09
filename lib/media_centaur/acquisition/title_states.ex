@@ -9,7 +9,9 @@ defmodule MediaCentaur.Acquisition.TitleStates do
   * `:planning` — a draft plan is solving
 
   A pursuit outranks a draft. Titles with nothing in flight are absent
-  from the result. One query per table for the whole list, keyed by
+  from `for_refs/1`'s result. `for_title/1` reads one title with the ids
+  of its open plans and active pursuits, for a caller that will follow
+  them (the Local API). One query per table for the whole list, keyed by
   `{tmdb_id, media_type}` the way `Library.ExternalIds.tmdb_owners/1`
   keys library presence.
   """
@@ -50,6 +52,33 @@ defmodule MediaCentaur.Acquisition.TitleStates do
     drafts
     |> Map.merge(pursuits)
     |> Map.filter(fn {ref, _state} -> MapSet.member?(wanted, ref) end)
+  end
+
+  @doc "One title's state, with its open plans' and active pursuits' ids, newest first."
+  @spec for_title(ref()) :: %{
+          state: state() | nil,
+          plan_ids: [Ecto.UUID.t()],
+          pursuit_ids: [Ecto.UUID.t()]
+        }
+  def for_title({tmdb_id, media_type} = ref) do
+    id = to_string(tmdb_id)
+    type = if media_type == :tv_series, do: "tv", else: "movie"
+
+    plan_ids =
+      Plan
+      |> where([p], p.status in ["planning", "ready"] and p.tmdb_id == ^id and p.tmdb_type == ^type)
+      |> order_by([p], desc: p.inserted_at)
+      |> select([p], p.id)
+      |> Repo.all()
+
+    pursuit_ids =
+      Pursuit
+      |> where([p], p.state in ^State.in_flight() and p.tmdb_id == ^id and p.tmdb_type == ^type)
+      |> order_by([p], desc: p.inserted_at)
+      |> select([p], p.id)
+      |> Repo.all()
+
+    %{state: Map.get(for_refs([ref]), ref), plan_ids: plan_ids, pursuit_ids: pursuit_ids}
   end
 
   defp draft_state("ready"), do: :needs_review

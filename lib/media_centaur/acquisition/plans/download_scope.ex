@@ -18,10 +18,13 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
   the closed set in menu order and `parse/1` its wire form; the picker's
   presets of the same names read `units/2` (`DownloadsLive.PlanLogic`).
 
-  The scope select on the title detail offers a fourth value, *Choose
-  episodes* (`Title.ModalState.scope_choice/0`), which is not a scope: it
-  resolves to no units here, because the picker on Downloads resolves them
-  (spec 2026-09-23 §1).
+  * `{:episodes, chosen}` — the episodes a caller named, each
+    `{season, episode}` or `{season, nil}` for a whole season, kept where
+    pickable, in airing order. The Local API's `episodes`.
+
+  The scope select on the title detail offers *Choose episodes*
+  (`Title.ModalState.scope_choice/0`), which is not this: the picker on
+  Downloads resolves its units itself (spec 2026-09-23 §1).
 
   Pure; the caller (`Plans.create_title_plan/2`) owns the TMDB fetch and
   the plan creation. No scope follows the series (ADR-066): the title
@@ -33,9 +36,13 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
 
   @scopes [:first_missing_season, :everything, :latest_season]
 
-  @type scope :: :first_missing_season | :everything | :latest_season
+  @type scope ::
+          :first_missing_season
+          | :everything
+          | :latest_season
+          | {:episodes, [{non_neg_integer(), pos_integer() | nil}]}
 
-  @doc "Every scope, in the order the title detail's select offers them."
+  @doc "Every named scope, in the order the title detail's select offers them."
   @spec scopes() :: [scope()]
   def scopes, do: @scopes
 
@@ -60,6 +67,17 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
     |> Enum.group_by(fn {season, _episode} -> season end)
     |> Enum.min_by(fn {season, _units} -> season end, fn -> {nil, []} end)
     |> elem(1)
+  end
+
+  def units(%Targeting.Selection{} = selection, {:episodes, chosen}) do
+    seasons = for {season, nil} <- chosen, into: MapSet.new(), do: season
+    episodes = for {_season, episode} = unit <- chosen, episode != nil, into: MapSet.new(), do: unit
+
+    selection
+    |> Targeting.default_units()
+    |> Enum.filter(fn {season, _episode} = unit ->
+      MapSet.member?(seasons, season) or MapSet.member?(episodes, unit)
+    end)
   end
 
   def units(%Targeting.Selection{} = selection, :latest_season) do
