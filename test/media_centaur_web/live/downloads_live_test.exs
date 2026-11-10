@@ -2754,7 +2754,9 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert SearchSession.current().groups == []
     end
 
-    test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
+    test "an in-flight search survives the LiveView: its results land after the LiveView is stopped", %{
+      conn: conn
+    } do
       # Searches block until this test releases them; the IndexerHealth
       # snapshot endpoints stay responsive so mount's health async
       # (UIDR-016) doesn't eat the render_async budget — this test is about
@@ -2789,17 +2791,15 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       GenServer.stop(view.pid, :normal)
 
-      # The LV crash sweeps in-flight :loading groups to :abandoned via the
-      # SearchSession's :DOWN handler — poll the session until it lands.
-      session_after = await_session_groups(:abandoned)
-      assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
+      # The searches are the session's own: the LiveView going away changes
+      # nothing for them. Release them and the outcomes land.
+      release_blocked_searches()
+      session_after = await_session_groups(:ready)
+      assert Enum.all?(session_after.groups, fn group -> group.status == :ready end)
 
       {:ok, view2, _html2} = live_async!(conn, "/downloads")
-      assert render_after_async_load(view2) =~ "Retry"
+      assert render_after_async_load(view2) =~ "No results"
 
-      # The blocked searches are this test's async work: release every one
-      # and drive them to completion before the test ends.
-      release_blocked_searches()
       await_supervised_tasks()
     end
   end
@@ -3093,8 +3093,8 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
   end
 
-  # Polls the out-of-band search session (a GenServer updated asynchronously —
-  # search dispatch, and the crash-driven :abandoned sweep on the LV's :DOWN)
+  # Polls the out-of-band search session (a GenServer updated asynchronously
+  # by its own searches' outcomes)
   # until every group reaches `status` and at least one group exists. The
   # non-empty guard matters: `Enum.all?([], …)` is vacuously true, so without
   # it a poll would pass before the groups were even created. Deterministic

@@ -200,14 +200,6 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
     """
   end
 
-  defp group_status_summary(%{group: %{status: :abandoned}} = assigns) do
-    ~H"""
-    <span class="flex-1 text-sm text-base-content/55">
-      Search was interrupted — Retry to resume
-    </span>
-    """
-  end
-
   defp group_status_summary(%{group: %{status: :ready, results: []}} = assigns) do
     ~H"""
     <span class="flex-1 text-sm text-base-content/55">No results</span>
@@ -343,7 +335,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
   # Template helpers
   # ---------------------------------------------------------------------------
 
-  defp action_visible?(group), do: match?({:failed, _}, group.status) or group.status == :abandoned
+  defp action_visible?(group), do: match?({:failed, _}, group.status)
 
   defp selected?(selections, term, guid), do: Map.get(selections, term) == guid
 

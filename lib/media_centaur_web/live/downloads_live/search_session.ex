@@ -1,23 +1,32 @@
 defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   @moduledoc """
-  Singleton GenServer holding the user's current acquisition search session.
+  Singleton GenServer holding the user's current acquisition search session
+  and owning the searches it shows.
 
   Decouples the search workflow from `MediaCentaurWeb.DownloadsLive`'s
   process lifetime so search state — query, brace-expanded groups, results,
   user selections, grab feedback — survives navigation, reconnect, and
-  browser refresh. Lost on BEAM restart.
+  browser refresh. The per-term Prowlarr searches are this process's own
+  tasks (`Acquisition.search_async/1`: started on the context's task
+  supervisor, owned by the caller), so a LiveView that goes away mid-search
+  loses nothing: the outcome lands here and the next mount reads it. Lost
+  on BEAM restart.
 
   This is web-layer UI infrastructure, not a domain concept: it holds
   transient workflow state for one surface. Search execution and corpus
-  citizenship stay in the contexts —
-  `MediaCentaur.Acquisition.run_search_one_async/2` takes a report
-  callback, so no context module references this GenServer.
+  citizenship stay in the contexts; no context module references this
+  GenServer.
 
-  See `docs/superpowers/specs/2026-04-30-acquisition-search-session-design.md`.
+  A group is `:loading` while its search runs, then `:ready` or
+  `{:failed, reason}` — a crashed search is `{:failed, {:crashed, reason}}`.
+  Retry re-runs a failed term. Replacing or clearing the session shuts its
+  searches down; a late outcome for a term that is no longer `:loading` is
+  dropped.
   """
 
   use GenServer
 
+  alias MediaCentaur.Acquisition
   alias MediaCentaur.Search.QueryExpander
   alias MediaCentaur.Search.Quality
   alias MediaCentaur.Search.SearchResult
@@ -25,7 +34,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
 
   require MediaCentaur.Log, as: Log
 
-  @type group_status :: :loading | :ready | {:failed, term()} | :abandoned
+  @type group_status :: :loading | :ready | {:failed, term()}
 
   @type group :: %{
           term: String.t(),
@@ -41,9 +50,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
           groups: [group()],
           selections: %{String.t() => String.t()},
           grab_message: nil | {:ok | :partial | :error, String.t()},
-          grabbing?: boolean(),
-          searching_pid: nil | pid(),
-          monitor_ref: nil | reference()
+          grabbing?: boolean()
         }
 
   defstruct query: "",
@@ -51,14 +58,26 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
             groups: [],
             selections: %{},
             grab_message: nil,
-            grabbing?: false,
-            searching_pid: nil,
-            monitor_ref: nil
+            grabbing?: false
+
+  # The process state: the session every reader sees, the running searches
+  # by task ref, and the function that starts one (a test's stand-in).
+  @typep state :: %{
+           session: t(),
+           searches: %{reference() => {String.t(), Task.t()}},
+           search: (String.t() -> Task.t())
+         }
 
   # ---------------------------------------------------------------------------
   # Public API
   # ---------------------------------------------------------------------------
 
+  @doc """
+  `name:` the registered name (`#{inspect(__MODULE__)}` by default);
+  `search:` the one-arity function that starts a term's search and returns
+  the task this process owns (`Acquisition.search_async/1` by default; a
+  test hands in its own).
+  """
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -77,33 +96,28 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   end
 
   @doc """
-  Starts a new search session, replacing any existing one.
+  Starts a new search session, replacing any existing one and shutting down
+  the searches it was running: one `:loading` group and one search per
+  expanded query.
 
-  Returns `{:ok, %{session: session, queries: queries}}` on success — the
-  caller spawns Tasks for each `query` and sends results back via
-  `record_search_result/3`.
-
-  Returns `{:error, :invalid_syntax}` for malformed brace expansion. The
-  existing session is unchanged in that case.
-
-  The caller's pid becomes the monitored `searching_pid`. If the caller
-  dies, any group still in `:loading` is swept to `:abandoned`.
+  Returns `{:ok, %{session: session, queries: queries}}`, or
+  `{:error, :invalid_syntax}` for malformed brace expansion, leaving the
+  existing session unchanged.
   """
   @spec start_search(GenServer.server(), String.t()) ::
           {:ok, %{session: t(), queries: [String.t()]}}
           | {:error, :invalid_syntax}
   def start_search(server \\ __MODULE__, query) when is_binary(query) do
-    GenServer.call(server, {:start_search, query, self()})
+    GenServer.call(server, {:start_search, query})
   end
 
   @doc """
-  Records the outcome of a per-query Prowlarr search.
+  Records the outcome of a per-query Prowlarr search — how this process's
+  own searches land, and the seam a test lands one through.
 
   Idempotent: a result for a term whose group is already in a terminal
-  state (`:ready`, `{:failed, _}`, `:abandoned`) is silently dropped, as
-  is a result for a term not in the current session. This handles the
-  late-arriving Task case where the LiveView crashed and the group was
-  swept to `:abandoned` before the Task's HTTP request returned.
+  state (`:ready`, `{:failed, _}`) is silently dropped, as is a result for
+  a term not in the current session.
   """
   @spec record_search_result(
           GenServer.server(),
@@ -171,7 +185,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
     GenServer.call(server, {:set_grab_message, message})
   end
 
-  @doc "Resets the entire session to the default empty state. Returns the new session."
+  @doc "Resets the entire session to the default empty state, shutting down its searches. Returns the new session."
   @spec clear(GenServer.server()) :: t()
   def clear(server \\ __MODULE__) do
     GenServer.call(server, :clear)
@@ -181,7 +195,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   Clears search results (groups + selections) but keeps the user's
   query and expansion preview. Used after a grab batch completes so the
   results disappear without losing what the user typed in the search
-  bar. Any in-flight search task is dropped. Returns the new session.
+  bar. Any in-flight search is shut down. Returns the new session.
   """
   @spec clear_results(GenServer.server()) :: t()
   def clear_results(server \\ __MODULE__) do
@@ -189,17 +203,13 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   end
 
   @doc """
-  Re-arms named groups: any term currently in `:abandoned` or `{:failed, _}`
-  flips back to `:loading`. Other states are no-ops for that term. The
-  caller's pid becomes the new monitored `searching_pid`. Returns the new
-  session.
-
-  The caller is responsible for spawning Tasks for these terms after the
-  call returns.
+  Re-runs the named groups' searches: any term currently `{:failed, _}`
+  flips back to `:loading` and a new search starts for it. Other states
+  are no-ops for that term. Returns the new session.
   """
   @spec retry_search_terms(GenServer.server(), [String.t()]) :: t()
   def retry_search_terms(server \\ __MODULE__, terms) when is_list(terms) do
-    GenServer.call(server, {:retry_search_terms, terms, self()})
+    GenServer.call(server, {:retry_search_terms, terms})
   end
 
   # ---------------------------------------------------------------------------
@@ -207,16 +217,31 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   # ---------------------------------------------------------------------------
 
   @impl GenServer
-  def init(_opts) do
-    {:ok, %__MODULE__{}}
+  def init(opts) do
+    # Trapped so `terminate/2` runs on an orderly stop and shuts the
+    # searches down; nothing else reads their outcome.
+    Process.flag(:trap_exit, true)
+
+    {:ok,
+     %{
+       session: %__MODULE__{},
+       searches: %{},
+       search: Keyword.get(opts, :search, &Acquisition.search_async/1)
+     }}
+  end
+
+  @impl GenServer
+  def terminate(_reason, state) do
+    shutdown_searches(state)
+    :ok
   end
 
   @impl GenServer
   def handle_call(:current, _from, state) do
-    {:reply, state, state}
+    {:reply, state.session, state}
   end
 
-  def handle_call({:start_search, query, caller_pid}, _from, state) do
+  def handle_call({:start_search, query}, _from, state) do
     trimmed = String.trim(query)
 
     case QueryExpander.expand(trimmed) do
@@ -226,23 +251,18 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
             %{term: term, status: :loading, results: [], expanded?: false, featured: nil}
           end)
 
-        new_state =
-          swap_monitor(
-            %__MODULE__{
-              query: trimmed,
-              expansion_preview: {:ok, length(queries)},
-              groups: groups,
-              selections: %{},
-              grab_message: nil,
-              grabbing?: false,
-              searching_pid: caller_pid
-            },
-            state
-          )
+        session = %__MODULE__{
+          query: trimmed,
+          expansion_preview: {:ok, length(queries)},
+          groups: groups,
+          selections: %{},
+          grab_message: nil,
+          grabbing?: false
+        }
 
-        broadcast(new_state)
+        state = state |> shutdown_searches() |> put_session(session) |> start_searches(queries)
         Log.info(:acquisition, "search started — #{length(queries)} queries")
-        {:reply, {:ok, %{session: new_state, queries: queries}}, new_state}
+        {:reply, {:ok, %{session: session, queries: queries}}, state}
 
       {:ok, []} ->
         {:reply, {:error, :invalid_syntax}, state}
@@ -253,14 +273,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   end
 
   def handle_call({:record_search_result, term, outcome}, _from, state) do
-    case apply_search_result(state, term, outcome) do
-      :not_loading ->
-        {:reply, :ok, state}
-
-      new_state ->
-        broadcast(new_state)
-        {:reply, :ok, new_state}
-    end
+    {:reply, :ok, land(state, term, outcome)}
   end
 
   def handle_call({:set_selection, term, guid}, _from, state) do
@@ -268,46 +281,38 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
     # collapse the group so the surface stays compact while they pick the
     # rest of their selections.
     groups =
-      Enum.map(state.groups, fn
+      Enum.map(state.session.groups, fn
         %{term: ^term} = group -> %{group | expanded?: false}
         group -> group
       end)
 
-    new_state =
+    session =
       stamp_featured(%{
-        state
-        | selections: Map.put(state.selections, term, guid),
+        state.session
+        | selections: Map.put(state.session.selections, term, guid),
           groups: groups
       })
 
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, session)
   end
 
   def handle_call({:clear_selection, term}, _from, state) do
-    new_state = stamp_featured(%{state | selections: Map.delete(state.selections, term)})
-
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    session = stamp_featured(%{state.session | selections: Map.delete(state.session.selections, term)})
+    reply_session(state, session)
   end
 
   def handle_call(:clear_selections, _from, state) do
-    new_state = stamp_featured(%{state | selections: %{}})
-
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, stamp_featured(%{state.session | selections: %{}}))
   end
 
   def handle_call({:toggle_group, term}, _from, state) do
     groups =
-      Enum.map(state.groups, fn
+      Enum.map(state.session.groups, fn
         %{term: ^term} = group -> %{group | expanded?: not group.expanded?}
         group -> group
       end)
 
-    new_state = %{state | groups: groups}
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, %{state.session | groups: groups})
   end
 
   def handle_call({:set_query_preview, query}, _from, state) do
@@ -323,103 +328,97 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
           end
       end
 
-    new_state = %{state | query: query, expansion_preview: preview}
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, %{state.session | query: query, expansion_preview: preview})
   end
 
   def handle_call({:set_grabbing, value}, _from, state) do
-    new_state = %{state | grabbing?: value}
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, %{state.session | grabbing?: value})
   end
 
   def handle_call({:set_grab_message, message}, _from, state) do
-    new_state = %{state | grab_message: message}
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    reply_session(state, %{state.session | grab_message: message})
   end
 
   def handle_call(:clear, _from, state) do
-    new_state = swap_monitor(%__MODULE__{}, state)
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    state = shutdown_searches(state)
+    reply_session(state, %__MODULE__{})
   end
 
   def handle_call(:clear_results, _from, state) do
     # Only the groups + selections go — the user's query, expansion
     # preview, last grab message, and grabbing flag are preserved so the
     # surface keeps the shape the user expects after a successful grab.
-    # Any in-flight search task is dropped via `swap_monitor`.
-    new_state =
-      swap_monitor(
-        %{state | groups: [], selections: %{}, searching_pid: nil, monitor_ref: nil},
-        state
-      )
-
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    state = shutdown_searches(state)
+    reply_session(state, %{state.session | groups: [], selections: %{}})
   end
 
-  def handle_call({:retry_search_terms, terms, caller_pid}, _from, state) do
-    terms_set = MapSet.new(terms)
+  def handle_call({:retry_search_terms, terms}, _from, state) do
+    retried =
+      for term <- terms,
+          group = Enum.find(state.session.groups, &(&1.term == term)),
+          match?({:failed, _}, group.status),
+          do: term
 
     groups =
-      Enum.map(state.groups, fn group ->
-        if retryable_status?(group.status) and MapSet.member?(terms_set, group.term) do
-          %{group | status: :loading, results: [], featured: nil}
-        else
-          group
-        end
+      Enum.map(state.session.groups, fn group ->
+        if group.term in retried,
+          do: %{group | status: :loading, results: [], featured: nil},
+          else: group
       end)
 
-    new_state =
-      swap_monitor(%{state | groups: groups, searching_pid: caller_pid}, state)
-
-    broadcast(new_state)
-    {:reply, new_state, new_state}
+    state = state |> put_session(%{state.session | groups: groups}) |> start_searches(retried)
+    broadcast(state.session)
+    {:reply, state.session, state}
   end
 
+  # A search's outcome, from the task this process owns.
   @impl GenServer
-  def handle_info(
-        {:DOWN, ref, :process, pid, _reason},
-        %__MODULE__{monitor_ref: ref, searching_pid: pid} = state
-      ) do
-    {groups, abandoned_count} =
-      Enum.map_reduce(state.groups, 0, fn
-        %{status: :loading} = group, acc -> {%{group | status: :abandoned}, acc + 1}
-        group, acc -> {group, acc}
-      end)
-
-    new_state = %{state | groups: groups, searching_pid: nil, monitor_ref: nil}
-
-    if abandoned_count > 0 do
-      Log.info(
-        :acquisition,
-        "search abandoned — #{abandoned_count} group(s), query=#{inspect(state.query)}"
-      )
-    end
-
-    broadcast(new_state)
-    {:noreply, new_state}
+  def handle_info({ref, outcome}, %{searches: searches} = state) when is_map_key(searches, ref) do
+    Process.demonitor(ref, [:flush])
+    {{term, _task}, searches} = Map.pop(searches, ref)
+    {:noreply, land(%{state | searches: searches}, term, outcome)}
   end
 
-  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
-    {:noreply, state}
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{searches: searches} = state)
+      when is_map_key(searches, ref) do
+    {{term, _task}, searches} = Map.pop(searches, ref)
+    {:noreply, land(%{state | searches: searches}, term, {:error, {:crashed, reason}})}
   end
+
+  def handle_info(_other, state), do: {:noreply, state}
 
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp retryable_status?(:abandoned), do: true
-  defp retryable_status?({:failed, _}), do: true
-  defp retryable_status?(_), do: false
+  @spec start_searches(state(), [String.t()]) :: state()
+  defp start_searches(state, terms) do
+    Enum.reduce(terms, state, fn term, acc ->
+      task = acc.search.(term)
+      put_in(acc.searches[task.ref], {term, task})
+    end)
+  end
 
-  defp swap_monitor(%__MODULE__{searching_pid: new_pid} = new_state, %__MODULE__{monitor_ref: old_ref}) do
-    if old_ref, do: Process.demonitor(old_ref, [:flush])
-    new_ref = if new_pid, do: Process.monitor(new_pid)
-    %{new_state | monitor_ref: new_ref}
+  defp shutdown_searches(state) do
+    Enum.each(state.searches, fn {_ref, {_term, task}} -> Task.shutdown(task, :brutal_kill) end)
+    %{state | searches: %{}}
+  end
+
+  defp put_session(state, session) do
+    broadcast(session)
+    %{state | session: session}
+  end
+
+  defp reply_session(state, session) do
+    broadcast(session)
+    {:reply, session, %{state | session: session}}
+  end
+
+  defp land(state, term, outcome) do
+    case apply_search_result(state.session, term, outcome) do
+      :not_loading -> state
+      session -> put_session(state, session)
+    end
   end
 
   defp broadcast(%__MODULE__{} = session) do
@@ -432,12 +431,10 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   # Single-pass over groups: locate the matching loading group, update
   # it in place, and accumulate the new selection (success outcomes
   # only). Returns `:not_loading` when no group matches the term in
-  # `:loading` — the caller maps that to a no-op reply. Replaces the
-  # previous `Enum.find_index/2` + `Enum.at/2` + `List.replace_at/3`
-  # chain (three list traversals per result).
-  defp apply_search_result(state, term, outcome) do
+  # `:loading` — the caller maps that to a no-op.
+  defp apply_search_result(session, term, outcome) do
     {groups, found?, selection_update} =
-      Enum.reduce(state.groups, {[], false, :unchanged}, fn group, {acc, found?, selection} ->
+      Enum.reduce(session.groups, {[], false, :unchanged}, fn group, {acc, found?, selection} ->
         if not found? and group.term == term and group.status == :loading do
           {updated_group, selection} = update_group_with_outcome(group, outcome)
           {[updated_group | acc], true, selection}
@@ -451,11 +448,11 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
 
       selections =
         case selection_update do
-          {:put_new, key, guid} -> Map.put_new(state.selections, key, guid)
-          :unchanged -> state.selections
+          {:put_new, key, guid} -> Map.put_new(session.selections, key, guid)
+          :unchanged -> session.selections
         end
 
-      stamp_featured(%{state | groups: groups, selections: selections})
+      stamp_featured(%{session | groups: groups, selections: selections})
     else
       :not_loading
     end
@@ -487,8 +484,8 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSession do
   # the result list); otherwise the top-ranked result. Computed server-side so
   # the LiveView reads it as data instead of recomputing on every render.
   @spec stamp_featured(t()) :: t()
-  defp stamp_featured(%__MODULE__{groups: groups, selections: selections} = state) do
-    %{state | groups: Enum.map(groups, &stamp_featured_group(&1, selections))}
+  defp stamp_featured(%__MODULE__{groups: groups, selections: selections} = session) do
+    %{session | groups: Enum.map(groups, &stamp_featured_group(&1, selections))}
   end
 
   defp stamp_featured_group(%{results: []} = group, _selections), do: %{group | featured: nil}

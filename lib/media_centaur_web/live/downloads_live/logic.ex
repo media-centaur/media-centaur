@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
   # that a *failed* cancel surfaces visibly to the user.
   @cancel_grace_seconds 15
 
-  @type status :: :loading | :ready | {:failed, term()} | :abandoned
+  @type status :: :loading | :ready | {:failed, term()}
   @type group :: %{
           term: String.t(),
           expanded?: boolean(),

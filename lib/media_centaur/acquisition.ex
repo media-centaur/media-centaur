@@ -289,36 +289,22 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Fire-and-forget single-query search. Runs `search/1` on a supervised
-  context-layer task and hands the outcome to `report` —
-  `report.(query, {:ok, results} | {:error, reason})`. Per-query searches
-  must outlive the triggering LiveView so a navigated-away user's
-  in-flight fan-out still lands (ADR-049); the report callback is how the
-  web layer's session state receives results without this context knowing
-  it exists.
+  Runs `search/1` for one query on the context's task supervisor, owned by
+  the caller: the returned task is unlinked, and the caller receives
+  `{ref, {:ok, results} | {:error, reason}}` and then the task's `:DOWN`
+  (`Task.Supervisor.async_nolink/2`). The spawn stays in the context layer
+  (ADR-049); the owner is whoever shows the search —
+  `MediaCentaurWeb.DownloadsLive.SearchSession`, which outlives the LiveView
+  that asked. A user-initiated search always hits the indexers live, and its
+  findings still feed the durable corpus (ADR-055).
   """
-  @spec run_search_one_async(
-          String.t(),
-          (String.t(), {:ok, [SearchResult.t()]} | {:error, term()} -> any())
-        ) :: :ok
-  def run_search_one_async(query, report) when is_function(report, 2) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      outcome =
-        try do
-          search(query)
-        catch
-          kind, reason -> {:error, {kind, reason}}
-        end
-
-      # User-initiated searches always hit the indexers live, but their
-      # findings still feed the durable corpus (ADR-055) — the
-      # citizenship gate and pivot fallbacks get to reuse them.
+  @spec search_async(String.t()) :: Task.t()
+  def search_async(query) when is_binary(query) do
+    Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn ->
+      outcome = search(query)
       with {:ok, results} <- outcome, do: Corpus.record!(query, [], results)
-
-      report.(query, outcome)
+      outcome
     end)
-
-    :ok
   end
 
   @doc """

@@ -530,12 +530,8 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
       trimmed ->
         case SearchSession.start_search(trimmed) do
-          {:ok, %{queries: queries}} ->
-            Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
-            socket
-
-          {:error, _} ->
-            socket
+          {:ok, _started} -> socket
+          {:error, _} -> socket
         end
     end
   end
@@ -926,8 +922,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
       session =
         case SearchSession.start_search(query) do
-          {:ok, %{session: started, queries: queries}} ->
-            Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
+          {:ok, %{session: started}} ->
             started
 
           {:error, _} ->
@@ -1241,11 +1236,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
   end
 
   # A rung moved anywhere: the plan board's bookmark reads the ladder again.
-  def handle_info({:run_search_one, query}, socket) do
-    Acquisition.run_search_one_async(query, &SearchSession.record_search_result/2)
-    {:noreply, socket}
-  end
-
   def handle_info({:search_session, session}, socket) do
     {:noreply, assign(socket, search_session: session)}
   end
@@ -1762,11 +1752,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
   defp retry_terms(socket, []), do: socket.assigns.search_session
 
-  defp retry_terms(_socket, terms) do
-    session = SearchSession.retry_search_terms(terms)
-    Enum.each(terms, fn term -> send(self(), {:run_search_one, term}) end)
-    session
-  end
+  defp retry_terms(_socket, terms), do: SearchSession.retry_search_terms(terms)
 
   # ---------------------------------------------------------------------------
   # Grouped-compact-rows renderer — pattern-matches on the

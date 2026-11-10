@@ -176,7 +176,7 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
     test "false when no group is :loading" do
       groups = [
         %{term: "A", expanded?: false, status: :ready, results: []},
-        %{term: "B", expanded?: false, status: :abandoned, results: []}
+        %{term: "B", expanded?: false, status: {:failed, :timeout}, results: []}
       ]
 
       assert Logic.any_loading?(groups) == false

@@ -1,14 +1,30 @@
 defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
-  use MediaCentaur.Case, async: true
+  # async: false — a crashing search is a child of the application's task
+  # supervisor; the others are the session's own linked tasks.
+  use MediaCentaur.Case, async: false
 
   import MediaCentaur.Eventually
 
+  alias MediaCentaur.Search.SearchResult
   alias MediaCentaurWeb.DownloadsLive.SearchSession
+
+  # A search that never answers: the session owns it (linked), so it ends
+  # with the session or with `Task.shutdown/2`.
+  defp held, do: fn _term -> Task.async(fn -> receive do: (:never -> :ok) end) end
+
+  # A search that crashes, off the session's link.
+  defp crashing,
+    do: fn _term -> Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn -> exit(:boom) end) end
+
+  defp start_session(search \\ held()) do
+    name = :"sess_#{System.unique_integer([:positive])}"
+    start_supervised!(Supervisor.child_spec({SearchSession, name: name, search: search}, id: name))
+    name
+  end
 
   describe "default state" do
     test "fresh GenServer returns empty session" do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
 
       session = SearchSession.current(name)
 
@@ -18,16 +34,14 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
                groups: [],
                selections: %{},
                grab_message: nil,
-               grabbing?: false,
-               searching_pid: nil
+               grabbing?: false
              } = session
     end
   end
 
   describe "start_search/1" do
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
@@ -44,7 +58,6 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
       assert session.selections == %{}
       assert session.grab_message == nil
       assert session.grabbing? == false
-      assert session.searching_pid == self()
 
       assert_receive {:search_session, ^session}
     end
@@ -71,8 +84,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
     alias MediaCentaur.Search.SearchResult
 
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, _} = SearchSession.start_search(name, "Show S01E{01-02}")
       assert_receive {:search_session, _}
@@ -119,42 +131,27 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
       assert SearchSession.current(name) == before
     end
 
-    test "is a silent no-op for a terminal group (e.g. abandoned)", %{name: name} do
-      parent = self()
-
-      child =
-        spawn(fn ->
-          {:ok, _} = SearchSession.start_search(name, "Solo Show")
-          send(parent, :ready_to_die)
-
-          receive do
-            :die -> :ok
-          end
-        end)
-
-      assert_receive :ready_to_die
-      assert_receive {:search_session, _}
-      Process.exit(child, :kill)
-      assert_receive {:search_session, swept_session}
-      assert Enum.all?(swept_session.groups, fn group -> group.status == :abandoned end)
+    test "is a silent no-op for a terminal group", %{name: name} do
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:error, :timeout})
+      assert_receive {:search_session, failed_session}
+      assert Enum.find(failed_session.groups, &(&1.term == "Show S01E01")).status == {:failed, :timeout}
 
       :ok =
         SearchSession.record_search_result(
           name,
-          "Solo Show",
+          "Show S01E01",
           {:ok,
            [%SearchResult{guid: "late", title: "Late", indexer_id: 1, quality: :hd_1080p, seeders: 1}]}
         )
 
       refute_receive {:search_session, _}, 50
-      assert SearchSession.current(name).groups == swept_session.groups
+      assert SearchSession.current(name).groups == failed_session.groups
     end
   end
 
   describe "simple mutators" do
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
@@ -268,124 +265,92 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
     end
   end
 
-  describe "monitor + abandonment" do
+  describe "the session's own searches" do
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
-      {:ok, name: name}
+      :ok
     end
 
-    test "kills sweep :loading -> :abandoned and clear searching_pid", %{name: name} do
-      parent = self()
+    test "start_search/2 runs one search per term and lands each outcome without a caller" do
+      result = %SearchResult{guid: "g", title: "T", indexer_id: 1, quality: :hd_1080p, seeders: 1}
+      name = start_session(fn _term -> Task.completed({:ok, [result]}) end)
 
-      child =
-        spawn(fn ->
-          {:ok, _} = SearchSession.start_search(name, "Show {01-03}")
-          send(parent, :ready)
+      {:ok, %{session: started}} = SearchSession.start_search(name, "{A,B}")
+      assert Enum.all?(started.groups, &(&1.status == :loading))
 
-          receive do
-            :die -> :ok
-          end
+      landed =
+        eventually(fn ->
+          session = SearchSession.current(name)
+          Enum.all?(session.groups, &(&1.status == :ready)) and session
         end)
 
-      assert_receive :ready
-      assert_receive {:search_session, before_session}
-      assert before_session.searching_pid == child
-      assert Enum.all?(before_session.groups, fn group -> group.status == :loading end)
-
-      Process.exit(child, :kill)
-
-      assert_receive {:search_session, after_session}, 500
-      assert Enum.all?(after_session.groups, fn group -> group.status == :abandoned end)
-      assert after_session.searching_pid == nil
-      assert after_session.monitor_ref == nil
+      assert Enum.all?(landed.groups, &(&1.results == [result]))
+      assert landed.selections == %{"A" => "g", "B" => "g"}
     end
 
-    test ":ready groups are not swept on :DOWN", %{name: name} do
-      alias MediaCentaur.Search.SearchResult
-      parent = self()
-
-      child =
-        spawn(fn ->
-          {:ok, _} = SearchSession.start_search(name, "{A,B}")
-          send(parent, :started)
-
-          receive do
-            :die -> :ok
-          end
+    test "a search that crashes fails its group; the others keep loading" do
+      name =
+        start_session(fn
+          "B" -> crashing().("B")
+          term -> held().(term)
         end)
 
-      assert_receive :started
-      assert_receive {:search_session, _}
+      {:ok, _} = SearchSession.start_search(name, "{A,B}")
 
-      :ok =
-        SearchSession.record_search_result(
-          name,
-          "A",
-          {:ok,
-           [
-             %SearchResult{guid: "g", title: "T", indexer_id: 1, quality: :hd_1080p, seeders: 1}
-           ]}
-        )
+      failed =
+        eventually(fn ->
+          session = SearchSession.current(name)
 
-      assert_receive {:search_session, _}
+          match?({:failed, {:crashed, :boom}}, Enum.find(session.groups, &(&1.term == "B")).status) and
+            session
+        end)
 
-      Process.exit(child, :kill)
+      assert Enum.find(failed.groups, &(&1.term == "A")).status == :loading
+    end
 
-      assert_receive {:search_session, swept}, 500
-      assert Enum.find(swept.groups, &(&1.term == "A")).status == :ready
-      assert Enum.find(swept.groups, &(&1.term == "B")).status == :abandoned
+    test "replacing the session shuts its searches down" do
+      test_pid = self()
+
+      name =
+        start_session(fn _term ->
+          Task.async(fn ->
+            send(test_pid, {:search_running, self()})
+            receive do: (:never -> :ok)
+          end)
+        end)
+
+      {:ok, _} = SearchSession.start_search(name, "First")
+      assert_receive {:search_running, first_search}
+
+      {:ok, _} = SearchSession.start_search(name, "Second")
+      assert eventually(fn -> not Process.alive?(first_search) end)
     end
   end
 
   describe "retry_search_terms/2" do
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
 
-    test "transitions named :abandoned and {:failed, _} groups to :loading and re-monitors", %{
-      name: name
-    } do
-      parent = self()
-
-      child =
-        spawn(fn ->
-          {:ok, _} = SearchSession.start_search(name, "{A,B,C}")
-          send(parent, :started)
-
-          receive do
-            :die -> :ok
-          end
-        end)
-
-      assert_receive :started
+    test "re-runs the named {:failed, _} groups: back to :loading with a new search", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "{A,B,C}")
       assert_receive {:search_session, _}
 
       :ok = SearchSession.record_search_result(name, "B", {:error, :timeout})
-      assert_receive {:search_session, _}
-
-      Process.exit(child, :kill)
-      assert_receive {:search_session, swept}, 500
-      # A, C are :abandoned; B is {:failed, :timeout}.
-      assert Enum.find(swept.groups, &(&1.term == "A")).status == :abandoned
-      assert Enum.find(swept.groups, &(&1.term == "B")).status == {:failed, :timeout}
-      assert Enum.find(swept.groups, &(&1.term == "C")).status == :abandoned
+      assert_receive {:search_session, failed}
+      assert Enum.find(failed.groups, &(&1.term == "B")).status == {:failed, :timeout}
 
       _session = SearchSession.retry_search_terms(name, ["A", "B"])
       assert_receive {:search_session, after_retry}, 500
 
       assert Enum.find(after_retry.groups, &(&1.term == "A")).status == :loading
       assert Enum.find(after_retry.groups, &(&1.term == "B")).status == :loading
-      assert Enum.find(after_retry.groups, &(&1.term == "C")).status == :abandoned
-      assert after_retry.searching_pid == self()
-      assert after_retry.monitor_ref != nil
+      assert Enum.find(after_retry.groups, &(&1.term == "C")).status == :loading
     end
 
-    test "no-op for terms that aren't :abandoned or {:failed, _}", %{name: name} do
+    test "no-op for a term that is not {:failed, _}", %{name: name} do
       {:ok, _} = SearchSession.start_search(name, "X")
       assert_receive {:search_session, _}
 
@@ -400,8 +365,7 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
     alias MediaCentaur.Search.SearchResult
 
     setup do
-      name = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: name})
+      name = start_session()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, _} = SearchSession.start_search(name, "Show S01E{01-02}")
       assert_receive {:search_session, _}
@@ -530,41 +494,26 @@ defmodule MediaCentaurWeb.DownloadsLive.SearchSessionTest do
       assert group.featured == nil
     end
 
-    test ":DOWN sweep preserves featured on already-:ready groups", %{name: _name} do
-      # Run a fresh session with a separate caller pid we can kill.
-      separate = :"sess_#{System.unique_integer([:positive])}"
-      start_supervised!({SearchSession, name: separate}, id: :sess_separate)
-      parent = self()
-
-      child =
-        spawn(fn ->
-          {:ok, _} = SearchSession.start_search(separate, "{A,B}")
-          send(parent, :ready)
-
-          receive do
-            :die -> :ok
-          end
+    test "a crashed search leaves the other groups' featured intact" do
+      separate =
+        start_session(fn
+          "B" -> crashing().("B")
+          term -> held().(term)
         end)
 
-      assert_receive :ready
-
-      # Different topic/process — the parent test subscribed already, so we just
-      # poll until the started session is visible.
+      {:ok, _} = SearchSession.start_search(separate, "{A,B}")
       started = wait_for_groups(separate, 2)
-      assert Enum.all?(started.groups, &(&1.status == :loading))
+      assert Enum.find(started.groups, &(&1.term == "A")).status == :loading
 
       result = build_result("a-top", :hd_1080p, 50)
       :ok = SearchSession.record_search_result(separate, "A", {:ok, [result]})
 
-      Process.exit(child, :kill)
-
-      swept = wait_for_status(separate, "B", :abandoned)
-      a = Enum.find(swept.groups, &(&1.term == "A"))
-      b = Enum.find(swept.groups, &(&1.term == "B"))
+      settled = wait_for_status(separate, "B", {:failed, {:crashed, :boom}})
+      a = Enum.find(settled.groups, &(&1.term == "A"))
+      b = Enum.find(settled.groups, &(&1.term == "B"))
 
       assert a.status == :ready
       assert a.featured.guid == "a-top"
-      assert b.status == :abandoned
       assert b.featured == nil
     end
 
