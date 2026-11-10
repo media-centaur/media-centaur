@@ -87,7 +87,7 @@ defmodule MediaCentaur.Application do
         MediaCentaur.Console.Supervisor,
         # Config overlay and orphan rescue, before Oban reads either.
         MediaCentaur.Application.Bootstrap,
-        {Oban, oban_config()},
+        oban_child_spec(),
         MediaCentaur.ErrorReports.Supervisor
       ] ++
         settings_children(MediaCentaur.Cache.workers_run?()) ++
@@ -134,13 +134,22 @@ defmodule MediaCentaur.Application do
     Supervisor.start_link(children, opts)
   end
 
-  # The acquisition queue starts paused when auto-grab is off
-  # (`Settings.Services.start?/1`, read after the Bootstrap child has applied
-  # the config); `Acquisition.AutoGrabService` pauses and resumes it live.
-  # With `queues: false` (no background services) there is nothing to pause.
-  defp oban_config do
-    config = Application.fetch_env!(:media_centaur, Oban)
+  # Oban's options are resolved when its child starts — after the Repo and
+  # the Bootstrap child, in tree order — never while this list is built:
+  # `start/2` runs before any child exists, and the acquisition flag is a
+  # database read. The acquisition queue starts paused when auto-grab is
+  # off (`Settings.Services.start?/1`); `Acquisition.AutoGrabService`
+  # pauses and resumes it live.
+  @doc false
+  def oban_child_spec, do: %{id: Oban, start: {__MODULE__, :start_oban, []}, type: :supervisor}
 
+  @doc false
+  def start_oban, do: Oban.start_link(oban_options(Application.fetch_env!(:media_centaur, Oban)))
+
+  # With `queues: false` (no background services) there is nothing to pause.
+  @doc false
+  @spec oban_options(Keyword.t()) :: Keyword.t()
+  def oban_options(config) do
     with queues when is_list(queues) <- Keyword.get(config, :queues),
          true <- Keyword.has_key?(queues, :acquisition) do
       paused? = not MediaCentaur.Settings.Services.start?(:start_acquisition)
