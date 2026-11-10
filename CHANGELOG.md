@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.16.0 — 2026-11-10
+
+### Improved
+
+- **A fault in one part of Media Centaur stays in that part.** File watching, media import, playback, downloads, the Social connections and every other subsystem now recover on their own when something inside them keeps failing. Before, a run of failures anywhere could take the whole application down, web page included, until it was restarted.
+- **Services you switch off stay off.** Under Settings → Services, a service you turned off no longer comes back when something next to it restarts, and nothing of it runs until you switch it on again. Your settings are applied before anything starts, so a disabled service is no longer started and then stopped at every launch.
+- **The page backdrop downloads at your screen's size.** The TV and a phone now fetch the hero picture at the width that fills their display instead of the full 4K image, so less data moves and the picture appears sooner on each rotation. A 4K desktop still gets the full-size image.
+
+### Fixed
+
+- **The Artwork downloads toggle survives a restart.** Switching off artwork downloads under Settings → Services was forgotten the next time Media Centaur started. It now stays off, like the other toggles.
+- **A Downloads search finishes even if you leave the page.** Starting a search and then moving to another page, or reloading, used to leave it marked *Search was interrupted — Retry to resume*. The search now runs to the end on its own and its results are waiting when you come back.
+- **Discovery no longer raises the keyboard on a phone.** Arriving on Discovery with a tap put the cursor in the search box, so the on-screen keyboard covered the page. The box now takes focus only when you tap it. Nothing changes on a desktop.
+
 ## v2.15.2 — 2026-11-08
 
 ### Improved
