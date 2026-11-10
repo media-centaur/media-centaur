@@ -146,6 +146,15 @@ The vocabulary of the strip charts (design
 | **Feed** | `StripChart.Feed`: the LiveView-side lifecycle — window from the URL, one frame on becoming active, one every ten seconds while active and the tab is visible. |
 | **Traffic** | `MediaCentaur.HttpClient.Traffic`: the HTTP layer's time series of requests per upstream (requests, failed, cached, latency sum and max in integer microseconds), plus the twenty most recent requests and each upstream's last outcome. Replaced `HttpClient.Stats`. |
 
+## Supervision tree
+
+| Term | Meaning |
+|---|---|
+| **Flag (service start)** | A persisted boolean in Settings under `services:<env>:<service>` (`Settings.Services`: `start_watchers`, `start_pipeline`, `start_image_pipeline`, `start_acquisition`) deciding whether core background work runs; read through `Services.start?/1`, false in an instance without background services. Pauses work and hides nothing — not a feature flag (ADR-081), not a capability. |
+| **FlagSupervisor** | `MediaCentaur.FlagSupervisor`: a supervisor whose children are started while a flag is on and absent from the tree while it is off, reconciled on the flag's broadcast (ADR-083). The one mechanism behind `Features.Runtime` (one per feature) and the service start flags (`Watcher.FlagSupervisor`, `Pipeline.FlagSupervisor`, `Pipeline.Image.FlagSupervisor`). `running?/1` is the tree's answer; `force/2` is the test harness's override; `suspend/2` stops the children around a destructive operation. |
+| **Bootstrap** | `Application.Bootstrap`: the work that must finish before any subsystem starts — the media-dir migration, the runtime config overlay, the orphaned-job rescue — run as a child that returns `:ignore`, after the Repo and PubSub and before Oban (ADR-083). |
+| **Subsystem supervisor** | `<Context>.Supervisor`: one supervisor and one restart budget per bounded context with two or more processes; the application supervisor holds only infrastructure, one-shots, subsystem supervisors and single-process subsystems (ADR-083). Unrelated to the Status page's *subsystem*, the health-board tile. |
+
 ## Observability
 
 | Term | Meaning |

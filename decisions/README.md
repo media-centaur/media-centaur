@@ -71,6 +71,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 080 | 2026-10-22 | [One playback session type over two transports](architecture/2026-10-22-080-one-playback-session-type-over-two-transports.md) | accepted |
 | 081 | 2026-10-31 | [Features are flagged](architecture/2026-10-31-081-features-are-flagged.md) | accepted |
 | 082 | 2026-11-06 | [Only a person's act is shared](architecture/2026-11-06-082-only-a-persons-act-is-shared.md) | accepted |
+| 083 | 2026-11-10 | [Settings shape the supervision tree at start](architecture/2026-11-10-083-settings-shape-the-supervision-tree.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
@@ -98,7 +99,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted, amended 2026-11-06 |
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
-| 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted, amended 2026-09-07 |
+| 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted, amended 2026-11-08 |
 | 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted, amended 2026-11-01 |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty, and the one action that changes it](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | accepted, amended 2026-10-02 |
