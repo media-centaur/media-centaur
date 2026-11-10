@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.16.1 — 2026-11-10
+
+### Fixed
+
+- **v2.16.0 did not start.** The application read one of your Settings before its database was open and exited at once, so a computer updated to v2.16.0 kept restarting it. If yours is on v2.16.0, the in-app updater cannot run: re-run the installer (`curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh`), which installs this version and keeps your settings, data and cache, as the [Troubleshooting page](https://github.com/media-centaur/media-centaur/wiki/Troubleshooting#reset-by-re-running-the-installer) describes. Installs still on v2.15.2 or earlier update from Settings as usual.
+
 ## v2.16.0 — 2026-11-10
 
 ### Improved
