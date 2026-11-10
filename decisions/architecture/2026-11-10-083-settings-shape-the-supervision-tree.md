@@ -80,3 +80,18 @@ Three rules, the tree being the one statement of what runs and why.
 * Bad, because a test that needs the watchers or a pipeline running must
   set the real flag through `MediaCentaur.ServiceFlags`; the test
   environment's inert instance stays inert.
+
+## Amendment 2026-11-10 — the runtime is an instance of a shared mechanism
+
+"At start" means when the child starts, in tree order — not when
+`Application.start/2` lists the children. The list is built before any child
+exists, the Repo included, so a child spec that reads a setting as it is
+listed reads the database before it is open. v2.16.0 shipped exactly that:
+`{Oban, oban_config()}` resolved the acquisition flag while listing, and every
+instance with background services exited at boot. The suite missed it
+because the test environment's inert instance short-circuits the read. The
+Oban child now starts through `MediaCentaur.Application.start_oban/0`, which
+resolves its options after the Repo and the Bootstrap child, and
+`test/media_centaur/application_test.exs` lists the child under Repo query
+telemetry and asserts no query. A setting that shapes a child belongs in the
+child's `start` or `init`, never in the expression that names it.
