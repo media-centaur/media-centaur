@@ -2,6 +2,7 @@ defmodule MediaCentaur.ErrorReports do
   use Boundary,
     deps: [MediaCentaur.Console, MediaCentaur.Retention],
     exports: [
+      Supervisor,
       Bucket,
       DiagnosticEvent,
       EnvMetadata,

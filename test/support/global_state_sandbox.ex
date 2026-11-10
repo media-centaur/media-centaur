@@ -124,7 +124,23 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.SelfUpdate.Updater =>
       {:probe, {MediaCentaur.SelfUpdate.Updater, :status, []},
        "download/apply state the Settings page reads; tests drive named instances, so the singleton stays at rest"},
-    MediaCentaurWeb.Endpoint => {:unobservable, "config only"},
+    MediaCentaurWeb.Supervisor =>
+      {:unobservable, "supervisor; SearchSession's reset is listed by name, the Endpoint is config only"},
+    MediaCentaur.Console.Supervisor => {:unobservable, "supervisor; Buffer's reset is listed by name"},
+    MediaCentaur.ErrorReports.Supervisor =>
+      {:unobservable, "supervisor; Buckets' reset is listed by name"},
+    MediaCentaur.TMDB.Supervisor =>
+      {:unobservable, "supervisor; RateLimiter's and MetadataStats' resets are listed by name"},
+    MediaCentaur.Library.Supervisor =>
+      {:unobservable,
+       "supervisor; the coalescer, availability map, sweeper and file-event handler carry no public state across tests (see each)"},
+    MediaCentaur.ReleaseTracking.Supervisor => {:unobservable, "supervisor; no child runs under :test"},
+    MediaCentaur.WatchHistory.Supervisor => {:unobservable, "supervisor; no child runs under :test"},
+    MediaCentaur.Status.Supervisor => {:unobservable, "supervisor; no child runs under :test"},
+    MediaCentaur.Review.Supervisor => {:unobservable, "supervisor; no child runs under :test"},
+    MediaCentaur.Acquisition.Supervisor => {:unobservable, "supervisor; no child runs under :test"},
+    MediaCentaur.SelfUpdate.Supervisor =>
+      {:unobservable, "supervisor; Updater's probe is listed by name, AutoApply's functions are pure"},
     MediaCentaurWeb.Telemetry => {:unobservable, "poller"},
     Phoenix.PubSub.Supervisor => {:unobservable, "message transport"},
     Oban => {:unobservable, "testing: :manual — no queues run; jobs are sandboxed rows"},
@@ -134,15 +150,8 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:reset, {MediaCentaur.Pipeline.Discovery.InflightSet, :clear, []},
        "Broadway state is per-message, but the discovery in-flight set is a public ETS table with a read API"},
     MediaCentaur.Pipeline.Image.Supervisor => {:unobservable, "Broadway topology; state is per-message"},
-    MediaCentaur.Console.JournalSource => {:unobservable, "reads journald; no public read"},
-    MediaCentaur.Library.BroadcastCoalescer => {:unobservable, "enqueue/1 is its only public function"},
-    MediaCentaur.Library.FileEventHandler => {:unobservable, "debounce timers only; no public read"},
-    MediaCentaur.Library.AbsenceSweeper =>
-      {:unobservable, "a sweep schedule; its reads go to the DB and :persistent_term"},
     MediaCentaur.HttpClient.Supervisor =>
       {:unobservable, "response cache and request traffic are not started under :test"},
-    MediaCentaur.SelfUpdate.AutoApply =>
-      {:unobservable, "a check schedule; its public functions are pure"},
     MediaCentaur.Application.Bootstrap =>
       {:unobservable, "one-shot: applies the config before the subsystems and returns :ignore"},
     MediaCentaur.BootHeal =>

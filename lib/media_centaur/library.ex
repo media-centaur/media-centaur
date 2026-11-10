@@ -2,6 +2,7 @@ defmodule MediaCentaur.Library do
   use Boundary,
     deps: [MediaCentaur.Profiles, MediaCentaur.Retention, MediaCentaur.Subtitles],
     exports: [
+      Supervisor,
       AbsenceSweeper,
       Browser,
       ChangeLog,

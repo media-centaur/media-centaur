@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Console do
   use Boundary,
     deps: [MediaCentaur.Settings],
-    exports: [View, Filter, Buffer, Entry]
+    exports: [View, Filter, Buffer, Entry, Supervisor]
 
   @moduledoc """
   Bounded context for the in-browser log console: ring buffer and filter.

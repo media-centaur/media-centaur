@@ -78,13 +78,22 @@ defmodule MediaCentaur.Cache do
 
   ## Test mode
 
-  `cache_children/1` returns `[]` in `:test` env, so no Worker is
-  started during ExUnit. Tests that exercise a cache call its
+  `workers_run?/0` is false in `:test` env, so no subsystem supervisor
+  starts a Worker during ExUnit. Tests that exercise a cache call its
   `refresh_cache/0` directly. Read functions (`Views.continue_watching/2`
   etc.) detect a missing ETS table / unset `:persistent_term` key and
   fall through to the underlying DB query — same return shape, no
   branching at the call site.
   """
+
+  @doc """
+  Whether the projection workers run in this instance: not under `:test`,
+  where a worker's own-process reads have no sandbox connection (the
+  "Test mode" section above). The one place that rule is stated; each
+  subsystem supervisor asks it before listing its workers.
+  """
+  @spec workers_run?() :: boolean()
+  def workers_run?, do: Application.get_env(:media_centaur, :environment) != :test
 
   @doc """
   Subscribe the calling process to whatever PubSub topics feed this

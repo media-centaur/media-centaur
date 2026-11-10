@@ -20,7 +20,6 @@ defmodule MediaCentaur.Playback.Sessions do
     MpvSession,
     SessionRegistry,
     SessionSupervisor,
-    SessionWatchdog,
     Transport
   }
 
@@ -80,8 +79,8 @@ defmodule MediaCentaur.Playback.Sessions do
     Log.info(:playback, "starting session — #{describe(params.entry)} on #{inspect(player)}")
 
     case SessionSupervisor.start_session(Map.merge(params, %{player: player, transport: transport})) do
-      {:ok, pid} ->
-        SessionWatchdog.watch(pid, player)
+      {:ok, _pid} ->
+        :ok
 
       {:error, reason} ->
         Log.info(:playback, "session start failed — #{inspect(reason)}")

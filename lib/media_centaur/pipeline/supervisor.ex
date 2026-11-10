@@ -6,7 +6,9 @@ defmodule MediaCentaur.Pipeline.Supervisor do
        telemetry re-attach);
     2. `Pipeline.Discovery.InflightSet` — owns the ETS dedup table; above
        the Broadway children so the table outlives a producer crash;
-    3. `MediaCentaur.Pipeline.FlagSupervisor` — the `start_pipeline` flag's
+    3. `Pipeline.TmdbProjection`, in instances that run background
+       services — the TMDB-store listener that re-derives library records;
+    4. `MediaCentaur.Pipeline.FlagSupervisor` — the `start_pipeline` flag's
        children, `Pipeline.Discovery` and `Pipeline.Import`. Absent while
        the flag is off, so a Stats crash cannot start a pipeline the user
        turned off.
@@ -32,18 +34,27 @@ defmodule MediaCentaur.Pipeline.Supervisor do
   def init(_opts) do
     flag_key = Services.key(@flag)
 
-    children = [
-      MediaCentaur.Pipeline.Stats,
-      MediaCentaur.Pipeline.Discovery.InflightSet,
-      {FlagSupervisor,
-       name: @flag_supervisor,
-       flag: fn -> Services.start?(@flag) end,
-       subscribe: &Settings.subscribe/0,
-       relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
-       children: [MediaCentaur.Pipeline.Discovery, MediaCentaur.Pipeline.Import],
-       label: "the import pipeline",
-       component: :pipeline}
-    ]
+    projection =
+      if MediaCentaur.Settings.Config.get(:background_services),
+        do: [MediaCentaur.Pipeline.TmdbProjection],
+        else: []
+
+    children =
+      [
+        MediaCentaur.Pipeline.Stats,
+        MediaCentaur.Pipeline.Discovery.InflightSet
+      ] ++
+        projection ++
+        [
+          {FlagSupervisor,
+           name: @flag_supervisor,
+           flag: fn -> Services.start?(@flag) end,
+           subscribe: &Settings.subscribe/0,
+           relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
+           children: [MediaCentaur.Pipeline.Discovery, MediaCentaur.Pipeline.Import],
+           label: "the import pipeline",
+           component: :pipeline}
+        ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end

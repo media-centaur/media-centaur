@@ -8,6 +8,7 @@ defmodule MediaCentaur.TMDB do
       MediaCentaur.Retention
     ],
     exports: [
+      Supervisor,
       Availability,
       CheckJob,
       Client,

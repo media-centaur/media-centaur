@@ -2,6 +2,7 @@ defmodule MediaCentaur.Review do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.Search, MediaCentaur.TMDB],
     exports: [
+      Supervisor,
       PendingFile,
       RememberedMatch,
       Rematch,

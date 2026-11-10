@@ -6,7 +6,7 @@ defmodule MediaCentaur.SelfUpdate do
       MediaCentaur.Retention,
       MediaCentaur.Settings
     ],
-    exports: [Changelog, StagingSweep, UpdateChecker]
+    exports: [Changelog, StagingSweep, Supervisor, UpdateChecker]
 
   @moduledoc """
   In-app release check + self-update for Media Centaur.

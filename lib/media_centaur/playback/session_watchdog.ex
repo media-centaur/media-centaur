@@ -8,7 +8,8 @@ defmodule MediaCentaur.Playback.SessionWatchdog do
   or, on a device, to draw its controls — so the watchdog recovers it then
   too.
 
-  `Sessions` hands it every session it starts (`watch/3`). When one exits:
+  Every session registers itself in its own `init/1` (`watch/3`), before
+  anything in that init can fail. When one exits:
 
     * normally or by shutdown — a stop, an end of file, a removed player —
       nothing happens;

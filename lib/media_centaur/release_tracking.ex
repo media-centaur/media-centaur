@@ -14,6 +14,7 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.TmdbArtwork
     ],
     exports: [
+      Supervisor,
       Calendar,
       Identity,
       Item,

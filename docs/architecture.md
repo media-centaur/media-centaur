@@ -129,51 +129,79 @@ flowchart LR
 
 ## Supervision Tree
 
+The tree is the one statement of what runs (campaign `supervision-tree.md`,
+2026-11-10). A setting decides whether a child is *started*: processes that
+run while a flag is on are a `MediaCentaur.FlagSupervisor`'s children,
+absent from the tree while it is off — the service start flags
+(`Settings.Services.start?/1`) for the watchers and the two pipelines, the
+feature flags under `Features.Runtime` (ADR-081). Bootstrap runs in tree
+order, before Oban and every subsystem. Each subsystem with two or more
+processes has its own supervisor and restart budget.
+
 ```mermaid
 graph TD
     App[MediaCentaur.Supervisor<br/>one_for_one]
 
     App --> Telemetry[Telemetry]
     App --> Repo[Repo<br/>SQLite]
-    App --> Oban[Oban]
     App --> PubSub[Phoenix.PubSub]
-    App --> ConsoleBuffer[Console.Buffer]
-    App --> JournalSource[Console.JournalSource]
     App --> TaskSup[TaskSupervisor]
-    App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator + TimeSeries.Store + Traffic]
-    App --> RateLimiter[TMDB.RateLimiter]
-    App --> MetadataStats[TMDB.MetadataStats]
-    App --> WatcherSup[Watcher.Supervisor]
-    App --> Features[Features.Runtime<br/>social: Social.Connections, RelaySync, Activities.Publisher<br/>players: Players.Pairing]
-    App --> Coalescer[Library.BroadcastCoalescer]
-    App --> Availability[Library.Availability]
-    App --> PipelineSup[Pipeline.Supervisor]
-    App --> ImagePipelineSup[Pipeline.Image.Supervisor]
-    App --> InitTask[Init Services Task]
-    App --> AbsenceSweeper[Library.AbsenceSweeper]
-    App --> FileEvents[Library.FileEventHandler]
-    App --> SelfUpdater[SelfUpdate.Updater]
-    App --> AutoApply[SelfUpdate.AutoApply]
-    App --> SearchSession[DownloadsLive.SearchSession]
-    App --> Listeners[PubSub listeners<br/>Inbound, Intake, LibraryListener, Recorder,<br/>Acquisition.Reactor, Downloads.QueueMonitor,<br/>Pursuits.InboundListener]
-    App --> ShutdownMonitor[ErrorReports.ShutdownMonitor<br/>durable diagnostics only]
-    App --> PlaybackSup[Playback.Supervisor]
-    App --> Endpoint[Phoenix Endpoint]
+    App --> ConsoleSup[Console.Supervisor<br/>Buffer, JournalSource]
+    App --> Bootstrap[Application.Bootstrap<br/>config overlay + orphan rescue, :ignore]
+    App --> Oban[Oban<br/>acquisition queue paused from the flag]
+    App --> ErrorReportsSup[ErrorReports.Supervisor<br/>Buckets, ShutdownMonitor*]
+    App --> SettingsCaches[Settings, Capabilities, Controls<br/>Cache.Workers]
+    App --> IntegrationHealth[IntegrationHealth]
+    App --> LibrarySup[Library.Supervisor<br/>6 view workers, Progress.Worker, Coalescer,<br/>MediaFileAvailability, AbsenceSweeper, FileEventHandler, Inbound*]
+    App --> ReleaseTrackingSup[ReleaseTracking.Supervisor<br/>ComingUp worker, LibraryListener*, TmdbListener*]
+    App --> WatchHistorySup[WatchHistory.Supervisor<br/>Summary worker, Recorder*]
+    App --> StatusSup[Status.Supervisor<br/>Overview, Storage workers]
+    App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator, TimeSeries.Store, Traffic]
+    App --> TmdbSup[TMDB.Supervisor<br/>RateLimiter, MetadataStats]
+    App --> WatcherSup[Watcher.Supervisor<br/>rest_for_one]
+    App --> Features[Features.Runtime<br/>one FlagSupervisor per feature]
+    App --> PipelineSup[Pipeline.Supervisor<br/>rest_for_one]
+    App --> ImagePipelineSup[Pipeline.Image.Supervisor<br/>rest_for_one]
+    App --> BootHeal[BootHeal*<br/>:ignore]
+    App --> SelfUpdateSup[SelfUpdate.Supervisor<br/>Updater, AutoApply]
+    App --> ReviewSup[Review.Supervisor<br/>Intake*, FileEventHandler*]
+    App --> AcquisitionSup[Acquisition.Supervisor<br/>Reactor*, Pursuits listeners*]
+    App --> Listeners[EpisodeMapping.FileEventHandler*<br/>Downloads.QueueMonitor*]
+    App --> PlaybackSup[Playback.Supervisor<br/>rest_for_one]
+    App --> WebSup[MediaCentaurWeb.Supervisor<br/>rest_for_one: ShellBadges worker, SearchSession, Endpoint]
 
-    WatcherSup --> Registry[Watcher.Registry]
-    WatcherSup --> DynSup[DynamicSupervisor]
-    DynSup --> W1[Watcher per dir]
+    WatcherSup --> ScanStats[ScanStats]
+    WatcherSup --> WatcherRegistries[Watcher.Registry, DirMonitor.Registry]
+    WatcherSup --> IgnoreRules[IgnoreRulesListener]
+    WatcherSup --> WatcherFlag[Watcher.FlagSupervisor<br/>start_watchers]
+    WatcherFlag --> Dirs[Watcher.Dirs<br/>rest_for_one]
+    Dirs --> DirDynSups[two DynamicSupervisors]
+    Dirs --> DirsController[Dirs.Controller<br/>one watcher per media dir]
+    DirDynSups --> W1[Watcher per dir, DirMonitor per outside image dir]
 
-    ImagePipelineSup --> ImageStats[Pipeline.Image.Stats]
-    ImagePipelineSup --> ImageRetry[Pipeline.Image.RetryScheduler]
-    ImagePipelineSup --> ImageBroadway[Pipeline.Image<br/>Broadway]
+    PipelineSup --> PipelineStats[Stats]
+    PipelineSup --> Inflight[Discovery.InflightSet]
+    PipelineSup --> TmdbProjection[TmdbProjection*]
+    PipelineSup --> PipelineFlag[Pipeline.FlagSupervisor<br/>start_pipeline]
+    PipelineFlag --> Broadway[Discovery, Import<br/>Broadway]
 
-    PlaybackSup --> SessionRegistry[SessionRegistry]
+    ImagePipelineSup --> ImageStats[Image.Stats]
+    ImagePipelineSup --> ImageFlag[Pipeline.Image.FlagSupervisor<br/>start_image_pipeline]
+    ImageFlag --> ImageBroadway[Image Broadway, RetryScheduler]
+
+    PlaybackSup --> SessionRegistry[SessionRegistry, PlayerRegistry]
     PlaybackSup --> SessionSup[SessionSupervisor]
-    SessionSup --> MpvSession[MpvSession per file]
+    PlaybackSup --> Watchdog[SessionWatchdog*, recovery task*]
+    SessionSup --> MpvSession[MpvSession per viewing]
 ```
 
-PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `ReleaseTracking.TmdbListener`, `Pipeline.TmdbProjection`, `WatchHistory.Recorder`, `Acquisition.Reactor`, `Downloads.QueueMonitor`, `Pursuits.InboundListener`) are skipped in `:test` env, and the Oban cron jobs (`TMDB.CheckJob`, `ReleaseTracking.SweepJob`, the pursuit watcher, the sweeps) run only when a test performs them — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
+`*` = only in an instance that runs background services (`Settings.Config`
+`background_services`; off in `:test`). Cache workers are not started under
+`:test` either (`MediaCentaur.Cache.workers_run?/0`): a worker's
+own-process read has no sandbox connection, so the cached read paths fall
+through to a live query. The Oban cron jobs (`TMDB.CheckJob`,
+`ReleaseTracking.SweepJob`, the pursuit watcher, the sweeps) run only when a
+test performs them — tests call the public functions directly.
 
 ## PubSub Topics
 

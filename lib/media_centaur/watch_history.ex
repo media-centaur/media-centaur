@@ -1,7 +1,7 @@
 defmodule MediaCentaur.WatchHistory do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.Retention],
-    exports: [Event, Views, Views.PlaybackActivity, Views.Summary, Views.SummaryData]
+    exports: [Event, Supervisor, Views, Views.PlaybackActivity, Views.Summary, Views.SummaryData]
 
   @moduledoc """
   Public API for the WatchHistory bounded context.

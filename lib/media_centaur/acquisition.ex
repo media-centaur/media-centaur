@@ -18,6 +18,7 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.TmdbArtwork
     ],
     exports: [
+      Supervisor,
       AutoGrabSettings,
       CancelReasons,
       DownloadParams,

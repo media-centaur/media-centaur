@@ -65,6 +65,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     ProgressWriter,
     Remembered,
     SessionRegistry,
+    SessionWatchdog,
     Transport,
     Viewing,
     WatchingTracker
@@ -153,6 +154,10 @@ defmodule MediaCentaur.Playback.MpvSession do
   @impl true
   def init(params) do
     Process.flag(:trap_exit, true)
+
+    # Watched before anything can fail: a crash in the rest of this init
+    # is a crash the watchdog recovers from, not a gap it never saw.
+    SessionWatchdog.watch(self(), params.player)
 
     %Entry{} = entry = params.entry
 

@@ -7,7 +7,7 @@ defmodule MediaCentaur.Status do
       MediaCentaur.Maintenance,
       MediaCentaur.Review
     ],
-    exports: [LibraryOverview, Views]
+    exports: [LibraryOverview, Supervisor, Views]
 
   @moduledoc """
   Read-side aggregator for the operational Status page.

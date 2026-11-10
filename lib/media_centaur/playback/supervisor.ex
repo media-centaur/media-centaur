@@ -5,9 +5,13 @@ defmodule MediaCentaur.Playback.Supervisor do
   crashed session leaves) and a one-shot recovery task. The watchdog
   starts first, so the sessions boot recovery starts are watched.
 
-  Uses `:one_for_one` — children are independent. Registry auto-deregisters
-  dead processes. SessionSupervisor crash kills all sessions (they're temporary
-  and will be re-discovered via recovery on next restart).
+  `:rest_for_one`: the sessions register in `SessionRegistry` and a remote
+  player's channel in `PlayerRegistry`, so a registry restart restarts the
+  session supervisor after it — a session that kept running unregistered
+  would be unreachable by key and a second play of its entity would start a
+  twin on the same mpv. Sessions are temporary; a restart of the session
+  supervisor loses them and the recovery task reattaches to the mpvs on the
+  next boot (ADR-023).
   """
   use Supervisor
 
@@ -24,7 +28,7 @@ defmodule MediaCentaur.Playback.Supervisor do
         MediaCentaur.Playback.SessionSupervisor
       ] ++ recovery_children()
 
-    Supervisor.init(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 30)
+    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end
 
   # Background work: only in an instance with `background_services` on

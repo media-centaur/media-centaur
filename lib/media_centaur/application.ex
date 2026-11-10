@@ -81,54 +81,45 @@ defmodule MediaCentaur.Application do
       [
         MediaCentaurWeb.Telemetry,
         MediaCentaur.Repo,
-        # PubSub must start before Console.Buffer — Buffer's handle_cast
-        # broadcasts to PubSub on every log entry append, including during
-        # init when Ecto query logs land in its mailbox.
         {Phoenix.PubSub, name: MediaCentaur.PubSub},
-        MediaCentaur.Console.Buffer,
-        {MediaCentaur.Console.JournalSource,
-         Application.get_env(:media_centaur, MediaCentaur.Console.JournalSource, [])},
+        {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
+        # Before the bootstrap, so its lines reach the rings.
+        MediaCentaur.Console.Supervisor,
         # Config overlay and orphan rescue, before Oban reads either.
         MediaCentaur.Application.Bootstrap,
         {Oban, oban_config()},
-        # Before the cache workers: the ShellBadges cache prime reads
-        # `ErrorReports.list_buckets/0` synchronously during its init.
-        MediaCentaur.ErrorReports.Buckets
+        MediaCentaur.ErrorReports.Supervisor
       ] ++
-        cache_children(Application.get_env(:media_centaur, :environment)) ++
+        settings_children(MediaCentaur.Cache.workers_run?()) ++
         [
-          {Task.Supervisor, name: MediaCentaur.TaskSupervisor}
+          # The watchers start here, synchronously, when their flag is on:
+          # Library.MediaFileAvailability reads their statuses at its init,
+          # and the pipeline's startup recovery below relies on the order.
+          MediaCentaur.Watcher.Supervisor,
+          MediaCentaur.Library.Supervisor,
+          MediaCentaur.ReleaseTracking.Supervisor,
+          MediaCentaur.WatchHistory.Supervisor,
+          MediaCentaur.Status.Supervisor
         ] ++
         http_client_children(Application.get_env(:media_centaur, :environment)) ++
         [
-          MediaCentaur.TMDB.RateLimiter,
-          MediaCentaur.TMDB.MetadataStats,
-          # The watchers start here, synchronously, when their flag is on;
-          # the pipeline's startup recovery below relies on that order.
-          MediaCentaur.Watcher.Supervisor,
+          MediaCentaur.TMDB.Supervisor,
           # Each feature's processes, started while its flag is on and
           # stopped when it goes off (ADR-081).
-          {MediaCentaur.Features.Runtime, runtimes: feature_runtimes()}
-        ] ++
-        [
-          MediaCentaur.Library.BroadcastCoalescer,
-          MediaCentaur.Library.MediaFileAvailability,
+          {MediaCentaur.Features.Runtime, runtimes: feature_runtimes()},
           MediaCentaur.Pipeline.Supervisor,
           MediaCentaur.Pipeline.Image.Supervisor
         ] ++
         boot_heal_children(background_services?()) ++
         [
-          MediaCentaur.Library.AbsenceSweeper,
-          MediaCentaur.Library.FileEventHandler,
-          MediaCentaur.SelfUpdate.Updater,
-          MediaCentaur.SelfUpdate.AutoApply,
-          MediaCentaurWeb.DownloadsLive.SearchSession
+          MediaCentaur.SelfUpdate.Supervisor,
+          MediaCentaur.Review.Supervisor,
+          MediaCentaur.Acquisition.Supervisor
         ] ++
-        pubsub_listeners(background_services?()) ++
-        diagnostics_children(durable_diagnostics?()) ++
+        single_process_listeners(background_services?()) ++
         [
           MediaCentaur.Playback.Supervisor,
-          MediaCentaurWeb.Endpoint
+          MediaCentaurWeb.Supervisor
         ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -168,12 +159,6 @@ defmodule MediaCentaur.Application do
   defp boot_heal_children(true), do: [MediaCentaur.BootHeal]
   defp boot_heal_children(false), do: []
 
-  # `:persistent_term`-backed cache workers. Not started in test mode:
-  # each worker runs its initial DB read in its own process, which has no
-  # claim on the test's sandbox connection. The cached read paths in
-  # Capabilities, Controls, and SpoilerFree all fall through to a live
-  # query when `:persistent_term` is unset, so tests get fresh-DB
-  # semantics without the cache layer.
   # The response cache is not started under :test: the suite's Req.Test
   # stubs would otherwise share entries across tests. Cache tests start
   # their own coordinator under a unique name.
@@ -202,62 +187,6 @@ defmodule MediaCentaur.Application do
       if showcase?, do: [MediaCentaur.Showcase.Supervisor], else: []
   end
 
-  defp cache_children(:test), do: []
-
-  defp cache_children(_env) do
-    [
-      # Settings starts first so derived caches see a warm upstream.
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Capabilities},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings.Controls},
-      # ETS-backed Library projections (ADR-041).
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.Browse},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.ContinueWatching},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.Detail},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.HeroCandidates},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.RecentlyAdded},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.Search},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.ReleaseTracking.Views.ComingUp},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.WatchHistory.Views.Summary},
-      # Status-page projections (instant-navigation campaign). Async prime:
-      # both run disk probes (`df`, per-image checks) that must never block
-      # boot; the interval is the drift net for slices with no source event.
-      {MediaCentaur.Cache.Worker,
-       context: MediaCentaur.Status.Views.Overview,
-       prime: :async,
-       refresh_interval_ms: to_timeout(minute: 10)},
-      {MediaCentaur.Cache.Worker,
-       context: MediaCentaur.Status.Views.Storage,
-       prime: :async,
-       refresh_interval_ms: to_timeout(minute: 5)},
-      # Sidebar badge counts (diagnostics / review / mapping) — read by the
-      # ShellBadges on_mount hook on every navigation, so they must never
-      # cost a query on the mount path.
-      {MediaCentaur.Cache.Worker, context: MediaCentaurWeb.ShellBadges},
-      # Pillar-2 GenServer (ADR-041) — owns active watch-progress
-      # state in ETS, debounce-flushes to library_watch_progress.
-      MediaCentaur.Library.Progress.Worker,
-      # Per-integration health (configured? × test_state) — drives the
-      # Setup Tour gate and (future) pipeline auto-retry on TMDB recovery.
-      MediaCentaur.IntegrationHealth
-    ]
-  end
-
-  # PubSub listener GenServers — thin wrappers that route messages to public
-  # API functions. Not started in test mode because tests call the public
-  # functions directly and PubSub broadcasts would cause sandbox errors.
-  # Unclean-shutdown detection. Gated on `:durable_diagnostics` (same flag as the
-  # incident LogHandler). Off under :test — at app boot there is no sandbox owner,
-  # so its raise-fault-on-unclean would fail; the marker logic is tested directly
-  # via ShutdownMarker / a :path-injected ShutdownMonitor. Off for an ad-hoc
-  # `mix phx.server` too — when a separate prod release is also running they would
-  # fight over the SAME marker file, minting false "did not shut down cleanly"
-  # warnings. The opted-in daily driver (prod release, or dev with the env var)
-  # is the sole instance, so it owns the marker.
-  # Gated like the relay-connection owner it rides on: background work.
-  # Under :test (no background services) the sync would otherwise
-  # subscribe every FakeRelay a test stands up; relay_sync_test starts
-  # its own by hand.
   # Each feature's runtime (ADR-081): the children `Features.Runtime` runs
   # while the flag is on. Social dials relays, syncs with them and publishes
   # the person's acts; remote players holds the one open pairing code;
@@ -279,32 +208,36 @@ defmodule MediaCentaur.Application do
 
   defp background_only(children), do: if(background_services?(), do: children, else: [])
 
-  defp diagnostics_children(true), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
-  defp diagnostics_children(false), do: []
-
   defp durable_diagnostics?, do: Application.get_env(:media_centaur, :durable_diagnostics, false)
 
-  # The listeners react to library, release, playback and integration
-  # events on their own — background work. An instance without
-  # background services starts none (under :test the sandbox-owned
-  # process could not see their writes either).
-  defp pubsub_listeners(false), do: []
+  # The `:persistent_term` caches every derived cache reads first, and the
+  # integration health state. Settings starts before Capabilities and
+  # Controls so they prime from a warm upstream. Not under `:test`
+  # (`Cache.workers_run?/0`): each runs its initial read in its own process,
+  # which has no claim on a test's sandbox connection; the cached read paths
+  # fall through to a live query when the key is unset.
+  defp settings_children(false), do: []
 
-  defp pubsub_listeners(true) do
+  defp settings_children(true) do
     [
-      MediaCentaur.Library.Inbound,
-      MediaCentaur.Review.Intake,
-      MediaCentaur.Review.FileEventHandler,
-      MediaCentaur.EpisodeMapping.FileEventHandler,
-      MediaCentaur.ReleaseTracking.LibraryListener,
-      MediaCentaur.ReleaseTracking.TmdbListener,
-      MediaCentaur.Pipeline.TmdbProjection,
-      MediaCentaur.WatchHistory.Recorder,
-      MediaCentaur.Acquisition.Reactor,
-      MediaCentaur.Downloads.QueueMonitor,
-      MediaCentaur.Acquisition.Pursuits.InboundListener,
-      MediaCentaur.Acquisition.Pursuits.QueueListener
+      {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings},
+      {MediaCentaur.Cache.Worker, context: MediaCentaur.Capabilities},
+      {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings.Controls},
+      # Per-integration health (configured? × test_state) in ETS, seeded
+      # from the persisted tests; the same rule as the caches above — its
+      # tests start their own instance.
+      MediaCentaur.IntegrationHealth
     ]
+  end
+
+  # Subsystems whose only process is a listener: a supervisor of one would
+  # add nothing. Background work, so none in an instance without
+  # background services (under :test the sandbox-owned process could not
+  # see their writes either).
+  defp single_process_listeners(false), do: []
+
+  defp single_process_listeners(true) do
+    [MediaCentaur.EpisodeMapping.FileEventHandler, MediaCentaur.Downloads.QueueMonitor]
   end
 
   # Bootstrap state (`Settings.Config`): whether this instance does
