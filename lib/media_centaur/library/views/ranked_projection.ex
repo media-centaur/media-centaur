@@ -17,6 +17,7 @@ defmodule MediaCentaur.Library.Views.RankedProjection do
   genuinely-different pieces explicit and avoid metaprogramming over three
   shipped projections — elixir-thinking's "simplest abstraction wins."
   """
+  alias MediaCentaur.Cache
   alias MediaCentaur.Topics
 
   @ets_opts [:ordered_set, :public, :named_table, read_concurrency: true]
@@ -70,10 +71,7 @@ defmodule MediaCentaur.Library.Views.RankedProjection do
   """
   @spec read(atom(), non_neg_integer() | nil, (-> [term()])) :: [term()]
   def read(table, limit, read_from_db) when is_function(read_from_db, 0) do
-    case :ets.whereis(table) do
-      :undefined -> read_from_db.()
-      _ref -> read_from_ets(table, limit)
-    end
+    Cache.with_table(table, fn -> read_from_ets(table, limit) end, read_from_db)
   end
 
   @doc """

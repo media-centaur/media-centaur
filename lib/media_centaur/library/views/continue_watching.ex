@@ -66,6 +66,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.ProgressRecords
@@ -117,16 +118,16 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   def read(profile_id, opts \\ []) when is_binary(profile_id) do
     limit = Keyword.get(opts, :limit, 12)
 
-    case :ets.whereis(@table) do
-      :undefined ->
-        build(profile_id, limit)
-
-      _ref ->
+    Cache.with_table(
+      @table,
+      fn ->
         case :ets.lookup(@table, profile_id) do
           [{^profile_id, items}] -> Enum.take(items, limit)
           [] -> []
         end
-    end
+      end,
+      fn -> build(profile_id, limit) end
+    )
   end
 
   defp ensure_table do

@@ -53,6 +53,7 @@ defmodule MediaCentaur.Library.Progress do
   `record/4` / `complete/2` are no-ops — the same safety net the other
   ADR-041 projections rely on.
   """
+  alias MediaCentaur.Cache
   alias MediaCentaur.Library.Progress.Worker
   alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Library.WatchProgress
@@ -206,40 +207,33 @@ defmodule MediaCentaur.Library.Progress do
     """
     @spec reset_for_test!() :: :ok
     def reset_for_test! do
-      case Process.whereis(Worker) do
-        nil -> :ok
-        _pid -> GenServer.call(Worker, :reset_for_test!)
-      end
+      call(:reset_for_test!)
     end
   end
 
   # --- Private ---
 
-  defp cast(message) do
-    case Process.whereis(Worker) do
-      nil -> :ok
-      _pid -> GenServer.cast(Worker, message)
-    end
-  end
+  # A cast to the worker's name is `:ok` whether or not it runs (it does
+  # not under :test); a call to it degrades the same way.
+  defp cast(message), do: GenServer.cast(Worker, message)
 
   defp call(message) do
-    case Process.whereis(Worker) do
-      nil -> :ok
-      _pid -> GenServer.call(Worker, message)
-    end
+    GenServer.call(Worker, message)
+  catch
+    :exit, {:noproc, _call} -> :ok
   end
 
   defp lookup_in_memory_row(key) do
-    case :ets.whereis(@default_table) do
-      :undefined ->
-        nil
-
-      _ref ->
+    Cache.with_table(
+      @default_table,
+      fn ->
         case :ets.lookup(@default_table, key) do
           [{^key, row}] -> row
           [] -> nil
         end
-    end
+      end,
+      fn -> nil end
+    )
   end
 
   defp write_in_memory({profile_id, playable_item_id} = key, position, duration, completed?) do

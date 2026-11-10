@@ -311,4 +311,33 @@ defmodule MediaCentaur.CacheTest do
       assert_raise KeyError, fn -> Cache.Worker.child_spec([]) end
     end
   end
+
+  describe "the cold-cache reads" do
+    test "read/3 reads the cached value, and runs the fallback only while the key is unset" do
+      key = {__MODULE__, make_ref()}
+
+      assert Cache.read(key, fn _cached -> flunk("read a key that is unset") end, fn -> :cold end) ==
+               :cold
+
+      :persistent_term.put(key, %{row: :warm})
+
+      assert Cache.read(key, &Map.get(&1, :row), fn -> flunk("the fallback ran with the key set") end) ==
+               :warm
+
+      :persistent_term.erase(key)
+    end
+
+    test "with_table/3 reads the table when it exists, and the fallback when it does not" do
+      table = :"cache_test_#{System.unique_integer([:positive])}"
+
+      assert Cache.with_table(table, fn -> flunk("read a table that does not exist") end, fn -> :cold end) ==
+               :cold
+
+      :ets.new(table, [:named_table, :set, :public])
+      :ets.insert(table, {:row, :warm})
+
+      assert Cache.with_table(table, fn -> :ets.lookup_element(table, :row, 2) end, fn -> :cold end) ==
+               :warm
+    end
+  end
 end

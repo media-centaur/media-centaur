@@ -27,6 +27,7 @@ defmodule MediaCentaur.Settings do
 
   import Ecto.Query, only: [from: 2]
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Repo
   alias MediaCentaur.Settings.Entry
   alias MediaCentaur.Topics
@@ -62,10 +63,7 @@ defmodule MediaCentaur.Settings do
 
   @spec list_entries() :: [Entry.t()]
   def list_entries do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> Repo.all(Entry)
-      entries -> Map.values(entries)
-    end
+    Cache.read(@cache_key, &Map.values/1, fn -> Repo.all(Entry) end)
   end
 
   @doc """
@@ -76,10 +74,7 @@ defmodule MediaCentaur.Settings do
   """
   @spec get_by_key(String.t()) :: Entry.t() | nil
   def get_by_key(key) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> Repo.get_by(Entry, key: key)
-      entries -> Map.get(entries, key)
-    end
+    Cache.read(@cache_key, &Map.get(&1, key), fn -> Repo.get_by(Entry, key: key) end)
   end
 
   @doc """
@@ -92,10 +87,7 @@ defmodule MediaCentaur.Settings do
   """
   @spec get_cached(String.t()) :: Entry.t() | nil
   def get_cached(key) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> nil
-      entries -> Map.get(entries, key)
-    end
+    Cache.read(@cache_key, &Map.get(&1, key), fn -> nil end)
   end
 
   @doc """
@@ -106,15 +98,17 @@ defmodule MediaCentaur.Settings do
   """
   @spec get_by_keys([String.t()]) :: %{String.t() => Entry.t()}
   def get_by_keys(keys) when is_list(keys) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset ->
+    Cache.read(
+      @cache_key,
+      fn entries ->
+        Map.take(entries, keys)
+      end,
+      fn ->
         from(e in Entry, where: e.key in ^keys)
         |> Repo.all()
         |> Map.new(fn entry -> {entry.key, entry} end)
-
-      entries ->
-        Map.take(entries, keys)
-    end
+      end
+    )
   end
 
   @spec find_or_create_entry(attrs()) :: {:ok, Entry.t()} | {:error, Ecto.Changeset.t()}
@@ -176,18 +170,13 @@ defmodule MediaCentaur.Settings do
 
   defp on_write(_), do: :ok
 
+  # A cold cache is not written to: the worker's first refresh fills it.
   defp put_cache(%Entry{key: key} = entry) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> :ok
-      entries -> :persistent_term.put(@cache_key, Map.put(entries, key, entry))
-    end
+    Cache.read(@cache_key, &:persistent_term.put(@cache_key, Map.put(&1, key, entry)), fn -> :ok end)
   end
 
   defp delete_cache(key) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> :ok
-      entries -> :persistent_term.put(@cache_key, Map.delete(entries, key))
-    end
+    Cache.read(@cache_key, &:persistent_term.put(@cache_key, Map.delete(&1, key)), fn -> :ok end)
   end
 
   defp broadcast(key, value) do

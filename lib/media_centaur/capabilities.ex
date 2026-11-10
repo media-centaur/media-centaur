@@ -23,6 +23,7 @@ defmodule MediaCentaur.Capabilities do
   `Topics.capabilities_updates/0` so subscribed LiveViews can refresh.
   """
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
@@ -247,12 +248,7 @@ defmodule MediaCentaur.Capabilities do
     :ok
   end
 
-  defp read_flags do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> compute_flags()
-      flags -> flags
-    end
-  end
+  defp read_flags, do: Cache.read(@cache_key, & &1, &compute_flags/0)
 
   defp compute_flags do
     prowlarr = configured?(:prowlarr) and last_test_ok?(:prowlarr)

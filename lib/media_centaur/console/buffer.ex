@@ -39,18 +39,13 @@ defmodule MediaCentaur.Console.Buffer do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  @doc "Fire-and-forget append. Safe to call when the buffer is not yet started."
+  @doc "Fire-and-forget append. A cast to a name not yet registered is `:ok`, so a line logged before the buffer starts is dropped."
   @spec append(Entry.t()) :: :ok
   def append(%Entry{} = entry), do: append(entry, __MODULE__)
 
   @doc "Explicit name variant for tests."
   @spec append(Entry.t(), atom()) :: :ok
-  def append(%Entry{} = entry, name) do
-    case Process.whereis(name) do
-      nil -> :ok
-      pid -> GenServer.cast(pid, {:append, entry})
-    end
-  end
+  def append(%Entry{} = entry, name), do: GenServer.cast(name, {:append, entry})
 
   @doc """
   Flushes any pending batched entries immediately, cancelling the scheduled

@@ -21,6 +21,7 @@ defmodule MediaCentaur.Settings.Controls do
   `{:controls_changed, resolved_map}` on the `controls:updates` topic.
   """
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Settings.Controls.{Binding, Catalog, Store}
   alias MediaCentaur.Topics
 
@@ -50,12 +51,7 @@ defmodule MediaCentaur.Settings.Controls do
   in tests that don't start the Cache child).
   """
   @spec get() :: resolved()
-  def get do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> resolve()
-      resolved -> resolved
-    end
-  end
+  def get, do: Cache.read(@cache_key, & &1, &resolve/0)
 
   @doc """
   Recomputes the cached resolved binding map and stores it in

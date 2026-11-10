@@ -46,12 +46,12 @@ defmodule MediaCentaur.Playback.SessionWatchdog do
     end
   end
 
-  @doc "Watches `session`, a session on `player`; a no-op where the watchdog does not run."
+  @doc "Watches `session`, a session on `player`; a no-op where the watchdog does not run (an instance without background services)."
   @spec watch(GenServer.server(), pid(), Playback.player()) :: :ok
   def watch(server \\ __MODULE__, session, player) do
-    if is_pid(server) or GenServer.whereis(server),
-      do: GenServer.call(server, {:watch, session, player}),
-      else: :ok
+    GenServer.call(server, {:watch, session, player})
+  catch
+    :exit, {:noproc, _call} -> :ok
   end
 
   @impl true

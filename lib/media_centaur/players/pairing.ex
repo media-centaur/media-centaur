@@ -57,9 +57,12 @@ defmodule MediaCentaur.Players.Pairing do
   def __expire_for_test__, do: GenServer.call(__MODULE__, :expire)
 
   # Reading the code is a question anyone may ask; minting and redeeming
-  # reach here only through surfaces the feature gates.
+  # reach here only through surfaces the feature gates. With the feature off
+  # this process does not run, and the question's answer is `absent`.
   defp if_running(call, absent) do
-    if GenServer.whereis(__MODULE__), do: call.(), else: absent
+    call.()
+  catch
+    :exit, {:noproc, _call} -> absent
   end
 
   @impl true

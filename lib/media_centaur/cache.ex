@@ -81,9 +81,9 @@ defmodule MediaCentaur.Cache do
   `workers_run?/0` is false in `:test` env, so no subsystem supervisor
   starts a Worker during ExUnit. Tests that exercise a cache call its
   `refresh_cache/0` directly. Read functions (`Views.continue_watching/2`
-  etc.) detect a missing ETS table / unset `:persistent_term` key and
-  fall through to the underlying DB query — same return shape, no
-  branching at the call site.
+  etc.) ask `read/2` or `with_table/3`, which fall through to the
+  underlying DB query while the key is unset or the table absent — same
+  return shape, no branching at the call site.
   """
 
   @doc """
@@ -94,6 +94,34 @@ defmodule MediaCentaur.Cache do
   """
   @spec workers_run?() :: boolean()
   def workers_run?, do: Application.get_env(:media_centaur, :environment) != :test
+
+  @doc """
+  `reader.(cached)` with the value under a `:persistent_term` key, or
+  `fallback.()` while the key is unset — before the worker's first refresh,
+  and under `:test`, where no worker runs. The one way a reader asks a
+  cache that may be cold; the two functions return the same shape.
+  """
+  @spec read(term(), (cached :: term() -> value), (-> value)) :: value when value: term()
+  def read(key, reader, fallback) when is_function(reader, 1) and is_function(fallback, 0) do
+    case :persistent_term.get(key, :__unset) do
+      :__unset -> fallback.()
+      cached -> reader.(cached)
+    end
+  end
+
+  @doc """
+  `reader.()` when the named ETS `table` exists, else `fallback.()` — the
+  table is created by its worker's first refresh, so it is absent before
+  that and under `:test`. The one way a reader asks an ETS projection that
+  may not exist.
+  """
+  @spec with_table(atom(), (-> value), (-> value)) :: value when value: term()
+  def with_table(table, reader, fallback) when is_function(reader, 0) and is_function(fallback, 0) do
+    case :ets.whereis(table) do
+      :undefined -> fallback.()
+      _reference -> reader.()
+    end
+  end
 
   @doc """
   Subscribe the calling process to whatever PubSub topics feed this

@@ -30,6 +30,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Review.Events.FilesApproved
@@ -73,12 +74,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   table is absent (test mode) or not yet primed (boot window).
   """
   @spec read() :: LibraryOverview.t()
-  def read do
-    case :ets.whereis(@table) do
-      :undefined -> Status.load_overview()
-      _ref -> read_from_ets()
-    end
-  end
+  def read, do: Cache.with_table(@table, &read_from_ets/0, &Status.load_overview/0)
 
   defp read_from_ets do
     case :ets.lookup(@table, :snapshot) do

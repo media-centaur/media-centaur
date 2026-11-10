@@ -42,6 +42,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Views.ComingUpItem
   alias MediaCentaur.ReleaseTracking.Views.ComingUpItemRef
@@ -105,10 +106,11 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
   def read(from_date, to_date, opts \\ []) do
     limit = Keyword.get(opts, :limit)
 
-    case :ets.whereis(@table) do
-      :undefined -> read_from_db(from_date, to_date, limit)
-      _ref -> read_from_ets(from_date, to_date, limit)
-    end
+    Cache.with_table(
+      @table,
+      fn -> read_from_ets(from_date, to_date, limit) end,
+      fn -> read_from_db(from_date, to_date, limit) end
+    )
   end
 
   defp read_from_ets(from_date, to_date, limit) do

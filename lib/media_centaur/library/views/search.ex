@@ -72,6 +72,7 @@ defmodule MediaCentaur.Library.Views.Search do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.Search.Scorer
@@ -154,12 +155,7 @@ defmodule MediaCentaur.Library.Views.Search do
 
   # --- Row source ---
 
-  defp stored_rows do
-    case :ets.whereis(@table) do
-      :undefined -> build_rows()
-      _ref -> :ets.tab2list(@table)
-    end
-  end
+  defp stored_rows, do: Cache.with_table(@table, fn -> :ets.tab2list(@table) end, &build_rows/0)
 
   defp build_rows do
     entities = Library.SearchIndex.list_all_entities()

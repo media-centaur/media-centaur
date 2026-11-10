@@ -34,6 +34,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Topics
   alias MediaCentaur.WatchHistory
   alias MediaCentaur.WatchHistory.Views.SummaryData
@@ -70,10 +71,11 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   """
   @spec read(Ecto.UUID.t()) :: SummaryData.t()
   def read(profile_id) when is_binary(profile_id) do
-    case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> compute(profile_id)
-      snapshot -> Map.get_lazy(snapshot, profile_id, fn -> compute(profile_id) end)
-    end
+    Cache.read(
+      @cache_key,
+      &Map.get_lazy(&1, profile_id, fn -> compute(profile_id) end),
+      fn -> compute(profile_id) end
+    )
   end
 
   defp compute(profile_id) do

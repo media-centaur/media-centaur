@@ -68,6 +68,7 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   import Ecto.Query
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.CollectionArtwork
@@ -249,16 +250,11 @@ defmodule MediaCentaur.Library.Views.Detail do
   """
   @spec read(Ecto.UUID.t()) :: DetailItem.t() | nil
   def read(playable_item_id) when is_binary(playable_item_id) do
-    case :ets.whereis(@table) do
-      :undefined ->
-        build_item_for_playable_item_id(playable_item_id)
-
-      _ref ->
-        case read_from_ets(playable_item_id) do
-          nil -> build_item_for_playable_item_id(playable_item_id)
-          %DetailItem{} = item -> item
-        end
-    end
+    Cache.with_table(
+      @table,
+      fn -> read_from_ets(playable_item_id) || build_item_for_playable_item_id(playable_item_id) end,
+      fn -> build_item_for_playable_item_id(playable_item_id) end
+    )
   end
 
   def read(_), do: nil
@@ -283,16 +279,14 @@ defmodule MediaCentaur.Library.Views.Detail do
   def read_by_container(container_type, container_id)
       when container_type in [:movie, :video_object, :tv_series, :movie_series] and
              is_binary(container_id) do
-    case :ets.whereis(@table) do
-      :undefined ->
-        build_item_for_container(container_type, container_id)
-
-      _ref ->
-        case read_from_ets_by_container(container_type, container_id) do
-          nil -> build_item_for_container(container_type, container_id)
-          %DetailItem{} = item -> item
-        end
-    end
+    Cache.with_table(
+      @table,
+      fn ->
+        read_from_ets_by_container(container_type, container_id) ||
+          build_item_for_container(container_type, container_id)
+      end,
+      fn -> build_item_for_container(container_type, container_id) end
+    )
   end
 
   def read_by_container(_type, _id), do: nil
@@ -307,18 +301,18 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   defp read_from_ets_by_container(container_type, container_id) do
-    case :ets.whereis(@canonical_table) do
-      :undefined ->
-        nil
-
-      _ref ->
+    Cache.with_table(
+      @canonical_table,
+      fn ->
         with [{_key, pi_id}] <- :ets.lookup(@canonical_table, {container_type, container_id}),
              [{^pi_id, %DetailItem{} = item}] <- :ets.lookup(@table, pi_id) do
           inflate(item)
         else
           _ -> nil
         end
-    end
+      end,
+      fn -> nil end
+    )
   end
 
   # --- Presence reconciliation (drive mount / unmount) ---
@@ -433,16 +427,16 @@ defmodule MediaCentaur.Library.Views.Detail do
   defp inflate(%DetailItem{shared_key: nil} = item), do: item
 
   defp inflate(%DetailItem{shared_key: key} = item) do
-    case :ets.whereis(@shared_table) do
-      :undefined ->
-        item
-
-      _ref ->
+    Cache.with_table(
+      @shared_table,
+      fn ->
         case :ets.lookup(@shared_table, key) do
           [{^key, shared}] -> struct(item, shared)
           _ -> item
         end
-    end
+      end,
+      fn -> item end
+    )
   end
 
   # --- Canonical-index population ---

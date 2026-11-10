@@ -29,6 +29,7 @@ defmodule MediaCentaur.Status.Views.Storage do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Cache
   alias MediaCentaur.Settings.Config
 
   alias MediaCentaur.Library.ImageCache
@@ -74,12 +75,7 @@ defmodule MediaCentaur.Status.Views.Storage do
   window with a blocked drive probe).
   """
   @spec read() :: StorageSnapshot.t()
-  def read do
-    case :ets.whereis(@table) do
-      :undefined -> measure()
-      _ref -> read_from_ets()
-    end
-  end
+  def read, do: Cache.with_table(@table, &read_from_ets/0, &measure/0)
 
   defp read_from_ets do
     case :ets.lookup(@table, :snapshot) do

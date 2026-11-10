@@ -32,13 +32,12 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc "The status map, or `%{}` when no owner is running."
+  @doc "The status map, or `%{}` when no owner runs (the Social feature off, or an instance without background services)."
   @spec status() :: %{optional(String.t()) => Connections.entry()}
   def status do
-    case GenServer.whereis(__MODULE__) do
-      nil -> %{}
-      pid -> GenServer.call(pid, :status)
-    end
+    GenServer.call(__MODULE__, :status)
+  catch
+    :exit, {:noproc, _call} -> %{}
   end
 
   @spec publish(Event.t()) :: :ok
