@@ -157,6 +157,23 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     assert Connection.status(conn) == :connected
   end
 
+  test "reconnect/1 drops the socket and connects again at once, re-issuing subscriptions" do
+    relay = FakeRelay.start()
+    conn = start_connection(relay, backoff_ms: 5_000)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, @socket_wait_ms
+
+    :ok = Connection.subscribe(conn, "s", [Filter.new(kinds: [1])])
+    assert_receive {:relay_in, ["REQ", "s", _filter]}, @socket_wait_ms
+
+    :ok = Connection.reconnect(conn)
+    assert_receive {:nostr, ^url, {:disconnected, :reconnect, 0}}, @socket_wait_ms
+    # Well inside the 5 s backoff a loss would have waited out.
+    assert_receive {:nostr, ^url, :connected}, @socket_wait_ms
+    assert_receive {:relay_in, ["REQ", "s", _filter]}, @socket_wait_ms
+    assert Connection.status(conn) == :connected
+  end
+
   test "a relay that is not listening stays disconnected and keeps retrying" do
     url = "ws://127.0.0.1:1/"
     conn = start_connection(%{url: url}, backoff_ms: 50)

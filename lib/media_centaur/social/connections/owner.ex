@@ -1,10 +1,13 @@
 defmodule MediaCentaur.Social.Connections.Owner do
   @moduledoc """
-  The process that owns every relay connection: it reconciles the running
-  set against the `relays` rows (on boot, and on `RelayAdded` /
-  `RelayRemoved` / `IdentityChanged`), receives each connection's
-  `{:nostr, url, message}`, keeps the status map, and re-broadcasts on
-  `social:connections` through `Social.Events`.
+  The process that owns the *set* of relay connections: it reconciles the
+  running set against the `relays` rows (on boot and on `RelayAdded` /
+  `RelayRemoved`), has every connection reconnect on `IdentityChanged`
+  (`AUTH` is per socket; each connection owns its own socket's lifetime),
+  receives each connection's `{:nostr, url, message}`, keeps the status
+  map, and re-broadcasts on `social:connections` through `Social.Events`.
+  The parent `Social.Connections` supervisor (`:one_for_all`) stops every
+  connection when the owner goes.
 
   `relay_subs` is kept and re-applied whenever a connection starts: one
   relay, from `subscribe/3`. There used to be a second, fan-out map fed by a
@@ -24,13 +27,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Connection
   alias MediaCentaur.Nostr.Event
-
-  # A terminated connection is unregistered by the Registry asynchronously
-  # (it links to the registered process and cleans up on the EXIT signal),
-  # so restarting the same URL immediately can collide with the stale key.
-  # `stop/1` waits for the key to clear; in practice the first check passes.
-  @unregister_wait_ms 1
-  @unregister_tries 200
 
   defstruct status: %{}, relay_subs: %{}, backoff_ms: 1_000
 
@@ -59,7 +55,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   @impl true
   def init(opts) do
-    Process.flag(:trap_exit, true)
     Social.subscribe()
     # An identity minted while the app runs reaches `:persistent_term`
     # through `Config.update/2`'s broadcast; the identity key is the cue to
@@ -101,7 +96,16 @@ defmodule MediaCentaur.Social.Connections.Owner do
   def handle_info({:relay_added, _event}, state), do: {:noreply, reconcile(state)}
   def handle_info({:relay_removed, _event}, state), do: {:noreply, reconcile(state)}
 
-  def handle_info({:identity_changed, _event}, state), do: {:noreply, state |> stop_all() |> reconcile()}
+  # `AUTH` is per socket: every running connection reconnects with the new
+  # identity. The set itself does not change here.
+  def handle_info({:identity_changed, _event}, state) do
+    for {_url, pid} <- running(), do: Connection.reconnect(pid)
+    {:noreply, state}
+  end
+
+  # A connection stopped for a removed relay whose URL was added again
+  # before the Registry dropped the key: start it once the old one is gone.
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state), do: {:noreply, reconcile(state)}
 
   def handle_info({:config_updated, :nostr_secret_key, _value}, state), do: {:noreply, reconcile(state)}
 
@@ -121,12 +125,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   def handle_info(_other, state), do: {:noreply, state}
 
-  @impl true
-  def terminate(_reason, state) do
-    stop_all(state)
-    :ok
-  end
-
   # --- reconcile ---------------------------------------------------------
 
   defp reconcile(state) do
@@ -141,13 +139,9 @@ defmodule MediaCentaur.Social.Connections.Owner do
     %{state | status: Map.new(wanted, &{&1, Map.get(state.status, &1, Connections.blank_entry())})}
   end
 
-  defp stop_all(state) do
-    Enum.each(running_urls(), &stop/1)
-    %{state | status: %{}}
-  end
-
-  # `{key, pid, value}` is the Registry's match shape; we only want the keys.
+  # `{key, pid, value}` is the Registry's match shape.
   defp running_urls, do: Registry.select(Connections.Registry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+  defp running, do: Registry.select(Connections.Registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
 
   defp start(url, state) do
     spec =
@@ -161,7 +155,8 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
         :ok
 
-      {:error, {:already_started, _pid}} ->
+      {:error, {:already_started, pid}} ->
+        _ref = Process.monitor(pid)
         :ok
 
       {:error, reason} ->
@@ -172,28 +167,8 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   defp stop(url) do
     case Registry.lookup(Connections.Registry, url) do
-      [{pid, _value}] ->
-        DynamicSupervisor.terminate_child(Connections.DynamicSupervisor, pid)
-        await_unregistered(url, @unregister_tries)
-
-      [] ->
-        :ok
-    end
-  end
-
-  defp await_unregistered(url, 0) do
-    Log.warning(:social, "#{url} is still registered after being stopped; restarting it may collide")
-    :ok
-  end
-
-  defp await_unregistered(url, tries) do
-    case Registry.lookup(Connections.Registry, url) do
-      [] ->
-        :ok
-
-      _still_there ->
-        Process.sleep(@unregister_wait_ms)
-        await_unregistered(url, tries - 1)
+      [{pid, _value}] -> DynamicSupervisor.terminate_child(Connections.DynamicSupervisor, pid)
+      [] -> :ok
     end
   end
 

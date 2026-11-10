@@ -110,6 +110,15 @@ defmodule MediaCentaur.Nostr.Connection do
   def status(server), do: GenServer.call(server, :status)
 
   @doc """
+  Drops the socket and connects again at once, at the floor backoff — what
+  an identity change needs, since `AUTH` is per socket. The owner hears
+  `{:disconnected, :reconnect, 0}` and then `:connected`; subscriptions are
+  re-issued as on every connect.
+  """
+  @spec reconnect(GenServer.server()) :: :ok
+  def reconnect(server), do: GenServer.cast(server, :reconnect)
+
+  @doc """
   Injects an already-decoded WebSocket frame as if the relay had sent
   it, bypassing the socket and `Mint.WebSocket` entirely (ADR-026's
   test seam).
@@ -165,6 +174,12 @@ defmodule MediaCentaur.Nostr.Connection do
   def handle_cast({:subscribe, sub_id, filters}, state) do
     state = %{state | subs: Map.put(state.subs, sub_id, filters)}
     {:noreply, if(state.websocket, do: send_req(state, sub_id, filters), else: state)}
+  end
+
+  def handle_cast(:reconnect, state) do
+    if state.conn, do: Mint.HTTP.close(state.conn)
+    notify(state, {:disconnected, :reconnect, 0})
+    connect(%{socket_closed(state) | current_backoff: state.backoff_ms})
   end
 
   def handle_cast({:unsubscribe, sub_id}, state) do
@@ -398,6 +413,11 @@ defmodule MediaCentaur.Nostr.Connection do
     notify(state, {:disconnected, reason, state.current_backoff})
     Process.send_after(self(), :reconnect, state.current_backoff)
 
+    %{socket_closed(state) | current_backoff: min(state.current_backoff * 2, state.max_backoff_ms)}
+  end
+
+  # The state with no socket: what a loss leaves and what a reconnect starts from.
+  defp socket_closed(state) do
     %{
       cancel_timers(state)
       | conn: nil,
@@ -407,8 +427,7 @@ defmodule MediaCentaur.Nostr.Connection do
         resp_headers: nil,
         pending_auth: nil,
         data_before_upgrade: <<>>,
-        status: :disconnected,
-        current_backoff: min(state.current_backoff * 2, state.max_backoff_ms)
+        status: :disconnected
     }
   end
 
