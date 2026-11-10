@@ -235,19 +235,23 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
     end
   end
 
+  # Both searches at once, unlinked: a crash or a timeout in one is this
+  # file's search failing, never the processor's. The budget covers two
+  # requests that may each wait on `TMDB.RateLimiter` first.
+  @unknown_type_search_timeout_ms 60_000
+
   defp search(title, year, :unknown) do
-    movie_task =
-      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn ->
-        with_year_fallback(&Client.search_movie/2, title, year)
-      end)
+    [movie, tv] =
+      [
+        fn -> with_year_fallback(&Client.search_movie/2, title, year) end,
+        fn -> with_year_fallback(&Client.search_tv/2, title, year) end
+      ]
+      |> Enum.map(&Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, &1))
+      |> Task.yield_many(timeout: @unknown_type_search_timeout_ms)
+      |> Enum.map(&search_outcome/1)
 
-    tv_task =
-      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn ->
-        with_year_fallback(&Client.search_tv/2, title, year)
-      end)
-
-    with {:ok, movie_results} <- Task.await(movie_task),
-         {:ok, tv_results} <- Task.await(tv_task) do
+    with {:ok, movie_results} <- movie,
+         {:ok, tv_results} <- tv do
       movie_match = best_match(movie_results, title, year, "title", "release_date")
       tv_match = best_match(tv_results, title, year, "name", "first_air_date")
 
@@ -279,6 +283,15 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   # a findable title into a silent miss. Zero year-filtered results
   # retry year-less; `Confidence.score/6` still penalizes the mismatch,
   # so a dubious year lands in review rather than vanishing.
+  # One `Task.yield_many/2` entry → the search's `{:ok, results} | {:error, reason}`.
+  defp search_outcome({_task, {:ok, outcome}}), do: outcome
+  defp search_outcome({_task, {:exit, reason}}), do: {:error, {:search_crashed, reason}}
+  defp search_outcome({task, nil}), do: task |> Task.shutdown(:brutal_kill) |> late_search_outcome()
+
+  defp late_search_outcome({:ok, outcome}), do: outcome
+  defp late_search_outcome({:exit, reason}), do: {:error, {:search_crashed, reason}}
+  defp late_search_outcome(nil), do: {:error, :search_timeout}
+
   defp with_year_fallback(search_fun, title, year) do
     case search_fun.(title, year) do
       {:ok, []} when not is_nil(year) -> search_fun.(title, nil)

@@ -40,10 +40,6 @@ defmodule MediaCentaur.Application do
 
   @impl true
   def start(_type, _args) do
-    # Taken before Oban starts: a job attempted before this instant was
-    # left executing by the last run (see `MediaCentaur.Jobs.rescue_orphans/1`).
-    booted_at = DateTime.utc_now()
-
     Config.load!()
 
     :logger.add_handler(
@@ -77,11 +73,14 @@ defmodule MediaCentaur.Application do
     # Every failed Oban job reaches the Console (ADR-077, rule 7).
     :ok = MediaCentaur.Jobs.attach()
 
+    # The tree is the one statement of what runs (campaign
+    # `supervision-tree.md`): a setting decides whether a child is started
+    # — the FlagSupervisors under Watcher, Pipeline and Features.Runtime —
+    # and the bootstrap runs in tree order, before Oban and every subsystem.
     children =
       [
         MediaCentaurWeb.Telemetry,
         MediaCentaur.Repo,
-        {Oban, Application.fetch_env!(:media_centaur, Oban)},
         # PubSub must start before Console.Buffer — Buffer's handle_cast
         # broadcasts to PubSub on every log entry append, including during
         # init when Ecto query logs land in its mailbox.
@@ -89,6 +88,9 @@ defmodule MediaCentaur.Application do
         MediaCentaur.Console.Buffer,
         {MediaCentaur.Console.JournalSource,
          Application.get_env(:media_centaur, MediaCentaur.Console.JournalSource, [])},
+        # Config overlay and orphan rescue, before Oban reads either.
+        MediaCentaur.Application.Bootstrap,
+        {Oban, oban_config()},
         # Before the cache workers: the ShellBadges cache prime reads
         # `ErrorReports.list_buckets/0` synchronously during its init.
         MediaCentaur.ErrorReports.Buckets
@@ -101,6 +103,8 @@ defmodule MediaCentaur.Application do
         [
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
+          # The watchers start here, synchronously, when their flag is on;
+          # the pipeline's startup recovery below relies on that order.
           MediaCentaur.Watcher.Supervisor,
           # Each feature's processes, started while its flag is on and
           # stopped when it goes off (ADR-081).
@@ -110,12 +114,10 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.MediaFileAvailability,
           MediaCentaur.Pipeline.Supervisor,
-          MediaCentaur.Pipeline.Image.Supervisor,
-          %{
-            id: :init_services,
-            start: {Task, :start_link, [fn -> init_services() end]},
-            restart: :temporary
-          },
+          MediaCentaur.Pipeline.Image.Supervisor
+        ] ++
+        boot_heal_children(background_services?()) ++
+        [
           MediaCentaur.Library.AbsenceSweeper,
           MediaCentaur.Library.FileEventHandler,
           MediaCentaur.SelfUpdate.Updater,
@@ -138,87 +140,33 @@ defmodule MediaCentaur.Application do
       max_seconds: 30
     ]
 
-    children
-    |> Supervisor.start_link(opts)
-    |> post_supervisor_hooks(booted_at)
+    Supervisor.start_link(children, opts)
   end
 
-  @doc """
-  Runs post-start hooks when the supervision tree came up successfully,
-  or passes the error through unchanged when it didn't.
+  # The acquisition queue starts paused when auto-grab is off
+  # (`Settings.Services.start?/1`, read after the Bootstrap child has applied
+  # the config); `Acquisition.AutoGrabService` pauses and resumes it live.
+  # With `queues: false` (no background services) there is nothing to pause.
+  defp oban_config do
+    config = Application.fetch_env!(:media_centaur, Oban)
 
-  Skipping the hooks on a failed start prevents misleading secondary
-  errors — e.g. `Settings.Config.load_runtime_overrides/0` tries to read Settings
-  from Repo, and if a child failed to start, Repo is already being torn
-  down. The Repo-lookup crash that results hides the original cause of
-  the failure. Guarding here keeps the first crash the only crash.
-  """
-  @spec post_supervisor_hooks({:ok, pid()} | {:error, term()}, DateTime.t()) ::
-          {:ok, pid()} | {:error, term()}
-  def post_supervisor_hooks({:ok, _pid} = result, booted_at) do
-    Config.load_runtime_overrides()
-
-    # A job the last run left executing resumes now (ADR-077, rule 8).
-    MediaCentaur.Jobs.rescue_orphans(booted_at)
-
-    # Hydrate the update-check cache from persisted state and, if the
-    # last check is stale, enqueue a fresh one. Skipped in test mode so
-    # the suite doesn't reach out to GitHub or enqueue Oban jobs.
-    if MediaCentaur.SelfUpdate.enabled?() do
-      MediaCentaur.SelfUpdate.boot!()
-    end
-
-    result
-  end
-
-  def post_supervisor_hooks({:error, _reason} = error, _booted_at), do: error
-
-  defp init_services do
-    toml_entries = Application.get_env(:media_centaur, :__raw_toml_media_dirs, [])
-
-    try do
-      :ok = Config.migrate_media_dirs_from_toml(toml_entries)
-      :ok = Config.refresh_media_dirs_from_settings()
-      :ok = Config.load_runtime_overrides()
-
-      count = length(Config.media_dirs_entries())
-      require MediaCentaur.Log
-      MediaCentaur.Log.info(:system, "media_dirs: #{count} entries active")
-    rescue
-      error ->
-        require MediaCentaur.Log
-
-        MediaCentaur.Log.error(
-          :system,
-          "config migration failed: #{Exception.format(:error, error, __STACKTRACE__)}"
-        )
-    end
-
-    # Network-free, idempotent backfills — background work, so only in an
-    # instance that runs background services (see BootHeal).
-    if background_services?() do
-      MediaCentaur.BootHeal.heal_extra_names()
-      MediaCentaur.BootHeal.backfill_extra_files()
-      MediaCentaur.BootHeal.probe_media_info()
-    end
-
-    if should_start?(:start_watchers) do
-      MediaCentaur.Watcher.Supervisor.start_watchers()
-      MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()
-    end
-
-    if !should_start?(:start_pipeline) do
-      MediaCentaur.Pipeline.Supervisor.stop_pipeline()
-      MediaCentaur.Pipeline.Image.Supervisor.stop_pipeline()
-    end
-
-    # Pausing persists the preference and pauses the Oban queue; an instance
-    # without background services has neither the queue nor any business
-    # writing a preference into the database it was handed.
-    if background_services?() and !should_start?(:start_acquisition) do
-      MediaCentaur.Acquisition.pause_auto_grab()
+    with queues when is_list(queues) <- Keyword.get(config, :queues),
+         true <- Keyword.has_key?(queues, :acquisition) do
+      paused? = not MediaCentaur.Settings.Services.start?(:start_acquisition)
+      Keyword.put(config, :queues, Keyword.update!(queues, :acquisition, &paused_queue(&1, paused?)))
+    else
+      _no_acquisition_queue -> config
     end
   end
+
+  defp paused_queue(limit, paused?) when is_integer(limit), do: [limit: limit, paused: paused?]
+  defp paused_queue(opts, paused?) when is_list(opts), do: Keyword.put(opts, :paused, paused?)
+
+  # Network-free, idempotent backfills — background work, so only in an
+  # instance that runs background services (see BootHeal). Placed after the
+  # pipelines: the heals re-emit files for import.
+  defp boot_heal_children(true), do: [MediaCentaur.BootHeal]
+  defp boot_heal_children(false), do: []
 
   # `:persistent_term`-backed cache workers. Not started in test mode:
   # each worker runs its initial DB read in its own process, which has no
@@ -357,11 +305,6 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Acquisition.Pursuits.InboundListener,
       MediaCentaur.Acquisition.Pursuits.QueueListener
     ]
-  end
-
-  defp should_start?(service) do
-    config_default = Application.get_env(:media_centaur, service, true)
-    MediaCentaur.Settings.Services.enabled?(service, config_default)
   end
 
   # Bootstrap state (`Settings.Config`): whether this instance does

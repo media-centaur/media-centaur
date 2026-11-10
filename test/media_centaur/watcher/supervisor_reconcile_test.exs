@@ -1,8 +1,10 @@
 defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.ServiceFlags
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.Watcher.ConfigListener
+  alias MediaCentaur.Watcher
+  alias MediaCentaur.Watcher.Dirs.Controller
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSup
 
   defp tmp_dir(label) do
@@ -13,14 +15,13 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
   end
 
   describe "while watchers are off" do
-    # Nothing has called `start_watchers/0` (config/test.exs keeps the
-    # service off at boot) — the state a user who toggled watchers off on
-    # the Settings page is in.
+    # The flag is off (config/test.exs is an inert instance) — the state a
+    # user who toggled watchers off on the Settings page is in: the flag's
+    # children, the reconciler among them, do not exist.
     test "media-dir edits start nothing" do
       tmp = tmp_dir("off")
 
       :ok = Config.put_media_dirs([%{"id" => "off1", "dir" => tmp, "images_dir" => nil, "name" => nil}])
-      ConfigListener.__sync_for_test__()
 
       refute WatcherSup.running?()
       assert Registry.lookup(MediaCentaur.Watcher.Registry, tmp) == []
@@ -29,8 +30,9 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
 
   describe "while watchers are on" do
     setup do
-      # No media dirs yet, so this starts no child — it turns watching on.
-      WatcherSup.start_watchers()
+      # No media dirs yet, so this starts no watcher — it turns watching on.
+      ServiceFlags.enable_background_services()
+      ServiceFlags.turn_on(:start_watchers, Watcher.FlagSupervisor)
       :ok
     end
 
@@ -45,7 +47,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
           %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
         ])
 
-      ConfigListener.__sync_for_test__()
+      Controller.__sync_for_test__()
       [{pid1, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
 
       :ok =
@@ -53,7 +55,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
           %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
         ])
 
-      ConfigListener.__sync_for_test__()
+      Controller.__sync_for_test__()
       [{pid2, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
 
       assert pid1 == pid2, "name-only change should not restart the watcher"
@@ -70,13 +72,13 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
           %{"id" => "t1", "dir" => tmp, "images_dir" => nil, "name" => nil}
         ])
 
-      ConfigListener.__sync_for_test__()
+      Controller.__sync_for_test__()
 
       dirs = Enum.map(WatcherSup.statuses(), & &1.dir)
       assert tmp in dirs
 
       :ok = Config.put_media_dirs([])
-      ConfigListener.__sync_for_test__()
+      Controller.__sync_for_test__()
 
       refute tmp in Enum.map(WatcherSup.statuses(), & &1.dir)
     end

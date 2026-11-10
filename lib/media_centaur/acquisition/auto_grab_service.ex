@@ -17,7 +17,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
 
   @doc "True when auto-grab is enabled (defaults to true on fresh installs)."
   @spec running?() :: boolean()
-  def running?, do: Services.enabled?(:start_acquisition, true)
+  def running?, do: Services.start?(:start_acquisition)
 
   @doc """
   Pauses auto-grab. Persists `enabled: false` in Settings and pauses

@@ -6,6 +6,7 @@ defmodule MediaCentaur.Pipeline do
       # the two ends of the flow never meet: we search with one identity
       # and file under another, with nothing comparing them.
       MediaCentaur.Acquisition,
+      MediaCentaur.FlagSupervisor,
       MediaCentaur.TMDB,
       MediaCentaur.Library,
       MediaCentaur.Retention,

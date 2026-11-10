@@ -294,6 +294,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def dir_failure_reason_label(:inotify_missing), do: "inotify-tools not installed — live detection off"
 
   def dir_failure_reason_label(:backend_error), do: "file watcher couldn't start — check the directory"
+  def dir_failure_reason_label(:backend_exit), do: "file watcher stopped — re-watching shortly"
 
   def dir_failure_reason_label(:inaccessible),
     do: "directory became inaccessible — waiting for it to come back"

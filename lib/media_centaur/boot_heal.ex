@@ -7,7 +7,8 @@ defmodule MediaCentaur.BootHeal do
   update reaches existing records on the next restart, with no operator
   action.
 
-  The heals are background work: `MediaCentaur.Application` runs them
+  The heals are background work: `MediaCentaur.Application` lists this
+  module as a child (`boot/0`, which starts the heals and returns `:ignore`)
   only in an instance with `background_services` on (`Settings.Config`).
   The test env has it off — a boot-spawned task runs outside the test's
   sandbox-owned process — so the sweeps are tested directly instead
@@ -19,6 +20,18 @@ defmodule MediaCentaur.BootHeal do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.ExtraRederive
+
+  @doc false
+  def child_spec(_opts), do: %{id: __MODULE__, start: {__MODULE__, :boot, []}, restart: :temporary}
+
+  @doc "Starts every heal on the task supervisor; `:ignore`, there is no process to supervise."
+  @spec boot() :: :ignore
+  def boot do
+    heal_extra_names()
+    backfill_extra_files()
+    probe_media_info()
+    :ignore
+  end
 
   @doc """
   Re-derives extra display names against the current parser rules, so a

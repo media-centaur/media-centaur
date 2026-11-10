@@ -31,6 +31,8 @@ defmodule MediaCentaur.SelfUpdate.Updater do
 
   use GenServer
 
+  alias MediaCentaur.SelfUpdate
+
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Platform.ReleaseArtifact
@@ -140,7 +142,16 @@ defmodule MediaCentaur.SelfUpdate.Updater do
     }
 
     staging_root = Keyword.get(opts, :staging_root, default_staging_root())
-    {:ok, %State{deps: deps, staging_root: staging_root}}
+    {:ok, %State{deps: deps, staging_root: staging_root}, {:continue, :boot}}
+  end
+
+  # Hydrates the update-check cache and records the booted version — in
+  # production only (dev rebuilds from source, tests never dial out). Off
+  # the start path: a slow store read must not hold the application boot.
+  @impl GenServer
+  def handle_continue(:boot, state) do
+    if SelfUpdate.enabled?(), do: SelfUpdate.boot!()
+    {:noreply, state}
   end
 
   @impl GenServer

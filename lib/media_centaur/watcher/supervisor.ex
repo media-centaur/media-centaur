@@ -1,24 +1,37 @@
 defmodule MediaCentaur.Watcher.Supervisor do
   @moduledoc """
-  Coordinates multiple `MediaCentaur.Watcher` instances, one per watched directory.
+  The watcher subsystem's supervisor and its operational facade.
 
-  Starts a `DynamicSupervisor` and a `Registry`, then launches one Watcher child
-  per directory from `Config.get(:media_dirs)`.
+  Tree, `:rest_for_one`:
+
+    1. `Watcher.ScanStats` — the retained per-dir scan summaries;
+    2. `Watcher.Registry` and `Watcher.DirMonitor.Registry` — always
+       present, so the reads below answer `[]` while watching is off;
+    3. `Watcher.IgnoreRulesListener` — not gated on watching;
+    4. `MediaCentaur.Watcher.FlagSupervisor` — the `start_watchers` flag's
+       children, `Watcher.Dirs` (the per-dir watchers, the image-dir
+       monitors and the controller that keeps them equal to the configured
+       media dirs). Started here, synchronously, when the flag is on, so
+       the pipeline's startup recovery that follows in the application tree
+       finds them.
+
+  The flag (`Settings.Services.start?(:start_watchers)`) is the one owner of
+  "watching is on"; `running?/0` is the tree's answer, read from the
+  FlagSupervisor, never stored. `set_enabled/1` is what the Settings toggle
+  does; `suspend/1` stops the watchers around a destructive operation.
+  Aggregate reads (`statuses/0`, `watchers/0`, `image_dir_statuses/0`,
+  `scan_stats/0`) go through the registries.
   """
   use Supervisor
-  require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Settings.Config
-
-  alias MediaCentaur.Library.ImageCache
+  alias MediaCentaur.FlagSupervisor
+  alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Services
   alias MediaCentaur.Topics
   alias MediaCentaur.Watcher.DirMonitor
 
-  # Whether watching is on — flipped by `start_watchers/0` / `stop_watchers/0`
-  # (boot and the Settings toggle). `running?/0` cannot stand in for it:
-  # "on with no media dirs yet" and "off" both have zero children, and only
-  # the former should react when the first dir is added.
-  @enabled_key {__MODULE__, :enabled?}
+  @flag :start_watchers
+  @flag_supervisor MediaCentaur.Watcher.FlagSupervisor
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
@@ -26,111 +39,24 @@ defmodule MediaCentaur.Watcher.Supervisor do
 
   @impl true
   def init(_opts) do
+    flag_key = Services.key(@flag)
+
     children = [
       MediaCentaur.Watcher.ScanStats,
       {Registry, keys: :unique, name: MediaCentaur.Watcher.Registry},
       {Registry, keys: :unique, name: MediaCentaur.Watcher.DirMonitor.Registry},
-      {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one},
-      {DynamicSupervisor,
-       name: MediaCentaur.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one},
-      MediaCentaur.Watcher.ConfigListener
+      MediaCentaur.Watcher.IgnoreRulesListener,
+      {FlagSupervisor,
+       name: @flag_supervisor,
+       flag: fn -> Services.start?(@flag) end,
+       subscribe: &Settings.subscribe/0,
+       relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
+       children: [MediaCentaur.Watcher.Dirs],
+       label: "the watchers",
+       component: :watcher}
     ]
 
-    Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
-  end
-
-  @doc """
-  Reconciles the set of running watcher children with `new_entries`.
-  Starts added directories and terminates removed ones. A directory is
-  its own identity here, so an edited path is a stop plus a start.
-
-  Called whenever `Config` broadcasts `{:config_updated, :media_dirs, ...}`.
-  """
-  @spec reconcile([map()]) :: :ok
-  def reconcile(new_entries) when is_list(new_entries) do
-    normalize = fn entry ->
-      %{
-        "id" => entry["dir"],
-        "dir" => entry["dir"],
-        "images_dir" => nil,
-        "name" => nil
-      }
-    end
-
-    old_entries = currently_running_entries()
-    new_normalized = Enum.map(new_entries, normalize)
-
-    actions = MediaCentaur.Watcher.Reconciler.diff(old_entries, new_normalized)
-
-    Enum.each(actions.to_stop, &stop_dir/1)
-
-    Enum.each(actions.to_start, fn new -> start_dir(new["dir"]) end)
-
-    count_summary =
-      "start=#{length(actions.to_start)} stop=#{length(actions.to_stop)}"
-
-    Log.info(:watcher, "reconcile — " <> count_summary)
-
-    :ok
-  end
-
-  defp currently_running_entries do
-    MediaCentaur.Watcher.Registry
-    |> registered_keys()
-    |> Enum.map(fn dir ->
-      %{"id" => dir, "dir" => dir, "images_dir" => nil, "name" => nil}
-    end)
-  end
-
-  defp start_dir(dir) do
-    start_under(
-      MediaCentaur.Watcher.DynamicSupervisor,
-      {MediaCentaur.Watcher, dir},
-      "watcher",
-      dir
-    )
-  end
-
-  defp stop_dir(dir) do
-    case Registry.lookup(MediaCentaur.Watcher.Registry, dir) do
-      [{pid, _}] -> DynamicSupervisor.terminate_child(MediaCentaur.Watcher.DynamicSupervisor, pid)
-      [] -> :ok
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Helpers
-  # ---------------------------------------------------------------------------
-
-  # Match-spec returning every {key, pid} pair from a Registry. The ugly
-  # `[{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}]` form is named once
-  # here so `statuses/0`, `watchers/0`, and `image_dir_statuses/0` don't have
-  # to re-derive it.
-  defp registered_pids(registry) do
-    Registry.select(registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
-  end
-
-  defp registered_keys(registry) do
-    Registry.select(registry, [{{:"$1", :_, :_}, [], [:"$1"]}])
-  end
-
-  # Common shape for `DynamicSupervisor.start_child` + already-started + log.
-  # `kind` is a short label used in the log message; `name` is the human
-  # identifier (the media dir or image dir).
-  defp start_under(supervisor, child_spec, kind, name) do
-    case DynamicSupervisor.start_child(supervisor, child_spec) do
-      {:ok, _pid} ->
-        Log.info(:watcher, "started #{kind} — #{name}")
-        :ok
-
-      {:error, {:already_started, _pid}} ->
-        Log.info(:watcher, "#{kind} already running — #{name}")
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:watcher, "failed to start #{kind} — #{name}: #{inspect(reason)}")
-        {:error, reason}
-    end
+    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)
   end
 
   @doc "Subscribe the caller to watcher directory state change events."
@@ -140,135 +66,27 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
-  Turns watching on and launches a watcher for each configured directory.
-  Called at boot and from the Settings toggle; while on, media-dir edits
-  reconcile the running set (`Watcher.ConfigListener`).
+  Turns watching on or off now and for every later boot: persists the start
+  flag (`Settings.Services`) and reconciles the flag's children at once.
+  What the Settings toggle does.
   """
-  def start_watchers do
-    :persistent_term.put(@enabled_key, true)
-    dirs = Config.get(:media_dirs) || []
-
-    Enum.each(dirs, fn dir ->
-      start_under(
-        MediaCentaur.Watcher.DynamicSupervisor,
-        {MediaCentaur.Watcher, dir},
-        "watcher",
-        dir
-      )
-    end)
+  @spec set_enabled(boolean()) :: :ok
+  def set_enabled(enabled?) when is_boolean(enabled?) do
+    Services.set(@flag, enabled?)
+    FlagSupervisor.reconcile(@flag_supervisor)
   end
+
+  @doc "Whether watching is on: the flag's children are running."
+  @spec running?() :: boolean()
+  def running?, do: FlagSupervisor.running?(@flag_supervisor)
 
   @doc """
-  Starts a DirMonitor for each image directory that needs independent monitoring.
+  Stops the watchers, runs `fun`, then reads the flag again — so a
+  destructive operation (clearing the database) is not re-detected as it
+  runs. The watchers come back even when `fun` raises.
   """
-  def start_image_dir_monitors do
-    pairs = ImageCache.dirs_outside_media_dir()
-    Enum.each(pairs, &start_image_monitor/1)
-  end
-
-  @doc """
-  Reconciles running image-dir monitors with the desired set computed
-  from `ImageCache.dirs_outside_media_dir/0`. Called by
-  `Watcher.ConfigListener` whenever media_dirs change so that editing
-  `images_dir` on a watch entry takes effect without an app restart.
-  """
-  @spec reconcile_image_dir_monitors() :: :ok
-  def reconcile_image_dir_monitors do
-    actions =
-      MediaCentaur.Watcher.Reconciler.diff_image_monitors(
-        currently_running_image_pairs(),
-        ImageCache.dirs_outside_media_dir()
-      )
-
-    Enum.each(actions.to_stop, &stop_image_monitor/1)
-    Enum.each(actions.to_start, &start_image_monitor/1)
-
-    if actions.to_start != [] or actions.to_stop != [] do
-      Log.info(
-        :watcher,
-        "reconcile image monitors — start=#{length(actions.to_start)} stop=#{length(actions.to_stop)}"
-      )
-    end
-
-    :ok
-  end
-
-  defp start_image_monitor({media_dir, image_dir}) do
-    start_under(
-      MediaCentaur.Watcher.DirMonitor.DynamicSupervisor,
-      {MediaCentaur.Watcher.DirMonitor, {image_dir, media_dir}},
-      "image dir monitor",
-      image_dir
-    )
-  end
-
-  defp stop_image_monitor(image_dir) do
-    case Registry.lookup(MediaCentaur.Watcher.DirMonitor.Registry, image_dir) do
-      [{pid, _}] ->
-        DynamicSupervisor.terminate_child(
-          MediaCentaur.Watcher.DirMonitor.DynamicSupervisor,
-          pid
-        )
-
-      [] ->
-        :ok
-    end
-  end
-
-  defp currently_running_image_pairs do
-    DirMonitor.Registry
-    |> registered_pids()
-    |> Enum.flat_map(fn {image_dir, pid} ->
-      try do
-        [{DirMonitor.media_dir(pid), image_dir}]
-      catch
-        :exit, _ -> []
-      end
-    end)
-  end
-
-  @doc """
-  Returns a list of `%{dir: path, media_dir: path, state: atom}` for all running DirMonitors.
-  """
-  def image_dir_statuses do
-    DirMonitor.Registry
-    |> registered_pids()
-    |> Enum.flat_map(fn {dir, pid} ->
-      try do
-        [
-          %{
-            dir: dir,
-            media_dir: DirMonitor.media_dir(pid),
-            state: DirMonitor.status(pid)
-          }
-        ]
-      catch
-        :exit, _ -> []
-      end
-    end)
-    |> Enum.sort_by(& &1.dir)
-  end
-
-  @doc """
-  Stops all watchers, runs `fun`, then restarts them.
-
-  Used by destructive admin operations (clear_database) to prevent
-  the watcher from re-detecting files during the operation.
-  """
-  def pause_during(fun) when is_function(fun, 0) do
-    if Process.whereis(__MODULE__) do
-      resume? = enabled?()
-      stop_watchers()
-
-      try do
-        fun.()
-      after
-        if resume?, do: start_watchers()
-      end
-    else
-      fun.()
-    end
-  end
+  @spec suspend((-> result)) :: result when result: term()
+  def suspend(fun) when is_function(fun, 0), do: FlagSupervisor.suspend(@flag_supervisor, fun)
 
   @doc """
   Aggregate status: `:watching` if any child is watching, `:unavailable` if all are down.
@@ -307,6 +125,21 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
+  Returns a list of `%{dir: path, media_dir: path, state: atom}` for all running DirMonitors.
+  """
+  def image_dir_statuses do
+    image_monitors()
+    |> Enum.flat_map(fn {dir, pid} ->
+      try do
+        [%{dir: dir, media_dir: DirMonitor.media_dir(pid), state: DirMonitor.status(pid)}]
+      catch
+        :exit, _ -> []
+      end
+    end)
+    |> Enum.sort_by(& &1.dir)
+  end
+
+  @doc """
   Returns the retained `%{dir => last_scan_summary}` map from
   `MediaCentaur.Watcher.ScanStats` — the boundary-clean door for the web layer,
   which may only call this exported `Supervisor`.
@@ -317,42 +150,12 @@ defmodule MediaCentaur.Watcher.Supervisor do
   @spec watchers() :: [{String.t(), pid()}]
   def watchers, do: registered_pids(MediaCentaur.Watcher.Registry)
 
-  @doc "Returns true if any watcher children are currently running."
-  def running? do
-    DynamicSupervisor.which_children(MediaCentaur.Watcher.DynamicSupervisor) != []
-  end
+  @doc "Every running image-dir monitor as `{image_dir, pid}`."
+  @spec image_monitors() :: [{String.t(), pid()}]
+  def image_monitors, do: registered_pids(DirMonitor.Registry)
 
-  @doc """
-  Turns watching on or off now and for every later boot: starts or stops
-  the watchers and persists the start flag (`Settings.Services`). What the
-  Settings toggle does; `start_watchers/0` alone is the boot path.
-  """
-  @spec set_enabled(boolean()) :: :ok
-  def set_enabled(true) do
-    start_watchers()
-    start_image_dir_monitors()
-    MediaCentaur.Settings.Services.set(:start_watchers, true)
-    :ok
-  end
-
-  def set_enabled(false) do
-    stop_watchers()
-    MediaCentaur.Settings.Services.set(:start_watchers, false)
-    :ok
-  end
-
-  @doc "Whether watching is on (`start_watchers/0` since the last `stop_watchers/0`)."
-  @spec enabled?() :: boolean()
-  def enabled?, do: :persistent_term.get(@enabled_key, false)
-
-  @doc "Turns watching off and stops all running watcher children."
-  def stop_watchers do
-    :persistent_term.put(@enabled_key, false)
-
-    MediaCentaur.Watcher.DynamicSupervisor
-    |> DynamicSupervisor.which_children()
-    |> Enum.each(fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(MediaCentaur.Watcher.DynamicSupervisor, pid)
-    end)
+  # Match-spec returning every {key, pid} pair from a Registry, named once.
+  defp registered_pids(registry) do
+    Registry.select(registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
   end
 end

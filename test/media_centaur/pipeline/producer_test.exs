@@ -83,26 +83,13 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
     end
   end
 
-  describe "DiscoveryProducer.recover_action/2" do
-    test "runs immediately once the watcher reports running, regardless of attempt count" do
-      assert DiscoveryProducer.recover_action(0, true) == :run
-      assert DiscoveryProducer.recover_action(19, true) == :run
+  describe "DiscoveryProducer.recover_action/1" do
+    test "runs startup recovery when the watchers are on" do
+      assert DiscoveryProducer.recover_action(true) == :run
     end
 
-    test "retries with a delay while the watcher isn't running yet and attempts remain" do
-      assert {:retry, delay} = DiscoveryProducer.recover_action(0, false)
-      # `is_integer(delay)` is proven by the type checker since Elixir 1.20
-      # (asserting it is a compile warning); the bound is the real check.
-      assert delay > 0
-    end
-
-    test "gives up silently once the attempt budget is exhausted" do
-      # Startup recovery is a one-time opportunity racing against
-      # `MediaCentaur.Watcher.Supervisor.start_watchers/0` (ADR-023) — it must
-      # not retry forever, and it must not treat a deliberately-disabled
-      # watcher (`services:*:start_watchers` off) as an error worth logging.
-      assert DiscoveryProducer.recover_action(DiscoveryProducer.max_recover_attempts(), false) ==
-               :skip
+    test "skips it silently when watching is off — a deliberately disabled watcher is not an error" do
+      assert DiscoveryProducer.recover_action(false) == :skip
     end
   end
 end

@@ -1,10 +1,8 @@
 defmodule MediaCentaur.Social.ConnectionsBootTest do
-  # Boot order: `Connections.Owner` starts inside the supervision tree,
-  # but the identity lives in the Settings database and reaches
-  # `:persistent_term` only in `Application.post_supervisor_hooks/2`
-  # (`Config.load_runtime_overrides/0`). The owner's first reconcile
-  # therefore sees no identity and starts nothing; it must reconcile
-  # again when the overlay lands.
+  # An owner started before an identity exists starts nothing; the
+  # identity reaches `:persistent_term` through the config overlay's
+  # broadcast (`Config.load_runtime_overrides/0`, also what minting an
+  # identity at runtime broadcasts), and the owner must reconcile on it.
   use MediaCentaur.DataCase, async: false
 
   @moduletag :capture_log

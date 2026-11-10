@@ -174,9 +174,9 @@ If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-at
 
 `Pipeline.Image.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `Pipeline.Image`.
 
-Watchers and pipelines can be independently stopped/started via config (`start_watchers`, `start_pipeline`).
+Watchers and the two pipelines run while their service start flags are on (`start_watchers`, `start_pipeline`, `start_image_pipeline` — `Settings.Services.start?/1`, persisted by the Settings toggles); each is a `MediaCentaur.FlagSupervisor`'s children, absent from the tree while off.
 
-**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:reconcile` and triggers `Watcher.Rescan.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
+**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:recover` and, if watching is on, triggers `Watcher.Rescan.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
 
 ---
 

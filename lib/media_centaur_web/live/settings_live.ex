@@ -813,7 +813,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   # are one idea with two matching modes, and two near-identical
   # handler triples is how they drifted apart in the first place.
   # `Config.update/2` broadcasts, which is what triggers the retraction
-  # pass in `Watcher.ConfigListener` — saving a rule reconciles what is
+  # pass in `Watcher.IgnoreRulesListener` — saving a rule reconciles what is
   # already recorded under it.
 
   def handle_event("ignore_rule:validate", %{"item" => input, "kind" => kind}, socket)
@@ -963,11 +963,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("toggle_image_pipeline", _params, socket) do
-    if socket.assigns.image_pipeline_running do
-      ImagePipeline.Supervisor.stop_pipeline()
-    else
-      ImagePipeline.Supervisor.start_pipeline()
-    end
+    ImagePipeline.Supervisor.set_enabled(!socket.assigns.image_pipeline_running)
 
     {:noreply, assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
   end

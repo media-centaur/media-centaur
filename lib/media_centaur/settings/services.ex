@@ -1,12 +1,12 @@
 defmodule MediaCentaur.Settings.Services do
   @moduledoc """
   The per-environment start flags for optional services (`:start_watchers`,
-  `:start_pipeline`, `:start_acquisition`).
+  `:start_pipeline`, `:start_image_pipeline`, `:start_acquisition`).
 
   One Settings entry per `{env, service}` under `services:<env>:<service>`
-  with the value `%{"enabled" => boolean}`. `MediaCentaur.Application` reads
-  them at boot, the Settings page and `Acquisition.AutoGrabService` write
-  them. The environment segment keeps a dev and a production install on the
+  with the value `%{"enabled" => boolean}`. Each service's FlagSupervisor
+  reads its flag (`start?/1`) at boot and on its broadcast; the Settings
+  page and `Acquisition.AutoGrabService` write them. The environment segment keeps a dev and a production install on the
   same machine from sharing a flag.
 
   A row is a preference of an instance that runs background services at
@@ -28,6 +28,18 @@ defmodule MediaCentaur.Settings.Services do
   @spec set(service(), boolean()) :: Settings.Entry.t()
   def set(service, enabled?) when is_atom(service) and is_boolean(enabled?) do
     Settings.find_or_create_entry!(%{key: key(service), value: %{"enabled" => enabled?}})
+  end
+
+  @doc """
+  Whether `service` runs in this instance: false when the instance runs no
+  background services, else the persisted flag, else the app-env default
+  (`config :media_centaur, service`), else true. The one read of a service
+  flag: the FlagSupervisors read it at start and on the flag's broadcast,
+  the Settings page shows it.
+  """
+  @spec start?(service()) :: boolean()
+  def start?(service) when is_atom(service) do
+    enabled?(service, Application.get_env(:media_centaur, service, true))
   end
 
   @doc """

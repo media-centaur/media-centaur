@@ -435,9 +435,9 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         )
 
       File.mkdir_p!(tmp_dir)
+      MediaCentaur.ServiceFlags.enable_background_services()
       put_config(:media_dirs, [tmp_dir])
-
-      MediaCentaur.Watcher.Supervisor.start_watchers()
+      MediaCentaur.ServiceFlags.turn_on(:start_watchers, MediaCentaur.Watcher.FlagSupervisor)
 
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 

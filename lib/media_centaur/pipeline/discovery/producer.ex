@@ -6,7 +6,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   events from the Watcher, converts them to `%Payload{}` structs, and dispatches
   to Broadway processors on demand.
 
-  On startup, sends `{:recover, 0}` to trigger watcher rescan (ADR-023).
+  On startup, sends itself `:recover` to trigger the watcher rescan (ADR-023).
   """
   use GenStage
   @behaviour Broadway.Acknowledger
@@ -16,40 +16,25 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.ProducerQueue
 
-  # `MediaCentaur.Watcher.Supervisor` is a sibling child started later in the
-  # same supervision tree (its actual per-directory watchers are started from
-  # an async `init_services` Task, not the supervisor's own `start_link`) — so
-  # `running?/0` can read `false` for a moment after this producer's `init/1`
-  # runs, purely because the watchers haven't been told to start yet. A single
-  # unconditional check races that startup ordering and can silently skip
-  # startup recovery for the entire session. Retrying briefly closes the race
-  # without polling indefinitely: a deliberately-disabled watcher
-  # (`services:*:start_watchers` off) exhausts the budget and is skipped
-  # exactly as before.
-  @max_recover_attempts 20
-  @recover_retry_ms 100
-
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
   @impl true
   def init(_opts) do
     MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_input())
-    send(self(), {:recover, 0})
+    send(self(), :recover)
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
-  @doc false
-  def max_recover_attempts, do: @max_recover_attempts
-
   @doc """
-  Decides what `{:recover, attempt}` should do next, given whether the
-  watcher currently reports running. Pure — exposed for testing the
-  race-retry boundary without spinning up the GenStage process.
+  What `:recover` does, given whether watching is on. `Watcher.Supervisor`
+  starts its watchers synchronously and sits before the pipeline in the
+  application tree, so the answer at this producer's start is final: a
+  deliberately disabled watcher (`services:*:start_watchers` off) is
+  skipped, not an error worth logging or retrying.
   """
-  @spec recover_action(non_neg_integer(), boolean()) :: :run | {:retry, pos_integer()} | :skip
-  def recover_action(_attempt, true), do: :run
-  def recover_action(attempt, false) when attempt >= @max_recover_attempts, do: :skip
-  def recover_action(_attempt, false), do: {:retry, @recover_retry_ms}
+  @spec recover_action(boolean()) :: :run | :skip
+  def recover_action(true), do: :run
+  def recover_action(false), do: :skip
 
   @impl true
   def handle_demand(incoming_demand, state) do
@@ -90,8 +75,8 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   #   items on link outcomes delivered over PubSub, which has no replay;
   #   this heals a dropped one. The rescan that follows skips an approved
   #   file (Discovery's `settled_reason/1`), so it is imported once.
-  def handle_info({:recover, attempt}, state) do
-    case recover_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
+  def handle_info(:recover, state) do
+    case recover_action(MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
         Log.info(:pipeline, "triggered watcher rescan — startup recovery")
 
@@ -99,9 +84,6 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
           MediaCentaur.Review.settle_with_library()
           MediaCentaur.Watcher.Rescan.recover()
         end)
-
-      {:retry, delay_ms} ->
-        Process.send_after(self(), {:recover, attempt + 1}, delay_ms)
 
       :skip ->
         :ok

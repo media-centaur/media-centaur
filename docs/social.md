@@ -117,10 +117,10 @@ before touching it:
 `Social.Connections` keeps that population in step with the `relays` table: a
 Registry keyed by URL, a DynamicSupervisor, and `Connections.Owner`, which
 reconciles on boot, on `RelayAdded` / `RelayRemoved` / `IdentityChanged`, and
-on `{:config_updated, :nostr_secret_key, _}` — the boot reconcile runs before
-`Application.post_supervisor_hooks/1` overlays the database settings, so the
-identity is usually absent then and the overlay's broadcast is what starts
-the connections —
+on `{:config_updated, :nostr_secret_key, _}` — the identity minted while the
+app runs reaches `:persistent_term` through that broadcast; at boot
+`Application.Bootstrap` has already overlaid the database settings before
+the owner starts —
 receives every connection's messages, and re-broadcasts them on
 `social:connections`. `Connections.status/0` is the read model —
 `%{url => %{state, last_error, since, last_heard_at, retry_at}}` (the

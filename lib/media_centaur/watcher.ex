@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Watcher do
   use Boundary,
     # `Supervisor.set_enabled/1` persists the start flag (`Settings.Services`).
-    deps: [MediaCentaur.Library, MediaCentaur.Settings],
+    deps: [MediaCentaur.FlagSupervisor, MediaCentaur.Library, MediaCentaur.Settings],
     # `IgnoreRules` is exported because "is this path library content?"
     # is asked outside this subsystem too: Settings validates a new rule
     # against the same matcher rather than re-deriving path matching in
@@ -24,10 +24,11 @@ defmodule MediaCentaur.Watcher do
       MediaCentaur.Watcher.validate_dir(entry, existing)
       MediaCentaur.Watcher.record_seen(attrs)
 
-    Aggregate operations (subscribe, statuses, scan all dirs, pause_during,
-    start/stop, reconcile, image-dir monitors, rescan_unlinked) live on
-    `MediaCentaur.Watcher.Supervisor` — the supervisor module is the
-    operational facade for "do this across every running watcher".
+    Aggregate operations (subscribe, statuses, running?, set_enabled, suspend)
+    live on `MediaCentaur.Watcher.Supervisor` — the supervisor module is the
+    operational facade for "do this across every running watcher"; the set
+    of running watchers follows the configured media dirs through
+    `Watcher.Dirs.Controller`.
 
   ## Event-driven pipeline integration
 
@@ -182,6 +183,11 @@ defmodule MediaCentaur.Watcher do
     {:reply, detail, state}
   end
 
+  def handle_call(:__stop_backend_for_test__, _from, %{watcher_pid: pid} = state) when is_pid(pid) do
+    Process.exit(pid, :kill)
+    {:reply, :ok, state}
+  end
+
   def handle_call(:scan, from, state) do
     dir = state.dir
     rules = state.ignore_rules
@@ -257,10 +263,17 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  def handle_info({:file_event, _pid, :stop}, state) do
-    Log.warning(:watcher, "watcher stopped — #{state.dir}")
-    {:noreply, state}
-  end
+  # The backend ended (`:stop`) or died (a trapped `EXIT` from the linked
+  # `FileSystem` process): no event will arrive again, so the directory is
+  # unavailable until the fast health check finds it accessible and re-runs
+  # `:start_watching`. A `:stop` is followed by the `EXIT`, which then finds
+  # no backend pid to match and is ignored below.
+  def handle_info({:file_event, _pid, :stop}, state), do: {:noreply, backend_gone(state, :stop)}
+
+  def handle_info({:EXIT, pid, reason}, %{watcher_pid: pid} = state),
+    do: {:noreply, backend_gone(state, reason)}
+
+  def handle_info({:EXIT, _other, _reason}, state), do: {:noreply, state}
 
   def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
@@ -352,6 +365,19 @@ defmodule MediaCentaur.Watcher do
   def terminate(_reason, state) do
     flush_deletions(state, "flushed #{deletion_count(state)} buffered deletions — shutdown")
     :ok
+  end
+
+  @doc false
+  # Kills the inotify backend, as a crash of inotifywait would.
+  def __stop_backend_for_test__(pid), do: GenServer.call(pid, :__stop_backend_for_test__)
+
+  defp backend_gone(%{watcher_pid: nil} = state, _reason), do: state
+
+  defp backend_gone(state, reason) do
+    Log.warning(:watcher, "file watcher backend exited — #{state.dir}: #{inspect(reason)}")
+    broadcast_state(state.dir, :unavailable)
+    schedule_health_check(nil)
+    %{mark_unavailable(state, :backend_exit) | watcher_pid: nil}
   end
 
   # FileSystem.start_link returns :ok even when the underlying inotifywait

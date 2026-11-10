@@ -2,6 +2,8 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
   use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Repo
+  alias MediaCentaur.ServiceFlags
+  alias MediaCentaur.Watcher
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSupervisor
 
   import MediaCentaur.Eventually
@@ -16,12 +18,14 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     tmp_dir = Path.join(System.tmp_dir!(), "watcher_test_#{:erlang.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
 
-    # Override config to point media_dirs to our temp dir
+    # Watching follows its flag; the config override points media_dirs at
+    # the temp dir before the flag's children read it.
+    ServiceFlags.enable_background_services()
     original_config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     updated_config = Map.put(original_config, :media_dirs, [tmp_dir])
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
-    WatcherSupervisor.start_watchers()
+    ServiceFlags.turn_on(:start_watchers, Watcher.FlagSupervisor)
     eventually(fn -> WatcherSupervisor.statuses() != [] end)
 
     on_exit(fn ->
@@ -33,12 +37,12 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     %{tmp_dir: tmp_dir}
   end
 
-  describe "pause_during/1" do
+  describe "suspend/1" do
     test "stops watchers, runs the function, then restarts them" do
       assert [%{dir: _, state: _}] = WatcherSupervisor.statuses()
 
       result =
-        WatcherSupervisor.pause_during(fn ->
+        WatcherSupervisor.suspend(fn ->
           assert [] = WatcherSupervisor.statuses()
           :callback_result
         end)
@@ -51,7 +55,7 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
 
     test "restarts watchers even if the function raises" do
       assert_raise RuntimeError, "boom", fn ->
-        WatcherSupervisor.pause_during(fn ->
+        WatcherSupervisor.suspend(fn ->
           raise "boom"
         end)
       end

@@ -109,7 +109,7 @@ defmodule MediaCentaur.Maintenance do
   then clears image files from disk.
   """
   def clear_database do
-    MediaCentaur.Watcher.Supervisor.pause_during(fn ->
+    MediaCentaur.Watcher.Supervisor.suspend(fn ->
       Log.info(:library, "clearing database")
       entity_ids = collect_all_entity_ids()
 

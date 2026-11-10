@@ -1,13 +1,25 @@
 defmodule MediaCentaur.Pipeline.Image.Supervisor do
   @moduledoc """
-  Groups ImagePipeline.Stats, ImagePipeline, and RetryScheduler under a single supervisor.
+  The artwork pipeline's supervisor, `:rest_for_one`:
 
-  Uses `:rest_for_one` strategy: Stats crash cascades to ImagePipeline and
-  RetryScheduler (clean telemetry re-attach). RetryScheduler crash does not
-  affect Stats or ImagePipeline — a fresh retry budget is intentionally
-  desirable after crash.
+    1. `Pipeline.Image.Stats` — a crash restarts everything below it (clean
+       telemetry re-attach);
+    2. `MediaCentaur.Pipeline.Image.FlagSupervisor` — the
+       `start_image_pipeline` flag's children, `Pipeline.Image` (Broadway)
+       and `Pipeline.Image.RetryScheduler`. Absent while the flag is off.
+
+  The flag (`Settings.Services.start?(:start_image_pipeline)`) is the one
+  owner of "artwork downloads are on"; `pipeline_running?/0` is the tree's
+  answer. `set_enabled/1` is what the Settings toggle does.
   """
   use Supervisor
+
+  alias MediaCentaur.FlagSupervisor
+  alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Services
+
+  @flag :start_image_pipeline
+  @flag_supervisor MediaCentaur.Pipeline.Image.FlagSupervisor
 
   def start_link(_opts) do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
@@ -15,31 +27,35 @@ defmodule MediaCentaur.Pipeline.Image.Supervisor do
 
   @impl true
   def init(_opts) do
+    flag_key = Services.key(@flag)
+
     children = [
       MediaCentaur.Pipeline.Image.Stats,
-      MediaCentaur.Pipeline.Image,
-      MediaCentaur.Pipeline.Image.RetryScheduler
+      {FlagSupervisor,
+       name: @flag_supervisor,
+       flag: fn -> Services.start?(@flag) end,
+       subscribe: &Settings.subscribe/0,
+       relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
+       children: [MediaCentaur.Pipeline.Image, MediaCentaur.Pipeline.Image.RetryScheduler],
+       label: "the artwork pipeline",
+       component: :pipeline}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end
 
-  @doc "Starts the ImagePipeline Broadway process and RetryScheduler."
-  def start_pipeline do
-    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Image)
-    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Image.RetryScheduler)
+  @doc """
+  Turns artwork downloads on or off now and for every later boot: persists
+  the start flag (`Settings.Services`) and reconciles the flag's children at
+  once. What the Settings toggle does.
+  """
+  @spec set_enabled(boolean()) :: :ok
+  def set_enabled(enabled?) when is_boolean(enabled?) do
+    Services.set(@flag, enabled?)
+    FlagSupervisor.reconcile(@flag_supervisor)
   end
 
-  @doc "Stops the ImagePipeline Broadway process and RetryScheduler."
-  def stop_pipeline do
-    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Image.RetryScheduler)
-    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Image)
-  end
-
-  @doc "Returns true if the ImagePipeline Broadway process is running."
-  def pipeline_running? do
-    __MODULE__
-    |> Supervisor.which_children()
-    |> Enum.any?(fn {id, pid, _, _} -> id == MediaCentaur.Pipeline.Image and is_pid(pid) end)
-  end
+  @doc "Whether artwork downloads are on: the Broadway process is running."
+  @spec pipeline_running?() :: boolean()
+  def pipeline_running?, do: FlagSupervisor.running?(@flag_supervisor)
 end

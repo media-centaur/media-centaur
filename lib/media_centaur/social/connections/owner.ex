@@ -61,11 +61,10 @@ defmodule MediaCentaur.Social.Connections.Owner do
   def init(opts) do
     Process.flag(:trap_exit, true)
     Social.subscribe()
-    # The identity reaches `:persistent_term` only after the supervision
-    # tree is up (`Application.post_supervisor_hooks/2` overlays the
-    # database settings), so the boot reconcile below usually sees none.
-    # The overlay broadcasts each key it applies; the identity key is the
-    # cue to reconcile again.
+    # An identity minted while the app runs reaches `:persistent_term`
+    # through `Config.update/2`'s broadcast; the identity key is the cue to
+    # reconcile again. (At boot `Application.Bootstrap` has already overlaid
+    # the database settings, so the reconcile below sees it.)
     Config.subscribe()
     {:ok, %__MODULE__{backoff_ms: Keyword.get(opts, :backoff_ms, 1_000)}, {:continue, :boot}}
   end

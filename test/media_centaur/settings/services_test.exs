@@ -41,6 +41,32 @@ defmodule MediaCentaur.Settings.ServicesTest do
     end
   end
 
+  describe "start?/1" do
+    setup do
+      load_config(true)
+    end
+
+    test "falls back to the app-env default when nothing is persisted" do
+      Application.put_env(:media_centaur, :start_watchers, false)
+      refute Services.start?(:start_watchers)
+
+      Application.put_env(:media_centaur, :start_watchers, true)
+      assert Services.start?(:start_watchers)
+    end
+
+    test "a persisted flag wins over the app-env default" do
+      Application.put_env(:media_centaur, :start_pipeline, false)
+      Services.set(:start_pipeline, true)
+      assert Services.start?(:start_pipeline)
+    end
+
+    test "is false in an instance without background services" do
+      Services.set(:start_pipeline, true)
+      load_config(false)
+      refute Services.start?(:start_pipeline)
+    end
+  end
+
   describe "key/1" do
     test "is namespaced by the running environment" do
       env = Application.get_env(:media_centaur, :environment, :dev)

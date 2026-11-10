@@ -1,13 +1,28 @@
 defmodule MediaCentaur.Pipeline.Supervisor do
   @moduledoc """
-  Groups Pipeline.Stats, Discovery, and Import under a single supervisor.
+  The import pipeline's supervisor, `:rest_for_one`:
 
-  Uses `:rest_for_one` strategy: if Stats crashes, both pipelines restart
-  (clean telemetry re-attach). Pipeline crashes do not affect Stats —
-  counters continue to reflect the last known state until the restarted
-  pipeline emits new telemetry events.
+    1. `Pipeline.Stats` — a crash restarts everything below it (clean
+       telemetry re-attach);
+    2. `Pipeline.Discovery.InflightSet` — owns the ETS dedup table; above
+       the Broadway children so the table outlives a producer crash;
+    3. `MediaCentaur.Pipeline.FlagSupervisor` — the `start_pipeline` flag's
+       children, `Pipeline.Discovery` and `Pipeline.Import`. Absent while
+       the flag is off, so a Stats crash cannot start a pipeline the user
+       turned off.
+
+  The flag (`Settings.Services.start?(:start_pipeline)`) is the one owner of
+  "the pipeline is on"; `pipeline_running?/0` is the tree's answer.
+  `set_enabled/1` is what the Settings toggle does.
   """
   use Supervisor
+
+  alias MediaCentaur.FlagSupervisor
+  alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Services
+
+  @flag :start_pipeline
+  @flag_supervisor MediaCentaur.Pipeline.FlagSupervisor
 
   def start_link(_opts) do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
@@ -15,59 +30,36 @@ defmodule MediaCentaur.Pipeline.Supervisor do
 
   @impl true
   def init(_opts) do
+    flag_key = Services.key(@flag)
+
     children = [
       MediaCentaur.Pipeline.Stats,
-      # Discovery.InflightSet owns the ETS dedup table; must start
-      # before Discovery so the producer can call into it from `init/1`,
-      # and must sit above Discovery in the :rest_for_one tree so the
-      # table outlives any Broadway producer crash.
       MediaCentaur.Pipeline.Discovery.InflightSet,
-      MediaCentaur.Pipeline.Discovery,
-      MediaCentaur.Pipeline.Import
+      {FlagSupervisor,
+       name: @flag_supervisor,
+       flag: fn -> Services.start?(@flag) end,
+       subscribe: &Settings.subscribe/0,
+       relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
+       children: [MediaCentaur.Pipeline.Discovery, MediaCentaur.Pipeline.Import],
+       label: "the import pipeline",
+       component: :pipeline}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end
 
-  @doc "Starts both pipeline Broadway processes (no-op if already running)."
-  def start_pipeline do
-    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Discovery)
-    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Import)
-  end
-
-  @doc "Stops both pipeline Broadway processes (no-op if already stopped)."
-  def stop_pipeline do
-    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Import)
-    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Discovery)
-  end
-
   @doc """
-  Turns the pipeline on or off now and for every later boot: starts or
-  stops both Broadway processes and persists the start flag
-  (`Settings.Services`). What the Settings toggle does.
+  Turns the pipeline on or off now and for every later boot: persists the
+  start flag (`Settings.Services`) and reconciles the flag's children at
+  once. What the Settings toggle does.
   """
   @spec set_enabled(boolean()) :: :ok
-  def set_enabled(true) do
-    start_pipeline()
-    MediaCentaur.Settings.Services.set(:start_pipeline, true)
-    :ok
+  def set_enabled(enabled?) when is_boolean(enabled?) do
+    Services.set(@flag, enabled?)
+    FlagSupervisor.reconcile(@flag_supervisor)
   end
 
-  def set_enabled(false) do
-    stop_pipeline()
-    MediaCentaur.Settings.Services.set(:start_pipeline, false)
-    :ok
-  end
-
-  @doc "Returns true if both pipeline Broadway processes are running."
-  def pipeline_running? do
-    children = Supervisor.which_children(__MODULE__)
-
-    Enum.all?(
-      [MediaCentaur.Pipeline.Discovery, MediaCentaur.Pipeline.Import],
-      fn id ->
-        Enum.any?(children, fn {child_id, pid, _, _} -> child_id == id and is_pid(pid) end)
-      end
-    )
-  end
+  @doc "Whether the pipeline is on: both Broadway processes are running."
+  @spec pipeline_running?() :: boolean()
+  def pipeline_running?, do: FlagSupervisor.running?(@flag_supervisor)
 end

@@ -101,8 +101,18 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:reset, {MediaCentaur.TMDB.MetadataStats, :reset, []},
        "the Status page reads the singleton's snapshot; enrichment telemetry from any test fills it"},
     MediaCentaur.Watcher.Supervisor =>
-      {:reset, {MediaCentaur.Watcher.Supervisor, :stop_watchers, []},
-       "a test that calls start_watchers/0 leaves watcher children running; the flag is a :persistent_term"},
+      {:reset, {MediaCentaur.FlagSupervisor, :force, [MediaCentaur.Watcher.FlagSupervisor, false]},
+       "a test that turns the flag on leaves watchers running; force stops them without reading the rolled-back flag"},
+    # Not top-level children (they run under the pipeline supervisors), but
+    # their resets still run: a test that turned a pipeline on leaves its
+    # Broadway children running.
+    MediaCentaur.Pipeline.FlagSupervisor =>
+      {:reset, {MediaCentaur.FlagSupervisor, :force, [MediaCentaur.Pipeline.FlagSupervisor, false]},
+       "the import pipeline's flag children; force stops them without reading the rolled-back flag"},
+    MediaCentaur.Pipeline.Image.FlagSupervisor =>
+      {:reset,
+       {MediaCentaur.FlagSupervisor, :force, [MediaCentaur.Pipeline.Image.FlagSupervisor, false]},
+       "the artwork pipeline's flag children; force stops them without reading the rolled-back flag"},
     MediaCentaur.Features.Runtime =>
       {:reset, {MediaCentaur.Features.Runtime, :reset, []},
        "a test that turns a feature off stops its runtime; reset/0 puts every runtime at the registry default without reading the rolled-back flag"},
@@ -133,7 +143,10 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:unobservable, "response cache and request traffic are not started under :test"},
     MediaCentaur.SelfUpdate.AutoApply =>
       {:unobservable, "a check schedule; its public functions are pure"},
-    :init_services => {:unobservable, "one-shot temporary task; gone before the first test"}
+    MediaCentaur.Application.Bootstrap =>
+      {:unobservable, "one-shot: applies the config before the subsystems and returns :ignore"},
+    MediaCentaur.BootHeal =>
+      {:unobservable, "one-shot heals, background instances only; returns :ignore"}
   }
 
   @doc """

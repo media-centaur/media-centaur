@@ -85,9 +85,9 @@ All three are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings 
 
 When media dirs or ignore rules change, `Settings` broadcasts `:config_updated` on the `config:updates` topic. Each running `Watcher` reloads its own cached rule set from that broadcast, in place — no supervisor restart, no inotify teardown. This is what makes v0.21.0's "changes to your excluded-directory list take effect immediately" work; before 2026-09-15 only `exclude_dirs` refreshed, so a `skip_dirs` edit went unseen by the event filter until the next restart.
 
-`Watcher.ConfigListener` handles the once-per-change, cross-directory halves: `media_dirs` reconciles the running watcher set, and either ignore-rule key runs `Rescan.retract_ignored/0`.
+Two listeners handle the once-per-change, cross-directory halves. `Watcher.Dirs.Controller` reconciles the running watcher set (and the image-dir monitors) on a `media_dirs` change; `Watcher.IgnoreRulesListener` runs `Rescan.retract_ignored/0` on either ignore-rule key.
 
-Media-dir edits reconcile the running set only while watching is on (`Watcher.Supervisor.enabled?/0`, flipped by `start_watchers/0` / `stop_watchers/0` — boot and the Settings toggle). With watchers off, an edit starts nothing; turning them back on reads the current dirs. Retraction is **not** gated that way: the rule was saved, so the database must match it either way.
+Watching is on while the `start_watchers` flag is (`Settings.Services.start?/1`): `Watcher.Supervisor` holds a `MediaCentaur.FlagSupervisor` whose children — `Watcher.Dirs`: the per-dir DynamicSupervisors and the controller — exist only then. So with watchers off a media-dir edit starts nothing, because nothing is listening; turning them back on (`Watcher.Supervisor.set_enabled/1`, the Settings toggle) starts the controller, which reads the current dirs. Retraction is **not** gated that way: the rule was saved, so the database must match it either way, which is why its listener sits beside the FlagSupervisor rather than among the flag's children.
 
 The v0.21.0 crash fix lives in the same path: previously, creating or modifying an excluded directory could trip an unhandled message and kill the watcher; the handler now treats events for excluded paths as no-ops.
 
@@ -140,9 +140,11 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Rescan.sc
 | Module | Description | Path |
 |--------|-------------|------|
 | `MediaCentaur.Watcher` | Per-directory GenServer, inotify + PubSub. Stamps `Library.FilePresence` on detection; broadcasts `{:files_removed, paths}` on inotify delete | `lib/media_centaur/watcher.ex` |
-| `MediaCentaur.Watcher.Supervisor` | Coordinates all watchers; start/stop/pause API, statuses | `lib/media_centaur/watcher/supervisor.ex` |
+| `MediaCentaur.Watcher.Supervisor` | The subsystem's supervisor and operational facade: `set_enabled/1`, `running?/0`, `suspend/1`, statuses | `lib/media_centaur/watcher/supervisor.ex` |
+| `MediaCentaur.Watcher.Dirs` | The `start_watchers` flag's children: the two DynamicSupervisors and the controller, alive only while watching is on | `lib/media_centaur/watcher/dirs.ex` |
+| `MediaCentaur.Watcher.Dirs.Controller` | Starts a watcher per configured dir and an image-dir monitor per outside image dir; reconciles both on a media-dir change | `lib/media_centaur/watcher/dirs/controller.ex` |
 | `MediaCentaur.Watcher.Rescan` | On-demand `scan/0`, `rescan_unlinked/0` (walks `library_file_presences` for present-but-unlinked files) and `retract_ignored/0`, each with an `_async` form; `reconcile/0` is the boot pass that runs all three | `lib/media_centaur/watcher/rescan.ex` |
-| `MediaCentaur.Watcher.ConfigListener` | Subscribes to `config:updates`; reconciles the watcher set on a media-dir change and retracts on an ignore-rule change | `lib/media_centaur/watcher/config_listener.ex` |
+| `MediaCentaur.Watcher.IgnoreRulesListener` | Subscribes to `config:updates`; retracts recorded files on an ignore-rule change, watching on or off | `lib/media_centaur/watcher/ignore_rules_listener.ex` |
 | `MediaCentaur.Watcher.IgnoreRules` | The rule set and the single `library_content?/2` admission predicate. Exported from the boundary — Settings validates a new rule against the same matcher | `lib/media_centaur/watcher/ignore_rules.ex` |
 | `MediaCentaur.Watcher.Walk` | Recursive scan traversal; returns library content, pruning ignored directories | `lib/media_centaur/watcher/walk.ex` |
 | `MediaCentaur.Watcher.DirMonitor` | Supervises image-dir availability monitors | `lib/media_centaur/watcher/dir_monitor.ex` |

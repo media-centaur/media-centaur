@@ -26,7 +26,7 @@ defmodule MediaCentaur.Watcher.RetractIgnoredTest do
   alias MediaCentaur.Review
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Topics
-  alias MediaCentaur.Watcher.ConfigListener
+  alias MediaCentaur.Watcher.IgnoreRulesListener
   alias MediaCentaur.Watcher.Rescan
 
   setup do
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Watcher.RetractIgnoredTest do
     %{media_dir: media_dir}
   end
 
-  # Saving a rule triggers its own retraction (via ConfigListener), so a
+  # Saving a rule triggers its own retraction (via IgnoreRulesListener), so a
   # test that then calls `retract_ignored/0` explicitly must let the
   # triggered pass finish first — otherwise the two race for the same rows.
   defp put_rules!(key, value) do
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Watcher.RetractIgnoredTest do
   end
 
   defp settle_retraction do
-    ConfigListener.__sync_for_test__()
+    IgnoreRulesListener.__sync_for_test__()
     await_supervised_tasks()
     MediaCentaur.Library.FileEventHandler.__sync_for_test__()
     await_supervised_tasks()

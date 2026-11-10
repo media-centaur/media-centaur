@@ -197,6 +197,7 @@
           {MediaCentaur.Credo.Checks.TargetStatusContract, []},
           {MediaCentaur.Credo.Checks.PursuitStateContract, []},
           {MediaCentaur.Credo.Checks.NoSysIntrospection, []},
+          {MediaCentaur.Credo.Checks.NoSupervisorChildToggling, []},
           {MediaCentaur.Credo.Checks.LogMacroPreferred, []},
           {MediaCentaur.Credo.Checks.ModalPanelNoClickAway, []},
           {MediaCentaur.Credo.Checks.ModalBackdropViaComponent, []},
