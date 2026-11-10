@@ -13,6 +13,7 @@ defmodule MediaCentaur.NewReleases.SchedulerTest do
 
   test "the runtime child enqueues the refresh as it starts" do
     start_supervised!(Scheduler)
+    Scheduler.__sync_for_test__()
     assert [_one] = all_enqueued(worker: RefreshJob)
   end
 

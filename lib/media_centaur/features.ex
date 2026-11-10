@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Features do
-  use Boundary, deps: [MediaCentaur.Settings], exports: [Feature, Runtime]
+  use Boundary, deps: [MediaCentaur.FlagSupervisor, MediaCentaur.Settings], exports: [Feature, Runtime]
 
   @moduledoc """
   The features of the product an install can run with or without, and the

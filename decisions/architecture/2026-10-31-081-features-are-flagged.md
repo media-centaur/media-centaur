@@ -29,3 +29,21 @@ First application: Social (optional, default on), remote players (optional, defa
 * Good, because "off" is checkable: a test turns a flag off and asserts nothing of the feature runs or shows.
 * Bad, because a test that turns a feature off restarts singletons through the sandbox's reset; the sandbox judges a registered name by presence, not pid, for that reason.
 * Bad, because a feature's Oban cron still ticks while off; the job is where the flag is asked.
+
+## Amendment 2026-11-10 — the runtime is an instance of a shared mechanism
+
+`Features.Runtime` was a GenServer that started its own `DynamicSupervisor`
+in `init/1` and matched `{:ok, _}` on every feature's start, so one feature
+whose child failed to start crashed the runtime and, with it, every other
+feature's processes. Decision 2's "live, as the Services toggles already stop
+the pipeline" also pointed at a mechanism this record did not want copied:
+the pipeline toggle stopped a started child with `Supervisor.terminate_child/2`.
+
+Both now run on one mechanism, `MediaCentaur.FlagSupervisor`: a supervisor
+whose children are started while a flag is on and absent while it is off,
+reconciled on the flag's broadcast. `Features.Runtime` is a Supervisor of one
+FlagSupervisor per feature with the same public API as before; the service
+start flags (`Settings.Services`) use the same module (campaign
+`supervision-tree.md`). A flag decides whether a child is *started*; no
+child is stopped to express a setting. A feature's start failure is logged
+and leaves that feature not running; the others are untouched.

@@ -12,6 +12,8 @@ defmodule MediaCentaur.NewReleases.Scheduler do
   """
   use GenServer
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.NewReleases.RefreshJob
 
   @refresh_at ~T[04:03:00]
@@ -39,16 +41,41 @@ defmodule MediaCentaur.NewReleases.Scheduler do
     DateTime.diff(next, now, :millisecond)
   end
 
+  @doc false
+  # Returns once the start-up enqueue has run (`handle_continue/2`).
+  def __sync_for_test__(server \\ __MODULE__), do: GenServer.call(server, :sync)
+
+  # No database write in `init/1`: the enqueue runs in `handle_continue/2`,
+  # so a busy database at boot costs one logged miss, not the start.
   @impl true
-  def init(_opts) do
-    _ = enqueue()
-    {:ok, schedule(%{timer: nil})}
+  def init(_opts), do: {:ok, %{timer: nil}, {:continue, :start}}
+
+  @impl true
+  def handle_continue(:start, state) do
+    enqueue_or_log()
+    {:noreply, schedule(state)}
   end
 
   @impl true
+  def handle_call(:sync, _from, state), do: {:reply, :ok, state}
+
+  @impl true
   def handle_info(:refresh, state) do
-    _ = enqueue()
+    enqueue_or_log()
     {:noreply, schedule(state)}
+  end
+
+  defp enqueue_or_log do
+    case enqueue() do
+      {:ok, _job} ->
+        :ok
+
+      {:error, reason} ->
+        Log.warning(:system, "could not enqueue the New Releases refresh: #{inspect(reason)}")
+    end
+  rescue
+    error ->
+      Log.warning(:system, "could not enqueue the New Releases refresh: #{Exception.message(error)}")
   end
 
   defp schedule(state) do
