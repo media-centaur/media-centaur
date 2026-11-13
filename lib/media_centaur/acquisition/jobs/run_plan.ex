@@ -24,8 +24,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   steps found as an *offer* (the pack the user can opt into, over-grab
   spelled out on the board), never an auto-grab.
 
-  Results are identity-verified (`TitleMatcher.coverage/2`), plan-wide
-  exclusions filtered, and `Planner.solve/3` assigns candidates by the
+  Results are assessed (`Search.Assessment`, scope `:any`: bait,
+  plan-wide exclusions, identity), and `Planner.solve/3` assigns candidates by the
   settled objective hierarchy. Assignments land on the plan units
   (found / unfound) and the plan transitions to `ready` for the user's
   steering pass.
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   Movie plans have no scopes to walk. Their terms are alternate
   phrasings of one want rather than a narrowing sequence, so **every**
   term is searched and the pick is the best of the union, ordered by
-  `Search.ReleasePreference` (`TitleMatcher.matches?/2` identity). When
+  `Search.ReleasePreference` among those `Search.Assessment` accepts. When
   nothing acceptable exists but identity-verified releases do, the unit
   lands unfound carrying `below_floor_count` — the "lower quality
   available" verdict the board turns into an offer instead of a bare
@@ -83,9 +83,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
+  alias MediaCentaur.Search.{Assessment, CourQueries, Quality, ReleaseCoverage}
   alias MediaCentaur.Search.ProbeJob
-  alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.Search.ReleasePreference
   alias MediaCentaur.Topics
 
   @impl Oban.Worker
@@ -345,10 +345,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     plan
     |> search(term, force?)
     |> Enum.reduce(state, fn result, state ->
-      with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
-           false <- MapSet.member?(excluded, result.guid),
-           false <- Map.has_key?(state.terms_by_guid, result.guid),
-           {:ok, scope} <- TitleMatcher.coverage(result, identity) do
+      with false <- Map.has_key?(state.terms_by_guid, result.guid),
+           %Assessment{reasons: [], scope: scope} <-
+             Assessment.assess(result, identity, excluded: excluded, scope: :any) do
         option = %Planner.Option{
           result: result,
           scope: scope,
@@ -457,19 +456,19 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       |> Enum.flat_map(fn {term, _opts} ->
         plan
         |> search(term, force?)
-        |> Enum.flat_map(&cour_option(&1, plan, run, excluded))
+        |> Enum.flat_map(&cour_option(&1, %{series_criteria(plan) | run: run}, excluded))
       end)
     end)
     |> Enum.uniq_by(& &1.result.guid)
   end
 
-  defp cour_option(result, plan, run, excluded) do
-    with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
-         false <- MapSet.member?(excluded, result.guid),
-         scope when scope != :no_match <- CourCoverage.classify(result.title, plan.title, run) do
-      [%Planner.Option{result: result, scope: scope, offer_only: true}]
-    else
-      _ -> []
+  defp cour_option(result, criteria, excluded) do
+    case Assessment.assess(result, criteria, excluded: excluded, scope: :run) do
+      %Assessment{reasons: [], scope: scope} ->
+        [%Planner.Option{result: result, scope: scope, offer_only: true}]
+
+      %Assessment{} ->
+        []
     end
   end
 
@@ -569,25 +568,30 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
          plan_prefs: plan_prefs,
          force?: force?
        }) do
-    matched =
+    assessed =
       plan
       |> search(term, force?)
-      |> Enum.filter(fn result ->
-        not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
-          not MapSet.member?(excluded, result.guid) and
-          TitleMatcher.matches?(result, criteria)
+      |> Enum.map(fn result ->
+        {result,
+         Assessment.assess(result, criteria,
+           excluded: excluded,
+           quality: {min_quality, plan_prefs.max_quality}
+         )}
       end)
 
     pick =
-      matched
-      |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
-      |> ReleasePreference.best(plan_prefs.size_preference)
+      ReleasePreference.best(
+        for({result, %Assessment{reasons: []}} <- assessed, do: result),
+        plan_prefs.size_preference
+      )
 
+    # The title's own releases that only the quality gate rejected, and
+    # that sit under the floor rather than over the ceiling.
     below_floor_guids =
-      matched
-      |> Enum.filter(&(Quality.rank(&1.quality) < Quality.label_rank(min_quality)))
-      |> MapSet.new(& &1.guid)
-      |> MapSet.union(below_floor_guids)
+      for {result, %Assessment{reasons: [:quality]}} <- assessed,
+          Quality.rank(result.quality) < Quality.label_rank(min_quality),
+          into: below_floor_guids,
+          do: result.guid
 
     {best_of_terms(best, pick, term, plan_prefs.size_preference), below_floor_guids}
   end

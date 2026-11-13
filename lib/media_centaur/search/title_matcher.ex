@@ -163,10 +163,17 @@ defmodule MediaCentaur.Search.TitleMatcher do
   episode" cannot mean two things.
   """
   @spec covers?(SearchResult.t(), Criteria.t()) :: boolean()
-  def covers?(%SearchResult{} = result, %Criteria{} = criteria) do
-    case coverage(result, criteria) do
-      {:ok, scope} -> scope_covers?(scope, criteria)
-      :no_match -> false
+  def covers?(%SearchResult{} = result, %Criteria{} = criteria),
+    do: covering(result, criteria) != :no_match
+
+  @doc "`coverage/2`, kept only when the scope contains the criteria's unit (`covers?/2`)."
+  @spec covering(SearchResult.t(), Criteria.t()) :: {:ok, ReleaseCoverage.t()} | :no_match
+  def covering(%SearchResult{} = result, %Criteria{} = criteria) do
+    with {:ok, scope} <- coverage(result, criteria),
+         true <- scope_covers?(scope, criteria) do
+      {:ok, scope}
+    else
+      _no_match -> :no_match
     end
   end
 

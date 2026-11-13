@@ -8,6 +8,7 @@ defmodule MediaCentaur.Search do
       MediaCentaur.Settings
     ],
     exports: [
+      Assessment,
       CourCoverage,
       CourQueries,
       Criteria,

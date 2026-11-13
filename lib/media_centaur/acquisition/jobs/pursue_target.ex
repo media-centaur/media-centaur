@@ -104,15 +104,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   }
 
   alias MediaCentaur.Search.{
+    Assessment,
     Criteria,
     ProbeJob,
     Prowlarr,
     Quality,
     QueryBuilder,
     ReleasePreference,
-    ReleaseRedFlags,
-    SearchResult,
-    TitleMatcher
+    SearchResult
   }
 
   alias MediaCentaur.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State, Unit, UnitState, Units}
@@ -383,24 +382,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # from the unit's thread (ADR-055).
   defp best_match(results, unit, criteria, prefs) do
     excluded = MapSet.new(unit.tried_release_guids || [])
+    quality = {prefs.min_quality, prefs.max_quality}
 
     results
     |> Enum.reduce({nil, "no_title_match"}, fn result, {best, outcome} = acc ->
-      cond do
-        ReleaseRedFlags.suspicious?(result.title, result.size_bytes) ->
-          acc
-
-        MapSet.member?(excluded, result.guid) ->
-          acc
-
-        not TitleMatcher.matches?(result, criteria) ->
-          acc
-
-        not Quality.acceptable?(result.quality, prefs.min_quality, prefs.max_quality) ->
-          {best, "no_acceptable_quality"}
-
-        true ->
-          {ReleasePreference.better_of(best, result, prefs.size_preference), outcome}
+      case Assessment.assess(result, criteria, excluded: excluded, quality: quality).reasons do
+        [] -> {ReleasePreference.better_of(best, result, prefs.size_preference), outcome}
+        [:quality] -> {best, "no_acceptable_quality"}
+        _rejected -> acc
       end
     end)
     |> case do
@@ -528,8 +517,11 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       end
     end)
     |> Enum.uniq_by(& &1.guid)
-    |> Enum.reject(&MapSet.member?(excluded, &1.guid))
-    |> Enum.any?(&TitleMatcher.covers?(&1, criteria))
+    |> Enum.any?(fn result ->
+      result
+      |> Assessment.assess(criteria, excluded: excluded, scope: :covering)
+      |> Assessment.accepted?(ignoring: [:red_flag])
+    end)
   end
 
   defp pack_covers_unit?(_unit, %Criteria{}), do: false

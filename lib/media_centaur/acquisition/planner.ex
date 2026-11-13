@@ -56,8 +56,8 @@ defmodule MediaCentaur.Acquisition.Planner do
   (7 grabs where 2 sufficed).
 
   Pure module — no I/O, no DB. Inputs are pre-verified: the plan runner
-  is responsible for show-identity (`TitleMatcher.coverage/2`) and for
-  filtering excluded releases before solving.
+  passes only options `Search.Assessment` accepted (bait, exclusions,
+  identity). The quality floor is applied here, per floor group.
   """
 
   alias MediaCentaur.Acquisition.Plans.Fit

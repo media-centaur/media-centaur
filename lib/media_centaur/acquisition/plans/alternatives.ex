@@ -14,7 +14,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.Search.{Assessment, Quality, ReleaseCoverage}
 
   @doc """
   The choosable alternatives for one plan unit — corpus candidates
@@ -36,10 +36,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
       alternatives =
         plan
         |> unit_candidates(unit)
-        |> Enum.reject(fn {result, _scope} ->
+        |> Enum.reject(fn {result, _assessment} ->
           result.guid == unit.assigned_guid or MapSet.member?(excluded, result.guid)
         end)
-        |> Enum.map(fn {result, scope} ->
+        |> Enum.map(fn {result, %Assessment{scope: scope, reasons: reasons}} ->
           %PlanBoard.Alternative{
             guid: result.guid,
             title: result.title,
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
             quality: Quality.display_label(result.title),
             seeders: result.seeders,
             size_bytes: result.size_bytes,
-            suspicious?: ReleaseRedFlags.suspicious?(result.title, result.size_bytes)
+            suspicious?: :red_flag in reasons
           }
         end)
         |> Enum.sort_by(
@@ -152,7 +152,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     criteria = MatchCriteria.from(plan)
 
     for result <- raw,
-        reason = rejection_reason(result, excluded, criteria),
+        reason = result |> Assessment.assess(criteria, excluded: excluded) |> Assessment.reason(),
         reason != nil do
       %GapEvidence.Rejected{
         guid: result.guid,
@@ -162,15 +162,6 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
         seeders: result.seeders,
         size_bytes: result.size_bytes
       }
-    end
-  end
-
-  defp rejection_reason(result, excluded, criteria) do
-    cond do
-      ReleaseRedFlags.suspicious?(result.title, result.size_bytes) -> :red_flag
-      MapSet.member?(excluded, result.guid) -> :excluded
-      not TitleMatcher.matches?(result, criteria) -> :identity
-      true -> nil
     end
   end
 
@@ -277,25 +268,20 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   end
 
   # All identity-verified corpus candidates that can cover this unit,
-  # as {result, scope} pairs (movies carry the :movie pseudo-scope).
+  # each with its assessment (movies carry the :movie pseudo-scope).
   defp unit_candidates(plan, unit) do
     opts = SearchOrder.search_opts(plan)
 
     plan
     |> unit_terms(unit)
-    |> Enum.flat_map(fn term ->
-      term
-      |> Corpus.candidates_for(opts)
-      |> Enum.map(&{term, &1})
-    end)
-    |> Enum.uniq_by(fn {_term, result} -> result.guid end)
-    |> Enum.flat_map(fn {term, result} ->
+    |> Enum.flat_map(&Corpus.candidates_for(&1, opts))
+    |> Enum.uniq_by(& &1.guid)
+    |> Enum.flat_map(fn result ->
       case verify(plan, unit, result) do
-        {:ok, scope} -> [{result, scope, term}]
+        {:ok, assessment} -> [{result, assessment}]
         :no_match -> []
       end
     end)
-    |> Enum.map(fn {result, scope, _term} -> {result, scope} end)
   end
 
   defp find_candidate(plan, unit, guid) do
@@ -310,7 +296,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
         |> Enum.find(&(&1.guid == guid))
 
       with %{} <- candidate,
-           {:ok, scope} <- verify(plan, unit, candidate) do
+           {:ok, %Assessment{scope: scope}} <- verify(plan, unit, candidate) do
         {:ok, {candidate, scope, term}}
       else
         _ -> nil
@@ -318,21 +304,21 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     end)
   end
 
-  defp verify(%Plan{tmdb_type: "movie"} = plan, _unit, result) do
-    criteria = MatchCriteria.from(plan)
-    if TitleMatcher.matches?(result, criteria), do: {:ok, :movie}, else: :no_match
-  end
+  # A flagged release stays a candidate here: the picker shows it marked
+  # rather than hiding it, and exclusions are the caller's to apply.
+  defp verify(%Plan{} = plan, unit, result) do
+    criteria = %{
+      MatchCriteria.from(plan)
+      | season_number: unit.season_number,
+        episode_number: unit.episode_number
+    }
 
-  defp verify(%Plan{tmdb_type: "tv"} = plan, unit, result) do
-    criteria = MatchCriteria.from(plan)
+    assessment = Assessment.assess(result, criteria, scope: :covering)
 
-    with {:ok, scope} <- TitleMatcher.coverage(result, criteria),
-         true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number),
-         true <- CoverageGuard.can_contain?(result.publish_date, unit.air_date) do
-      {:ok, scope}
-    else
-      _ -> :no_match
-    end
+    if Assessment.accepted?(assessment, ignoring: [:red_flag]) and
+         CoverageGuard.can_contain?(result.publish_date, unit.air_date),
+       do: {:ok, assessment},
+       else: :no_match
   end
 
   defp covers_unit?(%Plan{tmdb_type: "movie"}, :movie, candidate_unit, chosen_unit, _publish_date),

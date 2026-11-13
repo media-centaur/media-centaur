@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition do
     Targets
   }
 
-  alias MediaCentaur.Search.{Criteria, Prowlarr, QueryBuilder, QueryExpander, SearchResult, TitleMatcher}
+  alias MediaCentaur.Search.{Assessment, Prowlarr, QueryBuilder, QueryExpander, SearchResult}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
@@ -516,10 +516,9 @@ defmodule MediaCentaur.Acquisition do
   # A TMDB pursuit searches exactly as the plan side and the retry loop
   # do: its own terms first (`QueryBuilder.build/1`), then, for a TV
   # unit, the wider terms that can only offer a pack
-  # (`QueryBuilder.fallback/1`). Only releases of the title are kept: a
-  # TV release has to contain the unit (`TitleMatcher.covers?/2`), a
-  # movie release has to be the movie (`TitleMatcher.matches?/2`). A
-  # user-typed query searches its phrasing and keeps everything.
+  # (`QueryBuilder.fallback/1`). Only releases of the title that contain
+  # the unit are kept (`Search.Assessment`, `:covering`). A user-typed
+  # query searches its phrasing and keeps everything.
   defp search_for_pursuit(%Pursuit{} = pursuit, unit, search_opts) do
     case Recipe.for_unit(pursuit, unit) do
       %Recipe{type: :tmdb} = recipe ->
@@ -544,7 +543,7 @@ defmodule MediaCentaur.Acquisition do
           end
         end)
         |> Enum.uniq_by(& &1.guid)
-        |> Enum.filter(&release_of?(&1, criteria))
+        |> Enum.filter(&offerable?(&1, criteria))
 
       {:ok, results}
     else
@@ -552,11 +551,14 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
-  defp release_of?(result, %Criteria{tmdb_type: :movie} = criteria),
-    do: TitleMatcher.matches?(result, criteria)
-
-  defp release_of?(result, %Criteria{tmdb_type: :tv} = criteria),
-    do: TitleMatcher.covers?(result, criteria)
+  # What a person choosing is offered: any release of the title that
+  # contains the unit. A flagged release is still listed — the card
+  # hides nothing a deliberate pick could want.
+  defp offerable?(result, criteria) do
+    result
+    |> Assessment.assess(criteria, scope: :covering)
+    |> Assessment.accepted?(ignoring: [:red_flag])
+  end
 
   # Resolves a picked guid with the unit-aware search the card listed it
   # from, so a pick can never miss what the card showed.
