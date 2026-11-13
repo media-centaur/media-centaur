@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition do
     Targets
   }
 
-  alias MediaCentaur.Search.{Prowlarr, QueryBuilder, QueryExpander, SearchResult, TitleMatcher}
+  alias MediaCentaur.Search.{Criteria, Prowlarr, QueryBuilder, QueryExpander, SearchResult, TitleMatcher}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
@@ -275,9 +275,7 @@ defmodule MediaCentaur.Acquisition do
   Searches Prowlarr for releases matching the query.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured.
-
-  Options:
-  - `:year` — integer year, sent to Prowlarr alongside the query
+  `opts` are `Prowlarr.search/2`'s.
   """
   @spec search(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
   def search(query, opts \\ []) do
@@ -481,9 +479,9 @@ defmodule MediaCentaur.Acquisition do
   This is the single entry point for "show me the releases this pursuit
   could pivot to". Both the decision-card refresh path and the
   `pick_alternative` validation lookup go through the same private
-  search helper, so the pursuit→Prowlarr translation (query selection,
-  type/year opts, brace expansion, corpus consult) lives in one place
-  and can't drift.
+  search helper, so the pursuit→Prowlarr translation (search terms,
+  category, brace expansion, corpus consult) lives in one place and
+  can't drift.
 
   Searches consult the corpus first (ADR-055 citizenship); pass
   `force: true` for the user-initiated "Search Prowlarr again" refresh.
@@ -515,22 +513,24 @@ defmodule MediaCentaur.Acquisition do
   # `search_for_pursuit/3` (raw, internal-only) — the recipe can't drift
   # between call sites.
   #
-  # A TV unit searches exactly as the plan side and the retry loop do:
-  # its own terms first (`QueryBuilder.build/1`), then the wider terms
-  # that can only offer a pack (`QueryBuilder.fallback/1`), and only
-  # releases that contain the unit are kept (`TitleMatcher.covers?/2`).
-  # A movie or a user-typed query searches its phrasing as before.
+  # A TMDB pursuit searches exactly as the plan side and the retry loop
+  # do: its own terms first (`QueryBuilder.build/1`), then, for a TV
+  # unit, the wider terms that can only offer a pack
+  # (`QueryBuilder.fallback/1`). Only releases of the title are kept: a
+  # TV release has to contain the unit (`TitleMatcher.covers?/2`), a
+  # movie release has to be the movie (`TitleMatcher.matches?/2`). A
+  # user-typed query searches its phrasing and keeps everything.
   defp search_for_pursuit(%Pursuit{} = pursuit, unit, search_opts) do
     case Recipe.for_unit(pursuit, unit) do
-      %Recipe{type: :tmdb, tmdb_type: :tv} = recipe ->
-        search_for_unit(recipe, pursuit.tmdb_id, search_opts)
+      %Recipe{type: :tmdb} = recipe ->
+        search_for_title(recipe, pursuit.tmdb_id, search_opts)
 
-      %Recipe{} = recipe ->
-        search_for_recipe(recipe, search_opts)
+      %Recipe{type: :prowlarr_query, manual_query: query, title: title} ->
+        search_expanded(query || title, search_opts)
     end
   end
 
-  defp search_for_unit(%Recipe{} = recipe, tmdb_id, search_opts) do
+  defp search_for_title(%Recipe{} = recipe, tmdb_id, search_opts) do
     if available?() do
       criteria = recipe |> Recipe.to_criteria() |> Cours.with_run(tmdb_id)
       force? = Keyword.get(search_opts, :force, false)
@@ -544,7 +544,7 @@ defmodule MediaCentaur.Acquisition do
           end
         end)
         |> Enum.uniq_by(& &1.guid)
-        |> Enum.filter(&TitleMatcher.covers?(&1, criteria))
+        |> Enum.filter(&release_of?(&1, criteria))
 
       {:ok, results}
     else
@@ -552,18 +552,11 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
-  defp search_for_recipe(%Recipe{type: :tmdb} = recipe, search_opts) do
-    opts =
-      search_opts
-      |> put_when_present(:type, recipe.tmdb_type)
-      |> put_when_present(:year, recipe.year)
+  defp release_of?(result, %Criteria{tmdb_type: :movie} = criteria),
+    do: TitleMatcher.matches?(result, criteria)
 
-    search_expanded(recipe.title, opts)
-  end
-
-  defp search_for_recipe(%Recipe{type: :prowlarr_query, manual_query: query, title: title}, search_opts) do
-    search_expanded(query || title, search_opts)
-  end
+  defp release_of?(result, %Criteria{tmdb_type: :tv} = criteria),
+    do: TitleMatcher.covers?(result, criteria)
 
   # Resolves a picked guid with the unit-aware search the card listed it
   # from, so a pick can never miss what the card showed.
@@ -573,9 +566,6 @@ defmodule MediaCentaur.Acquisition do
       result -> {:ok, result}
     end
   end
-
-  defp put_when_present(opts, _key, nil), do: opts
-  defp put_when_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   @doc """
   Cancels a download by id. Destructive — the download and any files

@@ -690,6 +690,62 @@ defmodule MediaCentaur.AcquisitionTest do
     end
   end
 
+  describe "list_alternatives_for/2 — a TMDB movie searches like the plan side" do
+    # The card searched the bare title with options the corpus drops, so
+    # the request carried no category and was cached under a key no other
+    # search of the movie reads. It must search the movie's own terms in
+    # the movie category and list only releases of that movie.
+
+    setup do
+      TmdbStubs.setup_tmdb_client()
+
+      pursuit = create_pursuit(%{tmdb_id: "600", tmdb_type: "movie", title: "Sample Movie", year: 2010})
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        send(test_pid, {:prowlarr_search, conn.query_params["query"], conn.query_params["categories"]})
+
+        Req.Test.json(conn, [
+          release("Sample.Movie.1975.1080p.BluRay", "other-year"),
+          release("Sample.Movie.2010.1080p.WEB-DL", "the-movie"),
+          release("Another.Sample.Movie.2010.1080p.WEB-DL", "other-title")
+        ])
+      end)
+
+      %{pursuit: pursuit}
+    end
+
+    test "asks the year term then the year-less term, each in the movie category", %{pursuit: pursuit} do
+      Acquisition.list_alternatives_for(pursuit)
+
+      assert_received {:prowlarr_search, "Sample Movie 2010", "2000"}
+      assert_received {:prowlarr_search, "Sample Movie", "2000"}
+      refute_received {:prowlarr_search, _term, _categories}
+    end
+
+    test "reads what another search of the movie already cached", %{pursuit: pursuit} do
+      for term <- ["Sample Movie 2010", "Sample Movie"] do
+        Corpus.record!(term, [categories: :movie], [
+          %SearchResult{
+            title: "Sample.Movie.2010.2160p.WEB-DL",
+            guid: "cached",
+            indexer_id: 1,
+            indexer_name: "Test Indexer"
+          }
+        ])
+      end
+
+      assert ["cached"] = pursuit |> Acquisition.list_alternatives_for() |> Enum.map(& &1.guid)
+      refute_received {:prowlarr_search, _term, _categories}
+    end
+
+    test "lists only releases of the movie", %{pursuit: pursuit} do
+      guids = pursuit |> Acquisition.list_alternatives_for() |> Enum.map(& &1.guid)
+
+      assert guids == ["the-movie"]
+    end
+  end
+
   describe "list_alternatives_for/2 — a TMDB episode unit searches like the plan side" do
     # F10 (spec 2026-09-17): the decision card searched the bare show
     # title with options Prowlarr ignores and listed the first eight
