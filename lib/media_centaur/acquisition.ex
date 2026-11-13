@@ -156,6 +156,7 @@ defmodule MediaCentaur.Acquisition do
     CancelReasons,
     Corpus,
     Cours,
+    FirstRelease,
     Target,
     TargetEvents,
     Targets
@@ -531,7 +532,7 @@ defmodule MediaCentaur.Acquisition do
 
   defp search_for_title(%Recipe{} = recipe, tmdb_id, search_opts) do
     if available?() do
-      criteria = recipe |> Recipe.to_criteria() |> Cours.with_run(tmdb_id)
+      criteria = recipe |> Recipe.to_criteria() |> Cours.with_run(tmdb_id) |> FirstRelease.stamp()
       force? = Keyword.get(search_opts, :force, false)
 
       results =

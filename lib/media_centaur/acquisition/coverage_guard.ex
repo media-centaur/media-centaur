@@ -17,7 +17,7 @@ defmodule MediaCentaur.Acquisition.CoverageGuard do
   `Planner.Option.coverable`.
   """
 
-  alias MediaCentaur.Search.ReleaseCoverage
+  alias MediaCentaur.Search.{ReleaseCoverage, SearchResult}
 
   @doc """
   Whether a release published at `publish_date` (ISO8601 string, may be
@@ -54,20 +54,5 @@ defmodule MediaCentaur.Acquisition.CoverageGuard do
     end
   end
 
-  # Prowlarr ships `publishDate` as a full ISO8601 timestamp; tolerate a
-  # bare date too. Anything we cannot parse reads as "unknown" (no cap).
-  defp parse_date(nil), do: nil
-
-  defp parse_date(string) when is_binary(string) do
-    case DateTime.from_iso8601(string) do
-      {:ok, datetime, _offset} ->
-        DateTime.to_date(datetime)
-
-      {:error, _reason} ->
-        case Date.from_iso8601(string) do
-          {:ok, date} -> date
-          {:error, _reason} -> nil
-        end
-    end
-  end
+  defp parse_date(publish_date), do: SearchResult.published_on(publish_date)
 end

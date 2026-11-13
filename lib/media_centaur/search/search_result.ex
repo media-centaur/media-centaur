@@ -188,4 +188,25 @@ defmodule MediaCentaur.Search.SearchResult do
   defp scrub_title(title) when is_binary(title) do
     if String.valid?(title), do: title, else: String.replace_invalid(title)
   end
+
+  @doc """
+  The day a release was published, from an indexer's `publish_date`
+  string. Prowlarr ships a full ISO8601 timestamp; a bare date is
+  tolerated. `nil` for a missing or unparseable value.
+  """
+  @spec published_on(String.t() | nil) :: Date.t() | nil
+  def published_on(nil), do: nil
+
+  def published_on(publish_date) when is_binary(publish_date) do
+    case DateTime.from_iso8601(publish_date) do
+      {:ok, datetime, _offset} ->
+        DateTime.to_date(datetime)
+
+      {:error, _reason} ->
+        case Date.from_iso8601(publish_date) do
+          {:ok, date} -> date
+          {:error, _reason} -> nil
+        end
+    end
+  end
 end

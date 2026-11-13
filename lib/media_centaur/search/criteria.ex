@@ -25,6 +25,7 @@ defmodule MediaCentaur.Search.Criteria do
     :tmdb_id,
     :tvdb_id,
     :original_title,
+    :available_from,
     origin_country: []
   ]
 
@@ -57,6 +58,11 @@ defmodule MediaCentaur.Search.Criteria do
           # title either way, so the matcher accepts both and the movie
           # query builder asks for both.
           original_title: String.t() | nil,
+          # The date before which no release of the wanted unit can exist:
+          # a movie's first release, an episode's air date. A candidate
+          # posted earlier is rejected (`Assessment`, `:published_early`).
+          # Nil — the caller has no date — rejects nothing.
+          available_from: Date.t() | nil,
           # TMDB `origin_country` ISO codes for the show (TV only, e.g.
           # `["US"]`). Lets `TitleMatcher` accept scene country tags
           # (`Title.US.S01`) that release groups append to disambiguate

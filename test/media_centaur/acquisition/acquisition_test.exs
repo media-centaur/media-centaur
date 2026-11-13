@@ -744,6 +744,34 @@ defmodule MediaCentaur.AcquisitionTest do
 
       assert guids == ["the-movie"]
     end
+
+    test "leaves out a release posted before the movie's first release date", %{pursuit: pursuit} do
+      {:ok, _record} =
+        MediaCentaur.TMDB.Store.record_fetched(
+          {600, :movie},
+          %{"id" => 600, "title" => "Sample Movie", "release_date" => "2010-07-16"},
+          nil
+        )
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          Map.put(
+            release("Sample.Movie.2010.1080p.WEB-DL", "posted-early"),
+            "publishDate",
+            "2010-03-01T00:00:00Z"
+          ),
+          Map.put(
+            release("Sample.Movie.2010.1080p.BluRay", "posted-after"),
+            "publishDate",
+            "2010-11-01T00:00:00Z"
+          )
+        ])
+      end)
+
+      guids = pursuit |> Acquisition.list_alternatives_for() |> Enum.map(& &1.guid)
+
+      assert guids == ["posted-after"]
+    end
   end
 
   describe "list_alternatives_for/2 — a TMDB episode unit searches like the plan side" do

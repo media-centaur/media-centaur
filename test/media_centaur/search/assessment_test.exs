@@ -79,6 +79,46 @@ defmodule MediaCentaur.Search.AssessmentTest do
     end
   end
 
+  describe "assess/3 — a release posted before the unit existed" do
+    test "is :published_early when it predates the criteria's available_from" do
+      criteria = %{movie() | available_from: ~D[2010-07-16]}
+      release = result("Sample.Movie.2010.1080p.WEB-DL", %{publish_date: "2010-03-01T12:00:00Z"})
+
+      assert Assessment.assess(release, criteria).reasons == [:published_early]
+    end
+
+    test "a release posted on or after that date passes" do
+      criteria = %{movie() | available_from: ~D[2010-07-16]}
+
+      for published <- ["2010-07-16T00:30:00Z", "2011-01-01"] do
+        release = result("Sample.Movie.2010.1080p.WEB-DL", %{publish_date: published})
+        assert Assessment.assess(release, criteria).reasons == []
+      end
+    end
+
+    test "an unknown date on either side never rejects" do
+      dated = %{movie() | available_from: ~D[2010-07-16]}
+
+      assert Assessment.assess(result("Sample.Movie.2010.1080p.WEB-DL"), dated).reasons == []
+
+      assert Assessment.assess(result("Sample.Movie.2010.1080p.WEB-DL", %{publish_date: "soon"}), dated).reasons ==
+               []
+
+      assert Assessment.assess(
+               result("Sample.Movie.2010.1080p.WEB-DL", %{publish_date: "2001-01-01"}),
+               movie()
+             ).reasons == []
+    end
+
+    test "it sits between identity and quality in gate order" do
+      criteria = %{movie() | available_from: ~D[2010-07-16]}
+      release = result("Sample.Movie.2010.1080p.WEB-DL", %{publish_date: "2010-03-01"})
+
+      assert Assessment.assess(release, criteria, quality: {"uhd_4k", "uhd_4k"}).reasons ==
+               [:published_early, :quality]
+    end
+  end
+
   describe "assess/3 — how much of a TV release's scope must line up" do
     test ":exact (the default) accepts only the unit itself" do
       assert Assessment.assess(result("Sample.Show.S01E03.1080p.WEB-DL"), episode()).reasons == []

@@ -96,6 +96,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     AutoGrabSettings,
     Corpus,
     Cours,
+    FirstRelease,
     InfoHash,
     Target,
     TargetEvents,
@@ -254,7 +255,11 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     # queries (`Cours.with_run/2`), or a committed later-cour release
     # can't be re-found on retry.
     criteria =
-      pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria() |> Cours.with_run(pursuit.tmdb_id)
+      pursuit
+      |> Recipe.for_unit(unit)
+      |> Recipe.to_criteria()
+      |> Cours.with_run(pursuit.tmdb_id)
+      |> FirstRelease.stamp()
 
     case search_until_match(unit, criteria, QueryBuilder.build(criteria), prefs) do
       {:ok, best} -> handle_found(target, pursuit, unit, criteria, best)

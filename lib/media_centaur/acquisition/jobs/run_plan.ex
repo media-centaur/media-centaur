@@ -72,6 +72,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     AutoGrabSettings,
     Corpus,
     Cours,
+    FirstRelease,
     CoverageGuard,
     PlanEvents,
     Planner,
@@ -505,7 +506,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp run_movie(plan, units, force?) do
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
 
-    criteria = MatchCriteria.from(plan)
+    criteria = plan |> MatchCriteria.from() |> FirstRelease.stamp()
     plan_prefs = prefs(plan)
 
     # A movie plan has one unit; its floor override (the title's

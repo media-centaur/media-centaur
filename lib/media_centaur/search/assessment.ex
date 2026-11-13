@@ -8,6 +8,7 @@ defmodule MediaCentaur.Search.Assessment do
   | bait | `:red_flag` | a name or size `ReleaseRedFlags` flags |
   | exclusion | `:excluded` | a guid the caller has ruled out (tried, or refused by the user) |
   | identity | `:identity` | a release that is not the title, or not the wanted part of it |
+  | date | `:published_early` | a release posted before the criteria's `available_from` |
   | quality | `:quality` | a quality outside the caller's bounds |
 
   Every gate is evaluated, so `reasons` lists all that failed and
@@ -47,7 +48,7 @@ defmodule MediaCentaur.Search.Assessment do
     TitleMatcher
   }
 
-  @type reason :: :red_flag | :excluded | :identity | :quality
+  @type reason :: :red_flag | :excluded | :identity | :published_early | :quality
   @type scope_rule :: :exact | :covering | :any | :run
 
   @enforce_keys [:reasons]
@@ -75,6 +76,7 @@ defmodule MediaCentaur.Search.Assessment do
         red_flag: ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
         excluded: MapSet.member?(excluded, result.guid),
         identity: identity == :no_match,
+        published_early: published_early?(result, criteria),
         quality: outside_bounds?(result, Keyword.get(opts, :quality))
       ]
       |> Enum.filter(fn {_reason, failed?} -> failed? end)
@@ -114,6 +116,17 @@ defmodule MediaCentaur.Search.Assessment do
       not TitleMatcher.matches?(result, criteria) -> :no_match
       tmdb_type == :movie -> {:ok, :movie}
       true -> {:ok, nil}
+    end
+  end
+
+  # Unknown on either side never rejects: nothing is refused on a date
+  # nobody has.
+  defp published_early?(%SearchResult{publish_date: publish_date}, %Criteria{
+         available_from: available_from
+       }) do
+    case {SearchResult.published_on(publish_date), available_from} do
+      {%Date{} = published, %Date{} = available} -> Date.before?(published, available)
+      _unknown -> false
     end
   end
 

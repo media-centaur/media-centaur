@@ -24,14 +24,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   defmodule Rejected do
     @moduledoc """
     One raw candidate the run rejected, with the first gate it failed —
-    the same gate order the run applies (`:red_flag`, then `:excluded`,
-    then `:identity`).
+    the gate order of `Search.Assessment` (`:red_flag`, `:excluded`,
+    `:identity`, `:published_early`).
     """
 
     @enforce_keys [:guid, :title, :reason]
     defstruct [:guid, :title, :reason, :quality, :seeders, :size_bytes]
 
-    @type reason :: :red_flag | :excluded | :identity
+    @type reason :: :red_flag | :excluded | :identity | :published_early
 
     @type t :: %__MODULE__{
             guid: String.t(),

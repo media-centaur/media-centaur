@@ -277,6 +277,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   defp reason_label(:identity), do: "didn't match this title"
   defp reason_label(:red_flag), do: "flagged suspicious"
   defp reason_label(:excluded), do: "you excluded this earlier"
+  defp reason_label(:published_early), do: "posted before the film was released"
 
   @doc """
   The board's one verdict slot (UIDR-029 as amended 2026-11-06): the

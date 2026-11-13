@@ -10,6 +10,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.CoverageGuard
+  alias MediaCentaur.Acquisition.FirstRelease
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
@@ -149,7 +150,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
   defp rejected_candidates(%Plan{tmdb_type: "movie"} = plan, gap_units, raw) do
     excluded = gap_units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
-    criteria = MatchCriteria.from(plan)
+    criteria = plan |> MatchCriteria.from() |> FirstRelease.stamp()
 
     for result <- raw,
         reason = result |> Assessment.assess(criteria, excluded: excluded) |> Assessment.reason(),
@@ -307,18 +308,21 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   # A flagged release stays a candidate here: the picker shows it marked
   # rather than hiding it, and exclusions are the caller's to apply.
   defp verify(%Plan{} = plan, unit, result) do
-    criteria = %{
-      MatchCriteria.from(plan)
-      | season_number: unit.season_number,
-        episode_number: unit.episode_number
-    }
+    # A TV unit carries its episode's air date; a movie's first release
+    # is read from the stored title.
+    criteria =
+      FirstRelease.stamp(%{
+        MatchCriteria.from(plan)
+        | season_number: unit.season_number,
+          episode_number: unit.episode_number,
+          available_from: unit.air_date
+      })
 
     assessment = Assessment.assess(result, criteria, scope: :covering)
 
-    if Assessment.accepted?(assessment, ignoring: [:red_flag]) and
-         CoverageGuard.can_contain?(result.publish_date, unit.air_date),
-       do: {:ok, assessment},
-       else: :no_match
+    if Assessment.accepted?(assessment, ignoring: [:red_flag]),
+      do: {:ok, assessment},
+      else: :no_match
   end
 
   defp covers_unit?(%Plan{tmdb_type: "movie"}, :movie, candidate_unit, chosen_unit, _publish_date),

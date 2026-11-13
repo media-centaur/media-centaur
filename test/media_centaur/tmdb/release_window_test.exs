@@ -134,6 +134,22 @@ defmodule MediaCentaur.TMDB.ReleaseWindowTest do
     end
   end
 
+  describe "first_release/1" do
+    test "is the earliest date TMDB knows, of any kind" do
+      window =
+        ReleaseWindow.from_payload(
+          payload([{3, "2026-06-05"}, {4, "2026-08-01"}], %{"release_date" => "2026-05-20"}),
+          @today
+        )
+
+      assert ReleaseWindow.first_release(window) == ~D[2026-05-20]
+    end
+
+    test "is nil when TMDB knows no date" do
+      assert ReleaseWindow.first_release(ReleaseWindow.from_payload(%{"id" => 1}, @today)) == nil
+    end
+  end
+
   describe "primary date only" do
     test "a primary date ahead is :unreleased" do
       window = ReleaseWindow.from_payload(%{"id" => 1, "release_date" => "2027-03-05"}, @today)

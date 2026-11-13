@@ -82,6 +82,17 @@ defmodule MediaCentaur.TMDB.ReleaseWindow do
     |> Enum.min_by(fn {_type, date} -> date end, Date, fn -> nil end)
   end
 
+  @doc """
+  The earliest date TMDB knows for the film, of any kind — typed or its
+  primary one — or nil when it knows none. No genuine copy predates it.
+  """
+  @spec first_release(t()) :: Date.t() | nil
+  def first_release(%__MODULE__{} = window) do
+    [window.theatrical, window.digital, window.physical, window.primary]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.min(Date, fn -> nil end)
+  end
+
   defp stage(dates, today) do
     home = home_date(dates)
     typed = Enum.reject([dates.theatrical, dates.digital, dates.physical], &is_nil/1)
