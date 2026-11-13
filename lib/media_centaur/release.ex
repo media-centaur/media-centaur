@@ -11,6 +11,10 @@ defmodule MediaCentaur.Release do
   Boot order on a deploy:
 
   1. `migrate/0` — schema migrations (fast, atomic, blocks app start).
+     When the database already existed and a schema or data migration is
+     pending, it first takes a `SelfUpdate.DatabaseSnapshot`, so the
+     database as it was before the update is kept. A snapshot that
+     cannot be written stops the update before anything migrates.
   2. `migrate_data/0` — one-shot data backfills against the new schema.
      Tracked separately in the `data_migrations` table.
 
@@ -24,6 +28,8 @@ defmodule MediaCentaur.Release do
   second connection.
   """
 
+  alias MediaCentaur.SelfUpdate.DatabaseSnapshot
+
   @app :media_centaur
   @migrator_opts [pool_size: 1]
 
@@ -31,10 +37,27 @@ defmodule MediaCentaur.Release do
     load_app()
 
     for repo <- repos() do
+      database = Keyword.fetch!(repo.config(), :database)
+      existed? = File.exists?(database)
+
       {:ok, _, _} =
-        Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true), @migrator_opts)
+        Ecto.Migrator.with_repo(
+          repo,
+          fn started_repo ->
+            if existed? and pending?(started_repo), do: DatabaseSnapshot.take!(database, version())
+            Ecto.Migrator.run(started_repo, :up, all: true)
+          end,
+          @migrator_opts
+        )
     end
   end
+
+  defp pending?(repo) do
+    Enum.any?(Ecto.Migrator.migrations(repo), &match?({:down, _version, _name}, &1)) or
+      MediaCentaur.DataMigrations.pending?(repo)
+  end
+
+  defp version, do: @app |> Application.spec(:vsn) |> to_string()
 
   @doc """
   Runs every pending data migration. Idempotent across deploys — the

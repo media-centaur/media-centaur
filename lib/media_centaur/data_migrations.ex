@@ -69,6 +69,17 @@ defmodule MediaCentaur.DataMigrations do
   end
 
   @doc """
+  Whether any data migration has not run against `repo` yet. Assumes the
+  repo is already started.
+  """
+  @spec pending?(module()) :: boolean()
+  def pending?(repo) do
+    with_data_migration_source(repo, fn ->
+      repo |> Ecto.Migrator.migrations([path()]) |> Enum.any?(&match?({:down, _version, _name}, &1))
+    end)
+  end
+
+  @doc """
   Runs `fun` with the repo's `:migration_source` config set to
   `"data_migrations"`, restoring the original config afterwards.
 
