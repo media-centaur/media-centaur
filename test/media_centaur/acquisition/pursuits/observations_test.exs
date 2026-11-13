@@ -37,6 +37,73 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     Event |> where([e], e.pursuit_id == ^pursuit_id) |> Repo.all()
   end
 
+  describe "observe!/4 — the torrent's file list" do
+    setup do
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
+      test_pid = self()
+
+      stub_files = fn files ->
+        Req.Test.stub(:qbittorrent, fn conn ->
+          send(test_pid, {:asked, conn.request_path})
+          Req.Test.json(conn, files)
+        end)
+      end
+
+      %{stub_files: stub_files}
+    end
+
+    defp torrent(attrs \\ %{}),
+      do: queue_item(Map.merge(%{protocol: :torrent, size: 4_000_000_000}, attrs))
+
+    test "a torrent with no video file is recorded as a problem on the target", %{stub_files: stub_files} do
+      {pursuit, target} = pursuit_with_target()
+      stub_files.([%{"name" => "Sample.Release.2024.1080p-GRP.rar", "size" => 4_000_000_000}])
+
+      observed = Observations.observe!(pursuit, target, [torrent()], @now)
+
+      assert observed.files_checked_at == @now
+      assert observed.files_problem == "The download contains no video file (1 file: .rar)."
+    end
+
+    test "a torrent with a video file is checked once and has no problem", %{stub_files: stub_files} do
+      {pursuit, target} = pursuit_with_target()
+      stub_files.([%{"name" => "Sample.Release.2024.1080p-GRP.mkv", "size" => 4_000_000_000}])
+
+      observed = Observations.observe!(pursuit, target, [torrent()], @now)
+      assert {observed.files_checked_at, observed.files_problem} == {@now, nil}
+      assert_received {:asked, "/api/v2/torrents/files"}
+
+      Observations.observe!(pursuit, observed, [torrent()], DateTime.add(@now, 30, :second))
+      refute_received {:asked, _path}
+    end
+
+    test "a torrent whose files the client does not know yet is asked again on a later snapshot", %{
+      stub_files: stub_files
+    } do
+      {pursuit, target} = pursuit_with_target()
+
+      stub_files.([])
+      unknown = Observations.observe!(pursuit, target, [torrent()], @now)
+      assert unknown.files_checked_at == nil
+
+      later = DateTime.add(@now, 30, :second)
+      stub_files.([%{"name" => "Sample.Release.2024.1080p-GRP.mkv", "size" => 4_000_000_000}])
+      known = Observations.observe!(pursuit, unknown, [torrent()], later)
+
+      assert {known.files_checked_at, known.files_problem} == {later, nil}
+    end
+
+    test "a usenet download is never asked for its files", %{stub_files: stub_files} do
+      {pursuit, target} = pursuit_with_target()
+      stub_files.([])
+
+      observed = Observations.observe!(pursuit, target, [queue_item(%{protocol: :usenet})], @now)
+
+      assert observed.files_checked_at == nil
+      refute_received {:asked, _path}
+    end
+  end
+
   describe "observe!/4 — the first-sighting stamp" do
     test "a target seen at the client is stamped, and the stamp is write-once" do
       {pursuit, target} = pursuit_with_target()

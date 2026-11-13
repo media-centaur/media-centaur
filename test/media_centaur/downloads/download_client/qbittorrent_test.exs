@@ -187,6 +187,39 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
     end
   end
 
+  describe "list_files/2" do
+    test "GETs /api/v2/torrents/files for the hash and returns each file's name and size", %{
+      config: config
+    } do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert {conn.method, conn.request_path} == {"GET", "/api/v2/torrents/files"}
+        assert conn.params == %{"hash" => "hash-a"}
+
+        Req.Test.json(conn, [
+          %{
+            "name" => "Sample.Show.S01/Sample.Show.S01E01.mkv",
+            "size" => 1_500_000_000,
+            "progress" => 0.2
+          },
+          %{"name" => "Sample.Show.S01/info.nfo", "size" => 2_000, "progress" => 1}
+        ])
+      end)
+
+      assert QBittorrent.list_files(config, "hash-a") ==
+               {:ok,
+                [
+                  %{name: "Sample.Show.S01/Sample.Show.S01E01.mkv", size: 1_500_000_000},
+                  %{name: "Sample.Show.S01/info.nfo", size: 2_000}
+                ]}
+    end
+
+    test "a hash the client does not hold is an error", %{config: config} do
+      Req.Test.stub(:qbittorrent, fn conn -> Plug.Conn.send_resp(conn, 404, "") end)
+
+      assert {:error, {:http_error, 404, _body}} = QBittorrent.list_files(config, "gone")
+    end
+  end
+
   describe "test_connection/1" do
     test "GETs /api/v2/app/version and returns :ok on 200", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->

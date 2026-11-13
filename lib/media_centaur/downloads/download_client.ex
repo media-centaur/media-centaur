@@ -58,4 +58,15 @@ defmodule MediaCentaur.Downloads.DownloadClient do
   is expected to remove both the queue entry and the downloaded files.
   """
   @callback cancel_download(ClientConfig.t(), id :: String.t()) :: :ok | {:error, term()}
+
+  @typedoc "One file of a download, as the client lists it. `name` is its path inside the download."
+  @type file :: %{name: String.t(), size: integer() | nil}
+
+  @doc """
+  The files a download contains, by its client-specific id. An empty
+  list is a download whose contents the client does not know yet (a
+  torrent still fetching its metadata). A client that cannot list a
+  download's files before it completes answers `{:error, :unsupported}`.
+  """
+  @callback list_files(ClientConfig.t(), id :: String.t()) :: {:ok, [file()]} | {:error, term()}
 end

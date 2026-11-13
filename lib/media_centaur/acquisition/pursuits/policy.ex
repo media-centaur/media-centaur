@@ -14,7 +14,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
 
   1. Pursuit or unit already terminal → `:no_action`
   2. Unit awaiting user input (`awaiting_decision_at` set) → `:no_action`
-  3. Client-reported terminal failure → `{:auto_cancel, :download_failed, next}`
+  3. Terminal failure — declared by the client, or found in the
+     download's own file list → `{:auto_cancel, :download_failed, next}`
   4. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders, next}`
   5. Sustained stall confirmed → `{:request_decision, prompt}`
   6. Exhaustion budget reached → `{:exhaust, :max_attempts}`
@@ -29,8 +30,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
 
   Terminal failure (rule 3) has **no observation window**: the client
   itself declared the download unrecoverable (SABnzbd's
-  par2-unrepairable / unpack-failed), so retrying the same release
-  deterministically fails again — pivot immediately. Stall and
+  par2-unrepairable / unpack-failed), or the torrent's file list shows
+  it can never become a library file (`Acquisition.DeliveredFiles`), so
+  retrying the same release deterministically fails again — pivot
+  immediately. Stall and
   zero-seeders rules fire only when the corresponding window has
   elapsed (`*_window_elapsed?` derived in `Snapshots`). Until
   observation state is populated by the Watcher, those flags are `nil`

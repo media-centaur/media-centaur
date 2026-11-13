@@ -121,6 +121,22 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
       assert snapshot.download_failure_message == nil
     end
 
+    test "carries a problem recorded with the download's own files, whatever the queue says" do
+      pursuit = create_pursuit()
+      unit = Units.single!(pursuit.id)
+
+      target =
+        struct(Target, %{
+          release_title: "X",
+          files_problem: "The download contains no video file (1 file: .rar)."
+        })
+
+      for queue <- [[], :unknown] do
+        assert Snapshots.build(pursuit, unit, queue, target).download_failure_message ==
+                 "The download contains no video file (1 file: .rar)."
+      end
+    end
+
     test "nil when the queue state is unknown or there is no current target" do
       pursuit = create_pursuit()
       unit = Units.single!(pursuit.id)

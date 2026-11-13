@@ -6,7 +6,7 @@ defmodule MediaCentaur.Watcher do
     # is asked outside this subsystem too: Settings validates a new rule
     # against the same matcher rather than re-deriving path matching in
     # the web layer.
-    exports: [IgnoreRules, Rescan, Supervisor]
+    exports: [IgnoreRules, Rescan, Supervisor, VideoFile]
 
   @moduledoc """
   Per-directory inotify GenServer plus the watcher subsystem's module-level

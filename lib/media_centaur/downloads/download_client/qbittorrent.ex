@@ -11,6 +11,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   | Login     | `POST /api/v2/auth/login`      |
   | List      | `GET  /api/v2/torrents/info`   |
   | Delete    | `POST /api/v2/torrents/delete` |
+  | Files     | `GET  /api/v2/torrents/files`  |
   | Version   | `GET  /api/v2/app/version`     |
 
   ## Auth
@@ -122,6 +123,22 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
         # rid we have may be stale or the server may have lost it.
         {:error, reason, %{bookmark | rid: 0}}
     end
+  end
+
+  @impl true
+  def list_files(%ClientConfig{} = config, id) do
+    attempt(config, fn c ->
+      case Req.get(c, url: "/api/v2/torrents/files", params: [hash: id]) do
+        {:ok, %{status: 200, body: files}} when is_list(files) ->
+          {:ok, Enum.map(files, &%{name: &1["name"], size: &1["size"]})}
+
+        {:ok, %{status: status, body: body}} ->
+          {:error, {:http_error, status, body}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end)
   end
 
   @impl true

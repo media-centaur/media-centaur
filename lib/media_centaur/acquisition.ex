@@ -15,7 +15,8 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.Settings,
       MediaCentaur.Settings.Preferences,
       MediaCentaur.TMDB,
-      MediaCentaur.TmdbArtwork
+      MediaCentaur.TmdbArtwork,
+      MediaCentaur.Watcher
     ],
     exports: [
       Supervisor,

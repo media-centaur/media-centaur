@@ -19,7 +19,7 @@ MC's drivers exist for the *queue view*, in-app cancel, and pursuit matching.
 |---|---|
 | Slot values over the flat config keys | `MediaCentaur.Downloads.ClientConfig` (via `Downloads.configured_clients/0`) |
 | Type → driver resolution | `Downloads.DownloadClient.Dispatcher` (`drivers/0`, `driver_for/1`) |
-| Driver contract | `Downloads.DownloadClient` behaviour (`test_connection` / `sync` / `cancel_download`), pinned per driver by `download_client/conformance_test.exs` |
+| Driver contract | `Downloads.DownloadClient` behaviour (`test_connection` / `sync` / `cancel_download` / `list_files`), pinned per driver by `download_client/conformance_test.exs` |
 | Drivers | `DownloadClient.QBittorrent` (torrent), `DownloadClient.SABnzbd` (usenet) |
 | Merged polling, per-slot connectivity | `Downloads.QueueMonitor`, `Downloads.QueueState` |
 | Per-slot readiness gating | `MediaCentaur.Capabilities` (`client_ready?/1`; subjects `:download_client`, `:usenet_download_client`) |

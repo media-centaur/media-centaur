@@ -26,7 +26,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshot do
     :zero_seeders_window_elapsed?,
     # The client's terminal-failure detail for the unit's tracked
     # download (SABnzbd's `fail_message`, e.g. "Repair failed, not
-    # enough repair blocks"). Presence IS the failure signal —
+    # enough repair blocks"), or the problem found in a torrent's own
+    # file list (`Target.files_problem`). Presence IS the failure signal —
     # deterministic, no observation window; Policy pivots immediately
     # and the message is recorded on the auto_cancelled event.
     :download_failure_message

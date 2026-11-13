@@ -83,6 +83,11 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
     end
   end
 
+  # SABnzbd knows an NZB's articles while it downloads, not the files
+  # they unpack to.
+  @impl true
+  def list_files(%ClientConfig{}, _id), do: {:error, :unsupported}
+
   @impl true
   def cancel_download(%ClientConfig{} = config, id) do
     # An NZO lives in exactly one store: the live queue while it's

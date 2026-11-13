@@ -52,6 +52,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.ConformanceTest do
       "/api/v2/sync/maindata" ->
         Req.Test.json(conn, maindata(conn.params["rid"], left))
 
+      "/api/v2/torrents/files" ->
+        Req.Test.json(conn, [%{"name" => "Sample.Show.S01E01.1080p.WEB-DL/episode.mkv", "size" => 1000}])
+
       "/api/v2/torrents/delete" ->
         Plug.Conn.send_resp(conn, 200, "")
     end
@@ -229,6 +232,21 @@ defmodule MediaCentaur.Downloads.DownloadClient.ConformanceTest do
         {:ok, %SyncResult{items: [item]}} = driver.sync(config(driver), nil)
 
         assert :ok = driver.cancel_download(config(driver), item.id)
+      end
+
+      test "list_files/2 is the download's files, or :unsupported for a client that cannot say", %{
+        driver: driver
+      } do
+        client_answers(driver, {:one_download, 500})
+        {:ok, %SyncResult{items: [item]}} = driver.sync(config(driver), nil)
+
+        case driver.list_files(config(driver), item.id) do
+          {:ok, files} ->
+            assert [%{name: "Sample.Show.S01E01.1080p.WEB-DL/episode.mkv", size: 1000}] = files
+
+          {:error, reason} ->
+            assert reason == :unsupported
+        end
       end
 
       test "cancel_download/2 is an error when the client fails", %{driver: driver} do

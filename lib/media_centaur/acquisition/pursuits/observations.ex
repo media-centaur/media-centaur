@@ -15,7 +15,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
      pursuit's position even after the client drops the finished torrent.
   3. **The observation windows** — `stall_first_seen_at` /
      `zero_seeders_first_seen_at`, the inputs `Policy` decides on.
-  4. **The timeline** — `DownloadStarted` on the first sighting,
+  4. **The file list** — `files_checked_at` / `files_problem`, write-once.
+     A torrent's client is asked once what the download contains
+     (`DownloadClient.list_files/2`), as soon as it knows, and
+     `DeliveredFiles` judges the answer. A problem is a terminal fact
+     about the release, which `Snapshots` hands to `Policy` like a
+     client-declared failure. A client that cannot answer, or does not
+     know yet, is asked again on a later snapshot.
+  5. **The timeline** — `DownloadStarted` on the first sighting,
      `HealthChanged` on every later transition. Story beats, not heartbeats:
      an unchanged tick writes nothing at all.
 
@@ -50,7 +57,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{DownloadStarted, HealthChanged}
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
-  alias MediaCentaur.Acquisition.{QueueMatcher, Target}
+  alias MediaCentaur.Acquisition.{DeliveredFiles, QueueMatcher, Target}
+  alias MediaCentaur.Downloads.DownloadClient.Dispatcher
   alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaur.Repo
 
@@ -91,8 +99,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
       no_seeders: no_seeders?(item),
       now: now
     )
+    |> check_files(target, item, now)
     |> save()
   end
+
+  defp check_files(changeset, %Target{files_checked_at: nil}, %QueueItem{protocol: :torrent} = item, now) do
+    with {:ok, {config, driver}} <- Dispatcher.driver_for(:torrent),
+         {:ok, [_file | _rest] = files} <- driver.list_files(config, item.id) do
+      Target.files_changeset(changeset, now, DeliveredFiles.problem(files))
+    else
+      _not_known_yet -> changeset
+    end
+  end
+
+  defp check_files(changeset, %Target{}, %QueueItem{}, _now), do: changeset
 
   # The pass runs on every queue snapshot; a steady download whose telemetry
   # has not moved must not write a row per tick.

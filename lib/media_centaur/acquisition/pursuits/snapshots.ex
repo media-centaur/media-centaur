@@ -74,6 +74,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
   # `error`/`missingFiles` states (often user-moved files) out of the
   # auto-pivot path. The message itself rides the snapshot so the
   # auto_cancelled event can record why the client gave up.
+  #
+  # A problem with the download's own files (`Target.files_problem`,
+  # recorded by `Observations`) is the same kind of fact — the release
+  # cannot become a library file — and needs no queue to state it.
+  defp download_failure_message(_queue, %Target{files_problem: problem}) when is_binary(problem),
+    do: problem
+
   defp download_failure_message(:unknown, _target), do: nil
   defp download_failure_message(_queue, nil), do: nil
 

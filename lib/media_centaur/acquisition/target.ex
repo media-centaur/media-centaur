@@ -133,6 +133,12 @@ defmodule MediaCentaur.Acquisition.Target do
     field :stall_first_seen_at, :utc_datetime
     field :zero_seeders_first_seen_at, :utc_datetime
 
+    # The one look at the torrent's file list (`Acquisition.DeliveredFiles`):
+    # when it was taken, and what was wrong, if anything. Write-once — a
+    # torrent's files do not change.
+    field :files_checked_at, :utc_datetime
+    field :files_problem, :string
+
     timestamps()
   end
 
@@ -175,6 +181,24 @@ defmodule MediaCentaur.Acquisition.Target do
     |> keep_existing(:first_seen_in_queue_at, target.first_seen_in_queue_at)
     |> discard_unchanged()
   end
+
+  @doc """
+  Records the look at the download's file list, on top of an in-progress
+  observation changeset. Write-once: a target already checked is left as
+  it is.
+  """
+  @spec files_changeset(Ecto.Changeset.t(), DateTime.t(), String.t() | nil) :: Ecto.Changeset.t()
+  def files_changeset(
+        %Ecto.Changeset{data: %__MODULE__{files_checked_at: nil}} = changeset,
+        %DateTime{} = now,
+        problem
+      ) do
+    changeset
+    |> put_change(:files_checked_at, now)
+    |> put_change(:files_problem, problem)
+  end
+
+  def files_changeset(%Ecto.Changeset{} = changeset, %DateTime{}, _problem), do: changeset
 
   @doc """
   Opens, holds or clears the observation windows `Pursuits.Policy` decides on,
