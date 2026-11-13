@@ -62,6 +62,57 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
         }
       },
       %Variation{
+        id: :none_usable,
+        description: "The search found releases and none can be offered — the card says why",
+        attributes: %{
+          vm: %DecisionCard{
+            pursuit_id: "story-none-usable",
+            prompt: "Download stalled for 24+ hours.",
+            alternatives: [],
+            loading?: false,
+            left_out:
+              "12 other releases were found and left out: 1 you already tried, " <>
+                "9 didn't match this title, 2 posted before it was released.",
+            search_queries: ["Sample Movie 2010", "Sample Movie"]
+          },
+          on_cancel: "noop"
+        }
+      },
+      %Variation{
+        id: :flagged_and_left_out,
+        description:
+          "A flagged release is listed and marked, after the clean one; the rest are counted beneath",
+        attributes: %{
+          vm: %DecisionCard{
+            pursuit_id: "story-flagged",
+            prompt: "Download stalled for 24+ hours — pick an alternative release.",
+            alternatives: [
+              alternative(
+                guid: "alt-clean",
+                title: "Sample.Movie.2010.1080p.WEB-DL.H264-NTG",
+                indexer: "ExampleIndexer",
+                quality: "1080p",
+                size_bytes: 4_500_000_000,
+                seeders: 25
+              ),
+              alternative(
+                guid: "alt-flagged",
+                title: "Sample.Movie.2010.1080p.WEB-DL.exe",
+                indexer: "AnotherIndexer",
+                quality: "1080p",
+                size_bytes: 3_000_000,
+                seeders: 140,
+                suspicious?: true
+              )
+            ],
+            loading?: false,
+            left_out: "3 other releases were found and left out: they didn't match this title.",
+            search_queries: ["Sample Movie 2010", "Sample Movie"]
+          },
+          on_cancel: "noop"
+        }
+      },
+      %Variation{
         id: :one_alternative,
         description: "A single alternative — common case for less-popular titles",
         attributes: %{
@@ -180,7 +231,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
       quality: Keyword.get(opts, :quality),
       size_bytes: Keyword.get(opts, :size_bytes),
       seeders: Keyword.get(opts, :seeders),
-      scope: Keyword.get(opts, :scope)
+      scope: Keyword.get(opts, :scope),
+      suspicious?: Keyword.get(opts, :suspicious?, false)
     }
   end
 end

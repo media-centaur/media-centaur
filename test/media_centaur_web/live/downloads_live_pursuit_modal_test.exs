@@ -458,7 +458,7 @@ defmodule MediaCentaurWeb.DownloadsLivePursuitModalTest do
       |> render_click()
 
       html = render_async(view)
-      assert html =~ "Reviewed" or html =~ "No alternatives are currently available"
+      assert html =~ "Reviewed" or html =~ "The search found no releases."
 
       awaiting = Repo.reload(second_unit)
       refute is_nil(awaiting.awaiting_decision_at)

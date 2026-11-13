@@ -74,6 +74,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.GapEvidence.Rejected,
       ViewModels.GapEvidence.Search,
       ViewModels.GapVerdict,
+      ViewModels.Rejection,
       ViewModels.NextStep,
       ViewModels.PlanBoard,
       ViewModels.PlanBoard.Alternative,
@@ -162,7 +163,7 @@ defmodule MediaCentaur.Acquisition do
     Targets
   }
 
-  alias MediaCentaur.Search.{Assessment, Prowlarr, QueryBuilder, QueryExpander, SearchResult}
+  alias MediaCentaur.Search.{Assessment, Criteria, Prowlarr, QueryBuilder, QueryExpander, SearchResult}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
@@ -473,92 +474,109 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Lists the release alternatives for a pursuit's existing recipe —
-  excluded by `tried_release_guids`, capped at 8, ready for display in
-  the decision card.
+  The releases a pursuit could pivot to, for its decision card: every
+  release its recipe's search finds, judged for the awaiting-or-lead
+  unit (ADR-055).
 
-  This is the single entry point for "show me the releases this pursuit
-  could pivot to". Both the decision-card refresh path and the
-  `pick_alternative` validation lookup go through the same private
-  search helper, so the pursuit→Prowlarr translation (search terms,
-  category, brace expansion, corpus consult) lives in one place and
-  can't drift.
+    * `offered` — up to 8 releases with their assessments. A release of
+      the title that contains the unit is offered; a flagged one too,
+      after the clean ones, so the card can mark it instead of hiding it.
+    * `left_out` — `[{reason, count}]` for the rest, by the first gate
+      each failed, in gate order. A release the unit already tried is
+      `:excluded`.
+
+  A TMDB pursuit searches exactly as the plan side and the retry loop
+  do: its own terms first (`QueryBuilder.build/1`), then, for a TV unit,
+  the wider terms that can only offer a pack (`QueryBuilder.fallback/1`),
+  and each result is judged by `Search.Assessment` (`:covering`). A
+  user-typed query searches its phrasing — the unit's own term when it
+  has one — and only what was already tried is left out.
 
   Searches consult the corpus first (ADR-055 citizenship); pass
   `force: true` for the user-initiated "Search Prowlarr again" refresh.
   """
+  @spec assess_alternatives_for(Pursuit.t(), keyword()) :: %{
+          offered: [{SearchResult.t(), Assessment.t()}],
+          left_out: [{Assessment.reason(), pos_integer()}]
+        }
+  def assess_alternatives_for(%Pursuit{} = pursuit, search_opts \\ []) do
+    unit = Units.lead(pursuit.id)
+    excluded = MapSet.new((unit && unit.tried_release_guids) || [])
+
+    assessed =
+      case Recipe.for_unit(pursuit, unit) do
+        %Recipe{type: :tmdb} = recipe ->
+          criteria =
+            recipe |> Recipe.to_criteria() |> Cours.with_run(pursuit.tmdb_id) |> FirstRelease.stamp()
+
+          criteria
+          |> search_for_title(search_opts)
+          |> Enum.map(&{&1, Assessment.assess(&1, criteria, excluded: excluded, scope: :covering)})
+
+        %Recipe{type: :prowlarr_query, manual_query: query, title: title} ->
+          (query || title)
+          |> search_typed(search_opts)
+          |> Enum.map(
+            &{&1, %Assessment{reasons: if(MapSet.member?(excluded, &1.guid), do: [:excluded], else: [])}}
+          )
+      end
+
+    {offered, left_out} =
+      Enum.split_with(assessed, fn {_result, assessment} ->
+        Assessment.accepted?(assessment, ignoring: [:red_flag])
+      end)
+
+    %{
+      offered:
+        offered
+        |> Enum.sort_by(fn {_result, assessment} -> :red_flag in assessment.reasons end)
+        |> Enum.take(8),
+      left_out:
+        left_out
+        |> Enum.frequencies_by(fn {_result, assessment} -> first_bar(assessment) end)
+        |> Enum.sort_by(fn {reason, _count} ->
+          Enum.find_index(Assessment.reasons(), &(&1 == reason))
+        end)
+    }
+  end
+
+  # The gate that kept a release off the card: the first it failed other
+  # than the bait gate, which the card reads past.
+  defp first_bar(%Assessment{reasons: reasons}), do: List.first(reasons -- [:red_flag])
+
+  @doc "The releases `assess_alternatives_for/2` offers, without their assessments."
   @spec list_alternatives_for(Pursuit.t(), keyword()) :: [SearchResult.t()]
   def list_alternatives_for(%Pursuit{} = pursuit, search_opts \\ []) do
-    # The decision card serves the awaiting-or-lead unit (ADR-055):
-    # exclusions come from that unit's thread, and its concrete query
-    # (when set) scopes the search to the unit's own term rather than
-    # re-expanding the whole braced query.
-    unit = Units.lead(pursuit.id)
-
-    case search_for_pursuit(pursuit, unit, search_opts) do
-      {:ok, results} ->
-        excluded = MapSet.new((unit && unit.tried_release_guids) || [])
-
-        results
-        |> Enum.reject(&MapSet.member?(excluded, &1.guid))
-        |> Enum.take(8)
-
-      {:error, _} ->
-        []
-    end
+    pursuit
+    |> assess_alternatives_for(search_opts)
+    |> Map.fetch!(:offered)
+    |> Enum.map(fn {result, _assessment} -> result end)
   end
 
-  # Single source of truth for "search Prowlarr the way THIS pursuit
-  # wants to be searched". Brace-aware, unit-aware, corpus-aware. Adding
-  # a new consumer just calls `list_alternatives_for/2` (filtered) or
-  # `search_for_pursuit/3` (raw, internal-only) — the recipe can't drift
-  # between call sites.
-  #
-  # A TMDB pursuit searches exactly as the plan side and the retry loop
-  # do: its own terms first (`QueryBuilder.build/1`), then, for a TV
-  # unit, the wider terms that can only offer a pack
-  # (`QueryBuilder.fallback/1`). Only releases of the title that contain
-  # the unit are kept (`Search.Assessment`, `:covering`). A user-typed
-  # query searches its phrasing and keeps everything.
-  defp search_for_pursuit(%Pursuit{} = pursuit, unit, search_opts) do
-    case Recipe.for_unit(pursuit, unit) do
-      %Recipe{type: :tmdb} = recipe ->
-        search_for_title(recipe, pursuit.tmdb_id, search_opts)
-
-      %Recipe{type: :prowlarr_query, manual_query: query, title: title} ->
-        search_expanded(query || title, search_opts)
-    end
-  end
-
-  defp search_for_title(%Recipe{} = recipe, tmdb_id, search_opts) do
+  # Every release the title's terms find, unjudged. Nothing when the
+  # search provider is not configured.
+  defp search_for_title(%Criteria{} = criteria, search_opts) do
     if available?() do
-      criteria = recipe |> Recipe.to_criteria() |> Cours.with_run(tmdb_id) |> FirstRelease.stamp()
       force? = Keyword.get(search_opts, :force, false)
 
-      results =
-        (QueryBuilder.build(criteria) ++ QueryBuilder.fallback(criteria))
-        |> Enum.flat_map(fn {term, opts} ->
-          case Corpus.search(term, Keyword.put(opts, :force, force?)) do
-            {:ok, results} -> results
-            {:error, _reason} -> []
-          end
-        end)
-        |> Enum.uniq_by(& &1.guid)
-        |> Enum.filter(&offerable?(&1, criteria))
-
-      {:ok, results}
+      (QueryBuilder.build(criteria) ++ QueryBuilder.fallback(criteria))
+      |> Enum.flat_map(fn {term, opts} ->
+        case Corpus.search(term, Keyword.put(opts, :force, force?)) do
+          {:ok, results} -> results
+          {:error, _reason} -> []
+        end
+      end)
+      |> Enum.uniq_by(& &1.guid)
     else
-      {:error, :not_configured}
+      []
     end
   end
 
-  # What a person choosing is offered: any release of the title that
-  # contains the unit. A flagged release is still listed — the card
-  # hides nothing a deliberate pick could want.
-  defp offerable?(result, criteria) do
-    result
-    |> Assessment.assess(criteria, scope: :covering)
-    |> Assessment.accepted?(ignoring: [:red_flag])
+  defp search_typed(query, search_opts) do
+    case search_expanded(query, search_opts) do
+      {:ok, results} -> results
+      {:error, _reason} -> []
+    end
   end
 
   # Resolves a picked guid with the unit-aware search the card listed it

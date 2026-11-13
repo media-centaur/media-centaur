@@ -51,6 +51,12 @@ defmodule MediaCentaur.Search.Assessment do
   @type reason :: :red_flag | :excluded | :identity | :published_early | :quality
   @type scope_rule :: :exact | :covering | :any | :run
 
+  @reasons [:red_flag, :excluded, :identity, :published_early, :quality]
+
+  @doc "Every reason, in gate order."
+  @spec reasons() :: [reason()]
+  def reasons, do: @reasons
+
   @enforce_keys [:reasons]
   defstruct [:scope, reasons: []]
 

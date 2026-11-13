@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict, PlanBoard}
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict, PlanBoard, Rejection}
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
@@ -267,17 +267,12 @@ defmodule MediaCentaurWeb.DownloadsLive.PlanLogic do
         quality: candidate.quality,
         seeders: candidate.seeders,
         size_bytes: candidate.size_bytes,
-        reason: reason_label(candidate.reason),
+        reason: Rejection.label(candidate.reason),
         suspicious?: candidate.reason == :red_flag
       }
     end)
     |> Enum.sort_by(&{&1.suspicious?, -(&1.seeders || 0)})
   end
-
-  defp reason_label(:identity), do: "didn't match this title"
-  defp reason_label(:red_flag), do: "flagged suspicious"
-  defp reason_label(:excluded), do: "you excluded this earlier"
-  defp reason_label(:published_early), do: "posted before the film was released"
 
   @doc """
   The board's one verdict slot (UIDR-029 as amended 2026-11-06): the

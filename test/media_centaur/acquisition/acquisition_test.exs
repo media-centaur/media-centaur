@@ -745,6 +745,34 @@ defmodule MediaCentaur.AcquisitionTest do
       assert guids == ["the-movie"]
     end
 
+    test "assess_alternatives_for/2 offers flagged releases last and counts what it left out by reason" do
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "601",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          year: 2010,
+          tried_release_guids: ["tried"]
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          Map.put(release("Sample.Movie.2010.1080p.WEB-DL.exe", "flagged"), "size", 1_000_000_000),
+          release("Sample.Movie.2010.1080p.BluRay", "tried"),
+          release("Sample.Movie.1975.1080p.BluRay", "other-year"),
+          release("Sample.Movie.2010.1080p.WEB-DL", "the-movie"),
+          release("Another.Sample.Movie.2010.1080p.WEB-DL", "other-title")
+        ])
+      end)
+
+      assert %{offered: offered, left_out: left_out} = Acquisition.assess_alternatives_for(pursuit)
+
+      assert Enum.map(offered, fn {result, assessment} -> {result.guid, assessment.reasons} end) ==
+               [{"the-movie", []}, {"flagged", [:red_flag]}]
+
+      assert left_out == [excluded: 1, identity: 2]
+    end
+
     test "leaves out a release posted before the movie's first release date", %{pursuit: pursuit} do
       {:ok, _record} =
         MediaCentaur.TMDB.Store.record_fetched(

@@ -64,15 +64,19 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
             <.icon name="hero-arrow-path" class="size-4 animate-spin" /> Searching for alternatives…
           </div>
         <% @vm.alternatives == [] -> %>
+          <%!-- The empty card says which of two things happened: the
+                search found nothing, or it found releases and none can
+                be offered — and then why (UIDR-034). --%>
           <p class="text-sm text-base-content/60">
-            No alternatives are currently available. Search Prowlarr again to look for new releases.
+            {@vm.left_out || "The search found no releases."} Search Prowlarr again to look for new ones.
           </p>
         <% true -> %>
           <ul class="space-y-2">
-            <li :for={alt <- @vm.alternatives}>
+            <li :for={alt <- @vm.alternatives} id={"decision-alternative-#{alt.guid}"}>
               <.alternative_row pursuit_id={@vm.pursuit_id} alt={alt} />
             </li>
           </ul>
+          <p :if={@vm.left_out} class="text-xs text-base-content/60">{@vm.left_out}</p>
       <% end %>
 
       <%!-- Unified action row. Cancel is always available; Search again
@@ -123,6 +127,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         class="shrink-0 text-xs uppercase tracking-wider text-base-content/55"
       >
         {@pack_label}
+      </span>
+      <%!-- A flagged release is listed, not hidden: the person choosing
+            sees the flag before picking it. A status label is plain
+            coloured text, never a badge. --%>
+      <span :if={@alt.suspicious?} class="shrink-0 text-xs text-warning">
+        Flagged suspicious
       </span>
       <ReleaseFacts.release_facts entry={
         %ReleaseFacts.Entry{

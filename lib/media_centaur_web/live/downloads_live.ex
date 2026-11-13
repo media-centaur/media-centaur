@@ -1717,17 +1717,22 @@ defmodule MediaCentaurWeb.DownloadsLive do
   defp build_decision(pursuit, awaiting?, search_queries, search_opts \\ [])
 
   defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, search_opts) do
-    results = Acquisition.list_alternatives_for(pursuit, search_opts)
+    %{offered: offered, left_out: left_out} = Acquisition.assess_alternatives_for(pursuit, search_opts)
 
     card = %ViewModels.DecisionCard{
       pursuit_id: pursuit.id,
       prompt: decision_prompt(pursuit),
-      alternatives: Enum.map(results, &Alternative.from/1),
+      alternatives:
+        Enum.map(offered, fn {result, assessment} -> Alternative.from(result, assessment) end),
       loading?: false,
+      left_out: ViewModels.Rejection.summary(left_out),
       search_queries: search_queries
     }
 
-    %{card: card, results_by_guid: Map.new(results, &{&1.guid, &1})}
+    %{
+      card: card,
+      results_by_guid: Map.new(offered, fn {result, _assessment} -> {result.guid, result} end)
+    }
   end
 
   defp build_decision(_pursuit, _awaiting?, _search_queries, _search_opts),
