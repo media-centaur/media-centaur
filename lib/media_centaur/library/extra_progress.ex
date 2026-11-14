@@ -37,6 +37,17 @@ defmodule MediaCentaur.Library.ExtraProgress do
     |> unique_constraint([:profile_id, :extra_id])
   end
 
+  # A row born of the Mark watched control: the mark alone. A hand mark is
+  # not a viewing, so `last_watched_at` stays empty.
+  @impl true
+  def marked_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:profile_id, :extra_id])
+    |> validate_required([:profile_id, :extra_id])
+    |> put_change(:completed, true)
+    |> unique_constraint([:profile_id, :extra_id])
+  end
+
   @impl true
   def update_changeset(record, attrs) do
     record

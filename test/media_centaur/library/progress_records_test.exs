@@ -148,6 +148,28 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
                ProgressRecords.toggle_watched(context.actor, :movie, context.movie.id)
     end
 
+    test "marking an item with no row is not a viewing: last_watched_at stays empty and the completion is published",
+         context do
+      Topics.subscribe(Topics.library_watch_completed())
+      actor = context.actor
+
+      assert {:ok, marked} = ProgressRecords.toggle_watched(actor, :movie, context.movie.id)
+      assert marked.completed
+      assert marked.position_seconds == 0.0
+      assert marked.last_watched_at == nil
+      assert_receive {:entity_watch_completed, %{completed: true}, ^actor}
+    end
+
+    test "marking an extra with no row leaves last_watched_at empty", context do
+      extra = create_extra(%{movie_id: context.movie.id, name: "Featurette"})
+
+      assert {:ok, marked} =
+               ProgressRecords.toggle_extra_watched(context.actor, context.movie.id, extra.id)
+
+      assert marked.completed
+      assert marked.last_watched_at == nil
+    end
+
     test "toggling a watched item with an abandoned viewing clears the viewing and keeps the mark",
          context do
       progress =
@@ -231,6 +253,37 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert {:ok, %{completed: false}} =
                ProgressRecords.toggle_extra_watched(context.actor, context.movie.id, extra.id)
+    end
+  end
+
+  describe "seed_watched/4" do
+    setup do
+      Topics.subscribe(Topics.library_watch_completed())
+      %{movie: create_standalone_movie(%{name: "Movie A"}), profile_id: owner_profile_id()}
+    end
+
+    test "writes the row a finish leaves — mark set, no viewing, duration kept — and publishes nothing",
+         context do
+      assert {:ok, seeded} =
+               ProgressRecords.seed_watched(context.profile_id, :movie, context.movie.id, 5400.0)
+
+      assert seeded.completed
+      assert seeded.position_seconds == 0.0
+      assert seeded.duration_seconds == 5400.0
+      assert %DateTime{} = seeded.last_watched_at
+      refute_receive {:entity_watch_completed, _record, _actor}
+    end
+
+    test "marks a row that already exists and ends its viewing", context do
+      existing = create_watch_progress(%{movie_id: context.movie.id, position_seconds: 600.0})
+
+      assert {:ok, seeded} =
+               ProgressRecords.seed_watched(context.profile_id, :movie, context.movie.id, 5400.0)
+
+      assert seeded.id == existing.id
+      assert seeded.completed
+      assert seeded.position_seconds == 0.0
+      assert seeded.duration_seconds == 5400.0
     end
   end
 

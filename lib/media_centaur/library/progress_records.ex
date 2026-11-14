@@ -253,14 +253,14 @@ defmodule MediaCentaur.Library.ProgressRecords do
       end
 
     apply_watched_control(progress, actor, fn ->
-      find_or_create_for_container(profile_id, container_type, container_id)
+      insert_marked_for_container(actor, container_type, container_id)
     end)
   end
 
   @doc "As `toggle_watched/3`, for an extra of `entity_id`."
   @spec toggle_extra_watched(Actor.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, ExtraProgress.t()} | {:error, term()}
-  def toggle_extra_watched(%Actor{} = actor, entity_id, extra_id) do
+  def toggle_extra_watched(%Actor{} = actor, _entity_id, extra_id) do
     profile_id = actor.profile_id
 
     progress =
@@ -270,15 +270,48 @@ defmodule MediaCentaur.Library.ProgressRecords do
       end
 
     apply_watched_control(progress, actor, fn ->
-      find_or_create_for_extra(%{profile_id: profile_id, extra_id: extra_id, entity_id: entity_id})
+      Repo.insert(ExtraProgress.marked_changeset(%{profile_id: profile_id, extra_id: extra_id}))
     end)
   end
 
-  defp apply_watched_control(progress, actor, create) do
+  # Marking an item that has no row inserts the mark alone
+  # (`marked_changeset/1`): a hand mark is not a viewing, so the new row
+  # carries no `last_watched_at`.
+  defp apply_watched_control(progress, actor, insert_marked) do
     case {watched_control(progress), progress} do
       {:mark_unwatched, record} -> mark_incomplete(record)
-      {:mark_watched, nil} -> with {:ok, record} <- create.(), do: mark_completed(record, actor)
+      {:mark_watched, nil} -> insert_marked.()
       {:mark_watched, record} -> mark_completed(record, actor)
+    end
+  end
+
+  defp insert_marked_for_container(actor, container_type, container_id) do
+    position = PlayableItems.canonical_position(container_type, container_id)
+
+    with {:ok, playable_item} <- PlayableItems.find_or_create(container_type, container_id, position),
+         {:ok, marked} <-
+           Repo.insert(
+             WatchProgress.marked_changeset(%{
+               profile_id: actor.profile_id,
+               playable_item_id: playable_item.id
+             })
+           ) do
+      publish_completed(marked, actor)
+      {:ok, marked}
+    end
+  end
+
+  @doc """
+  Seed data's watched item: the row a finish leaves — mark set, no
+  viewing, duration kept — for a leaf container, whether or not the row
+  exists. Publishes nothing and does not move the series watch position,
+  so a seeder speaks for no one; playback is `finish/3`.
+  """
+  @spec seed_watched(Ecto.UUID.t(), PlayableItem.container_type(), Ecto.UUID.t(), number()) ::
+          {:ok, WatchProgress.t()} | {:error, term()}
+  def seed_watched(profile_id, container_type, container_id, duration_seconds) do
+    with {:ok, progress} <- find_or_create_for_container(profile_id, container_type, container_id) do
+      Repo.update(WatchProgress.finish_changeset(progress, duration_seconds))
     end
   end
 

@@ -446,13 +446,17 @@ defmodule MediaCentaur.Showcase do
     |> Enum.zip(pcts)
     |> Enum.with_index()
     |> Enum.map(fn {{movie, pct}, idx} ->
+      # A watched item rests as a finish leaves it: mark set, no viewing.
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(owner_id, :movie, movie.id, %{
-          position_seconds: pct * duration,
-          duration_seconds: duration,
-          completed: completed?,
-          last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 3600, :second)
-        })
+        if completed? do
+          Library.ProgressRecords.seed_watched(owner_id, :movie, movie.id, duration)
+        else
+          Library.ProgressRecords.find_or_create_for_container(owner_id, :movie, movie.id, %{
+            position_seconds: pct * duration,
+            duration_seconds: duration,
+            last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 3600, :second)
+          })
+        end
 
       :ok
     end)
@@ -471,13 +475,17 @@ defmodule MediaCentaur.Showcase do
     |> Enum.zip(pcts)
     |> Enum.with_index()
     |> Enum.map(fn {{episode, pct}, idx} ->
+      # A watched item rests as a finish leaves it: mark set, no viewing.
       {:ok, _} =
-        Library.ProgressRecords.find_or_create_for_container(owner_id, :episode, episode.id, %{
-          position_seconds: pct * duration,
-          duration_seconds: duration,
-          completed: completed?,
-          last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 900, :second)
-        })
+        if completed? do
+          Library.ProgressRecords.seed_watched(owner_id, :episode, episode.id, duration)
+        else
+          Library.ProgressRecords.find_or_create_for_container(owner_id, :episode, episode.id, %{
+            position_seconds: pct * duration,
+            duration_seconds: duration,
+            last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 900, :second)
+          })
+        end
 
       :ok
     end)

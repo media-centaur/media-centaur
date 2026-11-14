@@ -12,6 +12,10 @@ defmodule MediaCentaur.Library.ProgressTracker do
   (`update_changeset/2`, which never touches the mark) and ended by a
   finish or either watched control.
 
+  A row can also be born of the Mark watched control
+  (`marked_changeset/1`): the mark alone, with no `last_watched_at`,
+  because a hand mark is not a viewing.
+
   Implementations reuse `mark_completed_changeset/1`,
   `mark_incomplete_changeset/1` and `finish_changeset/2` via `defdelegate`
   — those transitions are identical across all progress schemas.
@@ -20,6 +24,7 @@ defmodule MediaCentaur.Library.ProgressTracker do
   import Ecto.Changeset
 
   @callback create_changeset(attrs :: map()) :: Ecto.Changeset.t()
+  @callback marked_changeset(attrs :: map()) :: Ecto.Changeset.t()
   @callback update_changeset(record :: Ecto.Schema.t(), attrs :: map()) :: Ecto.Changeset.t()
   @callback mark_completed_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()
   @callback mark_incomplete_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()

@@ -37,6 +37,17 @@ defmodule MediaCentaur.Library.WatchProgress do
     |> unique_constraint([:profile_id, :playable_item_id])
   end
 
+  # A row born of the Mark watched control: the mark alone. A hand mark is
+  # not a viewing, so `last_watched_at` stays empty.
+  @impl true
+  def marked_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:profile_id, :playable_item_id])
+    |> validate_required([:profile_id, :playable_item_id])
+    |> put_change(:completed, true)
+    |> unique_constraint([:profile_id, :playable_item_id])
+  end
+
   # A position tick: the viewing in flight only. The watched mark
   # (`completed`) is not cast — starting a watched item again keeps its
   # mark. The key of a row does not move either: neither `profile_id` nor
