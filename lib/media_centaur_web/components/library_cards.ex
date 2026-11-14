@@ -118,7 +118,15 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     assigns = assign(assigns, :percent, percent)
 
     ~H"""
-    <div :if={@percent > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
+    <div
+      :if={@percent > 0}
+      class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20"
+      role="progressbar"
+      aria-valuenow={@percent}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label="Watch progress"
+    >
       <div class="h-full bg-primary progress-fill" style={"width: #{@percent}%"} />
     </div>
     """

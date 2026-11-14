@@ -4,8 +4,8 @@ defmodule MediaCentaurWeb.TitleProgressSurfacesTest do
 
   One fixture — a rewatch in progress: a three-episode series, every
   episode carrying its watched mark, the series watch position at episode
-  1 — read by Play, by Play's label, by Continue Watching and by both
-  bars. Then playback finishes the last episode, and the detail page and
+  1 — read by Play, by Play's label, by Continue Watching and by all
+  three bars: the detail hairline, the shelf card's and the grid card's. Then playback finishes the last episode, and the detail page and
   the shelf follow.
 
   A failure here is a reader that derives "where am I" its own way: fix
@@ -55,10 +55,12 @@ defmodule MediaCentaurWeb.TitleProgressSurfacesTest do
 
   defp shelf_card(series_id), do: "#continue-watching-#{series_id}"
 
-  # A bar drawn at `percent`: the fill's width is the measure the user sees.
-  defp bar_at(percent), do: ~s|[style="width: #{percent}%"]|
+  defp grid_card(series_id), do: ~s|#library-grid [data-entity-id="#{series_id}"]|
 
-  test "Play, its label, Continue Watching and both bars read the rewatch at episode 2 of 3",
+  # A bar reporting `percent`, the value it states to assistive technology.
+  defp bar_at(percent), do: ~s|[role="progressbar"][aria-valuenow="#{percent}"]|
+
+  test "Play, its label, Continue Watching and every bar read the rewatch at episode 2 of 3",
        %{conn: conn, series: series, episodes: [_first, second, _third]} do
     assert {:ok, %{entry: entry}} = Resolver.resolve(owner_profile_id(), series.id)
     assert entry.content_url == "/tv/sample-show/s01e02.mkv"
@@ -66,6 +68,7 @@ defmodule MediaCentaurWeb.TitleProgressSurfacesTest do
 
     {:ok, detail, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
     assert has_element?(detail, play_button(second.id), "Play Episode 2")
+    assert has_element?(detail, "#detail-modal #{bar_at(33)}")
 
     {:ok, home, _html} = live_async!(conn, ~p"/")
     assert has_element?(home, shelf_card(series.id))
@@ -73,10 +76,7 @@ defmodule MediaCentaurWeb.TitleProgressSurfacesTest do
 
     {:ok, library, _html} = live_async!(conn, ~p"/library")
 
-    assert has_element?(
-             library,
-             ~s|#library-grid [data-entity-id="#{series.id}"] .progress-fill#{bar_at(33)}|
-           )
+    assert has_element?(library, "#{grid_card(series.id)} #{bar_at(33)}")
   end
 
   test "playback finishing the last episode ends the pass: Watch again, and the series leaves the shelf",
@@ -85,16 +85,14 @@ defmodule MediaCentaurWeb.TitleProgressSurfacesTest do
 
     {:ok, detail, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
     assert has_element?(detail, play_button(series.id), "Watch again")
+    assert has_element?(detail, "#detail-modal #{bar_at(100)}")
 
     {:ok, home, _html} = live_async!(conn, ~p"/")
     refute has_element?(home, shelf_card(series.id))
 
     {:ok, library, _html} = live_async!(conn, ~p"/library")
 
-    assert has_element?(
-             library,
-             ~s|#library-grid [data-entity-id="#{series.id}"] .progress-fill#{bar_at(100)}|
-           )
+    assert has_element?(library, "#{grid_card(series.id)} #{bar_at(100)}")
 
     assert {:ok, %{entry: entry}} = Resolver.resolve(owner_profile_id(), series.id)
     assert entry.content_url == "/tv/sample-show/s01e01.mkv"

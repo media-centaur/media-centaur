@@ -126,7 +126,14 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
           size={:lg}
         />
 
-        <div class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50">
+        <div
+          class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50"
+          role="progressbar"
+          aria-valuenow={item.progress_pct}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label="Watch progress"
+        >
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>
         </div>
       </div>
