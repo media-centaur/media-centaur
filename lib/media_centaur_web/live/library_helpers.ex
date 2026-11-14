@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   offline banner from the per-directory status.
   """
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.BrowseItem
 
   @movie_kinds [:movie, :movie_series, :video_object]
@@ -106,6 +107,54 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   @spec no_matches_label(String.t()) :: String.t()
   def no_matches_label(""), do: "No titles match your current filters."
   def no_matches_label(text), do: "No titles match “#{text}”."
+
+  # --- Progress ---
+
+  @doc """
+  The entries' ids grouped by container kind, as
+  `Library.ProgressRecords.title_progresses_by_kind/2` takes them: each
+  id is read as the one kind the Browse projection already knows.
+  """
+  @spec ids_by_kind([BrowseItem.t()]) :: %{optional(BrowseItem.kind()) => [String.t()]}
+  def ids_by_kind(entries), do: Enum.group_by(entries, & &1.kind, & &1.id)
+
+  @doc """
+  The grid's progress map after a progress event for `entity_id`: the
+  event's title progress replaces the title's, with no read. An unstarted
+  title is absent, as it is from the bulk read, and its card draws no bar.
+  """
+  @spec put_title_progress(%{optional(String.t()) => TitleProgress.t()}, String.t(), TitleProgress.t()) ::
+          %{optional(String.t()) => TitleProgress.t()}
+  def put_title_progress(progress_by_id, entity_id, %TitleProgress{state: :unstarted}),
+    do: Map.delete(progress_by_id, entity_id)
+
+  def put_title_progress(progress_by_id, entity_id, %TitleProgress{} = title_progress),
+    do: Map.put(progress_by_id, entity_id, title_progress)
+
+  @doc """
+  The grid's last-played map after a progress event for `entity_id`,
+  from the record the event says changed. Its time is the title's last
+  played when newer than the one held; a record with no time (a hand
+  mark) changes nothing. Neither needs a read, so a playback tick costs
+  none.
+
+  `:reread` when the event names no record — the end-of-playback refresh,
+  or a tick whose row has not been written yet: the event cannot say when
+  the title was last played, and the caller reads it
+  (`Library.ProgressRecords.last_played_at_by_title/2`).
+  """
+  @spec last_played_after(%{optional(String.t()) => DateTime.t()}, String.t(), map() | nil) ::
+          {:ok, %{optional(String.t()) => DateTime.t()}} | :reread
+  def last_played_after(_last_played_by_id, _entity_id, nil), do: :reread
+
+  def last_played_after(last_played_by_id, entity_id, %{last_watched_at: %DateTime{} = played_at}) do
+    {:ok,
+     Map.update(last_played_by_id, entity_id, played_at, fn held ->
+       if DateTime.after?(played_at, held), do: played_at, else: held
+     end)}
+  end
+
+  def last_played_after(last_played_by_id, _entity_id, _undated_record), do: {:ok, last_played_by_id}
 
   # --- Sorting ---
 

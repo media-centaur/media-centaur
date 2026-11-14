@@ -221,28 +221,24 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info(
-        {:entity_progress_updated, %{entity_id: entity_id, profile_id: profile_id}},
+        {:entity_progress_updated, %{entity_id: entity_id, profile_id: profile_id} = event},
         %{assigns: %{profile: %{id: profile_id}}} = socket
       ) do
     # The title detail host keeps the open modal's progress fresh on
-    # its own. Here we refresh just the affected title's readings — its
-    # title progress, so its card's bar reflects the change, and when it
-    # was last played, for the Recently Watched order. A title with
-    # neither is absent from its map.
+    # its own. Here we refresh just the affected title's readings, from
+    # what the event carries — its title progress, so its card's bar
+    # reflects the change, and when it was last played, for the Recently
+    # Watched order. A session sends one of these every few seconds, so a
+    # tick reads nothing (`LibraryHelpers.put_title_progress/3`,
+    # `last_played_after/3`).
     # Another profile's progress is not this grid's (ADR-078).
     assigns = socket.assigns
 
     {:noreply,
      socket
      |> assign(
-       progress_by_id:
-         assigns.progress_by_id
-         |> Map.delete(entity_id)
-         |> Map.merge(Library.ProgressRecords.title_progresses(profile_id, [entity_id])),
-       last_played_by_id:
-         assigns.last_played_by_id
-         |> Map.delete(entity_id)
-         |> Map.merge(Library.ProgressRecords.last_played_at_by_title(profile_id, [entity_id]))
+       progress_by_id: put_title_progress(assigns.progress_by_id, entity_id, event.title_progress),
+       last_played_by_id: last_played_after_event(assigns.last_played_by_id, event)
      )
      |> touch_stream_entries([entity_id])}
   end
@@ -496,10 +492,27 @@ defmodule MediaCentaurWeb.LibraryLive do
     end
   end
 
+  defp last_played_after_event(
+         last_played_by_id,
+         %{entity_id: entity_id, profile_id: profile_id} = event
+       ) do
+    case last_played_after(last_played_by_id, entity_id, event.changed_record) do
+      {:ok, updated} ->
+        updated
+
+      :reread ->
+        last_played_by_id
+        |> Map.delete(entity_id)
+        |> Map.merge(Library.ProgressRecords.last_played_at_by_title(profile_id, [entity_id]))
+    end
+  end
+
   defp load_library(socket) do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
-    progress_by_id = Library.ProgressRecords.title_progresses(socket.assigns.profile.id, ids)
+
+    progress_by_id =
+      Library.ProgressRecords.title_progresses_by_kind(socket.assigns.profile.id, ids_by_kind(entries))
 
     assign(socket,
       entries: entries,

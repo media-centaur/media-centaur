@@ -1757,7 +1757,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # users start a movie and the catalog still shows it as untouched.
       {:ok, view, html} = live_async!(conn, "/library")
       assert html =~ "Live Update Movie"
-      refute has_element?(view, "#entity-#{movie.id} .progress-fill")
+      refute has_element?(view, "#entity-#{movie.id} [role='progressbar']")
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -1767,7 +1767,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       ProgressBroadcaster.broadcast(owner_profile_id(), movie.id, nil)
 
-      assert has_element?(view, "#entity-#{movie.id} .progress-fill[style*='width: 60']")
+      assert has_element?(view, "#entity-#{movie.id} [role='progressbar'][aria-valuenow='60']")
     end
 
     test "entity_progress_updated from another profile leaves the card's progress alone",

@@ -1,6 +1,9 @@
 defmodule MediaCentaurWeb.LibraryHelpersTest do
   use MediaCentaur.Case, async: true
 
+  import MediaCentaur.TestFactory
+
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.BrowseItem
   alias MediaCentaurWeb.LibraryFormatters
   alias MediaCentaurWeb.LibraryHelpers
@@ -131,6 +134,73 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
 
       result = LibraryHelpers.sorted_by_last_played([a, b, c], last_played_by_id)
       assert Enum.map(result, & &1.name) == ["Newest", "Mid", "No-progress"]
+    end
+  end
+
+  # --- put_title_progress/3 ---
+
+  describe "put_title_progress/3" do
+    test "a title in progress or complete takes the progress the event carries" do
+      in_progress = %TitleProgress{state: :in_progress, before_next: 1, total: 3}
+      complete = %TitleProgress{state: :complete, before_next: 3, total: 3}
+
+      assert LibraryHelpers.put_title_progress(%{"a" => complete}, "a", in_progress) ==
+               %{"a" => in_progress}
+
+      assert LibraryHelpers.put_title_progress(%{}, "a", complete) == %{"a" => complete}
+    end
+
+    test "an unstarted title is absent, as it is from the bulk read" do
+      unstarted = %TitleProgress{state: :unstarted, before_next: 0, total: 3}
+      in_progress = %TitleProgress{state: :in_progress, before_next: 1, total: 3}
+
+      assert LibraryHelpers.put_title_progress(%{"a" => in_progress, "b" => in_progress}, "a", unstarted) ==
+               %{"b" => in_progress}
+    end
+  end
+
+  # --- last_played_after/3 ---
+
+  describe "last_played_after/3" do
+    test "the changed record's time becomes the title's last played" do
+      record = build_progress(%{last_watched_at: ~U[2026-03-01 20:00:00Z]})
+
+      assert LibraryHelpers.last_played_after(%{"a" => ~U[2026-01-15 00:00:00Z]}, "a", record) ==
+               {:ok, %{"a" => ~U[2026-03-01 20:00:00Z]}}
+
+      assert LibraryHelpers.last_played_after(%{}, "a", record) ==
+               {:ok, %{"a" => ~U[2026-03-01 20:00:00Z]}}
+    end
+
+    test "a record older than the title's last played leaves it alone" do
+      last_played_by_id = %{"a" => ~U[2026-03-01 20:00:00Z]}
+      record = build_progress(%{last_watched_at: ~U[2026-01-15 00:00:00Z]})
+
+      assert LibraryHelpers.last_played_after(last_played_by_id, "a", record) == {:ok, last_played_by_id}
+    end
+
+    test "a record with no time, a hand mark, changes nothing" do
+      record = build_progress(%{last_watched_at: nil, completed: true})
+
+      assert LibraryHelpers.last_played_after(%{}, "a", record) == {:ok, %{}}
+    end
+
+    test "an event that names no record cannot say, so the title is read again" do
+      assert LibraryHelpers.last_played_after(%{"a" => ~U[2026-03-01 20:00:00Z]}, "a", nil) == :reread
+    end
+  end
+
+  # --- ids_by_kind/1 ---
+
+  describe "ids_by_kind/1" do
+    test "groups the entries' ids by container kind" do
+      entries = [
+        item(%{id: "a", kind: :movie}),
+        item(%{id: "b", kind: :tv_series}),
+        item(%{id: "c", kind: :movie})
+      ]
+
+      assert LibraryHelpers.ids_by_kind(entries) == %{movie: ["a", "c"], tv_series: ["b"]}
     end
   end
 
