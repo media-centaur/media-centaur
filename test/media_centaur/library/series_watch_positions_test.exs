@@ -82,6 +82,23 @@ defmodule MediaCentaur.Library.SeriesWatchPositionsTest do
     assert position.order_key == ["2001-05-04", "00002"]
   end
 
+  test "record_finish/3 keeps the empty date of an undated collection movie in its order key", context do
+    collection = create_movie_series(%{name: "Sample Collection"})
+    movie = create_movie(%{name: "Movie A", movie_series_id: collection.id, position: 2})
+    progress = create_watch_progress(%{profile_id: context.profile.id, movie_id: movie.id})
+
+    assert {:ok, _position} =
+             SeriesWatchPositions.record_finish(
+               context.profile.id,
+               progress.playable_item_id,
+               DateTime.utc_now(:second)
+             )
+
+    # Read back: the key is compared element by element with the ordered
+    # set's (`MovieOrder.order_key/1`), so a dropped element reorders it.
+    assert SeriesWatchPositions.get(context.profile.id, collection.id).order_key == ["", "00002"]
+  end
+
   test "record_finish/3 records nothing for a standalone movie" do
     profile = create_profile()
     movie = create_movie(%{name: "Movie A"})

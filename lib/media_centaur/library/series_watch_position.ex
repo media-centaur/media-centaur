@@ -32,8 +32,11 @@ defmodule MediaCentaur.Library.SeriesWatchPosition do
   @doc "The one changeset: every field is set at each finish."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(position \\ %__MODULE__{}, attrs) do
+    # `empty_values: []`: an undated collection movie's order key opens with
+    # an empty date (`MovieOrder.order_key/1`), and `cast/4` would otherwise
+    # drop that element from the list.
     position
-    |> cast(attrs, [:profile_id, :series_type, :series_id, :order_key, :finished_at])
+    |> cast(attrs, [:profile_id, :series_type, :series_id, :order_key, :finished_at], empty_values: [])
     |> validate_required([:profile_id, :series_type, :series_id, :order_key, :finished_at])
     |> unique_constraint([:profile_id, :series_id])
   end
