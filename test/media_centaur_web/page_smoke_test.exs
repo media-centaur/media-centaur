@@ -536,6 +536,70 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
+  describe "/library?entity=<id> with a rewatch in progress and a watched item being replayed" do
+    # Two states only title progress produces, which no other smoke
+    # renders: a series whose every episode is marked while its series
+    # watch position sits mid-set (Play names the next episode, the
+    # hairline is part-way), and a watched movie with a viewing in flight
+    # (Resume, with the watched control reading Mark watched).
+    setup do
+      series = create_tv_series(%{name: "Smoke Rewatched Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      [finished | _rest] =
+        for number <- 1..3 do
+          episode =
+            create_episode(%{
+              season_id: season.id,
+              episode_number: number,
+              name: "Episode #{number}",
+              content_url: "/media/smoke/rewatched-show-s01e0#{number}.mkv"
+            })
+
+          create_watch_progress(%{episode_id: episode.id, completed: true})
+        end
+
+      create_series_watch_position(%{
+        profile_id: owner_profile_id(),
+        playable_item_id: finished.playable_item_id
+      })
+
+      movie =
+        create_standalone_movie(%{
+          name: "Smoke Replayed Movie",
+          content_url: "/media/smoke/replayed.mkv"
+        })
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        completed: true,
+        position_seconds: 600.0,
+        duration_seconds: 5400.0
+      })
+
+      {:ok, series: series, movie: movie}
+    end
+
+    test "the detail panel mounts for a rewatch in progress", %{conn: conn, series: series} do
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?entity=#{series.id}")
+      assert html =~ "Play Episode 2"
+    end
+
+    test "the detail panel mounts for a watched movie being replayed", %{conn: conn, movie: movie} do
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?entity=#{movie.id}")
+      assert html =~ "Resume"
+    end
+
+    test "Home and the library grid render both", %{conn: conn} do
+      assert {:ok, _view, home} = smoke!(conn, ~p"/")
+      assert home =~ "Smoke Rewatched Show"
+      assert home =~ "Smoke Replayed Movie"
+
+      assert {:ok, _view, library} = smoke!(conn, ~p"/library")
+      assert library =~ "Smoke Rewatched Show"
+    end
+  end
+
   describe "/library with a populated grid and an in-progress title" do
     # The base /library smoke only ever renders the empty state. This one
     # seeds a present movie with partial watch progress so the grid's
