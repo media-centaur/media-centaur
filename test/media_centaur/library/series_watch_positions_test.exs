@@ -57,6 +57,30 @@ defmodule MediaCentaur.Library.SeriesWatchPositionsTest do
     assert SeriesWatchPositions.get(other_profile.id, context.series.id) == nil
   end
 
+  test "record_finish/3 records no position for an episode of a season with no number", context do
+    season = create_season(%{tv_series_id: context.series.id, name: "Specials"})
+    episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Special"})
+    progress = create_watch_progress(%{profile_id: context.profile.id, episode_id: episode.id})
+
+    assert SeriesWatchPositions.record_finish(
+             context.profile.id,
+             progress.playable_item_id,
+             DateTime.utc_now(:second)
+           ) == :none
+
+    assert SeriesWatchPositions.get(context.profile.id, context.series.id) == nil
+  end
+
+  test "record_finish/3 records no position for an episode with no number", context do
+    force_attrs(context.episode, episode_number: nil)
+
+    assert SeriesWatchPositions.record_finish(
+             context.profile.id,
+             context.item_id,
+             DateTime.utc_now(:second)
+           ) == :none
+  end
+
   test "record_finish/3 records a collection movie's order key against its collection", context do
     collection = create_movie_series(%{name: "Sample Collection"})
 

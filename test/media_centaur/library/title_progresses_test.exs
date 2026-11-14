@@ -289,6 +289,51 @@ defmodule MediaCentaur.Library.TitleProgressesTest do
       assert ProgressRecords.title_progresses(profile_id, [series.id])[series.id] == single
     end
 
+    test "for a series with a season that has no number, which neither read counts" do
+      profile_id = owner_profile_id()
+      %{series: series, episodes: [first, _second]} = seed_series("Sample Show", 2)
+      unnumbered_season = create_season(%{tv_series_id: series.id, name: "Specials"})
+
+      create_episode(%{
+        season_id: unnumbered_season.id,
+        episode_number: 1,
+        name: "Special",
+        content_url: "/media/test/Sample Show-special.mkv"
+      })
+
+      finish(profile_id, first)
+
+      %{title_progress: single} =
+        ProgressRecords.title_progress(profile_id, entity_view(:tv_series, series.id))
+
+      assert %TitleProgress{state: :in_progress, before_next: 1, total: 2} = single
+      assert ProgressRecords.title_progresses(profile_id, [series.id])[series.id] == single
+    end
+
+    test "for a collection whose movies have no position" do
+      profile_id = owner_profile_id()
+      collection = create_movie_series(%{name: "Sample Collection"})
+
+      [earlier, _later] =
+        for {name, date} <- [{"Movie A", ~D[2001-05-04]}, {"Movie B", ~D[2003-05-04]}] do
+          create_movie(%{
+            name: name,
+            movie_series_id: collection.id,
+            date_published: date,
+            content_url: "/media/test/#{name}.mkv"
+          })
+        end
+
+      row = create_watch_progress(%{profile_id: profile_id, movie_id: earlier.id, completed: true})
+      create_series_watch_position(%{profile_id: profile_id, playable_item_id: row.playable_item_id})
+
+      %{title_progress: single} =
+        ProgressRecords.title_progress(profile_id, entity_view(:movie_series, collection.id))
+
+      assert %TitleProgress{state: :in_progress, before_next: 1, total: 2} = single
+      assert ProgressRecords.title_progresses(profile_id, [collection.id])[collection.id] == single
+    end
+
     test "for a standalone movie" do
       profile_id = owner_profile_id()
       movie = create_standalone_movie(%{name: "Movie A", content_url: "/media/test/movie-a.mkv"})

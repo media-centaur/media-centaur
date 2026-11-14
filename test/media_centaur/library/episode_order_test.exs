@@ -226,6 +226,21 @@ defmodule MediaCentaur.Library.EpisodeOrderTest do
              ]
     end
 
+    test "a season or an episode with no number is not in the ordered set" do
+      numbered = %{id: "a", episode_number: 1, content_url: "/tv/sample/S01E01.mkv"}
+      unnumbered_episode = %{id: "b", episode_number: nil, content_url: "/tv/sample/extra.mkv"}
+      in_unnumbered_season = %{id: "c", episode_number: 1, content_url: "/tv/sample/special.mkv"}
+
+      entity = %{
+        seasons: [
+          %{season_number: nil, episodes: [in_unnumbered_season]},
+          %{season_number: 1, episodes: [unnumbered_episode, numbered]}
+        ]
+      }
+
+      assert EpisodeOrder.ordered_items(entity) == [%{id: "a", key: ["00001", "00001"]}]
+    end
+
     test "order_key/2 sorts episode 10 after episode 9" do
       assert EpisodeOrder.order_key(1, 9) < EpisodeOrder.order_key(1, 10)
     end

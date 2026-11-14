@@ -107,6 +107,15 @@ defmodule MediaCentaur.Library.MovieOrderTest do
     end
   end
 
+  describe "order_key/1" do
+    test "a movie with no position takes position 0, as the sort does" do
+      movie = %{id: "a", content_url: "/m/a.mkv", date_published: ~D[2010-05-01], position: nil}
+
+      assert MovieOrder.order_key(movie) == ["2010-05-01", "00000"]
+      assert MovieOrder.ordered_items(%{movies: [movie]}) == [%{id: "a", key: ["2010-05-01", "00000"]}]
+    end
+  end
+
   describe "ordered_items/1" do
     test "lists movies with a file by release date then position, each with its order key" do
       later = %{id: "b", content_url: "/m/b.mkv", date_published: ~D[2012-05-01], position: 0}

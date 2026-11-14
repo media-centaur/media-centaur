@@ -39,10 +39,16 @@ defmodule MediaCentaur.Library.EpisodeOrder do
   @spec order_key(integer(), integer()) :: [String.t()]
   def order_key(season_number, episode_number), do: [pad(season_number), pad(episode_number)]
 
-  @doc "The series' ordered set: `%{id, key}` for every episode with a file, in story order."
+  @doc """
+  The series' ordered set: `%{id, key}` for every episode with a file, in
+  story order. An episode with no number, or in a season with none, has no
+  place in the order and is left out, as it is from
+  `MediaCentaur.Library.Episodes.ordered_items_by_tv_series/1`.
+  """
   @spec ordered_items(map()) :: [%{id: Ecto.UUID.t(), key: [String.t()]}]
   def ordered_items(entity) do
     for {season, episode, _url, id} <- list_available(entity),
+        is_integer(season) and is_integer(episode),
         do: %{id: id, key: order_key(season, episode)}
   end
 

@@ -48,7 +48,8 @@ defmodule MediaCentaur.Library.SeriesWatchPositions do
   @doc """
   Playback finished `playable_item_id`: moves the profile's position in
   the item's series to that item. `:none` when the item belongs to no
-  series (a standalone movie or video).
+  series (a standalone movie or video), or has no place in its series'
+  order (an episode with no number, or in a season with none).
   """
   @spec record_finish(Ecto.UUID.t(), Ecto.UUID.t(), DateTime.t()) ::
           {:ok, SeriesWatchPosition.t()} | {:error, Ecto.Changeset.t()} | :none
@@ -80,10 +81,11 @@ defmodule MediaCentaur.Library.SeriesWatchPositions do
       )
 
     case Repo.one(query) do
-      {series_id, season_number, episode_number} ->
+      {series_id, season_number, episode_number}
+      when is_integer(season_number) and is_integer(episode_number) ->
         {:tv_series, series_id, EpisodeOrder.order_key(season_number, episode_number)}
 
-      nil ->
+      _unordered ->
         nil
     end
   end

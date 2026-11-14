@@ -112,7 +112,8 @@ defmodule MediaCentaur.Library.Episodes do
   The ordered set of each of the given series — its episodes with at
   least one `WatchedFile`, in story order, each as `%{id, key}` with its
   order key (`EpisodeOrder.order_key/2`) — as `%{tv_series_id => items}`,
-  in one query. A series with no episode on file is absent.
+  in one query. A series with no episode on file is absent, and so is an
+  episode with no number or in a season with none.
 
   The same set `EpisodeOrder.ordered_items/1` reads off an entity view,
   for callers holding ids and no view: the bulk read of title progress
@@ -132,6 +133,7 @@ defmodule MediaCentaur.Library.Episodes do
       join: watched_file in WatchedFile,
       on: watched_file.playable_item_id == playable_item.id,
       where: season.tv_series_id in ^tv_series_ids,
+      where: not is_nil(season.season_number) and not is_nil(episode.episode_number),
       distinct: true,
       order_by: [asc: season.season_number, asc: episode.episode_number],
       select: {season.tv_series_id, episode.id, season.season_number, episode.episode_number}

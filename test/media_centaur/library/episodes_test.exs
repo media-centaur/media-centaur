@@ -101,6 +101,40 @@ defmodule MediaCentaur.Library.EpisodesTest do
              }
     end
 
+    test "a season or an episode with no number is not in the ordered set" do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      unnumbered_season = create_season(%{tv_series_id: series.id, name: "Specials"})
+
+      numbered =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "One",
+          content_url: "/media/test/sample-show-s01e01.mkv"
+        })
+
+      %{
+        season_id: season.id,
+        episode_number: 2,
+        name: "No number",
+        content_url: "/media/test/sample-show-extra.mkv"
+      }
+      |> create_episode()
+      |> force_attrs(episode_number: nil)
+
+      create_episode(%{
+        season_id: unnumbered_season.id,
+        episode_number: 1,
+        name: "Special",
+        content_url: "/media/test/sample-show-special.mkv"
+      })
+
+      assert Episodes.ordered_items_by_tv_series([series.id]) == %{
+               series.id => [%{id: numbered.id, key: EpisodeOrder.order_key(1, 1)}]
+             }
+    end
+
     test "a series with no episode on file is absent; no ids, no query" do
       series = create_tv_series(%{name: "Sample Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
