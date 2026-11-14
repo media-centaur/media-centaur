@@ -7,6 +7,9 @@ defmodule MediaCentaur.Repo.Migrations.SeriesWatchPositions do
   `movie_series` row, told apart by `series_type` — so `EntityCascade`
   removes the rows with their series, and `series_id` has an index of its
   own for that delete. The FK to `profiles` cascades.
+
+  The table is filled from the existing item progress rows by the data
+  migration of the same name.
   """
   use Ecto.Migration
 
