@@ -97,6 +97,44 @@ defmodule MediaCentaur.Playback.ProgressWriterTest do
     end
   end
 
+  describe "decide/4" do
+    defp decide(state),
+      do: ProgressWriter.decide(state.completed, state.entry, state.properties, state.tracker)
+
+    test "a persist short of the content end is a tick" do
+      state = watching_state(%{tracker: %{WatchingTracker.new() | saveable_position: 3000.0}})
+
+      assert {:tick, completed} = decide(state)
+      assert MapSet.size(completed) == 0
+    end
+
+    test "persisting past the content end twice is one finish and no further write" do
+      state = watching_state(%{})
+
+      assert {{:finish, reason}, completed} = decide(state)
+      assert reason =~ "reached estimated credits start"
+
+      # The same viewing, a tick further into the credits.
+      later = %{state | completed: completed, tracker: %{state.tracker | saveable_position: 5990.0}}
+
+      assert {:nothing, ^completed} = decide(later)
+    end
+
+    test "a file the session cannot attribute is never written" do
+      assert {:nothing, completed} = decide(watching_state(%{movie_id: nil}))
+      assert MapSet.size(completed) == 0
+    end
+
+    test "a finish that failed is judged again at the next persist" do
+      state = watching_state(%{})
+      {{:finish, _reason}, completed} = decide(state)
+
+      retried = %{state | completed: ProgressWriter.unfinished(completed, Entry.item(state.entry))}
+
+      assert {{:finish, _reason}, _completed} = decide(retried)
+    end
+  end
+
   describe "completed?/2" do
     test "is true once the session's set holds the entry's item" do
       episode = entry(%{episode_id: "episode-1", season_number: 1, episode_number: 1})

@@ -21,7 +21,11 @@ defmodule MediaCentaur.Playback.MpvSession do
   on attach, on every discrete change (pause, chapter, tracks, the
   subtitle line, the prompt) and on position at most once a second.
   The session observes position/duration/pause/eof over IPC, persists
-  watch progress, and broadcasts state changes via PubSub. How the mpv is
+  watch progress, and broadcasts state changes via PubSub. Progress is
+  written in order: the session writes each position tick itself and
+  starts a task only for a finish, after which it writes nothing more for
+  that item (`Playback.ProgressWriter`); a finish that fails comes back as
+  `{:finish_failed, item}` and is retried at the next persist. How the mpv is
   reached — a process the host spawns (`Transport.Local`) or an mpv on a
   paired player — is the transport's; the session never touches a socket
   or a port, and it keeps the host path (the entry's `content_url`) as the
@@ -104,6 +108,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     # Every `Entry.item/1` this session completed (`judge_completion/1`).
     # A chain keeps each episode it finished; `SessionEnded` carries the set.
     completed: MapSet.new(),
+    # The entry's playable item, resolved at its first persist
+    # (`ProgressWriter.persist/6`); nil before that, and for an extra.
+    playable_item_id: nil,
     # When the viewing was last streamed for a position tick; nil before
     # the first. Discrete changes stream at once and leave this alone.
     last_position_stream_at: nil
@@ -290,6 +297,11 @@ defmodule MediaCentaur.Playback.MpvSession do
       {:stop, :normal, finalize(%{state | reattach_timer: nil})}
     end
   end
+
+  # A finish this session issued did not happen (`ProgressWriter.persist/6`):
+  # the item leaves the completed set, so the next persist judges it again.
+  def handle_info({:finish_failed, item}, state),
+    do: {:noreply, %{state | completed: ProgressWriter.unfinished(state.completed, item)}}
 
   # Everything else is the transport's (socket data, port signals, its own
   # timers) or an EXIT the trap absorbs.
@@ -568,6 +580,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         language_context: LanguageContext.reset_for_file(state.language_context),
         capture_timer: nil,
         pending_next: nil,
+        playable_item_id: nil,
         last_db_write_at: System.monotonic_time(:millisecond),
         state: if(state.properties.paused, do: :paused, else: :playing)
     }
@@ -604,20 +617,27 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- Progress Persistence (`ProgressWriter`) ---
 
-  # The session judges completion so it knows what it completed; the
-  # write runs in a task. Once it has finished an item it persists nothing
-  # more for it: ticks through the credits are not a new viewing, and a
-  # finish happens once per viewing.
+  # `ProgressWriter.decide/4` says what this persist does, so the session
+  # knows what it completed: once it has finished an item it persists
+  # nothing more for it. The tick is written here, in the session, and
+  # only the finish runs in a task — so this session's writes for an item
+  # are applied in the order it issued them, and no tick lands after the
+  # finish.
   defp persist_progress(state) do
-    if ProgressWriter.completed?(state.completed, state.entry) do
-      state
-    else
-      {reason, completed} =
-        ProgressWriter.judge(state.completed, state.entry, state.properties, state.tracker)
+    {action, completed} =
+      ProgressWriter.decide(state.completed, state.entry, state.properties, state.tracker)
 
-      ProgressWriter.persist(state.profile_id, state.entry, state.properties, state.tracker, reason)
-      %{state | completed: completed}
-    end
+    playable_item_id =
+      ProgressWriter.persist(
+        action,
+        state.profile_id,
+        state.entry,
+        state.playable_item_id,
+        state.properties,
+        state.tracker
+      )
+
+    %{state | completed: completed, playable_item_id: playable_item_id}
   end
 
   @doc "The `SessionEnded` event for this session."
