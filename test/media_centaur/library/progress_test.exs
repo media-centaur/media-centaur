@@ -18,7 +18,6 @@ defmodule MediaCentaur.Library.ProgressTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Profiles.Actor
-  alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Progress
   alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.SeriesWatchPositions
@@ -502,19 +501,19 @@ defmodule MediaCentaur.Library.ProgressTest do
       :ok
     end
 
-    # An episode with no number cannot be given an order key, so the
-    # finish's transaction fails while a tick and its flush still work.
+    # An episode whose season belongs to no series cannot be given a
+    # series watch position, so the finish's transaction fails while a tick
+    # and its flush still work.
     defp seed_unfinishable_episode do
       series = create_tv_series(%{name: "Sample Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
       episode = create_episode(%{season_id: season.id, episode_number: 1})
       progress = create_watch_progress(%{episode_id: episode.id})
-      force_attrs(episode, episode_number: nil)
-      progress
+      %{progress: progress, season: force_attrs(season, tv_series_id: nil), series: series}
     end
 
     test "is reported to the caller, publishes nothing and leaves the row unmarked" do
-      progress = seed_unfinishable_episode()
+      %{progress: progress} = seed_unfinishable_episode()
       :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 1250.0, 1300.0)
 
       assert {:error, _reason} =
@@ -525,7 +524,7 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "leaves the worker running and the viewing in flight" do
-      progress = seed_unfinishable_episode()
+      %{progress: progress} = seed_unfinishable_episode()
       playable_item_id = progress.playable_item_id
       :ok = Progress.record(owner_profile_id(), playable_item_id, 1250.0, 1300.0)
 
@@ -539,12 +538,12 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "can be retried: the next finish of the same item goes through" do
-      progress = seed_unfinishable_episode()
+      %{progress: progress, season: season, series: series} = seed_unfinishable_episode()
       actor = Actor.new(owner_profile_id())
       :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 1250.0, 1300.0)
       {:error, _reason} = Progress.complete(actor, progress.playable_item_id)
 
-      force_attrs(Repo.get!(Episode, progress.playable_item.container_id), episode_number: 1)
+      force_attrs(season, tv_series_id: series.id)
 
       assert :ok = Progress.complete(actor, progress.playable_item_id)
       assert_receive {:entity_watch_completed, %WatchProgress{completed: true}, ^actor}, 500

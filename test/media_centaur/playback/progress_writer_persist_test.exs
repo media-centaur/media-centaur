@@ -93,13 +93,13 @@ defmodule MediaCentaur.Playback.ProgressWriterPersistTest do
     end
 
     test "a finish that fails tells the session which item was not finished", %{profile_id: profile_id} do
-      # An episode with no number cannot be given an order key: the tick
-      # works, the finish does not.
+      # An episode whose season belongs to no series cannot be given a
+      # series watch position: the tick works, the finish does not.
       series = create_tv_series(%{name: "Sample Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
       episode = create_episode(%{season_id: season.id, episode_number: 1})
       playable_item = create_playable_item_for_episode(episode)
-      force_attrs(episode, episode_number: nil)
+      force_attrs(season, tv_series_id: nil)
 
       entry = %Entry{
         entity_id: series.id,
