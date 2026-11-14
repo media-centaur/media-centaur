@@ -123,8 +123,8 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   event's title progress replaces the title's, with no read. An unstarted
   title is absent, as it is from the bulk read, and its card draws no bar.
   """
-  @spec put_title_progress(%{optional(String.t()) => TitleProgress.t()}, String.t(), TitleProgress.t()) ::
-          %{optional(String.t()) => TitleProgress.t()}
+  @spec put_title_progress(progress_by_id, String.t(), TitleProgress.t()) :: progress_by_id
+        when progress_by_id: %{optional(String.t()) => TitleProgress.t()}
   def put_title_progress(progress_by_id, entity_id, %TitleProgress{state: :unstarted}),
     do: Map.delete(progress_by_id, entity_id)
 
