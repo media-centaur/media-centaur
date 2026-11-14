@@ -6,6 +6,12 @@ defmodule MediaCentaur.Library.Progress.Worker do
   `{{profile_id, playable_item_id}, row}` — one row per profile per
   playable item (ADR-078).
 
+  The in-memory row is the viewing in flight only — offset, duration and
+  when it was last touched. It carries no watched mark, and nothing here
+  guards against a repeated finish: the playback session keeps the set of
+  items it finished and persists nothing more for them
+  (`MediaCentaur.Playback.ProgressWriter.completed?/2`).
+
   This is the only writer of `WatchProgress` rows on the live playback
   hot path — `MediaCentaur.Playback.MpvSession` records position ticks
   via `Library.Progress.record/4`, which casts into this GenServer.
@@ -19,7 +25,8 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
     * `init/1` opens the ETS table (named per `:table` arg, default
       `:library_progress_state`) and hydrates it from the DB by
-      streaming every `WatchProgress` row with `completed: false`. The
+      reading every `WatchProgress` row with an offset above zero (a
+      viewing in flight, whatever its watched mark). The
       hydration step broadcasts `{:progress_hydrated, %ProgressHydrated{count: n}}`
       on the `library:progress` topic via
       `MediaCentaur.Library.Progress.Events.broadcast/1` (the typed-event
@@ -39,10 +46,13 @@ defmodule MediaCentaur.Library.Progress.Worker do
       cleared and `{:progress_flushed, %ProgressFlushed{profile_id:, playable_item_id:}}`
       is broadcast on `library:progress` per row. On failure the
       dirty set is left populated so the next flush retries.
-    * `handle_call({:complete, key, actor}, _from, state)` writes a
-      `completed: true` row directly (no debounce — completion is a
-      watershed event) and broadcasts
-      `{:watch_completed, playable_item_id}` on `watch_history:events`.
+    * `handle_call({:complete, key, actor}, _from, state)` is the finish:
+      it hands the persisted row to `Library.ProgressRecords.finish/3`
+      synchronously (no debounce) — the mark is set, the offset zeroed,
+      the series watch position moved and
+      `{:entity_watch_completed, record, actor}` published on
+      `library:watch_completed` — then drops the hot row and its dirty
+      mark, so no later flush brings the viewing back.
     * `terminate/2` synchronously flushes the dirty set so a clean
       shutdown doesn't lose state.
 
@@ -53,9 +63,8 @@ defmodule MediaCentaur.Library.Progress.Worker do
   `library:progress` topic. The typed payloads are
   `%ProgressTicked{profile_id, playable_item_id, position_seconds}`,
   `%ProgressFlushed{profile_id, playable_item_id}`, and
-  `%ProgressHydrated{count}`. Completion broadcasts ride the
-  `watch_history:events` topic as `{:watch_completed, playable_item_id}`
-  to stay aligned with the WatchHistory consumer set.
+  `%ProgressHydrated{count}`. The finish event is published by
+  `Library.ProgressRecords.finish/3`, not here.
 
   ## Configuration
 
@@ -75,7 +84,6 @@ defmodule MediaCentaur.Library.Progress.Worker do
   alias MediaCentaur.Library.Progress.Events.{ProgressFlushed, ProgressHydrated, ProgressTicked}
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaur.Repo
-  alias MediaCentaur.Topics
 
   require MediaCentaur.Log, as: Log
 
@@ -160,41 +168,17 @@ defmodule MediaCentaur.Library.Progress.Worker do
   end
 
   def handle_call({:complete, {profile_id, playable_item_id} = key, actor}, _from, state) do
-    now = DateTime.utc_now(:second)
-
     case Library.ProgressRecords.find_or_create_by_playable_item(profile_id, playable_item_id) do
       {:ok, record} ->
-        # Flush any pending dirty position for this key first so we
-        # mark-completed against the latest known position, not a
-        # stale just-created row at position 0.
-        record =
-          case lookup_row(state.table, key) do
-            nil ->
-              record
+        # The hot row holds the duration the session last reported; the
+        # persisted row may predate the first flush.
+        duration = (lookup_row(state.table, key) || record).duration_seconds
+        {:ok, _finished} = Library.ProgressRecords.finish(record, duration, actor)
 
-            in_memory ->
-              {:ok, updated} =
-                MediaCentaur.Repo.update(
-                  MediaCentaur.Library.WatchProgress.update_changeset(record, %{
-                    position_seconds: in_memory.position_seconds,
-                    duration_seconds: in_memory.duration_seconds
-                  })
-                )
-
-              updated
-          end
-
-        {:ok, _completed} = Library.ProgressRecords.mark_completed(record, actor)
-
-        upsert_in_memory(state.table, key, record.position_seconds, record.duration_seconds, now, true)
-
-        Topics.publish(
-          Topics.watch_history_events(),
-          {:watch_completed, playable_item_id}
-        )
-
-        dirty = MapSet.delete(state.dirty, key)
-        {:reply, :ok, %{state | dirty: dirty}}
+        # The viewing is over: with the hot row and its dirty mark gone,
+        # the next flush has nothing to write for this key.
+        :ets.delete(state.table, key)
+        {:reply, :ok, %{state | dirty: MapSet.delete(state.dirty, key)}}
 
       {:error, reason} ->
         Log.warning(
@@ -219,7 +203,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # reads the ETS hot value, not this snapshot, so persistence stays
     # correct either way.
     now = DateTime.utc_now(:second)
-    fill_in_memory_if_absent(state.table, key, position, duration, now, false)
+    fill_in_memory_if_absent(state.table, key, position, duration, now)
 
     Events.broadcast(%ProgressTicked{
       profile_id: profile_id,
@@ -305,21 +289,14 @@ defmodule MediaCentaur.Library.Progress.Worker do
     )
   end
 
-  defp fill_in_memory_if_absent(table, key, position, duration, last_watched_at, completed?) do
+  defp fill_in_memory_if_absent(table, key, position, duration, last_watched_at) do
     case lookup_row(table, key) do
-      nil -> upsert_in_memory(table, key, position, duration, last_watched_at, completed?)
+      nil -> upsert_in_memory(table, key, position, duration, last_watched_at)
       _present -> :ok
     end
   end
 
-  defp upsert_in_memory(
-         table,
-         {profile_id, playable_item_id} = key,
-         position,
-         duration,
-         last_watched_at,
-         completed?
-       ) do
+  defp upsert_in_memory(table, {profile_id, playable_item_id} = key, position, duration, last_watched_at) do
     :ets.insert(
       table,
       {key,
@@ -328,7 +305,6 @@ defmodule MediaCentaur.Library.Progress.Worker do
          playable_item_id: playable_item_id,
          position_seconds: position,
          duration_seconds: duration,
-         completed: completed?,
          last_watched_at: last_watched_at
        }}
     )
@@ -379,7 +355,11 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # desync from the in-memory ETS state and silently drop the
     # un-persisted dirty entries.
     case Repo.transaction(fn ->
-           Enum.each(rows, &Library.ProgressRecords.upsert_by_profile_item!/1)
+           Enum.each(rows, fn row ->
+             row
+             |> Map.take([:profile_id, :playable_item_id, :position_seconds, :duration_seconds])
+             |> Library.ProgressRecords.upsert_by_profile_item!()
+           end)
          end) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
@@ -394,7 +374,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
     import Ecto.Query
 
     WatchProgress
-    |> where([wp], wp.completed == false)
+    |> where([wp], wp.position_seconds > 0.0)
     |> Repo.all()
     |> Enum.reduce(0, fn record, count ->
       :ets.insert(
@@ -405,7 +385,6 @@ defmodule MediaCentaur.Library.Progress.Worker do
            playable_item_id: record.playable_item_id,
            position_seconds: record.position_seconds,
            duration_seconds: record.duration_seconds,
-           completed: record.completed,
            last_watched_at: record.last_watched_at
          }}
       )

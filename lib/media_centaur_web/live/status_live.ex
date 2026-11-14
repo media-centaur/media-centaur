@@ -658,12 +658,8 @@ defmodule MediaCentaurWeb.StatusLive do
   def handle_info({:watch_event_created, _event, _actor}, socket),
     do: {:noreply, assign(socket, playback_activity: PlaybackActivity.snapshot())}
 
-  def handle_info({msg, _payload}, socket) when msg in [:watch_completed, :watch_event_deleted] do
-    {:noreply,
-     assign(socket,
-       playback_activity: PlaybackActivity.snapshot()
-     )}
-  end
+  def handle_info({:watch_event_deleted, _payload}, socket),
+    do: {:noreply, assign(socket, playback_activity: PlaybackActivity.snapshot())}
 
   @impl true
   def handle_info({:queue_state, _state}, socket) do

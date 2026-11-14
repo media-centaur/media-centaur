@@ -37,12 +37,14 @@ defmodule MediaCentaur.Library.WatchProgress do
     |> unique_constraint([:profile_id, :playable_item_id])
   end
 
-  # The key of a row does not move: neither `profile_id` nor
+  # A position tick: the viewing in flight only. The watched mark
+  # (`completed`) is not cast — starting a watched item again keeps its
+  # mark. The key of a row does not move either: neither `profile_id` nor
   # `playable_item_id` is cast here.
   @impl true
   def update_changeset(record, attrs) do
     record
-    |> cast(attrs, [:position_seconds, :duration_seconds, :completed])
+    |> cast(attrs, [:position_seconds, :duration_seconds])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
     |> unique_constraint([:profile_id, :playable_item_id])
   end
@@ -52,4 +54,7 @@ defmodule MediaCentaur.Library.WatchProgress do
 
   @impl true
   defdelegate mark_incomplete_changeset(record), to: MediaCentaur.Library.ProgressTracker
+
+  @impl true
+  defdelegate finish_changeset(record, duration_seconds), to: MediaCentaur.Library.ProgressTracker
 end

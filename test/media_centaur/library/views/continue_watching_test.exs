@@ -66,14 +66,13 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       assert ContinueWatching.relevant?({:entity_progress_updated, %{}})
     end
 
-    test "accepts the deterministic completion signal so a finished item drops live" do
-      # Progress.Worker broadcasts this synchronously right after it has
-      # persisted `completed: true` and updated the in-memory row, so a
-      # rebuild triggered by it correctly excludes the finished item.
-      # Without this the projection depends solely on the async, best-effort
-      # `{:watch_event_created, _}` path and Continue Watching goes stale
-      # until a manual page reload.
-      assert ContinueWatching.relevant?({:watch_completed, "playable-item-id"})
+    test "accepts the finish event so a finished item drops live" do
+      # `ProgressRecords.finish/3` publishes this synchronously right after
+      # the finish is persisted, so a rebuild triggered by it reads the
+      # finished row. Without it the projection depends solely on the
+      # async, best-effort `{:watch_event_created, _, _}` path and Continue
+      # Watching goes stale until a manual page reload.
+      assert ContinueWatching.relevant?({:entity_watch_completed, %{}, nil})
     end
 
     test "accepts availability changes (file presence flips alter the result set)" do

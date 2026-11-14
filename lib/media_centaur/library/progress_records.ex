@@ -24,6 +24,14 @@ defmodule MediaCentaur.Library.ProgressRecords do
   `ExtraProgress` does not — extras do not participate in Continue
   Watching.
 
+  A row holds two facts, and each has one writer here. The watched mark
+  (`completed`) is set by `finish/3` (playback reached the end) or by the
+  watched control (`toggle_watched/3`, `mark_completed/2`) and cleared by
+  the control (`mark_incomplete/1`). The viewing in flight is written by
+  the progress worker's flush (`upsert_by_profile_item!/1`), which never
+  touches the mark, and ended by a finish or either control. Only
+  `finish/3` moves the `SeriesWatchPosition`.
+
   Not to be confused with `Library.Progress`, which is the in-memory ETS
   projection that debounce-flushes *into* this module.
 
@@ -105,6 +113,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     PlayableItems,
     PresentableQueries,
     Season,
+    SeriesWatchPositions,
     TVSeries,
     WatchProgress,
     Writes
@@ -127,15 +136,16 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # ---- shared lifecycle (struct-dispatched) --------------------------------
 
   @doc """
-  Flips a progress record to completed. `actor` is the profile that
-  finished it — playback reaching the end, or the watched toggle — or
-  `nil` when no person did; a completion is shared with friends only
-  for an actor (ADR-082).
+  The Mark watched control: sets the watched mark and clears any viewing
+  in flight, leaving `last_watched_at` and the series watch position
+  alone. `actor` is the profile that marked it, or `nil` when no person
+  did; a completion is shared with friends only for an actor (ADR-082).
 
   A `WatchProgress` transitioning to completed broadcasts
   `{:entity_watch_completed, record, actor}` so Continue Watching and the
-  watch history react; re-completing an already-complete record does not
-  re-broadcast. `ExtraProgress` never broadcasts.
+  watch history react; marking an already-marked record does not
+  re-broadcast. `ExtraProgress` never broadcasts. Playback reaching the
+  end is `finish/3`, not this.
   """
   @spec mark_completed(WatchProgress.t() | ExtraProgress.t(), Actor.t() | nil) ::
           {:ok, struct()} | {:error, Ecto.Changeset.t()}
@@ -143,13 +153,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     transitioning? = not progress.completed
 
     with {:ok, updated} <- Repo.update(WatchProgress.mark_completed_changeset(progress)) do
-      if transitioning? do
-        Topics.publish(
-          Topics.library_watch_completed(),
-          {:entity_watch_completed, updated, actor}
-        )
-      end
-
+      if transitioning?, do: publish_completed(updated, actor)
       {:ok, updated}
     end
   end
@@ -162,7 +166,10 @@ defmodule MediaCentaur.Library.ProgressRecords do
   @spec mark_completed!(WatchProgress.t() | ExtraProgress.t(), Actor.t() | nil) :: struct()
   def mark_completed!(progress, actor), do: Repo.bang!(mark_completed(progress, actor))
 
-  @doc "Flips a progress record back to incomplete."
+  @doc """
+  The Mark unwatched control: clears the watched mark and any viewing in
+  flight, leaving `last_watched_at` and the series watch position alone.
+  """
   @spec mark_incomplete(WatchProgress.t() | ExtraProgress.t()) ::
           {:ok, struct()} | {:error, Ecto.Changeset.t()}
   def mark_incomplete(%WatchProgress{} = progress),
@@ -174,6 +181,106 @@ defmodule MediaCentaur.Library.ProgressRecords do
   @doc "As `mark_incomplete/1`, raising on a rejected changeset."
   @spec mark_incomplete!(WatchProgress.t() | ExtraProgress.t()) :: struct()
   def mark_incomplete!(progress), do: Repo.bang!(mark_incomplete(progress))
+
+  @doc """
+  Playback finished the item: sets the watched mark, ends the viewing and,
+  for an item of a series, moves the profile's
+  `MediaCentaur.Library.SeriesWatchPosition` there — one transaction.
+  Always publishes `{:entity_watch_completed, record, actor}`: a second
+  finish of the same item is a second completion.
+  """
+  @spec finish(WatchProgress.t(), number(), Actor.t()) :: {:ok, WatchProgress.t()} | {:error, term()}
+  def finish(%WatchProgress{} = progress, duration_seconds, %Actor{} = actor) do
+    result =
+      Repo.transact(fn ->
+        with {:ok, updated} <- Repo.update(WatchProgress.finish_changeset(progress, duration_seconds)),
+             :ok <- move_series_position(updated) do
+          {:ok, updated}
+        end
+      end)
+
+    with {:ok, updated} <- result do
+      publish_completed(updated, actor)
+      {:ok, updated}
+    end
+  end
+
+  defp move_series_position(progress) do
+    case SeriesWatchPositions.record_finish(
+           progress.profile_id,
+           progress.playable_item_id,
+           progress.last_watched_at
+         ) do
+      :none -> :ok
+      {:ok, _position} -> :ok
+      {:error, _changeset} = error -> error
+    end
+  end
+
+  defp publish_completed(progress, actor),
+    do: Topics.publish(Topics.library_watch_completed(), {:entity_watch_completed, progress, actor})
+
+  @doc "Playback finished an extra: the mark is set and the viewing is over. Extras publish nothing."
+  @spec finish_extra(ExtraProgress.t(), number()) ::
+          {:ok, ExtraProgress.t()} | {:error, Ecto.Changeset.t()}
+  def finish_extra(%ExtraProgress{} = progress, duration_seconds),
+    do: Repo.update(ExtraProgress.finish_changeset(progress, duration_seconds))
+
+  # ---- the watched control -------------------------------------------------
+
+  @doc """
+  Which watched control a record offers: Mark watched while it is unmarked
+  or has a viewing that counts (`viewing?/1`), else Mark unwatched. A
+  watched item with an abandoned viewing is thereby dismissable without
+  losing its mark.
+  """
+  @spec watched_control(map() | nil) :: :mark_watched | :mark_unwatched
+  def watched_control(%{completed: true} = progress),
+    do: if(viewing?(progress), do: :mark_watched, else: :mark_unwatched)
+
+  def watched_control(_progress), do: :mark_watched
+
+  @doc "Applies the watched control a leaf container offers (`watched_control/1`) for the actor's profile."
+  @spec toggle_watched(Actor.t(), PlayableItem.container_type(), Ecto.UUID.t()) ::
+          {:ok, WatchProgress.t()} | {:error, term()}
+  def toggle_watched(%Actor{} = actor, container_type, container_id) when is_binary(container_id) do
+    profile_id = actor.profile_id
+
+    progress =
+      case fetch_for_container(profile_id, container_type, container_id) do
+        {:ok, record} -> record
+        {:error, :not_found} -> nil
+      end
+
+    apply_watched_control(progress, actor, fn ->
+      find_or_create_for_container(profile_id, container_type, container_id)
+    end)
+  end
+
+  @doc "As `toggle_watched/3`, for an extra of `entity_id`."
+  @spec toggle_extra_watched(Actor.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, ExtraProgress.t()} | {:error, term()}
+  def toggle_extra_watched(%Actor{} = actor, entity_id, extra_id) do
+    profile_id = actor.profile_id
+
+    progress =
+      case fetch_for_extra(profile_id, extra_id) do
+        {:ok, record} -> record
+        {:error, :not_found} -> nil
+      end
+
+    apply_watched_control(progress, actor, fn ->
+      find_or_create_for_extra(%{profile_id: profile_id, extra_id: extra_id, entity_id: entity_id})
+    end)
+  end
+
+  defp apply_watched_control(progress, actor, create) do
+    case {watched_control(progress), progress} do
+      {:mark_unwatched, record} -> mark_incomplete(record)
+      {:mark_watched, nil} -> with {:ok, record} <- create.(), do: mark_completed(record, actor)
+      {:mark_watched, record} -> mark_completed(record, actor)
+    end
+  end
 
   # ---- WatchProgress -------------------------------------------------------
 
@@ -236,7 +343,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  The progress worker's flush: writes one in-memory row through to its
+  The progress worker's flush: writes one in-memory row — the viewing in
+  flight, never the watched mark — through to its
   `(profile_id, playable_item_id)` row, raising on failure — a flush
   error means the in-memory row is out of sync with the DB and must
   surface rather than silently drop state.
@@ -257,8 +365,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   @doc """
   Looks up or creates `profile_id`'s row for a `playable_item_id`.
 
-  Used by `Library.Progress.complete/2` — completion has to resolve the
-  persisted row, creating one if necessary, before flipping `completed`.
+  Used by `Library.Progress.complete/2` — a finish has to resolve the
+  persisted row, creating one if necessary, before `finish/3` writes it.
   """
   @spec find_or_create_by_playable_item(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, WatchProgress.t()} | {:error, term()}

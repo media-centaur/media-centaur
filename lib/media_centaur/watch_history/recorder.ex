@@ -1,11 +1,13 @@
 defmodule MediaCentaur.WatchHistory.Recorder do
   @moduledoc """
   GenServer that subscribes to `"library:watch_completed"` and records a
-  `WatchEvent` for each transition-to-completed.
+  `WatchEvent` for each completion.
 
-  `Library.ProgressRecords.mark_completed/2` broadcasts
-  `{:entity_watch_completed, record, actor}` exactly once per transition
-  (pre-update record had `completed: false`), so no dedup is needed here.
+  `{:entity_watch_completed, record, actor}` is published once per
+  completion — by `Library.ProgressRecords.finish/3` for every playback
+  finish (a second finish of an item is a second viewing, and a second
+  event), and by `Library.ProgressRecords.mark_completed/2` when Mark
+  watched sets a mark that was not set — so no dedup is needed here.
   The event takes the profile from the progress row that completed
   (ADR-078). The actor is not stored — the row records whose viewing it
   is — but rides on `{:watch_event_created, event, actor}`, so the
@@ -71,7 +73,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   # WatchProgress names its leaf only by `playable_item_id` (its key is
   # `(profile_id, playable_item_id)`, ADR-078). The owning leaf is reached via the linked
   # `PlayableItem`'s `(container_type, container_id)` discriminator.
-  # `Library.ProgressRecords.mark_completed/2` doesn't preload `:playable_item` —
+  # The published record doesn't have `:playable_item` preloaded —
   # we do it here so each clause can dispatch on container type.
   defp build_event_attrs(record) do
     record = Repo.preload(record, :playable_item)

@@ -6,7 +6,9 @@ defmodule MediaCentaur.Playback.ProgressWriter do
   `judge/4` is pure: it reads the saved position (the tracker's saveable
   position, else what mpv reports), judges it against
   `Completion.reason/4` and adds the entry's item to the session's
-  completed set. `persist/5` runs the Library write in a task under
+  completed set. That set is the only guard against a repeated finish:
+  `completed?/2` reads it, and a session persists nothing more for an
+  item it has finished. `persist/5` runs the Library write in a task under
   `MediaCentaur.TaskSupervisor` — the hot-path write lands in the
   `Library.Progress` in-memory table in microseconds, the debounced flush
   persists it — and broadcasts the changed record. `broadcast_end/2` is
@@ -45,6 +47,15 @@ defmodule MediaCentaur.Playback.ProgressWriter do
       {nil, _item} -> {nil, completed}
       {reason, nil} -> {reason, completed}
       {reason, item} -> {reason, MapSet.put(completed, item)}
+    end
+  end
+
+  @doc "Whether the session has already finished the entry's item — after that it persists nothing more for it."
+  @spec completed?(MapSet.t(Entry.item()), Entry.t()) :: boolean()
+  def completed?(completed, %Entry{} = entry) do
+    case Entry.item(entry) do
+      nil -> false
+      item -> MapSet.member?(completed, item)
     end
   end
 
@@ -178,26 +189,21 @@ defmodule MediaCentaur.Playback.ProgressWriter do
     end
   end
 
+  # A non-nil reason is a finish. The session judged it and holds the
+  # item in its completed set, so this runs once per viewing.
   defp maybe_mark_completed(_profile_id, _playable_item_id, nil), do: :ok
 
   defp maybe_mark_completed(profile_id, playable_item_id, reason) do
-    case LibraryProgress.get(profile_id, playable_item_id) do
-      %{completed: true} ->
-        :ok
-
-      _ ->
-        Log.info(:playback, "marked completed — #{reason}")
-        :ok = LibraryProgress.complete(Actor.new(profile_id), playable_item_id)
-    end
+    Log.info(:playback, "marked completed — #{reason}")
+    :ok = LibraryProgress.complete(Actor.new(profile_id), playable_item_id)
   end
 
   defp maybe_mark_extra_completed(_record, nil), do: :ok
-  defp maybe_mark_extra_completed(%{completed: true}, _reason), do: :ok
 
   defp maybe_mark_extra_completed(record, reason) do
     Log.info(:playback, "extra marked completed — #{reason}")
 
-    case Library.ProgressRecords.mark_completed(record, Actor.new(record.profile_id)) do
+    case Library.ProgressRecords.finish_extra(record, record.duration_seconds) do
       {:ok, _} -> :ok
       {:error, error} -> Log.warning(:playback, "failed to mark extra completed — #{inspect(error)}")
     end

@@ -605,13 +605,19 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- Progress Persistence (`ProgressWriter`) ---
 
   # The session judges completion so it knows what it completed; the
-  # write runs in a task.
+  # write runs in a task. Once it has finished an item it persists nothing
+  # more for it: ticks through the credits are not a new viewing, and a
+  # finish happens once per viewing.
   defp persist_progress(state) do
-    {reason, completed} =
-      ProgressWriter.judge(state.completed, state.entry, state.properties, state.tracker)
+    if ProgressWriter.completed?(state.completed, state.entry) do
+      state
+    else
+      {reason, completed} =
+        ProgressWriter.judge(state.completed, state.entry, state.properties, state.tracker)
 
-    ProgressWriter.persist(state.profile_id, state.entry, state.properties, state.tracker, reason)
-    %{state | completed: completed}
+      ProgressWriter.persist(state.profile_id, state.entry, state.properties, state.tracker, reason)
+      %{state | completed: completed}
+    end
   end
 
   @doc "The `SessionEnded` event for this session."

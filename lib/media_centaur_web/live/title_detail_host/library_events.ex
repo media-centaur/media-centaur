@@ -23,7 +23,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   import Phoenix.Component, only: [assign: 3, update: 3]
   import Phoenix.LiveView, only: [push_navigate: 2, push_patch: 2, put_flash: 3, start_async: 3]
 
-  alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Profiles.Actor
@@ -33,7 +32,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
-  alias MediaCentaurWeb.LibraryProgress
   alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
@@ -201,86 +199,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   defp parse_container_type("video_object"), do: :video_object
 
   defp toggle_watch_progress(profile_id, entity_id, container_type, container_id) do
-    progress = load_progress(profile_id, container_type, container_id)
-    changed_record = apply_progress_transition(progress, profile_id, container_type, container_id)
-    ProgressBroadcaster.broadcast(profile_id, entity_id, changed_record)
+    {:ok, changed} =
+      Library.ProgressRecords.toggle_watched(Actor.new(profile_id), container_type, container_id)
+
+    ProgressBroadcaster.broadcast(profile_id, entity_id, changed)
   end
-
-  defp load_progress(_profile_id, _container_type, nil), do: nil
-
-  defp load_progress(profile_id, container_type, container_id) do
-    case Library.ProgressRecords.fetch_for_container(profile_id, container_type, container_id) do
-      {:ok, record} -> record
-      _ -> nil
-    end
-  end
-
-  defp apply_progress_transition(
-         %{completed: true} = progress,
-         _profile_id,
-         _container_type,
-         _container_id
-       ) do
-    Log.info(
-      :library,
-      "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
-    )
-
-    Library.ProgressRecords.mark_incomplete!(progress)
-  end
-
-  defp apply_progress_transition(
-         %{completed: false} = progress,
-         profile_id,
-         _container_type,
-         _container_id
-       ) do
-    Log.info(:library, fn ->
-      "toggled completed — was #{LibraryProgress.completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
-    end)
-
-    Library.ProgressRecords.mark_completed!(progress, Actor.new(profile_id))
-  end
-
-  defp apply_progress_transition(nil, profile_id, container_type, container_id)
-       when not is_nil(container_id) do
-    Log.info(:library, "toggled completed — no prior progress, created fresh record")
-
-    {:ok, record} =
-      Library.ProgressRecords.find_or_create_for_container(profile_id, container_type, container_id, %{
-        position_seconds: 0.0,
-        duration_seconds: 0.0
-      })
-
-    Library.ProgressRecords.mark_completed!(record, Actor.new(profile_id))
-  end
-
-  defp apply_progress_transition(nil, _profile_id, _container_type, nil), do: nil
 
   defp toggle_extra_watched(profile_id, entity_id, extra_id) do
-    case Library.ProgressRecords.fetch_for_extra(profile_id, extra_id) do
-      {:ok, %{completed: true} = progress} ->
-        Log.info(:library, "extra toggled incomplete")
-        Library.ProgressRecords.mark_incomplete!(progress)
-
-      {:ok, progress} ->
-        Log.info(:library, "extra toggled completed")
-        Library.ProgressRecords.mark_completed!(progress, Actor.new(profile_id))
-
-      {:error, :not_found} ->
-        Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
-
-        {:ok, record} =
-          Library.ProgressRecords.find_or_create_for_extra(%{
-            profile_id: profile_id,
-            extra_id: extra_id,
-            entity_id: entity_id,
-            position_seconds: 0.0,
-            duration_seconds: 0.0
-          })
-
-        Library.ProgressRecords.mark_completed!(record, Actor.new(profile_id))
-    end
+    {:ok, _changed} =
+      Library.ProgressRecords.toggle_extra_watched(Actor.new(profile_id), entity_id, extra_id)
 
     ProgressBroadcaster.broadcast_extra(profile_id, entity_id, extra_id)
   end

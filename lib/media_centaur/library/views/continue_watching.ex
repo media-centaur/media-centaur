@@ -12,20 +12,19 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   ## Refresh triggers
 
-  Subscribes to four source topics:
+  Subscribes to five source topics:
 
     * `library:updates` — entity creates/edits/deletes
       (already coalesced upstream by `Library.BroadcastCoalescer`).
-    * `watch_history:events` — completion events that promote/remove
-      entries. Two completion signals arrive here: the async,
-      best-effort `{:watch_event_created, _, _}` (emitted by the Recorder
-      after resolving a title) and the synchronous, deterministic
-      `{:watch_completed, playable_item_id}` (emitted by
-      `Library.Progress.Worker` immediately after it persists
-      `completed: true`). Both trigger a rebuild; the deterministic one
-      guarantees a finished item drops from the row live even if the
-      Recorder's title lookup lags or fails, instead of lingering until
-      a manual page reload.
+    * `library:watch_completed` — the finish event
+      `{:entity_watch_completed, record, actor}`, published synchronously
+      by `Library.ProgressRecords` once the finish is persisted. It is the
+      deterministic completion signal: a finished item drops from the row
+      live even if the Recorder's title lookup lags or fails, instead of
+      lingering until a manual page reload.
+    * `watch_history:events` — the async, best-effort
+      `{:watch_event_created, _, _}` the Recorder emits after resolving a
+      title.
     * `playback:events` — `:entity_progress_updated` keeps the
       progress bar live during active playback. Rebuild cost is
       sub-millisecond per event (one indexed query + struct mapping
@@ -81,6 +80,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.library_updates())
+    Topics.subscribe(Topics.library_watch_completed())
     Topics.subscribe(Topics.watch_history_events())
     Topics.subscribe(Topics.playback_events())
     MediaFileAvailability.subscribe()
@@ -91,7 +91,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   def relevant?({:entities_changed, _}), do: true
   def relevant?({:watch_event_created, _event, _actor}), do: true
   def relevant?({:entity_progress_updated, _}), do: true
-  def relevant?({:watch_completed, _playable_item_id}), do: true
+  def relevant?({:entity_watch_completed, _record, _actor}), do: true
   def relevant?({:availability_changed, _dir, _state}), do: true
   def relevant?(_), do: false
 

@@ -49,4 +49,7 @@ defmodule MediaCentaur.Library.ExtraProgress do
 
   @impl true
   defdelegate mark_incomplete_changeset(record), to: MediaCentaur.Library.ProgressTracker
+
+  @impl true
+  defdelegate finish_changeset(record, duration_seconds), to: MediaCentaur.Library.ProgressTracker
 end

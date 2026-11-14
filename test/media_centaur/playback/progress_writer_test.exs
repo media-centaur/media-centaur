@@ -96,4 +96,17 @@ defmodule MediaCentaur.Playback.ProgressWriterTest do
       assert MapSet.size(completed) == 0
     end
   end
+
+  describe "completed?/2" do
+    test "is true once the session's set holds the entry's item" do
+      episode = entry(%{episode_id: "episode-1", season_number: 1, episode_number: 1})
+
+      refute ProgressWriter.completed?(MapSet.new(), episode)
+      assert ProgressWriter.completed?(MapSet.new([Entry.item(episode)]), episode)
+    end
+
+    test "is false for an unattributed entry" do
+      refute ProgressWriter.completed?(MapSet.new(), entry(%{}))
+    end
+  end
 end

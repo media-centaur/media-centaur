@@ -13,11 +13,10 @@ defmodule MediaCentaur.Library.Progress do
 
   Reads bypass the GenServer entirely:
 
-    * `get/2` does an `:ets.lookup/2` on the worker-owned table. When
-      the row isn't in memory, it falls back to a single indexed
-      `Repo.get_by/2` query — acceptable for cold paths like first
-      detail-modal open. Cold reads do NOT promote the row into
-      memory; the in-memory table is reserved for active sessions.
+    * `get/2` reads the persisted row with one indexed `Repo.get_by/2`
+      and lays the hot offset over it from an `:ets.lookup/2` on the
+      worker-owned table. Reads do NOT promote a row into memory; the
+      in-memory table is reserved for active sessions.
 
   ## PubSub contract
 
@@ -37,8 +36,19 @@ defmodule MediaCentaur.Library.Progress do
     * `{:progress_hydrated, %ProgressHydrated{}}` on `library:progress`
       once at the end of the worker's `init/1` — gives tests a
       deterministic hook for boot ordering.
-    * `{:watch_completed, playable_item_id}` on `watch_history:events`
-      for every `complete/2` call.
+
+  A finish (`complete/2`) publishes `{:entity_watch_completed, record,
+  actor}` on `library:watch_completed`, through
+  `MediaCentaur.Library.ProgressRecords.finish/3`.
+
+  ## The in-memory row is the viewing only
+
+  A hot row carries the offset, the duration and when it was last
+  touched. It carries no watched mark: `completed` lives in the database
+  and a tick never writes it. A finish removes the hot row. Nothing here
+  guards against a repeated finish — the playback session keeps the set
+  of items it finished and persists nothing more for them
+  (`MediaCentaur.Playback.ProgressWriter.completed?/2`).
 
   The Library-owned `library:progress` topic exists so progress events
   don't reach across the boundary into the Playback context (which
@@ -100,52 +110,39 @@ defmodule MediaCentaur.Library.Progress do
     duration = duration_seconds / 1
     key = {profile_id, playable_item_id}
 
-    # Preserve a completion already recorded for this item. mpv keeps
-    # reporting position ticks through the tail of a finished item, so
-    # a tick must never downgrade `completed: true` back to false —
-    # doing so defeats the completion idempotency guard in
-    # `MpvSession.maybe_mark_completed_via_progress/3`, which then
-    # re-runs completion (and re-broadcasts `{:watch_completed, _}`)
-    # every tick. We read the hot row only: a *cold* completed row is
-    # not hydrated into memory (see Worker.init/1), so a fresh rewatch
-    # session correctly starts at `completed: false`. Un-completing is
-    # an explicit action on a different path.
-    write_in_memory(key, position, duration, hot_completed?(key))
+    write_in_memory(key, position, duration)
     cast({:record, key, position, duration})
   end
 
-  defp hot_completed?(key), do: match?(%{completed: true}, lookup_in_memory_row(key))
-
   @doc """
-  Marks a playable item as completed for the `actor`'s profile — a person
-  finished it (playback reaching the end). Persisted to disk synchronously
-  (no debounce — completion is a watershed event) and broadcast on
-  `watch_history:events`. Uses `GenServer.call/2` so callers get
-  read-after-write semantics against the DB.
+  Playback finished a playable item for the `actor`'s profile: the watched
+  mark is set, the viewing is over (offset zero, the hot row removed), the
+  series watch position moves there, and the finish event is published —
+  every time, see `MediaCentaur.Library.ProgressRecords.finish/3`.
+  Persisted synchronously (no debounce); uses `GenServer.call/2` so
+  callers get read-after-write semantics against the DB.
   """
   @spec complete(Actor.t(), Ecto.UUID.t()) :: :ok
   def complete(%Actor{} = actor, playable_item_id) when is_binary(playable_item_id),
     do: call({:complete, {actor.profile_id, playable_item_id}, actor})
 
   @doc """
-  Reads `profile_id`'s watch progress on a `playable_item_id`. Returns
-  the in-memory `%WatchProgress{}` shape when an active session has hot
-  state, falls back to the persisted row when the row is cold, and
-  returns `nil` when there is no record in either store.
+  Reads `profile_id`'s watch progress on a `playable_item_id`: the
+  persisted row, with the live offset of an active session laid over it
+  (`overlay_in_memory/1`). `completed` is therefore always the
+  database's. A hot row not flushed yet reads as an unmarked row at the
+  live offset; `nil` when there is no record in either store.
   """
   @spec get(Ecto.UUID.t(), Ecto.UUID.t()) :: WatchProgress.t() | nil
   def get(profile_id, playable_item_id) when is_binary(profile_id) and is_binary(playable_item_id) do
-    case lookup_in_memory_row({profile_id, playable_item_id}) do
-      nil -> Repo.get_by(WatchProgress, profile_id: profile_id, playable_item_id: playable_item_id)
-      row -> row_to_schema(row)
+    case Repo.get_by(WatchProgress, profile_id: profile_id, playable_item_id: playable_item_id) do
+      nil -> lookup_in_memory({profile_id, playable_item_id})
+      persisted -> overlay_in_memory(persisted)
     end
   end
 
   # In-memory `WatchProgress`-shaped row for `key`, or `nil` when no hot
-  # row exists. Does NOT fall back to the persisted table (unlike
-  # `get/2`). Sole caller is `overlay_in_memory/1`, which asks "is there a
-  # hotter version of this already-loaded DB row?" without a per-row DB
-  # round-trip when the answer is no.
+  # row exists. Does NOT read the persisted table.
   @spec lookup_in_memory(key()) :: map() | nil
   defp lookup_in_memory(key) do
     case lookup_in_memory_row(key) do
@@ -161,16 +158,7 @@ defmodule MediaCentaur.Library.Progress do
   per-tick DB round trip. Returns the record unchanged when no hot row
   exists (the common case for rows without an active session).
 
-  `completed` is deliberately **not** overlaid — it is authoritative in the
-  DB. The hot row's `completed` is a within-session idempotency signal
-  (false for cold rows, set true only when `complete/2` runs during the
-  session — see `record/4`), so overlaying it would downgrade a completion
-  recorded on another path back to `false`: a manual "mark watched" toggle
-  writes the DB but never the hot row, so its completion would be silently
-  reverted on the next tick and only reappear after a page reload. Because
-  `complete/2` persists to the DB synchronously *before* touching the hot
-  row, the DB `completed` is never staler than memory — trusting it loses
-  nothing.
+  The hot row carries no watched mark, so `completed` is the record's own.
 
   The single overlay seam shared by the Continue Watching list
   (`Library.list_in_progress/2`) and the modal broadcast
@@ -236,7 +224,7 @@ defmodule MediaCentaur.Library.Progress do
     )
   end
 
-  defp write_in_memory({profile_id, playable_item_id} = key, position, duration, completed?) do
+  defp write_in_memory({profile_id, playable_item_id} = key, position, duration) do
     case :ets.whereis(@default_table) do
       :undefined ->
         :ok
@@ -250,7 +238,6 @@ defmodule MediaCentaur.Library.Progress do
              playable_item_id: playable_item_id,
              position_seconds: position,
              duration_seconds: duration,
-             completed: completed?,
              last_watched_at: DateTime.utc_now(:second)
            }}
         )
@@ -264,7 +251,6 @@ defmodule MediaCentaur.Library.Progress do
          playable_item_id: pi_id,
          position_seconds: position,
          duration_seconds: duration,
-         completed: completed,
          last_watched_at: last_watched_at
        }) do
     %WatchProgress{
@@ -272,7 +258,6 @@ defmodule MediaCentaur.Library.Progress do
       playable_item_id: pi_id,
       position_seconds: position,
       duration_seconds: duration,
-      completed: completed,
       last_watched_at: last_watched_at
     }
   end

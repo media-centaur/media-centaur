@@ -5,9 +5,16 @@ defmodule MediaCentaur.Library.ProgressTracker do
   `duration_seconds`, `completed`, and `last_watched_at`, keyed by a
   schema-specific foreign key.
 
-  Implementations reuse `mark_completed_changeset/1` and
-  `mark_incomplete_changeset/1` via `defdelegate` — those transitions are
-  identical across all progress schemas.
+  A row holds two facts with separate writers. The watched mark
+  (`completed`) is set by a finish or the Mark watched control and cleared
+  by Mark unwatched. The viewing in flight (`position_seconds`,
+  `duration_seconds`, `last_watched_at`) is written by a position tick
+  (`update_changeset/2`, which never touches the mark) and ended by a
+  finish or either watched control.
+
+  Implementations reuse `mark_completed_changeset/1`,
+  `mark_incomplete_changeset/1` and `finish_changeset/2` via `defdelegate`
+  — those transitions are identical across all progress schemas.
   """
 
   import Ecto.Changeset
@@ -16,32 +23,28 @@ defmodule MediaCentaur.Library.ProgressTracker do
   @callback update_changeset(record :: Ecto.Schema.t(), attrs :: map()) :: Ecto.Changeset.t()
   @callback mark_completed_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()
   @callback mark_incomplete_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()
-
-  @doc "Flags the record as completed and stamps `last_watched_at`."
-  def mark_completed_changeset(record) do
-    change(record, completed: true, last_watched_at: DateTime.utc_now(:second))
-  end
+  @callback finish_changeset(record :: Ecto.Schema.t(), duration_seconds :: number()) ::
+              Ecto.Changeset.t()
 
   @doc """
-  Returns the record to unwatched: clears the position, drops the
-  completed flag, and stamps `last_watched_at`.
-
-  The position goes back to zero because the control that reaches here is
-  labelled "Mark unwatched". Leaving it where it stood would put an item
-  that ran to the end unattended back as "in progress at 100%" — a full
-  progress bar, and a Play that resumes at the last second. `ProgressRecords.state_from_progress/1`
-  reads position 0 with `completed: false` as `:unwatched`, so zeroing is
-  what makes the record say what the label promised.
-
-  `duration_seconds` describes the file rather than the watching, so it
-  survives. `last_watched_at` is stamped rather than cleared: it is the
-  anchor `Playback.Resume` and `Library.ProgressSummary` walk from, so the
-  item just unmarked becomes the one Play picks up — now from the start.
+  The watched control sets the mark and clears any viewing in flight. It
+  is not a viewing: `last_watched_at` stands.
   """
-  def mark_incomplete_changeset(record) do
+  def mark_completed_changeset(record), do: change(record, completed: true, position_seconds: 0.0)
+
+  @doc """
+  The watched control clears the mark and any viewing in flight.
+  `duration_seconds` describes the file, so it survives; `last_watched_at`
+  stands, because a hand mark is not a viewing.
+  """
+  def mark_incomplete_changeset(record), do: change(record, completed: false, position_seconds: 0.0)
+
+  @doc "Playback reached the end: the mark is set, the viewing is over, and the duration is kept."
+  def finish_changeset(record, duration_seconds) do
     change(record,
-      completed: false,
+      completed: true,
       position_seconds: 0.0,
+      duration_seconds: duration_seconds / 1,
       last_watched_at: DateTime.utc_now(:second)
     )
   end

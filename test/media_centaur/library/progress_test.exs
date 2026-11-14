@@ -8,8 +8,8 @@ defmodule MediaCentaur.Library.ProgressTest do
   `MediaCentaur.Library.Progress.Events` on the `library:progress`
   topic — `{:progress_ticked, %ProgressTicked{}}`,
   `{:progress_flushed, %ProgressFlushed{}}`,
-  `{:progress_hydrated, %ProgressHydrated{}}` — plus
-  `{:watch_completed, playable_item_id}` on `watch_history:events`.
+  `{:progress_hydrated, %ProgressHydrated{}}` — plus the finish event
+  `{:entity_watch_completed, record, actor}` on `library:watch_completed`.
   Never `Process.sleep`, never `:sys.get_state`, never `:ets.lookup`
   from a test (ADR-026).
   """
@@ -19,6 +19,7 @@ defmodule MediaCentaur.Library.ProgressTest do
 
   alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Library.Progress
+  alias MediaCentaur.Library.SeriesWatchPositions
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
@@ -308,7 +309,7 @@ defmodule MediaCentaur.Library.ProgressTest do
 
   describe "complete/2" do
     setup do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_events())
+      Topics.subscribe(Topics.library_watch_completed())
       :ok
     end
 
@@ -321,14 +322,57 @@ defmodule MediaCentaur.Library.ProgressTest do
                Repo.get_by(WatchProgress, playable_item_id: playable_item.id)
     end
 
-    test "broadcasts {:watch_completed, playable_item_id} on watch_history:events" do
+    test "publishes the finish event on library:watch_completed" do
       playable_item = seed_movie_playable_item()
       :ok = Progress.record(owner_profile_id(), playable_item.id, 90.0, 100.0)
       pi_id = playable_item.id
+      actor = Actor.new(owner_profile_id())
 
-      :ok = Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
+      :ok = Progress.complete(actor, playable_item.id)
 
-      assert_receive {:watch_completed, ^pi_id}, 500
+      assert_receive {:entity_watch_completed, %WatchProgress{playable_item_id: ^pi_id}, ^actor}, 500
+    end
+
+    test "a finish sets the mark, ends the viewing, moves the series position and publishes — every time" do
+      profile = create_profile(%{name: "Ana"})
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 5, name: "Episode 5"})
+
+      # Already marked: this finish is a second completion of the item.
+      progress =
+        create_watch_progress(%{profile_id: profile.id, episode_id: episode.id, completed: true})
+
+      actor = Actor.new(profile.id)
+
+      :ok = Progress.record(profile.id, progress.playable_item_id, 1250.0, 1300.0)
+      :ok = Progress.complete(actor, progress.playable_item_id)
+
+      reloaded = Repo.get!(WatchProgress, progress.id)
+      assert reloaded.completed
+      assert reloaded.position_seconds == 0.0
+      assert reloaded.duration_seconds == 1300.0
+      assert SeriesWatchPositions.get(profile.id, series.id).order_key == ["00001", "00005"]
+      assert_receive {:entity_watch_completed, %WatchProgress{}, ^actor}
+      assert Progress.get(profile.id, progress.playable_item_id).position_seconds == 0.0
+    end
+
+    test "a flush after a finish does not bring the viewing back" do
+      Topics.subscribe(Topics.library_progress())
+      movie = create_standalone_movie(%{name: "Movie A"})
+      progress = create_watch_progress(%{movie_id: movie.id})
+      other = seed_movie_playable_item()
+      other_id = other.id
+
+      :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 5900.0, 6000.0)
+      :ok = Progress.complete(Actor.new(owner_profile_id()), progress.playable_item_id)
+
+      # The flush the first tick scheduled still runs; a second item's
+      # tick gives it something to announce.
+      :ok = Progress.record(owner_profile_id(), other_id, 30.0, 100.0)
+      assert_receive {:progress_flushed, %{playable_item_id: ^other_id}}, 1_000
+
+      assert Repo.get!(WatchProgress, progress.id).position_seconds == 0.0
     end
 
     test "subsequent get/2 returns the completed row" do
@@ -349,7 +393,7 @@ defmodule MediaCentaur.Library.ProgressTest do
       # just set. The completion guard in `MpvSession`
       # (`maybe_mark_completed_via_progress/3`) then read that false on
       # every subsequent tick and re-ran completion — redundant
-      # synchronous DB writes and `{:watch_completed, _}` broadcasts for
+      # synchronous DB writes and completion broadcasts for
       # the rest of playback. A position tick must never downgrade
       # completion; un-completing is an explicit action on another path.
       playable_item = seed_movie_playable_item()
@@ -361,6 +405,26 @@ defmodule MediaCentaur.Library.ProgressTest do
 
       assert %WatchProgress{completed: true, position_seconds: 95.0} =
                Progress.get(owner_profile_id(), playable_item.id)
+    end
+  end
+
+  describe "a tick writes the viewing only" do
+    test "a tick on a watched item keeps its watched mark" do
+      Topics.subscribe(Topics.library_progress())
+      movie = create_standalone_movie(%{name: "Movie A"})
+      progress = create_watch_progress(%{movie_id: movie.id, completed: true})
+      pi_id = progress.playable_item_id
+
+      :ok = Progress.record(owner_profile_id(), pi_id, 300.0, 6000.0)
+
+      assert %WatchProgress{completed: true, position_seconds: 300.0} =
+               Progress.get(owner_profile_id(), pi_id)
+
+      assert_receive {:progress_flushed, %{playable_item_id: ^pi_id}}, 1_000
+
+      reloaded = Repo.get!(WatchProgress, progress.id)
+      assert reloaded.completed
+      assert reloaded.position_seconds == 300.0
     end
   end
 

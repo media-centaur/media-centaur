@@ -2,6 +2,9 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Library.ProgressRecords
+  alias MediaCentaur.Library.SeriesWatchPositions
+  alias MediaCentaur.Profiles.Actor
+  alias MediaCentaur.Topics
 
   describe "index_progress_by_key/1" do
     test "indexes by episode_id FK" do
@@ -119,6 +122,130 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert ProgressRecords.state_from_progress(%{completed: false, position_seconds: 30.0}) ==
                :unwatched
+    end
+  end
+
+  describe "the watched controls" do
+    setup do
+      profile = create_profile(%{name: "Ana"})
+      movie = create_standalone_movie(%{name: "Movie A"})
+      %{profile: profile, movie: movie, actor: Actor.new(profile.id)}
+    end
+
+    test "watched_control/1 offers Mark watched for an unmarked item or one with a viewing that counts" do
+      assert ProgressRecords.watched_control(nil) == :mark_watched
+      assert ProgressRecords.watched_control(%{completed: false, position_seconds: 0.0}) == :mark_watched
+
+      assert ProgressRecords.watched_control(%{completed: true, position_seconds: 600.0}) ==
+               :mark_watched
+
+      assert ProgressRecords.watched_control(%{completed: true, position_seconds: 0.0}) ==
+               :mark_unwatched
+    end
+
+    test "toggling an item with no row marks it watched", context do
+      assert {:ok, %{completed: true}} =
+               ProgressRecords.toggle_watched(context.actor, :movie, context.movie.id)
+    end
+
+    test "toggling a watched item with an abandoned viewing clears the viewing and keeps the mark",
+         context do
+      progress =
+        create_watch_progress(%{
+          profile_id: context.profile.id,
+          movie_id: context.movie.id,
+          completed: true,
+          position_seconds: 600.0
+        })
+
+      progress = backdate(progress, :last_watched_at, ~U[2026-01-01 00:00:00Z])
+
+      assert {:ok, toggled} = ProgressRecords.toggle_watched(context.actor, :movie, context.movie.id)
+      assert toggled.id == progress.id
+      assert toggled.completed
+      assert toggled.position_seconds == 0.0
+      assert toggled.last_watched_at == ~U[2026-01-01 00:00:00Z]
+    end
+
+    test "toggling a watched item with no viewing unmarks it without stamping last_watched_at",
+         context do
+      progress =
+        create_watch_progress(%{
+          profile_id: context.profile.id,
+          movie_id: context.movie.id,
+          completed: true
+        })
+
+      backdate(progress, :last_watched_at, ~U[2026-01-01 00:00:00Z])
+
+      assert {:ok, toggled} = ProgressRecords.toggle_watched(context.actor, :movie, context.movie.id)
+      refute toggled.completed
+      assert toggled.last_watched_at == ~U[2026-01-01 00:00:00Z]
+    end
+
+    test "marking an unwatched item with a viewing sets the mark and clears the viewing, unstamped",
+         context do
+      progress =
+        create_watch_progress(%{
+          profile_id: context.profile.id,
+          movie_id: context.movie.id,
+          position_seconds: 600.0
+        })
+
+      backdate(progress, :last_watched_at, ~U[2026-01-01 00:00:00Z])
+      Topics.subscribe(Topics.library_watch_completed())
+      actor = context.actor
+
+      assert {:ok, toggled} = ProgressRecords.toggle_watched(actor, :movie, context.movie.id)
+      assert toggled.completed
+      assert toggled.position_seconds == 0.0
+      assert toggled.last_watched_at == ~U[2026-01-01 00:00:00Z]
+      assert_receive {:entity_watch_completed, %{completed: true}, ^actor}
+    end
+
+    test "the watched controls never move the series watch position", context do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      first = create_episode(%{season_id: season.id, episode_number: 1, name: "Episode 1"})
+      second = create_episode(%{season_id: season.id, episode_number: 2, name: "Episode 2"})
+
+      finished =
+        create_watch_progress(%{profile_id: context.profile.id, episode_id: first.id, completed: true})
+
+      create_series_watch_position(%{
+        profile_id: context.profile.id,
+        playable_item_id: finished.playable_item_id
+      })
+
+      {:ok, _marked} = ProgressRecords.toggle_watched(context.actor, :episode, second.id)
+      {:ok, _unmarked} = ProgressRecords.toggle_watched(context.actor, :episode, first.id)
+
+      assert SeriesWatchPositions.get(context.profile.id, series.id).order_key == ["00001", "00001"]
+    end
+
+    test "toggling an extra marks it, then unmarks it", context do
+      extra = create_extra(%{movie_id: context.movie.id, name: "Featurette"})
+
+      assert {:ok, %{completed: true}} =
+               ProgressRecords.toggle_extra_watched(context.actor, context.movie.id, extra.id)
+
+      assert {:ok, %{completed: false}} =
+               ProgressRecords.toggle_extra_watched(context.actor, context.movie.id, extra.id)
+    end
+  end
+
+  describe "finish_extra/2" do
+    test "sets the mark, ends the viewing and keeps the duration" do
+      movie = create_standalone_movie(%{name: "Movie A"})
+      extra = create_extra(%{movie_id: movie.id, name: "Featurette"})
+
+      progress =
+        create_extra_progress(%{extra_id: extra.id, position_seconds: 590.0, duration_seconds: 600.0})
+
+      assert {:ok, finished} = ProgressRecords.finish_extra(progress, 600.0)
+      assert finished.completed
+      assert finished.position_seconds == 0.0
+      assert finished.duration_seconds == 600.0
     end
   end
 end
