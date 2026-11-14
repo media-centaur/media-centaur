@@ -899,6 +899,25 @@ defmodule MediaCentaur.TestFactory do
     end)
   end
 
+  @doc """
+  Persists a series watch position through the real writer:
+  `%{profile_id, playable_item_id}` plus optional `:finished_at`. The item
+  must belong to a series.
+  """
+  def create_series_watch_position(attrs) do
+    attrs = Map.new(attrs)
+    finished_at = Map.get(attrs, :finished_at, DateTime.utc_now(:second))
+
+    {:ok, position} =
+      Library.SeriesWatchPositions.record_finish(
+        attrs.profile_id,
+        attrs.playable_item_id,
+        finished_at
+      )
+
+    position
+  end
+
   defp container_ref(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
   defp container_ref(%{episode_id: id}) when not is_nil(id), do: {:episode, id}
   defp container_ref(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}

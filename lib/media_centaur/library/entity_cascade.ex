@@ -22,7 +22,8 @@ defmodule MediaCentaur.Library.EntityCascade do
            c. Delete the leaf container row itself.
       2. Delete the parent container's own polymorphic supporting rows
          (Image / Extra / ExternalId by `(owner_type, owner_id)`, plus the
-         Season's Extras for TV series).
+         Season's Extras for TV series), and a series' `SeriesWatchPosition`
+         rows by `series_id`.
       3. Remove every image-file directory under each media dir's images_dir
          that matches a UUID belonging to this container or its leaves.
       4. Delete the container row.
@@ -67,6 +68,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     MovieSeries,
     PlayableItem,
     Season,
+    SeriesWatchPosition,
     TVSeries,
     TypeResolver,
     VideoObject,
@@ -78,6 +80,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   @tables_in_delete_order [
     ExtraProgress,
     WatchProgress,
+    SeriesWatchPosition,
     PlaybackOverride,
     ExtraFile,
     Extra,
@@ -156,6 +159,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     end)
 
     destroy_supporting_rows!(record, :tv_series)
+    delete_series_watch_positions(record.id)
     delete_image_dirs(record)
   end
 
@@ -164,6 +168,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     bulk_destroy(record.movies || [], Library.Movie)
 
     destroy_supporting_rows!(record, :movie_series)
+    delete_series_watch_positions(record.id)
     delete_image_dirs(record)
   end
 
@@ -216,6 +221,14 @@ defmodule MediaCentaur.Library.EntityCascade do
     delete_polymorphic(Extra, owner_type, record.id)
     delete_polymorphic(ExternalId, owner_type, record.id)
     delete_polymorphic(PlaybackOverride, owner_type, record.id)
+  end
+
+  # A series watch position names its series by a plain id (no FK: the
+  # series is a TVSeries or a MovieSeries), so it comes down here. Deleting
+  # an item never touches it — it records an order key, not an item.
+  defp delete_series_watch_positions(series_id) do
+    Repo.delete_all(from(position in SeriesWatchPosition, where: position.series_id == ^series_id))
+    :ok
   end
 
   defp loaded_assoc(record, key) do
