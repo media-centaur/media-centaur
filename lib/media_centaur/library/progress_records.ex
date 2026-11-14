@@ -578,11 +578,19 @@ defmodule MediaCentaur.Library.ProgressRecords do
   @spec viewing_minimum_seconds() :: pos_integer()
   def viewing_minimum_seconds, do: @viewing_minimum_seconds
 
-  @doc "Every profile with at least one progress row — the profiles Continue Watching is built for."
+  @doc """
+  Every profile with at least one progress row or a series watch position
+  — the profiles Continue Watching is built for. A position outlives the
+  rows of the items it was finished on, so a profile can hold one alone.
+  """
   @spec profile_ids_with_progress() :: [Ecto.UUID.t()]
-  def profile_ids_with_progress,
-    do:
-      Repo.all(from(wp in WatchProgress, distinct: true, select: wp.profile_id, order_by: wp.profile_id))
+  def profile_ids_with_progress do
+    with_rows = Repo.all(from(wp in WatchProgress, distinct: true, select: wp.profile_id))
+
+    (with_rows ++ SeriesWatchPositions.profile_ids())
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
 
   # ---- ExtraProgress -------------------------------------------------------
 

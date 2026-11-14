@@ -24,6 +24,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
   end
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.ContinueWatching
@@ -298,6 +299,36 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       assert [%{entity_name: "Mine"}] = Views.continue_watching(me)
       assert [%{entity_name: "Hers"}] = Views.continue_watching(ana)
       assert Views.continue_watching(Ecto.UUID.generate()) == []
+    end
+  end
+
+  describe "a profile whose only record is a series watch position" do
+    test "has its shelf in the snapshot after the finished episodes were deleted" do
+      profile = create_profile(%{name: "Ana"})
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "Season 1"})
+
+      [_first, second, _third] =
+        for number <- 1..3 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: number,
+            name: "Episode #{number}",
+            content_url: "/media/test/sample-show-s01e#{number}.mkv"
+          })
+        end
+
+      row = create_watch_progress(%{profile_id: profile.id, episode_id: second.id, completed: true})
+      create_series_watch_position(%{profile_id: profile.id, playable_item_id: row.playable_item_id})
+
+      Deletion.cleanup_removed_files(
+        for number <- 1..2, do: "/media/test/sample-show-s01e#{number}.mkv"
+      )
+
+      assert :ok = ContinueWatching.refresh_cache()
+
+      assert [%ContinueWatchingItem{entity_id: entity_id}] = ContinueWatching.read(profile.id)
+      assert entity_id == series.id
     end
   end
 

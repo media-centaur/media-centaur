@@ -3,8 +3,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   ETS-backed projection of Continue Watching rows (ADR-041).
 
   Profile-keyed (ADR-078): the `:set` holds `{profile_id, items}` for
-  every profile with a progress row, rebuilt whole on every relevant
-  event — a household is a handful of profiles. The derived message is
+  every profile with a progress row or a series watch position, rebuilt
+  whole on every relevant event — a household is a handful of profiles. The derived message is
   unchanged; a page re-reads for its own profile. `items` is the output
   of `MediaCentaur.Library.list_in_progress/2` as `ContinueWatchingItem`
   structs in display order. Reads bypass the GenServer entirely — see

@@ -40,6 +40,11 @@ defmodule MediaCentaur.Library.SeriesWatchPositions do
     |> Map.new(&{&1.series_id, &1})
   end
 
+  @doc "Every profile holding a position in some series."
+  @spec profile_ids() :: [Ecto.UUID.t()]
+  def profile_ids,
+    do: Repo.all(from(position in SeriesWatchPosition, distinct: true, select: position.profile_id))
+
   @doc """
   Playback finished `playable_item_id`: moves the profile's position in
   the item's series to that item. `:none` when the item belongs to no
