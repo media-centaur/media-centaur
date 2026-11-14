@@ -42,7 +42,13 @@ defmodule MediaCentaur.Library.MovieOrder do
     |> Enum.map(fn {movie, ordinal} -> {ordinal, movie.id, movie.content_url} end)
   end
 
-  @doc "The order key of a collection movie: release date, then collection position."
+  @doc """
+  The order key of a collection movie: release date, then collection
+  position. A stored key reflects the movie's date and position at the
+  time it was finished, so a later metadata change to either can leave a
+  recorded series watch position out of place. Two movies with the same
+  date and position share a key.
+  """
   @spec order_key(map()) :: [String.t()]
   def order_key(movie) do
     position = Map.get(movie, :collection_position) || Map.get(movie, :position) || 0
