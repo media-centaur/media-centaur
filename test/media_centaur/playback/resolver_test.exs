@@ -7,7 +7,8 @@ defmodule MediaCentaur.Playback.ResolverTest do
   alias MediaCentaur.Playback.Resolver
 
   defp mark_completed(progress, nil) do
-    Library.ProgressRecords.mark_completed!(progress, nil)
+    {:ok, marked} = Library.ProgressRecords.mark_completed(progress, nil)
+    marked
   end
 
   describe "resolve/2 with Entity UUID" do
@@ -265,7 +266,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
         end
 
       for {extra, position} <- [{short, 30.0}, {long, 240.0}] do
-        Library.ProgressRecords.find_or_create_for_extra!(%{
+        create_extra_progress(%{
           profile_id: context.profile_id,
           extra_id: extra.id,
           position_seconds: position,

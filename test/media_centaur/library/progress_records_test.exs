@@ -44,19 +44,6 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
     end
   end
 
-  describe "progress_by_leaf/3" do
-    test "one query maps each leaf container to its progress row; leaves without one are absent" do
-      watched = create_standalone_movie(%{name: "Watched"})
-      fresh = create_standalone_movie(%{name: "Fresh"})
-      create_watch_progress(%{movie_id: watched.id, position_seconds: 30.0, duration_seconds: 100.0})
-
-      by_id = ProgressRecords.progress_by_leaf(owner_profile_id(), :movie, [watched.id, fresh.id])
-
-      assert %{position_seconds: 30.0} = by_id[watched.id]
-      refute Map.has_key?(by_id, fresh.id)
-    end
-  end
-
   describe "two profiles" do
     setup do
       movie = create_standalone_movie(%{name: "Sample Movie"})

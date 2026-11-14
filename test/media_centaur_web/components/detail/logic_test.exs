@@ -250,21 +250,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       }
     end
 
-    defp at_second(offset),
-      do: %TitleProgress{state: :in_progress, next: next("mv-2", offset), before_next: 1, total: 2}
-
-    test "the next movie is named" do
-      assert Logic.playback_props(collection("Second Movie"), at_second(0.0)) ==
-               {"Play Second Movie", "mv-2"}
-
-      assert Logic.playback_props(collection("Second Movie"), at_second(600.0)) ==
-               {"Resume Second Movie", "mv-2"}
-    end
-
-    test "a next movie without a name reads its place among the movies with a file" do
-      assert Logic.playback_props(collection("  "), at_second(600.0)) == {"Resume Movie 2", "mv-2"}
-    end
-
     test "complete → Watch again on the collection" do
       progress = %TitleProgress{state: :complete, before_next: 2, total: 2}
       assert Logic.playback_props(collection("Second Movie"), progress) == {"Watch again", "ms-uuid"}

@@ -77,11 +77,4 @@ defmodule MediaCentaur.Library.MovieOrder do
       end
     end)
   end
-
-  @doc """
-  Count of movies with content_url.
-  """
-  def total_available(entity) do
-    length(list_available(entity))
-  end
 end

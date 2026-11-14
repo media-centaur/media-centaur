@@ -96,17 +96,6 @@ defmodule MediaCentaur.Library.MovieOrderTest do
   # `find_movie_by_ordinal/2` removed with the leaf-id addressing
   # convergence — no caller mapped ordinals back to movies anymore.
 
-  describe "total_available/1" do
-    test "counts movies with content_url" do
-      movie_a = build_movie(%{content_url: "/m1.mkv", position: 0})
-      movie_b = build_movie(%{content_url: nil, position: 1})
-      movie_c = build_movie(%{content_url: "/m3.mkv", position: 2})
-      entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b, movie_c]})
-
-      assert MovieOrder.total_available(entity) == 2
-    end
-  end
-
   describe "order_key/1" do
     test "a movie with no position takes position 0, as the sort does" do
       movie = %{id: "a", content_url: "/m/a.mkv", date_published: ~D[2010-05-01], position: nil}

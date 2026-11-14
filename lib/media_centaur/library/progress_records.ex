@@ -159,10 +159,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
     Repo.update(ExtraProgress.mark_completed_changeset(progress))
   end
 
-  @doc "As `mark_completed/2`, raising on a rejected changeset."
-  @spec mark_completed!(WatchProgress.t() | ExtraProgress.t(), Actor.t() | nil) :: struct()
-  def mark_completed!(progress, actor), do: Repo.bang!(mark_completed(progress, actor))
-
   @doc """
   The Mark unwatched control: clears the watched mark and any viewing in
   flight (in memory and persisted, as `mark_completed/2`), leaving
@@ -177,10 +173,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   def mark_incomplete(%ExtraProgress{} = progress),
     do: Repo.update(ExtraProgress.mark_incomplete_changeset(progress))
-
-  @doc "As `mark_incomplete/1`, raising on a rejected changeset."
-  @spec mark_incomplete!(WatchProgress.t() | ExtraProgress.t()) :: struct()
-  def mark_incomplete!(progress), do: Repo.bang!(mark_incomplete(progress))
 
   @doc """
   Playback finished the item: sets the watched mark, ends the viewing and,
@@ -471,23 +463,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  `profile_id`'s progress row of each leaf container (movie, video
-  object) in `ids`, keyed by container id, in one query. A leaf without
-  a row is absent. The read Continue Watching uses for its single-leaf
-  entries.
-  """
-  @spec progress_by_leaf(Ecto.UUID.t(), :movie | :video_object, [Ecto.UUID.t()]) ::
-          %{Ecto.UUID.t() => WatchProgress.t()}
-  def progress_by_leaf(_profile_id, _container_type, []), do: %{}
-
-  def progress_by_leaf(profile_id, container_type, ids) when container_type in [:movie, :video_object] do
-    profile_id
-    |> leaf_rows(container_type, ids)
-    |> Repo.all()
-    |> Map.new()
-  end
-
-  @doc """
   The bulk read of title progress: `%{entity_id => TitleProgress}` for
   every container id in the input under which `profile_id` has a progress
   row or a series watch position. A title with neither is absent — it is
@@ -614,10 +589,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
       attrs
     )
   end
-
-  @doc "As `find_or_create_for_extra/1`, raising on a rejected changeset."
-  @spec find_or_create_for_extra!(map()) :: ExtraProgress.t()
-  def find_or_create_for_extra!(attrs), do: Repo.bang!(find_or_create_for_extra(attrs))
 
   # ---- internals -----------------------------------------------------------
 

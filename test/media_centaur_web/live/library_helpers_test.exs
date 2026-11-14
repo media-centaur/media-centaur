@@ -7,7 +7,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
   alias MediaCentaur.Library.Views.BrowseItem
   alias MediaCentaurWeb.LibraryFormatters
   alias MediaCentaurWeb.LibraryHelpers
-  alias MediaCentaurWeb.LibraryProgress
 
   # --- Helpers ---
 
@@ -298,40 +297,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
                new_entries: [],
                changed_ids: MapSet.new()
              }) == {:touch, []}
-    end
-  end
-
-  # --- completion_percentage/1 ---
-
-  describe "completion_percentage/1" do
-    test "returns percentage rounded to 0 decimals when duration known" do
-      assert LibraryProgress.completion_percentage(%{
-               position_seconds: 300.0,
-               duration_seconds: 1_000.0
-             }) == "30%"
-    end
-
-    test "rounds up mid-fraction values" do
-      assert LibraryProgress.completion_percentage(%{
-               position_seconds: 755.0,
-               duration_seconds: 1_000.0
-             }) == "76%"
-    end
-
-    test "returns 'unknown' when duration is zero" do
-      assert LibraryProgress.completion_percentage(%{
-               position_seconds: 100.0,
-               duration_seconds: 0.0
-             }) == "unknown"
-    end
-
-    test "returns 'unknown' when duration is missing" do
-      assert LibraryProgress.completion_percentage(%{position_seconds: 100.0}) == "unknown"
-    end
-
-    test "returns 'unknown' for non-progress shape" do
-      assert LibraryProgress.completion_percentage(nil) == "unknown"
-      assert LibraryProgress.completion_percentage(%{}) == "unknown"
     end
   end
 

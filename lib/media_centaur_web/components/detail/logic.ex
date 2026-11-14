@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
-  alias MediaCentaur.Library.{MovieOrder, TitleProgress}
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.MovieRow
@@ -154,19 +154,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
       {1, episode_number} -> "#{verb} Episode #{episode_number}"
       {season_number, episode_number} -> "#{verb} S#{season_number}E#{episode_number}"
       nil -> verb
-    end
-  end
-
-  defp next_label(verb, %{type: :movie_series} = entity, item_id) do
-    movies = (entity.movies || []) |> MovieOrder.sort_movies() |> Enum.filter(& &1.content_url)
-
-    case Enum.find_index(movies, &(&1.id == item_id)) do
-      nil ->
-        verb
-
-      index ->
-        name = Enum.at(movies, index).name
-        if blank_string?(name), do: "#{verb} Movie #{index + 1}", else: "#{verb} #{String.trim(name)}"
     end
   end
 

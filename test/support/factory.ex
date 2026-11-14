@@ -929,7 +929,8 @@ defmodule MediaCentaur.TestFactory do
     defaults
     |> Map.merge(Map.new(attrs))
     |> Map.put_new_lazy(:profile_id, &owner_profile_id/0)
-    |> Library.ProgressRecords.find_or_create_for_extra!()
+    |> Library.ProgressRecords.find_or_create_for_extra()
+    |> then(fn {:ok, progress} -> progress end)
   end
 
   # ---------------------------------------------------------------------------

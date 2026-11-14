@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           duration_seconds: 1000.0
         })
 
-      Library.ProgressRecords.mark_completed!(progress, nil)
+      {:ok, _marked} = Library.ProgressRecords.mark_completed(progress, nil)
       backdate(progress, :last_watched_at, ~U[2026-08-03 20:00:00Z])
 
       :ok

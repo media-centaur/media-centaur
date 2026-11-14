@@ -11,8 +11,8 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   DateTime`, `Library.ProgressRecords.last_played_at_by_title/2`); the
   helper that orders by it receives that map as an explicit argument.
 
-  Display formatting lives in `LibraryFormatters` and progress and resume
-  logic in `LibraryProgress`. Per-entry availability arrives on each
+  Display formatting lives in `LibraryFormatters` and the merge of a
+  changed progress record in `LibraryProgress`. Per-entry availability arrives on each
   `BrowseItem` (`available?`); this module only phrases the page-level
   offline banner from the per-directory status.
   """
