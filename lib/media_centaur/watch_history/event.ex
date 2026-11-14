@@ -1,7 +1,8 @@
 defmodule MediaCentaur.WatchHistory.Event do
   @moduledoc """
-  A single completion event. Append-only — one row per time a title is watched
-  to completion (≥90%). Re-watching creates a new row. Each event is one
+  A single completion event. Append-only — one row per completion: a
+  playback finish, or Mark watched on an unmarked item. Finishing an item
+  again creates a new row. Each event is one
   profile's completion (ADR-078); removing the profile removes its events.
 
   FKs are nilify_all so history survives entity deletion. `title` is denormalized

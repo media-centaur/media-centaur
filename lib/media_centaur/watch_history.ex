@@ -6,9 +6,19 @@ defmodule MediaCentaur.WatchHistory do
   @moduledoc """
   Public API for the WatchHistory bounded context.
 
-  Records a permanent, append-only `Event` for each completion (≥90%
-  playback threshold). The `Recorder` GenServer drives writes; this module
-  exposes queries and the `delete_event!/1` mutation.
+  Records a permanent, append-only `Event` for each completion: every
+  playback finish, and Mark watched on an item that was not marked
+  (`MediaCentaur.WatchHistory.Recorder`). The `Recorder` GenServer drives
+  writes; this module exposes queries and the `delete_event!/1` mutation.
+
+  The history is a log of completions. It is not the source of a
+  profile's place in a series, which `Library` records itself
+  (`MediaCentaur.Library.SeriesWatchPosition`), for three reasons: the
+  user can delete an event; Mark watched creates one too, and a hand mark
+  does not move the place; and an event loses its reference to the item
+  when the item is deleted (the foreign keys nilify). The two are written
+  from the same finish: `Library` moves the position and publishes the
+  completion this context records.
 
   Every event is one profile's (ADR-078). Every reader takes a `t:scope/0`:
   a profile id for that profile's history, or `:all` for the install-wide

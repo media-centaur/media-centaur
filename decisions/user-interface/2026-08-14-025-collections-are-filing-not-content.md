@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-08-14
+amended: 2026-11-14
 ---
 # Collections are filing, not content — activity surfaces speak in movies
 
@@ -21,3 +22,5 @@ Collections manifest in exactly two places, the library shelf card and the colle
 ### Consequences
 
 * A bulk-imported large collection floods Recently Added with one poster per member. A "collapse same-batch siblings" rollup is rejected: it reintroduces collection-as-content through the side door.
+
+**Amendment 2026-11-14.** Rule 1's test for a member movie's card is no longer "incomplete progress". A movie is on Continue Watching while its progress row holds a viewing of 60 seconds or more, whatever its watched mark: a watched movie being replayed is listed, and a movie started for under a minute is not. The rule itself stands: the entry is the member movie, never the collection. The contract is the `MediaCentaur.Library.HomeFeed.list_in_progress/2` doc and the `MediaCentaur.Library.TitleProgress` moduledoc.

@@ -1,11 +1,13 @@
 defmodule MediaCentaur.Library.MovieOrder do
   @moduledoc """
   Shared helpers for walking a MovieSeries entity's child movies.
-  Parallel to EpisodeOrder but for MovieSeries.
+  Parallel to EpisodeOrder but for MovieSeries. `ordered_items/1` is the
+  collection's ordered set for `MediaCentaur.Library.TitleProgress`, and
+  `order_key/1` the key a `MediaCentaur.Library.SeriesWatchPosition`
+  stores.
 
   Ordinals here are 1-based *walk positions* used by the playback
-  resume chain and its display hints ("Play Movie 2") — they are not a
-  storage key. `WatchProgress` is keyed by `(profile_id, playable_item_id)`
+  resolver — they are not a storage key. `WatchProgress` is keyed by `(profile_id, playable_item_id)`
   (ADR-078), and the UI addresses movies by their container UUID.
   """
 

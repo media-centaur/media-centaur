@@ -188,7 +188,60 @@ One profile's progress on one playable item, unique on `(profile_id, playable_it
 
 **Key attributes:** `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `profile_id`, `playable_item_id`
 
-Every watching row is a profile's: `WatchProgress`, `ExtraProgress` (unique on `(profile_id, extra_id)`) and `PlaybackOverride` (unique on `(profile_id, owner_type, owner_id)`) carry `profile_id` as a plain column — no `belongs_to`, so `Library` takes no dependency on `Profiles`. They are read only through `Library.ProgressRecords` (`list_for_container/3`, `fetch_for_container/3`, `fetch_for_extra/2`) and `Library.PlaybackOverrides` (`get/3`, `upsert/4`, `clear/3`), the profile id always first. No type record carries a `has_one :watch_progress` association: with a profile the cardinality is one-to-many, so a title's progress is loaded by `(profile_id, type, id)` and never preloaded. Removing a profile takes its rows with it by `ON DELETE CASCADE`; `EntityCascade` deletes them when their title goes.
+The row holds two independent facts (see [Watch state](#watch-state)): the watched mark (`completed`) and the viewing in flight (`position_seconds`, `duration_seconds`, `last_watched_at`). `ExtraProgress` has the same shape and the same writer rules, keyed by `(profile_id, extra_id)`; both implement `Library.ProgressTracker`.
+
+### SeriesWatchPosition
+
+Where one profile is in one series — a TV series or a movie collection: the order key of the last item playback finished there, and when. Table `library_series_watch_positions`, unique on `(profile_id, series_id)`. It stores the item's order key, not its id, so it survives the item's deletion. `Library.SeriesWatchPositions` reads and writes it and is used only inside `Library`.
+
+**Key attributes:** `profile_id`, `series_type` (`:tv_series`, `:movie_series`), `series_id`, `order_key`, `finished_at`
+
+Every watching row is a profile's: `WatchProgress`, `ExtraProgress` (unique on `(profile_id, extra_id)`) and `PlaybackOverride` (unique on `(profile_id, owner_type, owner_id)`) carry `profile_id` as a plain column — no `belongs_to`, so `Library` takes no dependency on `Profiles`. They are read only through `Library.ProgressRecords` (`list_for_container/3`, `fetch_for_container/3`, `fetch_for_extra/2`) and `Library.PlaybackOverrides` (`get/3`, `upsert/4`, `clear/3`), the profile id always first. No type record carries a `has_one :watch_progress` association: with a profile the cardinality is one-to-many, so a title's progress is loaded by `(profile_id, type, id)` and never preloaded. Removing a profile takes its rows with it by `ON DELETE CASCADE`; `EntityCascade` deletes them when their title goes. `SeriesWatchPosition` follows the same two rules: its `profile_id` cascades, and `EntityCascade` deletes a series' positions with the series (`series_id` has no foreign key, since a series is one of two tables).
+
+## Watch state
+
+Where a profile is in a title is one derived value, `Library.TitleProgress`, computed from three stored facts. The moduledocs hold the contract; this section is the map.
+
+| Fact | Stored on | Written by |
+|---|---|---|
+| Series watch position | `SeriesWatchPosition` | Playback finishing an item of the series (`ProgressRecords.finish/3`). Nothing else. |
+| Viewing in flight | The item progress row: `position_seconds`, `duration_seconds`, `last_watched_at` | Position ticks. Ended (offset 0) by a finish and by either watched control. |
+| Watched mark | The item progress row: `completed` | Set by a finish or Mark watched; cleared by Mark unwatched. |
+
+**Terms.** The **ordered set** is a title's playable items that have a file, in story order (`EpisodeOrder.ordered_items/1`, `MovieOrder.ordered_items/1`; a movie or standalone video is a set of one). An item's **order key** is where it sits in that order, independent of its record: padded season and episode numbers for an episode, release date and collection position for a collection movie. Order keys are lists of strings compared in Elixir, never in SQL. A viewing **counts** from an offset of 60 seconds (`ProgressRecords.viewing?/1`); a shorter one changes nothing.
+
+**Writers.**
+
+- A position tick writes the viewing only. The in-memory row (`Library.Progress`) carries no watched mark, and the flush never writes one, so starting a watched item again keeps its mark.
+- A finish (`Library.Progress.complete/2` → `ProgressRecords.finish/3`) sets the mark, sets the offset to 0, and for an item of a series moves the series watch position to it, in one transaction. It then publishes `{:entity_watch_completed, record, actor}` on `library:watch_completed`, every time: finishing an item again is a second completion and a second watch-history event.
+- Mark watched sets the mark and ends the viewing, in memory too (`Library.Progress.clear_viewing/2`). Mark unwatched clears the mark and ends the viewing. Neither stamps `last_watched_at` and neither moves the series watch position. Mark watched publishes the completion event when the item was not marked before.
+- The control an item offers is `ProgressRecords.watched_control/1`: Mark watched while the item is unmarked or has a viewing that counts, else Mark unwatched. `toggle_watched/3` and `toggle_extra_watched/3` apply the control the page shows.
+
+**The rule** (`Library.TitleProgress`, pure):
+
+1. A viewing that counts and is newer than the series watch position (or there is no position) is resumed; with several, the newest.
+2. Otherwise, with a position, next is the first item of the ordered set whose order key is after it. If there is none, the title is complete.
+3. Otherwise next is the first item with no watched mark. If every item is marked, the title is complete.
+
+The state is `:complete` when there is no next, `:unstarted` when there is no position, no mark and no viewing that counts, else `:in_progress`. `TitleProgress.percent/1` is the measure every bar shows: `(before_next + offset / duration of next) / total`, 100 when complete.
+
+**Readers.** `ProgressRecords.title_progress/2` assembles one title's progress from an entity view (playback resolution, the progress broadcast, the detail view models). `title_progresses/2` and `title_progresses_by_kind/2` are the bulk reads for callers holding ids (the library grid, Continue Watching). Both read the rows at the live offset of a session in flight (`Library.Progress.overlay_in_memory/1`). No caller outside `Library` reads a series watch position.
+
+**Continue Watching** (`Library.HomeFeed.list_in_progress/2`) lists a TV series while its title progress is `:in_progress`, and a movie or standalone video while its row has a viewing that counts. A collection is never an entry; its member movies are (UIDR-025). A series whose only activity is hand marks has no time and sorts last.
+
+**What follows from the rule:**
+
+- A rewatch continues from the last item finished, whatever the watched marks say, and the series is in progress until its final item is finished.
+- Finishing an earlier item again moves Play to the item after it.
+- A skipped item is not returned to. The series is complete when the position reaches the final item; the skipped item stays unmarked.
+- Watched marks decide Play only in a series where playback has finished nothing.
+- Deleting a finished item does not move the position. The measure counts items in the ordered set, so with finished items deleted the bar reads near the start of what remains.
+- A viewing left from an earlier pass is not resumed ahead of the position, but when Play reaches that item it starts at that offset.
+- A series abandoned midway stays on Continue Watching until more recently watched titles fill the row.
+
+Two neighbouring facts are read from watched marks and are not title progress: the furthest episode seen (`ProgressRecords.last_watched_episode/2`, which the Watchlist reads when a series is followed) and the per-season watched counts on the detail page. `WatchHistory` logs completions and is not the source of the position; its moduledoc says why.
+
+The table was filled for existing installs by the data migration `priv/repo/data_migrations/20261114100100_series_watch_positions.exs`, whose moduledoc states how each profile's position was read from its rows.
 
 > Settings (the per-installation key/value store) is its own bounded context — `MediaCentaur.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
 
@@ -240,7 +293,7 @@ This is the v0.20.0 fix for the silent-failure mode where pressing Play on an un
 3. `Deletion.cleanup_removed_files(collected_paths)` — explicit cleanup with pre-collected paths
 4. Broadcasts `{:entities_changed, entity_ids}`
 
-**Cascade deletion:** When the last file for a top-level record is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress → extras → episodes → seasons → movies → images → image directories → identifiers → top-level record.
+**Cascade deletion:** When the last file for a top-level record is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress and series watch positions → extras → episodes → seasons → movies → images → image directories → identifiers → top-level record.
 
 **Watcher race condition:** `cleanup_removed_files/1` is idempotent — if the watcher also detects the deletion (for single-file deletes via inotify), it calls the same function. The second cleanup finds no WatchedFile records and returns `[]` (no-op). The watcher's 3-second debounce means the UI's explicit cleanup always completes first.
 
@@ -276,14 +329,18 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.ImageCache` | Where artwork files live on disk (per-media-dir cache, staging, path resolution) | `lib/media_centaur/library/image_cache.ex` |
 | `MediaCentaur.Library.Views.*` | ETS read projections (Browse, Detail, ContinueWatching, …; ADR-041) | `lib/media_centaur/library/views/` |
 | `MediaCentaur.Library.WatchedFile` | File → PlayableItem link | `lib/media_centaur/library/watched_file.ex` |
-| `MediaCentaur.Library.WatchProgress` | One profile's playback progress on one PlayableItem; `Library.Progress` is the API | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.WatchProgress` | One profile's progress on one PlayableItem: the watched mark and the viewing in flight | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.SeriesWatchPosition` | One profile's place in one series: the order key of the last item playback finished | `lib/media_centaur/library/series_watch_position.ex` |
+| `MediaCentaur.Library.TitleProgress` | Where a profile stands in a title: state, next item, measure (derived, never stored) | `lib/media_centaur/library/title_progress.ex` |
+| `MediaCentaur.Library.ProgressRecords` | Persisted watch state: the finish, the watched controls, and the reads of title progress | `lib/media_centaur/library/progress_records.ex` |
+| `MediaCentaur.Library.Progress` | In-memory viewing in flight per `{profile_id, playable_item_id}`, flushed by `Progress.Worker`; the finish | `lib/media_centaur/library/progress.ex` |
 | `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |
 | `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
 | `MediaCentaur.Library.EntityCascade` | Cascade-deletion order | `lib/media_centaur/library/entity_cascade.ex` |
 | `MediaCentaur.Library.Inbound` | Pipeline → library inbound PubSub listener | `lib/media_centaur/library/inbound.ex` |
 | `MediaCentaur.Library.Availability` | Per-media-dir mount/reachability tracker | `lib/media_centaur/library/availability.ex` |
 | `MediaCentaur.Library.Browser` | Library browse + filter helpers used by LibraryLive | `lib/media_centaur/library/browser.ex` |
-| `MediaCentaur.Library.ProgressTracker` | Resume-target / completion bookkeeping | `lib/media_centaur/library/progress_tracker.ex` |
+| `MediaCentaur.Library.ProgressTracker` | Shared changesets of the item progress schemas (tick, finish, the watched controls) | `lib/media_centaur/library/progress_tracker.ex` |
 | `MediaCentaur.Library.LastActivity` | "Recently watched" / activity ordering helper | `lib/media_centaur/library/last_activity.ex` |
 | `MediaCentaur.Library.Helpers` | PubSub broadcast helpers | `lib/media_centaur/library/helpers.ex` |
 | `MediaCentaur.Library.FileEventHandler` | Reacts to file-removal events | `lib/media_centaur/library/file_event_handler.ex` |

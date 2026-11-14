@@ -133,8 +133,9 @@ defmodule MediaCentaur.Library.ProgressRecords do
   The Mark watched control: sets the watched mark and clears any viewing
   in flight — in memory first (`Library.Progress.clear_viewing/2`, so no
   pending flush writes the offset back), then the persisted offset —
-  leaving `last_watched_at` and the series watch position alone. `actor` is the profile that marked it, or `nil` when no person
-  did; a completion is shared with friends only for an actor (ADR-082).
+  leaving `last_watched_at` and the series watch position alone. `actor`
+  is the profile that marked it, or `nil` when no person did; a
+  completion is shared with friends only for an actor (ADR-082).
 
   A `WatchProgress` transitioning to completed broadcasts
   `{:entity_watch_completed, record, actor}` so Continue Watching and the
@@ -627,7 +628,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
     )
   end
 
-  # `{tv_series_id, episode_id, progress}` for each episode beneath the series in `ids`.
   @doc """
   The series `profile_id` has finished at least one episode of, each with
   a TMDB identity, as the map `Title.Logic.snapshot_from_entity/1` reads:
@@ -697,6 +697,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     )
   end
 
+  # `{tv_series_id, episode_id, progress}` for each episode beneath the series in `ids`.
   defp episode_rows_by_tv_series(profile_id, tv_series_ids) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,

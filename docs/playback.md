@@ -2,7 +2,7 @@
 
 End-user playback documentation has moved to the wiki:
 
-- **[Playback](https://github.com/media-centaur/media-centaur/wiki/Playback)** — starting playback, resume logic, next-episode, multi-session.
+- **[Playback](https://github.com/media-centaur/media-centaur/wiki/Playback)** — starting playback, what Play continues from, next-episode, multi-session.
 - **[Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad)** — full input reference, including mpv controls.
 
 ---
@@ -48,7 +48,7 @@ graph TD
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
-**Completion trigger:** reaching the content end — where the credits begin (`Playback.Completion`). That is the start of a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file) when the file has one; otherwise the duration less an assumed credits length of 10%, capped at 8 minutes for a movie and 3 minutes for anything else, so a long film is not marked watched before its final scene. Completion is monotonic — once marked complete, it never regresses. The session decides each persist itself (`ProgressWriter.decide/4`) and keeps the set of items it completed; it writes the position tick in its own process and only the finish runs in a task, so no tick is applied after the finish. A finish that fails comes back to the session as `{:finish_failed, item}`, the item leaves the set, and the next persist judges it again.
+**Completion trigger:** reaching the content end — where the credits begin (`Playback.Completion`). That is the start of a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file) when the file has one; otherwise the duration less an assumed credits length of 10%, capped at 8 minutes for a movie and 3 minutes for anything else, so a long film is not marked watched before its final scene. A finish sets the item's watched mark, ends its viewing in flight (offset 0), moves the series watch position to the item and publishes `{:entity_watch_completed, record, actor}` on `library:watch_completed` — every time, so finishing an item again is a second completion (`Library.ProgressRecords.finish/3`). A position tick never writes the mark: starting a watched item again keeps it. The session decides each persist itself (`ProgressWriter.decide/4`) and keeps the set of items it completed; it writes the position tick in its own process and only the finish runs in a task, so no tick is applied after the finish. A finish that fails comes back to the session as `{:finish_failed, item}`, the item leaves the set, and the next persist judges it again.
 
 **Session end:** `finalize/1` broadcasts `PlaybackStateChanged :stopped` and then `SessionEnded` with that set. The title detail hosts read it to open a finished title with the finish prompt (UIDR-052): a movie, standalone or in a collection, or a show whose latest aired episode (TMDB's `last_episode_to_air`) the session completed. The web layer judges that, since Playback does not read TMDB (`TitleDetailHost.Finish`).
 
@@ -60,28 +60,22 @@ Because the production launch uses `--no-terminal` (which silences mpv's stderr 
 
 **Display-env resolution:** Before each spawn `DisplayEnv.resolve/1` builds the env list passed to `Port.open`. It prefers any `WAYLAND_DISPLAY` / `DISPLAY` already in the parent env, and falls back to scanning `$XDG_RUNTIME_DIR/wayland-N` (lowest N wins) and `/tmp/.X11-unix/XN` for live sockets. This protects against the common production failure where the systemd-user service started before the graphical session imported its env — without it, mpv aborts with status 1 and the classifier can only emit "mpv exited before playback started". When neither display server is reachable the session refuses to launch and broadcasts `PlaybackFailed{reason: :no_display}` so the UI can surface a clear message.
 
-**Resume algorithm:** `Resume.resolve/2` determines what to play next:
+**What Play starts:** Playback does not decide where a profile is in a title. `Resolver` reads the title's `Library.TitleProgress` through `Library.ProgressRecords.title_progress/2` and plays its `next` item at `next`'s offset; a complete title plays its first item from the start. An episode, collection movie or extra named directly plays at its own viewing in flight when that counts (`ProgressRecords.viewing?/1`: an offset of 60 seconds or more), else from the start. The rule that derives `next` is the `MediaCentaur.Library.TitleProgress` moduledoc; in outline:
 
 ```mermaid
 flowchart TD
-    Start[Entity + Progress] --> Type{Entity type?}
-
-    Type -->|Movie / VideoObject| MP{Has progress?}
-    MP -->|incomplete| Resume1[Resume at position]
-    MP -->|completed| Restart1[Restart from 0]
-    MP -->|none| Play1[Play from 0]
-
-    Type -->|TV Series| EP[Find most recent episode]
-    EP --> EPC{Episode complete?}
-    EPC -->|no| Resume2[Resume episode]
-    EPC -->|yes| Next{Next episode exists?}
-    Next -->|yes| PlayNext[Play next episode]
-    Next -->|no| AllDone{All complete?}
-    AllDone -->|yes| Restart2[Restart series]
-    AllDone -->|no| Resume3[Resume earliest incomplete]
-
-    Type -->|Movie Series| Same[Same logic as TV<br/>using child movies]
+    Start[Ordered set + series watch position + item progress rows] --> V{A viewing that counts,<br/>newer than the position?}
+    V -->|yes| Resume[Next = that item, at its offset<br/>the newest when several]
+    V -->|no| P{Series watch position?}
+    P -->|yes| After{An item after it<br/>in the ordered set?}
+    After -->|yes| NextAfter[Next = the first item after it]
+    After -->|no| Complete[Complete: Play starts the first item]
+    P -->|no| Marks{An item with<br/>no watched mark?}
+    Marks -->|yes| FirstUnmarked[Next = the first such item]
+    Marks -->|no| Complete
 ```
+
+The series watch position (`Library.SeriesWatchPosition`) is the last item of a TV series or movie collection that playback finished, so Play continues from there: a rewatch continues through the series, and finishing an earlier episode again moves Play to the episode after it. A movie or standalone video has no position; its one item progress row decides. See [`library.md`](library.md#watch-state).
 
 ### How It Works
 
@@ -134,12 +128,13 @@ Every save broadcasts to `"playback:events"`:
 {:entity_progress_updated, %{
   entity_id: entity_id,
   profile_id: profile_id,
-  summary: summary,
-  resume_target: resume_target,
+  title_progress: title_progress,
   changed_record: changed_record,
   last_activity_at: last_activity_at
 }}
 ```
+
+`title_progress` is the `Library.TitleProgress` of the profile in the title after the save, and `changed_record` the item progress record that changed, when one did (`Playback.ProgressBroadcaster`, which reads both through `ProgressRecords.title_progress/2`). The detail page broadcasts the same event after a watched control.
 
 State changes broadcast with entity_id and profile_id:
 
@@ -174,17 +169,9 @@ Pure function module that gates progress persistence:
 
 After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_position` starts advancing.
 
-#### Display Helpers
+#### Display values
 
-**ProgressSummary** — computes display-ready progress for UI cards:
-- Current episode (season, episode)
-- Position and duration
-- Episodes completed vs. total
-
-**ResumeTarget** — computes button hints for what plays on click:
-- Action: `begin`, `resume`
-- Target entity/episode/movie identifiers
-- Per-child targets for series grid items
+Playback computes no display values. The Play label, the progress bars and Continue Watching read the `Library.TitleProgress` carried on `:entity_progress_updated` or read from `Library.ProgressRecords`: `state` (`:unstarted`, `:in_progress`, `:complete`), `next` (the item Play starts, with its offset and duration), `before_next` and `total` (the place in the ordered set) and `TitleProgress.percent/1`, the one measure every bar shows. `Detail.Logic.playback_props/2` turns it into the Play label: "Play" when unstarted, "Resume …" or "Play …" naming the next item when in progress, "Watch again" when complete.
 
 ### Module Reference
 
@@ -209,14 +196,12 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centaur/playback/session_supervisor.ex` |
 | `MediaCentaur.Playback.SessionRecovery` | The shared half of recovery: a property reader and a host path into the profile and the entry to reattach | `lib/media_centaur/playback/session_recovery.ex` |
 | `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
-| `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
 | `MediaCentaur.Playback.Completion` | When a viewing is complete: the credits chapter, or the duration less an assumed credits length | `lib/media_centaur/playback/completion.ex` |
-| `MediaCentaur.Playback.Resolver` | UUID → play params (the profile and the entry) | `lib/media_centaur/playback/resolver.ex` |
-| `MediaCentaur.Library.EpisodeList` | TV episode walking helpers | `lib/media_centaur/library/episode_list.ex` |
+| `MediaCentaur.Playback.Resolver` | UUID → play params (the profile and the entry); a title plays its title progress's next item | `lib/media_centaur/playback/resolver.ex` |
+| `MediaCentaur.Library.EpisodeOrder` | TV episode order: the ordered set, order keys, the literal next episode | `lib/media_centaur/library/episode_order.ex` |
 | `MediaCentaur.Playback.NextEpisode` | The successor's entry and a playing path's entry (ADR-062) | `lib/media_centaur/playback/next_episode.ex` |
-| `MediaCentaur.Library.MovieList` | Movie series walking helpers | `lib/media_centaur/library/movie_list.ex` |
-| `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
-| `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
+| `MediaCentaur.Library.MovieOrder` | Collection movie order: the ordered set, order keys | `lib/media_centaur/library/movie_order.ex` |
+| `MediaCentaur.Library.TitleProgress` | Where a profile stands in a title: state, next item, measure (derived, never stored) | `lib/media_centaur/library/title_progress.ex` |
 | `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |
 | `MediaCentaur.Playback.Transport.Local.ExitClassifier` | Tells a normal end from a startup failure, with the message for the latter | `lib/media_centaur/playback/transport/local/exit_classifier.ex` |
 | `MediaCentaur.Playback.Transport.Local.LogReader` | Tails the per-session `--log-file=` capture for the classifier | `lib/media_centaur/playback/transport/local/log_reader.ex` |

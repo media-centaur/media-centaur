@@ -31,6 +31,31 @@ defmodule MediaCentaur.Library.TitleProgress do
   `:complete` when there is no next; `:unstarted` when there is no
   position, no watched mark and no viewing that counts; otherwise
   `:in_progress`.
+
+  ## What follows from the rule
+
+    * A rewatch continues: with every item marked, next is the item after
+      the position, and the title is in progress until the position
+      reaches the final item.
+    * Finishing an earlier item again moves next to the item after it.
+    * An item skipped over is not returned to; the title is complete when
+      the position reaches the final item, whatever is unmarked.
+    * The position stores an order key, so deleting finished items does
+      not move next. `before_next` and `total` count the items in the
+      ordered set — those with a file — so with finished items deleted the
+      measure reads near the start of what remains.
+    * A viewing older than the position is not resumed by step 1, but it
+      still gives next its offset when next reaches that item.
+    * A single-item title has no position: it is in progress while its
+      row has a viewing that counts, and complete when it is marked and
+      has none.
+
+  ## Readers
+
+  Callers do not assemble the inputs. One title:
+  `MediaCentaur.Library.ProgressRecords.title_progress/2`. Many:
+  `title_progresses/2` and `title_progresses_by_kind/2`. Both read the
+  item rows at the live offset of a session in flight.
   """
 
   alias MediaCentaur.Library.{EpisodeOrder, MovieOrder, ProgressRecords}

@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-08-13
+amended: 2026-11-14
 ---
 # Subject progress lives in the hero hairline, from one shared component
 
@@ -20,3 +21,5 @@ The Continue Watching playback card keeps its own bar; this record governs the d
 ### Consequences
 
 * A member's hairline shows that movie's fraction where a series shows the whole series: the same pixel, different scopes.
+
+**Amendment 2026-11-14.** The hairline's fraction is `MediaCentaur.Library.TitleProgress.percent/1`: the profile's place in the title's items that have a file, plus the part of the next item already viewed. For a series it is no longer the count of watched episodes, so on a rewatch it reads the place in the current pass while the season headers keep counting watched marks. The library card bar and the Continue Watching bar show the same measure. Rules 1 to 4 stand.

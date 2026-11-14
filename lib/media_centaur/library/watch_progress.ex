@@ -4,6 +4,27 @@ defmodule MediaCentaur.Library.WatchProgress do
   on `(profile_id, playable_item_id)`; the profile is a plain id, not an
   association — `Profiles` is another context. Type information lives on
   the linked `PlayableItem`'s `(container_type, container_id)`.
+
+  A row holds two independent facts:
+
+    * The watched mark, `completed`: this profile has seen this item. Set
+      by a finish (`MediaCentaur.Library.ProgressRecords.finish/3`) or the
+      Mark watched control, cleared by Mark unwatched. A position tick
+      never writes it, so starting a watched item again keeps its mark.
+    * The viewing in flight: an offset into the file (`position_seconds`),
+      the file's duration (`duration_seconds`) and when the viewing was
+      last touched (`last_watched_at`). Written by position ticks
+      (`update_changeset/2`) and ended — the offset set to 0 — by a
+      finish and by either watched control. It counts once the offset
+      reaches 60 seconds (`ProgressRecords.viewing?/1`).
+
+  A watched item being replayed therefore has both: the mark and a
+  viewing. A hand mark is not a viewing and does not stamp
+  `last_watched_at`.
+
+  Where the profile is in a series is neither fact; it is recorded on the
+  series (`MediaCentaur.Library.SeriesWatchPosition`), and the reading of
+  the three together is `MediaCentaur.Library.TitleProgress`.
   """
   use Ecto.Schema
   import Ecto.Changeset

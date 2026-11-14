@@ -10,8 +10,9 @@ defmodule MediaCentaurWeb.LibraryLive do
   (ADR-041) — pre-shaped `BrowseItem` structs in recent-first
   (`inserted_at desc`) order, each carrying `available?` and a poster
   URL only when its storage is reachable (`Views.ItemAvailability`).
-  Progress lives in a per-id map populated via the bulk context function
-  `Library.ProgressRecords.summaries/2` for the session's profile. The mount issues a bounded
+  Progress lives in a per-id map of `MediaCentaur.Library.TitleProgress`
+  values populated via the bulk context function
+  `Library.ProgressRecords.title_progresses/2` for the session's profile. The mount issues a bounded
   number of queries that does not scale with catalog size.
 
   ## Update path

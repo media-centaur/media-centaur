@@ -49,28 +49,20 @@ data path.
 
 ```elixir
 %{
-  entity: %Library.Movie{...} | %Library.TVSeries{...} | ...,
-  progress: ProgressSummary.t() | nil,
-  progress_records: [WatchProgress.t()],
-  resume_target: ResumeTarget.t() | nil,
-  child_targets: %{String.t() => ResumeTarget.t()} | nil,
-  last_activity_at: DateTime.t() | nil
+  entity: %Library.Movie{...} | %Library.TVSeries{...} | ...
 }
 ```
 
 - `entity` — an Ecto struct of one of the four playable types, with
-  associations preloaded as documented in `Library.full_preloads_by_type/0`
-- `progress` — aggregate summary returned by
-  `Library.ProgressSummary.compute/2` (e.g. episodes completed / total)
-- `progress_records` — the underlying per-child `WatchProgress` rows
-- `resume_target` — a hint for what plays when the user hits "play";
-  see `MediaCentaur.Playback.ResumeTarget`
-- `child_targets` — per-child resume hints, keyed by the child UUID
-  (used for season/episode navigation in TV series; `nil` for
-  single-item entities)
-- `last_activity_at` — newest of `inserted_at` and the most recent watch
-  event across the entity and its children; the Continue Watching list
-  is sorted by this
+  associations preloaded as documented in `Library.Containers.full_preloads_by_type/0`
+
+An entry carries no watch state. Progress is one profile's and is read
+beside the entries: `Library.ProgressRecords.title_progresses/2` returns
+`%{entity_id => Library.TitleProgress.t()}` for the ids on screen — the
+state, the next item and the measure a card's bar shows — and
+`Library.ProgressRecords.last_watched_at_by_title/2` the time the
+Recently Watched order sorts by. A title absent from the first map is
+unstarted. See the `MediaCentaur.Library.TitleProgress` moduledoc.
 
 ---
 

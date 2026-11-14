@@ -60,9 +60,10 @@ The type is an argument, not part of the function name (`:tv_series | :movie_ser
 | `Library.Containers.get_with_associations!/2` | the record, or raises | raising variant |
 | `Library.ExternalIds.find_by_external_id/2` | record or `nil` — e.g. `find_by_external_id(:movie, "12345")` | TMDB id lookup; `:movie_series` looks up the `tmdb_collection` source |
 | `Library.Files.list_by_entity_id/1` | `[%WatchedFile{}]` for a top-level entity | walks `PlayableItem` for every leaf under it |
-| `Library.Progress.get/1` | `%WatchProgress{}` or `nil` | by `playable_item_id`; hot in-memory state first, then the row |
+| `Library.Progress.get/2` | `%WatchProgress{}` or `nil` | by `profile_id` and `playable_item_id`; the row, with the live offset of an active session laid over it |
+| `Library.ProgressRecords.title_progresses/2` | `%{entity_id => %TitleProgress{}}` | by `profile_id` and a list of entity ids; where the profile stands in each title (state, next item, measure). A title with no progress is absent |
 | `Library.Views.detail/1` | `%DetailItem{}` or `nil` | the fully-built projection row by `playable_item_id` — what the detail modal reads |
-| `Library.Browser.fetch_all_typed_entries/1` | `[%{entity, progress, progress_records}]` | Everything. Returns all entities wrapped with progress summary. |
+| `Library.Browser.fetch_all_typed_entries/1` | `[%{entity: record}]` | Everything. Carries no watch state. |
 
 ## Query Patterns
 

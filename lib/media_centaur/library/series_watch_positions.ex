@@ -1,5 +1,14 @@
 defmodule MediaCentaur.Library.SeriesWatchPositions do
-  @moduledoc "Reads and writes `MediaCentaur.Library.SeriesWatchPosition`."
+  @moduledoc """
+  Reads and writes `MediaCentaur.Library.SeriesWatchPosition`.
+
+  `record_finish/3` is the one write, called from
+  `MediaCentaur.Library.ProgressRecords.finish/3` inside the finish's
+  transaction. Nothing outside `Library` reads a position: a caller that
+  wants to know where a profile stands reads the derived
+  `MediaCentaur.Library.TitleProgress`
+  (`ProgressRecords.title_progress/2`, `title_progresses/2`).
+  """
   import Ecto.Query
 
   alias MediaCentaur.Library.{
