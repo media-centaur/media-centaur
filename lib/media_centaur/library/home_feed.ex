@@ -210,16 +210,17 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # "When did the user last watch this?" for containers whose playable
-  # items point straight at them (movies, video objects): the sort key of
-  # their candidate queries, as `%{container_id, last_watched_at}`.
-  defp last_watched_by_container(profile_id, container_type) do
+  # When the profile last played each container whose playable items
+  # point straight at it (movies, video objects) — the newest time among
+  # its rows: the sort key of their candidate queries, as
+  # `%{container_id, last_played_at}`.
+  defp last_played_by_container(profile_id, container_type) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id,
       where: wp.profile_id == ^profile_id and pi.container_type == ^container_type,
       group_by: pi.container_id,
-      select: %{container_id: pi.container_id, last_watched_at: max(wp.last_watched_at)}
+      select: %{container_id: pi.container_id, last_played_at: max(wp.last_watched_at)}
     )
   end
 
@@ -250,9 +251,9 @@ defmodule MediaCentaur.Library.HomeFeed do
     from(m in Movie,
       as: :item,
       where: exists(counting_viewing_subquery(profile_id, :movie)),
-      join: last_watched in subquery(last_watched_by_container(profile_id, :movie)),
-      on: last_watched.container_id == m.id,
-      order_by: [desc: last_watched.last_watched_at],
+      join: last_played in subquery(last_played_by_container(profile_id, :movie)),
+      on: last_played.container_id == m.id,
+      order_by: [desc: last_played.last_played_at],
       limit: ^limit
     )
     |> Repo.all()
@@ -273,9 +274,9 @@ defmodule MediaCentaur.Library.HomeFeed do
     from(v in VideoObject,
       as: :item,
       where: exists(counting_viewing_subquery(profile_id, :video_object)),
-      join: last_watched in subquery(last_watched_by_container(profile_id, :video_object)),
-      on: last_watched.container_id == v.id,
-      order_by: [desc: last_watched.last_watched_at],
+      join: last_played in subquery(last_played_by_container(profile_id, :video_object)),
+      on: last_played.container_id == v.id,
+      order_by: [desc: last_played.last_played_at],
       limit: ^limit
     )
     |> Repo.all()
@@ -337,22 +338,23 @@ defmodule MediaCentaur.Library.HomeFeed do
       from(series in TVSeries,
         join: activity in subquery(tv_series_activity(profile_id)),
         on: activity.series_id == series.id,
-        order_by: [desc: activity.last_watched_at, asc: series.id],
+        order_by: [desc: activity.activity_at, asc: series.id],
         limit: ^window,
         offset: ^offset
       )
     )
   end
 
-  # `%{series_id, last_watched_at}` for every series the profile has
-  # touched: the newest of its rows' times and its position's. A series is
-  # watched through its episodes, so the rows roll up two levels: episode
-  # -> season -> series.
+  # `%{series_id, activity_at}` for every series the profile has touched:
+  # the newest of its rows' times and its position's — the order the
+  # candidates are read in, not the title progress's `last_watched_at`. A
+  # series is watched through its episodes, so the rows roll up two
+  # levels: episode -> season -> series.
   defp tv_series_activity(profile_id) do
     positions =
       from(position in SeriesWatchPosition,
         where: position.profile_id == ^profile_id and position.series_type == :tv_series,
-        select: %{series_id: position.series_id, watched_at: position.finished_at}
+        select: %{series_id: position.series_id, touched_at: position.finished_at}
       )
 
     rows =
@@ -364,13 +366,13 @@ defmodule MediaCentaur.Library.HomeFeed do
         join: season in Season,
         on: season.id == episode.season_id,
         where: wp.profile_id == ^profile_id and pi.container_type == ^:episode,
-        select: %{series_id: season.tv_series_id, watched_at: wp.last_watched_at},
+        select: %{series_id: season.tv_series_id, touched_at: wp.last_watched_at},
         union_all: ^positions
       )
 
     from(activity in subquery(rows),
       group_by: activity.series_id,
-      select: %{series_id: activity.series_id, last_watched_at: max(activity.watched_at)}
+      select: %{series_id: activity.series_id, activity_at: max(activity.touched_at)}
     )
   end
 

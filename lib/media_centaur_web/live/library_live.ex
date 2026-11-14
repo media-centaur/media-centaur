@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        loaded?: false,
        entries: [],
        progress_by_id: %{},
-       last_watched_by_id: %{},
+       last_played_by_id: %{},
        visible_ids: MapSet.new(),
        active_tab: :all,
        sort_order: :recent,
@@ -227,7 +227,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     # The title detail host keeps the open modal's progress fresh on
     # its own. Here we refresh just the affected title's readings — its
     # title progress, so its card's bar reflects the change, and when it
-    # was last watched, for the Recently Watched order. A title with
+    # was last played, for the Recently Watched order. A title with
     # neither is absent from its map.
     # Another profile's progress is not this grid's (ADR-078).
     assigns = socket.assigns
@@ -239,10 +239,10 @@ defmodule MediaCentaurWeb.LibraryLive do
          assigns.progress_by_id
          |> Map.delete(entity_id)
          |> Map.merge(Library.ProgressRecords.title_progresses(profile_id, [entity_id])),
-       last_watched_by_id:
-         assigns.last_watched_by_id
+       last_played_by_id:
+         assigns.last_played_by_id
          |> Map.delete(entity_id)
-         |> Map.merge(Library.ProgressRecords.last_watched_at_by_title(profile_id, [entity_id]))
+         |> Map.merge(Library.ProgressRecords.last_played_at_by_title(profile_id, [entity_id]))
      )
      |> touch_stream_entries([entity_id])}
   end
@@ -504,8 +504,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     assign(socket,
       entries: entries,
       progress_by_id: progress_by_id,
-      last_watched_by_id:
-        Library.ProgressRecords.last_watched_at_by_title(socket.assigns.profile.id, ids),
+      last_played_by_id: Library.ProgressRecords.last_played_at_by_title(socket.assigns.profile.id, ids),
       dir_status: MediaFileAvailability.dir_status(),
       unavailable_count: Enum.count(entries, &(not &1.available?)),
       counts: tab_counts(entries)
@@ -550,7 +549,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns.entries
     |> filtered_by_tab(assigns.active_tab)
     |> filtered_by_text(assigns.filter_text)
-    |> sorted_by(assigns.sort_order, assigns.last_watched_by_id)
+    |> sorted_by(assigns.sort_order, assigns.last_played_by_id)
   end
 
   # Caches the filtered visible-ID set so subsequent

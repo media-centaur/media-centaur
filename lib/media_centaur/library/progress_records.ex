@@ -529,20 +529,21 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  When `profile_id` last watched each title in `entity_ids`: the newest
-  `last_watched_at` among the rows beneath it, as `%{entity_id =>
-  DateTime}`. A title with no dated row — untouched, or only marked by
-  hand — is absent.
+  When `profile_id` last played each title in `entity_ids`: the newest
+  `last_watched_at` among the item progress rows beneath it, as
+  `%{entity_id => DateTime}`. A title with no dated row — untouched, or
+  only marked by hand — is absent.
 
-  A different fact from title progress, whose `last_watched_at` speaks of
-  the place in a title and is empty for a finished movie: this one is
-  "when was this last on screen", which the Library's Recently Watched
-  order reads. One aggregate query per container kind.
+  Last played is the time anything of the title was last on screen, which
+  the Library's Recently Watched order reads; `TitleProgress.last_watched_at`
+  is a different fact, the newest of the series watch position and the
+  viewings that count, and is empty for a finished movie. One aggregate
+  query per container kind.
   """
-  @spec last_watched_at_by_title(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => DateTime.t()}
-  def last_watched_at_by_title(_profile_id, []), do: %{}
+  @spec last_played_at_by_title(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => DateTime.t()}
+  def last_played_at_by_title(_profile_id, []), do: %{}
 
-  def last_watched_at_by_title(profile_id, entity_ids)
+  def last_played_at_by_title(profile_id, entity_ids)
       when is_binary(profile_id) and is_list(entity_ids) do
     leaves =
       for kind <- [:movie, :video_object] do
@@ -569,9 +570,9 @@ defmodule MediaCentaur.Library.ProgressRecords do
       )
 
     for query <- [tv_series, movie_series | leaves],
-        {entity_id, %DateTime{} = last_watched_at} <- Repo.all(query),
+        {entity_id, %DateTime{} = last_played_at} <- Repo.all(query),
         into: %{},
-        do: {entity_id, last_watched_at}
+        do: {entity_id, last_played_at}
   end
 
   @doc "The shortest offset, in seconds, at which a viewing counts (`viewing?/1`), for a query to filter on."

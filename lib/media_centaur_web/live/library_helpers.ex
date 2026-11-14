@@ -6,9 +6,9 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   Operates on lists of `MediaCentaur.Library.Views.BrowseItem` structs
   produced by the Browse projection (Library Schema v2 Phase 3.1).
-  When each title was last watched is supplied separately via the
-  LibraryLive `last_watched_by_id` assign (a map of `entity_id =>
-  DateTime`, `Library.ProgressRecords.last_watched_at_by_title/2`); the
+  When each title was last played is supplied separately via the
+  LibraryLive `last_played_by_id` assign (a map of `entity_id =>
+  DateTime`, `Library.ProgressRecords.last_played_at_by_title/2`); the
   helper that orders by it receives that map as an explicit argument.
 
   Display formatting lives in `LibraryFormatters` and progress and resume
@@ -111,13 +111,13 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   @spec sorted_by([BrowseItem.t()], :alpha | :year | :recent | :watched, map()) ::
           [BrowseItem.t()]
-  def sorted_by(entries, sort, last_watched_by_id \\ %{})
+  def sorted_by(entries, sort, last_played_by_id \\ %{})
 
-  def sorted_by(entries, :alpha, _last_watched_by_id) do
+  def sorted_by(entries, :alpha, _last_played_by_id) do
     Enum.sort_by(entries, fn entry -> String.downcase(entry.name || "") end)
   end
 
-  def sorted_by(entries, :year, _last_watched_by_id) do
+  def sorted_by(entries, :year, _last_played_by_id) do
     # Module-aware sort: Erlang term-order on `%Date{}` is calendar →
     # day → month → year (lexicographic on internal struct fields),
     # which would silently mis-order entries from different months.
@@ -132,23 +132,23 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   # The Browse projection already orders by `inserted_at desc`. `:recent`
   # is the implicit display order — return entries as-is rather than
   # re-sorting on a field BrowseItem doesn't carry.
-  def sorted_by(entries, :recent, _last_watched_by_id), do: entries
+  def sorted_by(entries, :recent, _last_played_by_id), do: entries
 
-  def sorted_by(entries, :watched, last_watched_by_id),
-    do: sorted_by_last_watched(entries, last_watched_by_id)
+  def sorted_by(entries, :watched, last_played_by_id),
+    do: sorted_by_last_played(entries, last_played_by_id)
 
   @epoch ~U[2000-01-01 00:00:00Z]
 
   @doc """
-  Sorts entries by most-recently-watched descending. Entries never
-  watched sort last. Backs the `:watched` sort order.
+  Sorts entries by most recently played descending. Entries never
+  played sort last. Backs the `:watched` sort order.
   """
-  @spec sorted_by_last_watched([BrowseItem.t()], %{optional(String.t()) => DateTime.t()}) ::
+  @spec sorted_by_last_played([BrowseItem.t()], %{optional(String.t()) => DateTime.t()}) ::
           [BrowseItem.t()]
-  def sorted_by_last_watched(entries, last_watched_by_id) do
+  def sorted_by_last_played(entries, last_played_by_id) do
     # Module-aware sort: `%DateTime{}` term-order is not chronological;
     # `{:desc, DateTime}` forces `DateTime.compare/2`.
-    Enum.sort_by(entries, &Map.get(last_watched_by_id, &1.id, @epoch), {:desc, DateTime})
+    Enum.sort_by(entries, &Map.get(last_played_by_id, &1.id, @epoch), {:desc, DateTime})
   end
 
   # --- Tab counts ---

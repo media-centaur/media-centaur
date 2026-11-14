@@ -321,9 +321,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       row = create_watch_progress(%{profile_id: profile.id, episode_id: second.id, completed: true})
       create_series_watch_position(%{profile_id: profile.id, playable_item_id: row.playable_item_id})
 
-      Deletion.cleanup_removed_files(
-        for number <- 1..2, do: "/media/test/sample-show-s01e#{number}.mkv"
-      )
+      Deletion.cleanup_removed_files(for number <- 1..2, do: "/media/test/sample-show-s01e#{number}.mkv")
 
       assert :ok = ContinueWatching.refresh_cache()
 

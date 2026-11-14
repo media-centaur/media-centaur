@@ -107,29 +107,29 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       assert LibraryHelpers.sorted_by([a, b, c], :recent) == [a, b, c]
     end
 
-    test "sorts by last watched descending for :watched; entries without progress go last" do
+    test "sorts by last played descending for :watched; entries without progress go last" do
       a = item(%{id: "a", name: "Mid"})
       b = item(%{id: "b", name: "Newest"})
       c = item(%{id: "c", name: "No-progress"})
 
-      last_watched_by_id = %{"a" => ~U[2026-01-15 00:00:00Z], "b" => ~U[2026-02-01 00:00:00Z]}
+      last_played_by_id = %{"a" => ~U[2026-01-15 00:00:00Z], "b" => ~U[2026-02-01 00:00:00Z]}
 
-      result = LibraryHelpers.sorted_by([a, b, c], :watched, last_watched_by_id)
+      result = LibraryHelpers.sorted_by([a, b, c], :watched, last_played_by_id)
       assert Enum.map(result, & &1.name) == ["Newest", "Mid", "No-progress"]
     end
   end
 
-  # --- sorted_by_last_watched/2 ---
+  # --- sorted_by_last_played/2 ---
 
-  describe "sorted_by_last_watched/2" do
-    test "sorts by last watched descending; entries never watched go last" do
+  describe "sorted_by_last_played/2" do
+    test "sorts by last played descending; entries never played go last" do
       a = item(%{id: "a", name: "Mid"})
       b = item(%{id: "b", name: "Newest"})
       c = item(%{id: "c", name: "No-progress"})
 
-      last_watched_by_id = %{"a" => ~U[2026-01-15 00:00:00Z], "b" => ~U[2026-02-01 00:00:00Z]}
+      last_played_by_id = %{"a" => ~U[2026-01-15 00:00:00Z], "b" => ~U[2026-02-01 00:00:00Z]}
 
-      result = LibraryHelpers.sorted_by_last_watched([a, b, c], last_watched_by_id)
+      result = LibraryHelpers.sorted_by_last_played([a, b, c], last_played_by_id)
       assert Enum.map(result, & &1.name) == ["Newest", "Mid", "No-progress"]
     end
   end

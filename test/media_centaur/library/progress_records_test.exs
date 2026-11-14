@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
     end
   end
 
-  describe "last_watched_at_by_title/2" do
+  describe "last_played_at_by_title/2" do
     test "the newest time among a title's rows, whatever the title's progress" do
       profile = create_profile(%{name: "Ana"})
 
@@ -132,7 +132,7 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       untouched = create_standalone_movie(%{name: "Movie B"})
 
-      assert ProgressRecords.last_watched_at_by_title(profile.id, [finished.id, series.id, untouched.id]) ==
+      assert ProgressRecords.last_played_at_by_title(profile.id, [finished.id, series.id, untouched.id]) ==
                %{finished.id => ~U[2026-08-03 20:00:00Z], series.id => ~U[2026-08-09 20:00:00Z]}
     end
 
@@ -146,8 +146,8 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       create_watch_progress(%{movie_id: theirs.id, position_seconds: 300.0})
 
-      assert ProgressRecords.last_watched_at_by_title(profile.id, [marked.id, theirs.id]) == %{}
-      assert ProgressRecords.last_watched_at_by_title(profile.id, []) == %{}
+      assert ProgressRecords.last_played_at_by_title(profile.id, [marked.id, theirs.id]) == %{}
+      assert ProgressRecords.last_played_at_by_title(profile.id, []) == %{}
     end
   end
 
