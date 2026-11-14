@@ -171,7 +171,7 @@ defmodule MediaCentaur.Library.TitleProgressRegressionTest do
       assert offset == 0.0
     end
 
-    test "replaying an old watched episode advances past watched territory to the first unwatched" do
+    test "replaying a watched episode in full moves Play to the episode after it" do
       ep1 = episode(1, "/tv/show/S01E01.mkv")
       ep2 = episode(2, "/tv/show/S01E02.mkv")
       ep3 = episode(3, "/tv/show/S01E03.mkv")
@@ -199,7 +199,7 @@ defmodule MediaCentaur.Library.TitleProgressRegressionTest do
       assert item_id == ep2.id
     end
 
-    test "advancing onto a partially-watched episode still targets it" do
+    test "advancing onto a partially-watched episode targets it at its offset" do
       ep1 = episode(1, "/tv/show/S01E01.mkv")
       ep2 = episode(2, "/tv/show/S01E02.mkv")
       ep3 = episode(3, "/tv/show/S01E03.mkv")

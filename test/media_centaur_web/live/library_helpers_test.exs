@@ -1,8 +1,6 @@
 defmodule MediaCentaurWeb.LibraryHelpersTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.TestFactory
-
   alias MediaCentaur.Library.Views.BrowseItem
   alias MediaCentaurWeb.LibraryFormatters
   alias MediaCentaurWeb.LibraryHelpers

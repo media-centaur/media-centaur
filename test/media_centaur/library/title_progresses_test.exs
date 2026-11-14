@@ -180,7 +180,7 @@ defmodule MediaCentaur.Library.TitleProgressesTest do
       assert %TitleProgress{state: :in_progress, next: %{offset_seconds: 600.0}} = progresses[movie.id]
     end
 
-    test "a series whose finished episodes were deleted still has a title progress" do
+    test "a series whose finished episodes were deleted has a title progress" do
       profile_id = owner_profile_id()
 
       %{series: series, episodes: [_first, _second, third, fourth, _fifth]} =

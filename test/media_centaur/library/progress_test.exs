@@ -524,7 +524,7 @@ defmodule MediaCentaur.Library.ProgressTest do
       refute Repo.get!(WatchProgress, progress.id).completed
     end
 
-    test "leaves the worker running with the viewing still in flight" do
+    test "leaves the worker running and the viewing in flight" do
       progress = seed_unfinishable_episode()
       playable_item_id = progress.playable_item_id
       :ok = Progress.record(owner_profile_id(), playable_item_id, 1250.0, 1300.0)

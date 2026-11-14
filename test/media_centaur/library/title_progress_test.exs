@@ -45,7 +45,7 @@ defmodule MediaCentaur.Library.TitleProgressTest do
       assert TitleProgress.percent(progress) == 50
     end
 
-    test "second pass: every item is marked and next still follows the position" do
+    test "second pass: every item is marked and next follows the position" do
       progress = TitleProgress.compute(items(138), position(5), marked(1..138))
       assert %{state: :in_progress, next: %{item_id: "e6"}, before_next: 5, total: 138} = progress
     end
@@ -56,7 +56,7 @@ defmodule MediaCentaur.Library.TitleProgressTest do
       assert TitleProgress.percent(progress) == 100
     end
 
-    test "a replay of an old item moves next there, even with unwatched items ahead" do
+    test "a replay of an earlier item moves next there, even with unwatched items ahead" do
       assert %{next: %{item_id: "e2"}} = TitleProgress.compute(items(4), position(1), marked(1..3))
     end
 

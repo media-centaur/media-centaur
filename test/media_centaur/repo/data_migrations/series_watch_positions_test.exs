@@ -133,7 +133,7 @@ defmodule MediaCentaur.Repo.DataMigrations.SeriesWatchPositionsTest do
       assert %{state: :complete, next: nil} = title_progress(profile, series, episodes)
     end
 
-    test "an old episode replayed in full while later ones wait: Play stays on the first episode without a row",
+    test "an earlier episode replayed in full while later ones wait: Play stays on the first episode without a row",
          %{profile: profile} do
       {series, _season, [first, second, third, fourth] = episodes} = create_series("Sample Show", 4)
       finished(profile, second, 2)

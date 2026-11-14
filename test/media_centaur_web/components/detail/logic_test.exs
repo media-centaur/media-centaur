@@ -180,7 +180,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert Logic.playback_props(tv_series(), progress) == {"Play Episode 3", "e3"}
     end
 
-    test "a next episode the entity does not list reads the bare verb and still targets it" do
+    test "a next episode the entity does not list reads the bare verb and targets it" do
       assert Logic.playback_props(tv_series(), in_progress("gone")) == {"Play", "gone"}
     end
 
