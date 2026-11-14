@@ -115,6 +115,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     Progress,
     Season,
     SeriesWatchPositions,
+    TitleProgress,
     TVSeries,
     WatchProgress,
     Writes
@@ -246,7 +247,14 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   def watched_control(_progress), do: :mark_watched
 
-  @doc "Applies the watched control a leaf container offers (`watched_control/1`) for the actor's profile."
+  @doc """
+  Applies the watched control a leaf container offers (`watched_control/1`)
+  for the actor's profile. The control is read from the record at its live
+  offset (`Library.Progress.overlay_in_memory/1`), the record
+  `title_progress/2` hands the page, so the control applied is the one
+  shown: a watched item being replayed is offered Mark watched, and the
+  press keeps its mark.
+  """
   @spec toggle_watched(Actor.t(), PlayableItem.container_type(), Ecto.UUID.t()) ::
           {:ok, WatchProgress.t()} | {:error, term()}
   def toggle_watched(%Actor{} = actor, container_type, container_id) when is_binary(container_id) do
@@ -285,12 +293,16 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # carries no `last_watched_at`. The item may still have a viewing in
   # memory that no flush has persisted yet; it is cleared first.
   defp apply_watched_control(progress, actor, insert_marked) do
-    case {watched_control(progress), progress} do
+    case {watched_control(live(progress)), progress} do
       {:mark_unwatched, record} -> mark_incomplete(record)
       {:mark_watched, nil} -> insert_marked.()
       {:mark_watched, record} -> mark_completed(record, actor)
     end
   end
+
+  # Extras have no in-memory row; only a `WatchProgress` has a live offset.
+  defp live(%WatchProgress{} = progress), do: Progress.overlay_in_memory(progress)
+  defp live(progress), do: progress
 
   defp insert_marked_for_container(actor, container_type, container_id) do
     position = PlayableItems.canonical_position(container_type, container_id)
@@ -432,8 +444,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   `container_id`) so consumers can key by leaf-container UUID without a
   separate `belongs_to :playable_item` preload.
 
-  The one way a title's progress is read — the detail modal, playback
-  resolution and the Browse rebuild all come through here.
+  The rows alone; a title's progress with its derived reading is
+  `title_progress/2`.
 
   Returns `[]` for an unknown container id, or one with no rows beneath
   any leaf.
@@ -443,6 +455,27 @@ defmodule MediaCentaur.Library.ProgressRecords do
   def list_for_container(profile_id, :movie_series, id), do: list_for_movie_series(profile_id, id)
   def list_for_container(profile_id, :movie, id), do: list_for_leaf(profile_id, :movie, id)
   def list_for_container(profile_id, :video_object, id), do: list_for_leaf(profile_id, :video_object, id)
+
+  @doc """
+  One profile's progress through a title: its item progress records, each
+  at its live offset (`Library.Progress.overlay_in_memory/1`), and the
+  `MediaCentaur.Library.TitleProgress` derived from them and from the
+  profile's series watch position. The one place a title's progress is
+  assembled — playback resolution, the progress broadcast and the detail
+  view models all read it here.
+
+  `entity` is the title's entity view; its ordered set is
+  `TitleProgress.ordered_set/1`.
+  """
+  @spec title_progress(Ecto.UUID.t(), map()) :: %{
+          title_progress: TitleProgress.t(),
+          records: [WatchProgress.t()]
+        }
+  def title_progress(profile_id, %{id: id, type: type} = entity) when is_binary(profile_id) do
+    records = profile_id |> list_for_container(type, id) |> Enum.map(&Progress.overlay_in_memory/1)
+    position = if type in [:tv_series, :movie_series], do: SeriesWatchPositions.get(profile_id, id)
+    %{title_progress: TitleProgress.for_entity(entity, position, records), records: records}
+  end
 
   @doc """
   `profile_id`'s progress row of each leaf container (movie, video

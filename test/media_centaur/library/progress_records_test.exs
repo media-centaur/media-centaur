@@ -1,8 +1,11 @@
 defmodule MediaCentaur.Library.ProgressRecordsTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.Containers
+  alias MediaCentaur.Library.EntityShape
   alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.SeriesWatchPositions
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Profiles.Actor
   alias MediaCentaur.Topics
 
@@ -253,6 +256,126 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert {:ok, %{completed: false}} =
                ProgressRecords.toggle_extra_watched(context.actor, context.movie.id, extra.id)
+    end
+  end
+
+  describe "title_progress/2" do
+    defp series_with_three_marked_episodes(profile) do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      episodes =
+        for number <- 1..3 do
+          episode =
+            create_episode(%{
+              season_id: season.id,
+              episode_number: number,
+              name: "Episode #{number}",
+              content_url: "/media/test/sample-show-#{number}.mkv"
+            })
+
+          create_watch_progress(%{profile_id: profile.id, episode_id: episode.id, completed: true})
+          episode
+        end
+
+      {series, episodes}
+    end
+
+    defp entity_view(series) do
+      {:ok, loaded} = Containers.fetch_with_associations(:tv_series, series.id)
+      EntityShape.to_entity_view(loaded, :tv_series)
+    end
+
+    test "reads the rows and the series watch position and applies the rule" do
+      profile = create_profile()
+      {series, [first, second, _third]} = series_with_three_marked_episodes(profile)
+
+      {:ok, row} = ProgressRecords.fetch_for_container(profile.id, :episode, first.id)
+      create_series_watch_position(%{profile_id: profile.id, playable_item_id: row.playable_item_id})
+
+      assert %{title_progress: progress, records: records} =
+               ProgressRecords.title_progress(profile.id, entity_view(series))
+
+      assert %TitleProgress{state: :in_progress, next: %{item_id: next_id}, before_next: 1, total: 3} =
+               progress
+
+      assert next_id == second.id
+      assert length(records) == 3
+    end
+
+    test "a row marked by hand carries no timestamp and is read without one" do
+      profile = create_profile()
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      [first, second] =
+        for number <- 1..2 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: number,
+            name: "Episode #{number}",
+            content_url: "/media/test/sample-show-#{number}.mkv"
+          })
+        end
+
+      {:ok, %{last_watched_at: nil}} =
+        ProgressRecords.toggle_watched(Actor.new(profile.id), :episode, first.id)
+
+      assert %{title_progress: %TitleProgress{state: :in_progress, next: %{item_id: next_id}}} =
+               ProgressRecords.title_progress(profile.id, entity_view(series))
+
+      assert next_id == second.id
+    end
+
+    test "a standalone movie reads its one row and no series watch position" do
+      profile = create_profile()
+      movie = create_standalone_movie(%{name: "Movie A", content_url: "/media/test/movie-a.mkv"})
+      create_watch_progress(%{profile_id: profile.id, movie_id: movie.id, position_seconds: 600.0})
+
+      {:ok, loaded} = Containers.fetch_with_associations(:movie, movie.id)
+      entity = EntityShape.to_entity_view(loaded, :movie)
+
+      assert %{title_progress: %TitleProgress{state: :in_progress, next: %{offset_seconds: 600.0}}} =
+               ProgressRecords.title_progress(profile.id, entity)
+    end
+  end
+
+  describe "the live offset of a session in flight" do
+    alias MediaCentaur.Library.Progress
+
+    setup do
+      if Process.whereis(Progress.Worker) == nil do
+        start_supervised!({Progress.Worker, [flush_interval_ms: 60_000, name: Progress.Worker]})
+      end
+
+      Progress.reset_for_test!()
+      profile = create_profile(%{name: "Ana"})
+      movie = create_standalone_movie(%{name: "Movie A", content_url: "/media/test/movie-a.mkv"})
+
+      watched =
+        create_watch_progress(%{profile_id: profile.id, movie_id: movie.id, completed: true})
+
+      :ok = Progress.record(profile.id, watched.playable_item_id, 600.0, 5400.0)
+      %{profile: profile, movie: movie}
+    end
+
+    test "title_progress/2 reads the records at their live offset", %{profile: profile, movie: movie} do
+      {:ok, loaded} = Containers.fetch_with_associations(:movie, movie.id)
+      entity = EntityShape.to_entity_view(loaded, :movie)
+
+      assert %{title_progress: progress, records: [record]} =
+               ProgressRecords.title_progress(profile.id, entity)
+
+      assert record.position_seconds == 600.0
+      assert ProgressRecords.watched_control(record) == :mark_watched
+      assert %TitleProgress{next: %{offset_seconds: 600.0}} = progress
+    end
+
+    test "the watched control applied is the one the live record offers: a watched item being replayed keeps its mark",
+         %{profile: profile, movie: movie} do
+      assert {:ok, toggled} = ProgressRecords.toggle_watched(Actor.new(profile.id), :movie, movie.id)
+      assert toggled.completed
+      assert toggled.position_seconds == 0.0
     end
   end
 

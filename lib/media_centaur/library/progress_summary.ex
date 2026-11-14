@@ -32,8 +32,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
 
   # Movie, MovieSeries (single child), VideoObject — one playable item
   defp compute_single(progress_records) do
-    progress = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-    progress = progress || List.first(progress_records)
+    progress = most_recent(progress_records)
 
     %{
       current_episode: nil,
@@ -104,10 +103,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
   defp find_current_item(items, progress_records) do
     progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
 
-    most_recent =
-      Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-
-    case most_recent do
+    case most_recent(progress_records) do
       nil ->
         first_item_or_nil(items)
 
@@ -129,6 +125,14 @@ defmodule MediaCentaur.Library.ProgressSummary do
             {find_label_for_key(items, record_key), record}
         end
     end
+  end
+
+  # A row marked by hand carries no `last_watched_at`; it sorts as the
+  # oldest.
+  defp most_recent(progress_records) do
+    Enum.max_by(progress_records, &(&1.last_watched_at || ~U[1970-01-01 00:00:00Z]), DateTime, fn ->
+      nil
+    end)
   end
 
   defp advance_from(current_key, items, progress_by_key) do
