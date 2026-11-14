@@ -82,8 +82,8 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert [%{position_seconds: 10.0}] = ProgressRecords.list_for_container(me, :movie, movie.id)
 
-      assert %{^movie_id => %{episode_position_seconds: 90.0}} =
-               ProgressRecords.summaries(ana, [movie.id])
+      assert %{^movie_id => %TitleProgress{next: %{offset_seconds: 90.0}}} =
+               ProgressRecords.title_progresses(ana, [movie.id])
     end
 
     test "a profile without a row reads nothing", %{movie: movie, me: me, ana: ana} do
@@ -92,7 +92,7 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert {:error, :not_found} = ProgressRecords.fetch_for_container(ana, :movie, movie.id)
       assert ProgressRecords.list_for_container(ana, :movie, movie.id) == []
-      assert ProgressRecords.summaries(ana, [movie.id]) == %{}
+      assert ProgressRecords.title_progresses(ana, [movie.id]) == %{}
       assert ProgressRecords.profile_ids_with_progress() == [me]
     end
 
@@ -104,6 +104,50 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert {:ok, _} = ProgressRecords.fetch_for_container(me, :movie, movie.id)
       assert {:error, :not_found} = ProgressRecords.fetch_for_container(ana, :movie, movie.id)
+    end
+  end
+
+  describe "last_watched_at_by_title/2" do
+    test "the newest time among a title's rows, whatever the title's progress" do
+      profile = create_profile(%{name: "Ana"})
+
+      finished = create_standalone_movie(%{name: "Movie A", content_url: "/media/test/movie-a.mkv"})
+
+      {:ok, watched} =
+        ProgressRecords.seed_watched(profile.id, :movie, finished.id, 5400.0)
+
+      backdate(watched, :last_watched_at, ~U[2026-08-03 20:00:00Z])
+
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      for {number, watched_at} <- [{1, ~U[2026-08-01 20:00:00Z]}, {2, ~U[2026-08-09 20:00:00Z]}] do
+        episode =
+          create_episode(%{season_id: season.id, episode_number: number, name: "Episode #{number}"})
+
+        %{profile_id: profile.id, episode_id: episode.id, position_seconds: 300.0}
+        |> create_watch_progress()
+        |> backdate(:last_watched_at, watched_at)
+      end
+
+      untouched = create_standalone_movie(%{name: "Movie B"})
+
+      assert ProgressRecords.last_watched_at_by_title(profile.id, [finished.id, series.id, untouched.id]) ==
+               %{finished.id => ~U[2026-08-03 20:00:00Z], series.id => ~U[2026-08-09 20:00:00Z]}
+    end
+
+    test "a title only marked by hand has no time; another profile's rows are not read" do
+      profile = create_profile(%{name: "Ana"})
+      marked = create_standalone_movie(%{name: "Movie A"})
+      theirs = create_standalone_movie(%{name: "Movie B"})
+
+      {:ok, %{last_watched_at: nil}} =
+        ProgressRecords.toggle_watched(Actor.new(profile.id), :movie, marked.id)
+
+      create_watch_progress(%{movie_id: theirs.id, position_seconds: 300.0})
+
+      assert ProgressRecords.last_watched_at_by_title(profile.id, [marked.id, theirs.id]) == %{}
+      assert ProgressRecords.last_watched_at_by_title(profile.id, []) == %{}
     end
   end
 

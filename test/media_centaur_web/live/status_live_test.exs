@@ -251,7 +251,6 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         {:entity_progress_updated,
          %{
            entity_id: movie_id,
-           summary: %{},
            title_progress: nil,
            changed_record: %{
              playable_item: %{container_type: :movie, container_id: movie_id},

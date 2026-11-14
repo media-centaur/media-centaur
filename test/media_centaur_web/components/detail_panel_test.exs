@@ -23,7 +23,6 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
             library: %TitleDetail.Library{
               entry: %LeafDetail{
                 entity: entity,
-                progress: nil,
                 progress_records: [],
                 title_progress: nil
               },
@@ -122,55 +121,6 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   # `auto_expand_season/2` was removed by the 2026-08-04 orientation
   # design — seasons always open collapsed; the hero orientation block
   # answers "where am I".
-
-  # --- overall_progress_percent/2 ---
-  #
-  # Leaf-only: containers (tv_series / movie_series) carry their
-  # progress in the hero orientation hairline, so the card-row percent
-  # and remaining copy are never computed for them (Stage 2 of the
-  # collection-detail-coherence campaign).
-
-  describe "overall_progress_percent/2" do
-    test "returns 0 for nil progress" do
-      assert Logic.overall_progress_percent(nil, build_entity()) == 0
-    end
-
-    test "computes position-based percentage for standalone movie" do
-      progress = %{
-        episode_position_seconds: 1800.0,
-        episode_duration_seconds: 3600.0,
-        episodes_completed: 0
-      }
-
-      entity = build_entity(%{type: :movie})
-
-      assert Logic.overall_progress_percent(progress, entity) == 50
-    end
-
-    test "returns 100 when completed but no duration for movie" do
-      progress = %{
-        episode_position_seconds: 0.0,
-        episode_duration_seconds: 0.0,
-        episodes_completed: 1
-      }
-
-      entity = build_entity(%{type: :movie})
-
-      assert Logic.overall_progress_percent(progress, entity) == 100
-    end
-
-    test "caps at 100" do
-      progress = %{
-        episode_position_seconds: 4000.0,
-        episode_duration_seconds: 3600.0,
-        episodes_completed: 0
-      }
-
-      entity = build_entity(%{type: :movie})
-
-      assert Logic.overall_progress_percent(progress, entity) == 100
-    end
-  end
 
   # --- remaining_text/1 ---
   #

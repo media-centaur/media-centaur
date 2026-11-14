@@ -5,7 +5,7 @@ defmodule MediaCentaur.TestFactory do
   Shared test data builders.
 
   - `build_*` functions return structs or maps with sensible defaults (no DB).
-    Use for pure-function tests (Serializer, Mapper, ProgressSummary, etc.).
+    Use for pure-function tests (Serializer, Mapper, TitleProgress, etc.).
     Note: `build_entity` returns a plain map (normalized entity shape);
     `build_tv_series`, `build_movie_series`, etc. return Ecto structs.
   - `create_*` functions persist via context functions and return loaded records.

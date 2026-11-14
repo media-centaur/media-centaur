@@ -21,7 +21,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
   tick can never be applied after the finish it preceded. A finish that
   fails is sent back to the session as `{:finish_failed, item}`;
   `unfinished/2` takes the item out of the set, and the next persist
-  judges it again. `broadcast_end/2` is the summary refresh a session
+  judges it again. `broadcast_end/2` is the progress refresh a session
   sends when it finalises.
 
   An unattributed entry (a file the library does not know) is observed
@@ -134,7 +134,7 @@ defmodule MediaCentaur.Playback.ProgressWriter do
     end
   end
 
-  @doc "The end-of-playback summary refresh for the entry's entity, in a task."
+  @doc "The end-of-playback progress refresh for the entry's entity, in a task."
   @spec broadcast_end(String.t(), Entry.t()) :: :ok
   def broadcast_end(profile_id, %Entry{entity_id: entity_id} = entry) do
     case Entry.item(entry) do

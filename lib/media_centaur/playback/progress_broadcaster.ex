@@ -35,7 +35,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   `:playable_item` subscribers need to key by container id
   (`ProgressRecords.progress_container_id/1`). Subscribers (LiveViews) use
   the result to keep their in-memory per-entity `progress_records` list
-  in sync with the authoritative summary; without it the modal's
+  in sync with the title progress; without it the modal's
   in-memory merge no-ops and a per-episode badge never flips live.
 
   The argument is **required** — there is deliberately no default. A
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   `changed_record: nil`, defeating the modal's in-memory merge. Making it
   required forces every caller to consciously state what changed; pass
   `nil` explicitly only when there genuinely is no single record (e.g. a
-  bulk recomputation or an end-of-playback summary refresh).
+  bulk recomputation or an end-of-playback refresh).
   """
   @spec broadcast(Ecto.UUID.t(), Ecto.UUID.t(), map() | String.t() | nil) :: :ok | {:error, term()}
   def broadcast(profile_id, entity_id, changed) do
@@ -52,14 +52,11 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
         %{title_progress: title_progress, records: progress_records} =
           Library.ProgressRecords.title_progress(profile_id, entity)
 
-        summary = Library.ProgressSummary.compute(entity, progress_records)
-
         Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")
 
         Events.broadcast(%EntityProgressUpdated{
           entity_id: entity_id,
           profile_id: profile_id,
-          summary: summary,
           title_progress: title_progress,
           changed_record: select_changed_record(progress_records, changed),
           last_activity_at: DateTime.utc_now()

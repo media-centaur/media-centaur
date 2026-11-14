@@ -2,8 +2,8 @@ defmodule MediaCentaur.Library.EpisodeOrder do
   @moduledoc """
   Ordering and position lookup over a TV series entity's seasons and
   episodes: sorting, the playable sequence, and finding an episode by
-  position or by content URL. Used by TitleProgress (the ordered set),
-  the playback resolver and ProgressSummary.
+  position or by content URL. Used by TitleProgress (the ordered set)
+  and the playback resolver.
 
   The movie-collection parallel is `MediaCentaur.Library.MovieOrder`.
   Reading a progress record — its container id, its watch state, indexing

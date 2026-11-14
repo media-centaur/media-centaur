@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.ViewModel.LeafDetailTest do
   alias MediaCentaurWeb.ViewModel.LeafDetail
 
   describe "compose/3 — the entry for a movie or video object the library owns" do
-    test "carries the entity, its progress summary, its records and the title progress" do
+    test "carries the entity, its records and the title progress" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
 
@@ -14,7 +14,6 @@ defmodule MediaCentaurWeb.ViewModel.LeafDetailTest do
       assert entry.entity.type == :movie
       assert entry.entity.name == "Sample Movie"
       assert entry.progress_records == []
-      assert Map.has_key?(entry, :progress)
 
       assert %TitleProgress{state: :unstarted, next: %{item_id: next_id}, total: 1} =
                entry.title_progress

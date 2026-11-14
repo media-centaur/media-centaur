@@ -19,16 +19,19 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
     * `library:watch_completed` — the finish event
       `{:entity_watch_completed, record, actor}`, published synchronously
       by `Library.ProgressRecords` once the finish is persisted. It is the
-      deterministic completion signal: a finished item drops from the row
-      live even if the Recorder's title lookup lags or fails, instead of
-      lingering until a manual page reload.
+      deterministic completion signal: a finished movie, or a series
+      whose final episode was finished, drops from the row, and a series
+      finished mid-way moves on to its next episode
+      (`MediaCentaur.Library.TitleProgress`) — live even if the Recorder's
+      title lookup lags or fails, instead of lingering until a manual
+      page reload.
     * `watch_history:events` — the async, best-effort
       `{:watch_event_created, _, _}` the Recorder emits after resolving a
       title.
     * `playback:events` — `:entity_progress_updated` keeps the
-      progress bar live during active playback. Rebuild cost is
-      sub-millisecond per event (one indexed query + struct mapping
-      for top-N rows) and the event rate is a few per second per
+      progress bar live during active playback. Rebuild cost is a
+      fixed handful of indexed queries per event
+      (`Library.list_in_progress/2`) and the event rate is a few per second per
       active session — single-user, single-session means at most one
       rebuild per few seconds during playback. Cheap; preserves the
       existing UX where the bar ticks forward without page reload.

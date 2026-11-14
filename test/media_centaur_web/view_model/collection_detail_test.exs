@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           [],
           nil
         )
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: progress_records},
+          %{entity: collection, progress_records: progress_records},
           [],
           nil
         )
@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           [],
           title_progress
         )
@@ -97,7 +97,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           releases,
           nil
         )
@@ -120,7 +120,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           releases,
           nil
         )
@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           releases,
           nil
         )
@@ -168,7 +168,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           releases,
           nil
         )
@@ -180,13 +180,13 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       collection = build_movie_series(%{movies: []})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
+        CollectionDetail.build(%{entity: collection, progress_records: []}, [], nil)
 
       assert view_model.movies == []
     end
   end
 
-  describe "with_progress/4" do
+  describe "with_progress/3" do
     test "rebuilds item states from the merged records without re-supplying releases" do
       movie_1 = build_movie(%{date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
       movie_2 = build_movie(%{date_published: ~D[2012-01-01], content_url: "/m/2.mkv"})
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           releases,
           nil
         )
@@ -208,7 +208,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
              ] = view_model.movies
 
       records = [build_progress(%{movie_id: movie_1.id, completed: true})]
-      updated = CollectionDetail.with_progress(view_model, nil, records, nil)
+      updated = CollectionDetail.with_progress(view_model, records, nil)
 
       assert [
                %MovieRow.Library{state: :watched},
@@ -281,7 +281,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       view_model =
         CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
+          %{entity: collection, progress_records: []},
           [
             release_map(%{
               part_tmdb_id: 44,
@@ -318,7 +318,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       collection = build_movie_series(%{movies: [movie]})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
+        CollectionDetail.build(%{entity: collection, progress_records: []}, [], nil)
 
       assert %MovieRow.Library{movie: %{name: "Only Part"}} =
                CollectionDetail.select_member(view_model, nil)
@@ -328,7 +328,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       collection = build_movie_series(%{movies: []})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
+        CollectionDetail.build(%{entity: collection, progress_records: []}, [], nil)
 
       assert CollectionDetail.select_member(view_model, nil) == nil
     end

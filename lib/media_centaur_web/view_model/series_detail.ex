@@ -20,7 +20,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.ProgressSummary
   alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.ReleaseTracking
@@ -37,7 +36,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   @enforce_keys [:entity, :seasons]
   defstruct [
     :entity,
-    :progress,
     :progress_records,
     :seasons,
     :extras,
@@ -53,7 +51,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   @type t :: %__MODULE__{
           entity: map(),
-          progress: map() | nil,
           progress_records: list(),
           seasons: [SeasonView.t()],
           extras: list(),
@@ -98,13 +95,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     %{title_progress: title_progress, records: progress_records} =
       Library.ProgressRecords.title_progress(profile_id, entity)
 
-    progress_summary = ProgressSummary.compute(entity, progress_records)
-
-    entry = %{
-      entity: entity,
-      progress: progress_summary,
-      progress_records: progress_records
-    }
+    entry = %{entity: entity, progress_records: progress_records}
 
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
@@ -157,7 +148,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
     %__MODULE__{
       entity: entry.entity,
-      progress: entry.progress,
       progress_records: entry.progress_records,
       seasons: library_seasons ++ future_seasons,
       extras: entry.entity.extras || [],
@@ -176,15 +166,16 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   Pure: reuses the cached `releases` on the
   existing struct.
   """
-  @spec with_progress(t(), map() | nil, list(), TitleProgress.t() | nil) :: t()
-  def with_progress(%__MODULE__{} = sd, progress, progress_records, title_progress) do
-    entry = %{
-      entity: sd.entity,
-      progress: progress,
-      progress_records: progress_records
-    }
+  @spec with_progress(t(), list(), TitleProgress.t() | nil) :: t()
+  def with_progress(%__MODULE__{} = series_detail, progress_records, title_progress) do
+    entry = %{entity: series_detail.entity, progress_records: progress_records}
 
-    build(entry, sd.releases || [], title_progress, sd.claimed_units || MapSet.new())
+    build(
+      entry,
+      series_detail.releases || [],
+      title_progress,
+      series_detail.claimed_units || MapSet.new()
+    )
   end
 
   # --- Library season construction ---

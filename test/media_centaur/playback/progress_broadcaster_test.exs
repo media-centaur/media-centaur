@@ -75,12 +75,12 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       assert_receive {:entity_progress_updated,
                       %{
                         entity_id: entity_id,
-                        summary: summary,
+                        title_progress: title_progress,
                         changed_record: changed_record
                       }}
 
       assert entity_id == tv_series.id
-      assert is_map(summary)
+      assert %MediaCentaur.Library.TitleProgress{state: :in_progress} = title_progress
       assert changed_record == nil
     end
 
@@ -333,20 +333,21 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       ensure_progress_worker!()
       Progress.reset_for_test!()
 
-      # Seed a movie with a *stale* persisted WatchProgress at 10s.
-      movie = create_standalone_movie(%{name: "Stale Read Movie"})
-      playable_item = create_playable_item_for_movie(movie)
+      # Seed a movie with a *stale* persisted WatchProgress at 100s.
+      movie =
+        create_standalone_movie(%{name: "Stale Read Movie", content_url: "/media/test/stale-read.mkv"})
 
-      create_watch_progress(%{
-        movie_id: movie.id,
-        position_seconds: 10.0,
-        duration_seconds: 100.0
-      })
+      persisted =
+        create_watch_progress(%{
+          movie_id: movie.id,
+          position_seconds: 100.0,
+          duration_seconds: 1000.0
+        })
 
       # Write a *fresh* in-memory position via the Pillar-2 GenServer.
-      # The flush interval is 60s, so the persisted row stays at 10s
+      # The flush interval is 60s, so the persisted row stays at 100s
       # for the duration of the test.
-      :ok = Progress.record(owner_profile_id(), playable_item.id, 75.0, 100.0)
+      :ok = Progress.record(owner_profile_id(), persisted.playable_item_id, 750.0, 1000.0)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
@@ -355,15 +356,15 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       assert_receive {:entity_progress_updated,
                       %{
                         entity_id: entity_id,
-                        summary: summary
+                        title_progress: title_progress
                       }}
 
       assert entity_id == movie.id
 
-      # The summary's episode_position_seconds must reflect the fresh
-      # in-memory 75s, not the persisted 10s. Before the fix this
-      # carried 10.0 because the broadcaster re-read from the DB.
-      assert summary.episode_position_seconds == 75.0
+      # The title progress must start the movie at the fresh in-memory
+      # 750s, not the persisted 100s. Before the fix the payload carried
+      # the persisted offset because the broadcaster re-read from the DB.
+      assert title_progress.next.offset_seconds == 750.0
     end
   end
 end

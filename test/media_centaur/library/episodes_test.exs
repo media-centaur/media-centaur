@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Library.EpisodesTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.EpisodeOrder
   alias MediaCentaur.Library.Episodes
 
   import MediaCentaur.TestFactory
@@ -44,6 +45,69 @@ defmodule MediaCentaur.Library.EpisodesTest do
     test "is nil for a series with no episodes" do
       series = create_tv_series(%{name: "Sample Show"})
       assert Episodes.last_season_episode(series.id) == nil
+    end
+  end
+
+  describe "ordered_items_by_tv_series/1" do
+    test "each series' episodes with a file, in story order, with their order keys" do
+      series = create_tv_series(%{name: "Sample Show"})
+      season_one = create_season(%{tv_series_id: series.id, season_number: 1})
+      season_two = create_season(%{tv_series_id: series.id, season_number: 2})
+
+      later =
+        create_episode(%{
+          season_id: season_two.id,
+          episode_number: 1,
+          name: "Later",
+          content_url: "/media/test/sample-show-s02e01.mkv"
+        })
+
+      tenth =
+        create_episode(%{
+          season_id: season_one.id,
+          episode_number: 10,
+          name: "Tenth",
+          content_url: "/media/test/sample-show-s01e10.mkv"
+        })
+
+      second =
+        create_episode(%{
+          season_id: season_one.id,
+          episode_number: 2,
+          name: "Second",
+          content_url: "/media/test/sample-show-s01e02.mkv"
+        })
+
+      create_episode(%{season_id: season_one.id, episode_number: 3, name: "No file"})
+
+      other = create_tv_series(%{name: "Other Show"})
+      other_season = create_season(%{tv_series_id: other.id, season_number: 1})
+
+      elsewhere =
+        create_episode(%{
+          season_id: other_season.id,
+          episode_number: 1,
+          name: "Elsewhere",
+          content_url: "/media/test/other-show-s01e01.mkv"
+        })
+
+      assert Episodes.ordered_items_by_tv_series([series.id, other.id]) == %{
+               series.id => [
+                 %{id: second.id, key: EpisodeOrder.order_key(1, 2)},
+                 %{id: tenth.id, key: EpisodeOrder.order_key(1, 10)},
+                 %{id: later.id, key: EpisodeOrder.order_key(2, 1)}
+               ],
+               other.id => [%{id: elsewhere.id, key: EpisodeOrder.order_key(1, 1)}]
+             }
+    end
+
+    test "a series with no episode on file is absent; no ids, no query" do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      create_episode(%{season_id: season.id, episode_number: 1, name: "No file"})
+
+      assert Episodes.ordered_items_by_tv_series([series.id]) == %{}
+      assert Episodes.ordered_items_by_tv_series([]) == %{}
     end
   end
 end

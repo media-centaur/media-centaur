@@ -39,8 +39,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     progress =
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 30.0,
-        duration_seconds: 100.0
+        position_seconds: 300.0,
+        duration_seconds: 1000.0
       })
 
     if last_watched_at do
@@ -229,8 +229,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       persisted =
         create_watch_progress(%{
           movie_id: movie.id,
-          position_seconds: 20.0,
-          duration_seconds: 100.0
+          position_seconds: 200.0,
+          duration_seconds: 1000.0
         })
 
       # Use the PlayableItem the persisted progress is bound to (the
@@ -241,13 +241,13 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
       # Write a fresh 80% position to in-memory state only. The
       # flush interval is 60s, so disk stays at 20% for the test.
-      :ok = Progress.record(owner_profile_id(), playable_item_id, 80.0, 100.0)
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 800.0, 1000.0)
 
       # Sanity: ensure the in-memory row carries the fresh 80s position
       # before the cache refresh reads it. Without this, a Progress
       # API regression could mask the projection-side regression.
       hot = Progress.get(owner_profile_id(), playable_item_id)
-      assert hot.position_seconds == 80.0
+      assert hot.position_seconds == 800.0
       assert hot.playable_item_id == playable_item_id
 
       # Also check list_in_progress directly — bypasses the cache so
@@ -280,15 +280,15 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       create_watch_progress(%{
         profile_id: me,
         movie_id: mine.id,
-        position_seconds: 30.0,
-        duration_seconds: 100.0
+        position_seconds: 300.0,
+        duration_seconds: 1000.0
       })
 
       create_watch_progress(%{
         profile_id: ana,
         movie_id: hers.id,
-        position_seconds: 30.0,
-        duration_seconds: 100.0
+        position_seconds: 300.0,
+        duration_seconds: 1000.0
       })
 
       assert [%{entity_name: "Mine"}] = Views.continue_watching(me)

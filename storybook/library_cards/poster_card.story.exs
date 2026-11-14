@@ -6,11 +6,11 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
   ## Contract shape (Phase 3.1)
 
   After the Phase 3.1 LibraryLive cutover, the component takes a typed
-  `MediaCentaur.Library.Views.BrowseItem` struct and a separate
-  optional `progress` summary map:
+  `MediaCentaur.Library.Views.BrowseItem` struct and, separately, the
+  profile's optional title progress:
 
       attr :entry, MediaCentaur.Library.Views.BrowseItem
-      attr :progress, :map, default: nil
+      attr :progress, MediaCentaur.Library.TitleProgress, default: nil
 
   The fixtures below construct that pair directly. The `entry` is a
   literal `%BrowseItem{}` struct so the typed-coupling check that
@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.BrowseItem
 
   def function, do: &MediaCentaurWeb.Components.LibraryCards.poster_card/1
@@ -121,7 +122,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
         variations: [
           %Variation{
             id: :no_progress,
-            description: "No progress record — bar suppressed.",
+            description: "Nothing started — bar suppressed.",
             attributes: %{
               id: "card-progress-none",
               entry: item(name: "Sample Show", year: 1923, poster: true),
@@ -302,20 +303,23 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
     }
   end
 
-  # Builds a ProgressSummary-shaped map at the given completion percentage.
-  # The component computes the bar via
-  # `ContinueWatchingProgress.compute_pct/1` — with a single-item summary
-  # (`episodes_total: 1`) the position/duration ratio IS the percentage.
+  # A single-item title's progress at the given percentage: the bar is
+  # `TitleProgress.percent/1`, the fraction of the one item viewed, and a
+  # complete title's is full.
+  defp progress(100), do: %TitleProgress{state: :complete, next: nil, before_next: 1, total: 1}
+
   defp progress(percent) do
     duration = 1800.0
-    position = duration * percent / 100.0
 
-    %{
-      current_episode: nil,
-      episode_position_seconds: position,
-      episode_duration_seconds: duration,
-      episodes_completed: 0,
-      episodes_total: 1
+    %TitleProgress{
+      state: :in_progress,
+      next: %{
+        item_id: "sample-id",
+        offset_seconds: duration * percent / 100.0,
+        duration_seconds: duration
+      },
+      before_next: 0,
+      total: 1
     }
   end
 

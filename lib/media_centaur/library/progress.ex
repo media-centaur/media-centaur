@@ -183,9 +183,10 @@ defmodule MediaCentaur.Library.Progress do
 
   The hot row carries no watched mark, so `completed` is the record's own.
 
-  The single overlay seam shared by the Continue Watching list
-  (`Library.list_in_progress/2`) and the modal broadcast
-  (`Playback.ProgressBroadcaster.broadcast/3`).
+  The single overlay seam: both reads of title progress
+  (`ProgressRecords.title_progress/2`, `title_progresses/2`) lay it over
+  every record, so the detail page, the progress broadcast, the library
+  grid and Continue Watching all read the live offset.
   """
   @spec overlay_in_memory(map()) :: map()
   def overlay_in_memory(%{profile_id: profile_id, playable_item_id: playable_item_id} = record)

@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       entity = %{type: :movie, id: "mv-uuid", name: "Sample Movie"}
 
       library = %TitleDetail.Library{
-        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
+        entry: %LeafDetail{entity: entity, progress_records: [], title_progress: nil},
         subject: entity,
         member: nil,
         files: :loading,

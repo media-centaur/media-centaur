@@ -109,6 +109,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     ExternalId,
     ExtraProgress,
     Movie,
+    MovieOrder,
     PlayableItem,
     PlayableItems,
     PresentableQueries,
@@ -125,15 +126,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
   alias MediaCentaur.Profiles.Actor
 
   @type container_type :: :tv_series | :movie_series | :movie | :video_object
-
-  @type summary :: %{
-          current_episode: %{season: integer(), episode: integer()} | nil,
-          episode_position_seconds: float(),
-          episode_duration_seconds: float(),
-          episodes_completed: non_neg_integer(),
-          episodes_total: non_neg_integer(),
-          last_watched_at: DateTime.t() | nil
-        }
 
   # ---- shared lifecycle (struct-dispatched) --------------------------------
 
@@ -495,27 +487,95 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   @doc """
-  Bulk progress lookup for projection consumers (Phase 3.1). Resolves
-  `%{entity_id => summary}` for every container UUID in the input that
-  has at least one `WatchProgress` row of `profile_id`.
+  The bulk read of title progress: `%{entity_id => TitleProgress}` for
+  every container id in the input under which `profile_id` has a progress
+  row or a series watch position. A title with neither is absent — it is
+  unstarted, and its card draws no bar.
 
-  Each summary carries the shape `Library.ProgressSummary.compute/2`
-  returns, plus `:last_watched_at` so consumers that sort by recency
-  don't need a separate progress preload. Entities with no progress rows
-  are absent from the result (not set to `nil`). Worst case one query
-  per container kind in the input set; totals do not scale with row
-  count.
+  The same reading as `title_progress/2`, for callers holding ids and no
+  entity view (the library grid, Continue Watching): the rows at their
+  live offset, the series watch position, the rule. A series' ordered set
+  comes from file presence in SQL here and from the entity view there;
+  both are "the items with a file, in story order".
+
+  A fixed number of queries whatever the number of ids: one for the rows
+  of each kind, and for the two series kinds one for the ordered sets and
+  one for the positions.
   """
-  @spec summaries(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => summary()}
-  def summaries(_profile_id, []), do: %{}
+  @spec title_progresses(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => TitleProgress.t()}
+  def title_progresses(_profile_id, []), do: %{}
 
-  def summaries(profile_id, entity_ids) when is_binary(profile_id) and is_list(entity_ids) do
-    %{}
-    |> Map.merge(leaf_summaries(profile_id, :movie, entity_ids))
-    |> Map.merge(leaf_summaries(profile_id, :video_object, entity_ids))
-    |> Map.merge(movie_series_summaries(profile_id, entity_ids))
-    |> Map.merge(tv_series_summaries(profile_id, entity_ids))
+  def title_progresses(profile_id, entity_ids) when is_binary(profile_id) and is_list(entity_ids) do
+    title_progresses_by_kind(profile_id, %{
+      movie: entity_ids,
+      video_object: entity_ids,
+      movie_series: entity_ids,
+      tv_series: entity_ids
+    })
   end
+
+  @doc """
+  As `title_progresses/2`, for a caller that knows each id's container
+  kind: only the queries of the kinds given run. Kinds with no ids cost
+  nothing.
+  """
+  @spec title_progresses_by_kind(Ecto.UUID.t(), %{optional(container_type()) => [Ecto.UUID.t()]}) ::
+          %{Ecto.UUID.t() => TitleProgress.t()}
+  def title_progresses_by_kind(profile_id, ids_by_kind) when is_binary(profile_id) do
+    Enum.reduce(ids_by_kind, %{}, fn {kind, ids}, progresses ->
+      Map.merge(progresses, kind_progresses(profile_id, kind, ids))
+    end)
+  end
+
+  @doc """
+  When `profile_id` last watched each title in `entity_ids`: the newest
+  `last_watched_at` among the rows beneath it, as `%{entity_id =>
+  DateTime}`. A title with no dated row — untouched, or only marked by
+  hand — is absent.
+
+  A different fact from title progress, whose `last_watched_at` speaks of
+  the place in a title and is empty for a finished movie: this one is
+  "when was this last on screen", which the Library's Recently Watched
+  order reads. One aggregate query per container kind.
+  """
+  @spec last_watched_at_by_title(Ecto.UUID.t(), [Ecto.UUID.t()]) :: %{Ecto.UUID.t() => DateTime.t()}
+  def last_watched_at_by_title(_profile_id, []), do: %{}
+
+  def last_watched_at_by_title(profile_id, entity_ids)
+      when is_binary(profile_id) and is_list(entity_ids) do
+    leaves =
+      for kind <- [:movie, :video_object] do
+        from([wp, pi] in exclude(leaf_rows(profile_id, kind, entity_ids), :select),
+          group_by: pi.container_id,
+          select: {pi.container_id, type(max(wp.last_watched_at), :utc_datetime)}
+        )
+      end
+
+    tv_series =
+      from(
+        [wp, _pi, _episode, season] in exclude(
+          episode_rows_by_tv_series(profile_id, entity_ids),
+          :select
+        ),
+        group_by: season.tv_series_id,
+        select: {season.tv_series_id, type(max(wp.last_watched_at), :utc_datetime)}
+      )
+
+    movie_series =
+      from([wp, _pi, movie] in exclude(movie_rows_by_movie_series(profile_id, entity_ids), :select),
+        group_by: movie.movie_series_id,
+        select: {movie.movie_series_id, type(max(wp.last_watched_at), :utc_datetime)}
+      )
+
+    for query <- [tv_series, movie_series | leaves],
+        {entity_id, %DateTime{} = last_watched_at} <- Repo.all(query),
+        into: %{},
+        do: {entity_id, last_watched_at}
+  end
+
+  @doc "The shortest offset, in seconds, at which a viewing counts (`viewing?/1`), for a query to filter on."
+  @spec viewing_minimum_seconds() :: pos_integer()
+  def viewing_minimum_seconds, do: @viewing_minimum_seconds
 
   @doc "Every profile with at least one progress row — the profiles Continue Watching is built for."
   @spec profile_ids_with_progress() :: [Ecto.UUID.t()]
@@ -688,93 +748,81 @@ defmodule MediaCentaur.Library.ProgressRecords do
     |> Enum.map(fn {^container_id, progress} -> attach_leaf(progress, container_type, container_id) end)
   end
 
-  # Movies and video objects are single-leaf containers — totals are
-  # always 1, so no separate count query is needed.
-  defp leaf_summaries(profile_id, container_type, ids) do
+  defp kind_progresses(_profile_id, _kind, []), do: %{}
+
+  # A movie or video object is its own one-item ordered set and has no
+  # series watch position. Presence-agnostic, as Continue Watching is: an
+  # absent file does not erase a viewing.
+  defp kind_progresses(profile_id, kind, ids) when kind in [:movie, :video_object] do
     profile_id
-    |> leaf_rows(container_type, ids)
+    |> leaf_rows(kind, ids)
     |> Repo.all()
     |> Map.new(fn {container_id, row} ->
-      {container_id,
-       %{
-         current_episode: nil,
-         episode_position_seconds: row.position_seconds || 0.0,
-         episode_duration_seconds: row.duration_seconds || 0.0,
-         episodes_completed: if(row.completed, do: 1, else: 0),
-         episodes_total: 1,
-         last_watched_at: row.last_watched_at
-       }}
+      row = row |> attach_leaf(kind, container_id) |> Progress.overlay_in_memory()
+      {container_id, TitleProgress.compute([%{id: container_id, key: []}], nil, [row])}
     end)
   end
 
-  # TV series: episodes_total counts *present* episodes (those with a
-  # WatchedFile) under any season of the series; episodes_completed
-  # counts completed progress rows beneath it.
-  defp tv_series_summaries(profile_id, ids) do
-    profile_id
-    |> episode_rows_by_tv_series(ids)
-    |> Repo.all()
-    |> Enum.map(fn {tv_series_id, _episode_id, row} -> owner_row(tv_series_id, row) end)
-    |> summarise(&Episodes.count_available_by_tv_series/1)
+  defp kind_progresses(profile_id, :tv_series, ids) do
+    rows =
+      profile_id
+      |> episode_rows_by_tv_series(ids)
+      |> Repo.all()
+      |> Enum.map(fn {series_id, episode_id, row} ->
+        {series_id, attach_leaf(row, :episode, episode_id)}
+      end)
+
+    series_progresses(profile_id, rows, Episodes.ordered_items_by_tv_series(ids))
   end
 
-  # Movie series: total counts *present* child movies (those with a
-  # WatchedFile); completed counts child movies carrying a completed
-  # WatchProgress.
-  defp movie_series_summaries(profile_id, ids) do
-    profile_id
-    |> movie_rows_by_movie_series(ids)
-    |> Repo.all()
-    |> Enum.map(fn {movie_series_id, _movie_id, row} -> owner_row(movie_series_id, row) end)
-    |> summarise(&movie_totals_by_movie_series/1)
+  defp kind_progresses(profile_id, :movie_series, ids) do
+    rows =
+      profile_id
+      |> movie_rows_by_movie_series(ids)
+      |> Repo.all()
+      |> Enum.map(fn {series_id, movie_id, row} -> {series_id, attach_leaf(row, :movie, movie_id)} end)
+
+    series_progresses(profile_id, rows, ordered_items_by_movie_series(ids))
   end
 
-  defp owner_row(owner_id, row) do
-    %{
-      owner_id: owner_id,
-      completed: row.completed,
-      position_seconds: row.position_seconds,
-      duration_seconds: row.duration_seconds,
-      last_watched_at: row.last_watched_at
-    }
-  end
+  # `rows` are `{series_id, row}`; `ordered` is `%{series_id => [%{id, key}]}`.
+  # A series with no rows and no position is left out: nothing was started.
+  defp series_progresses(profile_id, rows, ordered) do
+    positions = SeriesWatchPositions.by_series(profile_id, Map.keys(ordered))
 
-  # Shared tail for the two multi-leaf container kinds. They differ only
-  # in which join produced `:owner_id` and how the total is counted, so
-  # the grouping and summary shaping live here once.
-  #
-  # Totals are only counted for owners that actually have progress rows —
-  # an owner with none never appears in the result map, so counting it
-  # would be wasted work.
-  defp summarise([], _count_totals), do: %{}
+    rows_by_series =
+      Enum.group_by(rows, &elem(&1, 0), fn {_series_id, row} -> Progress.overlay_in_memory(row) end)
 
-  defp summarise(rows, count_totals) do
-    totals = rows |> Enum.map(& &1.owner_id) |> Enum.uniq() |> count_totals.()
-
-    rows
-    |> Enum.group_by(& &1.owner_id)
-    |> Map.new(fn {owner_id, owner_rows} ->
-      most_recent =
-        owner_rows
-        |> Enum.reject(&is_nil(&1.last_watched_at))
-        |> Enum.max_by(& &1.last_watched_at, DateTime, fn -> nil end)
-
-      {owner_id,
-       %{
-         current_episode: nil,
-         episode_position_seconds: (most_recent && most_recent.position_seconds) || 0.0,
-         episode_duration_seconds: (most_recent && most_recent.duration_seconds) || 0.0,
-         episodes_completed: Enum.count(owner_rows, & &1.completed),
-         episodes_total: Map.get(totals, owner_id, 0),
-         last_watched_at: most_recent && most_recent.last_watched_at
-       }}
+    ordered
+    |> Enum.map(fn {series_id, items} ->
+      {series_id, items, positions[series_id], Map.get(rows_by_series, series_id, [])}
+    end)
+    |> Enum.reject(fn {_series_id, _items, position, series_rows} ->
+      position == nil and series_rows == []
+    end)
+    |> Map.new(fn {series_id, items, position, series_rows} ->
+      {series_id, TitleProgress.compute(items, position, series_rows)}
     end)
   end
 
-  defp movie_totals_by_movie_series(series_ids) do
-    series_ids
-    |> PresentableQueries.present_movie_counts()
+  # Each collection's ordered set — its movies with a file, in story order,
+  # with their order keys — in one query; the collection twin of
+  # `Episodes.ordered_items_by_tv_series/1`.
+  defp ordered_items_by_movie_series(series_ids) do
+    from(movie in PresentableQueries.present_movies(),
+      where: movie.movie_series_id in ^series_ids,
+      select: %{
+        id: movie.id,
+        movie_series_id: movie.movie_series_id,
+        date_published: movie.date_published,
+        position: movie.position
+      }
+    )
     |> Repo.all()
-    |> Map.new()
+    |> Enum.group_by(& &1.movie_series_id)
+    |> Map.new(fn {series_id, movies} ->
+      {series_id,
+       movies |> MovieOrder.sort_movies() |> Enum.map(&%{id: &1.id, key: MovieOrder.order_key(&1)})}
+    end)
   end
 end

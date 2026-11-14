@@ -172,27 +172,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   defp next_label(verb, _entity, _item_id), do: verb
 
-  @doc "True when every playable item under the entity has been completed."
-  @spec completed?(map() | nil) :: boolean()
-  def completed?(%{episodes_completed: completed, episodes_total: total})
-      when is_integer(completed) and is_integer(total) and total > 0, do: completed >= total
-
-  def completed?(_), do: false
-
-  @doc """
-  True when the entity has been started but not finished — either a child
-  item is fully watched, or the current item has a non-zero playback
-  position. Returns `false` for fully-completed entities (use `completed?/1`).
-  """
-  @spec in_progress?(map() | nil) :: boolean()
-  def in_progress?(%{episodes_completed: completed, episodes_total: total} = progress)
-      when is_integer(completed) and is_integer(total) and total > 0 and completed < total do
-    position = Map.get(progress, :episode_position_seconds, 0.0)
-    completed > 0 or position > 0.0
-  end
-
-  def in_progress?(_), do: false
-
   # Inside this many days either side of today the pill speaks in
   # relative terms; beyond it, in a date.
   @relative_window_days 14
@@ -428,7 +407,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
     %{
       label: label,
       target_id: target_id,
-      percent: overall_progress_percent(entry.progress, entry.entity),
+      percent: TitleProgress.percent(entry.title_progress),
       remaining_text: remaining_text(entry.title_progress)
     }
   end
@@ -473,22 +452,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   def release_dates?(%TitleDetail{title: %{media_type: :movie}, release_window: %{}}), do: true
   def release_dates?(%TitleDetail{tracking: %TrackingDetail{}}), do: true
   def release_dates?(_detail), do: false
-
-  @doc """
-  A leaf's watched fraction as a percent (UIDR-024): containers derive
-  theirs from `ViewModel.Orientation`; a movie's or member's comes from
-  its progress summary here.
-  """
-  @spec overall_progress_percent(map() | nil, map()) :: non_neg_integer()
-  def overall_progress_percent(nil, _entity), do: 0
-
-  def overall_progress_percent(progress, _entity) do
-    if progress.episode_duration_seconds > 0 do
-      min(round(progress.episode_position_seconds / progress.episode_duration_seconds * 100), 100)
-    else
-      if progress.episodes_completed > 0, do: 100, else: 0
-    end
-  end
 
   @doc """
   The metadata line's remaining item (UIDR-024): what is left of the next

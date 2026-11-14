@@ -81,6 +81,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        loaded?: false,
        entries: [],
        progress_by_id: %{},
+       last_watched_by_id: %{},
        visible_ids: MapSet.new(),
        active_tab: :all,
        sort_order: :recent,
@@ -223,20 +224,25 @@ defmodule MediaCentaurWeb.LibraryLive do
         %{assigns: %{profile: %{id: profile_id}}} = socket
       ) do
     # The title detail host keeps the open modal's progress fresh on
-    # its own. Here we refresh just the affected card's progress
-    # summary so the bar / completion overlay reflects the change.
+    # its own. Here we refresh just the affected title's readings — its
+    # title progress, so its card's bar reflects the change, and when it
+    # was last watched, for the Recently Watched order. A title with
+    # neither is absent from its map.
     # Another profile's progress is not this grid's (ADR-078).
-    updated_summaries = Library.ProgressRecords.summaries(profile_id, [entity_id])
-
-    progress_by_id =
-      case Map.get(updated_summaries, entity_id) do
-        nil -> Map.delete(socket.assigns.progress_by_id, entity_id)
-        summary -> Map.put(socket.assigns.progress_by_id, entity_id, summary)
-      end
+    assigns = socket.assigns
 
     {:noreply,
      socket
-     |> assign(progress_by_id: progress_by_id)
+     |> assign(
+       progress_by_id:
+         assigns.progress_by_id
+         |> Map.delete(entity_id)
+         |> Map.merge(Library.ProgressRecords.title_progresses(profile_id, [entity_id])),
+       last_watched_by_id:
+         assigns.last_watched_by_id
+         |> Map.delete(entity_id)
+         |> Map.merge(Library.ProgressRecords.last_watched_at_by_title(profile_id, [entity_id]))
+     )
      |> touch_stream_entries([entity_id])}
   end
 
@@ -492,11 +498,13 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp load_library(socket) do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
-    progress_by_id = Library.ProgressRecords.summaries(socket.assigns.profile.id, ids)
+    progress_by_id = Library.ProgressRecords.title_progresses(socket.assigns.profile.id, ids)
 
     assign(socket,
       entries: entries,
       progress_by_id: progress_by_id,
+      last_watched_by_id:
+        Library.ProgressRecords.last_watched_at_by_title(socket.assigns.profile.id, ids),
       dir_status: MediaFileAvailability.dir_status(),
       unavailable_count: Enum.count(entries, &(not &1.available?)),
       counts: tab_counts(entries)
@@ -541,7 +549,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns.entries
     |> filtered_by_tab(assigns.active_tab)
     |> filtered_by_text(assigns.filter_text)
-    |> sorted_by(assigns.sort_order, assigns.progress_by_id)
+    |> sorted_by(assigns.sort_order, assigns.last_watched_by_id)
   end
 
   # Caches the filtered visible-ID set so subsequent

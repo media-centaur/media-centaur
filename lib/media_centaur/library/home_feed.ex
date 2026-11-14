@@ -15,9 +15,7 @@ defmodule MediaCentaur.Library.HomeFeed do
   alias MediaCentaur.ImageFiles
 
   alias MediaCentaur.Library.{
-    ContinueWatchingProgress,
     Episode,
-    Episodes,
     Image,
     Movie,
     MovieSeries,
@@ -25,6 +23,8 @@ defmodule MediaCentaur.Library.HomeFeed do
     PresentableQueries,
     ProgressRecords,
     Season,
+    SeriesWatchPosition,
+    TitleProgress,
     TVSeries,
     VideoObject,
     WatchProgress
@@ -35,62 +35,66 @@ defmodule MediaCentaur.Library.HomeFeed do
   @epoch_datetime ~U[1970-01-01 00:00:00Z]
 
   @doc """
-  List `profile_id`'s in-progress titles (those with watch progress of
-  that profile that is not yet completed), most recently watched first.
+  List `profile_id`'s in-progress titles, most recently watched first.
   Used by HomeLive's Continue Watching row.
 
-  Returns a list of plain maps in the shape:
-    `%{entity_id, entity_name, progress_pct, backdrop_url}`
+  A title is in progress when its title progress
+  (`MediaCentaur.Library.TitleProgress`) says so:
 
-  `progress_pct` is 0..100 (integer).
+    * a TV series, from the first episode playback finished (or the first
+      watched mark, or a viewing that counts) until its series watch
+      position reaches the final episode — a rewatch included, whatever
+      the watched marks say;
+    * a movie or video, while its row has a viewing that counts
+      (`ProgressRecords.viewing?/1`), a watched one being replayed
+      included.
+
+  A collection is never an entry; its member movies are (UIDR-025).
+
+  Returns a list of plain maps in the shape:
+    `%{entity_id, entity_name, progress_pct, backdrop_url, logo_url, last_watched_at}`
+
+  `progress_pct` is `TitleProgress.percent/1`, 0..100, read at the live
+  offset of a session in flight. `last_watched_at` is the title
+  progress's, nil for a series only marked by hand, which sorts last.
 
   Includes entities whose underlying file is not currently present in any
   media_dir — Continue Watching is the user's mental list of "things I'm
   watching", and an absent file does not erase that. Playback handles the
   missing-file case at the action layer.
 
-  Issues at most ~15 targeted queries regardless of library size, compared to
-  the ~87 queries of the previous `fetch_all_typed_entries` approach.
+  A fixed number of queries whatever the size of the library, unless more
+  finished series than one window holds were watched more recently than
+  the unfinished ones (`in_progress_tv_series/2`).
   """
   @spec list_in_progress(Ecto.UUID.t(), keyword()) :: [map()]
   def list_in_progress(profile_id, opts \\ []) when is_binary(profile_id) do
     limit = Keyword.get(opts, :limit, 12)
+    movies = in_progress_movie_candidates(profile_id, limit)
+    video_objects = in_progress_video_object_candidates(profile_id, limit)
 
-    (fetch_in_progress_movies(profile_id, limit) ++
-       fetch_in_progress_tv_series(profile_id, limit) ++
-       fetch_in_progress_video_objects(profile_id, limit))
-    |> Enum.map(&overlay_in_memory_progress/1)
-    |> Enum.sort_by(
-      fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
-      {:desc, DateTime}
-    )
+    progresses =
+      ProgressRecords.title_progresses_by_kind(profile_id, %{
+        movie: Enum.map(movies, & &1.id),
+        video_object: Enum.map(video_objects, & &1.id)
+      })
+
+    (in_progress_entries(movies ++ video_objects, progresses) ++
+       in_progress_tv_series(profile_id, limit))
+    |> Enum.sort_by(&(&1.progress.last_watched_at || @epoch_datetime), {:desc, DateTime})
     |> Enum.take(limit)
     |> Enum.map(&shape_in_progress_row/1)
   end
 
-  # Overlays the hot-path in-memory `WatchProgress` state on top of the
-  # progress records read from the database so Continue Watching reflects
-  # the live position during active playback. Without this, the persisted
-  # row is ~5s stale (the `MediaCentaur.Library.Progress` debounced-flush
-  # interval), so the bar visibly lags playback. Closes the same
-  # stale-read window the `Playback.ProgressBroadcaster` overlay
-  # closes for the modal — Library Schema v2 Phase 3 Task E I-2.
-  #
-  # Re-runs the per-record overlay AND patches the `progress`
-  # summary's `episode_position_seconds` / `episode_duration_seconds`
-  # so `ContinueWatchingProgress.compute_pct/1` (which reads from the
-  # summary, not the records) sees the fresh numbers. `completed` stays
-  # DB-authoritative — see `MediaCentaur.Library.Progress.overlay_in_memory/1`.
-  defp overlay_in_memory_progress(%{progress_records: records, progress: summary} = entry) do
-    fresh = Enum.map(records, &MediaCentaur.Library.Progress.overlay_in_memory/1)
-
-    refreshed_summary =
-      Map.merge(summary, ContinueWatchingProgress.current_position_summary(fresh))
-
-    %{entry | progress_records: fresh, progress: refreshed_summary}
+  # `%{entity, progress}` for each candidate whose title progress is in
+  # progress, in candidate order. The candidate queries read persisted
+  # rows; the title progress is read at the live offset, and is the
+  # authority.
+  defp in_progress_entries(entities, progresses) do
+    for entity <- entities,
+        %TitleProgress{state: :in_progress} = progress <- [progresses[entity.id]],
+        do: %{entity: entity, progress: progress}
   end
-
-  defp overlay_in_memory_progress(entry), do: entry
 
   @doc """
   List recently-added entities (newest `inserted_at` first), regardless of
@@ -206,46 +210,9 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # "When did the user last watch anything inside this title?" — the sort key
-  # every Continue Watching fetcher orders by. It is a question about the
-  # title's playable items, not the title itself, so each variant below
-  # answers it for one container shape and returns the one shape the callers
-  # join against: `%{container_id, last_watched_at}`.
-  #
-  # These were four hand-written SQL fragments naming five tables as string
-  # literals, which a schema rename would have broken silently — the query
-  # would still run and simply stop sorting. Expressed in Ecto, the same
-  # rename is a compile error.
-  #
-  # Callers inner-join these: every fetcher already requires an existing
-  # progress record via its first `exists`, so there is no row to preserve
-  # with a left join. `max/1` also replaces two `LIMIT 1`s that took an
-  # arbitrary progress row for titles with more than one playable item.
-
-  # Every WatchProgress row of the profile beneath a set of series, grouped
-  # by series, in one query. Replaces a per-episode lookup that first needed
-  # every episode id in memory to ask the question.
-  defp progress_records_by_tv_series(_profile_id, []), do: %{}
-
-  defp progress_records_by_tv_series(profile_id, series_ids) do
-    from(wp in WatchProgress,
-      join: pi in PlayableItem,
-      on: pi.id == wp.playable_item_id,
-      join: episode in Episode,
-      on: episode.id == pi.container_id,
-      join: season in Season,
-      on: season.id == episode.season_id,
-      where:
-        wp.profile_id == ^profile_id and pi.container_type == ^:episode and
-          season.tv_series_id in ^series_ids,
-      select: {season.tv_series_id, wp}
-    )
-    |> Repo.all()
-    |> Enum.group_by(fn {series_id, _progress} -> series_id end, fn {_id, progress} -> progress end)
-  end
-
-  # Containers whose playable items point straight at them (movies, video
-  # objects).
+  # "When did the user last watch this?" for containers whose playable
+  # items point straight at them (movies, video objects): the sort key of
+  # their candidate queries, as `%{container_id, last_watched_at}`.
   defp last_watched_by_container(profile_id, container_type) do
     from(wp in WatchProgress,
       join: pi in PlayableItem,
@@ -256,262 +223,165 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # A series is watched through its episodes, so the progress rolls up two
-  # levels: episode -> season -> series.
-  defp last_watched_by_tv_series(profile_id) do
+  # Whether the movie or video object the parent query names (`:item`)
+  # has a row of the profile's holding a viewing that counts — the SQL
+  # twin of `ProgressRecords.viewing?/1`, applied before `limit`.
+  defp counting_viewing_subquery(profile_id, container_type) do
+    minimum = ProgressRecords.viewing_minimum_seconds()
+
     from(wp in WatchProgress,
       join: pi in PlayableItem,
       on: pi.id == wp.playable_item_id,
-      join: episode in Episode,
-      on: episode.id == pi.container_id,
-      join: season in Season,
-      on: season.id == episode.season_id,
-      where: wp.profile_id == ^profile_id and pi.container_type == ^:episode,
-      group_by: season.tv_series_id,
-      select: %{container_id: season.tv_series_id, last_watched_at: max(wp.last_watched_at)}
+      where:
+        wp.profile_id == ^profile_id and pi.container_type == ^container_type and
+          pi.container_id == parent_as(:item).id and wp.position_seconds >= ^minimum,
+      select: 1
     )
   end
 
-  # Every movie with an incomplete WatchProgress, newest-watched first —
+  # Every movie with a viewing that counts, newest-watched first —
   # standalone or collection member alike. Per UIDR-025 the collection is
   # filing, not content: the unit of "continuing" is the member movie, so
   # there is no movie-vs-collection categorization on this surface at all.
   # Presence-agnostic (a transiently absent file doesn't erase the user's
   # intent to keep watching). The parent collection's images ride along
   # for the UIDR-021 art fallback.
-  defp fetch_in_progress_movies(profile_id, limit) do
-    movies =
-      from(m in Movie,
-        as: :item,
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              where:
-                wp.profile_id == ^profile_id and pi.container_type == ^:movie and
-                  pi.container_id == parent_as(:item).id and wp.completed == false,
-              select: 1
-            )
-          ),
-        join: last_watched in subquery(last_watched_by_container(profile_id, :movie)),
-        on: last_watched.container_id == m.id,
-        order_by: [desc: last_watched.last_watched_at],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload([:images, movie_series: :images])
-
-    progress_by_id = ProgressRecords.progress_by_leaf(profile_id, :movie, Enum.map(movies, & &1.id))
-
-    movies
-    |> Enum.map(&build_in_progress_movie_entry(&1, Map.get(progress_by_id, &1.id)))
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp build_in_progress_movie_entry(movie, progress) do
-    single_leaf_entry(
-      %{
-        id: movie.id,
-        type: :movie,
-        name: movie.name,
-        description: movie.description,
-        # Movie art first, collection art after — `image_url/2` takes the
-        # first match per role, so a member missing its own backdrop or
-        # logo inherits the collection's (UIDR-021 ladder).
-        images: (movie.images || []) ++ collection_images(movie),
-        genres: movie.genres,
-        duration_seconds: movie.duration_seconds
-      },
-      progress
+  defp in_progress_movie_candidates(profile_id, limit) do
+    from(m in Movie,
+      as: :item,
+      where: exists(counting_viewing_subquery(profile_id, :movie)),
+      join: last_watched in subquery(last_watched_by_container(profile_id, :movie)),
+      on: last_watched.container_id == m.id,
+      order_by: [desc: last_watched.last_watched_at],
+      limit: ^limit
     )
-  end
-
-  # `%{entity, progress, progress_records}` for a container with exactly one
-  # playable leaf (movie, video object), or nil unless its one progress
-  # record is unfinished. One unfinished record means nothing is completed.
-  defp single_leaf_entry(_entity, nil), do: nil
-  defp single_leaf_entry(_entity, %{completed: true}), do: nil
-
-  defp single_leaf_entry(entity, progress_record) do
-    progress_records = [progress_record]
-
-    progress =
-      Map.merge(
-        %{episodes_completed: 0, episodes_total: 1},
-        ContinueWatchingProgress.current_position_summary(progress_records)
-      )
-
-    %{entity: entity, progress: progress, progress_records: progress_records}
+    |> Repo.all()
+    |> Repo.preload([:images, movie_series: :images])
+    |> Enum.map(fn movie ->
+      # Movie art first, collection art after — `image_url/2` takes the
+      # first match per role, so a member missing its own backdrop or
+      # logo inherits the collection's (UIDR-021 ladder).
+      %{id: movie.id, name: movie.name, images: (movie.images || []) ++ collection_images(movie)}
+    end)
   end
 
   defp collection_images(%Movie{movie_series: %MovieSeries{images: images}}), do: images || []
   defp collection_images(_movie), do: []
 
-  # Fetches TV series the profile has started but not finished.
+  # Every video object with a viewing of the profile's that counts.
+  defp in_progress_video_object_candidates(profile_id, limit) do
+    from(v in VideoObject,
+      as: :item,
+      where: exists(counting_viewing_subquery(profile_id, :video_object)),
+      join: last_watched in subquery(last_watched_by_container(profile_id, :video_object)),
+      on: last_watched.container_id == v.id,
+      order_by: [desc: last_watched.last_watched_at],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload([:images])
+    |> Enum.map(&%{id: &1.id, name: &1.name, images: &1.images || []})
+  end
+
+  # How many candidate series one window holds, as a multiple of the
+  # shelf's limit.
+  @tv_series_window_factor 3
+
+  # The TV series whose title progress is in progress, most recently
+  # watched first, up to `limit`.
   #
-  # Both halves of "in progress" are tested in SQL, before `limit`. The
-  # unfinished test used to run in Elixir after the fetch, so a window full
-  # of finished series was fetched, rejected, and left the row short. Both
-  # halves name the profile: an episode another profile completed is not
-  # this profile's finished episode.
-  defp fetch_in_progress_tv_series(profile_id, limit) do
-    series_list =
-      from(t in TVSeries,
-        as: :series,
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              join: ep in Episode,
-              on: ep.id == pi.container_id and pi.container_type == ^:episode,
-              join: s in Season,
-              on: s.id == ep.season_id,
-              where: wp.profile_id == ^profile_id and s.tv_series_id == parent_as(:series).id,
-              select: 1
-            )
-          ),
-        where:
-          exists(
-            from(ep in Episode,
-              as: :episode,
-              join: s in Season,
-              on: s.id == ep.season_id,
-              where: s.tv_series_id == parent_as(:series).id,
-              where:
-                not exists(
-                  from(wp in WatchProgress,
-                    join: pi in PlayableItem,
-                    on: pi.id == wp.playable_item_id,
-                    where:
-                      wp.profile_id == ^profile_id and pi.container_type == ^:episode and
-                        pi.container_id == parent_as(:episode).id and
-                        wp.completed == true,
-                    select: 1
-                  )
-                ),
-              select: 1
-            )
-          ),
-        join: last_watched in subquery(last_watched_by_tv_series(profile_id)),
-        on: last_watched.container_id == t.id,
-        order_by: [desc: last_watched.last_watched_at],
-        limit: ^limit
+  # Whether a series is in progress is the title-progress rule's answer
+  # (its series watch position against its ordered set), which SQL cannot
+  # give. So the candidates — every series the profile has touched — are
+  # read most recently watched first, a window at a time, and each
+  # window's title progress computed in bulk, until the limit is filled or
+  # the candidates run out. A window is three times the limit: finished
+  # series stay candidates for ever, and one window covers a profile whose
+  # last two dozen series are finished. Each further window costs the same
+  # few queries; the shelf is cached and rebuilt on progress events
+  # (`Library.Views.ContinueWatching`).
+  defp in_progress_tv_series(profile_id, limit) do
+    found = collect_in_progress_tv_series(profile_id, limit, limit * @tv_series_window_factor, 0, [])
+    series_list = found |> Enum.map(fn {series, _progress} -> series end) |> Repo.preload([:images])
+
+    Enum.zip_with(series_list, found, fn series, {_series, progress} ->
+      %{entity: %{id: series.id, name: series.name, images: series.images || []}, progress: progress}
+    end)
+  end
+
+  # `[{series, progress}]`, newest first.
+  defp collect_in_progress_tv_series(profile_id, limit, window, offset, found) do
+    candidates = tv_series_candidates(profile_id, window, offset)
+
+    progresses =
+      ProgressRecords.title_progresses_by_kind(profile_id, %{tv_series: Enum.map(candidates, & &1.id)})
+
+    found =
+      found ++
+        for series <- candidates,
+            %TitleProgress{state: :in_progress} = progress <- [progresses[series.id]],
+            do: {series, progress}
+
+    if length(found) >= limit or length(candidates) < window do
+      Enum.take(found, limit)
+    else
+      collect_in_progress_tv_series(profile_id, limit, window, offset + window, found)
+    end
+  end
+
+  # One window of the series the profile has touched — any progress row
+  # beneath it, or a series watch position — most recently watched first.
+  # A series whose activity carries no time (hand marks only) sorts last.
+  defp tv_series_candidates(profile_id, window, offset) do
+    Repo.all(
+      from(series in TVSeries,
+        join: activity in subquery(tv_series_activity(profile_id)),
+        on: activity.series_id == series.id,
+        order_by: [desc: activity.last_watched_at, asc: series.id],
+        limit: ^window,
+        offset: ^offset
       )
-      |> Repo.all()
-      |> Repo.preload([:images])
-
-    # The two numbers this row needs from the episode list — how many
-    # present episodes there are, and which of them have progress — are
-    # both aggregates, so they are asked for as aggregates. Preloading
-    # `seasons: [:episodes]` to compute them loaded every episode of every
-    # returned series into memory to produce two integers apiece.
-    series_ids = Enum.map(series_list, & &1.id)
-    progress_by_series = progress_records_by_tv_series(profile_id, series_ids)
-    episode_counts = Episodes.count_available_by_tv_series(series_ids)
-
-    Enum.reject(
-      Enum.map(series_list, fn series ->
-        progress_records = Map.get(progress_by_series, series.id, [])
-        episodes_total = Map.get(episode_counts, series.id, 0)
-        episodes_completed = Enum.count(progress_records, & &1.completed)
-
-        # Include series when the user has touched it (any progress) AND
-        # hasn't finished all episodes.
-        if progress_records != [] and episodes_completed < episodes_total do
-          entity = %{
-            id: series.id,
-            type: :tv_series,
-            name: series.name,
-            description: series.description,
-            images: series.images || [],
-            genres: series.genres,
-            duration_seconds: nil
-          }
-
-          progress =
-            Map.merge(
-              %{episodes_completed: episodes_completed, episodes_total: episodes_total},
-              ContinueWatchingProgress.current_position_summary(progress_records)
-            )
-
-          %{entity: entity, progress: progress, progress_records: progress_records}
-        end
-      end),
-      &is_nil/1
     )
   end
 
-  # Fetches video objects with an incomplete WatchProgress record of the profile.
-  defp fetch_in_progress_video_objects(profile_id, limit) do
-    video_objects =
-      from(v in VideoObject,
-        as: :video_object,
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              where:
-                wp.profile_id == ^profile_id and pi.container_type == ^:video_object and
-                  pi.container_id == parent_as(:video_object).id and
-                  wp.completed == false,
-              select: 1
-            )
-          ),
-        join: last_watched in subquery(last_watched_by_container(profile_id, :video_object)),
-        on: last_watched.container_id == v.id,
-        order_by: [desc: last_watched.last_watched_at],
-        limit: ^limit
+  # `%{series_id, last_watched_at}` for every series the profile has
+  # touched: the newest of its rows' times and its position's. A series is
+  # watched through its episodes, so the rows roll up two levels: episode
+  # -> season -> series.
+  defp tv_series_activity(profile_id) do
+    positions =
+      from(position in SeriesWatchPosition,
+        where: position.profile_id == ^profile_id and position.series_type == :tv_series,
+        select: %{series_id: position.series_id, watched_at: position.finished_at}
       )
-      |> Repo.all()
-      |> Repo.preload([:images])
 
-    progress_by_id =
-      ProgressRecords.progress_by_leaf(profile_id, :video_object, Enum.map(video_objects, & &1.id))
+    rows =
+      from(wp in WatchProgress,
+        join: pi in PlayableItem,
+        on: pi.id == wp.playable_item_id,
+        join: episode in Episode,
+        on: episode.id == pi.container_id,
+        join: season in Season,
+        on: season.id == episode.season_id,
+        where: wp.profile_id == ^profile_id and pi.container_type == ^:episode,
+        select: %{series_id: season.tv_series_id, watched_at: wp.last_watched_at},
+        union_all: ^positions
+      )
 
-    Enum.reject(
-      Enum.map(video_objects, fn video_object ->
-        single_leaf_entry(
-          %{
-            id: video_object.id,
-            type: :video_object,
-            name: video_object.name,
-            description: video_object.description,
-            images: video_object.images || [],
-            genres: nil,
-            duration_seconds: nil
-          },
-          Map.get(progress_by_id, video_object.id)
-        )
-      end),
-      &is_nil/1
+    from(activity in subquery(rows),
+      group_by: activity.series_id,
+      select: %{series_id: activity.series_id, last_watched_at: max(activity.watched_at)}
     )
   end
 
-  defp entry_last_watched_at(%{progress_records: records}) do
-    records
-    |> Enum.map(& &1.last_watched_at)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.max(DateTime, fn -> nil end)
-  end
-
-  defp shape_in_progress_row(%{entity: entity, progress: summary, progress_records: records}) do
-    backdrop_url = image_url(entity.images, "backdrop")
-    logo_url = image_url(entity.images, "logo")
-
-    progress_pct = ContinueWatchingProgress.compute_pct(summary)
-
-    last_watched_at = entry_last_watched_at(%{progress_records: records})
-
+  defp shape_in_progress_row(%{entity: entity, progress: progress}) do
     %{
       entity_id: entity.id,
       entity_name: entity.name,
-      progress_pct: progress_pct,
-      backdrop_url: backdrop_url,
-      logo_url: logo_url,
-      last_watched_at: last_watched_at
+      progress_pct: TitleProgress.percent(progress),
+      backdrop_url: image_url(entity.images, "backdrop"),
+      logo_url: image_url(entity.images, "logo"),
+      last_watched_at: progress.last_watched_at
     }
   end
 

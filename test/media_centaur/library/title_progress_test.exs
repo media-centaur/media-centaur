@@ -180,6 +180,53 @@ defmodule MediaCentaur.Library.TitleProgressTest do
     end
   end
 
+  # The measure's own cases, restated from the tests of the two modules it
+  # replaced (the Continue Watching bar and the progress summary).
+  describe "percent/1 on a value" do
+    defp in_progress(before_next, total, offset_seconds, duration_seconds) do
+      %TitleProgress{
+        state: :in_progress,
+        next: %{item_id: "next", offset_seconds: offset_seconds, duration_seconds: duration_seconds},
+        before_next: before_next,
+        total: total
+      }
+    end
+
+    test "an empty ordered set reads 0" do
+      assert TitleProgress.percent(%TitleProgress{state: :unstarted, before_next: 0, total: 0}) == 0
+    end
+
+    test "a movie half viewed reads 50" do
+      assert TitleProgress.percent(in_progress(0, 1, 50.0, 100.0)) == 50
+    end
+
+    test "the fraction is truncated, never rounded up: 199 seconds of 10000 reads 1" do
+      assert TitleProgress.percent(in_progress(0, 1, 199.0, 10_000.0)) == 1
+    end
+
+    test "five of ten items before next, and next half viewed, reads 55" do
+      assert TitleProgress.percent(in_progress(5, 10, 500.0, 1000.0)) == 55
+    end
+
+    test "five of ten items before next, and next not started, reads 50" do
+      assert TitleProgress.percent(in_progress(5, 10, 0.0, 1000.0)) == 50
+    end
+
+    test "a zero duration gives next no credit" do
+      assert TitleProgress.percent(in_progress(2, 4, 500.0, 0.0)) == 50
+    end
+
+    test "an offset past the duration counts next as one whole item, no more" do
+      assert TitleProgress.percent(in_progress(0, 2, 150.0, 100.0)) == 50
+      assert TitleProgress.percent(in_progress(0, 1, 150.0, 100.0)) == 100
+    end
+
+    test "a complete title reads 100" do
+      complete = %TitleProgress{state: :complete, next: nil, before_next: 3, total: 3}
+      assert TitleProgress.percent(complete) == 100
+    end
+  end
+
   describe "ordered_set/1" do
     test "a TV series: its episodes with a file, in story order" do
       entity = %{

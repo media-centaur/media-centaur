@@ -140,64 +140,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "completed?/1" do
-    test "nil progress → false" do
-      refute Logic.completed?(nil)
-    end
-
-    test "all items completed → true" do
-      assert Logic.completed?(%{episodes_completed: 10, episodes_total: 10})
-      assert Logic.completed?(%{episodes_completed: 1, episodes_total: 1})
-    end
-
-    test "partial progress → false" do
-      refute Logic.completed?(%{episodes_completed: 0, episodes_total: 1})
-      refute Logic.completed?(%{episodes_completed: 5, episodes_total: 10})
-    end
-
-    test "zero total (defensive) → false" do
-      refute Logic.completed?(%{episodes_completed: 0, episodes_total: 0})
-    end
-  end
-
-  describe "in_progress?/1" do
-    test "nil progress → false" do
-      refute Logic.in_progress?(nil)
-    end
-
-    test "any episode completed but not all → true" do
-      assert Logic.in_progress?(%{
-               episodes_completed: 3,
-               episodes_total: 10,
-               episode_position_seconds: 0.0
-             })
-    end
-
-    test "no completions but current item has playback position → true" do
-      assert Logic.in_progress?(%{
-               episodes_completed: 0,
-               episodes_total: 1,
-               episode_position_seconds: 1500.0
-             })
-    end
-
-    test "no completions and no position → false" do
-      refute Logic.in_progress?(%{
-               episodes_completed: 0,
-               episodes_total: 1,
-               episode_position_seconds: 0.0
-             })
-    end
-
-    test "fully completed → false (it's done, not in progress)" do
-      refute Logic.in_progress?(%{
-               episodes_completed: 10,
-               episodes_total: 10,
-               episode_position_seconds: 0.0
-             })
-    end
-  end
-
   describe "playback_props/2 — TV series" do
     defp tv_series do
       %{
@@ -444,7 +386,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
       member = %MovieRow.Library{
         movie: movie,
-        progress: nil,
         state: :unwatched,
         is_resume_target: false
       }
@@ -660,7 +601,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
   defp owned(entity, overrides \\ %{}) do
     Map.merge(
       %TitleDetail.Library{
-        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
+        entry: %LeafDetail{entity: entity, progress_records: [], title_progress: nil},
         subject: entity,
         member: nil,
         files: :loading,
@@ -684,13 +625,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
     test "an owned title mid-watch resumes, with its fraction and the time left" do
       movie = %{type: :movie, id: "mv-uuid", duration_seconds: 7200}
 
-      progress = %{
-        episodes_completed: 0,
-        episodes_total: 1,
-        episode_position_seconds: 3600.0,
-        episode_duration_seconds: 7200.0
-      }
-
       title_progress = %TitleProgress{
         state: :in_progress,
         next: %{item_id: "mv-uuid", offset_seconds: 3600.0, duration_seconds: 7200.0},
@@ -699,7 +633,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
       }
 
       library = owned(movie)
-      library = %{library | entry: %{library.entry | progress: progress, title_progress: title_progress}}
+      library = %{library | entry: %{library.entry | title_progress: title_progress}}
 
       assert {:play, props} = Logic.primary_action(detail(%{library: library}), @today)
       assert props.label == "Resume"
@@ -711,7 +645,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
     test "a collection member plays as the member — the rail's selection" do
       member = %MovieRow.Library{
         movie: %{id: "part-2", name: "Part 2"},
-        progress: nil,
         state: :unwatched,
         is_resume_target: false
       }

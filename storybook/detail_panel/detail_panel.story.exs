@@ -341,7 +341,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "UUID) over the folder ledger. Three files ≤ the auto-expand threshold, " <>
             "so every group opens.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           state: ModalState.new(:info)
         }
       },
@@ -351,7 +351,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "The movie was just finished in mpv (UIDR-052): the finish prompt above " <>
             "the action row — Review, the primary delete, Done.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           finished_entity_id: "11111111-1111-1111-1111-111111111111",
           review?: true
         }
@@ -360,7 +360,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :movie_finished_delete_armed,
         description: "The finish prompt's Delete pressed once.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           finished_entity_id: "11111111-1111-1111-1111-111111111111",
           review?: true,
           armed_gesture: {"delete_all_prompt", :all}
@@ -371,14 +371,20 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "The Manage sheet while the deferred file-info load is still running " <>
             "— a status line where the ledger will be, no Delete all.",
-        attributes: %{detail: movie_detail(%{}, nil, :loading), state: ModalState.new(:info)}
+        attributes: %{
+          detail: movie_detail(%{}, movie_unstarted(), :loading),
+          state: ModalState.new(:info)
+        }
       },
       %Variation{
         id: :info_view_files_failed,
         description:
           "The Manage sheet after the file-info load crashed — the panel says " <>
             "so rather than rendering an empty inventory as fact.",
-        attributes: %{detail: movie_detail(%{}, nil, :failed), state: ModalState.new(:info)}
+        attributes: %{
+          detail: movie_detail(%{}, movie_unstarted(), :failed),
+          state: ModalState.new(:info)
+        }
       },
       %Variation{
         id: :info_view_collapsed_ledger,
@@ -386,7 +392,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "A large inventory (8 files, two folders — above the auto-expand " <>
             "threshold) rests as collapsed folder summary rows. Zero file rows at rest.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_season_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_season_detail_files()}),
           state: ModalState.new(:info)
         }
       },
@@ -396,7 +402,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "Rematch armed — the **Rematch** action in the toolbar card relabels to " <>
             "**Press again to rematch** (the host's arm gesture slot).",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           state: ModalState.new(:info),
           armed_gesture: {"rematch", nil}
         }
@@ -407,7 +413,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "Delete all armed — the prominent danger button reads **Press again " <>
             "to confirm — Delete all files (size)**. Any other interaction disarms it.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           state: ModalState.new(:info),
           armed_gesture: {"delete_all_prompt", :all}
         }
@@ -418,7 +424,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "One file's delete armed: the danger tint, a " <>
             "thin error ring, and the trash button widens to **Click to confirm**.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           state: ModalState.new(:info),
           armed_gesture:
             {"delete_file_prompt",
@@ -431,7 +437,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "`deleting: :all` — the async delete is running: the danger button reads " <>
             "**Deleting…** and every delete button on the panel is disabled.",
         attributes: %{
-          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          detail: movie_detail(%{}, movie_unstarted(), {:ok, sample_detail_files()}),
           state: %{ModalState.new(:info) | deleting: :all}
         }
       },
@@ -832,10 +838,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     )
   end
 
-  defp leaf(entity, progress, records, title_progress) do
+  defp leaf(entity, records, title_progress) do
     %LeafDetail{
       entity: entity,
-      progress: progress,
       progress_records: records,
       title_progress: title_progress
     }
@@ -953,18 +958,19 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   @movie_id "11111111-1111-1111-1111-111111111111"
 
-  defp movie_detail(overrides \\ %{}, progress \\ nil, files \\ {:ok, []}) do
-    records = if progress, do: [movie_progress_record(@movie_id)], else: []
+  defp movie_detail(overrides \\ %{}, title_progress \\ movie_unstarted(), files \\ {:ok, []}) do
+    records =
+      if title_progress.state == :in_progress, do: [movie_progress_record(@movie_id)], else: []
 
-    owned(leaf(sample_movie_entity(), progress, records, movie_title_progress(progress)),
+    owned(leaf(sample_movie_entity(), records, title_progress),
       files: files,
       detail: overrides
     )
   end
 
-  # Where the profile stands in the movie: unstarted, or resuming the
-  # viewing in flight the progress fixture describes.
-  defp movie_title_progress(nil),
+  # Where the profile stands in the movie: unstarted, or resuming a
+  # viewing in flight a third of the way in.
+  defp movie_unstarted,
     do: %TitleProgress{
       state: :unstarted,
       next: %{item_id: @movie_id, offset_seconds: 0.0, duration_seconds: 0.0},
@@ -972,23 +978,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       total: 1
     }
 
-  defp movie_title_progress(%{episode_position_seconds: offset, episode_duration_seconds: duration}),
+  defp movie_progress,
     do: %TitleProgress{
       state: :in_progress,
-      next: %{item_id: @movie_id, offset_seconds: offset, duration_seconds: duration},
+      next: %{item_id: @movie_id, offset_seconds: 1800.0, duration_seconds: 5400.0},
       before_next: 0,
       total: 1
     }
-
-  defp movie_progress do
-    %{
-      current_episode: nil,
-      episode_position_seconds: 1800.0,
-      episode_duration_seconds: 5400.0,
-      episodes_completed: 0,
-      episodes_total: 1
-    }
-  end
 
   defp sample_movie_entity do
     struct!(EntityView,
@@ -1068,13 +1064,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     entry = %SeriesDetail{
       entity: entity,
-      progress: %{
-        current_episode: %{season: 1, episode: 2},
-        episode_position_seconds: 600.0,
-        episode_duration_seconds: 1500.0,
-        episodes_completed: 1,
-        episodes_total: 8
-      },
       progress_records: records,
       seasons: seasons,
       extras: [],
@@ -1275,7 +1264,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     entry = %SeriesDetail{
       entity: entity,
-      progress: nil,
       progress_records: [],
       seasons: [s1_future],
       extras: [],
@@ -1527,13 +1515,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     entry = %CollectionDetail{
       entity: entity,
-      progress: %{
-        current_episode: %{season: 0, episode: 2},
-        episode_position_seconds: 1500.0,
-        episode_duration_seconds: 5700.0,
-        episodes_completed: 1,
-        episodes_total: 3
-      },
       progress_records: progress_records,
       movies: movie_series_items(entity, progress_records) ++ upcoming,
       extras: [],

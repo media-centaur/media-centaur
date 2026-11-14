@@ -126,7 +126,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 100.0,
+        position_seconds: 0.0,
         duration_seconds: 100.0,
         completed: true
       })
@@ -137,7 +137,7 @@ defmodule MediaCentaur.LibraryTest do
     test "returns in-progress movie with required shape" do
       movie = create_standalone_movie(%{name: "Prior Lives"})
       record_present(create_linked_file(%{movie_id: movie.id}))
-      create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
       results = Library.list_in_progress(owner_profile_id())
 
@@ -152,14 +152,14 @@ defmodule MediaCentaur.LibraryTest do
 
     test "movie progress_pct reflects in-episode position, not just completion" do
       # Continue Watching's progress bar must show how far through the
-      # movie the user actually is. The previous `episodes_completed /
-      # episodes_total` formula yielded 0 % for any in-progress movie
+      # movie the user actually is. The previous completed-over-total
+      # formula yielded 0 % for any in-progress movie
       # (movies are 1 episode and never completed mid-watch), so the bar
       # was always empty until the moment they finished — at which point
       # the row disappeared from Continue Watching anyway. Useless.
       movie = create_standalone_movie(%{name: "Halfway Movie"})
       record_present(create_linked_file(%{movie_id: movie.id}))
-      create_watch_progress(%{movie_id: movie.id, position_seconds: 50.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 500.0, duration_seconds: 1000.0})
 
       [row] = Library.list_in_progress(owner_profile_id())
       assert row.progress_pct == 50
@@ -199,7 +199,7 @@ defmodule MediaCentaur.LibraryTest do
       for ep <- Enum.take(episodes, 5) do
         create_watch_progress(%{
           episode_id: ep.id,
-          position_seconds: 1000.0,
+          position_seconds: 0.0,
           duration_seconds: 1000.0,
           completed: true
         })
@@ -239,7 +239,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         episode_id: first_episode.id,
-        position_seconds: 1000.0,
+        position_seconds: 0.0,
         duration_seconds: 1000.0,
         completed: true
       })
@@ -261,15 +261,15 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         movie_id: part1.id,
-        position_seconds: 100.0,
+        position_seconds: 0.0,
         duration_seconds: 100.0,
         completed: true
       })
 
       create_watch_progress(%{
         movie_id: part2.id,
-        position_seconds: 40.0,
-        duration_seconds: 100.0
+        position_seconds: 400.0,
+        duration_seconds: 1000.0
       })
 
       [row] = Library.list_in_progress(owner_profile_id())
@@ -287,7 +287,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         movie_id: part1.id,
-        position_seconds: 100.0,
+        position_seconds: 0.0,
         duration_seconds: 100.0,
         completed: true
       })
@@ -302,7 +302,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part3.id}))
 
-      create_watch_progress(%{movie_id: part1.id, position_seconds: 20.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: part1.id, position_seconds: 200.0, duration_seconds: 1000.0})
       create_watch_progress(%{movie_id: part3.id, position_seconds: 60.0, duration_seconds: 100.0})
 
       rows = Library.list_in_progress(owner_profile_id())
@@ -324,7 +324,7 @@ defmodule MediaCentaur.LibraryTest do
         extension: "jpg"
       })
 
-      create_watch_progress(%{movie_id: part2.id, position_seconds: 40.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: part2.id, position_seconds: 400.0, duration_seconds: 1000.0})
 
       [row] = Library.list_in_progress(owner_profile_id())
       assert row.entity_id == part2.id
@@ -337,7 +337,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 100.0,
+        position_seconds: 0.0,
         duration_seconds: 100.0,
         completed: true
       })
@@ -349,7 +349,7 @@ defmodule MediaCentaur.LibraryTest do
       Enum.each(1..5, fn index ->
         movie = create_standalone_movie(%{name: "Movie #{index}"})
         record_present(create_linked_file(%{movie_id: movie.id}))
-        create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+        create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
       end)
 
       results = Library.list_in_progress(owner_profile_id(), limit: 3)
@@ -360,7 +360,7 @@ defmodule MediaCentaur.LibraryTest do
       for index <- 1..20 do
         movie = create_standalone_movie(%{name: "Movie #{index}"})
         record_present(create_linked_file(%{movie_id: movie.id}))
-        create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+        create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
       end
 
       for index <- 1..5 do
@@ -368,7 +368,12 @@ defmodule MediaCentaur.LibraryTest do
         record_present(create_linked_file(%{tv_series_id: series.id}))
         season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
         episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
-        create_watch_progress(%{episode_id: episode.id, position_seconds: 10.0, duration_seconds: 60.0})
+
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 100.0,
+          duration_seconds: 600.0
+        })
       end
 
       query_count = count_queries(fn -> Library.list_in_progress(owner_profile_id(), limit: 12) end)
@@ -411,7 +416,7 @@ defmodule MediaCentaur.LibraryTest do
 
         create_watch_progress(%{
           episode_id: episode.id,
-          position_seconds: 60.0,
+          position_seconds: 0.0,
           duration_seconds: 60.0,
           completed: true,
           last_watched_at: DateTime.add(now, -index, :minute)
@@ -430,7 +435,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         episode_id: watched.id,
-        position_seconds: 60.0,
+        position_seconds: 0.0,
         duration_seconds: 60.0,
         completed: true,
         last_watched_at: DateTime.add(now, -10, :minute)
@@ -461,8 +466,8 @@ defmodule MediaCentaur.LibraryTest do
 
         create_watch_progress(%{
           episode_id: episode.id,
-          position_seconds: 10.0,
-          duration_seconds: 60.0
+          position_seconds: 100.0,
+          duration_seconds: 600.0
         })
       end
     end
@@ -485,8 +490,8 @@ defmodule MediaCentaur.LibraryTest do
           progress =
             create_watch_progress(%{
               movie_id: movie.id,
-              position_seconds: 30.0,
-              duration_seconds: 100.0
+              position_seconds: 300.0,
+              duration_seconds: 1000.0
             })
 
           backdate(progress, :last_watched_at, hours_ago(index))
@@ -504,8 +509,8 @@ defmodule MediaCentaur.LibraryTest do
           progress =
             create_watch_progress(%{
               video_object_id: video.id,
-              position_seconds: 30.0,
-              duration_seconds: 100.0
+              position_seconds: 300.0,
+              duration_seconds: 1000.0
             })
 
           backdate(progress, :last_watched_at, hours_ago(index))
@@ -541,8 +546,8 @@ defmodule MediaCentaur.LibraryTest do
           progress =
             create_watch_progress(%{
               episode_id: watched.id,
-              position_seconds: 30.0,
-              duration_seconds: 100.0
+              position_seconds: 300.0,
+              duration_seconds: 1000.0
             })
 
           backdate(progress, :last_watched_at, hours_ago(index))
@@ -571,8 +576,8 @@ defmodule MediaCentaur.LibraryTest do
           progress =
             create_watch_progress(%{
               movie_id: watched.id,
-              position_seconds: 30.0,
-              duration_seconds: 100.0
+              position_seconds: 300.0,
+              duration_seconds: 1000.0
             })
 
           backdate(progress, :last_watched_at, hours_ago(index))
@@ -898,16 +903,17 @@ defmodule MediaCentaur.LibraryTest do
     # count) so transient file-presence changes don't shuffle rows in or out.
     test "includes orphan movies with watch_progress when no file is present" do
       orphan = create_standalone_movie(%{name: "Orphan With Progress"})
-      create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: orphan.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
       results = Library.list_in_progress(owner_profile_id(), limit: 10)
       assert Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
     end
 
     test "includes a TV series whose watched episodes are all completed but not every episode is watched" do
-      # Mirrors how `LibraryProgress.in_progress?/1` reads a series:
-      # episodes_completed (1) < episodes_total (3) → in progress, even
-      # though the user is not currently mid-episode anywhere.
+      # One of three episodes carries a watched mark and nothing was
+      # finished by playback: the series is in progress (the next is the
+      # first unmarked episode), even though the user is not currently
+      # mid-episode anywhere.
       series = create_tv_series(%{name: "Half-Watched Show"})
       record_present(create_linked_file(%{tv_series_id: series.id}))
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
@@ -924,7 +930,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_watch_progress(%{
         episode_id: ep1.id,
-        position_seconds: 60.0,
+        position_seconds: 0.0,
         duration_seconds: 60.0,
         completed: true
       })
@@ -961,7 +967,7 @@ defmodule MediaCentaur.LibraryTest do
 
         create_watch_progress(%{
           episode_id: episode.id,
-          position_seconds: 60.0,
+          position_seconds: 0.0,
           duration_seconds: 60.0,
           completed: true
         })
@@ -1078,7 +1084,7 @@ defmodule MediaCentaur.LibraryTest do
       assert entry.entity.type == :movie
       assert Enum.map(entry.entity.extras, & &1.name) == ["Behind the Scenes"]
       # No watch_progress yet, so summary is nil — but the key exists.
-      assert Map.has_key?(entry, :progress)
+      assert Map.has_key?(entry, :title_progress)
       assert is_list(entry.progress_records)
     end
 

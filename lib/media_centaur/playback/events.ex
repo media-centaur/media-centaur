@@ -57,17 +57,15 @@ defmodule MediaCentaur.Playback.Events do
     @enforce_keys [
       :entity_id,
       :profile_id,
-      :summary,
       :title_progress,
       :changed_record,
       :last_activity_at
     ]
-    defstruct [:entity_id, :profile_id, :summary, :title_progress, :changed_record, :last_activity_at]
+    defstruct [:entity_id, :profile_id, :title_progress, :changed_record, :last_activity_at]
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
             profile_id: String.t(),
-            summary: map(),
             title_progress: MediaCentaur.Library.TitleProgress.t(),
             changed_record: map() | nil,
             last_activity_at: DateTime.t()

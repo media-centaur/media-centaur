@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
 
   The playback broadcasts carry what changed, so `merge_progress/2`,
   `merge_extra_progress/2` and `put_playback_override/2` update the half
-  in memory (`SeriesDetail.with_progress/4` and its collection twin
+  in memory (`SeriesDetail.with_progress/3` and its collection twin
   keep their typed lists) rather than re-reading on every tick.
 
   The file-info load stats every file (a stale network mount can take
@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Presentable
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Detail.Library, as: Half
   alias MediaCentaurWeb.LibraryProgress
@@ -142,26 +143,24 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
 
   # --- In-memory merges from the playback broadcasts ---
 
-  @doc "Merges a progress broadcast into the half; nil asks for a reload (a payload without a summary)."
+  @doc "Merges a progress broadcast into the half; nil asks for a reload (a payload without a title progress)."
   @spec merge_progress(Half.t(), map()) :: Half.t() | nil
   def merge_progress(%Half{entry: entry} = half, %{
-        summary: summary,
-        title_progress: title_progress,
+        title_progress: %TitleProgress{} = title_progress,
         changed_record: changed_record
-      })
-      when is_map(summary) do
+      }) do
     records = LibraryProgress.merge_progress_record(entry.progress_records, changed_record)
 
     entry =
       case entry do
         %SeriesDetail{} ->
-          SeriesDetail.with_progress(entry, summary, records, title_progress)
+          SeriesDetail.with_progress(entry, records, title_progress)
 
         %CollectionDetail{} ->
-          CollectionDetail.with_progress(entry, summary, records, title_progress)
+          CollectionDetail.with_progress(entry, records, title_progress)
 
         %LeafDetail{} ->
-          %{entry | progress: summary, progress_records: records, title_progress: title_progress}
+          %{entry | progress_records: records, title_progress: title_progress}
       end
 
     rebuild(half, entry)

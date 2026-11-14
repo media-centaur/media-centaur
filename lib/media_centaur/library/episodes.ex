@@ -23,7 +23,16 @@ defmodule MediaCentaur.Library.Episodes do
 
   import Ecto.Query
 
-  alias MediaCentaur.Library.{ContentUrls, Episode, PlayableItem, Season, WatchedFile, Writes}
+  alias MediaCentaur.Library.{
+    ContentUrls,
+    Episode,
+    EpisodeOrder,
+    PlayableItem,
+    Season,
+    WatchedFile,
+    Writes
+  }
+
   alias MediaCentaur.Repo
 
   @doc """
@@ -97,6 +106,43 @@ defmodule MediaCentaur.Library.Episodes do
     )
     |> Repo.all()
     |> Map.new()
+  end
+
+  @doc """
+  The ordered set of each of the given series — its episodes with at
+  least one `WatchedFile`, in story order, each as `%{id, key}` with its
+  order key (`EpisodeOrder.order_key/2`) — as `%{tv_series_id => items}`,
+  in one query. A series with no episode on file is absent.
+
+  The same set `EpisodeOrder.ordered_items/1` reads off an entity view,
+  for callers holding ids and no view: the bulk read of title progress
+  (`ProgressRecords.title_progresses/2`).
+  """
+  @spec ordered_items_by_tv_series([Ecto.UUID.t()]) :: %{
+          Ecto.UUID.t() => [%{id: Ecto.UUID.t(), key: [String.t()]}]
+        }
+  def ordered_items_by_tv_series([]), do: %{}
+
+  def ordered_items_by_tv_series(tv_series_ids) when is_list(tv_series_ids) do
+    from(episode in Episode,
+      join: season in Season,
+      on: season.id == episode.season_id,
+      join: playable_item in PlayableItem,
+      on: playable_item.container_id == episode.id and playable_item.container_type == :episode,
+      join: watched_file in WatchedFile,
+      on: watched_file.playable_item_id == playable_item.id,
+      where: season.tv_series_id in ^tv_series_ids,
+      distinct: true,
+      order_by: [asc: season.season_number, asc: episode.episode_number],
+      select: {season.tv_series_id, episode.id, season.season_number, episode.episode_number}
+    )
+    |> Repo.all()
+    |> Enum.group_by(
+      fn {tv_series_id, _id, _season_number, _episode_number} -> tv_series_id end,
+      fn {_tv_series_id, id, season_number, episode_number} ->
+        %{id: id, key: EpisodeOrder.order_key(season_number, episode_number)}
+      end
+    )
   end
 
   @doc """

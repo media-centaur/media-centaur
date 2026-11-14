@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{
             entity: tv,
-            progress: nil,
             progress_records: []
           },
           [],
@@ -48,7 +47,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           releases,
           nil
         )
@@ -75,7 +74,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           releases,
           nil
         )
@@ -102,7 +101,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = build_tv_series(%{seasons: [season]})
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, [], nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -124,7 +123,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, releases, nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -148,7 +147,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = build_tv_series(%{seasons: [season]})
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, [], nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -169,7 +168,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           releases,
           nil
         )
@@ -193,7 +192,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, releases, nil)
 
       [%SeasonView{items: items}] = view_model.seasons
       assert Enum.map(items, & &1.episode_number) == [1, 2, 3]
@@ -214,7 +213,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, releases, nil)
 
       [%SeasonView{items: [item]}] = view_model.seasons
 
@@ -238,7 +237,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           [],
           nil,
           claimed
@@ -264,7 +263,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           releases,
           nil,
           MapSet.new([{1, 1}])
@@ -289,7 +288,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           [],
           nil,
           MapSet.new([{1, 1}])
@@ -316,7 +315,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
+        SeriesDetail.build(%{entity: tv, progress_records: []}, releases, nil)
 
       [%SeasonView{items: [item]}] = view_model.seasons
 
@@ -338,7 +337,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: progress_records},
+          %{entity: tv, progress_records: progress_records},
           [],
           nil
         )
@@ -365,7 +364,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: []},
+          %{entity: tv, progress_records: []},
           [],
           title_progress
         )
@@ -386,7 +385,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = build_tv_series(%{seasons: [season]})
       complete = %TitleProgress{state: :complete, next: nil, before_next: 2, total: 2}
 
-      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], complete)
+      view_model = SeriesDetail.build(%{entity: tv, progress_records: []}, [], complete)
 
       [%SeasonView{items: items}] = view_model.seasons
       refute Enum.any?(items, & &1.is_resume_target)
@@ -411,7 +410,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       }
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: records}, [], title_progress)
+        SeriesDetail.build(%{entity: tv, progress_records: records}, [], title_progress)
 
       assert [%SeasonView{watched_count: 3, items: [first, second, third]}] = view_model.seasons
       assert [first.state, second.state, third.state] == [:watched, :watched, :watched]
@@ -443,7 +442,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       view_model =
         SeriesDetail.build(
-          %{entity: tv, progress: nil, progress_records: progress_records},
+          %{entity: tv, progress_records: progress_records},
           [],
           nil
         )
@@ -458,7 +457,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       season = build_season(%{season_number: 1, episode_list: past_episode_list(0), episodes: []})
       tv = build_tv_series(%{seasons: [season]})
 
-      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
+      view_model = SeriesDetail.build(%{entity: tv, progress_records: []}, [], nil)
 
       [%SeasonView{items: []}] = view_model.seasons
     end

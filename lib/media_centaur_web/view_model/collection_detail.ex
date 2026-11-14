@@ -24,7 +24,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MovieOrder
-  alias MediaCentaur.Library.ProgressSummary
   alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.ReleaseTracking
@@ -34,7 +33,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   @enforce_keys [:entity, :movies]
   defstruct [
     :entity,
-    :progress,
     :progress_records,
     :movies,
     :extras,
@@ -47,7 +45,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   @type t :: %__MODULE__{
           entity: map(),
-          progress: map() | nil,
           progress_records: list(),
           movies: [MovieRow.t()],
           extras: list(),
@@ -87,13 +84,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     %{title_progress: title_progress, records: progress_records} =
       ProgressRecords.title_progress(profile_id, entity)
 
-    progress_summary = ProgressSummary.compute(entity, progress_records)
-
-    entry = %{
-      entity: entity,
-      progress: progress_summary,
-      progress_records: progress_records
-    }
+    entry = %{entity: entity, progress_records: progress_records}
 
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :movie)
@@ -144,7 +135,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
     %__MODULE__{
       entity: entry.entity,
-      progress: entry.progress,
       progress_records: entry.progress_records,
       movies: library_items ++ upcoming_items(releases, library_tmdb_ids),
       extras: entry.entity.extras || [],
@@ -162,13 +152,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Pure: reuses the cached `releases` on the
   existing struct.
   """
-  @spec with_progress(t(), map() | nil, list(), TitleProgress.t() | nil) :: t()
-  def with_progress(%__MODULE__{} = collection_detail, progress, progress_records, title_progress) do
-    entry = %{
-      entity: collection_detail.entity,
-      progress: progress,
-      progress_records: progress_records
-    }
+  @spec with_progress(t(), list(), TitleProgress.t() | nil) :: t()
+  def with_progress(%__MODULE__{} = collection_detail, progress_records, title_progress) do
+    entry = %{entity: collection_detail.entity, progress_records: progress_records}
 
     build(entry, collection_detail.releases || [], title_progress)
   end

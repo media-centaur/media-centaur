@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   import MediaCentaurWeb.LibraryFormatters, only: [format_type: 1]
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
-  alias MediaCentaur.Library.ContinueWatchingProgress
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.FilterField
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.PlayOverlay
@@ -23,10 +23,10 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     doc:
       "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:rank` — and `:available?`, whether the entry's media directory is reachable; an offline entry renders a neutral block in place of its poster and no Play."
 
-  attr :progress, :map,
+  attr :progress, TitleProgress,
     default: nil,
     doc:
-      "Progress summary for this entry — `nil` when the entry has no `WatchProgress` row, otherwise a map with `:episodes_completed` / `:episodes_total` and `:episode_position_seconds` / `:episode_duration_seconds`. The progress bar shows the entry-wide watched share via `ContinueWatchingProgress.compute_pct/1` — same measure as the Continue Watching row and the detail hairline."
+      "The profile's title progress for this entry (`MediaCentaur.Library.TitleProgress`) — `nil` when nothing was started. The bar shows `TitleProgress.percent/1`, the same measure as the Continue Watching row and the detail hairline."
 
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   end
 
   defp card_progress_bar(%{progress: progress} = assigns) do
-    percent = ContinueWatchingProgress.compute_pct(progress)
+    percent = TitleProgress.percent(progress)
     assigns = assign(assigns, :percent, percent)
 
     ~H"""

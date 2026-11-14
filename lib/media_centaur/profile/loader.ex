@@ -165,8 +165,8 @@ defmodule MediaCentaur.Profile.Loader do
     |> Enum.each(fn {movie_id, index} ->
       {:ok, _} =
         Library.ProgressRecords.find_or_create_for_container(owner_id, :movie, movie_id, %{
-          position_seconds: 30.0 + index * 1.5,
-          duration_seconds: 100.0,
+          position_seconds: 300.0 + index * 15.0,
+          duration_seconds: 1000.0,
           completed: false
         })
     end)

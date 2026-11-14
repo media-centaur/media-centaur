@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
     movie = create_standalone_movie(%{name: "Sample Movie"})
     _ = create_linked_file(%{movie_id: movie.id})
-    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
     {:ok, _view, html} = live_async!(conn, "/")
 
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     # pinned here.
     movie = create_standalone_movie(%{name: "Sample Movie"})
     _ = create_linked_file(%{movie_id: movie.id})
-    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
     {:ok, view, _html} = live_async!(conn, "/")
 
@@ -77,8 +77,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     create_watch_progress(%{
       profile_id: ana.id,
       movie_id: hers.id,
-      position_seconds: 30.0,
-      duration_seconds: 100.0
+      position_seconds: 300.0,
+      duration_seconds: 1000.0
     })
 
     # The movie is on Recently Added for everyone; only Ana's shelf carries it.
@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     # paints first.
     movie = create_standalone_movie(%{name: "First Paint Home Movie"})
     _ = create_linked_file(%{movie_id: movie.id})
-    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
     html = conn |> get("/") |> html_response(200)
 
@@ -116,8 +116,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 30.0,
-        duration_seconds: 100.0
+        position_seconds: 300.0,
+        duration_seconds: 1000.0
       })
 
       :ok
@@ -263,7 +263,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       })
 
       _ = create_linked_file(%{movie_id: movie.id})
-      create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
       %{movie: movie, backdrop_url: "/media-images/#{movie.id}/backdrop.jpg"}
     end
@@ -464,8 +464,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 30.0,
-        duration_seconds: 100.0
+        position_seconds: 300.0,
+        duration_seconds: 1000.0
       })
 
       {:ok, view, _html} = live_async!(conn, "/")
@@ -617,8 +617,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       create_watch_progress(%{
         movie_id: movie.id,
-        position_seconds: 50.0,
-        duration_seconds: 1000.0
+        position_seconds: 500.0,
+        duration_seconds: 10_000.0
       })
 
       Events.broadcast(%PlaybackStateChanged{
@@ -645,7 +645,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       for {movie, watched_at} <- [{first, ~U[2026-10-01 20:00:00Z]}, {second, ~U[2026-10-02 20:00:00Z]}] do
         _ = create_linked_file(%{movie_id: movie.id})
 
-        %{movie_id: movie.id, position_seconds: 50.0, duration_seconds: 1000.0}
+        %{movie_id: movie.id, position_seconds: 500.0, duration_seconds: 10_000.0}
         |> create_watch_progress()
         |> backdate(:last_watched_at, watched_at)
       end
@@ -790,7 +790,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       })
 
       _ = create_linked_file(%{movie_id: movie.id})
-      create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 300.0, duration_seconds: 1000.0})
 
       %{movie: movie}
     end

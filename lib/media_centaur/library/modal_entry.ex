@@ -17,22 +17,22 @@ defmodule MediaCentaur.Library.ModalEntry do
     PlaybackOverrides,
     Presentable,
     ProgressRecords,
-    ProgressSummary,
+    TitleProgress,
     Views
   }
 
   @doc """
   Loads a single library entry shaped for the detail modal — the
-  `%{entity, progress, progress_records}` triple every host LiveView
-  assigns to `:selected_entry`.
+  `%{entity, title_progress, progress_records}` triple every host
+  LiveView assigns to `:selected_entry`.
 
   Reads from `MediaCentaur.Library.Views.Detail` (Pillar-2 ETS
   projection, microsecond reads in production; live DB-fallback in test
   mode) — probes each container kind in turn and converts the first
   match's `DetailItem` to an `EntityView` via
-  `Views.DetailItem.to_entity_view/1`. Progress records are the
-  profile's, from `ProgressRecords.list_for_container/3`; the summary
-  from `ProgressSummary.compute/2`.
+  `Views.DetailItem.to_entity_view/1`. The progress records and the
+  title progress are the profile's, from
+  `ProgressRecords.title_progress/2`.
 
   Returns `:not_found` when no container matches *and has at least one
   present file* — orphan entities (record exists, no `WatchedFile`)
@@ -45,7 +45,7 @@ defmodule MediaCentaur.Library.ModalEntry do
   now.
   """
   @spec load(Ecto.UUID.t(), Ecto.UUID.t()) ::
-          {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
+          {:ok, %{entity: map(), title_progress: TitleProgress.t(), progress_records: list()}}
           | :not_found
   def load(profile_id, id) when is_binary(profile_id) and is_binary(id) do
     # Route through the single presentable authority: it applies the hoist
@@ -68,12 +68,12 @@ defmodule MediaCentaur.Library.ModalEntry do
   leaf kinds — re-resolving here would repeat those queries per open.
   """
   @spec load_resolved(Ecto.UUID.t(), atom(), Ecto.UUID.t()) ::
-          {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
+          {:ok, %{entity: map(), title_progress: TitleProgress.t(), progress_records: list()}}
           | :not_found
   def load_resolved(profile_id, kind, id) when is_binary(profile_id) do
     case present_detail_for(kind, id) do
       nil -> :not_found
-      item -> {:ok, build_modal_entry(profile_id, kind, item, id)}
+      item -> {:ok, build_modal_entry(profile_id, item)}
     end
   end
 
@@ -99,11 +99,12 @@ defmodule MediaCentaur.Library.ModalEntry do
 
   defp any_present?(_type, %Views.DetailItem{present?: present}), do: present == true
 
-  defp build_modal_entry(profile_id, container_type, item, id) do
+  defp build_modal_entry(profile_id, item) do
     entity = PlaybackOverrides.put_on_entity(profile_id, Views.DetailItem.to_entity_view(item))
-    progress_records = ProgressRecords.list_for_container(profile_id, container_type, id)
-    progress = ProgressSummary.compute(entity, progress_records)
 
-    %{entity: entity, progress: progress, progress_records: progress_records}
+    %{title_progress: title_progress, records: records} =
+      ProgressRecords.title_progress(profile_id, entity)
+
+    %{entity: entity, title_progress: title_progress, progress_records: records}
   end
 end
