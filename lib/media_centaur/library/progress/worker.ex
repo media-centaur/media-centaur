@@ -47,12 +47,18 @@ defmodule MediaCentaur.Library.Progress.Worker do
       is broadcast on `library:progress` per row. On failure the
       dirty set is left populated so the next flush retries.
     * `handle_call({:complete, key, actor}, _from, state)` is the finish:
-      it hands the persisted row to `Library.ProgressRecords.finish/3`
-      synchronously (no debounce) — the mark is set, the offset zeroed,
-      the series watch position moved and
-      `{:entity_watch_completed, record, actor}` published on
-      `library:watch_completed` — then drops the hot row and its dirty
-      mark, so no later flush brings the viewing back.
+      it takes the hot row and its dirty mark out of memory first, so no
+      later flush brings the viewing back and nothing that reads on the
+      finish event sees the old offset, then hands the persisted row to
+      `Library.ProgressRecords.finish/3` synchronously (no debounce) —
+      the mark is set, the offset zeroed, the series watch position moved
+      and `{:entity_watch_completed, record, actor}` published on
+      `library:watch_completed`. A finish that fails — an error or a
+      raise from the database — writes and publishes nothing: it is
+      logged, the hot row is put back with the dirty mark it had, the
+      caller is told `{:error, reason}` and the worker keeps running.
+    * `handle_call({:clear_viewing, key}, _from, state)` takes the hot row
+      and its dirty mark out of memory, for the watched controls.
     * `terminate/2` synchronously flushes the dirty set so a clean
       shutdown doesn't lose state.
 
@@ -167,27 +173,29 @@ defmodule MediaCentaur.Library.Progress.Worker do
     {:reply, :ok, %{state | dirty: MapSet.new()}}
   end
 
-  def handle_call({:complete, {profile_id, playable_item_id} = key, actor}, _from, state) do
-    case Library.ProgressRecords.find_or_create_by_playable_item(profile_id, playable_item_id) do
-      {:ok, record} ->
-        # The hot row holds the duration the session last reported; the
-        # persisted row may predate the first flush.
-        duration = (lookup_row(state.table, key) || record).duration_seconds
-        {:ok, _finished} = Library.ProgressRecords.finish(record, duration, actor)
+  def handle_call({:complete, key, actor}, _from, state) do
+    # The viewing leaves memory before the finish is written, so nothing
+    # that reads on the finish event can lay the old offset back over the
+    # finished row.
+    {viewing, ended} = end_viewing(state, key)
 
-        # The viewing is over: with the hot row and its dirty mark gone,
-        # the next flush has nothing to write for this key.
-        :ets.delete(state.table, key)
-        {:reply, :ok, %{state | dirty: MapSet.delete(state.dirty, key)}}
+    case finish(key, viewing, actor) do
+      :ok ->
+        {:reply, :ok, ended}
 
       {:error, reason} ->
-        Log.warning(
-          :library,
-          "Library.Progress.complete/2 — could not resolve watch_progress: #{inspect(reason)}"
-        )
-
-        {:reply, :ok, state}
+        # Nothing was written (the finish is one transaction), so the
+        # viewing is still in flight: its row goes back, unless a newer
+        # tick already wrote one, and it keeps the dirty mark it had.
+        if viewing, do: :ets.insert_new(state.table, {key, viewing})
+        Log.warning(:library, "Library.Progress.complete/2 — the finish failed: #{describe(reason)}")
+        {:reply, {:error, reason}, state}
     end
+  end
+
+  def handle_call({:clear_viewing, key}, _from, state) do
+    {_viewing, ended} = end_viewing(state, key)
+    {:reply, :ok, ended}
   end
 
   @impl true
@@ -276,6 +284,36 @@ defmodule MediaCentaur.Library.Progress.Worker do
   end
 
   # --- Helpers ---
+
+  # Takes `key`'s viewing out of memory: the hot row and its dirty mark,
+  # so the next flush has nothing to write for it. Returns the row taken.
+  defp end_viewing(state, key) do
+    viewing =
+      case :ets.take(state.table, key) do
+        [{^key, row}] -> row
+        [] -> nil
+      end
+
+    {viewing, %{state | dirty: MapSet.delete(state.dirty, key)}}
+  end
+
+  # The hot row holds the duration the session last reported; the
+  # persisted row may predate the first flush. A database error raises
+  # rather than returning, and is a failed finish all the same — the
+  # caller retries, and this process owns every session's hot rows.
+  defp finish({profile_id, playable_item_id}, viewing, actor) do
+    with {:ok, record} <-
+           Library.ProgressRecords.find_or_create_by_playable_item(profile_id, playable_item_id),
+         {:ok, _finished} <-
+           Library.ProgressRecords.finish(record, (viewing || record).duration_seconds, actor) do
+      :ok
+    end
+  rescue
+    error -> {:error, error}
+  end
+
+  defp describe(reason) when is_exception(reason), do: Exception.message(reason)
+  defp describe(reason), do: inspect(reason)
 
   defp resolve_flush_interval(opts) do
     Keyword.get(

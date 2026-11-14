@@ -18,7 +18,9 @@ defmodule MediaCentaur.Library.ProgressTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Profiles.Actor
+  alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Progress
+  alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.SeriesWatchPositions
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaur.Repo
@@ -425,6 +427,180 @@ defmodule MediaCentaur.Library.ProgressTest do
       reloaded = Repo.get!(WatchProgress, progress.id)
       assert reloaded.completed
       assert reloaded.position_seconds == 300.0
+    end
+  end
+
+  describe "the watched control ends the viewing in memory too" do
+    setup do
+      Topics.subscribe(Topics.library_progress())
+      :ok
+    end
+
+    # A second item's tick gives the next flush something to announce, so
+    # the test can wait for it.
+    defp await_next_flush do
+      other_id = seed_movie_playable_item().id
+      :ok = Progress.record(owner_profile_id(), other_id, 30.0, 100.0)
+      assert_receive {:progress_flushed, %{playable_item_id: ^other_id}}, 1_000
+    end
+
+    test "Mark watched clears the live offset, and no flush brings it back" do
+      movie = create_standalone_movie(%{name: "Movie A"})
+      progress = create_watch_progress(%{movie_id: movie.id})
+      playable_item_id = progress.playable_item_id
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 300.0, 6000.0)
+
+      {:ok, _marked} = ProgressRecords.toggle_watched(Actor.new(owner_profile_id()), :movie, movie.id)
+
+      assert %WatchProgress{completed: true, position_seconds: +0.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+
+      await_next_flush()
+
+      assert %WatchProgress{completed: true, position_seconds: +0.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+
+      assert Repo.get!(WatchProgress, progress.id).position_seconds == 0.0
+    end
+
+    test "Mark watched on an item whose only record is the live offset leaves no viewing" do
+      movie = create_standalone_movie(%{name: "Movie A"})
+      playable_item_id = create_playable_item_for_movie(movie).id
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 300.0, 6000.0)
+
+      {:ok, _marked} = ProgressRecords.toggle_watched(Actor.new(owner_profile_id()), :movie, movie.id)
+      await_next_flush()
+
+      assert %WatchProgress{completed: true, position_seconds: +0.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+    end
+
+    test "Mark unwatched clears the live offset, and no flush brings it back" do
+      movie = create_standalone_movie(%{name: "Movie A"})
+      progress = create_watch_progress(%{movie_id: movie.id, completed: true})
+      playable_item_id = progress.playable_item_id
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 30.0, 6000.0)
+
+      {:ok, _unmarked} = ProgressRecords.toggle_watched(Actor.new(owner_profile_id()), :movie, movie.id)
+
+      assert %WatchProgress{completed: false, position_seconds: +0.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+
+      await_next_flush()
+
+      assert %WatchProgress{completed: false, position_seconds: +0.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+
+      assert Repo.get!(WatchProgress, progress.id).position_seconds == 0.0
+    end
+  end
+
+  describe "a finish that fails" do
+    setup do
+      Topics.subscribe(Topics.library_watch_completed())
+      Topics.subscribe(Topics.library_progress())
+      :ok
+    end
+
+    # An episode with no number cannot be given an order key, so the
+    # finish's transaction fails while a tick and its flush still work.
+    defp seed_unfinishable_episode do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1})
+      progress = create_watch_progress(%{episode_id: episode.id})
+      force_attrs(episode, episode_number: nil)
+      progress
+    end
+
+    test "is reported to the caller, publishes nothing and leaves the row unmarked" do
+      progress = seed_unfinishable_episode()
+      :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 1250.0, 1300.0)
+
+      assert {:error, _reason} =
+               Progress.complete(Actor.new(owner_profile_id()), progress.playable_item_id)
+
+      refute_receive {:entity_watch_completed, _record, _actor}, 50
+      refute Repo.get!(WatchProgress, progress.id).completed
+    end
+
+    test "leaves the worker running with the viewing still in flight" do
+      progress = seed_unfinishable_episode()
+      playable_item_id = progress.playable_item_id
+      :ok = Progress.record(owner_profile_id(), playable_item_id, 1250.0, 1300.0)
+
+      {:error, _reason} = Progress.complete(Actor.new(owner_profile_id()), playable_item_id)
+
+      assert %WatchProgress{completed: false, position_seconds: 1250.0} =
+               Progress.get(owner_profile_id(), playable_item_id)
+
+      assert_receive {:progress_flushed, %{playable_item_id: ^playable_item_id}}, 1_000
+      assert Repo.get!(WatchProgress, progress.id).position_seconds == 1250.0
+    end
+
+    test "can be retried: the next finish of the same item goes through" do
+      progress = seed_unfinishable_episode()
+      actor = Actor.new(owner_profile_id())
+      :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 1250.0, 1300.0)
+      {:error, _reason} = Progress.complete(actor, progress.playable_item_id)
+
+      force_attrs(Repo.get!(Episode, progress.playable_item.container_id), episode_number: 1)
+
+      assert :ok = Progress.complete(actor, progress.playable_item_id)
+      assert_receive {:entity_watch_completed, %WatchProgress{completed: true}, ^actor}, 500
+      assert Progress.get(owner_profile_id(), progress.playable_item_id).position_seconds == 0.0
+    end
+  end
+
+  describe "a finish with no worker running" do
+    test "is an error, so the caller knows the item was not finished" do
+      :ok = stop_supervised({Progress.Worker, Progress.Worker})
+      playable_item = seed_movie_playable_item()
+
+      assert {:error, :not_running} =
+               Progress.complete(Actor.new(owner_profile_id()), playable_item.id)
+    end
+  end
+
+  describe "the finish event and the live offset" do
+    test "the live offset is gone before the finish is committed, so no reader of the event sees it" do
+      # A long flush interval: the only transaction the worker commits in
+      # this test is the finish's.
+      :ok = stop_supervised({Progress.Worker, Progress.Worker})
+
+      {:ok, worker} =
+        start_supervised({Progress.Worker, [flush_interval_ms: 60_000, name: Progress.Worker]})
+
+      movie = create_standalone_movie(%{name: "Movie A"})
+      progress = create_watch_progress(%{movie_id: movie.id})
+      :ok = Progress.record(owner_profile_id(), progress.playable_item_id, 5900.0, 6000.0)
+
+      test_process = self()
+      handler_id = {:live_offset_at_finish_commit, make_ref()}
+
+      # Ecto emits the event in the process that ran the query, so this
+      # reads what any reader would see at the instant the worker commits.
+      :ok =
+        :telemetry.attach(
+          handler_id,
+          [:media_centaur, :repo, :query],
+          fn _event, _measurements, metadata, _config ->
+            if self() == worker and metadata.query == "commit" do
+              send(
+                test_process,
+                {:offset_at_commit, Progress.overlay_in_memory(progress).position_seconds}
+              )
+            end
+          end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      :ok = Progress.complete(Actor.new(owner_profile_id()), progress.playable_item_id)
+
+      assert_receive {:offset_at_commit, offset}
+      assert offset == 0.0
     end
   end
 

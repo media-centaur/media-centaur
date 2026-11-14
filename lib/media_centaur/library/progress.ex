@@ -45,10 +45,12 @@ defmodule MediaCentaur.Library.Progress do
 
   A hot row carries the offset, the duration and when it was last
   touched. It carries no watched mark: `completed` lives in the database
-  and a tick never writes it. A finish removes the hot row. Nothing here
-  guards against a repeated finish — the playback session keeps the set
-  of items it finished and persists nothing more for them
-  (`MediaCentaur.Playback.ProgressWriter.completed?/2`).
+  and a tick never writes it. A finish removes the hot row, and so do the
+  watched controls (`clear_viewing/2`). Nothing here guards against a
+  repeated finish, or orders a tick against a finish — the playback
+  session keeps the set of items it finished, persists nothing more for
+  them, and issues its writes in order
+  (`MediaCentaur.Playback.ProgressWriter`).
 
   The Library-owned `library:progress` topic exists so progress events
   don't reach across the boundary into the Playback context (which
@@ -59,9 +61,11 @@ defmodule MediaCentaur.Library.Progress do
 
   The worker isn't started by `MediaCentaur.Application` in `:test`
   env (it's started per-test by the suites that exercise it). When the
-  worker isn't running, `get/2` falls through to `Repo.get_by/2` and
-  `record/4` / `complete/2` are no-ops — the same safety net the other
-  ADR-041 projections rely on.
+  worker isn't running, `get/2` falls through to `Repo.get_by/2`,
+  `record/4` and `clear_viewing/2` are no-ops (there is no hot row to
+  write or drop), and `complete/2` returns `{:error, :not_running}` — a
+  finish is a database write the worker makes, so without it the item was
+  not finished and the caller has to know.
   """
   alias MediaCentaur.Cache
   alias MediaCentaur.Library.Progress.Worker
@@ -121,10 +125,29 @@ defmodule MediaCentaur.Library.Progress do
   every time, see `MediaCentaur.Library.ProgressRecords.finish/3`.
   Persisted synchronously (no debounce); uses `GenServer.call/2` so
   callers get read-after-write semantics against the DB.
+
+  `{:error, reason}` when the item was not finished: the write failed
+  (nothing was written or published, and the viewing is still in flight),
+  or the worker is not running (`:not_running`). The caller owns the
+  retry.
   """
-  @spec complete(Actor.t(), Ecto.UUID.t()) :: :ok
+  @spec complete(Actor.t(), Ecto.UUID.t()) :: :ok | {:error, term()}
   def complete(%Actor{} = actor, playable_item_id) when is_binary(playable_item_id),
     do: call({:complete, {actor.profile_id, playable_item_id}, actor})
+
+  @doc """
+  Ends `profile_id`'s viewing in flight on a playable item in memory: the
+  hot row and its pending flush are dropped, so readers see the persisted
+  offset and no flush writes the old one back. The watched controls call
+  it before they zero the persisted offset
+  (`MediaCentaur.Library.ProgressRecords.mark_completed/2`,
+  `mark_incomplete/1`). Synchronous; `:ok` when no worker runs, since
+  there is then no hot row.
+  """
+  @spec clear_viewing(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  def clear_viewing(profile_id, playable_item_id)
+      when is_binary(profile_id) and is_binary(playable_item_id),
+      do: ok_when_not_running(call({:clear_viewing, {profile_id, playable_item_id}}))
 
   @doc """
   Reads `profile_id`'s watch progress on a `playable_item_id`: the
@@ -195,21 +218,24 @@ defmodule MediaCentaur.Library.Progress do
     """
     @spec reset_for_test!() :: :ok
     def reset_for_test! do
-      call(:reset_for_test!)
+      ok_when_not_running(call(:reset_for_test!))
     end
   end
 
   # --- Private ---
 
   # A cast to the worker's name is `:ok` whether or not it runs (it does
-  # not under :test); a call to it degrades the same way.
+  # not under :test); a call says so.
   defp cast(message), do: GenServer.cast(Worker, message)
 
   defp call(message) do
     GenServer.call(Worker, message)
   catch
-    :exit, {:noproc, _call} -> :ok
+    :exit, {:noproc, _call} -> {:error, :not_running}
   end
+
+  defp ok_when_not_running({:error, :not_running}), do: :ok
+  defp ok_when_not_running(reply), do: reply
 
   defp lookup_in_memory_row(key) do
     Cache.with_table(

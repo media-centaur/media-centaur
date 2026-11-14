@@ -112,6 +112,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     PlayableItem,
     PlayableItems,
     PresentableQueries,
+    Progress,
     Season,
     SeriesWatchPositions,
     TVSeries,
@@ -137,8 +138,9 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   @doc """
   The Mark watched control: sets the watched mark and clears any viewing
-  in flight, leaving `last_watched_at` and the series watch position
-  alone. `actor` is the profile that marked it, or `nil` when no person
+  in flight — in memory first (`Library.Progress.clear_viewing/2`, so no
+  pending flush writes the offset back), then the persisted offset —
+  leaving `last_watched_at` and the series watch position alone. `actor` is the profile that marked it, or `nil` when no person
   did; a completion is shared with friends only for an actor (ADR-082).
 
   A `WatchProgress` transitioning to completed broadcasts
@@ -151,6 +153,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
           {:ok, struct()} | {:error, Ecto.Changeset.t()}
   def mark_completed(%WatchProgress{} = progress, actor) do
     transitioning? = not progress.completed
+    :ok = Progress.clear_viewing(progress.profile_id, progress.playable_item_id)
 
     with {:ok, updated} <- Repo.update(WatchProgress.mark_completed_changeset(progress)) do
       if transitioning?, do: publish_completed(updated, actor)
@@ -168,12 +171,15 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   @doc """
   The Mark unwatched control: clears the watched mark and any viewing in
-  flight, leaving `last_watched_at` and the series watch position alone.
+  flight (in memory and persisted, as `mark_completed/2`), leaving
+  `last_watched_at` and the series watch position alone.
   """
   @spec mark_incomplete(WatchProgress.t() | ExtraProgress.t()) ::
           {:ok, struct()} | {:error, Ecto.Changeset.t()}
-  def mark_incomplete(%WatchProgress{} = progress),
-    do: Repo.update(WatchProgress.mark_incomplete_changeset(progress))
+  def mark_incomplete(%WatchProgress{} = progress) do
+    :ok = Progress.clear_viewing(progress.profile_id, progress.playable_item_id)
+    Repo.update(WatchProgress.mark_incomplete_changeset(progress))
+  end
 
   def mark_incomplete(%ExtraProgress{} = progress),
     do: Repo.update(ExtraProgress.mark_incomplete_changeset(progress))
@@ -276,7 +282,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   # Marking an item that has no row inserts the mark alone
   # (`marked_changeset/1`): a hand mark is not a viewing, so the new row
-  # carries no `last_watched_at`.
+  # carries no `last_watched_at`. The item may still have a viewing in
+  # memory that no flush has persisted yet; it is cleared first.
   defp apply_watched_control(progress, actor, insert_marked) do
     case {watched_control(progress), progress} do
       {:mark_unwatched, record} -> mark_incomplete(record)
@@ -289,6 +296,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     position = PlayableItems.canonical_position(container_type, container_id)
 
     with {:ok, playable_item} <- PlayableItems.find_or_create(container_type, container_id, position),
+         :ok <- Progress.clear_viewing(actor.profile_id, playable_item.id),
          {:ok, marked} <-
            Repo.insert(
              WatchProgress.marked_changeset(%{
