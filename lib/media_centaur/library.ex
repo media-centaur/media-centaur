@@ -59,6 +59,7 @@ defmodule MediaCentaur.Library do
       Season,
       Seasons,
       Stats,
+      TitleProgress,
       TVSeries,
       TypeResolver,
       VideoObject,
