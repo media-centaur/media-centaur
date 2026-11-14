@@ -100,4 +100,25 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
       assert {:error, :not_found} = ProgressRecords.fetch_for_container(ana, :movie, movie.id)
     end
   end
+
+  describe "viewing?/1" do
+    test "a viewing counts from 60 seconds" do
+      refute ProgressRecords.viewing?(nil)
+      refute ProgressRecords.viewing?(%{position_seconds: 59.9})
+      assert ProgressRecords.viewing?(%{position_seconds: 60.0})
+    end
+  end
+
+  describe "state_from_progress/1 with a watched item being replayed" do
+    test "a viewing that counts reads as current, whatever the watched mark" do
+      assert ProgressRecords.state_from_progress(%{completed: true, position_seconds: 300.0}) ==
+               :current
+
+      assert ProgressRecords.state_from_progress(%{completed: true, position_seconds: 0.0}) ==
+               :watched
+
+      assert ProgressRecords.state_from_progress(%{completed: false, position_seconds: 30.0}) ==
+               :unwatched
+    end
+  end
 end

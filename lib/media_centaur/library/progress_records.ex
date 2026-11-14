@@ -59,13 +59,27 @@ defmodule MediaCentaur.Library.ProgressRecords do
   def progress_container_id(%{playable_item: %{container_id: id}}), do: id
   def progress_container_id(_), do: nil
 
+  @viewing_minimum_seconds 60
+
+  @doc """
+  Whether a progress record holds a viewing in flight that counts: an
+  offset of at least #{@viewing_minimum_seconds} seconds. The one predicate
+  the title-progress rule, the episode rows, auto-play and Continue
+  Watching share — a shorter click changes nothing.
+  """
+  @spec viewing?(map() | nil) :: boolean()
+  def viewing?(%{position_seconds: position}) when is_number(position),
+    do: position >= @viewing_minimum_seconds
+
+  def viewing?(_record), do: false
+
   @doc """
   Maps a `WatchProgress` record (or `nil`) to the three-state UI atom
   used by the detail panel and the SeriesDetail view model:
 
-  - `:unwatched` — no progress, or progress at position 0 and not completed
-  - `:current`   — progress past position 0 but not completed
-  - `:watched`   — `completed: true`
+  - `:current`   — a viewing that counts (`viewing?/1`), whatever the watched mark
+  - `:watched`   — `completed: true` with no viewing in flight
+  - `:unwatched` — no progress, or an offset too short to count and not completed
 
   Shared between the rendering layer (`DetailPanel`) and the
   composition layer (`SeriesDetail`) so the rule lives in one place.
@@ -75,8 +89,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   def state_from_progress(progress) do
     cond do
+      viewing?(progress) -> :current
       progress.completed -> :watched
-      (progress.position_seconds || 0.0) > 0.0 -> :current
       true -> :unwatched
     end
   end

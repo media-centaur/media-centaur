@@ -221,7 +221,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
 
     test "returns :watched when completed" do
-      progress = %{completed: true, position_seconds: 2700.0}
+      progress = %{completed: true, position_seconds: 0.0}
       assert PlayableRow.state_from_progress(progress) == :watched
     end
 
