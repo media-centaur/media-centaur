@@ -106,4 +106,17 @@ defmodule MediaCentaur.Library.MovieOrderTest do
       assert MovieOrder.total_available(entity) == 2
     end
   end
+
+  describe "ordered_items/1" do
+    test "lists movies with a file by release date then position, each with its order key" do
+      later = %{id: "b", content_url: "/m/b.mkv", date_published: ~D[2012-05-01], position: 0}
+      earlier = %{id: "a", content_url: "/m/a.mkv", date_published: ~D[2010-05-01], position: 1}
+      absent = %{id: "c", content_url: nil, date_published: ~D[2011-01-01], position: 2}
+
+      assert MovieOrder.ordered_items(%{movies: [later, absent, earlier]}) == [
+               %{id: "a", key: ["2010-05-01", "00001"]},
+               %{id: "b", key: ["2012-05-01", "00000"]}
+             ]
+    end
+  end
 end

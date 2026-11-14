@@ -206,4 +206,28 @@ defmodule MediaCentaur.Library.EpisodeOrderTest do
       assert EpisodeOrder.find_by_content_url(entity, "/nonexistent.mkv") == nil
     end
   end
+
+  describe "ordered_items/1" do
+    test "lists episodes with a file in story order, each with its order key" do
+      first = %{id: "a", episode_number: 1, content_url: "/tv/sample/S01E01.mkv"}
+      absent = %{id: "b", episode_number: 2, content_url: nil}
+      tenth = %{id: "c", episode_number: 10, content_url: "/tv/sample/S02E10.mkv"}
+
+      entity = %{
+        seasons: [
+          %{season_number: 2, episodes: [tenth]},
+          %{season_number: 1, episodes: [absent, first]}
+        ]
+      }
+
+      assert EpisodeOrder.ordered_items(entity) == [
+               %{id: "a", key: ["00001", "00001"]},
+               %{id: "c", key: ["00002", "00010"]}
+             ]
+    end
+
+    test "order_key/2 sorts episode 10 after episode 9" do
+      assert EpisodeOrder.order_key(1, 9) < EpisodeOrder.order_key(1, 10)
+    end
+  end
 end

@@ -40,6 +40,26 @@ defmodule MediaCentaur.Library.MovieOrder do
     |> Enum.map(fn {movie, ordinal} -> {ordinal, movie.id, movie.content_url} end)
   end
 
+  @doc "The order key of a collection movie: release date, then collection position."
+  @spec order_key(map()) :: [String.t()]
+  def order_key(movie) do
+    position = Map.get(movie, :collection_position) || Map.get(movie, :position) || 0
+
+    [
+      (movie.date_published && Date.to_iso8601(movie.date_published)) || "",
+      position |> Integer.to_string() |> String.pad_leading(5, "0")
+    ]
+  end
+
+  @doc "The collection's ordered set: `%{id, key}` for every movie with a file, in story order."
+  @spec ordered_items(map()) :: [%{id: Ecto.UUID.t(), key: [String.t()]}]
+  def ordered_items(entity) do
+    (entity.movies || [])
+    |> sort_movies()
+    |> Enum.filter(& &1.content_url)
+    |> Enum.map(&%{id: &1.id, key: order_key(&1)})
+  end
+
   @doc """
   Finds the `{ordinal, movie_id, movie_name}` for a movie matching a content_url.
 

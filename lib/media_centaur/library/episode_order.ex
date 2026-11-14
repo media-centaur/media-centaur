@@ -35,6 +35,19 @@ defmodule MediaCentaur.Library.EpisodeOrder do
     end)
   end
 
+  @doc "The order key of an episode: where it sits in the series, independent of its record."
+  @spec order_key(integer(), integer()) :: [String.t()]
+  def order_key(season_number, episode_number), do: [pad(season_number), pad(episode_number)]
+
+  @doc "The series' ordered set: `%{id, key}` for every episode with a file, in story order."
+  @spec ordered_items(map()) :: [%{id: Ecto.UUID.t(), key: [String.t()]}]
+  def ordered_items(entity) do
+    for {season, episode, _url, id} <- list_available(entity),
+        do: %{id: id, key: order_key(season, episode)}
+  end
+
+  defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(5, "0")
+
   @doc """
   Returns the episode that immediately follows `episode_id` in season/episode
   order, as a `{season_number, episode_number, content_url, episode_id}` tuple,
