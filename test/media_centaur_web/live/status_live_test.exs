@@ -252,7 +252,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
          %{
            entity_id: movie_id,
            summary: %{},
-           resume_target: nil,
+           title_progress: nil,
            changed_record: %{
              playable_item: %{container_type: :movie, container_id: movie_id},
              playable_item_id: Ecto.UUID.generate(),

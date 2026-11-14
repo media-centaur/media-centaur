@@ -2,15 +2,15 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   @moduledoc """
   Broadcasts entity progress updates to the playback PubSub topic.
 
-  Loads the entity with progress, computes summary/resume/child targets,
-  and broadcasts to `"playback:events"`. Used by MpvSession (after persisting
-  progress) and LibraryLive (after toggling watched status).
+  Loads the entity and the profile's progress through it
+  (`MediaCentaur.Library.ProgressRecords.title_progress/2`) and broadcasts
+  both to `"playback:events"`. Used by the playback session (after
+  recording progress) and the detail page (after a watched control).
   """
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Progress, as: LibraryProgress
   alias MediaCentaur.Library.Views, as: LibraryViews
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.Events
@@ -47,10 +47,12 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   """
   @spec broadcast(Ecto.UUID.t(), Ecto.UUID.t(), map() | String.t() | nil) :: :ok | {:error, term()}
   def broadcast(profile_id, entity_id, changed) do
-    case resolve_entity_with_progress(profile_id, entity_id) do
-      {:ok, entity, progress_records} ->
-        summary = MediaCentaur.Library.ProgressSummary.compute(entity, progress_records)
-        resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
+    case resolve_entity(entity_id) do
+      {:ok, entity} ->
+        %{title_progress: title_progress, records: progress_records} =
+          Library.ProgressRecords.title_progress(profile_id, entity)
+
+        summary = Library.ProgressSummary.compute(entity, progress_records)
 
         Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")
 
@@ -58,7 +60,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
           entity_id: entity_id,
           profile_id: profile_id,
           summary: summary,
-          resume_target: resume_target,
+          title_progress: title_progress,
           changed_record: select_changed_record(progress_records, changed),
           last_activity_at: DateTime.utc_now()
         })
@@ -69,7 +71,9 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   end
 
   # Resolve the caller's `changed` hint to the matching record from the
-  # freshly loaded `progress_records` list by `playable_item_id` — unique
+  # freshly loaded `progress_records` list (each at its live offset, so a
+  # tick is not read from the row its debounced flush has yet to write) by
+  # `playable_item_id` — unique
   # within one profile's rows, and the list is one profile's
   # (`(profile_id, playable_item_id)`, ADR-078). The list version carries
   # the synthesised `:playable_item`
@@ -105,48 +109,20 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   # The function still probes 4 container types since the broadcaster
   # only receives `entity_id`. Future work: thread the known type from
   # MpvSession so the probe loop drops to a single direct lookup.
-  defp resolve_entity_with_progress(profile_id, id) do
-    cond do
-      result = load_via_detail(profile_id, :tv_series, id) -> result
-      result = load_via_detail(profile_id, :movie_series, id) -> result
-      result = load_via_detail(profile_id, :movie, id) -> result
-      result = load_via_detail(profile_id, :video_object, id) -> result
-      true -> :not_found
-    end
-  end
-
-  defp load_via_detail(profile_id, type, id) do
-    case LibraryViews.detail_by_container(type, id) do
-      %DetailItem{} = item ->
-        entity = DetailItem.to_entity_view(item)
-
-        progress_records =
-          profile_id
-          |> Library.ProgressRecords.list_for_container(type, id)
-          |> overlay_in_memory_progress()
-
-        {:ok, entity, progress_records}
-
-      nil ->
-        nil
-    end
-  end
-
-  # Overlays the hot-path in-memory WatchProgress state on top of the DB
-  # read for each record's `playable_item_id`, closing the stale-read
-  # window introduced by Library Schema v2 Phase 3 Task D (the debounced
-  # flush to `library_watch_progress` lands seconds after the in-memory
-  # write). `completed` stays DB-authoritative — see
-  # `Library.Progress.overlay_in_memory/1` for why.
-  defp overlay_in_memory_progress(progress_records) do
-    Enum.map(progress_records, &LibraryProgress.overlay_in_memory/1)
+  defp resolve_entity(id) do
+    Enum.find_value([:tv_series, :movie_series, :movie, :video_object], :not_found, fn type ->
+      case LibraryViews.detail_by_container(type, id) do
+        %DetailItem{} = item -> {:ok, DetailItem.to_entity_view(item)}
+        nil -> nil
+      end
+    end)
   end
 
   @doc """
   Broadcasts an `:extra_progress_updated` message for a specific extra,
   naming `profile_id`, the profile the change was recorded under.
 
-  Simpler than entity broadcast — no summary/resume recomputation needed.
+  Simpler than entity broadcast — an extra is part of no title progress.
   Loads the current ExtraProgress record and broadcasts it.
   """
   @spec broadcast_extra(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, term()}

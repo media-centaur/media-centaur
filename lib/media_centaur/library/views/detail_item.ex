@@ -224,8 +224,9 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     episode metadata only. `WatchProgress` is overlaid at the consumer.
 
     `:content_url` is the file path of the first linked `WatchedFile`
-    under the episode's `PlayableItem` — needed by `ResumeTarget` and
-    the episode-list renderer to wire the play button.
+    under the episode's `PlayableItem` — needed by `TitleProgress` (an
+    episode with a file is in the ordered set) and the episode-list
+    renderer to wire the play button.
 
     `:images` carries per-episode `Library.Image` rows (typically a
     `"thumb"` for the episode-row render). Defaults to `[]` so consumers

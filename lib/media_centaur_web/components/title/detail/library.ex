@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail.Library do
   `entry` is the typed composition of the owning container's content:
   a `ViewModel.SeriesDetail`, a `ViewModel.CollectionDetail` or a
   `ViewModel.LeafDetail`, each carrying `entity`, `progress`,
-  `progress_records` and `resume_target`. `subject` is the entity the
+  `progress_records` and `title_progress`. `subject` is the entity the
   lockup speaks of — the selected member of a collection, composed as a
   `:movie`-shaped map (UIDR-023), else the container itself; `member`
   is that selected member row for the rail and its Watched toggle, nil
@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail.Library do
 
   @doc """
   The half for a loaded entry. A collection resolves its member — the
-  one `member_id` names, else the resume target, else the first
+  one `member_id` names, else the next movie, else the first
   (`CollectionDetail.select_member/2`) — and speaks of it; any other
   entry speaks of its own entity.
   """

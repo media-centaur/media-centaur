@@ -3,27 +3,26 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
 
   import MediaCentaur.TestFactory, only: [build_episode: 1, build_movie: 1]
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeasonView
 
-  # Season fixture: `watched` episodes watched out of `total`, with the
-  # episode after the watched prefix marked as the resume target when
-  # `resume_target: true` is given.
-  defp library_season(number, watched, total, opts \\ []) do
-    runtime = Keyword.get(opts, :runtime_seconds, 1260)
-    resume_target = Keyword.get(opts, :resume_target, false)
+  defp episode_id(season_number, episode_number), do: "s#{season_number}e#{episode_number}"
 
+  # Season fixture: `watched` episodes carry a watched mark out of
+  # `total`. The marks are what the season header counts; where the
+  # profile stands comes from the title progress, not from them.
+  defp library_season(number, watched, total) do
     items =
       for episode_number <- 1..total do
-        state = if episode_number <= watched, do: :watched, else: :unwatched
-
         %EpisodeRow.Library{
-          episode: build_episode(%{episode_number: episode_number, duration_seconds: runtime}),
+          episode:
+            build_episode(%{id: episode_id(number, episode_number), episode_number: episode_number}),
           season_number: number,
-          state: state,
-          is_resume_target: resume_target && episode_number == watched + 1
+          state: if(episode_number <= watched, do: :watched, else: :unwatched),
+          is_resume_target: false
         }
       end
 
@@ -40,27 +39,25 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     %SeasonView{season_number: number, kind: :future, items: []}
   end
 
-  defp resume_hint(season_number, episode_number, action \\ "begin") do
-    %{
-      "action" => action,
-      "seasonNumber" => season_number,
-      "episodeNumber" => episode_number
-    }
-  end
+  defp next(item_id, offset \\ 0.0),
+    do: %{item_id: item_id, offset_seconds: offset, duration_seconds: 1300.0}
 
-  # Collection fixture: `watched` movies watched out of `total`, with the
-  # movie after the watched prefix marked as the resume target when
-  # `resume_target: true` is given.
-  defp collection_items(watched, total, opts \\ []) do
-    resume_target = Keyword.get(opts, :resume_target, false)
+  defp in_progress(item_id, before_next, total),
+    do: %TitleProgress{state: :in_progress, next: next(item_id), before_next: before_next, total: total}
 
+  defp unstarted(item_id, total),
+    do: %TitleProgress{state: :unstarted, next: next(item_id), before_next: 0, total: total}
+
+  defp complete(total), do: %TitleProgress{state: :complete, next: nil, before_next: total, total: total}
+
+  defp movie_id(ordinal), do: "m#{ordinal}"
+
+  defp collection_items(watched, total) do
     for ordinal <- 1..total do
-      state = if ordinal <= watched, do: :watched, else: :unwatched
-
       %MovieRow.Library{
-        movie: build_movie(%{name: "Movie #{ordinal}"}),
-        state: state,
-        is_resume_target: resume_target && ordinal == watched + 1
+        movie: build_movie(%{id: movie_id(ordinal), name: "Movie #{ordinal}"}),
+        state: if(ordinal <= watched, do: :watched, else: :unwatched),
+        is_resume_target: false
       }
     end
   end
@@ -69,115 +66,56 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     %MovieRow.Upcoming{part_tmdb_id: part_tmdb_id, sub_status: :unaired}
   end
 
-  describe "for_series/2 mid-series" do
-    test "identifies next episode, current season, and series totals" do
-      seasons = [
-        library_season(1, 21, 21),
-        library_season(2, 15, 15),
-        library_season(3, 22, 22),
-        library_season(4, 9, 22, resume_target: true),
-        library_season(5, 0, 23),
-        library_season(6, 0, 22),
-        library_season(7, 0, 13)
-      ]
-
-      orientation = Orientation.for_series(seasons, resume_hint(4, 10))
-
-      assert orientation.state == :in_progress
-      assert orientation.next == %{season_number: 4, episode_number: 10}
-      assert orientation.season == %{number: 4, watched: 9, total: 22}
-      assert orientation.series == %{watched: 67, total: 138, percent: 49}
-    end
-
-    test "future seasons are excluded from series totals" do
-      seasons = [library_season(1, 3, 10, resume_target: true), future_season(2)]
-
-      orientation = Orientation.for_series(seasons, resume_hint(1, 4))
-
-      assert orientation.series == %{watched: 3, total: 10, percent: 30}
-    end
-
-    test "without a resume hint, next falls back to the first unwatched library item" do
-      seasons = [library_season(1, 10, 10), library_season(2, 2, 8)]
-
-      orientation = Orientation.for_series(seasons, nil)
-
-      assert orientation.next.season_number == 2
-      assert orientation.next.episode_number == 3
-      assert orientation.season == %{number: 2, watched: 2, total: 8}
-    end
-  end
-
-  describe "for_series/2 edge states" do
-    test "unstarted series" do
-      seasons = [library_season(1, 0, 21), library_season(2, 0, 15)]
-
-      orientation = Orientation.for_series(seasons, resume_hint(1, 1))
-
-      assert orientation.state == :unstarted
-      assert orientation.next == %{season_number: 1, episode_number: 1}
-      assert orientation.season == %{number: 1, watched: 0, total: 21}
-      assert orientation.series == %{watched: 0, total: 36, percent: 0}
-    end
-
-    test "fully watched series" do
-      seasons = [library_season(1, 21, 21), library_season(2, 15, 15)]
-
-      orientation = Orientation.for_series(seasons, nil)
-
-      assert orientation.state == :complete
-      assert orientation.next == nil
-      assert orientation.season == nil
-      assert orientation.series.percent == 100
-    end
-
-    test "no library seasons at all" do
-      orientation = Orientation.for_series([future_season(1)], nil)
-
-      assert orientation.state == :unstarted
-      assert orientation.next == nil
-      assert orientation.season == nil
-      assert orientation.series == %{watched: 0, total: 0, percent: 0}
-    end
-  end
-
   describe "for_series/2 fraction" do
-    test "fraction of the whole series watched, not just the current season" do
-      seasons = [
-        library_season(1, 10, 10),
-        library_season(2, 9, 22, resume_target: true),
-        library_season(3, 0, 8)
-      ]
+    test "the title progress measure over the whole series, not the current season" do
+      seasons = [library_season(1, 10, 10), library_season(2, 9, 22), library_season(3, 0, 8)]
 
-      orientation = Orientation.for_series(seasons, resume_hint(2, 10))
+      orientation = Orientation.for_series(seasons, in_progress(episode_id(2, 10), 19, 40))
 
-      assert_in_delta orientation.fraction, 19 / 40, 0.0001
+      assert orientation.fraction == 0.47
     end
 
-    test "future seasons are excluded from the fraction" do
-      seasons = [library_season(1, 3, 10, resume_target: true), future_season(2)]
+    test "a rewatch reads in progress from the title progress, not from watched counts" do
+      seasons = [library_season(1, 22, 22)]
 
-      orientation = Orientation.for_series(seasons, resume_hint(1, 4))
+      orientation = Orientation.for_series(seasons, in_progress(episode_id(1, 6), 5, 22))
 
-      assert_in_delta orientation.fraction, 3 / 10, 0.0001
+      assert orientation.fraction == 0.22
+      assert orientation.autoscroll?
+      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new([1])
     end
 
-    test "full for a completed series — the hairline reads finished, not empty" do
-      orientation = Orientation.for_series([library_season(1, 5, 5)], nil)
+    test "the viewing in flight of the next episode counts toward the measure" do
+      seasons = [library_season(1, 1, 4)]
 
-      assert orientation.fraction == 1.0
+      progress = %TitleProgress{
+        state: :in_progress,
+        next: next(episode_id(1, 2), 650.0),
+        before_next: 1,
+        total: 4
+      }
+
+      assert Orientation.for_series(seasons, progress).fraction == 0.37
+    end
+
+    test "full for a complete series — the hairline reads finished, not empty" do
+      assert Orientation.for_series([library_season(1, 5, 5)], complete(5)).fraction == 1.0
+    end
+
+    test "empty for an unstarted series and for one with no library episodes" do
+      unstarted = Orientation.for_series([library_season(1, 0, 5)], unstarted(episode_id(1, 1), 5))
+      assert unstarted.fraction == 0.0
+
+      empty = %TitleProgress{state: :unstarted, next: nil, before_next: 0, total: 0}
+      assert Orientation.for_series([future_season(1)], empty).fraction == 0.0
     end
   end
 
   describe "initial_expanded_seasons/1" do
     test "mid-series opens the season holding the next episode" do
-      seasons = [
-        library_season(1, 21, 21),
-        library_season(2, 9, 22, resume_target: true),
-        library_season(3, 0, 13)
-      ]
+      seasons = [library_season(1, 21, 21), library_season(2, 9, 22), library_season(3, 0, 13)]
 
-      orientation = Orientation.for_series(seasons, resume_hint(2, 10))
+      orientation = Orientation.for_series(seasons, in_progress(episode_id(2, 10), 30, 56))
 
       assert Orientation.initial_expanded_seasons(orientation) == MapSet.new([2])
     end
@@ -185,85 +123,96 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     test "unstarted series opens season one" do
       seasons = [library_season(1, 0, 21), library_season(2, 0, 15)]
 
-      orientation = Orientation.for_series(seasons, resume_hint(1, 1))
+      orientation = Orientation.for_series(seasons, unstarted(episode_id(1, 1), 36))
 
       assert Orientation.initial_expanded_seasons(orientation) == MapSet.new([1])
     end
 
-    test "completed series opens nothing — the rows are a rewatch index" do
-      orientation = Orientation.for_series([library_season(1, 5, 5)], nil)
+    test "complete series opens nothing — the rows are a rewatch index" do
+      orientation = Orientation.for_series([library_season(1, 5, 5)], complete(5))
 
       assert Orientation.initial_expanded_seasons(orientation) == MapSet.new()
     end
 
-    test "no current season opens nothing" do
-      orientation = Orientation.for_series([future_season(1)], nil)
+    test "a next episode that is not among the rows opens nothing" do
+      empty = %TitleProgress{state: :unstarted, next: nil, before_next: 0, total: 0}
 
-      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new()
+      assert [future_season(1)]
+             |> Orientation.for_series(empty)
+             |> Orientation.initial_expanded_seasons() == MapSet.new()
+
+      stale = in_progress("gone", 1, 5)
+
+      assert [library_season(1, 1, 5)]
+             |> Orientation.for_series(stale)
+             |> Orientation.initial_expanded_seasons() ==
+               MapSet.new()
     end
   end
 
   describe "for_series/2 autoscroll" do
     test "mid-series scrolls to the next episode" do
-      seasons = [library_season(1, 21, 21), library_season(2, 9, 22, resume_target: true)]
+      seasons = [library_season(1, 21, 21), library_season(2, 9, 22)]
 
-      assert Orientation.for_series(seasons, resume_hint(2, 10)).autoscroll?
+      assert Orientation.for_series(seasons, in_progress(episode_id(2, 10), 30, 43)).autoscroll?
     end
 
     test "unstarted series stays on the hero" do
-      refute Orientation.for_series([library_season(1, 0, 21)], resume_hint(1, 1)).autoscroll?
+      progress = unstarted(episode_id(1, 1), 21)
+      refute Orientation.for_series([library_season(1, 0, 21)], progress).autoscroll?
     end
 
-    test "completed series stays on the hero" do
-      refute Orientation.for_series([library_season(1, 5, 5)], nil).autoscroll?
+    test "a series in progress on its first episode stays on the hero: there is nothing above to scroll past" do
+      progress = %TitleProgress{
+        state: :in_progress,
+        next: next(episode_id(1, 1), 600.0),
+        before_next: 0,
+        total: 21
+      }
+
+      refute Orientation.for_series([library_season(1, 0, 21)], progress).autoscroll?
+    end
+
+    test "complete series stays on the hero" do
+      refute Orientation.for_series([library_season(1, 5, 5)], complete(5)).autoscroll?
+    end
+
+    test "a next episode that is not among the rows is not scrolled to" do
+      refute Orientation.for_series([library_season(1, 1, 5)], in_progress("gone", 1, 5)).autoscroll?
     end
   end
 
-  describe "for_collection/1" do
-    test "mid-collection: fraction reads the whole collection, autoscroll returns to the resume row" do
-      orientation = Orientation.for_collection(collection_items(1, 3, resume_target: true))
+  describe "for_collection/2" do
+    test "mid-collection: the measure reads the whole collection, autoscroll returns to the next movie" do
+      orientation = Orientation.for_collection(collection_items(1, 3), in_progress(movie_id(2), 1, 3))
 
-      assert orientation.state == :in_progress
       assert orientation.season == nil
-      assert orientation.series == %{watched: 1, total: 3, percent: 33}
-      assert_in_delta orientation.fraction, 1 / 3, 0.0001
+      assert orientation.fraction == 0.33
       assert orientation.autoscroll?
     end
 
     test "unstarted collection stays on the hero — a first movie, not a next one" do
-      orientation = Orientation.for_collection(collection_items(0, 3, resume_target: true))
+      orientation = Orientation.for_collection(collection_items(0, 3), unstarted(movie_id(1), 3))
 
-      assert orientation.state == :unstarted
       assert orientation.fraction == 0.0
       refute orientation.autoscroll?
     end
 
-    test "completed collection reads finished, not empty" do
-      orientation = Orientation.for_collection(collection_items(3, 3))
+    test "complete collection reads finished, not empty" do
+      orientation = Orientation.for_collection(collection_items(3, 3), complete(3))
 
-      assert orientation.state == :complete
       assert orientation.fraction == 1.0
       refute orientation.autoscroll?
     end
 
-    test "mid-collection with no resume row to return to does not autoscroll" do
-      orientation = Orientation.for_collection(collection_items(1, 3))
+    test "mid-collection with no row for the next movie does not autoscroll" do
+      items = [upcoming_part(900_001) | collection_items(1, 2)]
 
-      assert orientation.state == :in_progress
-      refute orientation.autoscroll?
-    end
-
-    test "upcoming parts are excluded from all counts" do
-      items = collection_items(1, 2, resume_target: true) ++ [upcoming_part(900_001)]
-
-      orientation = Orientation.for_collection(items)
-
-      assert orientation.series == %{watched: 1, total: 2, percent: 50}
-      assert_in_delta orientation.fraction, 0.5, 0.0001
+      refute Orientation.for_collection(items, in_progress("gone", 1, 3)).autoscroll?
     end
 
     test "collection accordion projection opens nothing — there are no seasons" do
-      orientation = Orientation.for_collection(collection_items(1, 3, resume_target: true))
+      orientation = Orientation.for_collection(collection_items(1, 3), in_progress(movie_id(2), 1, 3))
 
       assert Orientation.initial_expanded_seasons(orientation) == MapSet.new()
     end

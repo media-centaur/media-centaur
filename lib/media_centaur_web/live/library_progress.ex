@@ -1,12 +1,10 @@
 defmodule MediaCentaurWeb.LibraryProgress do
   @moduledoc """
-  Pure helpers for watch-progress rendering — resume buttons, completion
-  percentages, FK resolution for progress lookups, and the merge logic
+  Pure helpers for watch-progress rendering — completion percentages and
+  the merge logic
   the LiveView uses to fold in incoming `:progress_changed` events
   without rebuilding the full entries list.
   """
-
-  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
 
   # --- Completion percentage ---
 
@@ -21,67 +19,6 @@ defmodule MediaCentaurWeb.LibraryProgress do
   end
 
   def completion_percentage(_), do: "unknown"
-
-  # --- Resume button labels ---
-
-  def format_resume_parts(nil, _entry), do: {nil, nil}
-
-  def format_resume_parts(%{"action" => "resume"} = resume, entry) do
-    label =
-      case resume do
-        %{"seasonNumber" => season, "episodeNumber" => episode} ->
-          "Season #{season} episode #{episode}"
-
-        _ ->
-          nil
-      end
-
-    time_remaining =
-      case resume do
-        %{"positionSeconds" => position, "durationSeconds" => duration}
-        when is_number(duration) and duration > 0 ->
-          remaining = max(trunc(duration - position), 0)
-          MediaCentaurWeb.LibraryFormatters.format_human_duration(remaining) <> " remaining"
-
-        _ ->
-          episodes_remaining_label(entry.entity, entry.progress_records)
-      end
-
-    {label, time_remaining}
-  end
-
-  def format_resume_parts(%{"action" => "begin"} = resume, entry) do
-    label =
-      case resume do
-        %{"seasonNumber" => season, "episodeNumber" => episode} ->
-          "Play season #{season} episode #{episode}"
-
-        _ ->
-          "Play"
-      end
-
-    {label, episodes_remaining_label(entry.entity, entry.progress_records)}
-  end
-
-  def format_resume_parts(_resume, _entry), do: {nil, nil}
-
-  def episodes_remaining_label(entity, progress_records) do
-    total =
-      case entity.type do
-        :tv_series -> length(EpisodeOrder.list_available(entity))
-        :movie_series -> length(MovieOrder.list_available(entity))
-        _ -> 0
-      end
-
-    completed = Enum.count(progress_records, & &1.completed)
-    remaining = total - completed
-
-    case remaining do
-      n when n > 1 -> "#{n} episodes remaining"
-      1 -> "1 episode remaining"
-      _ -> nil
-    end
-  end
 
   # --- Progress record merging ---
 

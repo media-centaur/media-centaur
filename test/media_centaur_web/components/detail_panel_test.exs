@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
                 entity: entity,
                 progress: nil,
                 progress_records: [],
-                resume_target: nil
+                title_progress: nil
               },
               subject: entity
             }
@@ -172,48 +172,49 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
   end
 
-  # --- progress_remaining_text/2 ---
+  # --- remaining_text/1 ---
   #
   # UIDR-024: the remaining figure is a metadata-line item ("1h left"),
-  # not card-row copy. A completed title yields nil — the full hairline
-  # and the watched toggle carry that state; the metadata line goes back
-  # to showing the status.
+  # not card-row copy: what is left of the next item's viewing in flight.
+  # A complete title yields nil — the full hairline and the watched toggle
+  # carry that state; the metadata line goes back to showing the status.
 
-  describe "progress_remaining_text/2" do
-    test "returns nil for nil progress" do
-      assert Logic.progress_remaining_text(nil, build_entity()) == nil
+  describe "remaining_text/1" do
+    defp title_progress(state, next),
+      do: %MediaCentaur.Library.TitleProgress{state: state, next: next, before_next: 0, total: 1}
+
+    test "returns nil without a title progress" do
+      assert Logic.remaining_text(nil) == nil
     end
 
-    # No container cases: TV and collection remaining-text moved to the
-    # hero orientation hairline (`MediaCentaurWeb.ViewModel.Orientation`);
-    # the remaining metadata item exists only for leaves.
+    # No container cases: a container's remaining text is not shown; its
+    # progress is the hero orientation hairline
+    # (`MediaCentaurWeb.ViewModel.Orientation`).
 
-    test "returns nil for completed standalone movie" do
-      progress = %{
-        episodes_completed: 1,
-        episode_duration_seconds: 0.0,
-        episode_position_seconds: 0.0
-      }
-
-      entity = build_entity(%{type: :movie})
-
-      assert Logic.progress_remaining_text(progress, entity) == nil
+    test "returns nil for a watched standalone movie" do
+      assert Logic.remaining_text(title_progress(:complete, nil)) == nil
     end
 
-    test "returns time left for in-progress standalone movie" do
-      progress = %{
-        episodes_completed: 0,
-        episode_duration_seconds: 7200.0,
-        episode_position_seconds: 3600.0
-      }
+    test "returns nil for an unstarted movie" do
+      next = %{item_id: "movie", offset_seconds: 0.0, duration_seconds: 7200.0}
+      assert Logic.remaining_text(title_progress(:unstarted, next)) == nil
+    end
 
-      entity = build_entity(%{type: :movie})
+    test "returns time left for an in-progress standalone movie" do
+      next = %{item_id: "movie", offset_seconds: 3600.0, duration_seconds: 7200.0}
+      assert Logic.remaining_text(title_progress(:in_progress, next)) == "1h left"
+    end
 
-      assert Logic.progress_remaining_text(progress, entity) == "1h left"
+    test "returns time left for a watched movie being replayed" do
+      next = %{item_id: "movie", offset_seconds: 5400.0, duration_seconds: 7200.0}
+      assert Logic.remaining_text(title_progress(:in_progress, next)) == "30m left"
+    end
+
+    test "returns nil when the viewing has no duration yet" do
+      next = %{item_id: "movie", offset_seconds: 600.0, duration_seconds: 0.0}
+      assert Logic.remaining_text(title_progress(:in_progress, next)) == nil
     end
   end
-
-  # --- episode_state/1 ---
 
   describe "state_from_progress/1" do
     test "returns :unwatched for nil" do

@@ -48,15 +48,27 @@ defmodule MediaCentaur.Playback.Events do
   alias MediaCentaur.Topics
 
   defmodule EntityProgressUpdated do
-    @moduledoc "Persisted progress for an entity (movie / episode root) changed, for one profile."
-    @enforce_keys [:entity_id, :profile_id, :summary, :resume_target, :changed_record, :last_activity_at]
-    defstruct [:entity_id, :profile_id, :summary, :resume_target, :changed_record, :last_activity_at]
+    @moduledoc """
+    Persisted progress for an entity (movie / episode root) changed, for
+    one profile. `title_progress` is where the profile now stands in the
+    title (`MediaCentaur.Library.TitleProgress`); `changed_record` the
+    item progress record that changed, when one did.
+    """
+    @enforce_keys [
+      :entity_id,
+      :profile_id,
+      :summary,
+      :title_progress,
+      :changed_record,
+      :last_activity_at
+    ]
+    defstruct [:entity_id, :profile_id, :summary, :title_progress, :changed_record, :last_activity_at]
 
     @type t :: %__MODULE__{
             entity_id: String.t(),
             profile_id: String.t(),
             summary: map(),
-            resume_target: map() | nil,
+            title_progress: MediaCentaur.Library.TitleProgress.t(),
             changed_record: map() | nil,
             last_activity_at: DateTime.t()
           }

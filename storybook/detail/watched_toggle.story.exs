@@ -36,10 +36,24 @@ defmodule MediaCentaurWeb.Storybook.Detail.WatchedToggle do
             attributes: %{
               event: "toggle_watched",
               state: :watched,
+              progress: %{completed: true, position_seconds: 0.0, duration_seconds: 2640.0},
               duration_seconds: 2640
             }
           }
         ]
+      },
+      %Variation{
+        id: :watched_being_replayed,
+        description:
+          "A watched item being replayed: the mark is set and a viewing is in " <>
+            "flight. It reads as current, and the control offers Mark watched, " <>
+            "which ends the viewing and keeps the mark.",
+        attributes: %{
+          event: "toggle_watched",
+          state: :current,
+          progress: %{completed: true, position_seconds: 900.0, duration_seconds: 2640.0},
+          duration_seconds: 2640
+        }
       },
       %Variation{
         id: :no_duration,

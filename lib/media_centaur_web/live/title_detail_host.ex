@@ -442,9 +442,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # The season holding the next episode opens expanded, from the same
   # `Orientation` the hero hairline reads, so the two cannot disagree.
   defp initial_expanded_seasons(%TitleDetail{
-         library: %{entry: %SeriesDetail{seasons: seasons, resume_target: resume}}
+         library: %{entry: %SeriesDetail{seasons: seasons, title_progress: title_progress}}
        }) do
-    seasons |> Orientation.for_series(resume) |> Orientation.initial_expanded_seasons()
+    seasons |> Orientation.for_series(title_progress) |> Orientation.initial_expanded_seasons()
   end
 
   defp initial_expanded_seasons(_detail), do: MapSet.new()

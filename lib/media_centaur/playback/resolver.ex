@@ -4,25 +4,37 @@ defmodule MediaCentaur.Playback.Resolver do
 
   The UUID can identify any playable thing: a top-level Entity, an Episode,
   a child Movie, or an Extra. The resolver figures out what the UUID refers to,
-  loads the necessary context, applies smart resume logic against the
-  profile's own progress rows (ADR-078), and returns the play params
-  `Sessions.play/2` starts with: the profile and the `Playback.Entry` to
-  play.
+  loads the necessary context, reads where the profile stands (ADR-078), and
+  returns the play params `Sessions.play/2` starts with: the profile and the
+  `Playback.Entry` to play.
 
   UUID resolution order:
-  1. Entity — if series, run `Resume.resolve`; if single item, check progress
-  2. Episode — load parent entity, check WatchProgress, resume if partial
-  3. Movie (child) — load parent entity, check WatchProgress, resume if partial
-  4. Extra — check ExtraProgress, resume if partial
+  1. Entity — the title's `MediaCentaur.Library.TitleProgress`
+     (`ProgressRecords.title_progress/2`): its next item at next's offset;
+     a complete title plays its first item from the start
+  2. Episode — that episode, at its own viewing in flight
+  3. Movie (child) — that movie, at its own viewing in flight
+  4. Extra — that extra, at its own viewing in flight
+
+  A directly named item starts at its row's offset when the row holds a
+  viewing that counts (`ProgressRecords.viewing?/1`), whatever its watched
+  mark, else from the start.
   """
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.{Format, Library}
-  alias MediaCentaur.Library.{EntityShape, TypeResolver}
-  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
-  alias MediaCentaur.Playback.{Entry, PlayableFks, Resume}
-  alias MediaCentaur.Library.ProgressRecords
+
+  alias MediaCentaur.Library.{
+    EntityShape,
+    EpisodeOrder,
+    MovieOrder,
+    ProgressRecords,
+    TitleProgress,
+    TypeResolver
+  }
+
+  alias MediaCentaur.Playback.{Entry, PlayableFks}
 
   @type play_params :: %{profile_id: String.t(), entry: Entry.t()}
 
@@ -54,58 +66,75 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Entity resolution ---
 
   defp resolve_entity(profile_id, uuid) do
-    case resolve_typed_entity(profile_id, uuid) do
-      {:ok, entity, progress_records} ->
-        resolve_entity_playback(entity, progress_records)
+    case load_entity(uuid) do
+      {:ok, entity} ->
+        %{title_progress: progress} = ProgressRecords.title_progress(profile_id, entity)
+        resolve_entity_playback(entity, progress)
 
       :not_found ->
         {:error, :not_found}
     end
   end
 
-  defp resolve_typed_entity(profile_id, uuid) do
+  defp load_entity(uuid) do
     case TypeResolver.resolve_container(uuid, preload: Library.Containers.full_preloads_by_type()) do
-      {:ok, type, record} ->
-        {:ok, EntityShape.to_entity_view(record, type),
-         ProgressRecords.list_for_container(profile_id, type, record.id)}
-
-      :not_found ->
-        :not_found
+      {:ok, type, record} -> {:ok, EntityShape.to_entity_view(record, type)}
+      :not_found -> :not_found
     end
   end
 
-  defp resolve_entity_playback(entity, progress_records) do
-    case Resume.resolve(entity, progress_records) do
-      {:no_playable_content} ->
-        Log.info(:playback, "no playable content for entity #{entity.name}")
-        {:error, :no_playable_content}
-
-      {action, content_url, position} ->
-        {season, episode, episode_name} =
-          episode_context(action, entity, content_url, progress_records)
-
-        direct_fks = PlayableFks.resolve(entity, content_url)
-
-        Log.info(:playback, fn ->
-          "resolved entity #{entity.name} — #{action}, #{Path.basename(content_url)}" <>
-            if(position > 0, do: ", resume at #{position}s", else: "")
-        end)
-
-        {:ok,
-         struct!(
-           %Entry{
-             entity_id: entity.id,
-             entity_name: entity.name,
-             season_number: season,
-             episode_number: episode,
-             episode_name: episode_name,
-             content_url: content_url,
-             start_position: position
-           },
-           direct_fks
-         )}
-    end
+  defp resolve_entity_playback(entity, %TitleProgress{total: 0}) do
+    Log.info(:playback, "no playable content for entity #{entity.name}")
+    {:error, :no_playable_content}
   end
+
+  defp resolve_entity_playback(entity, %TitleProgress{state: :complete}) do
+    [first | _rest] = TitleProgress.ordered_set(entity)
+    entry_for(entity, first.id, 0.0)
+  end
+
+  defp resolve_entity_playback(entity, %TitleProgress{next: next}),
+    do: entry_for(entity, next.item_id, next.offset_seconds)
+
+  defp entry_for(entity, item_id, position) do
+    content_url = item_content_url(entity, item_id)
+    {season, episode, episode_name} = PlayableFks.context_by_url(entity, content_url)
+    action = if position > 0, do: :resume, else: :play
+
+    Log.info(:playback, fn ->
+      "resolved entity #{entity.name} — #{action}, #{Path.basename(content_url)}" <>
+        if(position > 0, do: ", resume at #{position}s", else: "")
+    end)
+
+    {:ok,
+     struct!(
+       %Entry{
+         entity_id: entity.id,
+         entity_name: entity.name,
+         season_number: season,
+         episode_number: episode,
+         episode_name: episode_name,
+         content_url: content_url,
+         start_position: position
+       },
+       PlayableFks.resolve(entity, content_url)
+     )}
+  end
+
+  # The file of an item of the title's ordered set.
+  defp item_content_url(%{type: :tv_series} = entity, item_id) do
+    Enum.find_value(EpisodeOrder.list_available(entity), fn {_season, _episode, url, id} ->
+      if id == item_id, do: url
+    end)
+  end
+
+  defp item_content_url(%{type: :movie_series} = entity, item_id) do
+    Enum.find_value(MovieOrder.list_available(entity), fn {_ordinal, id, url} ->
+      if id == item_id, do: url
+    end)
+  end
+
+  defp item_content_url(entity, _item_id), do: entity.content_url
 
   # --- Episode resolution ---
 
@@ -130,11 +159,7 @@ defmodule MediaCentaur.Playback.Resolver do
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_entity_view(tv_series, :tv_series)
 
-      progress_records =
-        ProgressRecords.list_for_container(profile_id, :tv_series, season.tv_series_id)
-
-      progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
-      position = resume_position(progress_by_key, episode.id)
+      position = viewing_offset(ProgressRecords.fetch_for_container(profile_id, :episode, episode.id))
 
       action = if position > 0.0, do: :resume, else: :play_episode
 
@@ -183,8 +208,8 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_movie_playback(profile_id, movie) do
-    case resolve_movie_parent(profile_id, movie) do
-      {:ok, entity, progress_records} ->
+    case resolve_movie_parent(movie) do
+      {:ok, entity} ->
         available = MovieOrder.list_available(entity)
 
         ordinal =
@@ -194,8 +219,7 @@ defmodule MediaCentaur.Playback.Resolver do
           end
 
         if ordinal do
-          progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
-          position = resume_position(progress_by_key, movie.id)
+          position = viewing_offset(ProgressRecords.fetch_for_container(profile_id, :movie, movie.id))
 
           action = if position > 0.0, do: :resume, else: :play_movie
 
@@ -230,30 +254,13 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_movie_parent(profile_id, movie) do
-    if movie.movie_series_id do
-      case Library.Containers.fetch_with_associations(:movie_series, movie.movie_series_id) do
-        {:ok, ms} ->
-          entity = EntityShape.to_entity_view(ms, :movie_series)
+  defp resolve_movie_parent(movie) do
+    {type, id} =
+      if movie.movie_series_id, do: {:movie_series, movie.movie_series_id}, else: {:movie, movie.id}
 
-          progress =
-            ProgressRecords.list_for_container(profile_id, :movie_series, movie.movie_series_id)
-
-          {:ok, entity, progress}
-
-        _ ->
-          :not_found
-      end
-    else
-      # Standalone movie — resolve as its own entity
-      case Library.Containers.fetch_with_associations(:movie, movie.id) do
-        {:ok, m} ->
-          progress = ProgressRecords.list_for_container(profile_id, :movie, movie.id)
-          {:ok, EntityShape.to_entity_view(m, :movie), progress}
-
-        _ ->
-          :not_found
-      end
+    case Library.Containers.fetch_with_associations(type, id) do
+      {:ok, record} -> {:ok, EntityShape.to_entity_view(record, type)}
+      _absent -> :not_found
     end
   end
 
@@ -275,9 +282,8 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_extra_playback(profile_id, extra) do
-    {entity_id, entity_name} = resolve_extra_parent(profile_id, extra)
-
-    position = extra_resume_position(profile_id, extra.id)
+    {entity_id, entity_name} = resolve_extra_parent(extra)
+    position = viewing_offset(ProgressRecords.fetch_for_extra(profile_id, extra.id))
 
     {:ok,
      %Entry{
@@ -292,15 +298,15 @@ defmodule MediaCentaur.Playback.Resolver do
      }}
   end
 
-  defp resolve_extra_parent(profile_id, extra) do
+  defp resolve_extra_parent(extra) do
     # Resolve the Extra's container — `owner_type` is one of :movie,
     # :tv_series, :movie_series, :season. Seasons aren't directly
-    # resolvable by `resolve_typed_entity/2`; for season-owned extras we
-    # fall back to surfacing the season id without a name. The
-    # parent-aware playback row carries enough context for the UI.
+    # resolvable by `load_entity/1`; for season-owned extras we fall back
+    # to surfacing the season id without a name. The parent-aware playback
+    # row carries enough context for the UI.
     if extra.owner_type in [:movie, :tv_series, :movie_series] do
-      case resolve_typed_entity(profile_id, extra.owner_id) do
-        {:ok, entity, _progress} -> {entity.id, entity.name}
+      case load_entity(extra.owner_id) do
+        {:ok, entity} -> {entity.id, entity.name}
         :not_found -> {extra.owner_id, nil}
       end
     else
@@ -308,57 +314,13 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp extra_resume_position(profile_id, extra_id) do
-    case Library.ProgressRecords.fetch_for_extra(profile_id, extra_id) do
-      {:ok, %{completed: true}} -> 0.0
-      {:ok, %{position_seconds: pos}} when is_number(pos) -> pos
-      _ -> 0.0
-    end
-  end
-
-  # --- Direct FK resolution ---
-
   # --- Shared helpers ---
 
-  defp resume_position(progress_by_key, key) do
-    case Map.get(progress_by_key, key) do
-      nil -> 0.0
-      %{completed: true} -> 0.0
-      %{position_seconds: pos} when is_number(pos) -> pos
-      _ -> 0.0
-    end
+  # Where a directly named item starts: its row's offset when the row
+  # holds a viewing that counts, else the start.
+  defp viewing_offset({:ok, progress}) do
+    if ProgressRecords.viewing?(progress), do: progress.position_seconds / 1, else: 0.0
   end
 
-  defp episode_context(_action, %{type: :movie_series} = entity, content_url, _progress_records) do
-    PlayableFks.context_by_url(entity, content_url)
-  end
-
-  defp episode_context(:resume, entity, _url, progress_records) do
-    most_recent =
-      Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-
-    if most_recent do
-      {season, episode} = find_episode_location(entity, most_recent)
-      episode_name = EpisodeOrder.find_episode_name(entity, season, episode)
-      {season, episode, episode_name}
-    else
-      {nil, nil, nil}
-    end
-  end
-
-  defp episode_context(_action, entity, content_url, _progress_records) do
-    PlayableFks.context_by_url(entity, content_url)
-  end
-
-  defp find_episode_location(entity, progress_record) do
-    episode_id = MediaCentaur.Library.ProgressRecords.progress_container_id(progress_record)
-
-    Enum.find_value(entity.seasons || [], {nil, nil}, fn season ->
-      Enum.find_value(season.episodes || [], fn episode ->
-        if episode.id == episode_id do
-          {season.season_number, episode.episode_number}
-        end
-      end)
-    end)
-  end
+  defp viewing_offset({:error, :not_found}), do: 0.0
 end

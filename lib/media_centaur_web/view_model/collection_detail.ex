@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   collections) — into a single typed struct the modal LiveView assigns
   and the detail panel renders.
 
-  `compose/2` does the cross-context fetch and delegates to `build/4`,
+  `compose/2` does the cross-context fetch and delegates to `build/3`,
   which is pure and unit-tested without a database. Callers reach this
   composer through the detail modal's single loader
   (`MediaCentaurWeb.Live.EntityModal`), which resolves the container
@@ -19,14 +19,14 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Like `SeriesDetail`, release records are read by field, not struct
   match (`MediaCentaur.ReleaseTracking.Release` is not exported across
   its boundary per ADR-029). The shape contract is documented on
-  `build/4`: `[%{part_tmdb_id, title, air_date}]`.
+  `build/3`: `[%{part_tmdb_id, title, air_date}]`.
   """
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MovieOrder
   alias MediaCentaur.Library.ProgressSummary
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.DetailItem
-  alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaur.Library.ProgressRecords
@@ -38,8 +38,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     :progress_records,
     :movies,
     :extras,
-    :resume_target,
-    # Cached input to `build/4` — kept on the struct so in-memory
+    :title_progress,
+    # Cached input to `build/3` — kept on the struct so in-memory
     # progress merges can rebuild `movies` (which carries per-item
     # state) without a fresh DB query per playback tick.
     :releases
@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
           progress_records: list(),
           movies: [MovieRow.t()],
           extras: list(),
-          resume_target: map() | nil,
+          title_progress: TitleProgress.t() | nil,
           releases: [map()]
         }
 
@@ -65,8 +65,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   to a live build in test mode). Cross-context overlays (ReleaseTracking
   releases) compose at this layer per ADR-029.
 
-  Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
-  on the loaded entry, so callers don't have to thread it separately.
+  Reads the profile's records and title progress in one call
+  (`Library.ProgressRecords.title_progress/2`), so callers don't have to
+  thread them separately.
   """
   @spec compose(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, t()} | :not_found
   def compose(profile_id, entity_id) when is_binary(profile_id) and is_binary(entity_id) do
@@ -83,7 +84,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     entity =
       Library.PlaybackOverrides.put_on_entity(profile_id, DetailItem.to_entity_view(detail_item))
 
-    progress_records = Library.ProgressRecords.list_for_container(profile_id, :movie_series, entity_id)
+    %{title_progress: title_progress, records: progress_records} =
+      ProgressRecords.title_progress(profile_id, entity)
+
     progress_summary = ProgressSummary.compute(entity, progress_records)
 
     entry = %{
@@ -95,14 +98,14 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :movie)
 
-    resume_target = ResumeTarget.compute(entity, progress_records)
-    build(entry, releases, resume_target)
+    build(entry, releases, title_progress)
   end
 
   @doc """
   Pure: builds a `%CollectionDetail{}` from a loaded library entry, the
-  releases relevant to it, and the precomputed
-  resume target.
+  releases relevant to it, and the title progress
+  (`MediaCentaur.Library.TitleProgress`), whose next item is the row
+  flagged `is_resume_target`.
 
   Releases are expected to be `MediaCentaur.ReleaseTracking.Release.t()`
   rows (or any map with the same fields: `part_tmdb_id, title,
@@ -113,10 +116,10 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   No database access. Tests construct the inputs as fixtures.
   """
-  @spec build(map(), [map()], map() | nil) :: t()
-  def build(entry, releases, resume_target) do
+  @spec build(map(), [map()], TitleProgress.t() | nil) :: t()
+  def build(entry, releases, title_progress) do
     progress_by_movie_id = index_progress_by_movie_id(entry.progress_records)
-    resume_target_id = resume_target_id(resume_target)
+    next_id = next_item_id(title_progress)
 
     library_items =
       (entry.entity.movies || [])
@@ -129,7 +132,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
           movie: movie,
           progress: progress,
           state: ProgressRecords.state_from_progress(progress),
-          is_resume_target: resume_target_id != nil and movie.id == resume_target_id
+          is_resume_target: next_id != nil and movie.id == next_id
         }
       end)
 
@@ -145,7 +148,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
       progress_records: entry.progress_records,
       movies: library_items ++ upcoming_items(releases, library_tmdb_ids),
       extras: entry.entity.extras || [],
-      resume_target: resume_target,
+      title_progress: title_progress,
       releases: releases
     }
   end
@@ -159,22 +162,23 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Pure: reuses the cached `releases` on the
   existing struct.
   """
-  @spec with_progress(t(), map() | nil, list(), map() | nil) :: t()
-  def with_progress(%__MODULE__{} = collection_detail, progress, progress_records, resume_target) do
+  @spec with_progress(t(), map() | nil, list(), TitleProgress.t() | nil) :: t()
+  def with_progress(%__MODULE__{} = collection_detail, progress, progress_records, title_progress) do
     entry = %{
       entity: collection_detail.entity,
       progress: progress,
       progress_records: progress_records
     }
 
-    build(entry, collection_detail.releases || [], resume_target)
+    build(entry, collection_detail.releases || [], title_progress)
   end
 
   # --- Member selection (UIDR-023 movie-first modal) ---
 
   @doc """
   Resolves which library member the modal shows. An explicit `member_id`
-  wins when it names a library member; otherwise the resume target;
+  wins when it names a library member; otherwise the next movie
+  (the title progress's next item);
   otherwise the first library member (chronological order). `nil` when
   the collection has no playable members.
 
@@ -289,8 +293,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   # --- Helpers ---
 
-  defp resume_target_id(%{"targetId" => id}) when is_binary(id), do: id
-  defp resume_target_id(_resume_target), do: nil
+  defp next_item_id(%TitleProgress{next: %{item_id: item_id}}), do: item_id
+  defp next_item_id(_title_progress), do: nil
 
   defp index_progress_by_movie_id(progress_records) do
     progress_records

@@ -5,7 +5,8 @@ defmodule MediaCentaur.Playback.NextEpisode do
   `resolve/2` answers "what does the mpv playlist get appended after this
   episode?" for the session's profile — the *literally next* episode in season/episode order
   (`EpisodeOrder.next_episode_after/2` never skips a story-order gap),
-  carrying the profile's own resume position (ADR-078). Returns `:none` when the chain ends:
+  carrying the profile's own viewing in flight of it when that counts
+  (`ProgressRecords.viewing?/1`, ADR-078). Returns `:none` when the chain ends:
   auto-play is switched off, the episode is the last one, the successor
   isn't downloaded, or its file is missing from disk.
 
@@ -113,14 +114,10 @@ defmodule MediaCentaur.Playback.NextEpisode do
     end
   end
 
+  # The successor's own viewing in flight, when it counts — the predicate
+  # the Play target uses (`MediaCentaur.Library.TitleProgress`).
   defp resume_position(progress_records, episode_id) do
-    progress_records
-    |> ProgressRecords.index_progress_by_key()
-    |> Map.get(episode_id)
-    |> case do
-      %{completed: true} -> 0.0
-      %{position_seconds: position} when is_number(position) -> position
-      _ -> 0.0
-    end
+    progress = progress_records |> ProgressRecords.index_progress_by_key() |> Map.get(episode_id)
+    if ProgressRecords.viewing?(progress), do: progress.position_seconds / 1, else: 0.0
   end
 end

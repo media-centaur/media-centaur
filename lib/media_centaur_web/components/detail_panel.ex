@@ -116,6 +116,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
 
@@ -446,8 +447,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # TV keeps its orientation (hairline fraction + autoscroll).
   # Collections don't build one — saga state lives on the poster rail;
   # the hero hairline reads the *subject's* fraction (UIDR-024).
-  defp orientation(%SeriesDetail{seasons: seasons, resume_target: resume}),
-    do: Orientation.for_series(seasons, resume)
+  defp orientation(%SeriesDetail{seasons: seasons, title_progress: title_progress}),
+    do: Orientation.for_series(seasons, title_progress)
 
   defp orientation(_entry), do: nil
 
@@ -1026,22 +1027,22 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp index_extra_progress(_), do: %{}
 
-  # --- Resume keys (Cast view) ---
+  # --- The next episode (Cast view) ---
 
-  defp resume_episode_key(nil), do: nil
+  # `{season_number, episode_number}` of the series' next episode, whose
+  # cast the Cast view leads with; nil for any other entry and for a
+  # complete series.
+  defp resume_episode_key(%SeriesDetail{seasons: seasons}) do
+    Enum.find_value(seasons, fn season ->
+      Enum.find_value(season.items, fn
+        %EpisodeRow.Library{is_resume_target: true, episode: episode} ->
+          {season.season_number, episode.episode_number}
 
-  defp resume_episode_key(%{resume_target: resume, progress: progress}),
-    do: resume_hint_key(resume) || progress_episode_key(progress)
-
-  defp resume_hint_key(%{"seasonNumber" => season, "episodeNumber" => episode})
-       when is_integer(season) and is_integer(episode) do
-    {season, episode}
+        _other ->
+          nil
+      end)
+    end)
   end
 
-  defp resume_hint_key(_), do: nil
-
-  defp progress_episode_key(%{current_episode: %{season: season, episode: episode}})
-       when is_integer(season) and is_integer(episode), do: {season, episode}
-
-  defp progress_episode_key(_), do: nil
+  defp resume_episode_key(_entry), do: nil
 end

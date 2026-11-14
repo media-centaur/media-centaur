@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
   this contract, not hidden.
 
   Pure presentation: callers pre-compute `label` and `available` (typically
-  via `Detail.Logic.playback_props/3`) and pass them in. No context lookups
+  via `Detail.Logic.playback_props/2`) and pass them in. No context lookups
   happen at render time, which is why the variations below are flat literal
   data with no fakes or stubs.
 

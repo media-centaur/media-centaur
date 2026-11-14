@@ -1,233 +1,124 @@
 defmodule MediaCentaurWeb.ViewModel.Orientation do
   @moduledoc """
-  Title orientation for the detail hero: where the viewer stands in the
-  title's ordered playable set, and what the modal does about it.
+  Title orientation for the detail hero: what the modal does about where
+  the viewer stands in the title.
 
-  One value, three projections: the hero hairline (`:fraction`), whether
-  the document opens scrolled to the resume row (`:autoscroll?`), and —
-  TV only — which season the accordion opens with
-  (`initial_expanded_seasons/1`). A marquee/subline block was a fourth,
+  A projection of the title's `MediaCentaur.Library.TitleProgress` onto
+  the detail page's rows, in three parts: the hero hairline (`:fraction`,
+  the title progress measure), whether the document opens scrolled to the
+  next item's row (`:autoscroll?`), and — TV only — which season the
+  accordion opens with (`:season`, read through
+  `initial_expanded_seasons/1`). A marquee/subline block was a fourth,
   tried and removed as redundant with the Play button's own label
   (2026-08-05).
 
-  Two constructors, one struct. `for_series/2` derives from the
-  `SeasonView` list — the hairline reads the *whole series*' watched
-  fraction, and season/series counts come from the same
-  `SeasonView.watched_count`/`total_count` the accordion headers render,
-  so the hero and the season rows can never disagree. `for_collection/1`
-  derives from the `MovieRow` list — the hairline reads the whole
-  collection's fraction, the same unit.
-  Leaf titles (a bare movie) build no orientation: they are not
-  positions in a set — their hero hairline reads the progress summary
-  directly (UIDR-024, via `Detail.Logic.overall_progress_percent/2`).
-  `:future` seasons and `Upcoming` parts are excluded from all
-  counts — you can't be "through" what you can't watch.
+  The hairline shows title progress: how far the profile is through the
+  current pass. A season header counts watched marks
+  (`SeasonView.watched_count`). They are different facts, and on a
+  rewatch they differ — every header reads watched while the hairline
+  reads the place in the second pass.
 
-  `MediaCentaur.Library.ProgressSummary` remains the progress source for
-  playback labels and library cards; within the detail page, the typed
-  item list is the single representation and this module is its
-  hero-facing projection.
+  Two constructors, one struct: `for_series/2` over the `SeasonView`
+  list, `for_collection/2` over the `MovieRow` list. Leaf titles (a bare
+  movie) build no orientation: they are not positions in a set.
+  `:future` seasons and `Upcoming` parts carry no rows the next item
+  could be.
 
   Pure — built from `SeriesDetail` / `CollectionDetail` parts, no DB
   access.
   """
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.SeasonView
 
-  @enforce_keys [:state, :series, :fraction, :autoscroll?]
-  defstruct [:state, :next, :season, :series, :fraction, :autoscroll?]
-
-  @type next :: %{
-          season_number: non_neg_integer(),
-          episode_number: non_neg_integer()
-        }
-
-  @type season :: %{number: non_neg_integer(), watched: non_neg_integer(), total: non_neg_integer()}
-
-  @type series :: %{
-          watched: non_neg_integer(),
-          total: non_neg_integer(),
-          percent: non_neg_integer()
-        }
+  @enforce_keys [:fraction, :autoscroll?]
+  defstruct [:season, :fraction, :autoscroll?]
 
   @type t :: %__MODULE__{
-          state: :unstarted | :in_progress | :complete,
-          next: next() | nil,
-          season: season() | nil,
-          series: series(),
+          season: non_neg_integer() | nil,
           fraction: float(),
           autoscroll?: boolean()
         }
 
   @doc """
   Builds the orientation for a TV series from the detail page's season
-  views and the playback resume hint
-  (`MediaCentaur.Playback.ResumeTarget.compute/2` output — string-keyed,
-  `"seasonNumber"`/`"episodeNumber"`).
+  views and the title progress.
 
-  The resume hint names the next episode when present; otherwise the
-  first `:unwatched`/`:current` library item is the next episode. A
-  series with every library episode watched has no next episode and no
-  current season.
-
-  `:fraction` is the series' watched share across all library seasons —
-  full for a completed series (finished, not empty), zero when the
-  library holds no episodes yet. `:autoscroll?` is true only mid-series: an
-  unstarted series has a *first* episode, not a next one — there is no
-  position to return to, so it opens on the hero with season 1 expanded
-  underneath; a completed series expands nothing and so has nothing to
-  scroll to.
+  `:season` is the number of the library season holding the next episode,
+  nil when there is no next episode (a complete series) or its row is not
+  on the page. `:autoscroll?` is true only when the series is in progress
+  past its first episode and the next episode has a row: an unstarted
+  series has a *first* episode, not a next one, so it opens on the hero
+  with that season expanded underneath; a complete series expands nothing
+  and so has nothing to scroll to.
   """
-  @spec for_series([SeasonView.t()], map() | nil) :: t()
-  def for_series(seasons, resume_hint) do
-    library_seasons = Enum.filter(seasons, &(&1.kind == :library))
-    series = series_counts(library_seasons)
+  @spec for_series([SeasonView.t()], TitleProgress.t() | nil) :: t()
+  def for_series(seasons, title_progress) do
+    season = season_of_next(seasons, title_progress)
 
-    if series.total > 0 and series.watched >= series.total do
-      %__MODULE__{
-        state: :complete,
-        next: nil,
-        season: nil,
-        series: series,
-        fraction: 1.0,
-        autoscroll?: false
-      }
-    else
-      next = next_episode(library_seasons, resume_hint)
-      season = current_season(library_seasons, next)
-      state = if series.watched == 0, do: :unstarted, else: :in_progress
-
-      %__MODULE__{
-        state: state,
-        next: next,
-        season: season,
-        series: series,
-        fraction: series_fraction(series),
-        autoscroll?: state == :in_progress and season != nil
-      }
-    end
+    %__MODULE__{
+      season: season,
+      fraction: fraction(title_progress),
+      autoscroll?: past_the_first?(title_progress) and season != nil
+    }
   end
 
   @doc """
   Builds the orientation for a movie collection from the detail page's
-  typed item list.
-
-  `:fraction` is the collection's watched share — the collection is the
-  unit, there is no season equivalent, so `:season` and `:next` stay
-  nil. `:autoscroll?` is true only mid-collection *and* when a library
-  row carries the resume-target flag (the row the scroll returns to).
+  typed item list and the title progress. There is no season equivalent,
+  so `:season` stays nil; `:autoscroll?` is true only mid-collection
+  *and* when the next movie has a library row (the row the scroll
+  returns to).
   """
-  @spec for_collection([MovieRow.t()]) :: t()
-  def for_collection(movie_items) do
-    library_items = Enum.filter(movie_items, &match?(%MovieRow.Library{}, &1))
-    watched = Enum.count(library_items, &(&1.state == :watched))
-    total = length(library_items)
-    percent = if total > 0, do: round(watched / total * 100), else: 0
-    series = %{watched: watched, total: total, percent: percent}
-
-    if total > 0 and watched >= total do
-      %__MODULE__{
-        state: :complete,
-        next: nil,
-        season: nil,
-        series: series,
-        fraction: 1.0,
-        autoscroll?: false
-      }
-    else
-      state = if watched == 0, do: :unstarted, else: :in_progress
-
-      %__MODULE__{
-        state: state,
-        next: nil,
-        season: nil,
-        series: series,
-        fraction: if(total > 0, do: watched / total, else: 0.0),
-        autoscroll?: state == :in_progress and Enum.any?(library_items, & &1.is_resume_target)
-      }
-    end
+  @spec for_collection([MovieRow.t()], TitleProgress.t() | nil) :: t()
+  def for_collection(movie_items, title_progress) do
+    %__MODULE__{
+      season: nil,
+      fraction: fraction(title_progress),
+      autoscroll?: past_the_first?(title_progress) and next_listed?(movie_items, title_progress)
+    }
   end
 
   @doc """
   Season numbers the accordion opens with on load — the one holding the
-  next episode, or none when there is no next episode (a completed
-  series opens as a compact rewatch index; a collection has no
-  accordion at all).
+  next episode, or none when there is no next episode (a complete series
+  opens as a compact rewatch index; a collection has no accordion at
+  all).
 
   Season expansion and the scroll landing are the same "where am I"
-  question the hairline answers, so both derive from here rather than
-  re-reading the resume target (2026-08-05 auto-orient design; this
-  replaces the blanket collapse of 2026-08-04).
+  question the hairline answers, so all three derive from the title
+  progress (2026-08-05 auto-orient design; this replaces the blanket
+  collapse of 2026-08-04).
   """
   @spec initial_expanded_seasons(t()) :: MapSet.t(non_neg_integer())
-  def initial_expanded_seasons(%__MODULE__{season: %{number: number}}), do: MapSet.new([number])
-  def initial_expanded_seasons(%__MODULE__{}), do: MapSet.new()
+  def initial_expanded_seasons(%__MODULE__{season: nil}), do: MapSet.new()
+  def initial_expanded_seasons(%__MODULE__{season: number}), do: MapSet.new([number])
 
   # --- Derivation ---
 
-  defp series_fraction(%{watched: watched, total: total}) when total > 0, do: watched / total
-  defp series_fraction(_series), do: 0.0
+  defp fraction(title_progress), do: TitleProgress.percent(title_progress) / 100
 
-  defp series_counts(library_seasons) do
-    watched = library_seasons |> Enum.map(&(&1.watched_count || 0)) |> Enum.sum()
-    total = library_seasons |> Enum.map(&(&1.total_count || 0)) |> Enum.sum()
-    percent = if total > 0, do: round(watched / total * 100), else: 0
+  defp past_the_first?(%TitleProgress{state: :in_progress, before_next: before_next}),
+    do: before_next > 0
 
-    %{watched: watched, total: total, percent: percent}
-  end
+  defp past_the_first?(_title_progress), do: false
 
-  defp next_episode(_library_seasons, %{
-         "seasonNumber" => season_number,
-         "episodeNumber" => episode_number
-       })
-       when is_integer(season_number) and is_integer(episode_number) do
-    %{season_number: season_number, episode_number: episode_number}
-  end
+  defp season_of_next(seasons, %TitleProgress{next: %{item_id: item_id}}) do
+    Enum.find_value(seasons, fn
+      %SeasonView{kind: :library, season_number: number, items: items} ->
+        if Enum.any?(items, &match?(%EpisodeRow.Library{episode: %{id: ^item_id}}, &1)), do: number
 
-  defp next_episode(library_seasons, _hint) do
-    library_seasons
-    |> library_items()
-    |> Enum.find(&(&1.state in [:unwatched, :current]))
-    |> case do
-      nil ->
+      _future ->
         nil
-
-      item ->
-        %{
-          season_number: item.season_number,
-          episode_number: item.episode.episode_number
-        }
-    end
+    end)
   end
 
-  defp library_items(library_seasons) do
-    library_seasons
-    |> Enum.flat_map(& &1.items)
-    |> Enum.filter(&match?(%EpisodeRow.Library{}, &1))
-  end
+  defp season_of_next(_seasons, _title_progress), do: nil
 
-  defp current_season(library_seasons, next) do
-    found =
-      case next do
-        %{season_number: season_number} ->
-          Enum.find(library_seasons, &(&1.season_number == season_number))
+  defp next_listed?(movie_items, %TitleProgress{next: %{item_id: item_id}}),
+    do: Enum.any?(movie_items, &match?(%MovieRow.Library{movie: %{id: ^item_id}}, &1))
 
-        nil ->
-          nil
-      end
-
-    case found do
-      nil ->
-        nil
-
-      season ->
-        %{
-          number: season.season_number,
-          watched: season.watched_count || 0,
-          total: season.total_count || 0
-        }
-    end
-  end
+  defp next_listed?(_movie_items, _title_progress), do: false
 end

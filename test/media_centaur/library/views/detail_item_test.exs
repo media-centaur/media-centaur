@@ -153,7 +153,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     # The adapter is a temporary compatibility shim: it converts a TV-series
     # DetailItem (canonical-episode leaf carrying the entire series tree)
     # into the polymorphic-entity-map shape that `SeriesDetail.build/4`,
-    # `ResumeTarget.compute/2`, and `EntityModal.{find_tmdb_id,
+    # `TitleProgress.for_entity/3`, and `EntityModal.{find_tmdb_id,
     # resolve_progress_fk}` consume today. Task E retires it.
 
     test "produces an entity map keyed to the TVSeries container, not the leaf" do
@@ -349,7 +349,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert entity.date_published == ~D[2010-07-16]
     end
 
-    test "derives :content_url from the first :watched_files entry — Resume.resolve_single needs it" do
+    test "derives :content_url from the first :watched_files entry — the ordered set of a leaf needs it" do
       files = [
         %DetailItem.WatchedFile{path: "/media/x/a.mkv", media_dir: "/media/x"},
         %DetailItem.WatchedFile{path: "/media/x/b.mkv", media_dir: "/media/x"}

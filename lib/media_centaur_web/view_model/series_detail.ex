@@ -21,8 +21,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ProgressSummary
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.Views.DetailItem
-  alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.SeasonView
@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     :progress_records,
     :seasons,
     :extras,
-    :resume_target,
+    :title_progress,
     # Cached input to `build/4` — kept on the struct so in-memory
     # progress merges can rebuild `seasons` (which carries
     # per-episode state) without a fresh DB query per playback tick.
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           progress_records: list(),
           seasons: [SeasonView.t()],
           extras: list(),
-          resume_target: map() | nil,
+          title_progress: TitleProgress.t() | nil,
           releases: [map()],
           claimed_units: MapSet.t({pos_integer(), pos_integer()})
         }
@@ -76,8 +76,9 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   (ReleaseTracking releases) compose at this layer
   per ADR-029, mirroring the HomeLive pattern.
 
-  Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
-  on the loaded entry, so callers don't have to thread it separately.
+  Reads the profile's records and title progress in one call
+  (`Library.ProgressRecords.title_progress/2`), so callers don't have to
+  thread them separately.
   """
   @spec compose(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, t()} | :not_found
   def compose(profile_id, entity_id) when is_binary(profile_id) and is_binary(entity_id) do
@@ -94,7 +95,9 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     entity =
       Library.PlaybackOverrides.put_on_entity(profile_id, DetailItem.to_entity_view(detail_item))
 
-    progress_records = Library.ProgressRecords.list_for_container(profile_id, :tv_series, entity_id)
+    %{title_progress: title_progress, records: progress_records} =
+      Library.ProgressRecords.title_progress(profile_id, entity)
+
     progress_summary = ProgressSummary.compute(entity, progress_records)
 
     entry = %{
@@ -112,14 +115,14 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
         _absent -> MapSet.new()
       end
 
-    resume_target = ResumeTarget.compute(entity, progress_records)
-    {:ok, build(entry, releases, resume_target, claimed_units)}
+    {:ok, build(entry, releases, title_progress, claimed_units)}
   end
 
   @doc """
   Pure: builds a `%SeriesDetail{}` from a loaded library entry, the
-  releases relevant to it, and the precomputed
-  resume target.
+  releases relevant to it, and the title progress
+  (`MediaCentaur.Library.TitleProgress`), whose next item is the row
+  flagged `is_resume_target`.
 
   Releases are expected to be `MediaCentaur.ReleaseTracking.Release.t()`
   rows (or any map with the same fields: `air_date, title,
@@ -127,13 +130,13 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   No database access. Tests construct the inputs as fixtures.
   """
-  @spec build(map(), [map()], map() | nil, MapSet.t()) :: t()
-  def build(entry, releases, resume_target, claimed_units \\ MapSet.new()) do
+  @spec build(map(), [map()], TitleProgress.t() | nil, MapSet.t()) :: t()
+  def build(entry, releases, title_progress, claimed_units \\ MapSet.new()) do
     seasons = entry.entity.seasons || []
     releases_by_season = Enum.group_by(releases, & &1.season_number)
     library_season_numbers = MapSet.new(seasons, & &1.season_number)
     progress_by_episode_id = index_progress_by_episode_id(entry.progress_records)
-    resume_episode_key = resume_target_episode_key(resume_target)
+    next_id = next_item_id(title_progress)
 
     library_seasons =
       Enum.map(seasons, fn season ->
@@ -141,7 +144,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           season,
           Map.get(releases_by_season, season.season_number, []),
           progress_by_episode_id,
-          resume_episode_key,
+          next_id,
           claimed_units
         )
       end)
@@ -158,7 +161,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       progress_records: entry.progress_records,
       seasons: library_seasons ++ future_seasons,
       extras: entry.entity.extras || [],
-      resume_target: resume_target,
+      title_progress: title_progress,
       releases: releases,
       claimed_units: claimed_units
     }
@@ -173,26 +176,26 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   Pure: reuses the cached `releases` on the
   existing struct.
   """
-  @spec with_progress(t(), map() | nil, list(), map() | nil) :: t()
-  def with_progress(%__MODULE__{} = sd, progress, progress_records, resume_target) do
+  @spec with_progress(t(), map() | nil, list(), TitleProgress.t() | nil) :: t()
+  def with_progress(%__MODULE__{} = sd, progress, progress_records, title_progress) do
     entry = %{
       entity: sd.entity,
       progress: progress,
       progress_records: progress_records
     }
 
-    build(entry, sd.releases || [], resume_target, sd.claimed_units || MapSet.new())
+    build(entry, sd.releases || [], title_progress, sd.claimed_units || MapSet.new())
   end
 
   # --- Library season construction ---
 
-  defp build_library_season(season, season_releases, progress_by_episode_id, resume_episode_key, claimed) do
+  defp build_library_season(season, season_releases, progress_by_episode_id, next_id, claimed) do
     items =
       build_library_items(
         season,
         season_releases,
         progress_by_episode_id,
-        resume_episode_key,
+        next_id,
         claimed
       )
 
@@ -223,7 +226,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # (*Refresh episode lists* under Settings → Maintenance); it renders
   # its library and release rows and nothing else, which is what it did
   # before the list existed.
-  defp build_library_items(season, releases, progress_by_episode_id, resume_episode_key, claimed) do
+  defp build_library_items(season, releases, progress_by_episode_id, next_id, claimed) do
     episode_map = Map.new(season.episodes || [], &{&1.episode_number, &1})
     release_map = Map.new(releases, &{&1.episode_number, &1})
     listed = Map.new(season.episode_list || [], &{&1.episode_number, &1})
@@ -235,7 +238,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     |> Enum.map(fn number ->
       cond do
         episode = Map.get(episode_map, number) ->
-          build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
+          build_library_item(episode, season.season_number, progress_by_episode_id, next_id)
 
         release = Map.get(release_map, number) ->
           build_release_item(release, claimed)
@@ -272,7 +275,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       else: EpisodeRow.Missing
   end
 
-  defp build_library_item(episode, season_number, progress_by_episode_id, resume_episode_key) do
+  defp build_library_item(episode, season_number, progress_by_episode_id, next_id) do
     progress = Map.get(progress_by_episode_id, episode.id)
 
     %EpisodeRow.Library{
@@ -280,7 +283,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       season_number: season_number,
       progress: progress,
       state: episode_state(progress),
-      is_resume_target: resume_episode_key == {season_number, episode.episode_number}
+      is_resume_target: next_id != nil and episode.id == next_id
     }
   end
 
@@ -357,11 +360,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     |> Map.new()
   end
 
-  # ResumeTarget.compute returns the string-keyed hint shape produced
-  # by build_hint/4 — the same shape detail_panel previously matched on
-  # via `resume_episode_key/1`.
-  defp resume_target_episode_key(%{"seasonNumber" => season, "episodeNumber" => episode})
-       when is_integer(season) and is_integer(episode), do: {season, episode}
-
-  defp resume_target_episode_key(_), do: nil
+  defp next_item_id(%TitleProgress{next: %{item_id: item_id}}), do: item_id
+  defp next_item_id(_title_progress), do: nil
 end

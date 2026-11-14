@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   @spec merge_progress(Half.t(), map()) :: Half.t() | nil
   def merge_progress(%Half{entry: entry} = half, %{
         summary: summary,
-        resume_target: resume_target,
+        title_progress: title_progress,
         changed_record: changed_record
       })
       when is_map(summary) do
@@ -155,13 +155,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
     entry =
       case entry do
         %SeriesDetail{} ->
-          SeriesDetail.with_progress(entry, summary, records, resume_target)
+          SeriesDetail.with_progress(entry, summary, records, title_progress)
 
         %CollectionDetail{} ->
-          CollectionDetail.with_progress(entry, summary, records, resume_target)
+          CollectionDetail.with_progress(entry, summary, records, title_progress)
 
         %LeafDetail{} ->
-          %{entry | progress: summary, progress_records: records, resume_target: resume_target}
+          %{entry | progress: summary, progress_records: records, title_progress: title_progress}
       end
 
     rebuild(half, entry)

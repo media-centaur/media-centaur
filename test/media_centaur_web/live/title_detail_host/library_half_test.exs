@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalfTest do
         ref: ref,
         title: ref && Title.new!(%{tmdb_id: elem(ref, 0), media_type: :movie, name: "Sample Movie"}),
         library: %Library{
-          entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+          entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
           subject: entity,
           files: :loading
         }

@@ -11,7 +11,6 @@ defmodule MediaCentaur.Playback do
       Command,
       LanguagePolicy,
       ProgressBroadcaster,
-      ResumeTarget,
       SessionRegistry,
       Sessions,
       TrackResolver.Track,

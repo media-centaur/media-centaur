@@ -1915,6 +1915,101 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "detail modal — Play and the rows read the title progress" do
+    setup do
+      tv_series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episodes =
+        for number <- 1..3 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: number,
+            name: "Episode #{number}",
+            content_url: "/tv/sample-show/s01e0#{number}.mkv"
+          })
+        end
+
+      {:ok, tv_series: tv_series, episodes: episodes}
+    end
+
+    defp play_button(target_id),
+      do: ~s|#detail-modal button[phx-click="play"][phx-value-id="#{target_id}"]|
+
+    defp watched_control(episode_id, label) do
+      ~s|button[phx-click="toggle_watched"][phx-value-container-id="#{episode_id}"][aria-label="#{label}"]|
+    end
+
+    test "a rewatched series offers the next episode of the pass, though every episode is marked",
+         %{conn: conn, tv_series: tv_series, episodes: [first, second, _third] = episodes} do
+      [finished | _rest] =
+        for episode <- episodes, do: create_watch_progress(%{episode_id: episode.id, completed: true})
+
+      create_series_watch_position(%{
+        profile_id: owner_profile_id(),
+        playable_item_id: finished.playable_item_id
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
+
+      assert has_element?(view, play_button(second.id), "Play Episode 2")
+      assert has_element?(view, ~s|[data-resume-target] [phx-value-container-id="#{second.id}"]|)
+      assert has_element?(view, watched_control(first.id, "Mark unwatched"))
+    end
+
+    test "a series finished to its last episode offers Watch again",
+         %{conn: conn, tv_series: tv_series, episodes: episodes} do
+      rows =
+        for episode <- episodes, do: create_watch_progress(%{episode_id: episode.id, completed: true})
+
+      create_series_watch_position(%{
+        profile_id: owner_profile_id(),
+        playable_item_id: List.last(rows).playable_item_id
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
+
+      assert has_element?(view, play_button(tv_series.id), "Watch again")
+    end
+
+    test "a replayed watched episode keeps its mark and offers Mark watched",
+         %{conn: conn, tv_series: tv_series, episodes: [first, _second, _third]} do
+      create_watch_progress(%{
+        episode_id: first.id,
+        completed: true,
+        position_seconds: 600.0,
+        duration_seconds: 1300.0
+      })
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
+
+      assert has_element?(view, play_button(first.id), "Resume Episode 1")
+      assert has_element?(view, watched_control(first.id, "Mark watched"))
+
+      view |> element(watched_control(first.id, "Mark watched")) |> render_click()
+      assert_receive {:entity_progress_updated, %{changed_record: changed}}, 1000
+
+      assert changed.completed
+      assert changed.position_seconds == 0.0
+      assert has_element?(view, watched_control(first.id, "Mark unwatched"))
+    end
+
+    test "a series whose episodes were marked by hand, without a timestamp, opens",
+         %{conn: conn, tv_series: tv_series, episodes: [first, second, third]} do
+      actor = MediaCentaur.Profiles.Actor.new(owner_profile_id())
+
+      for episode <- [first, second] do
+        {:ok, %{last_watched_at: nil}} =
+          MediaCentaur.Library.ProgressRecords.toggle_watched(actor, :episode, episode.id)
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
+
+      assert has_element?(view, play_button(third.id), "Play Episode 3")
+    end
+  end
+
   describe "collection modal — movie-first with poster rail (UIDR-023)" do
     # The collection modal renders the *selected member's* movie panel —
     # same component family as a standalone movie — with a poster rail

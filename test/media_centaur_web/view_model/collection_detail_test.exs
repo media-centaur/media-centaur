@@ -1,8 +1,18 @@
 defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.MovieRow
+
+  defp next_is(movie) do
+    %TitleProgress{
+      state: :in_progress,
+      next: %{item_id: movie.id, offset_seconds: 600.0, duration_seconds: 5400.0},
+      before_next: 1,
+      total: 2
+    }
+  end
 
   describe "build/3 — pure composition" do
     test "library items are chronological, content-bearing movies only" do
@@ -54,19 +64,21 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
              ] = view_model.movies
     end
 
-    test "is_resume_target marks the movie named by the resume hint's targetId" do
+    test "is_resume_target marks the movie the title progress names as next" do
       movie_1 = build_movie(%{date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
       movie_2 = build_movie(%{date_published: ~D[2012-01-01], content_url: "/m/2.mkv"})
       collection = build_movie_series(%{movies: [movie_1, movie_2]})
 
-      resume_target = %{"action" => "resume", "targetId" => movie_2.id}
+      title_progress = next_is(movie_2)
 
       view_model =
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           [],
-          resume_target
+          title_progress
         )
+
+      assert view_model.title_progress == title_progress
 
       assert [
                %MovieRow.Library{is_resume_target: false},
@@ -267,8 +279,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
 
       collection = build_movie_series(%{movies: [movie_1, movie_2, movie_3]})
 
-      resume_target = %{"action" => "resume", "targetId" => movie_2.id}
-
       view_model =
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
@@ -279,7 +289,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
               air_date: Date.add(Date.utc_today(), 90)
             })
           ],
-          resume_target
+          next_is(movie_2)
         )
 
       %{view_model: view_model, movie_1: movie_1, movie_2: movie_2, movie_3: movie_3}
@@ -293,7 +303,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
                CollectionDetail.select_member(view_model, movie_3.id)
     end
 
-    test "select_member/2 falls back to the resume target for nil or unknown ids", %{
+    test "select_member/2 falls back to the next movie for nil or unknown ids", %{
       view_model: view_model
     } do
       assert %MovieRow.Library{movie: %{name: "Part Two"}} =
@@ -303,7 +313,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
                CollectionDetail.select_member(view_model, Ecto.UUID.generate())
     end
 
-    test "select_member/2 falls back to the first library member without a resume target" do
+    test "select_member/2 falls back to the first library member when no movie is next" do
       movie = build_movie(%{name: "Only Part", date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
       collection = build_movie_series(%{movies: [movie]})
 

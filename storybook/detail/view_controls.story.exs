@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           Title.new!(%{tmdb_id: String.to_integer(tmdb_id), media_type: media_type, name: "Sample"}),
       rung: Keyword.get(opts, :rung),
       library: %TitleDetail.Library{
-        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
         subject: entity
       }
     }

@@ -84,6 +84,72 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       assert changed_record == nil
     end
 
+    test "carries the title progress: the next item at its viewing's offset" do
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      [first, second] =
+        for number <- 1..2 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: number,
+            name: "Episode #{number}",
+            content_url: "/tv/sample-show/s01e0#{number}.mkv"
+          })
+        end
+
+      finished = create_watch_progress(%{episode_id: first.id, completed: true})
+
+      create_series_watch_position(%{
+        profile_id: owner_profile_id(),
+        playable_item_id: finished.playable_item_id,
+        finished_at: ~U[2026-01-01 00:00:00Z]
+      })
+
+      create_watch_progress(%{episode_id: second.id, position_seconds: 600.0, duration_seconds: 2400.0})
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, nil)
+
+      assert_receive {:entity_progress_updated, %{title_progress: progress}}
+
+      assert %MediaCentaur.Library.TitleProgress{
+               state: :in_progress,
+               next: %{item_id: next_id, offset_seconds: 600.0, duration_seconds: 2400.0},
+               before_next: 1,
+               total: 2
+             } = progress
+
+      assert next_id == second.id
+    end
+
+    test "a title whose rows were marked by hand, without a timestamp, broadcasts" do
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+      actor = MediaCentaur.Profiles.Actor.new(owner_profile_id())
+
+      for number <- 1..3 do
+        episode =
+          create_episode(%{
+            season_id: season.id,
+            episode_number: number,
+            name: "Episode #{number}",
+            content_url: "/tv/sample-show/s01e0#{number}.mkv"
+          })
+
+        if number < 3 do
+          {:ok, %{last_watched_at: nil}} =
+            MediaCentaur.Library.ProgressRecords.toggle_watched(actor, :episode, episode.id)
+        end
+      end
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+      ProgressBroadcaster.broadcast(owner_profile_id(), tv_series.id, nil)
+
+      assert_receive {:entity_progress_updated,
+                      %{title_progress: %{state: :in_progress, before_next: 2}}}
+    end
+
     test "threads changed_record through the broadcast payload" do
       tv_series = create_entity(%{type: :tv_series, name: "Threaded Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})

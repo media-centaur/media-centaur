@@ -666,7 +666,7 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
 
       msg =
         {:entity_progress_updated,
-         %{entity_id: "abc", summary: %{}, resume_target: nil, changed_record: nil}}
+         %{entity_id: "abc", summary: %{}, title_progress: nil, changed_record: nil}}
 
       assert Logic.section_reloaders(msg) == []
     end

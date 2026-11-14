@@ -90,6 +90,35 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
       assert item.start_position == 0.0
     end
 
+    test "starts a successor whose offset is too short to count from zero", %{dir: dir} do
+      %{episode_one: episode_one, episode_two: episode_two} =
+        create_series_with_two_episodes(dir)
+
+      create_watch_progress(%{
+        episode_id: episode_two.id,
+        position_seconds: 30.0,
+        duration_seconds: 1800.0
+      })
+
+      assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
+      assert item.start_position == 0.0
+    end
+
+    test "carries a watched successor's viewing in flight", %{dir: dir} do
+      %{episode_one: episode_one, episode_two: episode_two} =
+        create_series_with_two_episodes(dir)
+
+      create_watch_progress(%{
+        episode_id: episode_two.id,
+        completed: true,
+        position_seconds: 600.0,
+        duration_seconds: 1800.0
+      })
+
+      assert {:ok, item} = NextEpisode.resolve(owner_profile_id(), episode_one.id)
+      assert item.start_position == 600.0
+    end
+
     test "returns :none after the final episode", %{dir: dir} do
       %{episode_two: episode_two} = create_series_with_two_episodes(dir)
 

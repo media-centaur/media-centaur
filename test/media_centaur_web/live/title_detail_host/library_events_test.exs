@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsTest do
         ref: nil,
         title: nil,
         library: %Library{
-          entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+          entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
           subject: entity
         }
       }

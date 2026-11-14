@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
   is a metadata-line item.
 
   The label ("Play", "Resume Episode 5", "Watch again", …) comes from
-  `Detail.Logic.playback_props/3` — no decisions are made at render time.
+  `Detail.Logic.playback_props/2` — no decisions are made at render time.
   """
 
   use MediaCentaurWeb, :html

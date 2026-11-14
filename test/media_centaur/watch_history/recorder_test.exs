@@ -105,7 +105,7 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
            entity_id: movie.id,
            changed_record: progress,
            summary: nil,
-           resume_target: nil,
+           title_progress: nil,
            last_activity_at: DateTime.utc_now()
          }}
       )

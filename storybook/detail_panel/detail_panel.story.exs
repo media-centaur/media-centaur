@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       movie: never watched; two friends' reviews in the social capsule; mid-watch
       with Resume, the hairline and the time left.
     * `:tv_series_all_collapsed`, `:tv_series_with_seasons`,
+      `:tv_series_rewatch`, `:tv_series_replaying_watched_episode`,
       `:tv_series_gap_in_flight`, `:tv_series_complete`,
       `:tv_series_acquisition_off`,
       `:tv_series_episode_details_open`, `:tv_series_all_episode_details_open`,
@@ -72,6 +73,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Library.EntityView
+  alias MediaCentaur.Library.ProgressRecords
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.{Person, WatchedFile}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaur.Social.Person, as: SocialPerson
@@ -90,6 +93,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   alias MediaCentaurWeb.ViewModel.SeriesDetail
 
   @today ~D[2026-08-03]
+
+  # The TV fixture's second and third episodes; the library holds five
+  # episodes of it: season 1's 1, 2, 3 and 5, season 2's 1.
+  @s1e2_id "33333333-3333-3333-3333-3333000s01e02"
+  @s1e3_id "33333333-3333-3333-3333-3333000s01e03"
+  @tv_total 5
 
   def function, do: &MediaCentaurWeb.Components.DetailPanel.detail_panel/1
   def render_source, do: :function
@@ -184,6 +193,43 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "and still no tracking card: an owned title's switches are the " <>
             "Watchlist page's.",
         attributes: %{detail: series_detail(), state: series_state()}
+      },
+      %Variation{
+        id: :tv_series_rewatch,
+        description:
+          "A rewatch in progress: every episode carries its watched mark from the " <>
+            "first pass, and playback last finished episode 2 of the second. The CTA " <>
+            "reads **Play Episode 3**, episode 3's row carries the next-up wash, the " <>
+            "hairline reads two of five, and the season header still counts every " <>
+            "episode watched — the header counts marks, the hairline the place in " <>
+            "this pass.",
+        attributes: %{
+          detail:
+            series_detail(
+              records: all_watched_records(sample_tv_entity()),
+              title_progress: rewatch_title_progress()
+            ),
+          state: series_state()
+        }
+      },
+      %Variation{
+        id: :tv_series_replaying_watched_episode,
+        description:
+          "A watched episode being replayed: episode 3 keeps its mark and has a " <>
+            "viewing ten minutes in, so its row reads as current with the time " <>
+            "remaining, its control offers **Mark watched** (which ends the viewing " <>
+            "and keeps the mark), and the CTA reads **Resume Episode 3**.",
+        attributes: %{
+          detail:
+            series_detail(
+              records: all_watched_records(sample_tv_entity(), @s1e3_id),
+              title_progress: %{
+                rewatch_title_progress()
+                | next: %{item_id: @s1e3_id, offset_seconds: 600.0, duration_seconds: 1500.0}
+              }
+            ),
+          state: series_state()
+        }
       },
       %Variation{
         id: :tv_series_gap_in_flight,
@@ -786,8 +832,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     )
   end
 
-  defp leaf(entity, progress, records) do
-    %LeafDetail{entity: entity, progress: progress, progress_records: records, resume_target: nil}
+  defp leaf(entity, progress, records, title_progress) do
+    %LeafDetail{
+      entity: entity,
+      progress: progress,
+      progress_records: records,
+      title_progress: title_progress
+    }
   end
 
   defp movie do
@@ -904,8 +955,30 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   defp movie_detail(overrides \\ %{}, progress \\ nil, files \\ {:ok, []}) do
     records = if progress, do: [movie_progress_record(@movie_id)], else: []
-    owned(leaf(sample_movie_entity(), progress, records), files: files, detail: overrides)
+
+    owned(leaf(sample_movie_entity(), progress, records, movie_title_progress(progress)),
+      files: files,
+      detail: overrides
+    )
   end
+
+  # Where the profile stands in the movie: unstarted, or resuming the
+  # viewing in flight the progress fixture describes.
+  defp movie_title_progress(nil),
+    do: %TitleProgress{
+      state: :unstarted,
+      next: %{item_id: @movie_id, offset_seconds: 0.0, duration_seconds: 0.0},
+      before_next: 0,
+      total: 1
+    }
+
+  defp movie_title_progress(%{episode_position_seconds: offset, episode_duration_seconds: duration}),
+    do: %TitleProgress{
+      state: :in_progress,
+      next: %{item_id: @movie_id, offset_seconds: offset, duration_seconds: duration},
+      before_next: 0,
+      total: 1
+    }
 
   defp movie_progress do
     %{
@@ -985,10 +1058,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   defp series_detail(opts \\ []) do
     entity = Keyword.get(opts, :entity, sample_tv_entity())
-    records = sample_tv_progress_records(entity)
+    records = Keyword.get_lazy(opts, :records, fn -> sample_tv_progress_records(entity) end)
+    title_progress = Keyword.get(opts, :title_progress, resuming_episode_two())
 
     seasons =
-      Keyword.get_lazy(opts, :seasons, fn -> build_library_only_seasons_view(entity, records, {1, 2}) end)
+      Keyword.get_lazy(opts, :seasons, fn ->
+        build_library_only_seasons_view(entity, records, title_progress.next.item_id)
+      end)
 
     entry = %SeriesDetail{
       entity: entity,
@@ -1002,7 +1078,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       progress_records: records,
       seasons: seasons,
       extras: [],
-      resume_target: nil,
+      title_progress: title_progress,
       releases: [],
       claimed_units: MapSet.new()
     }
@@ -1011,13 +1087,54 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     owned(entry, Keyword.merge([detail: detail], Keyword.take(opts, [:available, :files])))
   end
 
+  # Episode 1 finished, episode 2 ten minutes in: Play resumes episode 2.
+  defp resuming_episode_two do
+    %TitleProgress{
+      state: :in_progress,
+      next: %{item_id: @s1e2_id, offset_seconds: 600.0, duration_seconds: 1500.0},
+      before_next: 1,
+      total: @tv_total
+    }
+  end
+
+  # A second pass: every episode carries its watched mark from the first,
+  # and playback last finished episode 2, so episode 3 is next from its
+  # start.
+  defp rewatch_title_progress do
+    %TitleProgress{
+      state: :in_progress,
+      next: %{item_id: @s1e3_id, offset_seconds: 0.0, duration_seconds: 1500.0},
+      before_next: 2,
+      total: @tv_total
+    }
+  end
+
+  # Every library episode watched; `replaying` names an episode with a
+  # viewing in flight on top of its mark, ten minutes in.
+  defp all_watched_records(entity, replaying \\ nil) do
+    episodes = Enum.flat_map(entity.seasons, & &1.episodes)
+
+    for {episode, index} <- Enum.with_index(episodes, 1) do
+      %{
+        id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb#{String.pad_leading("#{index}", 2, "0")}",
+        movie_id: nil,
+        episode_id: episode.id,
+        video_object_id: nil,
+        position_seconds: if(episode.id == replaying, do: 600.0, else: 0.0),
+        duration_seconds: 1500.0,
+        completed: true,
+        last_watched_at: ~U[2026-04-28 21:00:00Z]
+      }
+    end
+  end
+
   # Both seasons the entity claims (`number_of_seasons: 2`), with the S1
   # gap at episode 4 dropped — the library holds every episode there is.
   defp complete_seasons do
     entity = sample_tv_entity()
 
     entity
-    |> build_library_only_seasons_view(sample_tv_progress_records(entity), {1, 2})
+    |> build_library_only_seasons_view(sample_tv_progress_records(entity), @s1e2_id)
     |> Enum.map(fn season ->
       items = Enum.reject(season.items, &match?(%EpisodeRow.Missing{}, &1))
       %{season | items: items, total_count: length(items)}
@@ -1162,7 +1279,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       progress_records: [],
       seasons: [s1_future],
       extras: [],
-      resume_target: nil,
+      title_progress: %TitleProgress{state: :unstarted, next: nil, before_next: 0, total: 0},
       releases: [],
       claimed_units: MapSet.new()
     }
@@ -1198,19 +1315,19 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     ]
   end
 
-  defp build_library_only_seasons_view(entity, progress_records, resume_episode_key) do
+  defp build_library_only_seasons_view(entity, progress_records, next_id) do
     progress_by_episode_id =
       progress_records
       |> Enum.filter(& &1.episode_id)
       |> Map.new(&{&1.episode_id, &1})
 
     Enum.map(entity.seasons, fn season ->
-      build_library_season_view(season, progress_by_episode_id, resume_episode_key)
+      build_library_season_view(season, progress_by_episode_id, next_id)
     end)
   end
 
-  defp build_library_season_view(season, progress_by_episode_id, resume_episode_key) do
-    items = build_library_items(season, progress_by_episode_id, resume_episode_key)
+  defp build_library_season_view(season, progress_by_episode_id, next_id) do
+    items = build_library_items(season, progress_by_episode_id, next_id)
     watched = Enum.count(season.episodes, &watched?(&1, progress_by_episode_id))
 
     %SeasonView{
@@ -1224,7 +1341,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     }
   end
 
-  defp build_library_items(season, progress_by_episode_id, resume_episode_key) do
+  defp build_library_items(season, progress_by_episode_id, next_id) do
     episode_map = Map.new(season.episodes, &{&1.episode_number, &1})
     upper = max(season.number_of_episodes, length(season.episodes))
 
@@ -1246,8 +1363,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
               episode: episode,
               season_number: season.season_number,
               progress: progress,
-              state: episode_state(progress),
-              is_resume_target: resume_episode_key == {season.season_number, episode.episode_number}
+              state: ProgressRecords.state_from_progress(progress),
+              is_resume_target: episode.id == next_id
             }
         end
       end
@@ -1260,11 +1377,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       _ -> false
     end
   end
-
-  defp episode_state(nil), do: :unwatched
-  defp episode_state(%{completed: true}), do: :watched
-  defp episode_state(%{position_seconds: pos}) when is_number(pos) and pos > 0.0, do: :current
-  defp episode_state(_), do: :unwatched
 
   defp sample_tv_entity do
     struct!(EntityView,
@@ -1425,7 +1537,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       progress_records: progress_records,
       movies: movie_series_items(entity, progress_records) ++ upcoming,
       extras: [],
-      resume_target: nil,
+      title_progress: %TitleProgress{
+        state: :in_progress,
+        next: %{item_id: m2.id, offset_seconds: 1500.0, duration_seconds: 5700.0},
+        before_next: 1,
+        total: 3
+      },
       releases: []
     }
 

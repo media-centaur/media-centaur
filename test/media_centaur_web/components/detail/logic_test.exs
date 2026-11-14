@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.ViewModel.EpisodeRow
@@ -197,263 +198,134 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "play_label/1" do
-    test "returns 'Play' and entity id" do
-      assert Logic.play_label(%{type: :movie, id: "mv-uuid"}) == {"Play", "mv-uuid"}
-      assert Logic.play_label(%{type: :tv_series, id: "tv-uuid"}) == {"Play", "tv-uuid"}
+  describe "playback_props/2 — TV series" do
+    defp tv_series do
+      %{
+        id: "tv-uuid",
+        type: :tv_series,
+        seasons: [
+          %{season_number: 1, episodes: [%{id: "e3", episode_number: 3, name: "Episode 3"}]},
+          %{season_number: 2, episodes: [%{id: "s2e1", episode_number: 1, name: "Episode 1"}]}
+        ]
+      }
+    end
+
+    defp next(item_id, offset), do: %{item_id: item_id, offset_seconds: offset, duration_seconds: 1300.0}
+
+    defp in_progress(item_id, offset \\ 0.0),
+      do: %TitleProgress{state: :in_progress, next: next(item_id, offset), before_next: 2, total: 10}
+
+    test "complete reads Watch again and targets the title" do
+      progress = %TitleProgress{state: :complete, before_next: 10, total: 10}
+      assert Logic.playback_props(tv_series(), progress) == {"Watch again", "tv-uuid"}
+    end
+
+    test "in progress without an offset names next" do
+      assert Logic.playback_props(tv_series(), in_progress("e3")) == {"Play Episode 3", "e3"}
+    end
+
+    test "in progress with an offset reads Resume" do
+      assert Logic.playback_props(tv_series(), in_progress("e3", 600.0)) == {"Resume Episode 3", "e3"}
+    end
+
+    test "a next episode beyond season 1 carries its season" do
+      assert Logic.playback_props(tv_series(), in_progress("s2e1")) == {"Play S2E1", "s2e1"}
+      assert Logic.playback_props(tv_series(), in_progress("s2e1", 600.0)) == {"Resume S2E1", "s2e1"}
+    end
+
+    test "a rewatch names the next episode of the pass, though every episode is marked" do
+      progress = %TitleProgress{state: :in_progress, next: next("e3", 0.0), before_next: 2, total: 2}
+      assert Logic.playback_props(tv_series(), progress) == {"Play Episode 3", "e3"}
+    end
+
+    test "a next episode the entity does not list reads the bare verb and still targets it" do
+      assert Logic.playback_props(tv_series(), in_progress("gone")) == {"Play", "gone"}
+    end
+
+    test "unstarted reads Play and targets the title" do
+      progress = %TitleProgress{state: :unstarted, next: next("e3", 0.0), before_next: 0, total: 10}
+      assert Logic.playback_props(tv_series(), progress) == {"Play", "tv-uuid"}
+    end
+
+    test "no title progress reads Play and targets the title" do
+      assert Logic.playback_props(tv_series(), nil) == {"Play", "tv-uuid"}
     end
   end
 
-  describe "watch_again_label/1" do
-    test "returns 'Watch again' and entity id" do
-      assert Logic.watch_again_label(%{type: :movie, id: "mv-uuid"}) ==
-               {"Watch again", "mv-uuid"}
-
-      assert Logic.watch_again_label(%{type: :tv_series, id: "tv-uuid"}) ==
-               {"Watch again", "tv-uuid"}
-    end
-  end
-
-  describe "resume_label_from_hint/2" do
-    test "TV series, season 1 episode N → 'Resume Episode N' with hint targetId" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "resume", "targetId" => "ep-3", "seasonNumber" => 1, "episodeNumber" => 3}
-      assert Logic.resume_label_from_hint(tv, hint) == {"Resume Episode 3", "ep-3"}
-    end
-
-    test "TV series, season 2 episode N → 'Resume S2E5'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "resume", "targetId" => "ep-x", "seasonNumber" => 2, "episodeNumber" => 5}
-      assert Logic.resume_label_from_hint(tv, hint) == {"Resume S2E5", "ep-x"}
-    end
-
-    test "movie series with name → 'Resume <name>' and movie id" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-      hint = %{"action" => "resume", "targetId" => "mv-2", "ordinal" => 2, "name" => "Second Movie"}
-      assert Logic.resume_label_from_hint(ms, hint) == {"Resume Second Movie", "mv-2"}
-    end
-
-    test "movie series with blank name and ordinal → 'Resume Movie N'" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-      hint = %{"action" => "resume", "targetId" => "mv-3", "ordinal" => 3, "name" => "  "}
-      assert Logic.resume_label_from_hint(ms, hint) == {"Resume Movie 3", "mv-3"}
-    end
-
-    test "movie / video object hint without targetId → 'Resume' on entity id" do
+  describe "playback_props/2 — movie and video object" do
+    test "never watched → Play on the entity" do
       movie = %{type: :movie, id: "mv-uuid"}
-      assert Logic.resume_label_from_hint(movie, %{"action" => "resume"}) == {"Resume", "mv-uuid"}
+      progress = %TitleProgress{state: :unstarted, next: next("mv-uuid", 0.0), before_next: 0, total: 1}
 
-      vo = %{type: :video_object, id: "vo-uuid"}
-      assert Logic.resume_label_from_hint(vo, %{"action" => "resume"}) == {"Resume", "vo-uuid"}
-    end
-  end
-
-  describe "advance_label_from_hint/2" do
-    test "TV series, season 1 episode N → 'Play Episode N'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "begin", "targetId" => "ep-1", "seasonNumber" => 1, "episodeNumber" => 1}
-      assert Logic.advance_label_from_hint(tv, hint) == {"Play Episode 1", "ep-1"}
+      assert Logic.playback_props(movie, progress) == {"Play", "mv-uuid"}
     end
 
-    test "TV series, later season → 'Play S2E1'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "begin", "targetId" => "ep-s2e1", "seasonNumber" => 2, "episodeNumber" => 1}
-      assert Logic.advance_label_from_hint(tv, hint) == {"Play S2E1", "ep-s2e1"}
+    test "a viewing in flight → Resume, never Watch again" do
+      for type <- [:movie, :video_object] do
+        entity = %{type: type, id: "leaf-uuid"}
+
+        progress = %TitleProgress{
+          state: :in_progress,
+          next: next("leaf-uuid", 1500.0),
+          before_next: 0,
+          total: 1
+        }
+
+        assert Logic.playback_props(entity, progress) == {"Resume", "leaf-uuid"}
+      end
     end
 
-    test "movie series with name → 'Play <name>'" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-      hint = %{"action" => "begin", "targetId" => "mv-2", "ordinal" => 2, "name" => "Second Movie"}
-      assert Logic.advance_label_from_hint(ms, hint) == {"Play Second Movie", "mv-2"}
-    end
-
-    test "TV series with no season/episode info → bare 'Play' on entity id" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      assert Logic.advance_label_from_hint(tv, %{"action" => "begin"}) == {"Play", "tv-uuid"}
-    end
-  end
-
-  describe "resume_label_from_progress/2" do
-    test "TV series in season 1 → 'Resume Episode N' on entity id" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      progress = %{current_episode: %{season: 1, episode: 4}}
-      assert Logic.resume_label_from_progress(tv, progress) == {"Resume Episode 4", "tv-uuid"}
-    end
-
-    test "TV series in later season → 'Resume S2E3'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      progress = %{current_episode: %{season: 2, episode: 3}}
-      assert Logic.resume_label_from_progress(tv, progress) == {"Resume S2E3", "tv-uuid"}
-    end
-
-    test "movie series with current ordinal → 'Resume Movie N'" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-      progress = %{current_episode: %{season: 0, episode: 2}}
-      assert Logic.resume_label_from_progress(ms, progress) == {"Resume Movie 2", "ms-uuid"}
-    end
-
-    test "movie / video object → bare 'Resume' on entity id" do
+    test "watched → Watch again" do
       movie = %{type: :movie, id: "mv-uuid"}
-      progress = %{current_episode: nil, episodes_completed: 0, episodes_total: 1}
-      assert Logic.resume_label_from_progress(movie, progress) == {"Resume", "mv-uuid"}
+      progress = %TitleProgress{state: :complete, before_next: 1, total: 1}
 
-      vo = %{type: :video_object, id: "vo-uuid"}
-      assert Logic.resume_label_from_progress(vo, progress) == {"Resume", "vo-uuid"}
+      assert Logic.playback_props(movie, progress) == {"Watch again", "mv-uuid"}
     end
   end
 
-  # ---- Dispatcher: integrates all the per-case functions above ----
-
-  describe "playback_props/3 — TV series (dispatcher)" do
-    test "never watched (begin S01E01) → advance label with episode targetId" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "begin", "targetId" => "ep-1", "seasonNumber" => 1, "episodeNumber" => 1}
-
-      assert Logic.playback_props(tv, hint, nil) == {"Play Episode 1", "ep-1"}
-    end
-
-    test "advance crosses into season 2 → 'Play S2E1'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      hint = %{"action" => "begin", "targetId" => "ep-s2e1", "seasonNumber" => 2, "episodeNumber" => 1}
-      progress = %{episodes_completed: 10, episodes_total: 20, episode_position_seconds: 0.0}
-
-      assert Logic.playback_props(tv, hint, progress) == {"Play S2E1", "ep-s2e1"}
-    end
-
-    test "partially watched with hint → 'Resume Episode N' from hint" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-
-      hint = %{
-        "action" => "resume",
-        "targetId" => "ep-3",
-        "seasonNumber" => 1,
-        "episodeNumber" => 3
+  describe "playback_props/2 — movie collection" do
+    defp collection(second_name) do
+      %{
+        id: "ms-uuid",
+        type: :movie_series,
+        movies: [
+          %{
+            id: "mv-1",
+            name: "First Movie",
+            position: 0,
+            date_published: nil,
+            content_url: "/movies/first.mkv"
+          },
+          %{
+            id: "mv-2",
+            name: second_name,
+            position: 1,
+            date_published: nil,
+            content_url: "/movies/second.mkv"
+          },
+          %{id: "mv-3", name: "Third Movie", position: 2, date_published: nil, content_url: nil}
+        ]
       }
-
-      progress = %{episodes_completed: 2, episodes_total: 10, episode_position_seconds: 120.0}
-
-      assert Logic.playback_props(tv, hint, progress) == {"Resume Episode 3", "ep-3"}
     end
 
-    test "in-progress with NO hint → falls back to progress.current_episode" do
-      # Bug-fix coverage: home_live never populates resume_targets, so the
-      # modal sees `nil` here — we must still produce a Resume label, not
-      # Watch again, when progress shows the user is mid-watch.
-      tv = %{type: :tv_series, id: "tv-uuid"}
+    defp at_second(offset),
+      do: %TitleProgress{state: :in_progress, next: next("mv-2", offset), before_next: 1, total: 2}
 
-      progress = %{
-        episodes_completed: 2,
-        episodes_total: 10,
-        episode_position_seconds: 600.0,
-        current_episode: %{season: 1, episode: 3}
-      }
+    test "the next movie is named" do
+      assert Logic.playback_props(collection("Second Movie"), at_second(0.0)) ==
+               {"Play Second Movie", "mv-2"}
 
-      assert Logic.playback_props(tv, nil, progress) == {"Resume Episode 3", "tv-uuid"}
+      assert Logic.playback_props(collection("Second Movie"), at_second(600.0)) ==
+               {"Resume Second Movie", "mv-2"}
     end
 
-    test "fully completed (any hint shape) → 'Watch again'" do
-      tv = %{type: :tv_series, id: "tv-uuid"}
-      progress = %{episodes_completed: 10, episodes_total: 10, episode_position_seconds: 0.0}
-
-      assert Logic.playback_props(tv, nil, progress) == {"Watch again", "tv-uuid"}
-    end
-  end
-
-  describe "playback_props/3 — movie (dispatcher)" do
-    test "never watched → 'Play' on entity id" do
-      movie = %{type: :movie, id: "mv-uuid"}
-      assert Logic.playback_props(movie, nil, nil) == {"Play", "mv-uuid"}
+    test "a next movie without a name reads its place among the movies with a file" do
+      assert Logic.playback_props(collection("  "), at_second(600.0)) == {"Resume Movie 2", "mv-2"}
     end
 
-    test "partially watched WITH resume hint → 'Resume'" do
-      movie = %{type: :movie, id: "mv-uuid"}
-      hint = %{"action" => "resume", "name" => "Sample Movie"}
-
-      progress = %{
-        current_episode: nil,
-        episode_position_seconds: 600.0,
-        episode_duration_seconds: 7200.0,
-        episodes_completed: 0,
-        episodes_total: 1
-      }
-
-      assert Logic.playback_props(movie, hint, progress) == {"Resume", "mv-uuid"}
-    end
-
-    test "partially watched with NIL hint (the user-reported bug) → 'Resume', NOT 'Watch again'" do
-      # The exact case from the bug report: a movie is partially watched
-      # but home_live never populated resume_targets, so the hint is nil.
-      # The previous logic returned {"Watch again", entity.id} here.
-      movie = %{type: :movie, id: "be868a6e-a7d7-4f2e-b1f7-e948e0ab72dc"}
-
-      progress = %{
-        current_episode: nil,
-        episode_position_seconds: 1500.0,
-        episode_duration_seconds: 7200.0,
-        episodes_completed: 0,
-        episodes_total: 1
-      }
-
-      assert Logic.playback_props(movie, nil, progress) ==
-               {"Resume", "be868a6e-a7d7-4f2e-b1f7-e948e0ab72dc"}
-    end
-
-    test "fully completed → 'Watch again'" do
-      movie = %{type: :movie, id: "mv-uuid"}
-
-      progress = %{
-        episodes_completed: 1,
-        episodes_total: 1,
-        episode_position_seconds: 0.0
-      }
-
-      assert Logic.playback_props(movie, nil, progress) == {"Watch again", "mv-uuid"}
-    end
-  end
-
-  describe "playback_props/3 — movie series (dispatcher)" do
-    test "advance to next movie with hint → 'Play <name>'" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-
-      hint = %{
-        "action" => "begin",
-        "targetId" => "mv-2",
-        "ordinal" => 2,
-        "name" => "Second Movie"
-      }
-
-      progress = %{episodes_completed: 1, episodes_total: 3, episode_position_seconds: 0.0}
-
-      assert Logic.playback_props(ms, hint, progress) == {"Play Second Movie", "mv-2"}
-    end
-
-    test "fully completed → 'Watch again'" do
-      ms = %{type: :movie_series, id: "ms-uuid"}
-      progress = %{episodes_completed: 3, episodes_total: 3, episode_position_seconds: 0.0}
-
-      assert Logic.playback_props(ms, nil, progress) == {"Watch again", "ms-uuid"}
-    end
-  end
-
-  describe "playback_props/3 — video object (dispatcher)" do
-    test "never watched → 'Play'" do
-      vo = %{type: :video_object, id: "vo-uuid"}
-      hint = %{"action" => "begin", "name" => "Clip"}
-
-      assert Logic.playback_props(vo, hint, nil) == {"Play", "vo-uuid"}
-    end
-
-    test "partially watched → 'Resume'" do
-      vo = %{type: :video_object, id: "vo-uuid"}
-      hint = %{"action" => "resume", "name" => "Clip"}
-
-      progress = %{
-        episodes_completed: 0,
-        episodes_total: 1,
-        episode_position_seconds: 30.0
-      }
-
-      assert Logic.playback_props(vo, hint, progress) == {"Resume", "vo-uuid"}
+    test "complete → Watch again on the collection" do
+      progress = %TitleProgress{state: :complete, before_next: 2, total: 2}
+      assert Logic.playback_props(collection("Second Movie"), progress) == {"Watch again", "ms-uuid"}
     end
   end
 
@@ -752,6 +624,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -787,7 +660,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
   defp owned(entity, overrides \\ %{}) do
     Map.merge(
       %TitleDetail.Library{
-        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], title_progress: nil},
         subject: entity,
         member: nil,
         files: :loading,
@@ -818,8 +691,15 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
         episode_duration_seconds: 7200.0
       }
 
+      title_progress = %TitleProgress{
+        state: :in_progress,
+        next: %{item_id: "mv-uuid", offset_seconds: 3600.0, duration_seconds: 7200.0},
+        before_next: 0,
+        total: 1
+      }
+
       library = owned(movie)
-      library = %{library | entry: %{library.entry | progress: progress}}
+      library = %{library | entry: %{library.entry | progress: progress, title_progress: title_progress}}
 
       assert {:play, props} = Logic.primary_action(detail(%{library: library}), @today)
       assert props.label == "Resume"

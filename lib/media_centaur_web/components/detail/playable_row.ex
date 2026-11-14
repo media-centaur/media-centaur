@@ -15,13 +15,14 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
+  alias MediaCentaur.Library.ProgressRecords
+
   @doc """
   Maps a `WatchProgress` record (or `nil`) to the three-state row atom.
   Delegates to the Library rule so the rendering and composition layers
   can't drift.
   """
-  defdelegate state_from_progress(progress),
-    to: MediaCentaur.Library.ProgressRecords
+  defdelegate state_from_progress(progress), to: ProgressRecords
 
   @doc """
   State-dependent classes for a playable row: resume target beats
@@ -92,7 +93,9 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   attr :progress, :map,
     default: nil,
     doc:
-      "`MediaCentaur.Library.WatchProgress.t() | nil` — renders the remaining time in the `:current` state."
+      "`MediaCentaur.Library.WatchProgress.t() | nil` — the record the press acts on: it names " <>
+        "the control (Mark watched / Mark unwatched) and renders the remaining time in the " <>
+        "`:current` state."
 
   attr :duration_seconds, :integer, default: nil
 
@@ -135,7 +138,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
         data-nav-item={@nav_item || nil}
         tabindex={(@nav_item && "0") || nil}
         class={watched_toggle_button_class()}
-        aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+        aria-label={watched_control_label(@progress)}
         {@rest}
       >
         <span class={[
@@ -156,6 +159,17 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
       </button>
     </div>
     """
+  end
+
+  # The control the press applies, read from the record the press acts on
+  # (`ProgressRecords.watched_control/1`): a watched item with a viewing
+  # in flight offers Mark watched, which ends the viewing and keeps the
+  # mark.
+  defp watched_control_label(progress) do
+    case ProgressRecords.watched_control(progress) do
+      :mark_watched -> "Mark watched"
+      :mark_unwatched -> "Mark unwatched"
+    end
   end
 
   # State-aware duration text beside the toggle: nothing when watched,

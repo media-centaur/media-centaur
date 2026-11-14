@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.SeasonView
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -347,7 +348,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert total == 3
     end
 
-    test "is_resume_target marks the matching library item from resume_target hint" do
+    test "is_resume_target marks the library item the title progress names as next" do
       [ep1, ep2] = build_episodes([1, 2])
 
       season =
@@ -355,22 +356,71 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       tv = build_tv_series(%{seasons: [season]})
 
-      resume_target = %{
-        "action" => "resume",
-        "seasonNumber" => 1,
-        "episodeNumber" => 2
+      title_progress = %TitleProgress{
+        state: :in_progress,
+        next: %{item_id: ep2.id, offset_seconds: 600.0, duration_seconds: 1300.0},
+        before_next: 1,
+        total: 2
       }
 
       view_model =
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: []},
           [],
-          resume_target
+          title_progress
         )
+
+      assert view_model.title_progress == title_progress
 
       [%SeasonView{items: [item1, item2]}] = view_model.seasons
       assert %EpisodeRow.Library{is_resume_target: false} = item1
       assert %EpisodeRow.Library{is_resume_target: true} = item2
+    end
+
+    test "a complete title has no next item, so no row is the resume target" do
+      [ep1, ep2] = build_episodes([1, 2])
+
+      season =
+        build_season(%{season_number: 1, episode_list: past_episode_list(2), episodes: [ep1, ep2]})
+
+      tv = build_tv_series(%{seasons: [season]})
+      complete = %TitleProgress{state: :complete, next: nil, before_next: 2, total: 2}
+
+      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], complete)
+
+      [%SeasonView{items: items}] = view_model.seasons
+      refute Enum.any?(items, & &1.is_resume_target)
+    end
+
+    test "a rewatch: every episode is marked and the next one of the pass is the resume target" do
+      [ep1, ep2, ep3] = build_episodes([1, 2, 3])
+
+      season =
+        build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
+
+      tv = build_tv_series(%{seasons: [season]})
+
+      records =
+        for episode <- [ep1, ep2, ep3], do: build_progress(%{episode_id: episode.id, completed: true})
+
+      title_progress = %TitleProgress{
+        state: :in_progress,
+        next: %{item_id: ep2.id, offset_seconds: 0.0, duration_seconds: 1300.0},
+        before_next: 1,
+        total: 3
+      }
+
+      view_model =
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: records}, [], title_progress)
+
+      assert [%SeasonView{watched_count: 3, items: [first, second, third]}] = view_model.seasons
+      assert [first.state, second.state, third.state] == [:watched, :watched, :watched]
+
+      assert [first.is_resume_target, second.is_resume_target, third.is_resume_target] == [
+               false,
+               true,
+               false
+             ]
     end
 
     test "library_item.state reflects watch progress" do

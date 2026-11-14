@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
+  alias MediaCentaur.Library.{MovieOrder, TitleProgress}
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.MovieRow
@@ -118,47 +119,58 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   end
 
   # ---------------------------------------------------------------------------
-  # Play button label/target — explicit case functions
+  # Play button label/target
   # ---------------------------------------------------------------------------
-  #
-  # The play button has five mutually exclusive cases. Each case is its own
-  # named public function returning `{label, target_id}`. `playback_props/3`
-  # is a `cond` dispatcher that picks the right case using explicit
-  # predicates — no inferring "completed" from "resume hint is nil".
-  #
-  # Cases:
-  #   1. `watch_again_label/1`        — fully completed
-  #   2. `resume_label_from_hint/2`   — in-progress, with a resume hint
-  #   3. `advance_label_from_hint/2`  — next-up after a completion, with a hint
-  #   4. `resume_label_from_progress/2` — in-progress, no hint (fallback)
-  #   5. `play_label/1`               — never watched
-  #
-  # Why both hint and progress paths for "resume": the hint carries the
-  # specific child id (episode/movie targetId), so we prefer it. But the
-  # hint may be missing — e.g. a LiveView that doesn't compute resume
-  # targets — and progress alone is enough to know we're mid-watch and
-  # produce a generic "Resume" label. Without this fallback the user sees
-  # "Watch again" on a partially-watched movie.
 
   @doc """
-  Returns `{label, target_id}` for the play button on a given entity.
+  The Play button's `{label, target_id}` from the title progress
+  (`MediaCentaur.Library.TitleProgress`): "Watch again" on the title when
+  it is complete; naming the next item when it is in progress — "Resume …"
+  when next has a viewing in flight, "Play …" when it starts from the
+  beginning; "Play" on the title when nothing has been started.
 
-  Dispatches to one of the five `*_label/1`/`*_label/2` case functions
-  using explicit predicates. The play button styling is fixed in
-  `Detail.PlayCard` (always the primary variant) so this function only
-  decides the label text and the click target.
+  The button's styling is fixed in `Detail.PlayCard`, so this decides
+  only the label text and the click target.
   """
-  @spec playback_props(map(), map() | nil, map() | nil) ::
-          {String.t(), String.t()}
-  def playback_props(entity, resume_target, progress) do
-    cond do
-      completed?(progress) -> watch_again_label(entity)
-      resume_hint?(resume_target) -> resume_label_from_hint(entity, resume_target)
-      advance_hint?(resume_target) -> advance_label_from_hint(entity, resume_target)
-      in_progress?(progress) -> resume_label_from_progress(entity, progress)
-      true -> play_label(entity)
+  @spec playback_props(map(), TitleProgress.t() | nil) :: {String.t(), String.t()}
+  def playback_props(entity, %TitleProgress{state: :complete}), do: {"Watch again", entity.id}
+
+  def playback_props(entity, %TitleProgress{state: :in_progress, next: %{} = next}) do
+    verb = if next.offset_seconds > 0, do: "Resume", else: "Play"
+    {next_label(verb, entity, next.item_id), next.item_id}
+  end
+
+  def playback_props(entity, _unstarted), do: {"Play", entity.id}
+
+  defp next_label(verb, %{type: :tv_series} = entity, item_id) do
+    found =
+      Enum.find_value(entity.seasons || [], fn season ->
+        Enum.find_value(season.episodes || [], fn episode ->
+          if episode.id == item_id, do: {season.season_number, episode.episode_number}
+        end)
+      end)
+
+    case found do
+      {1, episode_number} -> "#{verb} Episode #{episode_number}"
+      {season_number, episode_number} -> "#{verb} S#{season_number}E#{episode_number}"
+      nil -> verb
     end
   end
+
+  defp next_label(verb, %{type: :movie_series} = entity, item_id) do
+    movies = (entity.movies || []) |> MovieOrder.sort_movies() |> Enum.filter(& &1.content_url)
+
+    case Enum.find_index(movies, &(&1.id == item_id)) do
+      nil ->
+        verb
+
+      index ->
+        name = Enum.at(movies, index).name
+        if blank_string?(name), do: "#{verb} Movie #{index + 1}", else: "#{verb} #{String.trim(name)}"
+    end
+  end
+
+  defp next_label(verb, _entity, _item_id), do: verb
 
   @doc "True when every playable item under the entity has been completed."
   @spec completed?(map() | nil) :: boolean()
@@ -180,103 +192,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   end
 
   def in_progress?(_), do: false
-
-  @doc "Label for an entity that has never been watched."
-  @spec play_label(map()) :: {String.t(), String.t()}
-  def play_label(entity), do: {"Play", entity.id}
-
-  @doc "Label for an entity whose entire content is completed."
-  @spec watch_again_label(map()) :: {String.t(), String.t()}
-  def watch_again_label(entity), do: {"Watch again", entity.id}
-
-  @doc """
-  Resume label derived from a resume hint (`%{"action" => "resume", ...}`).
-  The hint's `targetId` (when present) is used as the click target so
-  the play handler jumps directly to the child item.
-  """
-  @spec resume_label_from_hint(map(), map()) :: {String.t(), String.t()}
-  def resume_label_from_hint(entity, hint) do
-    {with_prefix("Resume", entity, hint), target_id_from_hint(hint, entity)}
-  end
-
-  @doc """
-  Advance label derived from a resume hint (`%{"action" => "begin", ...}`).
-  Used when the previously-watched item is complete and the user should
-  start the next one fresh — labelled "Play Episode N" rather than
-  "Resume" because there's no partial position to pick up from.
-  """
-  @spec advance_label_from_hint(map(), map()) :: {String.t(), String.t()}
-  def advance_label_from_hint(entity, hint) do
-    {with_prefix("Play", entity, hint), target_id_from_hint(hint, entity)}
-  end
-
-  @doc """
-  Resume label derived only from a progress summary, used when no resume
-  hint is available. Falls back to the entity id for the click target —
-  the play handler resolves the actual child item from the entity's
-  progress state.
-  """
-  @spec resume_label_from_progress(map(), map()) :: {String.t(), String.t()}
-  def resume_label_from_progress(entity, progress) do
-    {with_prefix_from_progress("Resume", entity, progress), entity.id}
-  end
-
-  # --- Hint-shape predicates ---
-
-  defp resume_hint?(%{"action" => "resume"}), do: true
-  defp resume_hint?(_), do: false
-
-  defp advance_hint?(%{"action" => "begin"}), do: true
-  defp advance_hint?(_), do: false
-
-  # --- Label assembly (shared between hint cases) ---
-
-  defp with_prefix(prefix, %{type: :tv_series}, %{"seasonNumber" => 1, "episodeNumber" => episode})
-       when is_integer(episode), do: "#{prefix} Episode #{episode}"
-
-  defp with_prefix(prefix, %{type: :tv_series}, %{"seasonNumber" => season, "episodeNumber" => episode})
-       when is_integer(season) and is_integer(episode), do: "#{prefix} S#{season}E#{episode}"
-
-  defp with_prefix(prefix, %{type: :movie_series}, hint), do: movie_series_label(prefix, hint)
-
-  defp with_prefix(prefix, _entity, _hint), do: prefix
-
-  # --- Label assembly from progress (no hint) ---
-
-  defp with_prefix_from_progress(prefix, %{type: :tv_series}, %{
-         current_episode: %{season: 1, episode: episode}
-       })
-       when is_integer(episode), do: "#{prefix} Episode #{episode}"
-
-  defp with_prefix_from_progress(prefix, %{type: :tv_series}, %{
-         current_episode: %{season: season, episode: episode}
-       })
-       when is_integer(season) and is_integer(episode), do: "#{prefix} S#{season}E#{episode}"
-
-  defp with_prefix_from_progress(prefix, %{type: :movie_series}, %{
-         current_episode: %{season: 0, episode: ordinal}
-       })
-       when is_integer(ordinal), do: "#{prefix} Movie #{ordinal}"
-
-  defp with_prefix_from_progress(prefix, _entity, _progress), do: prefix
-
-  # --- Hint helpers ---
-
-  defp target_id_from_hint(%{"targetId" => id}, _entity) when is_binary(id), do: id
-  defp target_id_from_hint(_hint, entity), do: entity.id
-
-  defp movie_series_label(prefix, hint) do
-    cond do
-      blank_string?(Map.get(hint, "name")) and is_integer(Map.get(hint, "ordinal")) ->
-        "#{prefix} Movie #{hint["ordinal"]}"
-
-      blank_string?(Map.get(hint, "name")) ->
-        prefix
-
-      true ->
-        "#{prefix} #{String.trim(hint["name"])}"
-    end
-  end
 
   # Inside this many days either side of today the pill speaks in
   # relative terms; beyond it, in a date.
@@ -473,7 +388,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   The one honest primary action for a title detail, from its facts
   (UIDR-043): files win — an owned title plays, `{:play, props}` with the
   play card's label and target and the subject's watched fraction and
-  time left (`member_playback/1` for a collection member, `playback_props/3`
+  time left (`member_playback/1` for a collection member, `playback_props/2`
   for anything else); then a plan or pursuit in flight is a stated fact,
   `{:state, state}`; then a title that is out with an indexer ready
   downloads, `{:download, scoped?}` — a series carries the scope menu;
@@ -508,13 +423,13 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   defp library_playback(%Library{member: %MovieRow.Library{} = member}), do: member_playback(member)
 
   defp library_playback(%Library{entry: entry}) do
-    {label, target_id} = playback_props(entry.entity, entry.resume_target, entry.progress)
+    {label, target_id} = playback_props(entry.entity, entry.title_progress)
 
     %{
       label: label,
       target_id: target_id,
       percent: overall_progress_percent(entry.progress, entry.entity),
-      remaining_text: progress_remaining_text(entry.progress, entry.entity)
+      remaining_text: remaining_text(entry.title_progress)
     }
   end
 
@@ -576,20 +491,21 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   end
 
   @doc """
-  The metadata line's remaining item (UIDR-024). Completed titles yield
-  nil — the full hairline and the watched toggle carry that state; the
-  metadata line goes back to showing the status.
+  The metadata line's remaining item (UIDR-024): what is left of the next
+  item's viewing in flight. A title that is complete, unstarted or about
+  to start its next item from the beginning yields nil — the hairline and
+  the watched toggle carry that state; the metadata line goes back to
+  showing the status.
   """
-  @spec progress_remaining_text(map() | nil, map()) :: String.t() | nil
-  def progress_remaining_text(nil, _entity), do: nil
+  @spec remaining_text(TitleProgress.t() | nil) :: String.t() | nil
+  def remaining_text(%TitleProgress{
+        state: :in_progress,
+        next: %{offset_seconds: offset, duration_seconds: duration}
+      })
+      when offset > 0 and duration > offset,
+      do: "#{format_human_duration(trunc(duration - offset))} left"
 
-  def progress_remaining_text(progress, _entity) do
-    if progress.episodes_completed == 0 && progress.episode_duration_seconds > 0 &&
-         progress.episode_position_seconds > 0 do
-      remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
-      "#{format_human_duration(trunc(remaining_seconds))} left"
-    end
-  end
+  def remaining_text(_title_progress), do: nil
 
   # --- The season list ---
 
