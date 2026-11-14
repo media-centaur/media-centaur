@@ -31,7 +31,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 037 | 2026-04-16 | [Acquisition integration scope — Prowlarr-first, no runtime introspection](architecture/2026-04-16-037-acquisition-integration-scope.md) | accepted, amended 2026-09-14 |
 | 038 | 2026-04-30 | [LiveViews never couple to each other — extract shared concerns](architecture/2026-04-30-038-liveview-decoupling.md) | accepted |
 | 039 | 2026-05-07 | [Acquisition pursuits — a goal-level aggregate over grab attempts](architecture/2026-05-07-039-acquisition-pursuits.md) | accepted |
-| 040 | 2026-05-09 | [Data migrations — a parallel migrator for one-shot row backfills](architecture/2026-05-09-040-data-migrations.md) | accepted |
+| 040 | 2026-05-09 | [Data migrations — a parallel migrator for one-shot row backfills](architecture/2026-05-09-040-data-migrations.md) | accepted, amended 2026-11-14 |
 | 041 | 2026-05-10 | [In-memory projections: ETS view models behind a Cache.Worker, brief eventual consistency](architecture/2026-05-10-041-in-memory-projection-architecture.md) | accepted |
 | 042 | 2026-05-10 | [Multi-session campaigns: tracked markdown per long-running initiative](architecture/2026-05-10-042-multi-session-campaigns.md) | accepted, amended 2026-08-05 |
 | 044 | 2026-05-14 | [No blocking external I/O in LiveView mount, handle_event, or handle_info](architecture/2026-05-14-044-no-blocking-io-in-liveview-handlers.md) | accepted, amended 2026-05-22 |

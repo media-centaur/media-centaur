@@ -426,12 +426,12 @@ fi
 #    StandardErrorPath have a writeable target on first boot.
 mkdir -p "$LOG_DIR"
 
-# 6. Run migrations against the NEW release, before the symlink flip.
-banner "Running schema migrations against $version"
+# 6. Upgrade the database against the NEW release, before the symlink flip:
+#    a snapshot when anything is pending, then the schema migrations, then
+#    the data migrations (MediaCentaur.Release). The app runs the same
+#    upgrade at every start, where it finds nothing left to do.
+banner "Upgrading the database for $version"
 "$target/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
-
-banner "Running data migrations against $version"
-"$target/bin/media_centaur" eval "MediaCentaur.Release.migrate_data()"
 
 # 7. Atomic symlink flip. BSD mv follows a destination that is a symlink
 #    to a directory and moves the new link into it, leaving `current` on

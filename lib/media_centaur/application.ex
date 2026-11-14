@@ -78,18 +78,19 @@ defmodule MediaCentaur.Application do
     # — the FlagSupervisors under Watcher, Pipeline and Features.Runtime —
     # and the bootstrap runs in tree order, before Oban and every subsystem.
     children =
-      [
-        MediaCentaurWeb.Telemetry,
-        MediaCentaur.Repo,
-        {Phoenix.PubSub, name: MediaCentaur.PubSub},
-        {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
-        # Before the bootstrap, so its lines reach the rings.
-        MediaCentaur.Console.Supervisor,
-        # Config overlay and orphan rescue, before Oban reads either.
-        MediaCentaur.Application.Bootstrap,
-        oban_child_spec(),
-        MediaCentaur.ErrorReports.Supervisor
-      ] ++
+      [MediaCentaurWeb.Telemetry] ++
+        database_upgrade_children(Application.get_env(:media_centaur, :environment)) ++
+        [
+          MediaCentaur.Repo,
+          {Phoenix.PubSub, name: MediaCentaur.PubSub},
+          {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
+          # Before the bootstrap, so its lines reach the rings.
+          MediaCentaur.Console.Supervisor,
+          # Config overlay and orphan rescue, before Oban reads either.
+          MediaCentaur.Application.Bootstrap,
+          oban_child_spec(),
+          MediaCentaur.ErrorReports.Supervisor
+        ] ++
         settings_children(MediaCentaur.Cache.workers_run?()) ++
         [
           # The watchers start here, synchronously, when their flag is on:
@@ -161,6 +162,12 @@ defmodule MediaCentaur.Application do
 
   defp paused_queue(limit, paused?) when is_integer(limit), do: [limit: limit, paused: paused?]
   defp paused_queue(opts, paused?) when is_list(opts), do: Keyword.put(opts, :paused, paused?)
+
+  # Pending schema and data migrations run here, in tree order: before the
+  # Repo, so before anything reads the database. The suite migrates its own
+  # database before it starts (see the child's moduledoc).
+  defp database_upgrade_children(:test), do: []
+  defp database_upgrade_children(_env), do: [MediaCentaur.Application.DatabaseUpgrade]
 
   # Network-free, idempotent backfills — background work, so only in an
   # instance that runs background services (see BootHeal). Placed after the

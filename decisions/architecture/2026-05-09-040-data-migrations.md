@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-05-09
+amended: 2026-11-14
 ---
 # Data migrations — a parallel migrator for one-shot row backfills
 
@@ -26,3 +27,7 @@ A second `Ecto.Migrator` stream, rooted at `priv/repo/data_migrations/` and trac
 ## Amendment 2026-11-06 — a data fix never speaks for the person
 
 A data fix must not reach friends. Raw SQL broadcasts nothing, which is the reason rule 3 keeps context modules out of a migration; the same holds for a repair run any other way. A fix that has to go through a context passes `nil` as the actor to every write that takes one, so nothing it does is shared (ADR-082). On 2026-11-05 a repair through the Watchlist context, made before that rule existed, published seven listings in one second.
+
+## Amendment 2026-11-14 — one upgrade, run at every start
+
+Rule 1 no longer describes the code. Schema and data migrations are one operation, `MediaCentaur.Release.migrate/0`: the snapshot when anything is pending, the schema migrations, then the data migrations. It runs at every application start, as `MediaCentaur.Application.DatabaseUpgrade`, directly before the Repo, so before any process that reads the database; the installer runs the same operation against the new release before it points `current` at it. `Release.migrate_data/0` and `mix ecto.migrate_data` are removed. On 2026-11-14 the dev service, whose unit ran only the schema migration before start, loaded watch-progress rows into memory that a data migration then rewrote, and showed the earlier values until it was restarted. The `Release` moduledoc holds the current contract.

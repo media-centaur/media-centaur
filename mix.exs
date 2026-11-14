@@ -155,7 +155,6 @@ defmodule MediaCentaur.MixProject do
       "ecto.setup": [
         "ecto.create",
         "ecto.migrate",
-        "ecto.migrate_data",
         "run priv/repo/seeds.exs"
       ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
