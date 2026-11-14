@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.TitleProgressRegressionTest do
   start, `Playback.Resolver`); `{:no_playable_content}` is an empty
   ordered set.
 
-  Two expectations changed with the rule (design of 2026-11-14, "The
+  Four expectations changed with the rule (design of 2026-11-14, "The
   rule"), each marked where it stands.
   """
   use MediaCentaur.Case, async: true
@@ -266,6 +266,51 @@ defmodule MediaCentaur.Library.TitleProgressRegressionTest do
 
       assert [%{id: first_id} | _rest] = TitleProgress.ordered_set(entity)
       assert first_id == ep1.id
+    end
+
+    test "most-recent completed is the last item but earlier episodes unwatched → play first unwatched" do
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      ep3 = episode(3, "/tv/show/S01E03.mkv")
+      entity = tv_series([season(1, [ep1, ep2, ep3])])
+
+      records = [
+        progress(episode_id: ep3.id, completed: true, last_watched_at: ~U[2026-01-15 20:00:00Z])
+      ]
+
+      position = finished_episode(1, 3, ~U[2026-01-15 20:00:00Z])
+
+      # CHANGED EXPECTATION by owner decision (design of 2026-11-14, "A
+      # skipped item is not returned to. The series is complete when the
+      # position reaches the final item"): this asserted episode 1 at 0.0.
+      assert %TitleProgress{state: :complete, next: nil} =
+               TitleProgress.for_entity(entity, position, records)
+    end
+
+    test "most-recent completed is last item but a partial earlier episode exists → play next unwatched (not restart)" do
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      ep3 = episode(3, "/tv/show/S01E03.mkv")
+      entity = tv_series([season(1, [ep1, ep2, ep3])])
+
+      records = [
+        progress(
+          episode_id: ep1.id,
+          position: 200.0,
+          duration: 1800.0,
+          completed: false,
+          last_watched_at: ~U[2026-01-14 20:00:00Z]
+        ),
+        progress(episode_id: ep3.id, completed: true, last_watched_at: ~U[2026-01-15 20:00:00Z])
+      ]
+
+      position = finished_episode(1, 3, ~U[2026-01-15 20:00:00Z])
+
+      # CHANGED EXPECTATION by owner decision (design of 2026-11-14, "A
+      # skipped item is not returned to. The series is complete when the
+      # position reaches the final item"): this asserted episode 2 at 0.0.
+      assert %TitleProgress{state: :complete, next: nil} =
+               TitleProgress.for_entity(entity, position, records)
     end
 
     # From the Play button hint's tests, which named it a regression.
