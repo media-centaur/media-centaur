@@ -88,9 +88,9 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   @doc """
   The durable evidence behind the board's gap banner (UIDR-022),
   derived from the search corpus — never the transient activity
-  ticker, so a re-opened board reads the same days later. Movie plans
-  get per-candidate rejection reasons in the run's gate order
-  (red-flag, exclusion, identity); TV plans stay aggregate. Search
+  ticker, so a re-opened board reads the same days later. Each raw
+  candidate the run rejected carries the first gate it failed, in the
+  run's gate order (`Search.Assessment`). Search
   terms without a corpus record (never searched, search failed, or
   pruned past retention) are absent from `searches`.
   """
@@ -142,11 +142,26 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
   defp fit_prefs(%Plan{} = plan), do: SearchOrder.fit_prefs(plan, AutoGrabSettings.load())
 
-  # Movie-only classification (TV recourse is deferred — UIDR-022): each
-  # raw candidate carries the FIRST gate it fails, mirroring the run's
-  # order. A candidate failing no gate is identity-matched below the
-  # floor — the below-floor banner's territory, never listed here.
-  defp rejected_candidates(%Plan{tmdb_type: "tv"}, _gap_units, _raw), do: []
+  # Each raw candidate carries the FIRST gate it fails, mirroring the
+  # run's order. A candidate failing no gate is one the planner had and
+  # did not assign — below the floor, or a pack it only offers — the
+  # below-floor banner's and the offer's territory, never listed here.
+  #
+  # A TV run judges a candidate against the show (any scope), then the
+  # planner credits it with the wanted units its scope covers and the
+  # coverage guard allows. So a release of the show is rejected here
+  # when its scope covers no gap unit, or covers only gap units that
+  # aired after it was posted.
+  defp rejected_candidates(%Plan{tmdb_type: "tv"} = plan, gap_units, raw) do
+    excluded = gap_units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
+    criteria = MatchCriteria.from(plan)
+
+    for result <- raw,
+        reason = tv_gap_reason(result, criteria, excluded, gap_units),
+        reason != nil do
+      rejected(result, reason)
+    end
+  end
 
   defp rejected_candidates(%Plan{tmdb_type: "movie"} = plan, gap_units, raw) do
     excluded = gap_units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
@@ -155,15 +170,36 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     for result <- raw,
         reason = result |> Assessment.assess(criteria, excluded: excluded) |> Assessment.reason(),
         reason != nil do
-      %GapEvidence.Rejected{
-        guid: result.guid,
-        title: result.title,
-        reason: reason,
-        quality: Quality.display_label(result.title),
-        seeders: result.seeders,
-        size_bytes: result.size_bytes
-      }
+      rejected(result, reason)
     end
+  end
+
+  defp tv_gap_reason(result, criteria, excluded, gap_units) do
+    case Assessment.assess(result, criteria, excluded: excluded, scope: :any) do
+      %Assessment{reasons: [], scope: scope} ->
+        covered =
+          Enum.filter(gap_units, &ReleaseCoverage.covers?(scope, &1.season_number, &1.episode_number))
+
+        cond do
+          covered == [] -> :coverage
+          Enum.any?(covered, &CoverageGuard.can_contain?(result.publish_date, &1.air_date)) -> nil
+          true -> :published_early
+        end
+
+      rejected ->
+        Assessment.reason(rejected)
+    end
+  end
+
+  defp rejected(result, reason) do
+    %GapEvidence.Rejected{
+      guid: result.guid,
+      title: result.title,
+      reason: reason,
+      quality: Quality.display_label(result.title),
+      seeders: result.seeders,
+      size_bytes: result.size_bytes
+    }
   end
 
   @doc """

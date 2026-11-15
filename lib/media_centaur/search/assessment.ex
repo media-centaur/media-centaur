@@ -7,7 +7,8 @@ defmodule MediaCentaur.Search.Assessment do
   |---|---|---|
   | bait | `:red_flag` | a name or size `ReleaseRedFlags` flags |
   | exclusion | `:excluded` | a guid the caller has ruled out (tried, or refused by the user) |
-  | identity | `:identity` | a release that is not the title, or not the wanted part of it |
+  | identity | `:identity` | a release that is not the title |
+  | coverage | `:coverage` | a release of the title that does not contain the wanted part of it |
   | date | `:published_early` | a release posted before the criteria's `available_from` |
   | quality | `:quality` | a quality outside the caller's bounds |
 
@@ -18,7 +19,7 @@ defmodule MediaCentaur.Search.Assessment do
 
   ## Scope
 
-  The identity gate depends on how much of a TV release's scope the
+  The coverage gate depends on how much of a TV release's scope the
   caller will take (`:scope`):
 
     * `:exact` — the unit and nothing wider (`TitleMatcher.matches?/2`).
@@ -31,7 +32,10 @@ defmodule MediaCentaur.Search.Assessment do
     * `:run` — a release named for the criteria's later broadcast run
       (`CourCoverage.classify/3`).
 
-  A movie has one scope, so it is judged the same under each. An
+  A release of the show that the rule turns away fails the coverage
+  gate; a release that is not the show at all (`TitleMatcher.coverage/2`
+  finds no scope of it) fails the identity gate. A movie has one scope,
+  so it is judged the same under each and never fails coverage. An
   accepted assessment carries the release's `scope`: `:movie`, the
   coverage scope, or `nil` under `:exact` for TV.
 
@@ -48,10 +52,10 @@ defmodule MediaCentaur.Search.Assessment do
     TitleMatcher
   }
 
-  @type reason :: :red_flag | :excluded | :identity | :published_early | :quality
+  @type reason :: :red_flag | :excluded | :identity | :coverage | :published_early | :quality
   @type scope_rule :: :exact | :covering | :any | :run
 
-  @reasons [:red_flag, :excluded, :identity, :published_early, :quality]
+  @reasons [:red_flag, :excluded, :identity, :coverage, :published_early, :quality]
 
   @doc "Every reason, in gate order."
   @spec reasons() :: [reason()]
@@ -82,6 +86,7 @@ defmodule MediaCentaur.Search.Assessment do
         red_flag: ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
         excluded: MapSet.member?(excluded, result.guid),
         identity: identity == :no_match,
+        coverage: identity == :other_part,
         published_early: published_early?(result, criteria),
         quality: outside_bounds?(result, Keyword.get(opts, :quality))
       ]
@@ -101,28 +106,34 @@ defmodule MediaCentaur.Search.Assessment do
   def reason(%__MODULE__{reasons: reasons}), do: List.first(reasons)
 
   defp scope({:ok, scope}), do: scope
-  defp scope(:no_match), do: nil
+  defp scope(_rejected), do: nil
 
-  defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, :any),
-    do: TitleMatcher.coverage(result, criteria)
+  # `{:ok, scope}` for a release the rule takes, `:other_part` for a
+  # release of the show the rule turns away, `:no_match` for anything
+  # else.
+  defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, scope_rule) do
+    with :no_match <- within_rule(result, criteria, scope_rule),
+         {:ok, _other_scope} <- TitleMatcher.coverage(result, criteria) do
+      :other_part
+    end
+  end
 
-  defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, :covering),
-    do: TitleMatcher.covering(result, criteria)
+  defp identity(result, %Criteria{} = criteria, _scope_rule) do
+    if TitleMatcher.matches?(result, criteria), do: {:ok, :movie}, else: :no_match
+  end
 
-  defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv, run: run} = criteria, :run)
-       when is_map(run) do
+  defp within_rule(result, criteria, :any), do: TitleMatcher.coverage(result, criteria)
+  defp within_rule(result, criteria, :covering), do: TitleMatcher.covering(result, criteria)
+
+  defp within_rule(result, %Criteria{run: run} = criteria, :run) when is_map(run) do
     case CourCoverage.classify(result.title, criteria.title, run) do
       :no_match -> :no_match
       scope -> {:ok, scope}
     end
   end
 
-  defp identity(result, %Criteria{tmdb_type: tmdb_type} = criteria, _scope_rule) do
-    cond do
-      not TitleMatcher.matches?(result, criteria) -> :no_match
-      tmdb_type == :movie -> {:ok, :movie}
-      true -> {:ok, nil}
-    end
+  defp within_rule(result, criteria, _exact) do
+    if TitleMatcher.matches?(result, criteria), do: {:ok, nil}, else: :no_match
   end
 
   # Unknown on either side never rejects: nothing is refused on a date

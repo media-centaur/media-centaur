@@ -5,9 +5,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.RejectionTest do
 
   describe "label/1" do
     test "every reason an assessment can give has words" do
-      for reason <- [:red_flag, :excluded, :identity, :published_early, :quality] do
+      for reason <- MediaCentaur.Search.Assessment.reasons() do
         assert is_binary(Rejection.label(reason))
+        assert is_binary(Rejection.summary([{reason, 1}]))
+        assert is_binary(Rejection.summary([{reason, 2}]))
+        assert is_binary(Rejection.breakdown([{reason, 2}, {:red_flag, 1}]))
       end
+    end
+  end
+
+  describe "breakdown/1" do
+    test "nothing rejected says nothing" do
+      assert Rejection.breakdown([]) == nil
+    end
+
+    test "counts each reason, in the order given" do
+      assert Rejection.breakdown(identity: 9, coverage: 3, red_flag: 1) ==
+               "9 didn't match this title, 3 had other episodes, 1 flagged suspicious."
     end
   end
 

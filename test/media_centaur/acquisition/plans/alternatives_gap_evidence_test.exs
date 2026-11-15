@@ -158,8 +158,8 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
     end
   end
 
-  describe "gap_evidence/1 — TV aggregate" do
-    test "counts raw candidates across the gap units' search terms without classifying" do
+  describe "gap_evidence/1 — TV" do
+    test "counts raw candidates across the gap units' search terms and classifies each against the gap" do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           {"GET", "/api/v1/indexer"} ->
@@ -173,7 +173,16 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
 
             results =
               if query == "Sample Show" do
-                [release("Other.Series.S01.1080p.WEB-DL.x264", "tv-other", %{size: 4_000_000_000})]
+                [
+                  release("Other.Series.S01.1080p.WEB-DL.x264", "tv-other", %{size: 4_000_000_000}),
+                  release("Sample.Show.S02.1080p.WEB-DL.x264", "tv-other-season", %{
+                    size: 4_000_000_000
+                  }),
+                  release("Sample.Show.S01E07.1080p.WEB-DL.x264", "tv-other-episode", %{
+                    size: 1_000_000_000
+                  }),
+                  release("Sample.Show.S01E01.1080p.WEB-DL.x264", "tv-bait", %{size: 1024})
+                ]
               else
                 []
               end
@@ -199,8 +208,14 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
                "Sample Show S01E02"
              ]
 
-      assert evidence.raw_total == 1
-      assert evidence.rejected == []
+      assert evidence.raw_total == 4
+
+      assert Map.new(evidence.rejected, &{&1.guid, &1.reason}) == %{
+               "tv-other" => :identity,
+               "tv-other-season" => :coverage,
+               "tv-other-episode" => :coverage,
+               "tv-bait" => :red_flag
+             }
     end
   end
 

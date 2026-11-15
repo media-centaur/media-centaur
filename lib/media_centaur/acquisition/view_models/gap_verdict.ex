@@ -26,7 +26,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   * `:no_evidence` — no search term has a corpus record (never
     searched, search failed, or pruned past retention).
   * `:rejected` — raw results exist, none qualified. Movie plans get
-    the escape hatch (`show_rejected?`); TV stays aggregate.
+    the escape hatch (`show_rejected?`); a TV plan's evidence line
+    counts the rejected results by reason (`Rejection.breakdown/1`).
   * `:nothing_live` — zero raw results, checked within the corpus
     freshness window.
   * `:nothing_stale` — zero raw results, but the knowledge is older
@@ -43,8 +44,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
 
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.PlanEvents.SearchProgress
-  alias MediaCentaur.Acquisition.ViewModels.GapEvidence
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, Rejection}
   alias MediaCentaur.Format
+  alias MediaCentaur.Search.Assessment
   alias MediaCentaur.TMDB.ReleaseWindow
 
   import MediaCentaur.Acquisition.ViewModels.Formatting, only: [count: 2]
@@ -289,10 +291,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     %__MODULE__{
       world: :rejected,
       headline: rejected_headline(evidence.raw_total, movie?),
-      evidence_line: checked_line(evidence, gaps, movie?, now),
+      evidence_line: rejected_line(evidence, gaps, movie?, now),
       rejected_count: length(evidence.rejected),
       show_rejected?: movie? and evidence.rejected != []
     }
+  end
+
+  # A movie's rejected releases are listed behind the escape hatch; a
+  # series has no list, so its line counts them by reason.
+  defp rejected_line(evidence, gaps, true, now), do: checked_line(evidence, gaps, true, now)
+
+  defp rejected_line(evidence, gaps, false, now) do
+    frequencies = Enum.frequencies_by(evidence.rejected, & &1.reason)
+    counts = for reason <- Assessment.reasons(), count = frequencies[reason], do: {reason, count}
+
+    [checked_line(evidence, gaps, false, now), Rejection.breakdown(counts)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp rejected_headline(1, true), do: "1 result came back, but it didn't look like this movie."

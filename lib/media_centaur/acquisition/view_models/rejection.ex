@@ -4,8 +4,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.Rejection do
   every `Search.Assessment` reason, so the plan board's rejected list
   and the decision card say the same thing.
 
-  `label/1` is the phrase beside one release. `summary/1` is the
-  sentence under a list that counts what it left out, by reason.
+  `label/1` is the phrase beside one release. `breakdown/1` counts
+  rejected releases by reason. `summary/1` is the sentence under a list
+  that counts what it left out, by reason.
   """
 
   alias MediaCentaur.Search.Assessment
@@ -15,8 +16,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.Rejection do
   def label(:red_flag), do: "flagged suspicious"
   def label(:excluded), do: "you excluded this earlier"
   def label(:identity), do: "didn't match this title"
+  def label(:coverage), do: "has other episodes"
   def label(:published_early), do: "posted before the title was released"
   def label(:quality), do: "outside your quality range"
+
+  @doc """
+  The count of rejected releases by reason, from `[{reason, count}]` in
+  the order given: "9 didn't match this title, 3 had other episodes."
+  `nil` when there are none.
+  """
+  @spec breakdown([{Assessment.reason(), pos_integer()}]) :: String.t() | nil
+  def breakdown([]), do: nil
+
+  def breakdown(counts),
+    do: Enum.map_join(counts, ", ", fn {reason, count} -> "#{count} #{counted(reason)}" end) <> "."
 
   @doc """
   One sentence counting the releases left out, from `[{reason, count}]`
@@ -29,9 +42,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.Rejection do
 
   def summary(counts) do
     total = counts |> Enum.map(&elem(&1, 1)) |> Enum.sum()
-    parts = Enum.map_join(counts, ", ", fn {reason, count} -> "#{count} #{counted(reason)}" end)
 
-    "#{found(total)}: #{parts}."
+    "#{found(total)}: #{breakdown(counts)}"
   end
 
   defp found(1), do: "1 other release was found and left out"
@@ -43,6 +55,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.Rejection do
   defp sole(:excluded, _count), do: "you already tried them"
   defp sole(:identity, 1), do: "it didn't match this title"
   defp sole(:identity, _count), do: "they didn't match this title"
+  defp sole(:coverage, 1), do: "it has other episodes"
+  defp sole(:coverage, _count), do: "they have other episodes"
   defp sole(:published_early, 1), do: "it was posted before the title was released"
   defp sole(:published_early, _count), do: "they were posted before the title was released"
   defp sole(:quality, 1), do: "it is outside your quality range"
@@ -51,6 +65,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.Rejection do
   defp counted(:red_flag), do: "flagged suspicious"
   defp counted(:excluded), do: "you already tried"
   defp counted(:identity), do: "didn't match this title"
+  defp counted(:coverage), do: "had other episodes"
   defp counted(:published_early), do: "posted before it was released"
   defp counted(:quality), do: "outside your quality range"
 end

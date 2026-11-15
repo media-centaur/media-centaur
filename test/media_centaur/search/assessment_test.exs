@@ -122,7 +122,25 @@ defmodule MediaCentaur.Search.AssessmentTest do
   describe "assess/3 — how much of a TV release's scope must line up" do
     test ":exact (the default) accepts only the unit itself" do
       assert Assessment.assess(result("Sample.Show.S01E03.1080p.WEB-DL"), episode()).reasons == []
-      assert Assessment.assess(result("Sample.Show.S01.1080p.WEB-DL"), episode()).reasons == [:identity]
+      assert Assessment.assess(result("Sample.Show.S01.1080p.WEB-DL"), episode()).reasons == [:coverage]
+    end
+
+    test "the title's other parts are :coverage, another title is :identity" do
+      for scope <- [:exact, :covering] do
+        other_episode =
+          Assessment.assess(result("Sample.Show.S01E04.1080p.WEB-DL"), episode(), scope: scope)
+
+        other_show =
+          Assessment.assess(result("Another.Show.S01E03.1080p.WEB-DL"), episode(), scope: scope)
+
+        assert other_episode.reasons == [:coverage]
+        assert other_show.reasons == [:identity]
+      end
+    end
+
+    test ":coverage sits between identity and the date in gate order" do
+      assert Assessment.reasons() ==
+               [:red_flag, :excluded, :identity, :coverage, :published_early, :quality]
     end
 
     test ":covering accepts any release that contains the unit, and carries its scope" do
@@ -132,7 +150,7 @@ defmodule MediaCentaur.Search.AssessmentTest do
 
       assert {single.reasons, single.scope} == {[], {:episode, 1, 3}}
       assert {pack.reasons, pack.scope} == {[], {:season, 1}}
-      assert {other.reasons, other.scope} == {[:identity], nil}
+      assert {other.reasons, other.scope} == {[:coverage], nil}
     end
 
     test ":any accepts every scope of the show, and carries it" do
@@ -151,7 +169,7 @@ defmodule MediaCentaur.Search.AssessmentTest do
       first_run = Assessment.assess(result("Sample.Show.S01.1080p.WEB-DL"), criteria, scope: :run)
 
       assert {named.reasons, named.scope} == {[], {:episodes, 1, 13, 24}}
-      assert first_run.reasons == [:identity]
+      assert first_run.reasons == [:coverage]
     end
 
     test "a movie is judged the same under every scope" do

@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-08-11
-amended: 2026-09-14
+amended: 2026-11-15
 ---
 # Gap banner states the diagnosed world, with its evidence — never a bare "not available"
 
@@ -19,4 +19,4 @@ When a plan finished with gaps, the banner asserted "N not available right now" 
 ### Consequences
 
 * The plan run persists a small search report it used to discard.
-* TV gaps get an aggregate sentence; per-unit world diagnosis is deferred.
+* TV gaps get an aggregate sentence; per-unit world diagnosis is deferred. (Amended 2026-11-15: the evidence line under a series' aggregate sentence counts the rejected results by reason: flagged suspicious, excluded, another title, other episodes of the show, posted before the episode aired. The per-release list and its override stay movie-only.)

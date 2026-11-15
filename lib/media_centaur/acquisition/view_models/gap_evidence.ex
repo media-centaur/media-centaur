@@ -1,9 +1,8 @@
 defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   @moduledoc """
   The durable evidence behind a plan's gap verdict (UIDR-022): which
-  search terms have corpus records, what they returned, and — for
-  movie plans — every raw candidate with the reason the run rejected
-  it. Built by `Plans.Alternatives.gap_evidence/1` from the search corpus, never
+  search terms have corpus records, what they returned, and every raw
+  candidate the run rejected, with the reason. Built by `Plans.Alternatives.gap_evidence/1` from the search corpus, never
   from the transient activity ticker, so a re-opened board shows the
   same evidence days later. Cleanup rides corpus retention.
   """
@@ -25,13 +24,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
     @moduledoc """
     One raw candidate the run rejected, with the first gate it failed —
     the gate order of `Search.Assessment` (`:red_flag`, `:excluded`,
-    `:identity`, `:published_early`).
+    `:identity`, `:coverage`, `:published_early`).
     """
 
     @enforce_keys [:guid, :title, :reason]
     defstruct [:guid, :title, :reason, :quality, :seeders, :size_bytes]
 
-    @type reason :: :red_flag | :excluded | :identity | :published_early
+    @type reason :: :red_flag | :excluded | :identity | :coverage | :published_early
 
     @type t :: %__MODULE__{
             guid: String.t(),
@@ -50,8 +49,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   - `searches` — the plan's gap-surface search terms that have a corpus
     record, in search order. Terms never searched (or pruned past
     retention) are absent.
-  - `rejected` — classified raw candidates, deduped by guid. Movie
-    plans only; TV stays aggregate (`raw_total`).
+  - `rejected` — classified raw candidates, deduped by guid. A TV
+    plan's are judged against its gap units together: a release is
+    rejected when no gap unit could take it.
   - `raw_total` — unique raw candidates across the searched terms.
   - `checked_at` — the newest `searched_at`; nil when nothing ran.
   """

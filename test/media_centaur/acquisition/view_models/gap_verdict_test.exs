@@ -260,6 +260,26 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       refute verdict.show_rejected?
     end
 
+    test "rejected results are counted by reason after the receipts" do
+      evidence =
+        evidence(%{
+          raw_total: 4,
+          rejected: [
+            rejected("a", :identity),
+            rejected("b", :coverage),
+            rejected("c", :identity),
+            rejected("d", :red_flag)
+          ]
+        })
+
+      verdict = build(evidence, gaps: ["S01E03"], movie?: false)
+
+      assert verdict.evidence_line ==
+               "2 searches — checked 1 minute ago. 1 flagged suspicious, 2 didn't match this title, 1 had other episodes."
+
+      refute verdict.show_rejected?
+    end
+
     test "live nothing on a series speaks of the episodes and leaves naming them to the not-found line" do
       verdict = build(evidence(%{}), gaps: ["S01E03"], movie?: false)
 
