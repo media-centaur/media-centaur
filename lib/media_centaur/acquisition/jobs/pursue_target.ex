@@ -525,7 +525,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     |> Enum.any?(fn result ->
       result
       |> Assessment.assess(criteria, excluded: excluded, scope: :covering)
-      |> Assessment.accepted?(ignoring: [:red_flag])
+      |> Assessment.accepted?()
     end)
   end
 

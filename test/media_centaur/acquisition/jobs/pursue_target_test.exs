@@ -64,6 +64,25 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
     end)
   end
 
+  # The stored season the retry job reads an episode's air date from:
+  # `air_dates` maps episode number to an ISO date.
+  defp store_season(tmdb_id, season_number, air_dates) do
+    episodes =
+      for {episode_number, air_date} <- air_dates do
+        %{"episode_number" => episode_number, "air_date" => air_date}
+      end
+
+    {:ok, _record} =
+      MediaCentaur.TMDB.Store.record_season_fetched(
+        tmdb_id,
+        season_number,
+        %{"season_number" => season_number, "episodes" => episodes},
+        nil
+      )
+
+    :ok
+  end
+
   defp seeking_movie_target do
     {_pursuit, target} =
       create_pursuit_with_target(%{
@@ -381,6 +400,63 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
 
       assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
       assert MediaCentaur.Repo.reload!(target).status == "failed"
+    end
+
+    test "a pack flagged as bait is not a pack that covers the episode", %{target: target} do
+      bait = Map.put(season_pack(), "size", 1024)
+      stub_indexer(%{"Sample Show S01E03" => [], "Sample Show S01" => [bait]})
+
+      assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert MediaCentaur.Repo.reload!(target).status == "failed"
+    end
+
+    test "a pack posted before the episode aired is not a pack that covers it", %{target: target} do
+      store_season(500, 1, %{3 => "2026-05-01"})
+      stub_indexer(%{"Sample Show S01E03" => [], "Sample Show S01" => [season_pack()]})
+
+      assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert MediaCentaur.Repo.reload!(target).status == "failed"
+    end
+  end
+
+  describe "an episode's release posted before the episode aired" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "500",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3,
+          state: "seeking",
+          status: "seeking"
+        })
+
+      %{target: target}
+    end
+
+    defp episode_release(published) do
+      %{
+        "title" => "Sample.Show.S01E03.1080p.WEB-DL",
+        "guid" => "single-s01e03",
+        "indexerId" => 1,
+        "indexer" => "indexer-a",
+        "size" => 2_000_000_000,
+        "grabs" => 40,
+        "publishDate" => published
+      }
+    end
+
+    test "is not grabbed", %{target: target} do
+      store_season(500, 1, %{3 => "2026-05-01"})
+      stub_indexer(%{"Sample Show S01E03" => [episode_release("2026-04-01T00:00:00Z")]})
+
+      PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      assert %{status: "seeking", last_attempt_outcome: "no_title_match"} =
+               MediaCentaur.Repo.reload!(target)
     end
   end
 

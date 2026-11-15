@@ -878,6 +878,22 @@ defmodule MediaCentaur.AcquisitionTest do
       assert guids == ["single-s01e03", "pack-s01"]
     end
 
+    test "leaves out a release posted before the episode aired", %{pursuit: pursuit} do
+      {:ok, _record} =
+        MediaCentaur.TMDB.Store.record_season_fetched(
+          500,
+          1,
+          %{
+            "season_number" => 1,
+            "episodes" => [%{"episode_number" => 3, "air_date" => "2026-05-01"}]
+          },
+          nil
+        )
+
+      assert %{offered: [], left_out: left_out} = Acquisition.assess_alternatives_for(pursuit)
+      assert left_out[:published_early] == 2
+    end
+
     test "a pack alternative carries its scope for the card", %{pursuit: pursuit} do
       pack = pursuit |> Acquisition.list_alternatives_for() |> Enum.find(&(&1.guid == "pack-s01"))
 
