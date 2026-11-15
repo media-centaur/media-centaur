@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.17.0 — 2026-11-15
+
+### New
+
+- **Play continues a series from the last episode you finished, on a rewatch too.** Media Centaur now remembers the last episode you finished in each series and each movie collection, and Play goes to the one after it. Starting a finished series over and watching a few episodes used to send Play back to the first episode; it now carries on with the next one. When you have finished the last episode, Play reads *Watch again*.
+- **A torrent with no video in it is dropped and the next release is tried.** As soon as the download client knows a torrent's files, Media Centaur checks them. A torrent with no video file, or with a program in it, is cancelled and the next release takes its place. This needs qBittorrent; SABnzbd downloads are not checked this way.
+- **A movie release posted before the movie came out is rejected.** A release dated earlier than the movie's first release cannot be the movie, so it is no longer offered or downloaded. Episodes are checked against their air date the same way. A title with no known date is not affected.
+
+### Improved
+
+- **A watched episode you are rewatching keeps its check.** The row now shows the check together with the progress line and the time remaining. Before, the check disappeared for as long as the episode was part-way through. The same holds for movies in a collection and for extras. The round control beside the row follows the check alone: it reads *Mark unwatched* on a watched item and *Mark watched* on any other.
+- **The progress bars, Continue Watching and Play agree.** The library grid, the detail page and Continue Watching all read one account of where you are in a title, so a bar no longer says one thing while Play offers another.
+- **Less than a minute of playback does not count as started.** Opening an episode and closing it within 60 seconds leaves it as it was: it does not become the episode Play resumes, and it does not enter Continue Watching.
+- **The release picker says what it left out.** When you choose a release by hand in Downloads, the card now states how many releases were left out and why, and lists a flagged release after the clean ones, marked as flagged.
+- **Your database is upgraded when Media Centaur starts.** Changes to stored data, including the one-time conversion of your watch progress in this version, are applied at every start before anything reads the database, so the installer and the application can no longer disagree about its state. Before an upgrade changes anything, a copy of the database is saved in a `snapshots` folder beside it; the newest three copies are kept.
+
+### Fixed
+
+- **Choosing a release by hand for a movie finds the same releases as the automatic search.** The card searched in a way that missed the movie category and could list releases of other titles. It now searches as the automatic search does and lists only releases that match the movie.
+
 ## v2.16.1 — 2026-11-10
 
 ### Fixed
