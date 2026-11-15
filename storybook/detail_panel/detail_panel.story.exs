@@ -73,7 +73,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Library.EntityView
-  alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.TitleProgress
   alias MediaCentaur.Library.{Person, WatchedFile}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -1351,7 +1350,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
               episode: episode,
               season_number: season.season_number,
               progress: progress,
-              state: ProgressRecords.state_from_progress(progress),
               is_resume_target: episode.id == next_id
             }
         end
@@ -1540,9 +1538,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     [p1, p2] = progress_records
 
     [
-      %MovieRow.Library{movie: m1, progress: p1, state: :watched, is_resume_target: false},
-      %MovieRow.Library{movie: m2, progress: p2, state: :current, is_resume_target: true},
-      %MovieRow.Library{movie: m3, progress: nil, state: :unwatched, is_resume_target: false}
+      %MovieRow.Library{movie: m1, progress: p1, is_resume_target: false},
+      %MovieRow.Library{movie: m2, progress: p2, is_resume_target: true},
+      %MovieRow.Library{movie: m3, progress: nil, is_resume_target: false}
     ]
   end
 

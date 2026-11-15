@@ -99,21 +99,6 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
   end
 
-  describe "blur_spoilers?/2" do
-    test "blurs a fully-unwatched episode in spoiler-free mode" do
-      assert PlayableRow.blur_spoilers?(true, :unwatched)
-    end
-
-    test "never blurs a watched or in-progress episode, even in spoiler-free mode" do
-      refute PlayableRow.blur_spoilers?(true, :watched)
-      refute PlayableRow.blur_spoilers?(true, :current)
-    end
-
-    test "never blurs when spoiler-free mode is off" do
-      refute PlayableRow.blur_spoilers?(false, :unwatched)
-    end
-  end
-
   # `delete_gesture_state/3` and `delete_in_flight?/1` moved to
   # `MediaCentaurWeb.LiveHelpers` (see live_helpers_test.exs) — shared with
   # Review's delete gesture, no longer DetailPanel-specific.
@@ -166,44 +151,36 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
   end
 
-  describe "state_from_progress/1" do
-    test "returns :unwatched for nil" do
-      assert PlayableRow.state_from_progress(nil) == :unwatched
+  describe "row_class/2" do
+    @watched %{completed: true, position_seconds: 0.0}
+    @viewing %{completed: false, position_seconds: 100.0}
+    @rewatching %{completed: true, position_seconds: 100.0}
+
+    test "the resume target takes the primary wash, whatever its progress" do
+      assert PlayableRow.row_class(@watched, true) == "bg-primary/10"
     end
 
-    test "returns :watched when completed" do
-      progress = %{completed: true, position_seconds: 0.0}
-      assert PlayableRow.state_from_progress(progress) == :watched
+    test "a watched row with no viewing dims" do
+      assert PlayableRow.row_class(@watched, false) == "opacity-60"
     end
 
-    test "returns :current when has position" do
-      progress = %{completed: false, position_seconds: 100.0}
-      assert PlayableRow.state_from_progress(progress) == :current
+    test "a row with a viewing in flight takes the info wash, watched or not" do
+      assert PlayableRow.row_class(@viewing, false) == "bg-info/5"
+      assert PlayableRow.row_class(@rewatching, false) == "bg-info/5"
     end
 
-    test "returns :unwatched when no position and not completed" do
-      progress = %{completed: false, position_seconds: 0.0}
-      assert PlayableRow.state_from_progress(progress) == :unwatched
+    test "a row with neither has no state class" do
+      assert PlayableRow.row_class(nil, false) == nil
+      assert PlayableRow.row_class(%{completed: false, position_seconds: 0.0}, false) == nil
     end
   end
 
-  # --- episode_row_class/2 ---
-
-  describe "row_class/2" do
-    test "returns primary highlight when resume target" do
-      assert PlayableRow.row_class(:watched, true) == "bg-primary/10"
-    end
-
-    test "returns opacity for watched" do
-      assert PlayableRow.row_class(:watched, false) == "opacity-60"
-    end
-
-    test "returns info bg for current" do
-      assert PlayableRow.row_class(:current, false) == "bg-info/5"
-    end
-
-    test "returns empty for unwatched" do
-      assert PlayableRow.row_class(:unwatched, false) == ""
+  describe "blur_spoilers?/2" do
+    test "only an item with neither the mark nor a viewing blurs, and only in spoiler-free mode" do
+      assert PlayableRow.blur_spoilers?(true, nil)
+      refute PlayableRow.blur_spoilers?(false, nil)
+      refute PlayableRow.blur_spoilers?(true, %{completed: true, position_seconds: 0.0})
+      refute PlayableRow.blur_spoilers?(true, %{completed: false, position_seconds: 100.0})
     end
   end
 

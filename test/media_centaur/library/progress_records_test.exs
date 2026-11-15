@@ -146,16 +146,15 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
     end
   end
 
-  describe "state_from_progress/1 with a watched item being replayed" do
-    test "a viewing that counts reads as current, whatever the watched mark" do
-      assert ProgressRecords.state_from_progress(%{completed: true, position_seconds: 300.0}) ==
-               :current
+  describe "watched?/1" do
+    test "follows the mark alone: a watched item being replayed is watched and has a viewing" do
+      refute ProgressRecords.watched?(nil)
+      refute ProgressRecords.watched?(%{completed: false, position_seconds: 300.0})
+      assert ProgressRecords.watched?(%{completed: true, position_seconds: 0.0})
 
-      assert ProgressRecords.state_from_progress(%{completed: true, position_seconds: 0.0}) ==
-               :watched
-
-      assert ProgressRecords.state_from_progress(%{completed: false, position_seconds: 30.0}) ==
-               :unwatched
+      replayed = %{completed: true, position_seconds: 300.0}
+      assert ProgressRecords.watched?(replayed)
+      assert ProgressRecords.viewing?(replayed)
     end
   end
 
@@ -164,17 +163,6 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
       profile = create_profile(%{name: "Ana"})
       movie = create_standalone_movie(%{name: "Movie A"})
       %{profile: profile, movie: movie, actor: Actor.new(profile.id)}
-    end
-
-    test "watched_control/1 offers Mark watched for an unmarked item or one with a viewing that counts" do
-      assert ProgressRecords.watched_control(nil) == :mark_watched
-      assert ProgressRecords.watched_control(%{completed: false, position_seconds: 0.0}) == :mark_watched
-
-      assert ProgressRecords.watched_control(%{completed: true, position_seconds: 600.0}) ==
-               :mark_watched
-
-      assert ProgressRecords.watched_control(%{completed: true, position_seconds: 0.0}) ==
-               :mark_unwatched
     end
 
     test "toggling an item with no row marks it watched", context do
@@ -204,7 +192,7 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
       assert marked.last_watched_at == nil
     end
 
-    test "toggling a watched item with an abandoned viewing clears the viewing and keeps the mark",
+    test "toggling a watched item with an abandoned viewing unmarks it and clears the viewing",
          context do
       progress =
         create_watch_progress(%{
@@ -218,7 +206,7 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
 
       assert {:ok, toggled} = ProgressRecords.toggle_watched(context.actor, :movie, context.movie.id)
       assert toggled.id == progress.id
-      assert toggled.completed
+      refute toggled.completed
       assert toggled.position_seconds == 0.0
       assert toggled.last_watched_at == ~U[2026-01-01 00:00:00Z]
     end
@@ -398,15 +386,16 @@ defmodule MediaCentaur.Library.ProgressRecordsTest do
                ProgressRecords.title_progress(profile.id, entity)
 
       assert record.position_seconds == 600.0
-      assert ProgressRecords.watched_control(record) == :mark_watched
+      assert ProgressRecords.watched?(record)
       assert %TitleProgress{next: %{offset_seconds: 600.0}} = progress
     end
 
-    test "the watched control applied is the one the live record offers: a watched item being replayed keeps its mark",
+    test "the watched control follows the mark: a watched item being replayed is unmarked, and its viewing ends",
          %{profile: profile, movie: movie} do
       assert {:ok, toggled} = ProgressRecords.toggle_watched(Actor.new(profile.id), :movie, movie.id)
-      assert toggled.completed
+      refute toggled.completed
       assert toggled.position_seconds == 0.0
+      refute ProgressRecords.viewing?(Progress.get(profile.id, toggled.playable_item_id))
     end
   end
 

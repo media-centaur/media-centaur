@@ -413,7 +413,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(%{entity: tv, progress_records: records}, [], title_progress)
 
       assert [%SeasonView{watched_count: 3, items: [first, second, third]}] = view_model.seasons
-      assert [first.state, second.state, third.state] == [:watched, :watched, :watched]
+      assert Enum.all?([first, second, third], & &1.progress.completed)
 
       assert [first.is_resume_target, second.is_resume_target, third.is_resume_target] == [
                false,
@@ -422,7 +422,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
              ]
     end
 
-    test "library_item.state reflects watch progress" do
+    test "each library row carries its own progress record" do
       [ep1, ep2, ep3] = build_episodes([1, 2, 3])
 
       season =
@@ -448,9 +448,9 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         )
 
       [%SeasonView{items: [item1, item2, item3]}] = view_model.seasons
-      assert %EpisodeRow.Library{state: :watched} = item1
-      assert %EpisodeRow.Library{state: :current} = item2
-      assert %EpisodeRow.Library{state: :unwatched} = item3
+      assert %EpisodeRow.Library{progress: %{completed: true}} = item1
+      assert %EpisodeRow.Library{progress: %{completed: false, position_seconds: 250.0}} = item2
+      assert %EpisodeRow.Library{progress: nil} = item3
     end
 
     test "season with no episodes and an empty episode list produces empty items" do

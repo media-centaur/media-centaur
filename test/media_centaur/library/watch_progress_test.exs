@@ -283,7 +283,8 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
 
       assert incomplete.position_seconds == 0.0
-      assert Library.ProgressRecords.state_from_progress(incomplete) == :unwatched
+      refute Library.ProgressRecords.watched?(incomplete)
+      refute Library.ProgressRecords.viewing?(incomplete)
     end
 
     # `duration_seconds` describes the file, not the watching, so it

@@ -24,7 +24,9 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   @storybook_reason "State matrix pinned by the detail_panel story's TV variations, which render this list inside the layout that gives its states meaning; shared row chrome pinned by the PlayableRow stories. A standalone story would duplicate those fixtures verbatim."
 
   import MediaCentaurWeb.LiveHelpers
-  import MediaCentaurWeb.Components.Detail.PlayableRow, only: [blur_spoilers?: 2, row_class: 2]
+
+  import MediaCentaurWeb.Components.Detail.PlayableRow,
+    only: [blur_spoilers?: 2, row_class: 2, viewing?: 1]
 
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.Logic
@@ -315,7 +317,6 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       |> assign(:episode, assigns.item.episode)
       |> assign(:season_number, assigns.item.season_number)
       |> assign(:progress, assigns.item.progress)
-      |> assign(:state, assigns.item.state)
       |> assign(:is_resume_target, assigns.item.is_resume_target)
       |> assign(:thumbnail, image_url(assigns.item.episode, "thumb"))
 
@@ -324,7 +325,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       id={@id}
       class={[
         "px-2 py-1.5 pointer-coarse:py-3 rounded cursor-pointer hover:bg-base-content/5",
-        row_class(@state, @is_resume_target)
+        row_class(@progress, @is_resume_target)
       ]}
       data-role="episode-row"
       data-resume-target={@is_resume_target || nil}
@@ -342,7 +343,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         </span>
         <span class={[
           "flex-1 min-w-0 truncate text-base-content/90",
-          blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+          blur_spoilers?(@spoiler_free, @progress) && "spoiler-blur"
         ]}>
           {@episode.name || "—"}
         </span>
@@ -363,7 +364,6 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         </button>
         <PlayableRow.watched_toggle
           event="toggle_watched"
-          state={@state}
           progress={@progress}
           duration_seconds={@episode.duration_seconds}
           phx-value-entity-id={@entity_id}
@@ -377,20 +377,20 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           src={sized_image_url(@thumbnail, 240)}
           class={[
             "w-28 aspect-video rounded object-cover object-top flex-shrink-0",
-            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+            blur_spoilers?(@spoiler_free, @progress) && "spoiler-blur"
           ]}
         />
         <p
           :if={@episode.description}
           class={[
             "text-xs text-base-content/55 leading-relaxed",
-            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+            blur_spoilers?(@spoiler_free, @progress) && "spoiler-blur"
           ]}
         >
           {@episode.description}
         </p>
       </div>
-      <PlayableRow.progress_underline :if={@state == :current} progress={@progress} class="ml-9" />
+      <PlayableRow.progress_underline :if={viewing?(@progress)} progress={@progress} class="ml-9" />
     </div>
     """
   end

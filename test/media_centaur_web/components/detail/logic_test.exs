@@ -371,7 +371,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
       member = %MovieRow.Library{
         movie: movie,
-        state: :unwatched,
         is_resume_target: false
       }
 
@@ -399,7 +398,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       member = %MovieRow.Library{
         movie: movie,
         progress: progress,
-        state: :current,
         is_resume_target: true
       }
 
@@ -416,13 +414,29 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       member = %MovieRow.Library{
         movie: movie,
         progress: progress,
-        state: :watched,
         is_resume_target: false
       }
 
       # UIDR-024: a watched member's hairline fills — percent 100, like a
       # completed series — while the remaining item stays absent.
       assert %{label: "Watch again", percent: 100, remaining_text: nil} =
+               Logic.member_playback(member)
+    end
+
+    test "a watched member being replayed resumes: the viewing decides the label" do
+      movie = build_movie(%{name: "Part Three", content_url: "/m/3.mkv"})
+
+      progress =
+        build_progress(%{
+          movie_id: movie.id,
+          completed: true,
+          position_seconds: 3600.0,
+          duration_seconds: 7200.0
+        })
+
+      member = %MovieRow.Library{movie: movie, progress: progress, is_resume_target: true}
+
+      assert %{label: "Resume", percent: 50, remaining_text: "1h left"} =
                Logic.member_playback(member)
     end
 
@@ -433,14 +447,13 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
         build_progress(%{
           movie_id: movie.id,
           completed: false,
-          position_seconds: 10.0,
+          position_seconds: 600.0,
           duration_seconds: 0.0
         })
 
       member = %MovieRow.Library{
         movie: movie,
         progress: progress,
-        state: :current,
         is_resume_target: false
       }
 
@@ -462,7 +475,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     %EpisodeRow.Library{
       episode: %{id: "ep-#{season_number}-#{episode_number}", episode_number: episode_number},
       season_number: season_number,
-      state: :unwatched,
       is_resume_target: false
     }
   end
@@ -630,7 +642,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
     test "a collection member plays as the member — the rail's selection" do
       member = %MovieRow.Library{
         movie: %{id: "part-2", name: "Part 2"},
-        state: :unwatched,
         is_resume_target: false
       }
 
@@ -715,7 +726,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
       member =
         case opts[:member] do
           nil -> nil
-          id -> %MovieRow.Library{movie: %{id: id}, state: :watched, is_resume_target: false}
+          id -> %MovieRow.Library{movie: %{id: id}, is_resume_target: false}
         end
 
       %TitleDetail{

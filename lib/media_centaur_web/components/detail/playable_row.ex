@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   @moduledoc """
   Shared chrome for the detail modal's playable rows — the pieces an
   episode row, a collection movie row, and an extra row all render the
-  same way: the watched/unwatched toggle (with its state-aware
+  same way: the watched/unwatched toggle (with its
   duration/remaining text), the thin in-progress underline, the
   state-dependent row classes, and the spoiler-blur rule.
 
@@ -17,34 +17,39 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
 
   alias MediaCentaur.Library.ProgressRecords
 
-  @doc """
-  Maps a `WatchProgress` record (or `nil`) to the three-state row atom.
-  Delegates to the Library rule so the rendering and composition layers
-  can't drift.
-  """
-  defdelegate state_from_progress(progress), to: ProgressRecords
+  @doc "Whether the row's item carries the watched mark; the check shows exactly then."
+  defdelegate watched?(progress), to: ProgressRecords
+
+  @doc "Whether the row's item has a viewing in flight that counts; the underline and remaining time show exactly then."
+  defdelegate viewing?(progress), to: ProgressRecords
 
   @doc """
-  State-dependent classes for a playable row: resume target beats
-  everything (primary wash), watched rows dim, the in-progress row gets
-  the info wash.
+  Classes for a playable row, from its progress record: the resume target
+  beats everything (primary wash), a row with a viewing in flight gets
+  the info wash whether or not it is watched, and a watched row with no
+  viewing dims.
   """
-  @spec row_class(atom(), boolean()) :: String.t()
-  def row_class(_state, true = _is_resume_target), do: "bg-primary/10"
+  @spec row_class(map() | nil, boolean()) :: String.t() | nil
+  def row_class(_progress, true = _is_resume_target), do: "bg-primary/10"
 
-  def row_class(:watched, _), do: "opacity-60"
-  def row_class(:current, _), do: "bg-info/5"
-  def row_class(:unwatched, _), do: ""
+  def row_class(progress, _is_resume_target) do
+    cond do
+      viewing?(progress) -> "bg-info/5"
+      watched?(progress) -> "opacity-60"
+      true -> nil
+    end
+  end
 
   @doc """
   Whether a row's thumbnail, title and synopsis should be
-  spoiler-blurred: only when spoiler-free mode is on *and* the item is
-  fully unwatched. A watched or in-progress item is never blurred (the
-  user has already started it), and nothing blurs when spoiler-free
-  mode is off.
+  spoiler-blurred: only when spoiler-free mode is on *and* the item has
+  neither the watched mark nor a viewing in flight. A watched or
+  in-progress item is never blurred (the user has already started it),
+  and nothing blurs when spoiler-free mode is off.
   """
-  @spec blur_spoilers?(boolean(), atom()) :: boolean()
-  def blur_spoilers?(spoiler_free, state), do: spoiler_free and state == :unwatched
+  @spec blur_spoilers?(boolean(), map() | nil) :: boolean()
+  def blur_spoilers?(spoiler_free, progress),
+    do: spoiler_free and not watched?(progress) and not viewing?(progress)
 
   @doc "Playback position as a 0–100 percent, capped."
   @spec progress_percent(map() | nil) :: non_neg_integer()
@@ -56,8 +61,8 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   def progress_percent(_progress), do: 0
 
   @doc """
-  Thin in-progress underline below a `:current` row. The caller guards
-  on state (`:if={@state == :current}`) and supplies the left margin
+  Thin in-progress underline below a row with a viewing in flight. The
+  caller guards on it (`:if={viewing?(@progress)}`) and supplies the left margin
   that aligns the track with its row's text column.
   """
   attr :progress, :map,
@@ -88,14 +93,14 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   through to the row's play handler rather than toggling watched state.
   """
   attr :event, :string, required: true
-  attr :state, :atom, required: true, values: [:watched, :current, :unwatched]
 
   attr :progress, :map,
     default: nil,
     doc:
-      "`MediaCentaur.Library.WatchProgress.t() | nil` — the record the press acts on: it names " <>
-        "the control (Mark watched / Mark unwatched) and renders the remaining time in the " <>
-        "`:current` state."
+      "`MediaCentaur.Library.WatchProgress.t() | nil` — the record the press acts on. Its " <>
+        "watched mark fills the circle and names the control (Mark unwatched when marked, " <>
+        "else Mark watched); its viewing in flight renders the remaining time. A watched " <>
+        "item being replayed shows both."
 
   attr :duration_seconds, :integer, default: nil
 
@@ -127,7 +132,6 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
     <div class="flex items-center gap-2 flex-shrink-0">
       <.duration_text
         :if={@show_duration}
-        state={@state}
         progress={@progress}
         duration_seconds={@duration_seconds}
       />
@@ -138,20 +142,20 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
         data-nav-item={@nav_item || nil}
         tabindex={(@nav_item && "0") || nil}
         class={watched_toggle_button_class()}
-        aria-label={watched_control_label(@progress)}
+        aria-label={if watched?(@progress), do: "Mark unwatched", else: "Mark watched"}
         {@rest}
       >
         <span class={[
           "size-5 rounded-full flex items-center justify-center transition-all",
-          watched_circle_class(@state)
+          watched_circle_class(watched?(@progress))
         ]}>
           <.icon
-            :if={@state == :watched}
+            :if={watched?(@progress)}
             name="hero-check-mini"
             class="size-3 text-success"
           />
           <.icon
-            :if={@state != :watched}
+            :if={!watched?(@progress)}
             name="hero-check-mini"
             class="size-3 opacity-0 group-hover/toggle:opacity-60 transition-opacity"
           />
@@ -161,56 +165,51 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
     """
   end
 
-  # The control the press applies, read from the record the press acts on
-  # (`ProgressRecords.watched_control/1`): a watched item with a viewing
-  # in flight offers Mark watched, which ends the viewing and keeps the
-  # mark.
-  defp watched_control_label(progress) do
-    case ProgressRecords.watched_control(progress) do
-      :mark_watched -> "Mark watched"
-      :mark_unwatched -> "Mark unwatched"
+  # Duration text beside the toggle: "Xm remaining" while a viewing is in
+  # flight, nothing for a watched item with none, the plain runtime
+  # otherwise.
+  attr :progress, :map,
+    default: nil,
+    doc: "`MediaCentaur.Library.WatchProgress.t() | nil`, as on `watched_toggle/1`."
+
+  attr :duration_seconds, :integer, default: nil
+
+  defp duration_text(assigns) do
+    assigns = assign(assigns, :text, duration_text(assigns.progress, assigns.duration_seconds))
+
+    ~H"""
+    <span :if={@text} class={["text-xs", duration_text_class(@progress)]}>{@text}</span>
+    """
+  end
+
+  defp duration_text(progress, duration_seconds) do
+    cond do
+      viewing?(progress) ->
+        remaining = trunc(max((progress.duration_seconds || 0) - progress.position_seconds, 0))
+        "#{format_human_duration(remaining)} remaining"
+
+      watched?(progress) ->
+        nil
+
+      is_integer(duration_seconds) and duration_seconds > 0 ->
+        format_human_duration(duration_seconds)
+
+      true ->
+        nil
     end
   end
 
-  # State-aware duration text beside the toggle: nothing when watched,
-  # "Xm remaining" while current, the plain runtime otherwise.
-  defp duration_text(%{state: :watched} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp duration_text(%{state: :current, progress: progress} = assigns) do
-    remaining = trunc(max(progress.duration_seconds - progress.position_seconds, 0))
-    assigns = assign(assigns, :remaining, remaining)
-
-    ~H"""
-    <span class="text-info text-xs">
-      {format_human_duration(@remaining)} remaining
-    </span>
-    """
-  end
-
-  defp duration_text(%{duration_seconds: seconds} = assigns) when is_integer(seconds) and seconds > 0 do
-    ~H"""
-    <span class="text-base-content/55 text-xs">
-      {format_human_duration(@duration_seconds)}
-    </span>
-    """
-  end
-
-  defp duration_text(assigns) do
-    ~H"""
-    """
-  end
+  defp duration_text_class(progress),
+    do: if(viewing?(progress), do: "text-info", else: "text-base-content/55")
 
   # Note: the `group-hover/toggle:` classes below depend on the toggle
   # button carrying `group/toggle` (set by `watched_toggle_button_class/0`).
   # Any caller that bypasses `watched_toggle/1` and renders this circle
   # directly must include `group/toggle` on the wrapping click target,
   # or the hover-preview check silently breaks with no test failure.
-  defp watched_circle_class(:watched), do: "bg-success/25 group-hover/toggle:bg-success/40"
+  defp watched_circle_class(true), do: "bg-success/25 group-hover/toggle:bg-success/40"
 
-  defp watched_circle_class(_state),
+  defp watched_circle_class(false),
     do: "border border-base-content/20 group-hover/toggle:border-base-content/50"
 
   # Layout + hover styling for the watched/unwatched toggle button.

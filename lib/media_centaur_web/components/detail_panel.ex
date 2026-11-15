@@ -318,7 +318,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 <span class="text-xs text-base-content/55">Watched</span>
                 <PlayableRow.watched_toggle
                   event="toggle_watched"
-                  state={@member.state}
                   progress={@member.progress}
                   duration_seconds={Map.get(@member.movie, :duration_seconds)}
                   show_duration={false}

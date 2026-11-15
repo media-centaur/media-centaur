@@ -95,20 +95,17 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
     [
       %MovieRow.Library{
         movie: movie_1,
-        progress: %{position_seconds: 5400.0, duration_seconds: 5400.0, completed: true},
-        state: :watched,
+        progress: %{position_seconds: 0.0, duration_seconds: 5400.0, completed: true},
         is_resume_target: false
       },
       %MovieRow.Library{
         movie: movie_2,
         progress: %{position_seconds: 1500.0, duration_seconds: 5700.0, completed: false},
-        state: :current,
         is_resume_target: true
       },
       %MovieRow.Library{
         movie: movie_3,
         progress: nil,
-        state: :unwatched,
         is_resume_target: false
       }
     ]
@@ -116,7 +113,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
 
   defp untouched_items do
     for movie <- member_movies() do
-      %MovieRow.Library{movie: movie, progress: nil, state: :unwatched, is_resume_target: false}
+      %MovieRow.Library{movie: movie, progress: nil, is_resume_target: false}
     end
   end
 

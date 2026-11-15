@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
              ] = view_model.movies
     end
 
-    test "library item state reflects watch progress" do
+    test "each library row carries its own progress record" do
       movie_1 = build_movie(%{date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
       movie_2 = build_movie(%{date_published: ~D[2012-01-01], content_url: "/m/2.mkv"})
       movie_3 = build_movie(%{date_published: ~D[2014-01-01], content_url: "/m/3.mkv"})
@@ -58,9 +58,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieRow.Library{state: :watched},
-               %MovieRow.Library{state: :current, progress: %{position_seconds: 300.0}},
-               %MovieRow.Library{state: :unwatched, progress: nil}
+               %MovieRow.Library{progress: %{completed: true}},
+               %MovieRow.Library{progress: %{completed: false, position_seconds: 300.0}},
+               %MovieRow.Library{progress: nil}
              ] = view_model.movies
     end
 
@@ -202,8 +202,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieRow.Library{state: :unwatched},
-               %MovieRow.Library{state: :unwatched},
+               %MovieRow.Library{progress: nil},
+               %MovieRow.Library{progress: nil},
                %MovieRow.Upcoming{}
              ] = view_model.movies
 
@@ -211,8 +211,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       updated = CollectionDetail.with_progress(view_model, records, nil)
 
       assert [
-               %MovieRow.Library{state: :watched},
-               %MovieRow.Library{state: :unwatched},
+               %MovieRow.Library{progress: %{completed: true}},
+               %MovieRow.Library{progress: nil},
                %MovieRow.Upcoming{title: "Next Part"}
              ] = updated.movies
     end

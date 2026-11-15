@@ -11,8 +11,8 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
   Three variants:
 
     * `Library` — a real `MediaCentaur.Library.Episode` we have a file
-      for. Carries precomputed `state` and `is_resume_target` so the
-      renderer doesn't have to recompute them per row.
+      for. Carries its progress record, whose watched mark and viewing
+      in flight the renderer reads, and a precomputed `is_resume_target`.
     * `Missing` — an episode that has aired (or carries no air date)
       that the library has no file for, and that nothing is already
       acquiring. Actionable: clicking it downloads that episode.
@@ -36,20 +36,19 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
 
   defmodule Library do
     @moduledoc """
-    A library episode the user can watch (file present). Precomputed
-    `state` (`:unwatched | :current | :watched`) and `is_resume_target`
-    (boolean) save the renderer from computing them per-frame.
+    A library episode the user can watch (file present). `progress` holds
+    its two facts, the watched mark and the viewing in flight
+    (`MediaCentaur.Library.ProgressRecords.watched?/1`, `viewing?/1`);
+    `is_resume_target` is precomputed from the title progress.
     """
 
-    @enforce_keys [:episode, :season_number, :state, :is_resume_target]
-    defstruct [:episode, :season_number, :progress, :state, :is_resume_target]
+    @enforce_keys [:episode, :season_number, :is_resume_target]
+    defstruct [:episode, :season_number, :progress, :is_resume_target]
 
-    @type state :: :unwatched | :current | :watched
     @type t :: %__MODULE__{
             episode: MediaCentaur.Library.Episode.t(),
             season_number: non_neg_integer(),
             progress: MediaCentaur.Library.WatchProgress.t() | nil,
-            state: state,
             is_resume_target: boolean()
           }
   end

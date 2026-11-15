@@ -122,7 +122,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
         %MovieRow.Library{
           movie: movie,
           progress: progress,
-          state: ProgressRecords.state_from_progress(progress),
           is_resume_target: next_id != nil and movie.id == next_id
         }
       end)

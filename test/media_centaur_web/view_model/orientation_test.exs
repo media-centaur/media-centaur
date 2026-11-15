@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
           episode:
             build_episode(%{id: episode_id(number, episode_number), episode_number: episode_number}),
           season_number: number,
-          state: if(episode_number <= watched, do: :watched, else: :unwatched),
+          progress: if(episode_number <= watched, do: %{completed: true, position_seconds: 0.0}),
           is_resume_target: false
         }
       end
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     for ordinal <- 1..total do
       %MovieRow.Library{
         movie: build_movie(%{id: movie_id(ordinal), name: "Movie #{ordinal}"}),
-        state: if(ordinal <= watched, do: :watched, else: :unwatched),
+        progress: if(ordinal <= watched, do: %{completed: true, position_seconds: 0.0}),
         is_resume_target: false
       }
     end

@@ -215,7 +215,8 @@ Where a profile is in a title is one derived value, `Library.TitleProgress`, com
 - A position tick writes the viewing only. The in-memory row (`Library.Progress`) carries no watched mark, and the flush never writes one, so starting a watched item again keeps its mark.
 - A finish (`Library.Progress.complete/2` → `ProgressRecords.finish/3`) sets the mark, sets the offset to 0, and for an item of a series moves the series watch position to it, in one transaction. It then publishes `{:entity_watch_completed, record, actor}` on `library:watch_completed`, every time: finishing an item again is a second completion and a second watch-history event.
 - Mark watched sets the mark and ends the viewing, in memory too (`Library.Progress.clear_viewing/2`). Mark unwatched clears the mark and ends the viewing. Neither stamps `last_watched_at` and neither moves the series watch position. Mark watched publishes the completion event when the item was not marked before.
-- The control an item offers is `ProgressRecords.watched_control/1`: Mark watched while the item is unmarked or has a viewing that counts, else Mark unwatched. `toggle_watched/3` and `toggle_extra_watched/3` apply the control the page shows.
+- The watched mark and the viewing in flight are independent facts, read by `ProgressRecords.watched?/1` and `viewing?/1`. A row shows each from its own predicate: the check from the mark, the underline and remaining time from the viewing. A watched item being replayed shows both.
+- The control an item offers follows the mark alone: Mark unwatched when it is marked, else Mark watched. `toggle_watched/3` and `toggle_extra_watched/3` apply it.
 
 **The rule** (`Library.TitleProgress`, pure):
 

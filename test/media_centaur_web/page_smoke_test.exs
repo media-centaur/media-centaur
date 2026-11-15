@@ -541,7 +541,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     # renders: a series whose every episode is marked while its series
     # watch position sits mid-set (Play names the next episode, the
     # hairline is part-way), and a watched movie with a viewing in flight
-    # (Resume, with the watched control reading Mark watched).
+    # (Resume, with its check kept and the watched control reading Mark
+    # unwatched).
     setup do
       series = create_tv_series(%{name: "Smoke Rewatched Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})

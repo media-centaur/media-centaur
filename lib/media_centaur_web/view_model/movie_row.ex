@@ -6,9 +6,9 @@ defmodule MediaCentaurWeb.ViewModel.MovieRow do
 
   Two variants:
 
-    * `Library` — a member movie we have a file for. Carries precomputed
-      `state` and `is_resume_target` so the renderer doesn't have to
-      recompute them per row.
+    * `Library` — a member movie we have a file for. Carries its
+      progress record, whose watched mark and viewing in flight the
+      renderer reads, and a precomputed `is_resume_target`.
     * `Upcoming` — an announced collection part from
       `MediaCentaur.ReleaseTracking` that isn't in the library yet:
       unaired (future / absent `air_date`) or aired but not imported.
@@ -32,9 +32,10 @@ defmodule MediaCentaurWeb.ViewModel.MovieRow do
 
   defmodule Library do
     @moduledoc """
-    A member movie the user can watch (file present). Precomputed
-    `state` (`:unwatched | :current | :watched`) and `is_resume_target`
-    (boolean) save the renderer from computing them per row.
+    A member movie the user can watch (file present). `progress` holds
+    its two facts, the watched mark and the viewing in flight
+    (`MediaCentaur.Library.ProgressRecords.watched?/1`, `viewing?/1`);
+    `is_resume_target` is precomputed from the title progress.
 
     `movie` is either a `MediaCentaur.Library.Movie` struct or the lean
     projection map from
@@ -43,14 +44,12 @@ defmodule MediaCentaurWeb.ViewModel.MovieRow do
     `:images`) via `Map.get`.
     """
 
-    @enforce_keys [:movie, :state, :is_resume_target]
-    defstruct [:movie, :progress, :state, :is_resume_target]
+    @enforce_keys [:movie, :is_resume_target]
+    defstruct [:movie, :progress, :is_resume_target]
 
-    @type state :: :unwatched | :current | :watched
     @type t :: %__MODULE__{
             movie: map() | struct(),
             progress: MediaCentaur.Library.WatchProgress.t() | nil,
-            state: state,
             is_resume_target: boolean()
           }
   end

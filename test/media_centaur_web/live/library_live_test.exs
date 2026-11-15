@@ -1972,7 +1972,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, play_button(tv_series.id), "Watch again")
     end
 
-    test "a replayed watched episode keeps its mark and offers Mark watched",
+    test "a replayed watched episode shows its mark beside the viewing, and offers Mark unwatched",
          %{conn: conn, tv_series: tv_series, episodes: [first, _second, _third]} do
       create_watch_progress(%{
         episode_id: first.id,
@@ -1985,14 +1985,15 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(view, play_button(first.id), "Resume Episode 1")
-      assert has_element?(view, watched_control(first.id, "Mark watched"))
+      assert has_element?(view, watched_control(first.id, "Mark unwatched"))
+      assert has_element?(view, ~s|#detail-modal [data-role="episode-row"]|, "remaining")
 
-      view |> element(watched_control(first.id, "Mark watched")) |> render_click()
+      view |> element(watched_control(first.id, "Mark unwatched")) |> render_click()
       assert_receive {:entity_progress_updated, %{changed_record: changed}}, 1000
 
-      assert changed.completed
+      refute changed.completed
       assert changed.position_seconds == 0.0
-      assert has_element?(view, watched_control(first.id, "Mark unwatched"))
+      assert has_element?(view, watched_control(first.id, "Mark watched"))
     end
 
     test "a series whose episodes were marked by hand, without a timestamp, opens",

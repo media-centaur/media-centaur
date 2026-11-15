@@ -273,7 +273,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       episode: episode,
       season_number: season_number,
       progress: progress,
-      state: episode_state(progress),
       is_resume_target: next_id != nil and episode.id == next_id
     }
   end
@@ -319,13 +318,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   defp aired?(_), do: false
 
   # --- Helpers (extracted from DetailPanel) ---
-
-  # Both `Detail.PlayableRow.state_from_progress/1` and this caller delegate to the
-  # same Library helper so the rendering layer and the composition
-  # layer can't drift.
-  defdelegate episode_state(progress),
-    to: MediaCentaur.Library.ProgressRecords,
-    as: :state_from_progress
 
   defp count_watched_episodes(episodes, progress_by_episode_id) do
     Enum.count(episodes, fn episode ->

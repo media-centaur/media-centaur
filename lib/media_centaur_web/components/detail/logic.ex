@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
+  alias MediaCentaur.Library.ProgressRecords
   alias MediaCentaur.Library.TitleProgress
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.ViewModel.EpisodeRow
@@ -30,9 +31,10 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   (UIDR-024 — the subject's own fraction, full for a watched member) and
   `remaining_text` is the metadata line's "‹duration› left" item:
 
-    * `:unwatched` → `"Play"`, percent 0, no remaining item
-    * `:current`   → `"Resume"` with percent + "‹duration› left"
-    * `:watched`   → `"Watch again"`, percent 100, no remaining item
+    * a viewing in flight → `"Resume"` with percent + "‹duration› left",
+      whether or not the member is watched
+    * watched, no viewing → `"Watch again"`, percent 100, no remaining item
+    * neither → `"Play"`, percent 0, no remaining item
 
   A zero-duration progress row (position recorded before the duration
   probe) yields percent 0 rather than dividing by it.
@@ -43,19 +45,22 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
           percent: non_neg_integer(),
           remaining_text: String.t() | nil
         }
-  def member_playback(%MovieRow.Library{movie: movie, state: :watched}),
-    do: %{label: "Watch again", target_id: movie.id, percent: 100, remaining_text: nil}
+  def member_playback(%MovieRow.Library{movie: movie, progress: progress}) do
+    cond do
+      ProgressRecords.viewing?(progress) ->
+        %{
+          label: "Resume",
+          target_id: movie.id,
+          percent: member_percent(progress),
+          remaining_text: member_remaining_text(progress)
+        }
 
-  def member_playback(%MovieRow.Library{movie: movie, state: :unwatched}),
-    do: %{label: "Play", target_id: movie.id, percent: 0, remaining_text: nil}
+      ProgressRecords.watched?(progress) ->
+        %{label: "Watch again", target_id: movie.id, percent: 100, remaining_text: nil}
 
-  def member_playback(%MovieRow.Library{movie: movie, state: :current, progress: progress}) do
-    %{
-      label: "Resume",
-      target_id: movie.id,
-      percent: member_percent(progress),
-      remaining_text: member_remaining_text(progress)
-    }
+      true ->
+        %{label: "Play", target_id: movie.id, percent: 0, remaining_text: nil}
+    end
   end
 
   defp member_percent(%{position_seconds: position, duration_seconds: duration})

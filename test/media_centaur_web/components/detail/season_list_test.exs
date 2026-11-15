@@ -35,7 +35,6 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
           %EpisodeRow.Library{
             episode: build_episode(%{episode_number: 1, name: "First Sample"}),
             season_number: 1,
-            state: :unwatched,
             is_resume_target: false
           }
         ],

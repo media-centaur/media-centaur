@@ -67,15 +67,12 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
   attr :on_play, :string, required: true
 
   defp extra_row(assigns) do
-    state = PlayableRow.state_from_progress(assigns.progress)
-    assigns = assign(assigns, :state, state)
-
     ~H"""
     <div id={@id} class="py-0.5 pr-3" data-role="extra-row">
       <div
         class={[
           "flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2",
-          @state == :watched && "opacity-60"
+          PlayableRow.row_class(@progress, false)
         ]}
         phx-click={@on_play}
         phx-value-id={@extra.id}
@@ -86,13 +83,16 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
         <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
         <PlayableRow.watched_toggle
           event="toggle_extra_watched"
-          state={@state}
           progress={@progress}
           phx-value-entity-id={@entity_id}
           phx-value-extra-id={@extra.id}
         />
       </div>
-      <PlayableRow.progress_underline :if={@state == :current} progress={@progress} class="ml-6" />
+      <PlayableRow.progress_underline
+        :if={PlayableRow.viewing?(@progress)}
+        progress={@progress}
+        class="ml-6"
+      />
     </div>
     """
   end

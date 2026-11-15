@@ -36,8 +36,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   projection that debounce-flushes *into* this module.
 
   Reading a record is here too: `progress_container_id/1` resolves the leaf
-  id off the preloaded `PlayableItem`, `state_from_progress/1` derives the
-  watch state, and `index_progress_by_key/1` keys a list of records by leaf.
+  id off the preloaded `PlayableItem`, `watched?/1` and `viewing?/1` read its
+  two facts, and `index_progress_by_key/1` keys a list of records by leaf.
   They lived in `Library.EpisodeOrder` until 2026-09-13, which is why a movie
   view model used to call an episode-named module for them.
   """
@@ -82,26 +82,15 @@ defmodule MediaCentaur.Library.ProgressRecords do
   def viewing?(_record), do: false
 
   @doc """
-  Maps a `WatchProgress` record (or `nil`) to the three-state UI atom
-  used by the detail panel and the SeriesDetail view model:
-
-  - `:current`   — a viewing that counts (`viewing?/1`), whatever the watched mark
-  - `:watched`   — `completed: true` with no viewing in flight
-  - `:unwatched` — no progress, or an offset too short to count and not completed
-
-  Shared between the rendering layer (`DetailPanel`) and the
-  composition layer (`SeriesDetail`) so the rule lives in one place.
+  Whether a progress record carries the watched mark. The mark and the
+  viewing in flight (`viewing?/1`) are independent facts: a watched item
+  being replayed has both, and every surface shows each from its own
+  predicate — the check from this one, the progress and remaining time
+  from the other.
   """
-  @spec state_from_progress(map() | nil) :: :unwatched | :current | :watched
-  def state_from_progress(nil), do: :unwatched
-
-  def state_from_progress(progress) do
-    cond do
-      viewing?(progress) -> :current
-      progress.completed -> :watched
-      true -> :unwatched
-    end
-  end
+  @spec watched?(map() | nil) :: boolean()
+  def watched?(%{completed: true}), do: true
+  def watched?(_record), do: false
 
   alias MediaCentaur.Library.{
     Episode,
@@ -221,24 +210,10 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # ---- the watched control -------------------------------------------------
 
   @doc """
-  Which watched control a record offers: Mark watched while it is unmarked
-  or has a viewing that counts (`viewing?/1`), else Mark unwatched. A
-  watched item with an abandoned viewing is thereby dismissable without
-  losing its mark.
-  """
-  @spec watched_control(map() | nil) :: :mark_watched | :mark_unwatched
-  def watched_control(%{completed: true} = progress),
-    do: if(viewing?(progress), do: :mark_watched, else: :mark_unwatched)
-
-  def watched_control(_progress), do: :mark_watched
-
-  @doc """
-  Applies the watched control a leaf container offers (`watched_control/1`)
-  for the actor's profile. The control is read from the record at its live
-  offset (`Library.Progress.overlay_in_memory/1`), the record
-  `title_progress/2` hands the page, so the control applied is the one
-  shown: a watched item being replayed is offered Mark watched, and the
-  press keeps its mark.
+  The watched control of a leaf container, for the actor's profile. It
+  follows the watched mark (`watched?/1`) and nothing else: an unmarked
+  item is marked, a marked item is unmarked. Either press also ends a
+  viewing in flight.
   """
   @spec toggle_watched(Actor.t(), PlayableItem.container_type(), Ecto.UUID.t()) ::
           {:ok, WatchProgress.t()} | {:error, term()}
@@ -277,17 +252,11 @@ defmodule MediaCentaur.Library.ProgressRecords do
   # (`marked_changeset/1`): a hand mark is not a viewing, so the new row
   # carries no `last_watched_at`. The item may still have a viewing in
   # memory that no flush has persisted yet; it is cleared first.
-  defp apply_watched_control(progress, actor, insert_marked) do
-    case {watched_control(live(progress)), progress} do
-      {:mark_unwatched, record} -> mark_incomplete(record)
-      {:mark_watched, nil} -> insert_marked.()
-      {:mark_watched, record} -> mark_completed(record, actor)
-    end
-  end
+  defp apply_watched_control(nil, _actor, insert_marked), do: insert_marked.()
 
-  # Extras have no in-memory row; only a `WatchProgress` has a live offset.
-  defp live(%WatchProgress{} = progress), do: Progress.overlay_in_memory(progress)
-  defp live(progress), do: progress
+  defp apply_watched_control(progress, actor, _insert_marked) do
+    if watched?(progress), do: mark_incomplete(progress), else: mark_completed(progress, actor)
+  end
 
   defp insert_marked_for_container(actor, container_type, container_id) do
     position = PlayableItems.canonical_position(container_type, container_id)
