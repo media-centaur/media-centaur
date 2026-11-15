@@ -7,9 +7,9 @@ defmodule MediaCentaur.DataMigrationsTest do
   # file is discoverable, and the source uses `migration_source:
   # "data_migrations"` (not the schema-migrations stream).
   #
-  # End-to-end verification happens via `mix ecto.migrate_data` against
-  # a real DB — the dev workflow exercises the same code path that
-  # production uses.
+  # End-to-end verification is every application start outside the suite:
+  # `MediaCentaur.Application.DatabaseUpgrade` runs the same code path
+  # against the real database, in dev as in a release.
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.DataMigrations

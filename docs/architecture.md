@@ -143,6 +143,7 @@ graph TD
     App[MediaCentaur.Supervisor<br/>one_for_one]
 
     App --> Telemetry[Telemetry]
+    App --> DatabaseUpgrade[Application.DatabaseUpgrade<br/>snapshot, schema + data migrations, :ignore]
     App --> Repo[Repo<br/>SQLite]
     App --> PubSub[Phoenix.PubSub]
     App --> TaskSup[TaskSupervisor]

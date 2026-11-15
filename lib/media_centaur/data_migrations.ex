@@ -57,9 +57,8 @@ defmodule MediaCentaur.DataMigrations do
 
   @doc """
   Runs every pending data migration against `repo`. Assumes the repo is
-  already started — for release-boot use, go through
-  `MediaCentaur.Release.migrate_data/0`, which wraps this in
-  `Ecto.Migrator.with_repo/2`.
+  already started. Its one caller is `MediaCentaur.Release.upgrade/1`, which
+  runs it after the schema migrations.
   """
   @spec run!(module()) :: [integer()]
   def run!(repo) do
