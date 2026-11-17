@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.18.0 — 2026-11-17
+
+### Improved
+
+- **A series with missing episodes says why the releases it found did not work.** When a search returns releases but none can fill the missing episodes, the line under the verdict in Downloads now counts them by reason, for example "1 flagged suspicious, 2 didn't match this title, 1 had other episodes."
+- **The release picker tells a different title apart from the wrong episodes.** A release of the right show that holds none of the episodes you want is now counted as "had other episodes" instead of "didn't match this title".
+
+### Fixed
+
+- **An episode release posted before the episode aired is no longer downloaded.** The automatic retry now rejects it, and the release picker leaves it out. An episode with no known air date is not affected.
+- **You are no longer asked about a season pack that is flagged as suspicious.** When the search for one episode runs out, Media Centaur asks whether to download a season pack that holds it. A pack that is flagged, or was posted before the episode aired, no longer prompts that question.
+
 ## v2.17.0 — 2026-11-15
 
 ### New
