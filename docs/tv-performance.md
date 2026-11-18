@@ -66,7 +66,7 @@ TV-only styles key off it.
    on the raster threads — avoid bringing many new images into view at
    once. A row below the fold brings all of its visible posters in with
    the glide that reveals it, and `decoding="sync"` (UIDR-012) makes that
-   frame wait: Discovery's New Releases row held its first vertical glide
+   frame wait: Search's New Releases row held its first vertical glide
    for 200 ms (2026-11-02, runs 20261102-121100 and 20261102-121641; the
    trace shows the glide's scroll write blocked in
    `LayerTreeHost::WaitForCommitCompletion` while 17 posters decoded). The

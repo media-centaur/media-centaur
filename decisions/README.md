@@ -81,12 +81,12 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
-| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted, amended 2026-11-03 |
+| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted, amended 2026-11-18 |
 | 011 | 2026-05-12 | [Text and logos over imagery use shared `.text-on-image*` utilities](user-interface/2026-05-12-011-text-on-imagery.md) | accepted |
 | 012 | 2026-05-20 | [Desktop-app rendering defaults — eager, sync, stable, immutable](user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) | accepted, amended 2026-11-02 |
 | 013 | 2026-06-08 | [Modals declare an ephemeral or persistent dismissal mode through one seam](user-interface/2026-06-08-013-modal-dismissal-modes.md) | accepted |
-| 014 | 2026-06-10 | [Media-search front door — omnibox, coverage language, and imagery discipline](user-interface/2026-06-10-014-media-search-front-door.md) | accepted, amended 2026-11-02 |
-| 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted, amended 2026-11-02 |
+| 014 | 2026-06-10 | [Media-search front door — omnibox, coverage language, and imagery discipline](user-interface/2026-06-10-014-media-search-front-door.md) | accepted, amended 2026-11-18 |
+| 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted, amended 2026-11-18 |
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted, amended 2026-08-02 |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
 | 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-11-04 |
@@ -126,6 +126,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 054 | 2026-10-21 | [A person has a page](user-interface/2026-10-21-054-the-person-page.md) | accepted |
 | 055 | 2026-10-22 | [A remote player's OSD is the host's page](user-interface/2026-10-22-055-a-remote-players-osd-is-the-hosts-page.md) | accepted |
 | 056 | 2026-10-25 | [The TV app is the performance floor](user-interface/2026-10-25-056-the-tv-app-is-the-performance-floor.md) | accepted |
-| 057 | 2026-11-02 | [Pages are stages: choose, get, watch](user-interface/2026-11-02-057-pages-are-stages-choose-get-watch.md) | accepted, amended 2026-11-03 |
+| 057 | 2026-11-02 | [Pages are stages: choose, get, watch](user-interface/2026-11-02-057-pages-are-stages-choose-get-watch.md) | accepted, amended 2026-11-18 |
 | 058 | 2026-11-05 | [Review → Identity is a bulk list matched by selection](user-interface/2026-11-05-058-review-identity-is-a-bulk-list.md) | accepted |
 | 059 | 2026-11-08 | [Behaviour never keys on the device](user-interface/2026-11-08-059-behaviour-never-keys-on-the-device.md) | accepted |
+| 060 | 2026-11-18 | [Search is the page; release search is a Downloads tab](user-interface/2026-11-18-060-search-is-the-page-release-search-is-a-downloads-tab.md) | accepted |

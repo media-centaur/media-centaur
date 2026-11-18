@@ -67,7 +67,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory; wraps a page's behavior in `withViewing` while the viewing layer is up |
 | `library_behavior.js` | Yes* | Library: CLEAR → the filter (returns `"grid"`), sort tracking |
 | `downloads_behavior.js` | Yes* | Downloads: CLEAR → the release search box, then the History search |
-| `discovery_behavior.js` | Yes* | Discovery: CLEAR → the media search box |
+| `search_behavior.js` | Yes* | Search: CLEAR → the media search box |
 | `watchlist_behavior.js` | Yes* | Watchlist: CLEAR → the search over the list |
 | `settings_behavior.js` | Yes | Settings: `activateOnFocus: ["sections"]` |
 | `guide_behavior.js` | Yes | Guide: `activateOnFocus: ["guide_chapters"]` |
@@ -75,7 +75,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `viewing_behavior.js` | Yes | `withViewing`: while `[data-viewing]` is on the page, keys become playback commands (see Viewing Layer) |
 | `wip_notice.js` | No | `withWipNotice`: flashes `[data-wip-notice]` on every action on a page whose navigation is unfinished |
 | `input_gate.js` | Yes | `gamepadInputAllowed()` — the gamepad drives the page only when it is focused, visible and not automation |
-| `omnibox_clear.js` | No | Shared clear for the search boxes Downloads and Discovery declare |
+| `omnibox_clear.js` | No | Shared clear for the search boxes Downloads and Search declare |
 | `controls_bridge.js` | No | Settings → Controls: one-shot capture of the next key or button (`controls:listen` → `controls:bind` / `controls:cancel`), and the hot swap of the sources' maps when the server pushes `controls:updated` |
 
 `assets/js/scroll_glider.js` (outside `input/`) holds the page's one scroll glide instance.
@@ -361,9 +361,9 @@ Answered before the type dispatch, the same in every column:
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-sub-item` | One of a row's controls: RIGHT steps onto it (TREE depth, MODAL sub-focus) | — |
 | `data-nav-grid` | CSS grid container (column count detection, literal `grid` zone only) | — |
-| `data-page-behavior` | Page behavior to activate, on the page root | `apps`, `discovery`, `downloads`, `episode-mapping`, `guide`, `library`, `profiles`, `review`, `settings`, `setup`, `social`, `status`, `watch-history`, `watchlist` (Home and Console carry none) |
+| `data-page-behavior` | Page behavior to activate, on the page root | `apps`, `search`, `downloads`, `episode-mapping`, `guide`, `library`, `profiles`, `review`, `settings`, `setup`, `social`, `status`, `watch-history`, `watchlist` (Home and Console carry none) |
 | `data-nav-default-zone` | The page's layout key, on the page root — every page declares one | `home`, `library`, `settings`, `downloads`, `social`, … (a key of `config.layouts`) |
-| `data-nav-transient-params` | On a page root: query params the remember script strips when saving the page's URL — overlay state and one-shot triggers, so leaving a section closes its modals | `title,entity,view,activity` (Downloads adds `selected`, `plan`, `prowlarr_search`) |
+| `data-nav-transient-params` | On a page root: query params the remember script strips when saving the page's URL — overlay state and one-shot triggers, so leaving a section closes its modals | `title,entity,view,activity` (Downloads adds `selected`, `plan`, and `zone` while its Release search tab shows, so the sidebar entry never reopens on the search) |
 | `data-entity-id` | Stable identifier on a card: grid memory, overlay origin, PLAY's target | UUID |
 | `data-sort` | Current sort order (Library): a change clears grid memory | string |
 | `data-detail-mode` | An open overlay. Set by `<.modal>` (while open with `on_close`), the plan and pursuit modals, the issue view, and the viewing layer's OSD and track menu | `modal` |

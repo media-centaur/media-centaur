@@ -56,7 +56,7 @@ The `_menuTransition()` handles all MENU instances. The primaryMenu gets special
 
 ### SHELF Behavior (spatial, unlike MENU)
 
-SHELF covers tiles laid out in space: the home shelves (`hero`, `continue`, `recently`, `coming_up`), Discovery's shelves, `people`, `profile_picker` and `detail_cast`. A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
+SHELF covers tiles laid out in space: the home shelves (`hero`, `continue`, `recently`, `coming_up`), Search's shelves, `people`, `profile_picker` and `detail_cast`. A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
 
 `_shelfTransition()` returns a plain `navigate` for all four directions and the orchestrator's `_shelfNavigate()` resolves them by asking, in order: **the layout** (`findNearest()` on live rects), **the nav graph** (cross into a neighbouring zone; empty shelves are skipped by the candidate fallback lists), then **the sequence** (left/right only — reading order, which is what carries you rightward from the marquee's top secondary to the one below it). UP and DOWN never fall through to the sequence: "the next tile" in a mosaic sits beside you, so a vertical press would move sideways. Keeping walls out of the state machine is what lets a row and a mosaic share one rule set.
 
@@ -93,7 +93,7 @@ BACK is answered by `_backTransition()` **before** the context-type dispatch —
 
 Adding a BACK case to a transition function is a smell: express it as containment instead.
 
-CLEAR delegates to page behavior `onClear()` in any page context, before `onAction`. Library (clears the filter and returns `"grid"`, which the cursor follows when the grid has items), Downloads (the release search, then the History search), Discovery (its search) and Watchlist (its search) implement it. An open overlay keeps CLEAR — and the tab keys — out: it covers the page. If no `onClear` exists, the action is dropped.
+CLEAR delegates to page behavior `onClear()` in any page context, before `onAction`. Library (clears the filter and returns `"grid"`, which the cursor follows when the grid has items), Downloads (the release search, then the History search), Search (its search) and Watchlist (its search) implement it. An open overlay keeps CLEAR — and the tab keys — out: it covers the page. If no `onClear` exists, the action is dropped.
 
 ZONE_NEXT/ZONE_PREV (`]` `[`, RB LB) are also answered before the type dispatch: from any page context they cycle the page's `zone-tabs` strip.
 
@@ -141,7 +141,7 @@ Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transien
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) |
 | `data-nav-sub-item` | One of a row's controls — RIGHT steps onto it |
 | `data-nav-grid` | CSS grid container (column count, literal `grid` zone) |
-| `data-page-behavior` | Page behavior, on the page root: `apps`, `discovery`, `downloads`, `episode-mapping`, `guide`, `library`, `profiles`, `review`, `settings`, `setup`, `social`, `status`, `watch-history`, `watchlist` (Home and Console carry none) |
+| `data-page-behavior` | Page behavior, on the page root: `apps`, `search`, `downloads`, `episode-mapping`, `guide`, `library`, `profiles`, `review`, `settings`, `setup`, `social`, `status`, `watch-history`, `watchlist` (Home and Console carry none) |
 | `data-nav-default-zone` | The page's layout key, on the page root — every page |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation (`<.sidebar_link remember>`) |
 | `data-nav-transient-params` | On a page root: params stripped from the remembered URL (modal state, one-shot triggers) |

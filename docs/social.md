@@ -373,7 +373,7 @@ disagree with the owner about what a message meant.
 
 `MediaCentaurWeb.SocialLive` is the Social page (UIDR-051): one LiveView with a
 `live_action` per tab (`:feed` at `/social`, `:friends` at `/social/friends`). The watchlist
-is drawn on Discovery by release stage (UIDR-050, amended 2026-11-02).
+is drawn on Search by release stage (UIDR-050, amended 2026-11-02).
 
 A person is drawn from one read model everywhere, `Social.Person`
 (ADR-074): the reader's name for the person (`name_override`, optional),
@@ -463,8 +463,8 @@ project one enriched list — every live activity with its actor
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
   (`Watchlist.rungs/0`) and the acquisition state, then both
   projections read from that one list.
-- **Watchlist tiles** — on Discovery's Out Now shelf and its Watchlist
-  grouped row (`DiscoveryLive.Shelves`); the glyph pill comes from
+- **Watchlist tiles** — on Search's Out Now shelf and its Watchlist
+  grouped row (`SearchLive.Shelves`); the glyph pill comes from
   `Activities.activity_for/1` like every title surface's.
 
 Settings → Social (`SettingsLive.SocialSection`) is four cards. **Social

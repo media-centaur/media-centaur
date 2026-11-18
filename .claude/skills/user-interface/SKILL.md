@@ -37,7 +37,7 @@ Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 <img src={@hero.backdrop_url} loading="eager" decoding="sync" fetchpriority="high" />
 ```
 
-**Exception — the hero backdrop of an assembled page**, Home and Discovery, the app's two page-artwork surfaces ([UIDR-033], amended 2026-11-01): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache of two slots that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
+**Exception — the hero backdrop of an assembled page**, Home and Search, the app's two page-artwork surfaces ([UIDR-033], amended 2026-11-01): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache of two slots that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
 
 **Every other page carries the scrim only** — `.page-side-dim`, or `.page-side-dim-calm` on pages sparse enough that the standard ramp reads as a band (Settings, Status, Downloads). A page shows artwork when the artwork *is* the page's subject; decorative bands of an unrelated title are removed and don't come back ([UIDR-033]).
 
@@ -323,7 +323,7 @@ Fixed left, a 52px icon rail. It never expands and has no toggle.
 - What waits: `count` draws the follow-up pill (primary, a 14px chip at the box's corner) and `condition` the red dot at the icon (UIDR-030)
 - Labels: the tip, shown beside the rail by the Tooltip hook on hover and on keyboard/gamepad focus
 - Groups: two named `<nav>`s. Watch at the top; System (`.sidebar-group-system`) pinned to the bottom, the space between them the group marker
-- The compact shell (below): the entries with a `compact` name are the bottom bar of a phone-width window; the rest are not drawn there. Which entries carry one is the product's call (watch + choose: Home, Library, Discovery, Social, the profile switcher).
+- The compact shell (below): the entries with a `compact` name are the bottom bar of a phone-width window; the rest are not drawn there. Which entries carry one is the product's call (watch + choose: Home, Library, Search, Social, the profile switcher).
 
 ### The compact shell and touch sizing (`campaigns/adaptive-layout.md`)
 
@@ -484,10 +484,10 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `disclosure/1` | `disclosure.ex` | The one disclosure: a head over a body, owned by the LiveView — `open` from `Live.DisclosureState` (no handler) or the host's own state and `event`; `:quiet` / `:panel` / `:bare`. Never a native `<details>`: a patch closes it | ✅ |
 | `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards (a `scroll_row/1` tenant) |
-| `hero_card/1` | `hero_card.ex` | The assembled page's hero: lockup or name, meta line, overview, and the page's actions in its `actions` slot — Home's Play and More info, Discovery's Add to watchlist, Download and More info; the pick rotates through `HeroRotation` | ✅ |
-| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf (a `scroll_row/1` tenant): Home's Recently Added over library entities, Discovery's shelves over TMDB identities (`Item.ref`), with the quiet marker chip, a date chip, the social glyphs' pill and the hover toolbar (`Item.slots`: bookmark, Download, Ignore — the title detail host's `title_list` / `title_download` / `title_ignore`) | ✅ |
-| `grouped_poster_row/1` | `poster_row.ex` | One scroll row of labelled groups of poster tiles with a hairline between them, one nav zone — Discovery's Watchlist shelf (In Theaters · Coming Up) | ✅ |
-| `shelf_head/1` | `shelf_head.ex` | The line above a shelf on an assembled page: the title and *See all* when the shelf has a page of its own (Home, Discovery) | ✅ |
+| `hero_card/1` | `hero_card.ex` | The assembled page's hero: lockup or name, meta line, overview, and the page's actions in its `actions` slot — Home's Play and More info, Search's Add to watchlist, Download and More info; the pick rotates through `HeroRotation` | ✅ |
+| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf (a `scroll_row/1` tenant): Home's Recently Added over library entities, Search's shelves over TMDB identities (`Item.ref`), with the quiet marker chip, a date chip, the social glyphs' pill and the hover toolbar (`Item.slots`: bookmark, Download, Ignore — the title detail host's `title_list` / `title_download` / `title_ignore`) | ✅ |
+| `grouped_poster_row/1` | `poster_row.ex` | One scroll row of labelled groups of poster tiles with a hairline between them, one nav zone — Search's Watchlist shelf (In Theaters · Coming Up) | ✅ |
+| `shelf_head/1` | `shelf_head.ex` | The line above a shelf on an assembled page: the title and *See all* when the shelf has a page of its own (Home, Search) | ✅ |
 | `scroll_row/1` | `scroll_row.ex` | A scrolling track with its edge arrows — the mouse user's way along Home's rows and the collection rail; a pointer affordance like the play overlay, drawn with `.picture-button` | ✅ |
 | `detail_panel/1` | `detail_panel.ex` | The title detail modal (CinematicShell tenant) for an owned or an unowned title, over `Title.Detail` + `Title.ModalState`; `detail/` holds its sub-views (Manage panel, seasons) | ✅ |
 | `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system, UIDR-021) |
@@ -525,11 +525,11 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dow
 | **Home** | `/` | Hero + Continue Watching + shelves (UIDR-010) |
 | **Profiles** | `/profiles` | Who's watching? (UIDR-053) |
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
-| **Downloads** | `/downloads` | The *get* stage (UIDR-057; UIDR-015 amended): the release search box (`DownloadsLive.Search`), the Activity and History tabs, the plan and pursuit modals; a diagnosed empty page without Prowlarr |
+| **Downloads** | `/downloads` | The *get* stage (UIDR-057; UIDR-015 amended): three tabs — Activity, History and Release search (`DownloadsLive.Search`: the field, the note pointing to media search, the results; UIDR-060) — and the plan and pursuit modals; a diagnosed empty page without Prowlarr |
 | **History** | `/history` | Watch history |
 | **Social** | `/social`, `/social/friends` | Feed, friends — the Social feature (ADR-081); its off state while off |
 | **Apps** | `/apps` | App launcher — the Apps feature; its off state while off |
-| **Discovery** | `/discovery` | The page for titles you do not own yet, built like Home: media search (`Live.MediaSearch`, UIDR-014 amended) over a hero from the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/discovery.md`); the *choose* stage (UIDR-057); an optional feature (ADR-081), on by default, its off state while off |
+| **Search** | `/search` | The page for titles you do not own yet, built like Home: media search (`Live.MediaSearch`, UIDR-014 amended) over a hero from the New Releases shelf's top five with the page backdrop (UIDR-033, amended), then Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row (`campaigns/search.md`); the *choose* stage (UIDR-057); an optional feature (ADR-081), on by default, its off state while off |
 | **Watchlist** | `/watchlist` | The inventory of every title intent by rung — Auto-grab, Tracking, On your list, Ignored — each row with its state block and the rung changed in place (`Components.Watchlist.Row`, UIDR-050 amended); a side view (UIDR-057 amended), not a feature, so ungated |
 | **Review** | `/review` | Identity: the bulk list of files waiting for a title, matched by selection (UIDR-058) |
 | **Episode mapping** | `/episode-mapping` | Episode-mapping review (Review tab) |
@@ -539,7 +539,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dow
 | **Guide** | `/guide`, `/guide/:slug` | In-app guide book |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Discovery, Social and Downloads `use` for it (UIDR-043).
+`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Search, Social and Downloads `use` for it (UIDR-043).
 
 ## Anti-Patterns
 
