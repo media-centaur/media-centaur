@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.18.1 — 2026-11-18
+
+### Fixed
+
+- **Artwork is no longer lost for titles added while artwork downloads are off.** A movie or episode imported while Settings had artwork downloads turned off used to get no poster, backdrop or logo, and turning downloads back on did not bring it back. The artwork now waits and downloads once you turn artwork downloads on again.
+- **A security fix in the web server.** An update to the component that handles uploads closes a reported weakness in how it limits the size of an upload.
+
 ## v2.18.0 — 2026-11-17
 
 ### Improved
