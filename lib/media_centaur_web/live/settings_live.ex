@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     },
     %{
       id: "local-api",
-      label: "Local API",
+      label: "Local Downloads API",
       group: :general,
       feature: :local_api,
       description: "Search and start downloads from scripts and agents on your network."

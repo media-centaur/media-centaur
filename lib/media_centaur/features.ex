@@ -70,6 +70,15 @@ defmodule MediaCentaur.Features do
       stage: :optional
     },
     %Feature{
+      id: :local_api,
+      name: "Local Downloads API",
+      description:
+        "A JSON API for scripts and agents on your network to find, download and follow films and series.",
+      default: false,
+      stage: :optional,
+      requires: :acquisition
+    },
+    %Feature{
       id: :new_releases,
       name: "New releases on Search",
       description: "Regularly fetches new film releases for the search page's New Release shelf.",
@@ -82,15 +91,6 @@ defmodule MediaCentaur.Features do
       description: "A launcher for Steam games and other programs outside your library.",
       default: false,
       stage: :optional
-    },
-    %Feature{
-      id: :local_api,
-      name: "Local API",
-      description:
-        "A JSON API for scripts and agents on your network to find, download and follow films and series.",
-      default: false,
-      stage: :optional,
-      requires: :acquisition
     }
   ]
 

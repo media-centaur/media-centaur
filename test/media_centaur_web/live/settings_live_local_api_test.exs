@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.SettingsLiveLocalApiTest do
     {:ok, view, _html} = live_async!(conn, @section)
 
     refute has_element?(view, "#generate-api-key")
-    assert render(view) =~ "Local API is off"
+    assert render(view) =~ "Local Downloads API is off"
   end
 
   describe "while the feature is on" do
