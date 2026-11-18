@@ -2,12 +2,11 @@ defmodule MediaCentaurWeb.DownloadsLive do
   @moduledoc """
   The Downloads page at `/downloads` (UIDR-015, amended 2026-11-02): the
   *get* stage of a title's life (UIDR-057) — release search, download
-  plans, the pursuits in flight and the history of what landed. The
-  release search box is the standing front door (`Search.search_box/1`,
-  the `omnibox` nav zone); below it, zone tabs (`?zone=`) split the
-  content into two calm views — **Activity** (default) and **History**.
-  While a search owns the page (`Logic.search_owns_page?/1`) the tabs and
-  their content recede behind the flat results. The sections, by tab:
+  plans, the pursuits in flight and the history of what landed. Zone
+  tabs (`?zone=`) split the page into three views — **Activity**
+  (default), **History** and **Release search** (UIDR-060). One tab's
+  content renders at a time, and nothing hides the tab row. The
+  sections, by tab:
 
   **Activity** — draft plans (`"drafts"`, resumable into the plan
   modal); **In flight** (`"pursuits"`): every live pursuit paired at
@@ -18,6 +17,13 @@ defmodule MediaCentaurWeb.DownloadsLive do
   **History** — the archive (`"ledger"`), THE history surface, always
   open: lifecycle filter chips (All default) + title/release search
   over the grouped terminal rows, with the calm storage foot line.
+
+  **Release search** — the Prowlarr release search (`Search.search_box/1`,
+  the `omnibox` nav zone, and `Search.search_zone/1`, its results), with
+  the note that points to media search on the Search page. The session
+  is `SearchSession`'s, so it survives a tab switch. The sidebar never
+  remembers this tab: `zone` is a transient param while it shows, so the
+  page's entry reopens on the download list.
 
   No capability gate on mount: without Prowlarr the page renders its
   diagnosed empty state (UIDR-034) — searching and downloading need
@@ -404,8 +410,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
   end
 
   # `?search=…` / `?filter=…` restore the archive's filter state (the
-  # pursuit-modal path helper always carries them). `?prowlarr_search=…`
-  # pre-fills the release-search box and auto-fires the search.
+  # pursuit-modal path helper always carries them).
   @impl true
   def handle_params(params, _uri, socket) do
     was_loaded? = socket.assigns.loaded?
@@ -424,7 +429,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
       |> assign_zone(params)
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
-      |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
   end
@@ -481,7 +485,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
     params =
       if socket.assigns.zone == :activity,
         do: params,
-        else: Map.put(params, "zone", to_string(socket.assigns.zone))
+        else: Map.put(params, "zone", Logic.zone_param(socket.assigns.zone))
 
     case URI.encode_query(params) do
       "" -> "/downloads"
@@ -496,7 +500,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
     base = %{
       "search" => socket.assigns.history_search,
       "filter" => to_string(socket.assigns.history_filter),
-      "zone" => if(socket.assigns.zone != :activity, do: to_string(socket.assigns.zone))
+      "zone" => Logic.zone_param(socket.assigns.zone)
     }
 
     merged =
@@ -517,23 +521,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
       {k, v} -> {k, v}
     end)
   end
-
-  # Pre-fill + auto-fire — same code path as the user submitting the
-  # search form by hand. No-op when the param is absent or only whitespace.
-  defp maybe_trigger_prowlarr_search(socket, query) when is_binary(query) do
-    case String.trim(query) do
-      "" ->
-        socket
-
-      trimmed ->
-        case SearchSession.start_search(trimmed) do
-          {:ok, _started} -> socket
-          {:error, _} -> socket
-        end
-    end
-  end
-
-  defp maybe_trigger_prowlarr_search(socket, _), do: socket
 
   @impl true
   def render(assigns) do
@@ -584,13 +571,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
       |> Phoenix.Component.assign(
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
-      )
-      # While a search owns the page (a release query or its results) the
-      # tab bar and the active zone's content recede; without an indexer
-      # there is no zone content at all, only the gap state.
-      |> Phoenix.Component.assign(
-        :zone_content?,
-        assigns.prowlarr_ready and not Logic.search_owns_page?(assigns.search_session)
       )
       # Honest empty tabs: one quiet line instead of a void. Activity is
       # empty when none of its sections (drafts, in-flight, other
@@ -655,7 +635,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
         class="relative"
         data-page-behavior="downloads"
         data-nav-default-zone="downloads"
-        data-nav-transient-params="selected,title,entity,view,activity,plan,prowlarr_search"
+        data-nav-transient-params={Logic.transient_params(@zone)}
       >
         <%!-- The calm ramp gives this search-first page the same quiet depth
               as Settings/Status: it opens on a bare input with no dense block
@@ -691,29 +671,13 @@ defmodule MediaCentaurWeb.DownloadsLive do
             </:action>
           </.empty_state>
 
-          <Search.search_box
-            :if={@prowlarr_ready}
-            session={@search_session}
-            any_loading?={@any_loading?}
-          />
-
-          <%!-- The search answers flat, in the page (UIDR-014): the result
-                groups below the box. No floating overlays — clearing the
-                query is the one dismissal. --%>
-          <Search.search_zone
-            :if={@prowlarr_ready}
-            session={@search_session}
-            any_loading?={@any_loading?}
-            timeout_terms={@timeout_terms}
-          />
-
-          <%!-- Zone tabs (UIDR-015): the page's two calm views, receded
-                while a search owns the page, like everything below the
-                search box. --%>
+          <%!-- Zone tabs (UIDR-015, UIDR-060): the page's three views. The
+                row always shows while Prowlarr is ready; one tab's content
+                renders at a time. --%>
           <div
-            :if={@zone_content?}
+            :if={@prowlarr_ready}
             data-nav-zone="zone-tabs"
-            class="flex items-center justify-center gap-8 pt-16"
+            class="flex items-center justify-center gap-8 max-compact:gap-2"
           >
             <.zone_tab
               zone={:activity}
@@ -722,6 +686,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
               count={length(@download_cards) + length(@active_compact)}
             />
             <.zone_tab zone={:history} active_zone={@zone} label="History" />
+            <.zone_tab zone={:release_search} active_zone={@zone} label="Release search" />
 
             <%!-- Heads up rides the tab row as its quiet third slot
                   (UIDR-016): one severity-tinted glyph next to the tabs
@@ -737,8 +702,25 @@ defmodule MediaCentaurWeb.DownloadsLive do
             />
           </div>
 
+          <Search.search_box
+            :if={@prowlarr_ready && @zone == :release_search}
+            session={@search_session}
+            any_loading?={@any_loading?}
+            media_search?={:discovery in @features}
+          />
+
+          <%!-- The search answers flat, in its tab (UIDR-014, UIDR-060): the
+                result groups below the box. No floating overlays — clearing
+                the query is the one dismissal. --%>
+          <Search.search_zone
+            :if={@prowlarr_ready && @zone == :release_search}
+            session={@search_session}
+            any_loading?={@any_loading?}
+            timeout_terms={@timeout_terms}
+          />
+
           <section
-            :if={@view.drafts != [] && @zone_content? && @zone == :activity}
+            :if={@view.drafts != [] && @prowlarr_ready && @zone == :activity}
             data-nav-zone="drafts"
             class="space-y-3"
           >
@@ -797,7 +779,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           </section>
 
           <p
-            :if={@zone_content? and !@download_client_ready and @zone == :activity}
+            :if={@prowlarr_ready and !@download_client_ready and @zone == :activity}
             class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/55"
           >
             Connect a download client in
@@ -808,7 +790,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           </p>
 
           <section
-            :if={@paired_rows != [] && @zone_content? && @zone == :activity}
+            :if={@paired_rows != [] && @prowlarr_ready && @zone == :activity}
             data-nav-zone="pursuits"
             class="space-y-3"
           >
@@ -847,7 +829,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           </section>
 
           <Ledger.ledger
-            :if={@zone_content? && @zone == :history}
+            :if={@prowlarr_ready && @zone == :history}
             sections={@history_sections}
             filter={@history_filter}
             search={@history_search}
@@ -856,17 +838,20 @@ defmodule MediaCentaurWeb.DownloadsLive do
           />
 
           <OrphanQueue.orphan_zone
-            :if={@zone_content? && @zone == :activity}
+            :if={@prowlarr_ready && @zone == :activity}
             items={@orphan_queue}
             cancel_armed_id={ArmGesture.armed_target(@armed_gesture, "cancel_download")}
           />
 
           <p
-            :if={@zone_content? && @zone == :activity && @activity_empty?}
+            :if={@prowlarr_ready && @zone == :activity && @activity_empty?}
             data-component="zone-empty"
             class="py-10 text-center text-sm text-base-content/55"
           >
             Nothing in flight — approved plans and their downloads appear here.
+            <span :if={:discovery in @features}>
+              Find something to watch on <.link navigate={~p"/search"} class="link link-primary">Search</.link>.
+            </span>
           </p>
         </div>
       </div>
@@ -874,7 +859,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
     """
   end
 
-  attr :zone, :atom, required: true, values: [:activity, :history]
+  attr :zone, :atom, required: true, values: [:activity, :history, :release_search]
   attr :active_zone, :atom, required: true, doc: "The page's current zone — styles the active tab."
   attr :label, :string, required: true
 
@@ -890,7 +875,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
           `downloads` layout — the candidate lists route around whichever
           zones the active tab renders. --%>
     <a
-      class={["zone-tab", @zone == @active_zone && "zone-tab-active"]}
+      class={["zone-tab whitespace-nowrap", @zone == @active_zone && "zone-tab-active"]}
       data-nav-item
       tabindex="0"
       phx-click="switch_zone"
@@ -977,8 +962,9 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
   # Zone-tab switching is a URL patch (UIDR-015) — the default zone
   # keeps a clean URL so data-nav-remember doesn't pin a stale param.
-  def handle_event("switch_zone", %{"zone" => zone}, socket) when zone in ~w(activity history) do
-    {:noreply, push_patch(socket, to: Logic.zone_path(Logic.parse_zone(zone)))}
+  def handle_event("switch_zone", %{"zone" => zone}, socket)
+      when zone in ~w(activity history release_search) do
+    {:noreply, push_patch(socket, to: Logic.zone_path(String.to_existing_atom(zone)))}
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do

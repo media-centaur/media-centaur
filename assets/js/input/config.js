@@ -528,25 +528,24 @@ export const inputConfig = {
       "episode-mapping-detail":  { up: ["episode-mapping-actions", "zone_tabs"], left: ["episode-mapping-list"] },
       sidebar:                   { right: ["episode-mapping-list", "episode-mapping-actions", "episode-mapping-detail", "zone_tabs"] },
     },
-    // Downloads: the release search box on top, then the zone tabs
-    // (Activity | History) — one tab's content renders at a time, so the
-    // candidate lists do the routing: Activity shows drafts → pursuits →
-    // other_downloads; History shows its toolbar (chips + search) over the
-    // ledger's rows.
-    // While a search owns the page the tabs recede and only "grid" (the
-    // result groups, carrying their own Clear) sits below the box. The
-    // History toolbar renders with the tab, so the archive stays reachable
-    // when a filter empties the ledger.
+    // Downloads: the zone tabs (Activity | History | Release search) on
+    // top — one tab's content renders at a time, so the candidate lists
+    // do the routing: Activity shows drafts → pursuits → other_downloads;
+    // History shows its toolbar (chips + search) over the ledger's rows;
+    // Release search shows the search box ("omnibox": the field, its
+    // Clear, the note's link) over "grid" (the result groups). The
+    // History toolbar renders with the tab, so the archive stays
+    // reachable when a filter empties the ledger.
     downloads: {
-      omnibox:         { down: ["grid", "zone_tabs", "drafts", "pursuits", "toolbar", "ledger"] },
+      zone_tabs:       { down: ["drafts", "pursuits", "toolbar", "ledger", "other_downloads", "omnibox"] },
+      omnibox:         { up: ["zone_tabs"], down: ["grid"] },
       grid:            { up: ["omnibox"] },
-      zone_tabs:       { up: ["omnibox"], down: ["drafts", "pursuits", "toolbar", "ledger", "other_downloads"] },
-      drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"] },
-      pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"] },
+      drafts:          { up: ["zone_tabs"], down: ["pursuits", "other_downloads"] },
+      pursuits:        { up: ["drafts", "zone_tabs"], down: ["other_downloads"] },
       // History: the filter chips and the search, one horizontal row, over
       // the ledger's rows.
-      toolbar:         { up: ["zone_tabs", "omnibox"], down: ["ledger"] },
-      ledger:          { up: ["toolbar", "zone_tabs", "omnibox"] },
+      toolbar:         { up: ["zone_tabs"], down: ["ledger"] },
+      ledger:          { up: ["toolbar", "zone_tabs"] },
       other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
       sidebar:         { right: ["pursuits", "ledger", "toolbar", "zone_tabs", "omnibox"] },
     },

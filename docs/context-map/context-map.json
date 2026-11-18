@@ -332,32 +332,34 @@
             {
               "name": "status",
               "reads": {
-                "MediaCentaur.Acquisition": 43,
-                "web": 6
+                "MediaCentaur.Acquisition": 44,
+                "web": 9
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 5,
+                "web": 2
               }
             },
             {
               "name": "tmdb_id",
               "reads": {
-                "MediaCentaur.Acquisition": 26,
-                "web": 4
+                "MediaCentaur.Acquisition": 32,
+                "web": 5
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 6
+                "MediaCentaur.Acquisition": 6,
+                "web": 1
               }
             },
             {
               "name": "tmdb_type",
               "reads": {
-                "MediaCentaur.Acquisition": 27,
-                "web": 3
+                "MediaCentaur.Acquisition": 29,
+                "web": 4
               },
               "type": ":string",
               "values": null,
@@ -369,23 +371,26 @@
               "name": "title",
               "reads": {
                 "MediaCentaur.Acquisition": 35,
-                "web": 7
+                "web": 8
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 12
+                "MediaCentaur.Acquisition": 12,
+                "web": 2
               }
             },
             {
               "name": "year",
               "reads": {
-                "MediaCentaur.Acquisition": 4
+                "MediaCentaur.Acquisition": 4,
+                "web": 1
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 4
+                "MediaCentaur.Acquisition": 4,
+                "web": 1
               }
             },
             {
@@ -457,24 +462,27 @@
             {
               "name": "pursuit_id",
               "reads": {
-                "MediaCentaur.Acquisition": 7
+                "MediaCentaur.Acquisition": 7,
+                "web": 1
               },
               "type": "Ecto.UUID",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 2
+                "MediaCentaur.Acquisition": 2,
+                "web": 1
               }
             },
             {
               "name": "error",
               "reads": {
                 "MediaCentaur.Acquisition": 1,
-                "web": 8
+                "web": 9
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 1
+                "MediaCentaur.Acquisition": 1,
+                "web": 1
               }
             },
             {
@@ -502,15 +510,15 @@
             {
               "name": "approval_policy",
               "reads": {
-                "MediaCentaur.Acquisition": 11,
+                "MediaCentaur.Acquisition": 13,
                 "MediaCentaur.ReleaseTracking": 1,
-                "web": 6
+                "web": 9
               },
               "type": ":string",
               "values": null,
               "writes": {
                 "MediaCentaur.Acquisition": 5,
-                "web": 3
+                "web": 4
               }
             }
           ],
@@ -535,29 +543,33 @@
             {
               "name": "season_number",
               "reads": {
-                "MediaCentaur.Acquisition": 22
+                "MediaCentaur.Acquisition": 23,
+                "web": 1
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 7
+                "MediaCentaur.Acquisition": 7,
+                "web": 1
               }
             },
             {
               "name": "episode_number",
               "reads": {
-                "MediaCentaur.Acquisition": 22
+                "MediaCentaur.Acquisition": 23,
+                "web": 1
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 6
+                "MediaCentaur.Acquisition": 6,
+                "web": 1
               }
             },
             {
               "name": "air_date",
               "reads": {
-                "MediaCentaur.Acquisition": 4
+                "MediaCentaur.Acquisition": 5
               },
               "type": ":date",
               "values": null,
@@ -568,12 +580,14 @@
             {
               "name": "label",
               "reads": {
-                "MediaCentaur.Acquisition": 6
+                "MediaCentaur.Acquisition": 6,
+                "web": 1
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 5,
+                "web": 1
               }
             },
             {
@@ -590,18 +604,21 @@
             {
               "name": "status",
               "reads": {
-                "MediaCentaur.Acquisition": 36
+                "MediaCentaur.Acquisition": 36,
+                "web": 3
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 5,
+                "web": 2
               }
             },
             {
               "name": "assigned_guid",
               "reads": {
-                "MediaCentaur.Acquisition": 7
+                "MediaCentaur.Acquisition": 7,
+                "web": 2
               },
               "type": ":string",
               "values": null,
@@ -612,7 +629,8 @@
             {
               "name": "assigned_title",
               "reads": {
-                "MediaCentaur.Acquisition": 3
+                "MediaCentaur.Acquisition": 3,
+                "web": 2
               },
               "type": ":string",
               "values": null,
@@ -645,7 +663,8 @@
             {
               "name": "assigned_seeders",
               "reads": {
-                "MediaCentaur.Acquisition": 2
+                "MediaCentaur.Acquisition": 2,
+                "web": 1
               },
               "type": ":integer",
               "values": null,
@@ -667,7 +686,8 @@
             {
               "name": "assigned_size_bytes",
               "reads": {
-                "MediaCentaur.Acquisition": 1
+                "MediaCentaur.Acquisition": 1,
+                "web": 1
               },
               "type": ":integer",
               "values": null,
@@ -689,7 +709,7 @@
             {
               "name": "offered_guid",
               "reads": {
-                "MediaCentaur.Acquisition": 4
+                "MediaCentaur.Acquisition": 2
               },
               "type": ":string",
               "values": null,
@@ -733,7 +753,7 @@
             {
               "name": "below_floor_count",
               "reads": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 3
               },
               "type": ":integer",
               "values": null,
@@ -742,7 +762,7 @@
             {
               "name": "excluded_release_guids",
               "reads": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 6
               },
               "type": "{:array, :string}",
               "values": null,
@@ -833,24 +853,27 @@
             {
               "name": "state",
               "reads": {
-                "MediaCentaur.Acquisition": 61,
-                "web": 2
+                "MediaCentaur.Acquisition": 62,
+                "web": 8
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 7,
+                "web": 4
               }
             },
             {
               "name": "origin",
               "reads": {
-                "MediaCentaur.Acquisition": 18
+                "MediaCentaur.Acquisition": 18,
+                "web": 1
               },
               "type": ":string",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 9
+                "MediaCentaur.Acquisition": 9,
+                "web": 1
               }
             },
             {
@@ -867,7 +890,7 @@
             {
               "name": "tmdb_id",
               "reads": {
-                "MediaCentaur.Acquisition": 40,
+                "MediaCentaur.Acquisition": 46,
                 "web": 3
               },
               "type": ":string",
@@ -879,7 +902,7 @@
             {
               "name": "tmdb_type",
               "reads": {
-                "MediaCentaur.Acquisition": 38,
+                "MediaCentaur.Acquisition": 40,
                 "web": 2
               },
               "type": ":string",
@@ -902,23 +925,27 @@
             {
               "name": "season_number",
               "reads": {
-                "MediaCentaur.Acquisition": 28
+                "MediaCentaur.Acquisition": 28,
+                "web": 2
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 10
+                "MediaCentaur.Acquisition": 10,
+                "web": 2
               }
             },
             {
               "name": "episode_number",
               "reads": {
-                "MediaCentaur.Acquisition": 27
+                "MediaCentaur.Acquisition": 27,
+                "web": 2
               },
               "type": ":integer",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 9
+                "MediaCentaur.Acquisition": 9,
+                "web": 2
               }
             },
             {
@@ -979,14 +1006,14 @@
             {
               "name": "title",
               "reads": {
-                "MediaCentaur.Acquisition": 70,
-                "web": 6
+                "MediaCentaur.Acquisition": 71,
+                "web": 9
               },
               "type": ":string",
               "values": null,
               "writes": {
                 "MediaCentaur.Acquisition": 14,
-                "web": 1
+                "web": 4
               }
             },
             {
@@ -1118,7 +1145,8 @@
             {
               "name": "current_target_id",
               "reads": {
-                "MediaCentaur.Acquisition": 24
+                "MediaCentaur.Acquisition": 24,
+                "web": 1
               },
               "type": "Ecto.UUID",
               "values": null,
@@ -1147,7 +1175,8 @@
             {
               "name": "awaiting_decision_at",
               "reads": {
-                "MediaCentaur.Acquisition": 5
+                "MediaCentaur.Acquisition": 5,
+                "web": 1
               },
               "type": ":utc_datetime",
               "values": null,
@@ -1169,13 +1198,13 @@
               "type": "Ecto.UUID",
               "values": null,
               "writes": {
-                "MediaCentaur.Acquisition": 17
+                "MediaCentaur.Acquisition": 18
               }
             },
             {
               "name": "title",
               "reads": {
-                "MediaCentaur.Acquisition": 42
+                "MediaCentaur.Acquisition": 43
               },
               "type": ":string",
               "values": null,
@@ -1291,7 +1320,8 @@
             {
               "name": "prowlarr_guid",
               "reads": {
-                "MediaCentaur.Acquisition": 2
+                "MediaCentaur.Acquisition": 2,
+                "web": 1
               },
               "type": ":string",
               "values": null,
@@ -1419,7 +1449,7 @@
             {
               "name": "tmdb_id",
               "reads": {
-                "MediaCentaur.Acquisition": 14,
+                "MediaCentaur.Acquisition": 18,
                 "web": 6
               },
               "type": ":integer",
@@ -1431,7 +1461,7 @@
             {
               "name": "media_type",
               "reads": {
-                "MediaCentaur.Acquisition": 5,
+                "MediaCentaur.Acquisition": 8,
                 "web": 10
               },
               "type": "Ecto.Enum",
@@ -5149,7 +5179,9 @@
               },
               "type": ":boolean",
               "values": null,
-              "writes": {}
+              "writes": {
+                "web": 1
+              }
             },
             {
               "name": "in_library_at",
@@ -6442,7 +6474,7 @@
             {
               "name": "tmdb_id",
               "reads": {
-                "MediaCentaur.Acquisition": 15,
+                "MediaCentaur.Acquisition": 19,
                 "MediaCentaur.Activities": 14,
                 "MediaCentaur.ReleaseTracking": 43,
                 "MediaCentaur.TMDB": 19,
@@ -6464,7 +6496,7 @@
             {
               "name": "media_type",
               "reads": {
-                "MediaCentaur.Acquisition": 3,
+                "MediaCentaur.Acquisition": 6,
                 "MediaCentaur.Activities": 21,
                 "MediaCentaur.ReleaseTracking": 42,
                 "MediaCentaur.TMDB": 10,
@@ -6525,13 +6557,13 @@
             {
               "name": "release_date",
               "reads": {
-                "web": 2
+                "web": 3
               },
               "type": ":date",
               "values": null,
               "writes": {
                 "MediaCentaur.Activities": 1,
-                "web": 1
+                "web": 2
               }
             },
             {
@@ -7262,13 +7294,101 @@
       "rule": "R1",
       "schema": "MediaCentaur.Acquisition.DownloadParams",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|episode_number||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "episode_number: unit.episode_number,",
+      "field": "episode_number",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|episode_number||foreign_write::web",
+      "line": 27,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.PlanUnit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|label||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "label: unit.label,",
+      "field": "label",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|label||foreign_write::web",
+      "line": 28,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.PlanUnit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|season_number||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "season_number: unit.season_number,",
+      "field": "season_number",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|season_number||foreign_write::web",
+      "line": 26,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.PlanUnit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|status||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "status: plan.status,",
+      "field": "status",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.PlanUnit|status||foreign_write::web",
+      "line": 11,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.PlanUnit",
+      "surfaces": [],
       "value": null,
       "verdict": null,
       "verdict_key": null
@@ -7276,30 +7396,241 @@
     {
       "anchored": true,
       "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|approval_policy||*",
-      "consumer": "MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
       "consumer_context": "web",
       "detail": {
         "kind": "foreign_write"
       },
-      "excerpt": "approval_policy: String.t()",
+      "excerpt": "approval_policy: plan.approval_policy,",
       "field": "approval_policy",
-      "file": "lib/media_centaur_web/components/release_tracking/tracking_detail.ex",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
       "key": "R1|MediaCentaur.Acquisition.Plans.Plan|approval_policy||foreign_write::web",
-      "line": 62,
+      "line": 12,
       "owner": "MediaCentaur.Acquisition",
       "reason": null,
       "rule": "R1",
       "schema": "MediaCentaur.Acquisition.Plans.Plan",
-      "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
-        "MediaCentaurWeb.DownloadsLive",
-        "MediaCentaurWeb.HomeLive",
-        "MediaCentaurWeb.LibraryLive",
-        "MediaCentaurWeb.SettingsLive",
-        "MediaCentaurWeb.SocialLive",
-        "MediaCentaurWeb.StatusLive",
-        "MediaCentaurWeb.WatchlistLive"
-      ],
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|error||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "error: plan.error,",
+      "field": "error",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|error||foreign_write::web",
+      "line": 18,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|pursuit_id||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "pursuit_id: plan.pursuit_id,",
+      "field": "pursuit_id",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|pursuit_id||foreign_write::web",
+      "line": 17,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|status||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "status: plan.status,",
+      "field": "status",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|status||foreign_write::web",
+      "line": 11,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|title||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "title: plan.title,",
+      "field": "title",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|title||foreign_write::web",
+      "line": 15,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|tmdb_id||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "tmdb_id: String.to_integer(plan.tmdb_id),",
+      "field": "tmdb_id",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|tmdb_id||foreign_write::web",
+      "line": 13,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Plans.Plan|year||*",
+      "consumer": "MediaCentaurWeb.Api.PlanJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "year: plan.year,",
+      "field": "year",
+      "file": "lib/media_centaur_web/controllers/api/plan_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Plans.Plan|year||foreign_write::web",
+      "line": 16,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Plans.Plan",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|episode_number||*",
+      "consumer": "MediaCentaurWeb.Api.PursuitJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "episode_number: row.episode_number,",
+      "field": "episode_number",
+      "file": "lib/media_centaur_web/controllers/api/pursuit_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|episode_number||foreign_write::web",
+      "line": 16,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Pursuits.Pursuit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|origin||*",
+      "consumer": "MediaCentaurWeb.Api.PursuitJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "origin: status.origin,",
+      "field": "origin",
+      "file": "lib/media_centaur_web/controllers/api/pursuit_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|origin||foreign_write::web",
+      "line": 32,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Pursuits.Pursuit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|season_number||*",
+      "consumer": "MediaCentaurWeb.Api.PursuitJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "season_number: row.season_number,",
+      "field": "season_number",
+      "file": "lib/media_centaur_web/controllers/api/pursuit_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|season_number||foreign_write::web",
+      "line": 15,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Pursuits.Pursuit",
+      "surfaces": [],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|state||*",
+      "consumer": "MediaCentaurWeb.Api.PursuitJSON",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "def summary(%Pursuit{} = pursuit), do: %{id: pursuit.id, title: pursuit.title, state: pursuit.state}",
+      "field": "state",
+      "file": "lib/media_centaur_web/controllers/api/pursuit_json.ex",
+      "key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|state||foreign_write::web",
+      "line": 7,
+      "owner": "MediaCentaur.Acquisition",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.Acquisition.Pursuits.Pursuit",
+      "surfaces": [],
       "value": null,
       "verdict": null,
       "verdict_key": null
@@ -7307,23 +7638,21 @@
     {
       "anchored": true,
       "concept_key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|title||*",
-      "consumer": "MediaCentaurWeb.DownloadsLive",
+      "consumer": "MediaCentaurWeb.Api.PursuitJSON",
       "consumer_context": "web",
       "detail": {
         "kind": "foreign_write"
       },
-      "excerpt": "title: plan.title,",
+      "excerpt": "def summary(%Pursuit{} = pursuit), do: %{id: pursuit.id, title: pursuit.title, state: pursuit.state}",
       "field": "title",
-      "file": "lib/media_centaur_web/live/downloads_live.ex",
+      "file": "lib/media_centaur_web/controllers/api/pursuit_json.ex",
       "key": "R1|MediaCentaur.Acquisition.Pursuits.Pursuit|title||foreign_write::web",
-      "line": 1697,
+      "line": 7,
       "owner": "MediaCentaur.Acquisition",
       "reason": null,
       "rule": "R1",
       "schema": "MediaCentaur.Acquisition.Pursuits.Pursuit",
-      "surfaces": [
-        "MediaCentaurWeb.DownloadsLive"
-      ],
+      "surfaces": [],
       "value": null,
       "verdict": null,
       "verdict_key": null
@@ -7462,10 +7791,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -7493,10 +7822,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -7571,10 +7900,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -7826,10 +8155,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Episode",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8033,10 +8362,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Person",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8064,10 +8393,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Person",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8095,10 +8424,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Person",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8126,10 +8455,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Person",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8157,10 +8486,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Library.Person",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -8647,7 +8976,7 @@
       "field": "name",
       "file": "lib/media_centaur_web/live/settings_live.ex",
       "key": "R1|MediaCentaur.Players.Player|name||foreign_write::web",
-      "line": 256,
+      "line": 270,
       "owner": "MediaCentaur.Players",
       "reason": null,
       "rule": "R1",
@@ -8693,7 +9022,7 @@
       "field": "name",
       "file": "lib/media_centaur_web/live/settings_live.ex",
       "key": "R1|MediaCentaur.Profiles.Profile|name||foreign_write::web",
-      "line": 256,
+      "line": 270,
       "owner": "MediaCentaur.Profiles",
       "reason": null,
       "rule": "R1",
@@ -8730,14 +9059,14 @@
     {
       "anchored": true,
       "concept_key": "R1|MediaCentaur.ReleaseTracking.Item|media_type||*",
-      "consumer": "MediaCentaurWeb.DiscoveryLive.Shelves",
+      "consumer": "MediaCentaurWeb.SearchLive.Shelves",
       "consumer_context": "web",
       "detail": {
         "kind": "foreign_write"
       },
       "excerpt": "media_type: media_type,",
       "field": "media_type",
-      "file": "lib/media_centaur_web/live/discovery_live/shelves.ex",
+      "file": "lib/media_centaur_web/live/search_live/shelves.ex",
       "key": "R1|MediaCentaur.ReleaseTracking.Item|media_type||foreign_write::web",
       "line": 264,
       "owner": "MediaCentaur.ReleaseTracking",
@@ -8745,8 +9074,30 @@
       "rule": "R1",
       "schema": "MediaCentaur.ReleaseTracking.Item",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive"
+        "MediaCentaurWeb.SearchLive"
       ],
+      "value": null,
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R1|MediaCentaur.ReleaseTracking.Release|in_library||*",
+      "consumer": "MediaCentaurWeb.Api.TitleController",
+      "consumer_context": "web",
+      "detail": {
+        "kind": "foreign_write"
+      },
+      "excerpt": "in_library: Library.ExternalIds.tmdb_owners([ref]) != %{},",
+      "field": "in_library",
+      "file": "lib/media_centaur_web/controllers/api/title_controller.ex",
+      "key": "R1|MediaCentaur.ReleaseTracking.Release|in_library||foreign_write::web",
+      "line": 64,
+      "owner": "MediaCentaur.ReleaseTracking",
+      "reason": null,
+      "rule": "R1",
+      "schema": "MediaCentaur.ReleaseTracking.Release",
+      "surfaces": [],
       "value": null,
       "verdict": null,
       "verdict_key": null
@@ -9075,7 +9426,7 @@
       "field": "key",
       "file": "lib/media_centaur/features.ex",
       "key": "R1|MediaCentaur.Settings.Entry|key||foreign_write:MediaCentaur.Features",
-      "line": 121,
+      "line": 129,
       "owner": "MediaCentaur.Settings",
       "reason": null,
       "rule": "R1",
@@ -9145,7 +9496,7 @@
       "field": "value",
       "file": "lib/media_centaur/features.ex",
       "key": "R1|MediaCentaur.Settings.Entry|value||foreign_write:MediaCentaur.Features",
-      "line": 121,
+      "line": 129,
       "owner": "MediaCentaur.Settings",
       "reason": null,
       "rule": "R1",
@@ -9195,10 +9546,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9314,10 +9665,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9433,10 +9784,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9471,30 +9822,21 @@
     {
       "anchored": true,
       "concept_key": "R1|MediaCentaur.TMDB.Title|release_date||*",
-      "consumer": "MediaCentaurWeb.Components.Title.Logic",
+      "consumer": "MediaCentaurWeb.Api.TitleController",
       "consumer_context": "web",
       "detail": {
         "kind": "foreign_write"
       },
-      "excerpt": "release_date: date,",
+      "excerpt": "release_date: title.release_date,",
       "field": "release_date",
-      "file": "lib/media_centaur_web/components/title/logic.ex",
+      "file": "lib/media_centaur_web/controllers/api/title_controller.ex",
       "key": "R1|MediaCentaur.TMDB.Title|release_date||foreign_write::web",
-      "line": 84,
+      "line": 82,
       "owner": "MediaCentaur.TMDB",
       "reason": null,
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
-      "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
-        "MediaCentaurWeb.DownloadsLive",
-        "MediaCentaurWeb.HomeLive",
-        "MediaCentaurWeb.LibraryLive",
-        "MediaCentaurWeb.SettingsLive",
-        "MediaCentaurWeb.SocialLive",
-        "MediaCentaurWeb.StatusLive",
-        "MediaCentaurWeb.WatchlistLive"
-      ],
+      "surfaces": [],
       "value": null,
       "verdict": null,
       "verdict_key": null
@@ -9539,10 +9881,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9658,10 +10000,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.TMDB.Title",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9909,10 +10251,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -9984,10 +10326,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -10035,10 +10377,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10132,10 +10474,10 @@
       "rule": "R1",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10225,10 +10567,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10254,10 +10596,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10283,10 +10625,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10312,10 +10654,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10341,10 +10683,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -10368,10 +10710,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10397,10 +10739,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10426,10 +10768,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -10453,10 +10795,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -10480,10 +10822,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -10829,10 +11171,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10858,10 +11200,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10887,10 +11229,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10916,10 +11258,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10945,10 +11287,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -10974,10 +11316,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11003,10 +11345,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11032,10 +11374,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11059,10 +11401,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11110,10 +11452,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -11138,10 +11480,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -11166,10 +11508,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -11194,10 +11536,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -11222,10 +11564,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -11338,10 +11680,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11365,10 +11707,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11544,10 +11886,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11573,10 +11915,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11602,10 +11944,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11631,10 +11973,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11660,10 +12002,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11687,10 +12029,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -11782,10 +12124,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11809,10 +12151,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11836,10 +12178,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -11863,10 +12205,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -12000,10 +12342,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12029,10 +12371,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12058,10 +12400,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12087,10 +12429,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12116,10 +12458,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12145,10 +12487,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12174,10 +12516,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -12202,10 +12544,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -12229,10 +12571,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12258,10 +12600,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12287,10 +12629,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12316,10 +12658,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12345,10 +12687,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12374,10 +12716,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12403,10 +12745,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -12431,10 +12773,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -12458,10 +12800,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12487,10 +12829,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12516,10 +12858,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12545,10 +12887,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12574,10 +12916,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12603,10 +12945,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -12632,10 +12974,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -12660,10 +13002,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Activities.Activity",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -12827,10 +13169,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.ErrorReports.DiagnosticEvent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -13081,6 +13423,26 @@
     {
       "anchored": false,
       "concept_key": "R3|MediaCentaur.ErrorReports.Incident|origin|user|*",
+      "consumer": "MediaCentaur.Acquisition",
+      "consumer_context": "MediaCentaur.Acquisition",
+      "detail": null,
+      "excerpt": "cancelled_by: :user,",
+      "field": "origin",
+      "file": "lib/media_centaur/acquisition.ex",
+      "key": "R3|MediaCentaur.ErrorReports.Incident|origin|user|MediaCentaur.Acquisition",
+      "line": 661,
+      "owner": "MediaCentaur.ErrorReports",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.ErrorReports.Incident",
+      "surfaces": [],
+      "value": "user",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.ErrorReports.Incident|origin|user|*",
       "consumer": "MediaCentaur.Acquisition.Pursuits.Commands.Cancel",
       "consumer_context": "MediaCentaur.Acquisition",
       "detail": null,
@@ -13094,28 +13456,6 @@
       "rule": "R3",
       "schema": "MediaCentaur.ErrorReports.Incident",
       "surfaces": [],
-      "value": "user",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": false,
-      "concept_key": "R3|MediaCentaur.ErrorReports.Incident|origin|user|*",
-      "consumer": "MediaCentaurWeb.DownloadsLive",
-      "consumer_context": "web",
-      "detail": null,
-      "excerpt": "cancelled_by: :user,",
-      "field": "origin",
-      "file": "lib/media_centaur_web/live/downloads_live.ex",
-      "key": "R3|MediaCentaur.ErrorReports.Incident|origin|user|MediaCentaurWeb.DownloadsLive",
-      "line": 1481,
-      "owner": "MediaCentaur.ErrorReports",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.ErrorReports.Incident",
-      "surfaces": [
-        "MediaCentaurWeb.DownloadsLive"
-      ],
       "value": "user",
       "verdict": null,
       "verdict_key": null
@@ -14485,6 +14825,26 @@
     {
       "anchored": false,
       "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
+      "consumer": "MediaCentaur.Acquisition.FirstRelease",
+      "consumer_context": "MediaCentaur.Acquisition",
+      "detail": null,
+      "excerpt": "tmdb_type: :tv,",
+      "field": "form_factor",
+      "file": "lib/media_centaur/acquisition/first_release.ex",
+      "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaur.Acquisition.FirstRelease",
+      "line": 39,
+      "owner": "MediaCentaur.Players",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Players.Player.Device",
+      "surfaces": [],
+      "value": "tv",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
       "consumer": "MediaCentaur.Acquisition.Jobs.PursueTarget",
       "consumer_context": "MediaCentaur.Acquisition",
       "detail": null,
@@ -14512,7 +14872,7 @@
       "field": "form_factor",
       "file": "lib/media_centaur/acquisition/plans.ex",
       "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaur.Acquisition.Plans",
-      "line": 85,
+      "line": 87,
       "owner": "MediaCentaur.Players",
       "reason": null,
       "rule": "R3",
@@ -14848,51 +15208,11 @@
       "consumer": "MediaCentaur.Search.Assessment",
       "consumer_context": "MediaCentaur.Search",
       "detail": null,
-      "excerpt": "defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, :any),",
+      "excerpt": "defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, scope_rule) do",
       "field": "form_factor",
       "file": "lib/media_centaur/search/assessment.ex",
       "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaur.Search.Assessment",
-      "line": 106,
-      "owner": "MediaCentaur.Players",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.Players.Player.Device",
-      "surfaces": [],
-      "value": "tv",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": false,
-      "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
-      "consumer": "MediaCentaur.Search.Assessment",
-      "consumer_context": "MediaCentaur.Search",
-      "detail": null,
-      "excerpt": "defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria, :covering),",
-      "field": "form_factor",
-      "file": "lib/media_centaur/search/assessment.ex",
-      "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaur.Search.Assessment",
-      "line": 109,
-      "owner": "MediaCentaur.Players",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.Players.Player.Device",
-      "surfaces": [],
-      "value": "tv",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": false,
-      "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
-      "consumer": "MediaCentaur.Search.Assessment",
-      "consumer_context": "MediaCentaur.Search",
-      "detail": null,
-      "excerpt": "defp identity(result, %Criteria{type: :tmdb, tmdb_type: :tv, run: run} = criteria, :run)",
-      "field": "form_factor",
-      "file": "lib/media_centaur/search/assessment.ex",
-      "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaur.Search.Assessment",
-      "line": 112,
+      "line": 114,
       "owner": "MediaCentaur.Players",
       "reason": null,
       "rule": "R3",
@@ -15425,6 +15745,26 @@
     {
       "anchored": false,
       "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
+      "consumer": "MediaCentaurWeb.Api.TitleController",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "defp api_media_type(:tv_series), do: :tv",
+      "field": "form_factor",
+      "file": "lib/media_centaur_web/controllers/api/title_controller.ex",
+      "key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|MediaCentaurWeb.Api.TitleController",
+      "line": 87,
+      "owner": "MediaCentaur.Players",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Players.Player.Device",
+      "surfaces": [],
+      "value": "tv",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": false,
+      "concept_key": "R3|MediaCentaur.Players.Player.Device|form_factor|tv|*",
       "consumer": "MediaCentaurWeb.Components.Detail.TitlePreview",
       "consumer_context": "web",
       "detail": null,
@@ -15438,10 +15778,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Players.Player.Device",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -15599,10 +15939,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Players.Player.Device",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -15627,10 +15967,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Players.Player.Device",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -15805,7 +16145,7 @@
       "field": "status",
       "file": "lib/media_centaur/acquisition/pursuits.ex",
       "key": "R3|MediaCentaur.ReleaseTracking.Want|status|satisfied|MediaCentaur.Acquisition.Pursuits",
-      "line": 635,
+      "line": 639,
       "owner": "MediaCentaur.ReleaseTracking",
       "reason": null,
       "rule": "R3",
@@ -15825,7 +16165,7 @@
       "field": "status",
       "file": "lib/media_centaur/acquisition/pursuits.ex",
       "key": "R3|MediaCentaur.ReleaseTracking.Want|status|satisfied|MediaCentaur.Acquisition.Pursuits",
-      "line": 838,
+      "line": 842,
       "owner": "MediaCentaur.ReleaseTracking",
       "reason": null,
       "rule": "R3",
@@ -16302,6 +16642,26 @@
       "verdict_key": null
     },
     {
+      "anchored": true,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
+      "consumer": "MediaCentaurWeb.Api.TitleController",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "def stop_auto_grab(conn, params), do: set_rung(conn, params, :follow)",
+      "field": "rung",
+      "file": "lib/media_centaur_web/controllers/api/title_controller.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|MediaCentaurWeb.Api.TitleController",
+      "line": 41,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "follow",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
       "anchored": false,
       "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|follow|*",
       "consumer": "MediaCentaurWeb.Components.Acquisition.PlanModal",
@@ -16317,10 +16677,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16345,10 +16705,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -16372,10 +16732,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -16401,10 +16761,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -16430,10 +16790,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16458,10 +16818,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16486,10 +16846,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16514,10 +16874,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16542,10 +16902,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16570,10 +16930,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16598,10 +16958,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16626,10 +16986,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -16788,6 +17148,26 @@
       "verdict_key": null
     },
     {
+      "anchored": true,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|*",
+      "consumer": "MediaCentaurWeb.Api.TitleController",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "def start_auto_grab(conn, params), do: set_rung(conn, params, :grab)",
+      "field": "rung",
+      "file": "lib/media_centaur_web/controllers/api/title_controller.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|MediaCentaurWeb.Api.TitleController",
+      "line": 38,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [],
+      "value": "grab",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
       "anchored": false,
       "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|*",
       "consumer": "MediaCentaurWeb.Components.Acquisition.PlanModal",
@@ -16803,10 +17183,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16831,10 +17211,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -16858,10 +17238,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -16887,10 +17267,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -16916,10 +17296,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16944,10 +17324,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -16972,10 +17352,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17000,10 +17380,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17028,10 +17408,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17056,10 +17436,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17084,10 +17464,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17112,10 +17492,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17140,10 +17520,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17168,10 +17548,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17196,10 +17576,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17224,10 +17604,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17252,10 +17632,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17280,10 +17660,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17308,35 +17688,13 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
-      ],
-      "value": "grab",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": true,
-      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|*",
-      "consumer": "MediaCentaurWeb.DiscoveryLive.Shelves",
-      "consumer_context": "web",
-      "detail": null,
-      "excerpt": "stage in [:theatrical, :unreleased] or (stage == :home and intent.rung != :grab) do",
-      "field": "rung",
-      "file": "lib/media_centaur_web/live/discovery_live/shelves.ex",
-      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|MediaCentaurWeb.DiscoveryLive.Shelves",
-      "line": 165,
-      "owner": "MediaCentaur.Watchlist",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.Watchlist.TitleIntent",
-      "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive"
       ],
       "value": "grab",
       "verdict": null,
@@ -17358,10 +17716,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -17385,12 +17743,34 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
+      ],
+      "value": "grab",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|*",
+      "consumer": "MediaCentaurWeb.SearchLive.Shelves",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "stage in [:theatrical, :unreleased] or (stage == :home and intent.rung != :grab) do",
+      "field": "rung",
+      "file": "lib/media_centaur_web/live/search_live/shelves.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|grab|MediaCentaurWeb.SearchLive.Shelves",
+      "line": 165,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [
+        "MediaCentaurWeb.SearchLive"
       ],
       "value": "grab",
       "verdict": null,
@@ -17780,10 +18160,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17808,10 +18188,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -17837,10 +18217,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -17866,10 +18246,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17894,10 +18274,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17922,10 +18302,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17950,10 +18330,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -17978,10 +18358,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18006,10 +18386,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18034,10 +18414,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18062,10 +18442,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18090,10 +18470,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18118,10 +18498,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18146,10 +18526,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18164,7 +18544,7 @@
       "consumer": "MediaCentaurWeb.Components.Watchlist.Row",
       "consumer_context": "web",
       "detail": null,
-      "excerpt": "def state_words(%State{kind: :ignored}, _today), do: {\"Hidden from the Feed and Discovery\", nil}",
+      "excerpt": "def state_words(%State{kind: :ignored}, _today), do: {\"Hidden from the Feed and Search's shelves\", nil}",
       "field": "rung",
       "file": "lib/media_centaur_web/components/watchlist/row.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.Components.Watchlist.Row",
@@ -18174,10 +18554,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18202,57 +18582,13 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
-      ],
-      "value": "ignored",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": true,
-      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
-      "consumer": "MediaCentaurWeb.DiscoveryLive.Shelves",
-      "consumer_context": "web",
-      "detail": null,
-      "excerpt": "_title when rung == :ignored -> []",
-      "field": "rung",
-      "file": "lib/media_centaur_web/live/discovery_live/shelves.ex",
-      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.DiscoveryLive.Shelves",
-      "line": 65,
-      "owner": "MediaCentaur.Watchlist",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.Watchlist.TitleIntent",
-      "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive"
-      ],
-      "value": "ignored",
-      "verdict": null,
-      "verdict_key": null
-    },
-    {
-      "anchored": true,
-      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
-      "consumer": "MediaCentaurWeb.DiscoveryLive.Shelves",
-      "consumer_context": "web",
-      "detail": null,
-      "excerpt": "for %{ref: ref, title: title} <- reviewed, Map.get(rungs, ref) != :ignored do",
-      "field": "rung",
-      "file": "lib/media_centaur_web/live/discovery_live/shelves.ex",
-      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.DiscoveryLive.Shelves",
-      "line": 245,
-      "owner": "MediaCentaur.Watchlist",
-      "reason": null,
-      "rule": "R3",
-      "schema": "MediaCentaur.Watchlist.TitleIntent",
-      "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive"
       ],
       "value": "ignored",
       "verdict": null,
@@ -18274,10 +18610,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -18301,10 +18637,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -18328,12 +18664,56 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
+      ],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaurWeb.SearchLive.Shelves",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "_title when rung == :ignored -> []",
+      "field": "rung",
+      "file": "lib/media_centaur_web/live/search_live/shelves.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.SearchLive.Shelves",
+      "line": 65,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [
+        "MediaCentaurWeb.SearchLive"
+      ],
+      "value": "ignored",
+      "verdict": null,
+      "verdict_key": null
+    },
+    {
+      "anchored": true,
+      "concept_key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|*",
+      "consumer": "MediaCentaurWeb.SearchLive.Shelves",
+      "consumer_context": "web",
+      "detail": null,
+      "excerpt": "for %{ref: ref, title: title} <- reviewed, Map.get(rungs, ref) != :ignored do",
+      "field": "rung",
+      "file": "lib/media_centaur_web/live/search_live/shelves.ex",
+      "key": "R3|MediaCentaur.Watchlist.TitleIntent|rung|ignored|MediaCentaurWeb.SearchLive.Shelves",
+      "line": 245,
+      "owner": "MediaCentaur.Watchlist",
+      "reason": null,
+      "rule": "R3",
+      "schema": "MediaCentaur.Watchlist.TitleIntent",
+      "surfaces": [
+        "MediaCentaurWeb.SearchLive"
       ],
       "value": "ignored",
       "verdict": null,
@@ -18591,10 +18971,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18619,10 +18999,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18669,10 +19049,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SettingsLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
@@ -18698,10 +19078,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18726,10 +19106,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18754,10 +19134,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18782,10 +19162,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18810,10 +19190,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18838,10 +19218,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18866,10 +19246,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18894,10 +19274,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18922,10 +19302,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18950,10 +19330,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -18978,10 +19358,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -19006,10 +19386,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.StatusLive",
         "MediaCentaurWeb.WatchlistLive"
@@ -19100,10 +19480,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19127,10 +19507,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19154,10 +19534,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19291,10 +19671,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19318,10 +19698,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19345,10 +19725,10 @@
       "rule": "R3",
       "schema": "MediaCentaur.Watchlist.TitleIntent",
       "surfaces": [
-        "MediaCentaurWeb.DiscoveryLive",
         "MediaCentaurWeb.DownloadsLive",
         "MediaCentaurWeb.HomeLive",
         "MediaCentaurWeb.LibraryLive",
+        "MediaCentaurWeb.SearchLive",
         "MediaCentaurWeb.SocialLive",
         "MediaCentaurWeb.WatchlistLive"
       ],
@@ -19490,7 +19870,7 @@
       "field": "source",
       "file": "lib/media_centaur_web/live/settings_live.ex",
       "key": "R3|MediaCentaur.Watchlist.TitleIntent|source|manual|MediaCentaurWeb.SettingsLive",
-      "line": 606,
+      "line": 632,
       "owner": "MediaCentaur.Watchlist",
       "reason": null,
       "rule": "R3",
@@ -19558,7 +19938,7 @@
       "field": "tracking_item_id",
       "file": "lib/media_centaur/acquisition/plans/plan.ex",
       "key": "R4|MediaCentaur.Acquisition.Plans.Plan|tracking_item_id||unresolved",
-      "line": 84,
+      "line": 86,
       "owner": "MediaCentaur.Acquisition",
       "reason": null,
       "rule": "R4",

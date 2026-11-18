@@ -862,22 +862,10 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
     end
   end
 
-  describe "search_owns_page?/1" do
-    alias MediaCentaurWeb.DownloadsLive.SearchSession
-
-    test "a query or results own the page; an empty box owns nothing" do
-      refute Logic.search_owns_page?(%SearchSession{})
-      assert Logic.search_owns_page?(%SearchSession{query: "Sample Show S01E01"})
-
-      assert Logic.search_owns_page?(%SearchSession{
-               groups: [%{term: "Sample Show", status: :ready, results: []}]
-             })
-    end
-  end
-
   describe "parse_zone/1" do
     test "History by name; everything else — absent, junk, a retired name — is Activity" do
       assert Logic.parse_zone("history") == :history
+      assert Logic.parse_zone("release-search") == :release_search
       assert Logic.parse_zone("activity") == :activity
       assert Logic.parse_zone(nil) == :activity
       assert Logic.parse_zone("") == :activity
@@ -890,6 +878,7 @@ defmodule MediaCentaurWeb.DownloadsLive.LogicTest do
       assert Logic.path() == "/downloads"
       assert Logic.zone_path(:activity) == "/downloads"
       assert Logic.zone_path(:history) == "/downloads?zone=history"
+      assert Logic.zone_path(:release_search) == "/downloads?zone=release-search"
     end
   end
 

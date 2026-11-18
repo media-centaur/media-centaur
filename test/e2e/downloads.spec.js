@@ -2,8 +2,8 @@
  * Downloads page E2E tests (UIDR-015, amended at the Search campaign's
  * cutover: the get stage, UIDR-057).
  *
- * Covers cursor start on the pursuits, the vertical zone chain (the release
- * search box → zone tabs → the active tab's zone), BACK to the sidebar and
+ * Covers cursor start on the pursuits, the vertical zone chain (zone tabs →
+ * the active tab's zone; on the Release search tab, tabs → search box), BACK to the sidebar and
  * LEFT never reaching it. One tab's content renders at a time: a fresh
  * mount lands on Activity (`pursuits`, `drafts`); History holds the
  * `ledger`. Zone presence depends on live data (active pursuits, terminal
@@ -39,7 +39,7 @@ test.describe("downloads navigation", () => {
     }
   })
 
-  test("up from the pursuits reaches the zone tabs, then the search box", async ({
+  test("up from the pursuits reaches the zone tabs, the top of the page", async ({
     page,
     inputAction,
   }) => {
@@ -57,8 +57,26 @@ test.describe("downloads navigation", () => {
     }
     await expectContext(page, "zone_tabs")
 
+    // Nothing sits above the tabs: Activity carries no search box.
     await inputAction("NAVIGATE_UP")
+    await expectContext(page, "zone_tabs")
+  })
+
+  test("the Release search tab: down from the tabs enters the search box, up returns", async ({
+    page,
+    navigateTo,
+    inputAction,
+  }) => {
+    await navigateTo("/downloads?zone=release-search")
+    await waitForInputSystem(page)
+    const tabCount = await getZoneItemCount(page, "zone-tabs")
+    test.skip(tabCount === 0, "no indexer in this environment: the page has no tabs")
+
+    await expectContext(page, "zone_tabs")
+    await inputAction("NAVIGATE_DOWN")
     await expectContext(page, "omnibox")
+    await inputAction("NAVIGATE_UP")
+    await expectContext(page, "zone_tabs")
   })
 
   test("down from the zone tabs enters the active tab's zone", async ({ page, inputAction }) => {

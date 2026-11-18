@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
   alias MediaCentaur.Format
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Downloads.{Health, QueueItem}
-  alias MediaCentaurWeb.DownloadsLive.SearchSession
   alias MediaCentaurWeb.LiveHelpers
 
   # How long after a user-initiated cancel we keep suppressing the
@@ -36,32 +35,49 @@ defmodule MediaCentaurWeb.DownloadsLive.Logic do
           status: status()
         }
 
-  @doc """
-  Whether the search owns the page: a release session with a query or
-  results. While it holds, the tab bar and the active zone's content
-  recede; an empty box owns nothing.
-  """
-  @spec search_owns_page?(SearchSession.t()) :: boolean()
-  def search_owns_page?(session), do: session.query != "" or session.groups != []
-
   @doc "The page's path."
   @spec path() :: String.t()
   def path, do: "/downloads"
 
-  @doc """
-  The page's path showing one zone (UIDR-015, amended 2026-11-02).
-  Activity, the default, keeps the bare path — a clean URL, so
-  `data-nav-remember` never pins a stale param — and History names
-  itself. Shared by the tab switch, a started download's landing on
-  Activity, and the sidebar reminder that points the page's entry there.
-  """
-  @spec zone_path(:activity | :history) :: String.t()
-  def zone_path(:activity), do: path()
-  def zone_path(:history), do: path() <> "?zone=history"
+  @typedoc "One tab of the page."
+  @type zone :: :activity | :history | :release_search
 
-  @doc "The page's zone from its URL param: History by name, Activity for anything else."
-  @spec parse_zone(String.t() | nil) :: :activity | :history
+  @doc """
+  The page's path showing one zone (UIDR-015, amended 2026-11-02 and
+  2026-11-18). Activity, the default, keeps the bare path — a clean URL,
+  so `data-nav-remember` never pins a stale param — and the other two
+  name themselves. Shared by the tab switch, a started download's
+  landing on Activity, and the sidebar reminder that points the page's
+  entry there.
+  """
+  @spec zone_path(zone()) :: String.t()
+  def zone_path(zone) do
+    case zone_param(zone) do
+      nil -> path()
+      param -> path() <> "?zone=" <> param
+    end
+  end
+
+  @doc "A zone's value in the URL's `zone` param — nil for Activity, the default. The one place the values live."
+  @spec zone_param(zone()) :: String.t() | nil
+  def zone_param(:activity), do: nil
+  def zone_param(:history), do: "history"
+  def zone_param(:release_search), do: "release-search"
+
+  @doc """
+  The URL params the sidebar's remembered URL drops (`data-nav-transient-params`):
+  modal state always, and `zone` while Release search shows, so the page's
+  sidebar entry reopens on the download list and never on the search
+  (UIDR-060).
+  """
+  @spec transient_params(zone()) :: String.t()
+  def transient_params(:release_search), do: transient_params(:activity) <> ",zone"
+  def transient_params(_zone), do: "selected,title,entity,view,activity,plan"
+
+  @doc "The page's zone from its URL param: History and Release search by name, Activity for anything else."
+  @spec parse_zone(String.t() | nil) :: zone()
   def parse_zone("history"), do: :history
+  def parse_zone("release-search"), do: :release_search
   def parse_zone(_default), do: :activity
 
   @doc """

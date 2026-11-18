@@ -123,12 +123,11 @@ describe("App config", () => {
 describe("Downloads page nav (real config)", () => {
   // One tab's content renders at a time: the zone tabs route down into
   // whichever content zone the active tab populated.
-  const activityView = { omnibox: 2, zone_tabs: 2, drafts: 1, pursuits: 3, other_downloads: 2, sidebar: 4 }
+  const activityView = { zone_tabs: 3, drafts: 1, pursuits: 3, other_downloads: 2, sidebar: 4 }
 
-  test("Activity view: the tabs sit under the search box and route into drafts → pursuits → other downloads", () => {
+  test("Activity view: the tabs top the page and route into drafts → pursuits → other downloads", () => {
     const graph = buildNavGraph("downloads", activityView, inputConfig)
-    expect(graph.omnibox.down).toBe("zone_tabs")
-    expect(graph.zone_tabs.up).toBe("omnibox")
+    expect(graph.zone_tabs.up).toBeUndefined()
     expect(graph.zone_tabs.down).toBe("drafts")
     expect(graph.drafts.down).toBe("pursuits")
     expect(graph.pursuits.down).toBe("other_downloads")
@@ -137,22 +136,25 @@ describe("Downloads page nav (real config)", () => {
   })
 
   test("History view: tabs route into the ledger; sidebar falls through to it", () => {
-    const counts = { omnibox: 2, zone_tabs: 2, ledger: 5, sidebar: 4 }
+    const counts = { zone_tabs: 3, ledger: 5, sidebar: 4 }
     const graph = buildNavGraph("downloads", counts, inputConfig)
     expect(graph.zone_tabs.down).toBe("ledger")
     expect(graph.ledger.up).toBe("zone_tabs")
     expect(graph.sidebar.right).toBe("ledger")
   })
 
-  test("a search owns the page: only the result groups below the search box", () => {
-    const counts = { omnibox: 2, grid: 8, sidebar: 4 }
+  test("Release search view: the tabs route into the search box, the box into its results", () => {
+    const counts = { zone_tabs: 3, omnibox: 3, grid: 8, sidebar: 4 }
     const graph = buildNavGraph("downloads", counts, inputConfig)
+    expect(graph.zone_tabs.down).toBe("omnibox")
+    expect(graph.omnibox.up).toBe("zone_tabs")
     expect(graph.omnibox.down).toBe("grid")
     expect(graph.grid.up).toBe("omnibox")
+    expect(resolveCursorStart("downloads", counts, inputConfig)).toBe("zone_tabs")
   })
 
   test("nothing in flight: the sidebar enters the tabs, the cursor starts there", () => {
-    const counts = { omnibox: 2, zone_tabs: 2, sidebar: 4 }
+    const counts = { zone_tabs: 3, sidebar: 4 }
     const graph = buildNavGraph("downloads", counts, inputConfig)
     expect(graph.sidebar.right).toBe("zone_tabs")
     expect(resolveCursorStart("downloads", counts, inputConfig)).toBe("zone_tabs")

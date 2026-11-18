@@ -1,13 +1,14 @@
 defmodule MediaCentaurWeb.DownloadsLive.Search do
   @moduledoc """
-  Release search on the Downloads page (UIDR-014, amended 2026-11-02):
-  the field at the top of the page and the results zone below it.
+  Release search on the Downloads page (UIDR-014, amended 2026-11-02;
+  UIDR-060): the field and the results zone of the page's Release search
+  tab.
 
-  `search_box/1` is the page's one search, its own field since the
-  cutover (campaign `discovery.md`, M14): the brace-expansion query form
+  `search_box/1` is the page's one search: the brace-expansion query form
   — monospace input, Enter the only submit path, the in-input X that
   dismisses the session — over the syntax line with the expansion
-  preview. It is the `omnibox` nav zone, so the Downloads behaviour's
+  preview, and the note that points to media search on the Search page.
+  It is the `omnibox` nav zone, so the Downloads behaviour's
   CLEAR (`downloads_behavior.js`) finds it by its input's id.
 
   `search_zone/1` renders what the session found: grab feedback, the
@@ -28,6 +29,10 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
 
   attr :session, SearchSession, required: true
   attr :any_loading?, :boolean, required: true
+
+  attr :media_search?, :boolean,
+    required: true,
+    doc: "Whether the Search page is on — the note that points to its media search shows only then."
 
   def search_box(assigns) do
     ~H"""
@@ -107,6 +112,18 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
         <span class={Logic.expansion_color(@session.expansion_preview)}>
           {Logic.expansion_text(@session.expansion_preview)}
         </span>
+      </p>
+
+      <%!-- The note (UIDR-060): release search finds files, media search
+            finds titles, and most of the time the title is what is wanted. --%>
+      <p
+        :if={@media_search?}
+        id="release-search-note"
+        class="text-center text-xs text-base-content/55"
+      >
+        Release search is a direct file search. It's recommended to use the
+        <.link navigate="/search" class="link link-primary" data-nav-item tabindex="0">media search</.link>
+        in most cases.
       </p>
     </section>
     """

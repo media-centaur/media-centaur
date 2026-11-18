@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         Map.merge(config, %{prowlarr_url: nil, prowlarr_api_key: nil})
       )
 
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
       assert has_element?(view, "#downloads-empty a[href='/settings?section=acquisition']")
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     test "a configured but untested Prowlarr is the same gap", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       assert has_element?(view, "#downloads-empty", "Connect Prowlarr to search and download")
       refute has_element?(view, "#omnibox-release-input")
@@ -137,7 +137,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
 
     test "renders the page when Prowlarr is configured", %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       assert html =~ "Downloads"
       # The release search box is the page's front door; no heading above it.
@@ -223,7 +223,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
   describe "query_change" do
     test "updates expansion preview for valid syntax", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       html =
         view
@@ -234,7 +234,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
 
     test "shows error for invalid brace syntax", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       html =
         view
@@ -256,13 +256,13 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     # `submit_search` still guards empty/invalid queries server-side.
 
     test "the release form has no submit button — Enter is the only submit path", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       refute has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
     end
 
     test "submitting a fresh valid query starts a search (Enter path)", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -817,12 +817,10 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       |> element("[phx-click='plan_preset'][phx-value-preset='everything_aired']")
       |> render_click()
 
-      # A live search query survives the picker being open…
-      view
-      |> form("form[phx-change='query_change']", query: "z")
-      |> render_change()
-
-      assert has_element?(view, "#omnibox-release-input[value='z']")
+      # A release search query (typed on its own tab) survives the picker
+      # being open: the session is not the plan flow's to clear.
+      render_change(view, "query_change", %{"query" => "z"})
+      assert MediaCentaurWeb.DownloadsLive.SearchSession.current().query == "z"
 
       # Create: the patch carries the plan id; running the enqueued job
       # solves it.
@@ -1769,7 +1767,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
   describe "the release search box (UIDR-014, amended 2026-11-02)" do
     test "the in-input X dismisses the session", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       refute has_element?(view, "#omnibox-release-clear")
 
@@ -1787,13 +1785,13 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
 
     test "an active session survives a fresh mount", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       view
       |> form("form[phx-change='query_change']", query: "Sample Show S01E0{1,2}")
       |> render_change()
 
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
       assert has_element?(view, "#omnibox-release-input[value='Sample Show S01E0{1,2}']")
     end
   end
@@ -2075,26 +2073,73 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert has_element?(view, "[data-nav-zone='ledger']", "Quarter Movie")
     end
 
-    test "an active search recedes the tab bar and the zone content; clearing restores them", %{
-      conn: conn
-    } do
+    test "Activity and History carry no search field; the Release search tab does", %{conn: conn} do
       seed_all_zones()
       {:ok, view, _html} = live_async!(conn, ~p"/downloads")
 
-      assert has_element?(view, "[data-nav-zone='zone-tabs']")
+      refute has_element?(view, "#omnibox-release-input")
       assert has_element?(view, "[data-nav-zone='pursuits']")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
+      refute has_element?(view, "#omnibox-release-input")
+
+      view
+      |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='release_search']")
+      |> render_click()
+
+      assert_patch(view, "/downloads?zone=release-search")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Release search")
+      assert has_element?(view, "[data-nav-zone='omnibox'] #omnibox-release-input")
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+      refute has_element?(view, "[data-nav-zone='ledger']")
+    end
+
+    test "the Release search tab says what it is and links to media search", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
+
+      assert has_element?(
+               view,
+               "#release-search-note",
+               "Release search is a direct file search. It's recommended to use the media search in most cases."
+             )
+
+      assert has_element?(view, "#release-search-note a[href='/search']", "media search")
+    end
+
+    test "a typed query keeps the tab bar, and survives a trip to Activity and back", %{conn: conn} do
+      seed_all_zones()
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       view
       |> form("form[phx-change='query_change']", query: "Sample Show S01E01")
       |> render_change()
 
-      refute has_element?(view, "[data-nav-zone='zone-tabs']")
-      refute has_element?(view, "[data-nav-zone='pursuits']")
-
-      render_click(view, "clear_search", %{})
-
       assert has_element?(view, "[data-nav-zone='zone-tabs']")
+
+      view |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='activity']") |> render_click()
       assert has_element?(view, "[data-nav-zone='pursuits']")
+      refute has_element?(view, "#omnibox-release-input")
+
+      view |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='release_search']") |> render_click()
+      assert has_element?(view, "#omnibox-release-input[value='Sample Show S01E01']")
+    end
+
+    test "the sidebar never remembers the Release search tab", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=history")
+      refute has_element?(view, "[data-nav-transient-params*='zone']")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
+      assert has_element?(view, "[data-nav-transient-params*='zone']")
+    end
+
+    test "an empty Activity points to Search while the feature is on", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      assert has_element?(view, "[data-component='zone-empty'] a[href='/search']", "Search")
+
+      MediaCentaur.Features.set(:discovery, false)
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
+      refute has_element?(view, "[data-component='zone-empty'] a")
     end
 
     test "empty Activity and History tabs say so instead of rendering a void", %{conn: conn} do
@@ -2140,7 +2185,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       # Allow the LiveView (and tasks it spawns via $callers) to use the stub.
       Req.Test.allow(:prowlarr, self(), view.pid)
@@ -2184,7 +2229,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
 
     test "brace-expanded batch grab collapses into ONE composite pursuit (ADR-055)", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2542,7 +2587,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
   describe "retry_search (per-group)" do
     test "a single timed-out search becomes retryable; retry resolves to results",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2589,7 +2634,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
   describe "retry_all_timeouts (footer button)" do
     test "appears only after every search completes and at least one timed out",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2631,7 +2676,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     end
 
     test "does not appear when no searches timed out", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
+      {:ok, view, _html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2683,7 +2728,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
     test "search query and results persist across navigation", %{conn: conn} do
       stub_prowlarr_with([sample_release()])
 
-      {:ok, view, _html} = live_async!(conn, "/downloads")
+      {:ok, view, _html} = live_async!(conn, "/downloads?zone=release-search")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
@@ -2697,7 +2742,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
 
       {:ok, _other_view, _other_html} = live_async!(conn, "/")
 
-      {:ok, view2, _html2} = live_async!(conn, "/downloads")
+      {:ok, view2, _html2} = live_async!(conn, "/downloads?zone=release-search")
       html2 = render_after_async_load(view2)
 
       assert html2 =~ "Sample Show"
@@ -2710,7 +2755,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         sample_release(guid: "guid-2", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
       ])
 
-      {:ok, view, _html} = live_async!(conn, "/downloads")
+      {:ok, view, _html} = live_async!(conn, "/downloads?zone=release-search")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -2727,7 +2772,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert session_before.selections == %{"Sample Show" => "guid-2"}
 
       {:ok, _other_view, _other_html} = live_async!(conn, "/")
-      {:ok, _view2, _html2} = live_async!(conn, "/downloads")
+      {:ok, _view2, _html2} = live_async!(conn, "/downloads?zone=release-search")
 
       session_after = SearchSession.current()
       assert session_after.selections == %{"Sample Show" => "guid-2"}
@@ -2738,7 +2783,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         sample_release(guid: "guid-1", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
       ])
 
-      {:ok, view, _html} = live_async!(conn, "/downloads")
+      {:ok, view, _html} = live_async!(conn, "/downloads?zone=release-search")
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       view
@@ -2780,7 +2825,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, "/downloads")
+      {:ok, view, _html} = live_async!(conn, "/downloads?zone=release-search")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
@@ -2797,7 +2842,7 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       session_after = await_session_groups(:ready)
       assert Enum.all?(session_after.groups, fn group -> group.status == :ready end)
 
-      {:ok, view2, _html2} = live_async!(conn, "/downloads")
+      {:ok, view2, _html2} = live_async!(conn, "/downloads?zone=release-search")
       assert render_after_async_load(view2) =~ "No results"
 
       await_supervised_tasks()
