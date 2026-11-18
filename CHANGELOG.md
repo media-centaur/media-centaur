@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.19.1 — 2026-11-18
+
+### Improved
+
+- **The Local API flag is now "Local Downloads API", listed under Downloads.** Under Settings → Feature Flags the flag sits directly below Downloads, which it needs, so it is clear why it disappears when Downloads is off. Its Settings section carries the same name. Nothing about the API itself changes.
+
 ## v2.19.0 — 2026-11-18
 
 ### New
