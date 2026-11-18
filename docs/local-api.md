@@ -11,7 +11,7 @@ The complete contract is an OpenAPI 3.1 document. Give it to your agent or API c
 
 ## Set it up
 
-1. Open Settings → Feature Flags and turn on **Local API**. While it is off, every `/api` path answers 404.
+1. Open Settings → Feature Flags and turn on **Local API**. The row is listed while **Downloads** is on; the API is off whenever that is off. While it is off, every `/api` path answers 404.
 2. Open Settings → Local API and press **Generate key**. Copy the key: it is shown once.
 3. To reach the API from another device, set `bind = "0.0.0.0"` in the config file and restart the service. Settings → Local API lists the addresses to use.
 
