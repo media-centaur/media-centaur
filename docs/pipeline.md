@@ -33,7 +33,7 @@ inotify + scan               high confidence → matched       → publish entit
 | `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, media_dir}}` |
 | `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type}}` — the match's identity; Import reads the season and episode the name claims from its own parse |
 | `pipeline:publish` | Import (Ingest stage) | Library.Inbound | `{:entity_published, event}` |
-| `pipeline:images` | Library.Inbound; `ImageQueue.enqueue/3` (ImageRefresh); ImageRepair; RetryScheduler | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` from Library.Inbound, which cannot call the pipeline — the producer queues them through `ImageQueue.enqueue/3`; `{:images_pending, %{entity_id, media_dir}}` — a nudge for rows already stored |
+| `pipeline:images` | Library.Inbound; `ImageQueue.enqueue/3` (ImageRefresh); ImageRepair; RetryScheduler | Pipeline.Image.Intake, Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` from Library.Inbound, which cannot call the pipeline — `Intake` queues them through `ImageQueue.enqueue/3`, whether or not artwork downloads are on; `{:images_pending, %{entity_id, media_dir}}` — a nudge for rows already stored |
 | `tmdb:titles` | TMDB.Store | Pipeline.TmdbProjection (and ReleaseTracking.TmdbListener) | `{:tmdb_title_changed, {tmdb_id, media_type}}` — an owned title's TMDB fields, season episode lists and episode details are re-applied from the store (ADR-071) |
 | `review:intake` | Discovery | Review.Intake | `{:needs_review, attrs}` |
 | `review:updates` | `Review.Events` | LiveViews, ShellBadges | `{:file_added, _}` (entered or returned to the queue), `{:files_approved, _}`, `{:file_reviewed, _}` (left the queue) |
@@ -137,7 +137,7 @@ Downloads and processes artwork asynchronously after entity creation.
 
 **Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `Pipeline.Image.RetryScheduler` picks up on its next tick).
 
-**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Rows are created by `ImageQueue.enqueue/3` — called by the artwork refresh directly, and by `Pipeline.Image.Producer` for the `{:enqueue_images, …}` `Library.Inbound` broadcasts after entity creation. A stored row is what `RetryScheduler` re-sends, so a lost nudge costs a tick, not the image.
+**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Rows are created by `ImageQueue.enqueue/3` — called by the artwork refresh directly, and by `Pipeline.Image.Intake` for the `{:enqueue_images, …}` `Library.Inbound` broadcasts after entity creation. `Intake` runs beside the `start_image_pipeline` flag's children, not under them, so an import made while artwork downloads are off still stores its rows; they wait as `pending`. A stored row is what `RetryScheduler` re-sends, so a lost nudge costs a tick, not the image.
 
 ---
 
@@ -174,7 +174,7 @@ If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-at
 
 `Pipeline.Image.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `Pipeline.Image`.
 
-Watchers and the two pipelines run while their service start flags are on (`start_watchers`, `start_pipeline`, `start_image_pipeline` — `Settings.Services.start?/1`, persisted by the Settings toggles); each is a `MediaCentaur.FlagSupervisor`'s children, absent from the tree while off.
+Watchers and the two pipelines run while their service start flags are on (`start_watchers`, `start_pipeline`, `start_image_pipeline` — `Settings.Services.start?/1`, persisted by the Settings toggles, on until a toggle turns one off); each is a `MediaCentaur.FlagSupervisor`'s children, absent from the tree while off.
 
 **Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:recover` and, if watching is on, triggers `Watcher.Rescan.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
 

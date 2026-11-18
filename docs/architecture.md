@@ -187,6 +187,7 @@ graph TD
     PipelineFlag --> Broadway[Discovery, Import<br/>Broadway]
 
     ImagePipelineSup --> ImageStats[Image.Stats]
+    ImagePipelineSup --> ImageIntake[Image.Intake*]
     ImagePipelineSup --> ImageFlag[Pipeline.Image.FlagSupervisor<br/>start_image_pipeline]
     ImageFlag --> ImageBroadway[Image Broadway, RetryScheduler]
 

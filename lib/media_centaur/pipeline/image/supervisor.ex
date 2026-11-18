@@ -4,7 +4,11 @@ defmodule MediaCentaur.Pipeline.Image.Supervisor do
 
     1. `Pipeline.Image.Stats` — a crash restarts everything below it (clean
        telemetry re-attach);
-    2. `MediaCentaur.Pipeline.Image.FlagSupervisor` — the
+    2. `Pipeline.Image.Intake` — writes an import's artwork into the queue
+       whether or not downloads are on, so artwork imported while they are
+       off waits instead of being lost. Absent in an instance without
+       background services (`Settings.Config`);
+    3. `MediaCentaur.Pipeline.Image.FlagSupervisor` — the
        `start_image_pipeline` flag's children, `Pipeline.Image` (Broadway)
        and `Pipeline.Image.RetryScheduler`. Absent while the flag is off.
 
@@ -16,6 +20,7 @@ defmodule MediaCentaur.Pipeline.Image.Supervisor do
 
   alias MediaCentaur.FlagSupervisor
   alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Settings.Services
 
   @flag :start_image_pipeline
@@ -29,17 +34,21 @@ defmodule MediaCentaur.Pipeline.Image.Supervisor do
   def init(_opts) do
     flag_key = Services.key(@flag)
 
-    children = [
-      MediaCentaur.Pipeline.Image.Stats,
-      {FlagSupervisor,
-       name: @flag_supervisor,
-       flag: fn -> Services.start?(@flag) end,
-       subscribe: &Settings.subscribe/0,
-       relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
-       children: [MediaCentaur.Pipeline.Image, MediaCentaur.Pipeline.Image.RetryScheduler],
-       label: "the artwork pipeline",
-       component: :pipeline}
-    ]
+    intake = if Config.get(:background_services), do: [MediaCentaur.Pipeline.Image.Intake], else: []
+
+    children =
+      [MediaCentaur.Pipeline.Image.Stats] ++
+        intake ++
+        [
+          {FlagSupervisor,
+           name: @flag_supervisor,
+           flag: fn -> Services.start?(@flag) end,
+           subscribe: &Settings.subscribe/0,
+           relevant?: &match?({:setting_changed, ^flag_key, _value}, &1),
+           children: [MediaCentaur.Pipeline.Image, MediaCentaur.Pipeline.Image.RetryScheduler],
+           label: "the artwork pipeline",
+           component: :pipeline}
+        ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end

@@ -46,17 +46,6 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
     {:noreply, messages, state}
   end
 
-  def handle_info(
-        {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: images}},
-        state
-      ) do
-    # `Library.Inbound` hands a new entity's artwork over here — it cannot
-    # call into the pipeline. The queue writes the rows and nudges this
-    # producer, as the refresh does directly.
-    :ok = ImageQueue.enqueue(entity_id, media_dir, images)
-    {:noreply, [], state}
-  end
-
   def handle_info(_msg, state) do
     {:noreply, [], state}
   end
