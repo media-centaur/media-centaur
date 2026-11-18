@@ -14,5 +14,8 @@
   # `DynamicSupervisor` masks the OTP module). Imports that depend on aliased
   # names also break when Quokka reorders directives. Other rewrites
   # (pipes, deprecations, single-node fixes, etc.) remain enabled.
-  quokka: [exclude: [:module_directives]]
+  # `:configs` excluded because it sorts `config` calls in config/*.exs and
+  # leaves their comments behind, so every format shuffled the comments
+  # further away from the lines they describe.
+  quokka: [exclude: [:module_directives, :configs]]
 ]

@@ -114,7 +114,6 @@ config :media_centaur, Oban,
        # withdrawal's PubSub path lost one (campaign durable-work, F8).
        {"@reboot", MediaCentaur.Activities.StaleListingsJob},
        {"23 * * * *", MediaCentaur.Activities.StaleListingsJob},
-       # Rewrites the New Releases shelf membership from TMDB's discover
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset
@@ -207,8 +206,8 @@ config :mime, :types, %{
 # with "[FILTERED]" in request logs. When adding a new sensitive config
 # key, ensure its form name matches one of these substrings or extend
 # this list. See decisions/architecture/ for the policy.
-# Use Jason for JSON parsing in Phoenix
 config :phoenix, :filter_parameters, ~w(password api_key secret token)
+# Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
 # Configure tailwind (the version is required)
