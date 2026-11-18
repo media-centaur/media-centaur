@@ -267,7 +267,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     end
   end
 
-  # Whether there is a client to ask: the search and download feature on
+  # Whether there is a client to ask: the downloads feature on
   # (ADR-081) and a download client configured and tested. Off, the
   # monitor stays up and asks nobody.
   defp polling?, do: Capabilities.download_client_ready?() and Features.enabled?(:acquisition)

@@ -142,10 +142,9 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, "/library")}
             remember
           />
-          <%!-- Search: the titles you do not own yet (UIDR-057); part of
-                the search and download feature, on by default (ADR-081). --%>
+          <%!-- Search: the titles you do not own yet (UIDR-057). The
+                product's own page, like Watchlist: it has no flag. --%>
           <SidebarLink.sidebar_link
-            :if={:acquisition in @features}
             id="sidebar-search"
             navigate="/search"
             label="Search"
@@ -178,8 +177,8 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, ["/review", "/episode-mapping"])}
             count={@badges.review_pending + @badges.mapping_pending}
           />
-          <%!-- Downloads, the get stage (UIDR-015 amended, UIDR-057): part
-                of the search and download feature (ADR-081). While that is
+          <%!-- Downloads, the get stage (UIDR-015 amended, UIDR-057): the
+                downloads feature's page (ADR-081). While that is
                 on the entry stays without Prowlarr, and the page says what
                 it needs instead of disappearing. --%>
           <SidebarLink.sidebar_link

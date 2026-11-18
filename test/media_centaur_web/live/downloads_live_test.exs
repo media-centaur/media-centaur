@@ -2137,16 +2137,16 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert has_element?(view, "[data-component='zone-empty'] a[href='/search']", "Search")
     end
 
-    test "search and download off: no sidebar entry, and the page is its off state with Turn on",
+    test "Downloads off: no sidebar entry, and the page is its off state with Turn on",
          %{conn: conn} do
       MediaCentaur.Features.set(:acquisition, false)
 
       {:ok, view, html} = live_async!(conn, ~p"/downloads?zone=release-search")
 
       refute has_element?(view, "#sidebar-downloads")
-      refute has_element?(view, "#sidebar-search")
+      assert has_element?(view, "#sidebar-search")
       assert has_element?(view, "#downloads-off")
-      assert html =~ "Search and download is off"
+      assert html =~ "Downloads is off"
       refute has_element?(view, "[data-nav-zone='zone-tabs']")
       refute has_element?(view, "#release-search-note")
 

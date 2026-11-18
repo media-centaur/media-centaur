@@ -226,6 +226,7 @@ defmodule MediaCentaurWeb.Components.Social.FeedRow do
   @spec row_poster_src(String.t() | nil) :: String.t() | nil
   def row_poster_src(url), do: sized_image_url(url, 240)
 
+  defp slot_name(nil), do: "none"
   defp slot_name(:download), do: "download"
   defp slot_name({:state, word}), do: word
 end

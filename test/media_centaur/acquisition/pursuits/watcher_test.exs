@@ -89,7 +89,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       assert Enum.any?(old_events, &(&1.kind == "pursuit_exhausted"))
     end
 
-    test "search and download off: the tick judges nothing (ADR-081)" do
+    test "Downloads off: the tick judges nothing (ADR-081)" do
       old_pursuit =
         insert_pursuit(%{
           attempt_count: 4,

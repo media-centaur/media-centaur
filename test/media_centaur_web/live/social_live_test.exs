@@ -1094,6 +1094,23 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       assert plan.approval_policy == "review"
     end
 
+    test "Downloads off (ADR-081): a row offers no Download, and the event starts nothing", %{conn: conn} do
+      stub_prowlarr()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, nil))
+
+      {:ok, view, _html} = live(conn, "/social")
+      assert has_element?(view, entry(rec) <> "[data-download-slot='download']")
+
+      MediaCentaur.Features.set(:acquisition, false)
+      {:ok, view, _html} = live(conn, "/social")
+
+      assert has_element?(view, entry(rec) <> "[data-download-slot='none']")
+      render_click(view, "title_download", %{"ref" => "movie-777"})
+      await_supervised_tasks()
+      assert Plans.list_drafts() == []
+    end
+
     test "Download under auto-select starts the automatic plan and flashes; the slot then reads the state",
          %{conn: conn} do
       stub_prowlarr()

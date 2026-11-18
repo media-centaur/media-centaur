@@ -40,7 +40,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
   alias MediaCentaur.Features
 
   # Cron is fixed at boot, so the job asks the flag (ADR-081): while the
-  # search and download feature is off the queue is not polled, and a
+  # downloads feature is off the queue is not polled, and a
   # policy pass over a stale queue would cancel downloads that are fine.
   @impl Oban.Worker
   def perform(job) do

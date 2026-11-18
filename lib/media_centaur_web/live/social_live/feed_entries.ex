@@ -102,6 +102,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
     window = min(Keyword.fetch!(opts, :window), @cap)
     scope = Keyword.fetch!(opts, :scope)
     grades = Keyword.fetch!(opts, :grades)
+    downloads? = Keyword.get(opts, :downloads?, true)
 
     sorted =
       rows
@@ -111,7 +112,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
     {queued, visible} = split_at_head(sorted, Keyword.get(opts, :head))
 
     %{
-      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now, grades)),
+      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now, grades, downloads?)),
       has_older?: length(visible) > window and window < @cap,
       at_cap?: window == @cap and length(visible) > @cap,
       queued: length(queued)
@@ -139,7 +140,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
   defp in_scope?(%{author: %Person{own?: own?}}, :friends), do: not own?
   defp in_scope?(%{author: %Person{own?: own?}}, :you), do: own?
 
-  defp entry(%{activity: activity} = row, now, grades) do
+  defp entry(%{activity: activity} = row, now, grades, downloads?) do
     ref = {activity.tmdb_id, activity.media_type}
 
     %FeedEntry{
@@ -156,7 +157,7 @@ defmodule MediaCentaurWeb.SocialLive.FeedEntries do
       text: if(activity.kind == :review, do: activity.text),
       acted_at: activity.acted_at,
       ago: Format.relative_ago(activity.acted_at, now: now, sub_minute: :just_now),
-      slots: ToolbarSlots.resolve(row)
+      slots: row |> ToolbarSlots.resolve() |> ToolbarSlots.offer_download(downloads?)
     }
   end
 

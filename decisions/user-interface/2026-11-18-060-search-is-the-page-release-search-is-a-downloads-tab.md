@@ -32,10 +32,11 @@ Rejected: a button in the tab row that expands the field in place (a new open/cl
 ## Amendment 2026-11-18 — the flags behind the page
 
 The `:discovery` id is gone (ADR-081, amended the same day). The Search page
-and Downloads belong to the search and download feature. The New Releases
-shelf and the hero belong to the new releases feature, which requires it. With
-new releases off the page is the search field and the other shelves, and when
-none has a tile it says search is what it offers, with the way to Feature
-Flags (`SearchLive.Shelves.empty_reason/4`, `:search_only`). The note under
-the release search field and Activity's link to Search are unconditional: the
-page they sit on exists only while Search does.
+has no flag: it is always in the sidebar. Two features change what is on it.
+While **Downloads** is off, the hero and the tiles offer no Download; the
+bookmark, More info and every shelf stay. While **New releases on Search** is
+off there is no New Releases shelf and no hero; the page is the search field
+and the other shelves, and when none has a tile it says search is what it
+offers, with the way to Feature Flags (`SearchLive.Shelves.empty_reason/4`,
+`:search_only`). The note under the release search field and Activity's link
+to Search are unconditional.

@@ -92,7 +92,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
     end
   end
 
-  describe "search and download off (ADR-081)" do
+  describe "Downloads off (ADR-081)" do
     test "Auto-grab, Prowlarr and the download client are not listed" do
       groups =
         Overview.build(input(%{acquisition?: false, config: %{prowlarr_api_key_configured?: false}}))

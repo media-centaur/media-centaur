@@ -176,7 +176,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
 
   attr :auto_grab?, :boolean,
     default: true,
-    doc: "the search and download feature is on (ADR-081); off, the menu does not offer Auto-grab"
+    doc: "the downloads feature is on (ADR-081); off, the menu does not offer Auto-grab"
 
   def watchlist_row(assigns) do
     rows = assigns.item.social_activity
@@ -360,7 +360,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   The rung menu's items for a row, `{choice, label}` in order: the three
   list rungs by their state words, then Ignore (not for an owned title)
   and Remove; an Ignored row offers On your list and Stop ignoring. The
-  choice is the word `set_rung` takes. While the search and download
+  choice is the word `set_rung` takes. While the downloads
   feature is off (`auto_grab?` false) Auto-grab is not among the rungs,
   except on a row already at it.
   """

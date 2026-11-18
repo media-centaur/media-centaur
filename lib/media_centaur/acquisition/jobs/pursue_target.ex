@@ -196,7 +196,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       not Readiness.ready?() ->
         Log.info(
           :acquisition,
-          "acquisition waiting — #{target.title} (search and download is off, or Prowlarr is not configured)"
+          "acquisition waiting — #{target.title} (downloads are off, or Prowlarr is not configured)"
         )
 
         {:snooze, @unconfigured_snooze_seconds}

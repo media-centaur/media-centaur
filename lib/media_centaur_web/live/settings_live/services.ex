@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
 
   attr :auto_grab?, :boolean,
     default: true,
-    doc: "the search and download feature is on (ADR-081); off, the Auto-grab row is not listed"
+    doc: "the downloads feature is on (ADR-081); off, the Auto-grab row is not listed"
 
   def render(assigns) do
     ~H"""

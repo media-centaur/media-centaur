@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Acquisition.Readiness do
   @moduledoc """
-  Whether acquisition may ask Prowlarr anything: the search and download
+  Whether acquisition may ask Prowlarr anything: the downloads
   feature is on (`MediaCentaur.Features`, ADR-081) and Prowlarr is
   configured and tested (`MediaCentaur.Capabilities`).
 

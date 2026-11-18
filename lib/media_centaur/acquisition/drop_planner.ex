@@ -42,7 +42,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   @doc """
   One pass over every watching item's open wants. Inert unless the
-  search and download feature is on and Prowlarr is configured
+  downloads feature is on and Prowlarr is configured
   (`Readiness`) **and** answering (`MediaCentaur.IntegrationAvailability`)
   — wants accumulate and nothing is lost: the next tick plans the
   backlog, and Prowlarr's recovery runs one immediately rather than

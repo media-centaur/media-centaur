@@ -73,18 +73,20 @@ defmodule MediaCentaur.FeaturesTest do
     end
 
     test "a feature that requires another is on only while that one is on" do
-      assert Features.get(:new_releases).requires == :acquisition
       assert Features.get(:local_api).requires == :acquisition
-      assert Features.enabled?(:new_releases)
+      assert Features.get(:new_releases).requires == nil
+      Features.set(:local_api, true)
+      assert Features.enabled?(:local_api)
 
       Features.set(:acquisition, false)
 
-      refute Features.enabled?(:new_releases)
-      refute MapSet.member?(Features.enabled(), :new_releases)
+      refute Features.enabled?(:local_api)
+      refute MapSet.member?(Features.enabled(), :local_api)
+      assert Features.enabled?(:new_releases)
 
       Features.set(:acquisition, true)
-      assert Features.enabled?(:new_releases)
-      assert MapSet.member?(Features.enabled(), :new_releases)
+      assert Features.enabled?(:local_api)
+      assert MapSet.member?(Features.enabled(), :local_api)
     end
 
     test "every requirement names a registered feature" do
@@ -95,13 +97,13 @@ defmodule MediaCentaur.FeaturesTest do
 
     test "available/1 lists a feature only while what it requires is on" do
       ids = fn -> Features.enabled() |> Features.available() |> Enum.map(& &1.id) end
-      assert :new_releases in ids.()
+      assert :local_api in ids.()
       assert :acquisition in ids.()
 
       Features.set(:acquisition, false)
 
       assert :acquisition in ids.()
-      refute :new_releases in ids.()
+      assert :new_releases in ids.()
       refute :local_api in ids.()
     end
 

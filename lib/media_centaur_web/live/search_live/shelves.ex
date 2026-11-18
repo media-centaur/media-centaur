@@ -316,6 +316,7 @@ defmodule MediaCentaurWeb.SearchLive.Shelves do
   def reloads?({:activity_deleted, _event}), do: true
   def reloads?({:setting_changed, "feature:social", _value}), do: true
   def reloads?({:setting_changed, "feature:new_releases", _value}), do: true
+  def reloads?({:setting_changed, "feature:acquisition", _value}), do: true
   def reloads?({:integration_availability_changed, :tmdb, _state}), do: true
   def reloads?(_message), do: false
 end

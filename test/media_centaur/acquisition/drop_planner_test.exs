@@ -165,7 +165,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert Enum.all?(open_wants, & &1.last_searched_at)
     end
 
-    test "search and download off: wants wait and nothing is planned (ADR-081)" do
+    test "Downloads off: wants wait and nothing is planned (ADR-081)" do
       stub_results(%{})
       item = create_tracked_show(%{})
       create_aired_release(item, 1, 1, @last_month)

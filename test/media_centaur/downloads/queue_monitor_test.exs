@@ -128,7 +128,7 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
     end
   end
 
-  describe "search and download off (ADR-081)" do
+  describe "Downloads off (ADR-081)" do
     test "the monitor asks no client" do
       DownloadClientStubs.setup_qbittorrent_client()
 

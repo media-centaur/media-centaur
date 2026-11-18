@@ -15,7 +15,9 @@ defmodule MediaCentaurWeb.Components.Title.ToolbarSlots do
   renders it as "Tracking"). `download` is the verb `:download` or
   `{:state, word}` — "In library", or the acquisition marker while a
   plan runs (`Logic.acquisition_marker/1`, so no state is spelled
-  twice). A view-model, resolved by the host; the row decides nothing.
+  twice) — or nil while the downloads feature is off (ADR-081,
+  `offer_download/2`): the verb is withheld, a state is still told. A
+  view-model, resolved by the host; the row decides nothing.
   """
 
   alias MediaCentaur.Watchlist.TitleIntent
@@ -24,7 +26,7 @@ defmodule MediaCentaurWeb.Components.Title.ToolbarSlots do
   defstruct [:rung, :library_owner_id, :acquisition_state, :list, :download]
 
   @type list_slot :: :list | :listed | :following
-  @type download_slot :: :download | {:state, String.t()}
+  @type download_slot :: :download | {:state, String.t()} | nil
 
   @type t :: %__MODULE__{
           rung: TitleIntent.rung() | nil,
@@ -50,6 +52,14 @@ defmodule MediaCentaurWeb.Components.Title.ToolbarSlots do
       download: download_slot(owner, state)
     }
   end
+
+  @doc """
+  The slots as offered: with the downloads feature off the Download verb
+  is withheld; a state ("In library", a plan in flight) stays.
+  """
+  @spec offer_download(t(), boolean()) :: t()
+  def offer_download(%__MODULE__{download: :download} = slots, false), do: %{slots | download: nil}
+  def offer_download(%__MODULE__{} = slots, _downloads?), do: slots
 
   defp list_slot(:list), do: :listed
   defp list_slot(rung), do: if(TitleIntent.follows_releases?(rung), do: :following, else: :list)

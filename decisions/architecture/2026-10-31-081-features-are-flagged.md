@@ -48,28 +48,34 @@ start flags (`Settings.Services`) use the same module (campaign
 child is stopped to express a setting. A feature's start failure is logged
 and leaves that feature not running; the others are untouched.
 
-## Amendment 2026-11-18 — search and download is a feature, and a feature may require another
+## Amendment 2026-11-18 — downloads is a feature, and a feature may require another
 
 Decision 6 listed acquisition among "the product, not features". It is now a
-feature, `:acquisition`, displayed "Search and download", on by default: an
-install can be a library and a player with nothing that finds or fetches. It
-replaces the `:discovery` flag, which gated the Search page and the New
-Releases refresh together (campaign `search-page.md`, M2). Off: no Search or
-Downloads entry or page, no Download control or Auto-grab choice on a title, no
+feature, `:acquisition`, displayed "Downloads", on by default: an install can
+be a library and a player with nothing that fetches. Off: no Downloads entry or
+page, no Download control or Auto-grab choice on any title surface (the title
+detail, a Search tile or hero, a Social feed row, a Watchlist row), no
 Acquisition settings section, no Auto-grab row under Services, no Downloads
-tile on Status. The stored `feature:discovery` value is not read and not
-migrated.
+tile on Status.
 
-A feature may **require** another (`Feature.requires`). `:new_releases` (the
-daily retrieval and the Search page's New Releases shelf) and `:local_api`
-(every route of which searches or downloads) require `:acquisition`. A feature
-is on only while what it requires is on: `Features.enabled?/1` and `enabled/0`
-answer that, so no reader asks two flags. Its Feature Flags row is listed only
-then, and turning it on from an off state turns on what it requires
+The `:discovery` flag is gone (campaign `search-page.md`, M2 and M4). It
+gated the Search page and the New Releases refresh together. The **Search
+page is the product's own**, like Watchlist, and has no flag: finding a title
+and listing it needs TMDB alone. The refresh became its own feature,
+`:new_releases`, displayed "New releases on Search": the daily retrieval and
+the page's New Releases shelf and hero. The stored `feature:discovery` value is
+not read and not migrated.
+
+A feature may **require** another (`Feature.requires`). `:local_api`, every
+route of which searches for or fetches a release, requires `:acquisition`. A
+feature is on only while what it requires is on: `Features.enabled?/1` and
+`enabled/0` answer that, so no reader asks two flags. Its Feature Flags row is
+listed only then, and turning it on from an off state turns on what it requires
 (`Features.turn_on/1`). `Features.Runtime` reconciles every feature on any
 feature flag's change, since a requirement's flag moves its dependants.
 
-Two points where this feature does not follow decision 2 to the letter:
+Two points where the downloads feature does not follow decision 2 to the
+letter:
 
 * **Its jobs wait; they do not return.** A grab, a pursuit or a plan in the
   queue carries a download someone asked for. Returning `:ok` while off would

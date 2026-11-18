@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
       },
       %Variation{
         id: :search_and_download_off,
-        description: "The search and download feature is off: Auto-grab is not offered.",
+        description: "The downloads feature is off: Auto-grab is not offered.",
         attributes: base(%{rung: :follow, acquisition?: false, auto_grab?: false})
       },
       %Variation{

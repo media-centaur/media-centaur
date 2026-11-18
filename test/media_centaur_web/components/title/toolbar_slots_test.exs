@@ -32,6 +32,15 @@ defmodule MediaCentaurWeb.Components.Title.ToolbarSlotsTest do
              ToolbarSlots.resolve(facts(%{acquisition_state: :needs_review}))
   end
 
+  test "offer_download/2: downloads off withholds the verb and keeps a state" do
+    verb = ToolbarSlots.resolve(facts(%{}))
+    state = ToolbarSlots.resolve(facts(%{library_owner_id: "owner"}))
+
+    assert ToolbarSlots.offer_download(verb, true).download == :download
+    assert ToolbarSlots.offer_download(verb, false).download == nil
+    assert ToolbarSlots.offer_download(state, false).download == {:state, "In library"}
+  end
+
   test "extra keys on an enriched row are ignored" do
     assert %ToolbarSlots{list: :list} =
              ToolbarSlots.resolve(Map.put(facts(%{}), :activity, :anything))

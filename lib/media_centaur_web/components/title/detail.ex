@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   `release_window` are what the tracking controls need: whether a grab
   can fire, and where a movie stands in its release sequence — nil
   until the live preview lands, and for a series. `downloads?` is whether
-  the search and download feature is on (ADR-081): off, `acquisition?`
+  the downloads feature is on (ADR-081): off, `acquisition?`
   and `release_mode_available` are false and Auto-grab is not offered.
   `settled?` is whether the TMDB store holds the title as
   settled (`TMDB.Schedule`): for a series, ended or canceled with no air

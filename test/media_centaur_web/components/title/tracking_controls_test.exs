@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
     end
   end
 
-  describe "rows/1 — while search and download is off (ADR-081)" do
+  describe "rows/1 — while downloads are off (ADR-081)" do
     test "Auto-grab is not offered" do
       assert TrackingControls.rows(%{
                media_type: :movie,

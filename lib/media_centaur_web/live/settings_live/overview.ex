@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
     }
   end
 
-  # The search and download feature's rows (ADR-081): Auto-grab, Prowlarr
+  # The downloads feature's rows (ADR-081): Auto-grab, Prowlarr
   # and the download client are listed while the feature is on. Off, a
   # missing indexer is not a problem to report.
   defp acquisition_only(input, items), do: if(Map.get(input, :acquisition?, true), do: items, else: [])

@@ -573,7 +573,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # The residue: an owned entity with no TMDB identity has the library
   # half as its one fact.
-  # Whether the search and download feature is on (ADR-081): off, a title
+  # Whether the downloads feature is on (ADR-081): off, a title
   # has no Download control and Auto-grab is not offered.
   defp downloads?(socket), do: :acquisition in socket.assigns.features
 
@@ -1202,7 +1202,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       %Title{} = title ->
         ref = {title.tmdb_id, title.media_type}
 
-        if Library.ExternalIds.tmdb_owners([ref]) == %{} and TitleStates.for_refs([ref]) == %{} do
+        if downloads?(socket) and Library.ExternalIds.tmdb_owners([ref]) == %{} and
+             TitleStates.for_refs([ref]) == %{} do
           scope = if title.media_type == :tv_series, do: :first_missing_season
 
           {:halt, Acquisition.start_download(socket, title, PlanningMode.value(), scope, :stay)}

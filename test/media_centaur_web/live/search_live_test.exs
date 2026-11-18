@@ -18,38 +18,48 @@ defmodule MediaCentaurWeb.SearchLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Watchlist
 
-  describe "the feature (ADR-081)" do
-    test "on by default: the sidebar entry and the page", %{conn: conn} do
+  describe "the page is the product's, not a feature's" do
+    test "the sidebar entry and the page", %{conn: conn} do
       TmdbStubs.mark_ready!()
       {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(view, "[data-tip='Search']")
-      refute has_element?(view, "#search-off")
       assert has_element?(view, "#omnibox-media-input")
     end
 
-    test "off: no sidebar entry, and the page is its off state with Turn on",
+    test "Downloads off: the page and its entry stay, with no Download on the hero or a tile",
          %{conn: conn} do
-      Features.set(:acquisition, false)
+      TmdbStubs.mark_ready!()
+      store_movie(901, "Movie A")
+      :ok = NewReleases.replace([digital(901)])
 
       {:ok, view, _html} = live(conn, "/search")
-      refute has_element?(view, "[data-tip='Search']")
-      assert has_element?(view, "#search-off")
-      assert render(view) =~ "Search and download is off"
+      assert has_element?(view, "#new-releases-row button[phx-click='title_download']")
 
-      view |> element("#search-off-turn-on") |> render_click()
-      assert Features.enabled?(:acquisition)
+      Features.set(:acquisition, false)
+      {:ok, view, html} = live(conn, "/search")
+
+      assert has_element?(view, "[data-tip='Search']")
+      assert has_element?(view, "#omnibox-media-input")
+      assert html =~ "Movie A"
+      assert has_element?(view, "#new-releases-row [phx-click='open_title']")
+
+      assert view
+             |> render()
+             |> LazyHTML.from_fragment()
+             |> LazyHTML.query("[phx-click='title_download']")
+             |> Enum.empty?()
     end
 
-    test "the Feature flags row lists it as optional, on", %{conn: conn} do
+    test "the Feature flags rows: Downloads and New releases on Search, on", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/settings?section=features")
-      assert html =~ "Search and download"
-      assert html =~ "New releases"
+      assert html =~ "Downloads"
+      assert html =~ "New releases on Search"
+    end
 
-      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(
-               MediaCentaur.Features.get(:acquisition)
-             ) =~
-               "In development."
+    test "new releases needs nothing else: it stays on with Downloads off" do
+      Features.set(:acquisition, false)
+      assert Features.enabled?(:new_releases)
     end
   end
 
@@ -249,6 +259,7 @@ defmodule MediaCentaurWeb.SearchLiveTest do
 
       assert has_element?(view, "#search-empty a[href='/settings?section=features']")
       assert html =~ "Find a film or series by name"
+      assert html =~ "New releases on Search"
       refute html =~ "New releases are on their way"
     end
 

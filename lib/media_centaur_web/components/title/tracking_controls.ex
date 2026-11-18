@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   attr :auto_grab?, :boolean,
     default: true,
     doc:
-      "the search and download feature is on (ADR-081); off, Auto-grab is not offered — a title already at it keeps the row so it can be stepped down"
+      "the downloads feature is on (ADR-081); off, Auto-grab is not offered — a title already at it keeps the row so it can be stepped down"
 
   attr :class, :string, default: nil
 
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
         <%= if @auto_grab? do %>
           Auto-grab downloads nothing until an indexer and a download client are set up under Settings → Acquisition.
         <% else %>
-          Auto-grab downloads nothing while Search and download is off under Settings → Feature Flags.
+          Auto-grab downloads nothing while Downloads is off under Settings → Feature Flags.
         <% end %>
       </p>
     </div>
@@ -210,7 +210,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   Which switches a listed title gets. A movie that is out has nothing
   left to be told about: Auto-grab only — which keeps searching until a
   release exists, unlike the Download button. A movie with a release
-  ahead, and any series: both. While the search and download feature is
+  ahead, and any series: both. While the downloads feature is
   off (`auto_grab?: false`) Auto-grab is not offered, except to a title
   already at it, which keeps the row so it can be stepped down.
   """

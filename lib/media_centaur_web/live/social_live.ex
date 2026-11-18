@@ -468,7 +468,8 @@ defmodule MediaCentaurWeb.SocialLive do
         window: socket.assigns.feed_window,
         scope: socket.assigns.feed_scope,
         head: socket.assigns.feed_head,
-        grades: grades
+        grades: grades,
+        downloads?: :acquisition in socket.assigns.features
       )
 
     people =

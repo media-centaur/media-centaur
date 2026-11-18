@@ -2,10 +2,11 @@ defmodule MediaCentaurWeb.SearchLive do
   @moduledoc """
   Search: the page for titles you do not own yet (campaign
   `discovery.md`) — the second assembled page, shelved like Home, and the
-  *choose* stage of a title's life (UIDR-057). An optional feature
-  (ADR-081), on by default: its sidebar entry, this page and its shelf
-  refresh exist while the `:acquisition` flag is on, and the page is its off
-  state otherwise.
+  *choose* stage of a title's life (UIDR-057). The page is the product's
+  own and has no flag. Two features (ADR-081) change what is on it: the
+  Download verb on the hero and the tiles exists while `:acquisition`
+  (Downloads) is on, and the New Releases shelf and the hero while
+  `:new_releases` is on.
 
   **Media search** lives at the top of the page (UIDR-014, amended
   2026-11-01; `Live.MediaSearch`): the omnibox centred over the hero's
@@ -63,7 +64,6 @@ defmodule MediaCentaurWeb.SearchLive do
 
   alias MediaCentaur.Acquisition.TitleStates
   alias MediaCentaur.Activities
-  alias MediaCentaur.Features
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.NewReleases
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.SearchLive do
   alias MediaCentaur.TMDB.{ReleaseStages, Store, Title}
   alias MediaCentaur.Watchlist
   alias MediaCentaurWeb.Components.Acquisition.{MediaOmnibox, MediaResults}
-  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
+  alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, PosterRow, ShelfHead}
   alias MediaCentaurWeb.Components.{HeroBackdrop, HeroCard}
   alias MediaCentaurWeb.Components.Title.{ToolbarSlots, WatchlistToggle}
   alias MediaCentaurWeb.SearchLive.Shelves
@@ -109,18 +109,12 @@ defmodule MediaCentaurWeb.SearchLive do
      )}
   end
 
-  # The shelves load once, on whichever render comes first (ADR-051), and
-  # only while the feature is on: the off state reads nothing.
+  # The shelves load once, on whichever render comes first (ADR-051).
   @impl true
   def handle_params(_params, _uri, socket), do: {:noreply, ensure_loaded(socket)}
 
   defp ensure_loaded(%{assigns: %{loaded?: true}} = socket), do: socket
-
-  defp ensure_loaded(socket) do
-    if :acquisition in socket.assigns.features,
-      do: socket |> assign(:loaded?, true) |> load_shelves(),
-      else: socket
-  end
+  defp ensure_loaded(socket), do: socket |> assign(:loaded?, true) |> load_shelves()
 
   # Every read is bounded and local: the membership, the listed titles,
   # the friends' reviews, then for their refs together the store's
@@ -129,6 +123,7 @@ defmodule MediaCentaurWeb.SearchLive do
   defp load_shelves(socket) do
     today = socket.assigns.today
     new_releases? = :new_releases in socket.assigns.features
+    downloads? = :acquisition in socket.assigns.features
     members = if new_releases?, do: NewReleases.members(), else: []
     member_refs = Enum.map(members, &Member.ref/1)
     listed = Watchlist.list_watchlist()
@@ -155,11 +150,13 @@ defmodule MediaCentaurWeb.SearchLive do
 
     hero_slots =
       hero &&
-        ToolbarSlots.resolve(%{
+        %{
           rung: Map.get(rungs, hero.ref),
           library_owner_id: Map.get(owners, hero.ref),
           acquisition_state: Map.get(states, hero.ref)
-        })
+        }
+        |> ToolbarSlots.resolve()
+        |> ToolbarSlots.offer_download(downloads?)
 
     tracking = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
 
@@ -183,12 +180,12 @@ defmodule MediaCentaurWeb.SearchLive do
       hero: hero,
       hero_slots: hero_slots,
       title_rungs: rungs,
-      out_now: watchlist.out_now,
-      new_releases: new_releases,
-      friends: friends,
+      out_now: offer_download(watchlist.out_now, downloads?),
+      new_releases: offer_download(new_releases, downloads?),
+      friends: offer_download(friends, downloads?),
       watchlist_groups: [
-        %{label: "In Theaters", items: watchlist.in_theaters},
-        %{label: "Coming Up", items: watchlist.coming_up}
+        %{label: "In Theaters", items: offer_download(watchlist.in_theaters, downloads?)},
+        %{label: "Coming Up", items: offer_download(watchlist.coming_up, downloads?)}
       ],
       empty_reason:
         Shelves.empty_reason(
@@ -199,6 +196,10 @@ defmodule MediaCentaurWeb.SearchLive do
         )
     )
   end
+
+  # While the downloads feature is off (ADR-081) no tile offers Download.
+  defp offer_download(items, downloads?),
+    do: Enum.map(items, &%{&1 | slots: ToolbarSlots.offer_download(&1.slots, downloads?)})
 
   @impl true
   def handle_info(:reload_shelves, socket) do
@@ -263,16 +264,10 @@ defmodule MediaCentaurWeb.SearchLive do
         />
         <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </:overlays>
-      <FeatureOff.feature_off
-        :if={:acquisition not in @features}
-        id="search-off"
-        feature={Features.get(:acquisition)}
-      />
       <%!-- The modal's params are modal state: stripped from the remembered
             URL so leaving the page closes the modal rather than reopening
             it on return. --%>
       <div
-        :if={:acquisition in @features}
         class="relative"
         data-page-behavior="search"
         data-nav-default-zone="search"
@@ -458,7 +453,7 @@ defmodule MediaCentaurWeb.SearchLive do
             icon="hero-magnifying-glass"
             headline="Find a film or series by name"
           >
-            Type a name in the field above. The titles on your watchlist appear here as they come out. New releases are switched off.
+            Type a name in the field above. The titles on your watchlist appear here as they come out. New releases on Search is switched off.
             <:action>
               <.button variant="secondary" size="sm" navigate={~p"/settings?section=features"}>
                 Feature Flags

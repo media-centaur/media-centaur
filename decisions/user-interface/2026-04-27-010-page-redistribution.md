@@ -5,7 +5,7 @@ amended: 2026-11-18
 ---
 # Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History
 
-> **Amendment 2026-11-18 (campaign `search-page.md`, M1; UIDR-060).** Rule 2's Watch group reads **Home, Library, Search, Watchlist, Downloads, Social, Apps**: the Discovery entry is **Search** (`/search`, the magnifying glass), present while its feature is on. *M2, same day (ADR-081 amended):* **Search** and **Downloads** are both entries of the search and download feature, present while it is on; Downloads is no longer unconditional.
+> **Amendment 2026-11-18 (campaign `search-page.md`, M1; UIDR-060).** Rule 2's Watch group reads **Home, Library, Search, Watchlist, Downloads, Social, Apps**: the Discovery entry is **Search** (`/search`, the magnifying glass), present while its feature is on. *M2, same day (ADR-081 amended):* **Search** is unconditional, the product's own page; **Downloads** is the downloads feature's entry, present while that is on.
 >
 > **Amendment 2026-11-03 (campaign `discovery.md`, M15; UIDR-057 amended).** Rule 2's Watch group gains **Watchlist** (`/watchlist`, the bookmark icon) between Discovery and Downloads, unconditional: **Home, Library, Discovery, Watchlist, Downloads, Social, Apps**. The page is the inventory of every title intent, managed in place (UIDR-050 amended); it is not a feature, so it has no flag.
 >

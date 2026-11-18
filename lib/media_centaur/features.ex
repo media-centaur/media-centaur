@@ -24,8 +24,9 @@ defmodule MediaCentaur.Features do
       Settings shell, the Status board and the gated pages read the set.
     * Settings → Feature Flags lists the registry, one row per feature.
 
-  A feature may **require** another (`Feature.requires`): new releases
-  and the Local API are parts of search and download. Such a feature is on
+  A feature may **require** another (`Feature.requires`): the Local API
+  is part of downloads, since every route of it searches for or fetches a
+  release. Such a feature is on
   only while the one it requires is on — `enabled?/1` and `enabled/0`
   answer that, so no reader asks two flags — and its Feature flags row is
   listed only then (`available/1`).
@@ -63,20 +64,19 @@ defmodule MediaCentaur.Features do
     },
     %Feature{
       id: :acquisition,
-      name: "Search and download",
+      name: "Downloads",
       description:
-        "The Search and Downloads pages, the Download button on a title, and automatic downloads of the titles you follow. Downloading needs Prowlarr.",
+        "The Downloads page, the Download button on a title, and automatic downloads of the titles you follow. Needs Prowlarr.",
       default: true,
       stage: :optional
     },
     %Feature{
       id: :new_releases,
-      name: "New releases",
+      name: "New releases on Search",
       description:
         "Fetches the films newly out to stream, rent or buy once a day, for the Search page's New Releases shelf.",
       default: true,
-      stage: :optional,
-      requires: :acquisition
+      stage: :optional
     },
     %Feature{
       id: :apps,

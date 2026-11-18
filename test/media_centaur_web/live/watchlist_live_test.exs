@@ -5,7 +5,6 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Features
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Watchlist
@@ -549,14 +548,6 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       assert has_element?(view, "#watchlist-empty", "Your list starts with a bookmark")
       assert has_element?(view, "#watchlist-empty a[href='/search']", "Open Search")
       refute has_element?(view, "#watchlist-filter")
-    end
-
-    test "with Search off the button goes to the library", %{conn: conn} do
-      Features.set(:acquisition, false)
-      {:ok, view, _html} = live_async!(conn, "/watchlist")
-
-      assert has_element?(view, "#watchlist-empty a[href='/library']", "Browse the library")
-      refute has_element?(view, "#watchlist-empty a", "Open Search")
     end
   end
 end

@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.Api.StatusControllerTest do
              } = body["capabilities"]
     end
 
-    test "search and download off takes the API with it: it requires that feature", %{
+    test "Downloads off takes the API with it: it requires that feature", %{
       conn: conn,
       key: key
     } do
