@@ -3,8 +3,9 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
   Persistent on/off lever for auto-grab.
 
   The lever is stored in `Settings` under the
-  `services:<env>:start_acquisition` key — the same per-env persistence
-  the watcher and pipeline toggles use — so the choice survives restarts.
+  `services:start_acquisition` key — the same persistence the watcher and
+  pipeline toggles use (`Settings.Services`) — so the choice survives
+  restarts.
   Pausing also pauses the Oban `:acquisition` queue so pre-existing
   snoozed/searching grabs stop firing.
 

@@ -851,17 +851,10 @@ defmodule MediaCentaur.Showcase do
   defp pursuit_state_for("cancelled"), do: "cancelled"
   defp pursuit_state_for(_), do: "active"
 
-  # A showcase is a working install: its watchers and pipeline run, so a
-  # file laid in its media directory is discovered and a match pressed in
-  # Review imports. The dev environment starts both off (config/dev.exs, to
-  # coexist with a release watching the same directories); a showcase has
-  # its own. Turning them on persists the flags, so the server booted on
-  # this database runs them too.
-  defp seed_review_scenarios! do
-    MediaCentaur.Watcher.Supervisor.set_enabled(true)
-    MediaCentaur.Pipeline.Supervisor.set_enabled(true)
-    ReviewScenarios.seed!(showcase_media_dir())
-  end
+  # A showcase is a working install: its watchers and pipeline run (every
+  # service start flag defaults on), so a file laid in its media directory
+  # is discovered and a match pressed in Review imports.
+  defp seed_review_scenarios!, do: ReviewScenarios.seed!(showcase_media_dir())
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"
   # test result so `/downloads` renders its acquisition zones.

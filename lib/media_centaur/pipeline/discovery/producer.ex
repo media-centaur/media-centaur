@@ -29,7 +29,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   What `:recover` does, given whether watching is on. `Watcher.Supervisor`
   starts its watchers synchronously and sits before the pipeline in the
   application tree, so the answer at this producer's start is final: a
-  deliberately disabled watcher (`services:*:start_watchers` off) is
+  deliberately disabled watcher (`services:start_watchers` off) is
   skipped, not an error worth logging or retrying.
   """
   @spec recover_action(boolean()) :: :run | :skip

@@ -14,63 +14,43 @@ defmodule MediaCentaur.Settings.ServicesTest do
     :ok = Config.load!()
   end
 
-  describe "enabled?/2" do
-    setup do
-      load_config(true)
-    end
-
-    test "falls back to the default when nothing is persisted" do
-      assert Services.enabled?(:start_watchers, true)
-      refute Services.enabled?(:start_watchers, false)
-    end
-
-    test "a persisted flag wins over the default" do
-      Services.set(:start_watchers, false)
-      refute Services.enabled?(:start_watchers, true)
-
-      Services.set(:start_watchers, true)
-      assert Services.enabled?(:start_watchers, false)
-    end
-
-    test "is false in an instance without background services, whatever the row says" do
-      Services.set(:start_watchers, true)
-      load_config(false)
-
-      refute Services.enabled?(:start_watchers, true)
-      refute Services.enabled?(:start_pipeline, true)
-    end
-  end
-
+  # Changed 2026-11-18: the app-env default (`config :media_centaur,
+  # :start_x`) and `enabled?/2` are gone. Only config/dev.exs set that
+  # default, to false, and a flag added later (start_image_pipeline)
+  # inherited it on the daily driver and silently stopped artwork.
   describe "start?/1" do
     setup do
       load_config(true)
     end
 
-    test "falls back to the app-env default when nothing is persisted" do
-      Application.put_env(:media_centaur, :start_watchers, false)
-      refute Services.start?(:start_watchers)
-
-      Application.put_env(:media_centaur, :start_watchers, true)
-      assert Services.start?(:start_watchers)
+    test "every service runs when nothing is persisted" do
+      for service <- [:start_watchers, :start_pipeline, :start_image_pipeline, :start_acquisition] do
+        assert Services.start?(service), "#{service} should run on an instance that never set it"
+      end
     end
 
-    test "a persisted flag wins over the app-env default" do
-      Application.put_env(:media_centaur, :start_pipeline, false)
+    test "a persisted flag decides" do
+      Services.set(:start_pipeline, false)
+      refute Services.start?(:start_pipeline)
+
       Services.set(:start_pipeline, true)
       assert Services.start?(:start_pipeline)
     end
 
-    test "is false in an instance without background services" do
+    test "is false in an instance without background services, whatever the row says" do
       Services.set(:start_pipeline, true)
       load_config(false)
+
       refute Services.start?(:start_pipeline)
+      refute Services.start?(:start_watchers)
     end
   end
 
+  # Changed 2026-11-18: one instance per database (ADR-084), so a flag is
+  # no longer namespaced by the environment.
   describe "key/1" do
-    test "is namespaced by the running environment" do
-      env = Application.get_env(:media_centaur, :environment, :dev)
-      assert Services.key(:start_pipeline) == "services:#{env}:start_pipeline"
+    test "is one key per service, the same in every environment" do
+      assert Services.key(:start_pipeline) == "services:start_pipeline"
     end
   end
 end

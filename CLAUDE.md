@@ -119,6 +119,8 @@ mix precommit          # compile + format + credo + boundaries + test-sweep + he
 
 `MEDIA_CENTAUR_CONFIG_OVERRIDE` points at a TOML file that fully replaces the default (`~/.config/media-centaur/media-centaur.toml`). It carries its own port, database path, and media dirs, so a misconfigured command can't clobber the real DB. Single mechanism for running dev + demo side-by-side with the installed release.
 
+**One instance per database** ([ADR-084](decisions/architecture/2026-11-18-084-one-instance-per-database.md)). Every service starts by default and its start flag is stored once per database, so two instances on one file both watch, import and download. A second instance always gets its own database through an override; never start one against the daily driver's.
+
 | TOML | Purpose | Binds |
 |------|---------|-------|
 | `defaults/media-centaur-showcase.toml` | Demo instance, public-domain media | :4003 |
