@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.19.0 — 2026-11-18
+
+### New
+
+- **Discovery is now the Search page.** The page has a new name, a magnifying glass in the sidebar and the address `/search`. Use it to find a film or series by name. It is always available: no feature flag switches it off.
+- **Downloads is a feature you can switch off.** Under Settings → Feature Flags, *Downloads* covers the Downloads page, the Download button on a title and Auto-grab, and it is on by default. Off, the page and its sidebar entry are gone, no title offers Download, and nothing asks Prowlarr or a download client. Downloads already queued are kept and resume when you switch it back on. Search and your watchlist keep working.
+- **New releases on Search has its own flag.** *New releases on Search* fetches new film releases for the Search page's New Releases shelf, and is on by default. Off, nothing is fetched and the Search page is its search field and your other shelves.
+- **A Local API for scripts and agents.** With the *Local API* flag on, a script or agent on your network can search for releases, start and follow downloads, read a title's state, plan chosen seasons and episodes, and turn Auto-grab on and off for a title. It is off by default and needs Downloads to be on. The wiki's Local API page has the details.
+
+### Improved
+
+- **Release search is a tab on Downloads.** Searching Prowlarr for a specific release moved from the top of the Downloads page into a third tab, with a note that points to the Search page for finding a title by name.
+
+### Fixed
+
+- **A plan that an automatic download refused now waits for you.** It used to be retried without a person choosing, and a title could be planned twice.
+
 ## v2.18.1 — 2026-11-18
 
 ### Fixed
