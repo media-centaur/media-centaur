@@ -15,7 +15,7 @@ The Local API, under `/api`, is a feature (ADR-081, `:local_api`, default off) w
 1. While the flag is off, every `/api` path answers 404.
 2. While it is on, every request carries `Authorization: Bearer <key>`, from loopback too. There is no trusted address.
 3. There is one key. The app generates it, stores only its SHA-256 digest in Settings, and shows it once. Generating again replaces it.
-4. The API is a leaf (Credo MC0045). Only the router references `MediaCentaurWeb.Api.*`, and those modules reach the app through context functions, with no database access, events, jobs or processes of their own.
+4. The API is a leaf (Credo MC0046). Only the router references `MediaCentaurWeb.Api.*`, and those modules reach the app through context functions, with no database access, events, jobs or processes of their own.
 5. The API is served over plain HTTP, like the rest of the app. The key is readable by anyone able to capture local network traffic; the Settings section says so.
 6. The contract is one OpenAPI document, `priv/api/openapi.json`, served at `GET /api/v1/openapi.json` behind the key like every other path. Tests hold its paths equal to the router and its schemas to real responses.
 

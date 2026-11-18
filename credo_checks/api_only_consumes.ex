@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Credo.Checks.ApiOnlyConsumes do
   use Credo.Check,
-    id: "MC0045",
+    id: "MC0046",
     base_priority: :high,
     category: :design,
     explanations: [
@@ -18,7 +18,7 @@ defmodule MediaCentaur.Credo.Checks.ApiOnlyConsumes do
       `:ets` are refused. It calls a context's public functions instead.
 
       The `MediaCentaurWeb` Boundary cannot state this, because the API
-      and the rest of the web layer are one boundary. ADR-083.
+      and the rest of the web layer are one boundary. ADR-085.
       """
     ]
 
@@ -95,7 +95,7 @@ defmodule MediaCentaur.Credo.Checks.ApiOnlyConsumes do
 
   defp issue_for(issue_meta, name, line_no, :referenced) do
     format_issue(issue_meta,
-      message: "Only the router may reference the Local API. Move what you need into a context (ADR-083).",
+      message: "Only the router may reference the Local API. Move what you need into a context (ADR-085).",
       trigger: Enum.join(name, "."),
       line_no: line_no
     )
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Credo.Checks.ApiOnlyConsumes do
 
   defp issue_for(issue_meta, name, line_no, :consumes) do
     format_issue(issue_meta,
-      message: "The Local API only consumes: call a context's public function instead (ADR-083).",
+      message: "The Local API only consumes: call a context's public function instead (ADR-085).",
       trigger: Enum.join(name, "."),
       line_no: line_no
     )

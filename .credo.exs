@@ -371,8 +371,8 @@
           # once moved seven series through the Watchlist and the publisher
           # said each was the owner's act (ADR-082).
           {MediaCentaur.Credo.Checks.ActorAtTheEdge, []},
-          # MC0045 keeps the Local API a leaf: only the router references it,
-          # and it reaches the app through context functions alone (ADR-083).
+          # MC0046 keeps the Local API a leaf: only the router references it,
+          # and it reaches the app through context functions alone (ADR-085).
           {MediaCentaur.Credo.Checks.ApiOnlyConsumes, []}
         ],
         disabled: [
