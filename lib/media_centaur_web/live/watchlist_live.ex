@@ -488,7 +488,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
           lands here with what the app knows about its releases.
           <:action>
             <.button
-              :if={:discovery in @features}
+              :if={:acquisition in @features}
               variant="primary"
               size="sm"
               navigate={~p"/search"}
@@ -498,7 +498,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
               Open Search
             </.button>
             <.button
-              :if={:discovery not in @features}
+              :if={:acquisition not in @features}
               variant="primary"
               size="sm"
               navigate={~p"/library"}

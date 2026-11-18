@@ -24,6 +24,12 @@ defmodule MediaCentaur.Features do
       Settings shell, the Status board and the gated pages read the set.
     * Settings → Feature Flags lists the registry, one row per feature.
 
+  A feature may **require** another (`Feature.requires`): new releases
+  and the Local API are parts of search and download. Such a feature is on
+  only while the one it requires is on — `enabled?/1` and `enabled/0`
+  answer that, so no reader asks two flags — and its Feature flags row is
+  listed only then (`available/1`).
+
   A feature's **stage** says why a row exists: `:development` (unfinished;
   the row says so) or `:optional` (finished; a user may still not want it).
   The stage is about the feature; the input system's WIP notice is about a
@@ -56,12 +62,21 @@ defmodule MediaCentaur.Features do
       stage: :optional
     },
     %Feature{
-      id: :discovery,
-      name: "Search",
+      id: :acquisition,
+      name: "Search and download",
       description:
-        "The Search page: find a film or series by name, over new digital releases, your friends' reviews and your watchlist.",
+        "The Search and Downloads pages, the Download button on a title, and automatic downloads of the titles you follow. Downloading needs Prowlarr.",
       default: true,
       stage: :optional
+    },
+    %Feature{
+      id: :new_releases,
+      name: "New releases",
+      description:
+        "Fetches the films newly out to stream, rent or buy once a day, for the Search page's New Releases shelf.",
+      default: true,
+      stage: :optional,
+      requires: :acquisition
     },
     %Feature{
       id: :apps,
@@ -76,7 +91,8 @@ defmodule MediaCentaur.Features do
       description:
         "A JSON API for scripts and agents on your network to find, download and follow films and series.",
       default: false,
-      stage: :optional
+      stage: :optional,
+      requires: :acquisition
     }
   ]
 
@@ -103,21 +119,51 @@ defmodule MediaCentaur.Features do
   def feature_key?("feature:" <> rest), do: Enum.any?(@ids, &(Atom.to_string(&1) == rest))
   def feature_key?(_key), do: false
 
-  @doc "Whether the feature is on: the stored flag, else its default."
+  @doc """
+  Whether the feature is on: the stored flag, else its default — and, for
+  a feature that requires another, only while that one is on.
+  """
   @spec enabled?(atom()) :: boolean()
   def enabled?(id) when id in @ids do
     feature = get(id)
-    key(id) |> Settings.get_by_key() |> flag(feature.default)
+
+    (key(id) |> Settings.get_by_key() |> flag(feature.default)) and
+      (feature.requires == nil or enabled?(feature.requires))
   end
 
   @doc "The set of features that are on, in one read."
   @spec enabled() :: MapSet.t(atom())
   def enabled do
     stored = @ids |> Enum.map(&key/1) |> Settings.get_by_keys()
+    flagged = for feature <- @features, flag(stored[key(feature.id)], feature.default), do: feature.id
 
-    for feature <- @features, flag(stored[key(feature.id)], feature.default), into: MapSet.new() do
-      feature.id
+    for feature <- @features, on?(feature, flagged), into: MapSet.new(), do: feature.id
+  end
+
+  defp on?(nil, _flagged), do: false
+  defp on?(%Feature{id: id, requires: nil}, flagged), do: id in flagged
+  defp on?(%Feature{id: id, requires: requires}, flagged), do: id in flagged and on?(get(requires), flagged)
+
+  @doc """
+  The features a reader can switch, given the enabled set: every feature
+  that requires nothing, and one that requires another while that one is
+  on. The Feature flags section lists these.
+  """
+  @spec available(MapSet.t(atom())) :: [Feature.t()]
+  def available(enabled) do
+    Enum.filter(@features, &(&1.requires == nil or MapSet.member?(enabled, &1.requires)))
+  end
+
+  @doc "Turns the feature on, and before it whatever it requires."
+  @spec turn_on(atom()) :: :ok
+  def turn_on(id) when id in @ids do
+    case get(id).requires do
+      nil -> :ok
+      requires -> turn_on(requires)
     end
+
+    set(id, true)
+    :ok
   end
 
   @doc """

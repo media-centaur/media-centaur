@@ -270,19 +270,25 @@ defmodule MediaCentaurWeb.SearchLive.ShelvesTest do
     end
   end
 
-  describe "empty_reason/3" do
+  describe "empty_reason/4" do
     test "TMDB never configured is the capability gap, whatever else holds" do
-      assert Shelves.empty_reason(false, true, 0) == :tmdb_unconfigured
-      assert Shelves.empty_reason(false, false, 3) == :tmdb_unconfigured
+      assert Shelves.empty_reason(false, true, true, 0) == :tmdb_unconfigured
+      assert Shelves.empty_reason(false, false, false, 3) == :tmdb_unconfigured
     end
 
-    test "with tiles there is no reason" do
-      assert Shelves.empty_reason(true, false, 1) == nil
+    test "a page with tiles has no reason" do
+      assert Shelves.empty_reason(true, false, true, 1) == nil
+      assert Shelves.empty_reason(true, true, false, 1) == nil
     end
 
-    test "nothing to show says whether TMDB is down or the first refresh has not run" do
-      assert Shelves.empty_reason(true, false, 0) == :tmdb_down
-      assert Shelves.empty_reason(true, true, 0) == :filling
+    test "with new releases on, an empty page waits on TMDB or the first refresh" do
+      assert Shelves.empty_reason(true, false, true, 0) == :tmdb_down
+      assert Shelves.empty_reason(true, true, true, 0) == :filling
+    end
+
+    test "with new releases off, an empty page is search alone" do
+      assert Shelves.empty_reason(true, true, false, 0) == :search_only
+      assert Shelves.empty_reason(true, false, false, 0) == :search_only
     end
   end
 
@@ -295,6 +301,7 @@ defmodule MediaCentaurWeb.SearchLive.ShelvesTest do
       assert Shelves.reloads?({:activity_received, %{}})
       assert Shelves.reloads?({:activity_deleted, %{}})
       assert Shelves.reloads?({:setting_changed, "feature:social", %{}})
+      assert Shelves.reloads?({:setting_changed, "feature:new_releases", %{}})
       refute Shelves.reloads?({:setting_changed, "feature:apps", %{}})
       assert Shelves.reloads?({:integration_availability_changed, :tmdb, :up})
       refute Shelves.reloads?({:integration_availability_changed, :prowlarr, :up})

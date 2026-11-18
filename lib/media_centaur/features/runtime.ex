@@ -8,7 +8,8 @@ defmodule MediaCentaur.Features.Runtime do
   application composes the lists; this module knows no feature by name).
   Each feature is one `MediaCentaur.FlagSupervisor` under this Supervisor,
   its flag `Features.enabled?/1`, its cue the `{:setting_changed, _, _}`
-  broadcast of its own key; the FlagSupervisor reads the flag at start and
+  broadcast of any feature's key — a feature that requires another follows
+  that one's flag too; the FlagSupervisor reads the flag at start and
   on each cue, the same mechanism the service start flags use.
 
   `reconcile/1` re-reads every flag now, for a caller that needs the tree
@@ -44,13 +45,11 @@ defmodule MediaCentaur.Features.Runtime do
   def init(opts) do
     children =
       for {id, children} <- Keyword.get(opts, :runtimes, %{}) do
-        key = Features.key(id)
-
         Supervisor.child_spec(
           {FlagSupervisor,
            flag: fn -> Features.enabled?(id) end,
            subscribe: &Settings.subscribe/0,
-           relevant?: &match?({:setting_changed, ^key, _value}, &1),
+           relevant?: &feature_flag_change?/1,
            children: children,
            label: "the #{id} feature's processes"},
           id: id
@@ -59,6 +58,9 @@ defmodule MediaCentaur.Features.Runtime do
 
     Supervisor.init(children, strategy: :one_for_one)
   end
+
+  defp feature_flag_change?({:setting_changed, key, _value}) when is_binary(key), do: Features.feature_key?(key)
+  defp feature_flag_change?(_message), do: false
 
   @doc "Re-reads every feature's flag and starts or stops its runtime to match."
   @spec reconcile(Supervisor.supervisor()) :: :ok

@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.SearchLive do
   `discovery.md`) — the second assembled page, shelved like Home, and the
   *choose* stage of a title's life (UIDR-057). An optional feature
   (ADR-081), on by default: its sidebar entry, this page and its shelf
-  refresh exist while the `:discovery` flag is on, and the page is its off
+  refresh exist while the `:acquisition` flag is on, and the page is its off
   state otherwise.
 
   **Media search** lives at the top of the page (UIDR-014, amended
@@ -42,9 +42,13 @@ defmodule MediaCentaurWeb.SearchLive do
   (`Shelves.reloads?/1`). The verbs on a tile, the hero and media search
   are later milestones of the campaign.
 
-  Empty, the page says why (UIDR-034, `Shelves.empty_reason/3`): TMDB
+  The New Releases shelf and the hero exist while the `:new_releases`
+  feature is on; off, the page is the field and the other shelves.
+
+  Empty, the page says why (UIDR-034, `Shelves.empty_reason/4`): TMDB
   never configured is the capability gap with the one action; TMDB down
-  with nothing stored, or the first refresh still to run, each say so.
+  with nothing stored, or the first refresh still to run, each say so;
+  with new releases off the page says search is what it offers.
 
   Input: `data-nav-default-zone="search"` selects the `search`
   layout — one SHELF zone per shelf, as on Home; no page behaviour until
@@ -113,7 +117,7 @@ defmodule MediaCentaurWeb.SearchLive do
   defp ensure_loaded(%{assigns: %{loaded?: true}} = socket), do: socket
 
   defp ensure_loaded(socket) do
-    if :discovery in socket.assigns.features,
+    if :acquisition in socket.assigns.features,
       do: socket |> assign(:loaded?, true) |> load_shelves(),
       else: socket
   end
@@ -124,7 +128,8 @@ defmodule MediaCentaurWeb.SearchLive do
   # acquisition states and the friends' activity rows.
   defp load_shelves(socket) do
     today = socket.assigns.today
-    members = NewReleases.members()
+    new_releases? = :new_releases in socket.assigns.features
+    members = if new_releases?, do: NewReleases.members(), else: []
     member_refs = Enum.map(members, &Member.ref/1)
     listed = Watchlist.list_watchlist()
     listed_refs = Enum.map(listed, &{&1.intent.tmdb_id, &1.intent.media_type})
@@ -186,7 +191,12 @@ defmodule MediaCentaurWeb.SearchLive do
         %{label: "Coming Up", items: watchlist.coming_up}
       ],
       empty_reason:
-        Shelves.empty_reason(socket.assigns.tmdb_ready, IntegrationAvailability.up?(:tmdb), tiles)
+        Shelves.empty_reason(
+          socket.assigns.tmdb_ready,
+          IntegrationAvailability.up?(:tmdb),
+          new_releases?,
+          tiles
+        )
     )
   end
 
@@ -254,15 +264,15 @@ defmodule MediaCentaurWeb.SearchLive do
         <PlanHost.overlay plan={@plan} disclosures={@disclosures} armed_gesture={@armed_gesture} />
       </:overlays>
       <FeatureOff.feature_off
-        :if={:discovery not in @features}
+        :if={:acquisition not in @features}
         id="search-off"
-        feature={Features.get(:discovery)}
+        feature={Features.get(:acquisition)}
       />
       <%!-- The modal's params are modal state: stripped from the remembered
             URL so leaving the page closes the modal rather than reopening
             it on return. --%>
       <div
-        :if={:discovery in @features}
+        :if={:acquisition in @features}
         class="relative"
         data-page-behavior="search"
         data-nav-default-zone="search"
@@ -439,6 +449,19 @@ defmodule MediaCentaurWeb.SearchLive do
             <:action>
               <.button variant="primary" size="sm" navigate={~p"/settings?section=tmdb"}>
                 Add a TMDB key
+              </.button>
+            </:action>
+          </.empty_state>
+          <.empty_state
+            :if={@empty_reason == :search_only}
+            id="search-empty"
+            icon="hero-magnifying-glass"
+            headline="Find a film or series by name"
+          >
+            Type a name in the field above. The titles on your watchlist appear here as they come out. New releases are switched off.
+            <:action>
+              <.button variant="secondary" size="sm" navigate={~p"/settings?section=features"}>
+                Feature Flags
               </.button>
             </:action>
           </.empty_state>

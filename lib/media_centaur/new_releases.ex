@@ -25,7 +25,7 @@ defmodule MediaCentaur.NewReleases do
   on `Topics.new_releases_updates/0`) and then ensures each member's
   record and artwork in shelf order through `TmdbArtwork.ensure/2`, the
   one first contact (`Store.ensure/2` beneath it). `RefreshJob` carries
-  it; `Scheduler`, the `:discovery` feature's runtime child, enqueues the job
+  it; `Scheduler`, the `:new_releases` feature's runtime child, enqueues the job
   when the runtime starts and daily after that, so nothing of the shelf's
   runs while the feature is off (ADR-081). Opening the page reads
   `members/0` and the store only.

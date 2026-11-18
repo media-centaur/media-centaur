@@ -552,7 +552,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     end
 
     test "with Search off the button goes to the library", %{conn: conn} do
-      Features.set(:discovery, false)
+      Features.set(:acquisition, false)
       {:ok, view, _html} = live_async!(conn, "/watchlist")
 
       assert has_element?(view, "#watchlist-empty a[href='/library']", "Browse the library")

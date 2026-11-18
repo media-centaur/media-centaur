@@ -145,7 +145,7 @@ defmodule MediaCentaurWeb.Layouts do
           <%!-- Search: the titles you do not own yet (UIDR-057); an
                 optional feature, on by default (ADR-081). --%>
           <SidebarLink.sidebar_link
-            :if={:discovery in @features}
+            :if={:acquisition in @features}
             id="sidebar-search"
             navigate="/search"
             label="Search"

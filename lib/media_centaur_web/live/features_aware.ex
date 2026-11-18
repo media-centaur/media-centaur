@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Live.FeaturesAware do
         {:halt, socket}
 
       feature ->
-        Features.set(feature.id, true)
+        Features.turn_on(feature.id)
         {:halt, push_navigate(socket, to: socket.assigns.page_path)}
     end
   end

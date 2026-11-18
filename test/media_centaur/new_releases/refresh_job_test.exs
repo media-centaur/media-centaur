@@ -33,7 +33,7 @@ defmodule MediaCentaur.NewReleases.RefreshJobTest do
   end
 
   test "while the feature is off a run already waiting does nothing" do
-    Features.set(:discovery, false)
+    Features.set(:new_releases, false)
 
     assert :ok = perform()
     refute_receive {:tmdb_hit, _path}

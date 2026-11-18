@@ -706,7 +706,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
             :if={@prowlarr_ready && @zone == :release_search}
             session={@search_session}
             any_loading?={@any_loading?}
-            media_search?={:discovery in @features}
+            media_search?={:acquisition in @features}
           />
 
           <%!-- The search answers flat, in its tab (UIDR-014, UIDR-060): the
@@ -849,7 +849,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
             class="py-10 text-center text-sm text-base-content/55"
           >
             Nothing in flight — approved plans and their downloads appear here.
-            <span :if={:discovery in @features}>
+            <span :if={:acquisition in @features}>
               Find something to watch on <.link navigate={~p"/search"} class="link link-primary">Search</.link>.
             </span>
           </p>

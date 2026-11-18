@@ -5,7 +5,7 @@ defmodule MediaCentaur.NewReleases.TmdbReferences do
   on the shelf, and its checks are scheduled — the check job is the net
   for a refresh TMDB held mid-run. A member that leaves the shelf is
   swept by the first daily retention sweep that finds it unreferenced
-  with its last fetch over seven days old. While the `:discovery` feature is
+  with its last fetch over seven days old. While the `:new_releases` feature is
   off the shelf holds nothing for the app (ADR-081): the provider answers
   an empty set and the stored membership waits for the flag.
   """
@@ -16,7 +16,7 @@ defmodule MediaCentaur.NewReleases.TmdbReferences do
 
   @impl true
   def references do
-    if Features.enabled?(:discovery), do: MapSet.new(NewReleases.refs()), else: MapSet.new()
+    if Features.enabled?(:new_releases), do: MapSet.new(NewReleases.refs()), else: MapSet.new()
   end
 
   @impl true

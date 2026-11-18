@@ -36,9 +36,10 @@ defmodule MediaCentaurWeb.SearchLive.Shelves do
   @typedoc """
   Why the page is empty: TMDB never configured (the capability gap,
   UIDR-034), TMDB down with nothing stored yet, the first refresh still
-  to run; nil when there is something to show.
+  to run, or new releases switched off, which leaves the search field as
+  what the page offers; nil when there is something to show.
   """
-  @type empty_reason :: :tmdb_unconfigured | :tmdb_down | :filling | nil
+  @type empty_reason :: :tmdb_unconfigured | :tmdb_down | :filling | :search_only | nil
 
   @doc """
   The New Releases shelf: one poster tile per member in shelf order, from
@@ -286,13 +287,16 @@ defmodule MediaCentaurWeb.SearchLive.Shelves do
   @doc """
   The diagnosed reason the page is empty, from whether TMDB is configured
   (`Capabilities.tmdb_ready?/0`), whether it is up
-  (`IntegrationAvailability.up?/1`) and how many tiles the page has.
+  (`IntegrationAvailability.up?/1`), whether the new releases feature is
+  on, and how many tiles the page has. With new releases off nothing is on
+  its way, so TMDB's state does not explain the empty page.
   """
-  @spec empty_reason(boolean(), boolean(), non_neg_integer()) :: empty_reason()
-  def empty_reason(false, _up?, _tiles), do: :tmdb_unconfigured
-  def empty_reason(true, _up?, tiles) when tiles > 0, do: nil
-  def empty_reason(true, false, 0), do: :tmdb_down
-  def empty_reason(true, true, 0), do: :filling
+  @spec empty_reason(boolean(), boolean(), boolean(), non_neg_integer()) :: empty_reason()
+  def empty_reason(false, _up?, _new_releases?, _tiles), do: :tmdb_unconfigured
+  def empty_reason(true, _up?, _new_releases?, tiles) when tiles > 0, do: nil
+  def empty_reason(true, _up?, false, 0), do: :search_only
+  def empty_reason(true, false, true, 0), do: :tmdb_down
+  def empty_reason(true, true, true, 0), do: :filling
 
   @doc """
   Whether a broadcast changes what the shelves show: the membership, a
@@ -311,6 +315,7 @@ defmodule MediaCentaurWeb.SearchLive.Shelves do
   def reloads?({:activity_sent, _event}), do: true
   def reloads?({:activity_deleted, _event}), do: true
   def reloads?({:setting_changed, "feature:social", _value}), do: true
+  def reloads?({:setting_changed, "feature:new_releases", _value}), do: true
   def reloads?({:integration_availability_changed, :tmdb, _state}), do: true
   def reloads?(_message), do: false
 end

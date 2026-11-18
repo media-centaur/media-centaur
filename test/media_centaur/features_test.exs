@@ -72,6 +72,49 @@ defmodule MediaCentaur.FeaturesTest do
       assert_receive {:setting_changed, "feature:apps", %{"enabled" => true}}
     end
 
+    test "a feature that requires another is on only while that one is on" do
+      assert Features.get(:new_releases).requires == :acquisition
+      assert Features.get(:local_api).requires == :acquisition
+      assert Features.enabled?(:new_releases)
+
+      Features.set(:acquisition, false)
+
+      refute Features.enabled?(:new_releases)
+      refute MapSet.member?(Features.enabled(), :new_releases)
+
+      Features.set(:acquisition, true)
+      assert Features.enabled?(:new_releases)
+      assert MapSet.member?(Features.enabled(), :new_releases)
+    end
+
+    test "every requirement names a registered feature" do
+      for %Feature{requires: requires} <- Features.all(), requires != nil do
+        assert %Feature{} = Features.get(requires)
+      end
+    end
+
+    test "available/1 lists a feature only while what it requires is on" do
+      ids = fn -> Features.enabled() |> Features.available() |> Enum.map(& &1.id) end
+      assert :new_releases in ids.()
+      assert :acquisition in ids.()
+
+      Features.set(:acquisition, false)
+
+      assert :acquisition in ids.()
+      refute :new_releases in ids.()
+      refute :local_api in ids.()
+    end
+
+    test "turn_on/1 turns on the feature and what it requires" do
+      Features.set(:acquisition, false)
+      Features.set(:local_api, false)
+
+      Features.turn_on(:local_api)
+
+      assert Features.enabled?(:acquisition)
+      assert Features.enabled?(:local_api)
+    end
+
     test "set/2 refuses an unknown feature" do
       assert_raise ArgumentError, fn -> Features.set(:not_a_feature, true) end
     end

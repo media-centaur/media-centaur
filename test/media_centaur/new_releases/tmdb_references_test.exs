@@ -10,14 +10,14 @@ defmodule MediaCentaur.NewReleases.TmdbReferencesTest do
   end
 
   test "every member is a scheduled reference while the feature is on" do
-    assert Features.enabled?(:discovery)
+    assert Features.enabled?(:new_releases)
 
     assert TmdbReferences.references() == MapSet.new([{301, :movie}])
     assert TmdbReferences.schedules_checks?()
   end
 
   test "while the feature is off the shelf references nothing" do
-    Features.set(:discovery, false)
+    Features.set(:new_releases, false)
     assert TmdbReferences.references() == MapSet.new()
   end
 end

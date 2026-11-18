@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.SettingsLive.FeatureFlags do
   @moduledoc """
   The Feature flags section of the Settings page (ADR-081): one toggle row
-  per feature in the registry (`MediaCentaur.Features.all/0`), in its
-  order. The label is the feature's name, the description its one line —
+  per feature a reader can switch (`MediaCentaur.Features.available/1`:
+  the registry, less a feature whose requirement is off), in its order. The label is the feature's name, the description its one line —
   with "In development." after it for a feature at that stage, which is
   what tells a reader why a default-off row exists. `SettingsLive`
   delegates to `render/1` and hosts the `toggle_feature` handler.
@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.SettingsLive.FeatureFlags do
     <.settings_card title="Features" data-nav-grid>
       <div class="space-y-0.5">
         <.settings_row
-          :for={feature <- Features.all()}
+          :for={feature <- Features.available(@features)}
           label={feature.name}
           description={description(feature)}
           checked={feature.id in @features}

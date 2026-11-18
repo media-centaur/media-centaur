@@ -30,22 +30,23 @@ defmodule MediaCentaurWeb.SearchLiveTest do
 
     test "off: no sidebar entry, and the page is its off state with Turn on",
          %{conn: conn} do
-      Features.set(:discovery, false)
+      Features.set(:acquisition, false)
 
       {:ok, view, _html} = live(conn, "/search")
       refute has_element?(view, "[data-tip='Search']")
       assert has_element?(view, "#search-off")
-      assert render(view) =~ "Search is off"
+      assert render(view) =~ "Search and download is off"
 
       view |> element("#search-off-turn-on") |> render_click()
-      assert Features.enabled?(:discovery)
+      assert Features.enabled?(:acquisition)
     end
 
     test "the Feature flags row lists it as optional, on", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/settings?section=features")
-      assert html =~ "Search"
+      assert html =~ "Search and download"
+      assert html =~ "New releases"
 
-      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(MediaCentaur.Features.get(:discovery)) =~
+      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(MediaCentaur.Features.get(:acquisition)) =~
                "In development."
     end
   end
@@ -220,6 +221,44 @@ defmodule MediaCentaurWeb.SearchLiveTest do
 
       {:ok, _view, html} = live(conn, "/search")
       assert html =~ "New releases arrive when TMDB is back"
+    end
+  end
+
+  describe "new releases off (ADR-081)" do
+    setup do
+      TmdbStubs.mark_ready!()
+      Features.set(:new_releases, false)
+      :ok
+    end
+
+    test "the page keeps its search field and draws no New Releases shelf or hero", %{conn: conn} do
+      store_movie(901, "Movie A")
+      :ok = NewReleases.replace([digital(901)])
+
+      {:ok, view, html} = live(conn, "/search")
+
+      assert has_element?(view, "#omnibox-media-input")
+      refute has_element?(view, "[data-row='new-releases']")
+      refute has_element?(view, "[data-nav-zone='hero']")
+      refute html =~ "Movie A"
+    end
+
+    test "with nothing else to show, the page says search is what it offers", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/search")
+
+      assert has_element?(view, "#search-empty a[href='/settings?section=features']")
+      assert html =~ "Find a film or series by name"
+      refute html =~ "New releases are on their way"
+    end
+
+    test "turning new releases on brings the shelf back", %{conn: conn} do
+      store_movie(901, "Movie A")
+      :ok = NewReleases.replace([digital(901)])
+      {:ok, view, _html} = live(conn, "/search")
+
+      Features.set(:new_releases, true)
+
+      assert render_until(view, "Movie A") =~ "Movie A"
     end
   end
 
