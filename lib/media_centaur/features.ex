@@ -65,16 +65,14 @@ defmodule MediaCentaur.Features do
     %Feature{
       id: :acquisition,
       name: "Downloads",
-      description:
-        "The Downloads page, the Download button on a title, and automatic downloads of the titles you follow. Needs Prowlarr.",
+      description: "Enables the user-interface for downloading. Requires Prowlarr in settings.",
       default: true,
       stage: :optional
     },
     %Feature{
       id: :new_releases,
       name: "New releases on Search",
-      description:
-        "Fetches the films newly out to stream, rent or buy once a day, for the Search page's New Releases shelf.",
+      description: "Regularly fetches new film releases for the search page's New Release shelf.",
       default: true,
       stage: :optional
     },
